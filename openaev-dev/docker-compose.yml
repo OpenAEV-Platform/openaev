@@ -1,49 +1,77 @@
 services:
-  ###########################
-  # DEPENDENCIES            #
-  ###########################
-  # Generate RSA key for xtm-composer (PKCS#8 format)
-  rsa-key-generator:
-    image: alpine/openssl:3.5.5
-    volumes:
-      - rsakeys:/keys
-    entrypoint: ["/bin/ash"]
-    command: ["-c", "if [ ! -f /keys/private_key.pem ]; then openssl genpkey -algorithm RSA -out /keys/private_key.pem -pkeyopt rsa_keygen_bits:4096; fi && tail -f /dev/null"]
-    healthcheck:
-      test: ["CMD", "test", "-f", "/keys/private_key.pem"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    restart: always
-  redis:
-    image: redis:8.6.1
-    restart: always
+
+  # ===========================================================================
+  #  MANDATORY SERVICES — Required to run OpenAEV locally
+  #  Start with: podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+  # ===========================================================================
+
+  # Development PostgreSQL database (persistent storage)
+  openaev-dev-pgsql:
+    container_name: openaev-dev-pgsql
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: openaev
     ports:
-      - "6379:6379"
+      - "5432:5432"
+    restart: unless-stopped
     volumes:
-      - redisdata:/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
       interval: 10s
       timeout: 5s
+      retries: 5
+  # MinIO object storage (S3-compatible)
+  # API: http://localhost:10000, Console: http://localhost:10001
+  # Credentials: minioadmin/minioadmin
+  openaev-dev-minio:
+    container_name: openaev-dev-minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    ports:
+      - "10000:9000"
+      - "10001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
       retries: 3
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.12
+    restart: unless-stopped
+  # RabbitMQ message queue with management UI (default credentials: guest/guest)
+  openaev-dev-rabbitmq:
+    container_name: openaev-dev-rabbitmq
+    image: rabbitmq:4.3-management
+    restart: unless-stopped
+    volumes:
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  # Development Elasticsearch (persistent storage)
+  openaev-dev-elasticsearch:
+    container_name: openaev-dev-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
     volumes:
       - esdata:/usr/share/elasticsearch/data
+      - essnapshots:/usr/share/elasticsearch/snapshots
     environment:
-      # Comment-out the line below for a cluster of multiple nodes
       - discovery.type=single-node
-      # Uncomment the line below below for a cluster of multiple nodes
-      # - cluster.name=docker-cluster
       - xpack.ml.enabled=false
       - xpack.security.enabled=false
-      - thread_pool.search.queue_size=5000
-      - logger.org.elasticsearch.discovery="ERROR"
-      - "ES_JAVA_OPTS=-Xms${ELASTIC_MEMORY_SIZE} -Xmx${ELASTIC_MEMORY_SIZE}"
-    ports:
-      - "9200:9200"
-    restart: always
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
+      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+    restart: unless-stopped
     ulimits:
       memlock:
         soft: -1
@@ -51,445 +79,224 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    ports:
+      - 9200:9200
+      - 9300:9300
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://elasticsearch:9200/_cluster/health?wait_for_status=yellow >/dev/null || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 50
-  pgsql:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===========================================================================
+  #  OPTIONAL SERVICES — For testing, tooling, or alternative engines
+  #  These are NOT required for day-to-day backend/frontend development.
+  # ===========================================================================
+
+  # Test PostgreSQL database (ephemeral - no volume for clean test runs)
+  openaev-test-pgsql:
+    container_name: openaev-test-pgsql
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: openaev
-    volumes:
-      - pgsqldata:/var/lib/postgresql/data
-    restart: always
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openaev" ]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openaev"]
       interval: 10s
       timeout: 5s
       retries: 5
-  minio:
+  # Test MinIO object storage (S3-compatible)
+  openaev-test-minio:
+    container_name: openaev-test-minio
     image: minio/minio:RELEASE.2025-06-13T11-33-47Z
-    volumes:
-      - s3data:/data
     ports:
-      - "9000:9000"
+      - "11000:9000"
+      - "11001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    command: server /data
-    restart: always
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+  # Development OpenSearch (alternative to Elasticsearch, persistent storage)
+  # NOTE: OpenSearch and Elasticsearch both use port 9200 by default internally.
+  # OpenSearch is mapped to external port 9202 to avoid conflicts.
+  # You typically only need to run one search engine at a time.
+  openaev-dev-opensearch:
+    container_name: openaev-dev-opensearch
+    image: opensearchproject/opensearch:3.6.0
+    volumes:
+      - osdata:/usr/share/opensearch/data
+      - ossnapshots:/usr/share/opensearch/snapshots
+    environment:
+      - discovery.type=single-node
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
+      - "OPENSEARCH_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9202:9200
+      - 9600:9600
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  # Test Elasticsearch (ephemeral - no volume for clean test runs)
+  openaev-test-elasticsearch:
+    container_name: openaev-test-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
+    environment:
+      - discovery.type=single-node
+      - xpack.ml.enabled=false
+      - xpack.security.enabled=false
+      # -XX:UseSVE=0 is necessary for Apple Silicon architecture (M1/M2/M3/M4)
+      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - 9201:9200
+      - 9301:9300
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  # pgAdmin - PostgreSQL management UI
+  # Default credentials: see PGADMIN_USER/PGADMIN_PASSWORD in .env
+  openaev-dev-pgadmin:
+    image: dpage/pgadmin4
+    container_name: openaev-dev-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    depends_on:
+      openaev-dev-pgsql:
+        condition: service_healthy
+  # Kibana - Elasticsearch UI for development
+  openaev-dev-kibana:
+    container_name: openaev-dev-kibana
+    image: docker.elastic.co/kibana/kibana:8.19.15
+    environment:
+      - ELASTICSEARCH_HOSTS=http://openaev-dev-elasticsearch:9200
+    restart: unless-stopped
+    ports:
+      - 5601:5601
+    depends_on:
+      openaev-dev-elasticsearch:
+        condition: service_healthy
+  # Kibana - Elasticsearch UI for testing
+  openaev-test-kibana:
+    container_name: openaev-test-kibana
+    image: docker.elastic.co/kibana/kibana:8.19.15
+    environment:
+      - ELASTICSEARCH_HOSTS=http://openaev-test-elasticsearch:9200
+    restart: unless-stopped
+    ports:
+      - 5602:5601
+    depends_on:
+      openaev-test-elasticsearch:
+        condition: service_healthy
+  # RSA key generator & XTM Composer (needed only for injector integration testing)
+  rsa-key-generator:
+    container_name: rsa-key-generator
+    image: alpine/openssl:3.5.6
+    volumes:
+      - rsakeys:/keys
+    entrypoint: [ "/bin/ash" ]
+    command: [ "-c", "if [ ! -f /keys/private_key.pem ]; then openssl genpkey -algorithm RSA -out /keys/private_key.pem -pkeyopt rsa_keygen_bits:4096; fi && tail -f /dev/null" ]
+    healthcheck:
+      test: [ "CMD", "test", "-f", "/keys/private_key.pem" ]
       interval: 10s
       timeout: 5s
       retries: 3
-  rabbitmq:
-    image: rabbitmq:4.2-management
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
-      - RABBITMQ_NODENAME=rabbit01@localhost
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - type: bind
-        source: ./rabbitmq.conf
-        target: /etc/rabbitmq/rabbitmq.conf
-      - amqpdata:/var/lib/rabbitmq
     restart: always
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 30s
-      timeout: 30s
-      retries: 3
-  ###########################
-  # COMMON                  #
-  ###########################
   xtm-composer:
+    container_name: xtm-composer
     image: filigran/xtm-composer:latest
     platform: linux/amd64
+    network_mode: host # allow connecting to non docker local instance
     environment:
       - MANAGER__ID=${XTM_COMPOSER_ID}
-      - MANAGER__NAME=OpenCTI Connector Manager
+      - "MANAGER__NAME=XTM Integrations Manager"
       - MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem
-      - OPENCTI__ENABLE=true
-      - OPENCTI__URL=http://opencti:8080
-      - OPENCTI__TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - OPENCTI__DAEMON__SELECTOR=docker
-      - OPENCTI__DAEMON__DOCKER__NETWORK_MODE=${COMPOSE_PROJECT_NAME}_default
       - OPENAEV__ENABLE=true
-      - OPENAEV__URL=http://openaev:8080
+      - OPENCTI__ENABLE=false
+      - OPENAEV__URL=${OPENAEV_URL:-http://localhost:8080}
       - OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN}
       - OPENAEV__DAEMON__SELECTOR=docker
-      - OPENAEV__DAEMON__DOCKER__NETWORK_MODE=${COMPOSE_PROJECT_NAME}_default
+      # Workaround: pending https://github.com/FiligranHQ/xtm-composer/issues/64,
+      # use OPENCTI__ keys to customise the docker daemon
+      - OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host
+      # Provision the equivalent OPENAEV__ key for when this is fixed
+      - OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - rsakeys:/keys:ro  # RSA key mounted as read-only
     depends_on:
       rsa-key-generator:
         condition: service_healthy
-      opencti:
-        condition: service_healthy
-      rabbitmq:
+      openaev-dev-rabbitmq:
         condition: service_healthy
     restart: always
-  ###########################
-  # OPENCTI                 #
-  ###########################
-  opencti:
-    image: opencti/platform:latest
-    environment:
-      - NODE_OPTIONS=--max-old-space-size=8096
-      - APP__PORT=8080
-      - APP__BASE_URL=${OPENCTI_EXTERNAL_SCHEME}://${OPENCTI_HOST}:${OPENCTI_PORT}
-      - APP__ADMIN__EMAIL=${OPENCTI_ADMIN_EMAIL}
-      - APP__ADMIN__PASSWORD=${OPENCTI_ADMIN_PASSWORD}
-      - APP__ADMIN__TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - APP__ENCRYPTION_KEY=${OPENCTI_ENCRYPTION_KEY}
-      - APP__APP_LOGS__LOGS_LEVEL=error
-      - REDIS__HOSTNAME=redis
-      - REDIS__PORT=6379
-      - ELASTICSEARCH__URL=http://elasticsearch:9200
-      - ELASTICSEARCH__NUMBER_OF_REPLICAS=0
-      - MINIO__ENDPOINT=minio
-      - MINIO__PORT=9000
-      - MINIO__USE_SSL=false
-      - MINIO__ACCESS_KEY=${MINIO_ROOT_USER}
-      - MINIO__SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - RABBITMQ__HOSTNAME=rabbitmq
-      - RABBITMQ__PORT=5672
-      - RABBITMQ__PORT_MANAGEMENT=15672
-      - RABBITMQ__MANAGEMENT_SSL=false
-      - RABBITMQ__USERNAME=${RABBITMQ_DEFAULT_USER}
-      - RABBITMQ__PASSWORD=${RABBITMQ_DEFAULT_PASS}
-      - SMTP__HOSTNAME=${SMTP_HOST}
-      - SMTP__PORT=25
-      - PROVIDERS__LOCAL__STRATEGY=LocalStrategy
-      - APP__HEALTH_ACCESS_KEY=${OPENCTI_HEALTHCHECK_ACCESS_KEY}
-      # OpenAEV
-      - XTM__OPENAEV_URL=${OPENAEV_EXTERNAL_SCHEME}://${OPENAEV_HOST}:${OPENAEV_PORT}
-      - XTM__OPENAEV_API_URL=http://openaev:8080
-      - XTM__OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-    ports:
-      - "${OPENCTI_PORT}:8080"
-    depends_on:
-      redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: always
-    healthcheck:
-      test:  ["CMD", "wget", "-qO-", "http://opencti:8080/health?health_access_key=${OPENCTI_HEALTHCHECK_ACCESS_KEY}"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-  worker:
-    image: opencti/worker:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-    depends_on:
-      opencti:
-        condition: service_healthy
-    deploy:
-      mode: replicated
-      replicas: 3
-    restart: always
-  ###########################
-  # OPENCTI CONNECTORS      #
-  ###########################
-  connector-export-file-stix:
-    image: opencti/connector-export-file-stix:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_EXPORT_FILE_STIX_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_EXPORT_FILE
-      - CONNECTOR_NAME=ExportFileStix2
-      - CONNECTOR_SCOPE=application/json
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-export-file-csv:
-    image: opencti/connector-export-file-csv:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_EXPORT_FILE_CSV_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_EXPORT_FILE
-      - CONNECTOR_NAME=ExportFileCsv
-      - CONNECTOR_SCOPE=text/csv
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-export-file-txt:
-    image: opencti/connector-export-file-txt:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_EXPORT_FILE_TXT_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_EXPORT_FILE
-      - CONNECTOR_NAME=ExportFileTxt
-      - CONNECTOR_SCOPE=text/plain
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-import-file-stix:
-    image: opencti/connector-import-file-stix:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_IMPORT_FILE_STIX_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_IMPORT_FILE
-      - CONNECTOR_NAME=ImportFileStix
-      - CONNECTOR_VALIDATE_BEFORE_IMPORT=true # Validate any bundle before import
-      - CONNECTOR_SCOPE=application/json,text/xml
-      - CONNECTOR_AUTO=true # Enable/disable auto-import of file
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-import-document:
-    image: opencti/connector-import-document:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_IMPORT_DOCUMENT_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_IMPORT_FILE
-      - CONNECTOR_NAME=ImportDocument
-      - CONNECTOR_VALIDATE_BEFORE_IMPORT=true # Validate any bundle before import
-      - CONNECTOR_SCOPE=application/pdf,text/plain,text/html
-      - CONNECTOR_AUTO=true # Enable/disable auto-import of file
-      - CONNECTOR_ONLY_CONTEXTUAL=false # Only extract data related to an entity (a report, a threat actor, etc.)
-      - IMPORT_DOCUMENT_CREATE_INDICATOR=true
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-import-file-yara:
-    image: opencti/connector-import-file-yara:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_IMPORT_FILE_YARA_ID} # Valid UUIDv4
-      - CONNECTOR_NAME=ImportFileYARA
-      - CONNECTOR_VALIDATE_BEFORE_IMPORT=true # Validate any bundle before import
-      - CONNECTOR_SCOPE=text/yara+plain
-      - CONNECTOR_AUTO=false # Enable/disable auto-import of file
-      - YARA_IMPORT_FILE_SPLIT_RULES=true
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-analysis:
-    image: opencti/connector-import-document:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_ANALYSIS_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_ANALYSIS
-      - CONNECTOR_NAME=ImportDocumentAnalysis
-      - CONNECTOR_VALIDATE_BEFORE_IMPORT=false # Validate any bundle before import
-      - CONNECTOR_SCOPE=application/pdf,text/plain,text/html
-      - CONNECTOR_AUTO=true # Enable/disable auto-import of file
-      - CONNECTOR_ONLY_CONTEXTUAL=false # Only extract data related to an entity (a report, a threat actor, etc.)
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-import-external-reference:
-    image: opencti/connector-import-external-reference:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_IMPORT_EXTERNAL_REFERENCE_ID}
-      - CONNECTOR_NAME=ImportExternalReference
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  ###########################
-  # OPENCTI DEFAULT DATA    #
-  ###########################
-  connector-opencti:
-    image: opencti/connector-opencti:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_OPENCTI_ID}
-      - "CONNECTOR_NAME=OpenCTI Datasets"
-      - CONNECTOR_SCOPE=marking-definition,identity,location
-      - CONNECTOR_AUTO_CREATE_SERVICE_ACCOUNT=true
-      - CONNECTOR_AUTO_CREATE_SERVICE_ACCOUNT_CONFIDENCE_LEVEL=100
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  connector-mitre:
-    image: opencti/connector-mitre:latest
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_MITRE_ID}
-      - CONNECTOR_AUTO_CREATE_SERVICE_ACCOUNT=true
-      - CONNECTOR_AUTO_CREATE_SERVICE_ACCOUNT_CONFIDENCE_LEVEL=75
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
-  ###########################
-  # OPENAEV                 #
-  ###########################
-  openaev:
-    image: openaev/platform:latest
-    environment:
-      - OPENAEV_BASE-URL=${OPENAEV_EXTERNAL_SCHEME}://${OPENAEV_HOST}:${OPENAEV_PORT}
-      - OPENAEV_AUTH-LOCAL-ENABLE=true
-      - OPENAEV_ADMIN_EMAIL=${OPENAEV_ADMIN_EMAIL}
-      - OPENAEV_ADMIN_PASSWORD=${OPENAEV_ADMIN_PASSWORD}
-      - OPENAEV_ADMIN_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - OPENAEV_HEALTHCHECK_KEY=${OPENAEV_HEALTHCHECK_KEY:-ChangeMe}
-      - OPENAEV_ADMIN_ENCRYPTION_KEY=${OPENAEV_ADMIN_ENCRYPTION_KEY}
-      - OPENAEV_ADMIN_ENCRYPTION_SALT=${OPENAEV_ADMIN_ENCRYPTION_SALT}
-      - OPENAEV_EXTRA-TRUSTED-CERTS-DIR=/opt/openaev/additional_certs
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://pgsql:5432/openaev
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - MINIO_ENDPOINT=minio
-      - MINIO_ACCESS-KEY=${MINIO_ROOT_USER}
-      - MINIO_ACCESS-SECRET=${MINIO_ROOT_PASSWORD}
-      - OPENAEV_RABBITMQ_HOSTNAME=rabbitmq
-      - OPENAEV_RABBITMQ_USER=${RABBITMQ_DEFAULT_USER}
-      - OPENAEV_RABBITMQ_PASS=${RABBITMQ_DEFAULT_PASS}
-      - ENGINE_URL=http://elasticsearch:9200
-      - SPRING_MAIL_HOST=${SMTP_HOST}
-      - SPRING_MAIL_PORT=${SMTP_PORT}
-      - SPRING_MAIL_USERNAME=${SMTP_USERNAME}
-      - SPRING_MAIL_PASSWORD=${SMTP_PASSWORD}
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=${SMTP_AUTH}
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE=${SMTP_SSL_ENABLE}
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_TRUST=*
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=${SMTP_STARTTLS_ENABLE}
-      - OPENAEV_MAIL_IMAP_ENABLED=${OPENAEV_MAIL_IMAP_ENABLED}
-      - OPENAEV_MAIL_IMAP_HOST=${IMAP_HOST}
-      - OPENAEV_MAIL_IMAP_PORT=${IMAP_PORT}
-      - OPENAEV_MAIL_IMAP_USERNAME=${IMAP_USERNAME}
-      - OPENAEV_MAIL_IMAP_PASSWORD=${IMAP_PASSWORD}
-      - OPENAEV_MAIL_IMAP_AUTH=${IMAP_AUTH}
-      - OPENAEV_MAIL_IMAP_SSL_ENABLE=${IMAP_SSL_ENABLE}
-      - OPENAEV_MAIL_IMAP_SSL_TRUST=*
-      - OPENAEV_MAIL_IMAP_STARTTLS_ENABLE=${IMAP_STARTTLS_ENABLE}
-      # OpenCTI
-      - OPENAEV_XTM_OPENCTI_ENABLE=true
-      - OPENAEV_XTM_OPENCTI_URL=${OPENCTI_EXTERNAL_SCHEME}://${OPENCTI_HOST}:${OPENCTI_PORT}
-      - OPENAEV_XTM_OPENCTI_API_URL=http://opencti:8080
-      - OPENAEV_XTM_OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-    ports:
-      - "8081:8080" # If you change the host port (the left one) do not forget to update OPENAEV_BASE-URL in you .env
-    depends_on:
-      pgsql:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    restart: always
-    healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://openaev:8080/api/health?health_access_key=${OPENAEV_HEALTHCHECK_KEY}" ]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-  ###########################
-  # OPENAEV COLLECTORS      #
-  ###########################
-  collector-mitre-attack:
-    image: openaev/collector-mitre-attack:latest
-    environment:
-      - OPENAEV_URL=http://openaev:8080
-      - OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - COLLECTOR_ID=${COLLECTOR_MITRE_ATTACK_ID} # Valid UUIDv4
-      - "COLLECTOR_NAME=MITRE ATT&CK"
-    depends_on:
-      openaev:
-        condition: service_healthy
-    restart: always
-  collector-openaev:
-    image: openaev/collector-openaev:latest
-    environment:
-      - OPENAEV_URL=http://openaev:8080
-      - OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - COLLECTOR_ID=${COLLECTOR_OPENAEV_ID} # Valid UUIDv4
-      - "COLLECTOR_NAME=OpenAEV Datasets"
-    depends_on:
-      openaev:
-        condition: service_healthy
-    restart: always
-  collector-atomic-red-team:
-    image: openaev/collector-atomic-red-team:latest
-    environment:
-      - OPENAEV_URL=http://openaev:8080
-      - OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - COLLECTOR_ID=${COLLECTOR_ATOMIC_RED_TEAM_ID} # Valid UUIDv4
-      - "COLLECTOR_NAME=Atomic Red Team"
-    depends_on:
-      openaev:
-        condition: service_healthy
-    restart: always
-  collector-nvd-nist-cve:
-    image: openaev/collector-nvd-nist-cve:latest
-    environment:
-      - OPENAEV_URL=http://openaev:8080
-      - OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - COLLECTOR_ID=${COLLECTOR_NVD_NIST_CVE_ID} # Valid UUIDv4
-      - NVD_NIST_CVE_API_KEY=${COLLECTOR_NVD_NIST_CVE_API_KEY}
-      - "COLLECTOR_NAME=CVE by NVD NIST"
-    depends_on:
-      openaev:
-        condition: service_healthy
-    restart: always
-      ###########################
-      # OPENAEV INJECTORS       #
-      ###########################
+  # Pyroscope — continuous profiling (optional, for performance debugging)
+  # Uncomment to enable. UI available at http://localhost:4040
+#  openaev-pyroscope:
+#    container_name: openaev-pyroscope
+#    image: grafana/pyroscope:latest
+#    restart: unless-stopped
+#    ports:
+#      - "4040:4040"
 
-  injector-nmap:
-    image: openaev/injector-nmap:latest
-    environment:
-      - OPENAEV_URL=http://openaev:8080
-      - OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - INJECTOR_ID=${INJECTOR_NMAP_ID} # Valid UUIDv4
-      - "INJECTOR_NAME=Nmap"
-    depends_on:
-      openaev:
-        condition: service_healthy
-    restart: always
-  injector-nuclei:
-    image: openaev/injector-nuclei:latest
-    environment:
-      - OPENAEV_URL=http://openaev:8080
-      - OPENAEV_TOKEN=${OPENAEV_ADMIN_TOKEN}
-      - INJECTOR_ID=${INJECTOR_NUCLEI_ID} # Valid UUIDv4
-      - "INJECTOR_NAME=Nuclei"
-    depends_on:
-      openaev:
-        condition: service_healthy
-    restart: always
+  # OpenTelemetry Collector (optional, for telemetry/tracing)
+  # Uncomment to enable. Requires otlp-config.yaml and telemetry.json
+#  openaev-telemetry-otlp:
+#    container_name: openaev-telemetry-otlp
+#    image: otel/opentelemetry-collector-contrib:0.119.0
+#    restart: unless-stopped
+#    volumes:
+#      - "./otlp-config.yaml:/etc/config/otlp-config.yaml:Z"
+#      - "./telemetry-output:/telemetry-output:Z" # Map a folder, not a file
+#    command:
+#      - '--config=/etc/config/otlp-config.yaml'
+#    ports:
+#      - "1010:9090"
+
 volumes:
   esdata:
-  pgsqldata:
-  s3data:
-  redisdata:
-  amqpdata:
+    driver: local
+  osdata:
+    driver: local
+  essnapshots:
+    driver: local
+  ossnapshots:
+    driver: local
+  pgdata:
+    driver: local
   rsakeys:
+    driver: local
