@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
@@ -19,12 +20,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LogService - logSessionExpiredEvent")
 class LogServiceTest {
 
+  @Mock private AuditLogProperties auditLogProperties;
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
@@ -36,6 +37,7 @@ class LogServiceTest {
   void setUp() {
     logService =
         new LogService(
+            auditLogProperties,
             previewFeatureService,
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
@@ -43,7 +45,7 @@ class LogServiceTest {
             mock(UserService.class),
             enterpriseEditionService,
             licenseCacheManager);
-    ReflectionTestUtils.setField(logService, "auditLogsEnabled", true);
+    lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
   }
 
@@ -141,7 +143,7 @@ class LogServiceTest {
     @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
     void given_auditDisabled_should_returnTrueWithoutDispatching() {
       // -- PREPARE --
-      ReflectionTestUtils.setField(logService, "auditLogsEnabled", false);
+      when(auditLogProperties.isEnabled()).thenReturn(false);
 
       // -- EXECUTE --
       boolean result =
