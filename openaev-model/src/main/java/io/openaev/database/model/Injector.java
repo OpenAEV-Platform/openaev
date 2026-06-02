@@ -93,23 +93,23 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
       name = "injectors_injector_contracts",
       joinColumns = {
               @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
-              @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id", updatable = false)
+              @JoinColumn(name = "injector_tenant", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
-        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id", updatable = false)
+        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       })
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
 
   @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JoinColumn(name = "tenant_id", nullable = false)
   @JsonIgnore
   @Id
   private Tenant tenant;
 
   // Read-only mapping so Hibernate registers the logical column name "tenant_id" in this table
-  @Column(name = "tenant_id", insertable = false, updatable = false)
+  @Column(name = "tenant_id", insertable = false)
   @JsonIgnore
   private String tenantId;
 

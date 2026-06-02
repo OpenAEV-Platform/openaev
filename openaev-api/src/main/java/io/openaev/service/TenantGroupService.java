@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.context.TenantContext;
+import io.openaev.database.id.TenantId;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -77,7 +78,7 @@ public class TenantGroupService {
     Group group = new Group();
     group.setUpdateAttributes(input);
     group.setId(id);
-    group.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+    group.setTenant(entityManager.getReference(Tenant.class, new TenantId(TenantContext.getCurrentTenant())));
     return group;
   }
 

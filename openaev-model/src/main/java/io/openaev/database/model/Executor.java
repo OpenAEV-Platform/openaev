@@ -24,7 +24,6 @@ import org.hibernate.annotations.Type;
 @Table(name = "executors")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-@IdClass(CompositeId.class)
 public class Executor extends BaseConnectorEntity implements TenantBase {
 
   @Id
@@ -32,14 +31,6 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("executor_id")
   @NotBlank
   private String id;
-
-  /**
-   * Read-only mapping of the physical tenant_id column. Needed so that Hibernate can resolve {@code
-   * referencedColumnName = "tenant_id"} in {@code @JoinFormula} from Agent → Executor.
-   */
-  @Column(name = "executor_id")
-  @JsonIgnore
-  private String executor_id;
 
   @Column(name = "executor_name")
   @JsonProperty("executor_name")
@@ -67,7 +58,6 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
-  @Id
   private Tenant tenant;
 
   /**

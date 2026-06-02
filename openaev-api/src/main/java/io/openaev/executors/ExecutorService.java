@@ -170,6 +170,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       executor = new Executor();
       executor.setId(id);
       executor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      executor.setTenantId(TenantContext.getCurrentTenant());
     }
 
     executor.setName(name);
@@ -178,7 +179,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
 
-    return executorRepository.save(executor);
+    return executorRepository.saveAndFlush(executor);
   }
 
   @Transactional

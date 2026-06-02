@@ -7,8 +7,9 @@ import jakarta.persistence.PersistenceProperty;
 import java.io.Serializable;
 
 public class TenantId implements Serializable {
-    @Column(updatable = false)
-    private final String id;
+    @Column(name = "tenant_id", updatable = false)
+    private String id;
+    public TenantId() {}
     public TenantId(String tenantId) {
         this.id = tenantId;
     }
