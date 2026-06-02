@@ -7,6 +7,7 @@ import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.LoggerContextVO;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Marker;
@@ -31,26 +32,18 @@ import org.slf4j.event.KeyValuePair;
  * <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
  *     <withThrowable>true</withThrowable>
  *     <maxStackDepth>30</maxStackDepth>
- *     <maxCauseDepth>5</maxCauseDepth>
  * </encoder>
  * }</pre>
- *
- * @see <a href="https://github.com/OpenCTI-Platform/opencti/issues/4199">OpenCTI #4199</a>
  */
 public class StackDepthLimitingJsonEncoder extends JsonEncoder {
 
   static final int DEFAULT_MAX_STACK_DEPTH = 80;
-  static final int DEFAULT_MAX_CAUSE_DEPTH = 10;
+  static final String APP_PACKAGE_PREFIX = "io.openaev";
 
   private int maxStackDepth = DEFAULT_MAX_STACK_DEPTH;
-  private int maxCauseDepth = DEFAULT_MAX_CAUSE_DEPTH;
 
   public void setMaxStackDepth(int maxStackDepth) {
     this.maxStackDepth = Math.max(1, maxStackDepth);
-  }
-
-  public void setMaxCauseDepth(int maxCauseDepth) {
-    this.maxCauseDepth = Math.max(1, maxCauseDepth);
   }
 
   @Override
@@ -59,7 +52,7 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
       return super.encode(event);
     }
     IThrowableProxy truncated =
-        new TruncatedThrowableProxy(event.getThrowableProxy(), maxStackDepth, maxCauseDepth, 0);
+        new TruncatedThrowableProxy(event.getThrowableProxy(), maxStackDepth);
     return super.encode(new TruncatedThrowableEvent(event, truncated));
   }
 
@@ -70,15 +63,10 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
   static class TruncatedThrowableProxy implements IThrowableProxy {
     private final IThrowableProxy delegate;
     private final int maxStackDepth;
-    private final int maxCauseDepth;
-    private final int causeLevel;
 
-    TruncatedThrowableProxy(
-        IThrowableProxy delegate, int maxStackDepth, int maxCauseDepth, int causeLevel) {
+    TruncatedThrowableProxy(IThrowableProxy delegate, int maxStackDepth) {
       this.delegate = delegate;
       this.maxStackDepth = maxStackDepth;
-      this.maxCauseDepth = maxCauseDepth;
-      this.causeLevel = causeLevel;
     }
 
     @Override
@@ -101,12 +89,35 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
       // The middle is typically framework plumbing (Spring AOP, CGLIB, reflection).
       int keepTop = maxStackDepth * 2 / 3;
       int keepBottom = maxStackDepth - keepTop;
-      int truncatedCount = original.length - keepTop - keepBottom;
 
-      StackTraceElementProxy[] result = new StackTraceElementProxy[keepTop + 1 + keepBottom];
-      System.arraycopy(original, 0, result, 0, keepTop);
-      result[keepTop] = new TruncationMarkerProxy(truncatedCount);
-      System.arraycopy(original, original.length - keepBottom, result, keepTop + 1, keepBottom);
+      // Always preserve application frames (io.openaev) from the middle section.
+      int middleStart = keepTop;
+      int middleEnd = original.length - keepBottom;
+      List<StackTraceElementProxy> preservedAppFrames = new ArrayList<>();
+      for (int i = middleStart; i < middleEnd; i++) {
+        StackTraceElement ste = original[i].getStackTraceElement();
+        if (ste != null && ste.getClassName().startsWith(APP_PACKAGE_PREFIX)) {
+          preservedAppFrames.add(original[i]);
+        }
+      }
+
+      int totalFrameworkTruncated = (middleEnd - middleStart) - preservedAppFrames.size();
+      if (totalFrameworkTruncated <= 0) {
+        // All middle frames are app frames — nothing to truncate
+        return original;
+      }
+
+      // Build result: [top] + marker + [preserved app frames] + [bottom]
+      int resultSize = keepTop + 1 + preservedAppFrames.size() + keepBottom;
+      StackTraceElementProxy[] result = new StackTraceElementProxy[resultSize];
+      int pos = 0;
+      System.arraycopy(original, 0, result, pos, keepTop);
+      pos += keepTop;
+      result[pos++] = new TruncationMarkerProxy(totalFrameworkTruncated);
+      for (StackTraceElementProxy appFrame : preservedAppFrames) {
+        result[pos++] = appFrame;
+      }
+      System.arraycopy(original, original.length - keepBottom, result, pos, keepBottom);
       return result;
     }
 
@@ -117,14 +128,11 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
 
     @Override
     public IThrowableProxy getCause() {
-      if (causeLevel >= maxCauseDepth) {
-        return null;
-      }
       IThrowableProxy cause = delegate.getCause();
       if (cause == null) {
         return null;
       }
-      return new TruncatedThrowableProxy(cause, maxStackDepth, maxCauseDepth, causeLevel + 1);
+      return new TruncatedThrowableProxy(cause, maxStackDepth);
     }
 
     @Override
@@ -135,9 +143,7 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
       }
       IThrowableProxy[] result = new IThrowableProxy[suppressed.length];
       for (int i = 0; i < suppressed.length; i++) {
-        result[i] =
-            new TruncatedThrowableProxy(
-                suppressed[i], maxStackDepth, maxCauseDepth, causeLevel + 1);
+        result[i] = new TruncatedThrowableProxy(suppressed[i], maxStackDepth);
       }
       return result;
     }
@@ -154,12 +160,12 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
    * instead of a bogus frame.
    */
   static class TruncationMarkerProxy extends StackTraceElementProxy {
-    private static final StackTraceElement DUMMY =
-        new StackTraceElement("truncated", "frames", null, -1);
     private final String marker;
 
     TruncationMarkerProxy(int truncatedCount) {
-      super(DUMMY);
+      super(
+          new StackTraceElement(
+              "... " + truncatedCount + " frames truncated (framework internals)", "", "", 0));
       this.marker = "... " + truncatedCount + " frames truncated (framework internals)";
     }
 
