@@ -52,7 +52,6 @@ public class TagRuleApiTest extends IntegrationTest {
   @Autowired private TagRepository tagRepository;
   @Autowired private TagRuleRepository tagRuleRepository;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
-  @Autowired private EntityManager entityManager;
 
   private List<TagRule> defaultRules;
 
