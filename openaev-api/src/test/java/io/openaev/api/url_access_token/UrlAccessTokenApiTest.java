@@ -1,7 +1,6 @@
 package io.openaev.api.url_access_token;
 
-import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_COOKIE_NAME;
-import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
+import static io.openaev.api.url_access_token.UrlAccessTokenApi.*;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;

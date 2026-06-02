@@ -1,47 +1,34 @@
-import { useEffect } from 'react';
-
+import validateUrlAccessAction from '../../../actions/url-access/url-access-action';
 import Loader from '../../../components/Loader';
 
-const ERROR_URL = '/error?code=401';
+const ERROR_URL = '/error';
+const CODE_QUERY_PARAM = '?code=';
 
 const UrlAccess = () => {
-  useEffect(() => {
-    const run = async () => {
-      const params = new URLSearchParams(globalThis.window.location.search);
-      const token = params.get('token');
+  const params = new URLSearchParams(globalThis.window.location.search);
+  const token = params.get('token');
 
-      if (!token) {
-        globalThis.window.location.assign(ERROR_URL);
-        return;
+  if (!token) {
+    globalThis.window.location.assign(ERROR_URL);
+  }
+
+  validateUrlAccessAction(encodeURIComponent(token!))
+    .then((response) => {
+      const redirectedUrl = response?.request?.responseURL;
+      if (redirectedUrl && redirectedUrl !== window.location.href) {
+        window.location.assign(redirectedUrl);
       }
-
-      try {
-        const response = await fetch(`/api/url/access?token=${encodeURIComponent(token)}`, {
-          credentials: 'include',
-        });
-
-        if (response.status === 401) {
-          globalThis.window.location.assign(ERROR_URL);
-          return;
-        }
-
-        if (response.redirected && response.url) {
-          globalThis.window.location.assign(response.url);
-          return;
-        }
-
+    })
+    .catch((error) => {
+      if (error.status === 401) {
+        globalThis.window.location.assign(ERROR_URL + CODE_QUERY_PARAM + error.status);
+      } else {
         // Fallback to the generic error page for unexpected responses.
         globalThis.window.location.assign(ERROR_URL);
-      } catch {
-        globalThis.window.location.assign(ERROR_URL);
       }
-    };
-
-    void run();
-  }, []);
+    });
 
   return <Loader />;
 };
 
 export default UrlAccess;
-

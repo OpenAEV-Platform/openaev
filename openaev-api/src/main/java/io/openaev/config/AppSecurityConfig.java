@@ -114,6 +114,8 @@ public class AppSecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/url/access/**")
                     .permitAll()
+                    .requestMatchers("/api/tenants/*/url/access/**")
+                    .permitAll()
                     .requestMatchers("/api/reset/**")
                     .permitAll()
                     .requestMatchers("/xtm/auth/jwks")

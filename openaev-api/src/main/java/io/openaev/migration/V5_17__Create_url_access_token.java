@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_16__Create_url_access_token extends BaseJavaMigration {
+public class V5_17__Create_url_access_token extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

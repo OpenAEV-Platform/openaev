@@ -19,17 +19,18 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 @RestController
-@RequestMapping(UrlAccessTokenApi.URL_ACCESS_URI)
 @RequiredArgsConstructor
 public class UrlAccessTokenApi {
 
   public static final String URL_ACCESS_URI = "/api/url/access";
+  public static final String TENANT_URL_ACCESS_URI = TENANT_PREFIX + "/url/access";
   public static final String URL_ACCESS_COOKIE_NAME = "url_access_token";
 
   private final UrlAccessTokenService urlAccessTokenService;
@@ -37,7 +38,7 @@ public class UrlAccessTokenApi {
   private final OpenAEVConfig openAEVConfig;
   private final UserService userService;
 
-  @GetMapping
+  @GetMapping({URL_ACCESS_URI, TENANT_URL_ACCESS_URI})
   @LogExecutionTime
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
@@ -70,7 +71,7 @@ public class UrlAccessTokenApi {
     }
   }
 
-  @DeleteMapping("/{tokenId}")
+  @DeleteMapping({URL_ACCESS_URI + "/{tokenId}", TENANT_URL_ACCESS_URI + "/{tokenId}"})
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
@@ -80,7 +81,7 @@ public class UrlAccessTokenApi {
     return ResponseEntity.noContent().build();
   }
 
-  @DeleteMapping("/exercise/{exerciseId}")
+  @DeleteMapping({URL_ACCESS_URI + "/exercise/{exerciseId}", TENANT_URL_ACCESS_URI + "/exercise/{exerciseId}"})
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
