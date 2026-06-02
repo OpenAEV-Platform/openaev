@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
@@ -25,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 @DisplayName("LogService - logSessionExpiredEvent")
 class LogServiceTest {
 
+  @Mock private AuditLogProperties auditLogProperties;
   @Mock private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
@@ -36,6 +38,7 @@ class LogServiceTest {
   void setUp() {
     logService =
         new LogService(
+            auditLogProperties,
             previewFeatureService,
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
