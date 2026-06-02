@@ -5,6 +5,7 @@ import io.openaev.database.model.InjectExpectation.EXPECTATION_STATUS;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.InjectExpectationSignature;
+import io.openaev.database.model.InjectExpectationTrace;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -45,6 +46,9 @@ public record InjectExpectationOutput(
     @Schema(description = "Results associated with the inject expectation")
         @JsonProperty("inject_expectation_results")
         List<InjectExpectationResult> results,
+    @Schema(description = "Traces associated with the inject expectation")
+        @JsonProperty("inject_expectation_traces")
+        List<InjectExpectationTrace> traces,
     @Schema(description = "Exercise ID associated with the inject expectation")
         @JsonProperty("inject_expectation_exercise")
         String exerciseId,

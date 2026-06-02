@@ -26,6 +26,7 @@ public final class InjectExpectationMapper {
         expectation.getUpdatedAt(),
         expectation.getSignatures(),
         expectation.getResults(),
+        expectation.getTraces(),
         expectation.getExercise() != null ? expectation.getExercise().getId() : null,
         expectation.getInject() != null ? expectation.getInject().getId() : null,
         expectation.getUser() != null ? expectation.getUser().getId() : null,
@@ -59,6 +60,7 @@ public final class InjectExpectationMapper {
     if (expectation.getAssetGroup() != null) {
       return expectation.getAssetGroup().getId();
     }
-    return null;
+    throw new IllegalStateException(
+        "InjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
   }
 }
