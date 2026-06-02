@@ -29,7 +29,6 @@ public class PlatformTriggers {
     this.platformJobs = platformJobs;
   }
 
-
   public Trigger injectsExecutionTrigger() {
     return newTrigger()
         .forJob(platformJobs.getInjectsExecution())
@@ -37,7 +36,6 @@ public class PlatformTriggers {
         .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
         .build();
   }
-
 
   public Trigger comchecksExecutionTrigger() {
     return newTrigger()
@@ -54,7 +52,6 @@ public class PlatformTriggers {
         .withSchedule(repeatMinutelyForever())
         .build();
   }
-
 
   @Profile("!test")
   public Trigger elasticSyncExecutionTrigger() {
@@ -77,7 +74,6 @@ public class PlatformTriggers {
         .build();
   }
 
-
   @Profile("!test")
   public Trigger securityCoverageTrigger() {
     SimpleScheduleBuilder _15_seconds = simpleSchedule().withIntervalInSeconds(15).repeatForever();
@@ -87,7 +83,6 @@ public class PlatformTriggers {
         .withSchedule(_15_seconds)
         .build();
   }
-
 
   @Profile("!test")
   public Trigger connectorPingTrigger() {
@@ -99,7 +94,6 @@ public class PlatformTriggers {
         .withSchedule(_40_seconds)
         .build();
   }
-
 
   public Trigger userEventRetentionTrigger() {
     return newTrigger()
@@ -114,7 +108,6 @@ public class PlatformTriggers {
    *
    * @return the trigger
    */
-
   public Trigger executionTracesBatchRequeueTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.getExecutionTracesBatchRequeueJob())
@@ -122,7 +115,6 @@ public class PlatformTriggers {
         .withSchedule(repeatSecondlyForever(15))
         .build();
   }
-
 
   @Profile("!test")
   @Conditional(InjectChainingCondition.class)
@@ -137,7 +129,6 @@ public class PlatformTriggers {
         .build();
   }
 
-
   @Profile("!test")
   @Conditional(InjectChainingCondition.class)
   public Trigger workflowTimeoutTrigger() {
@@ -150,7 +141,6 @@ public class PlatformTriggers {
         .withSchedule(every30Seconds)
         .build();
   }
-
 
   @Profile("!test")
   public Trigger tenantPurgeTrigger() {

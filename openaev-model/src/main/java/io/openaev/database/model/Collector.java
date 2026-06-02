@@ -13,7 +13,6 @@ import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.awt.*;
 import java.time.Instant;
 import java.util.Objects;

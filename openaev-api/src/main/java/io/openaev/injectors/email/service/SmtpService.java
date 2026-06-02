@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -39,7 +38,7 @@ public class SmtpService extends ExternalServiceBase {
   }
 
   // Check connection every 10 seconds
-  //@Scheduled(fixedDelay = 10000, initialDelay = 10000)
+  // @Scheduled(fixedDelay = 10000, initialDelay = 10000)
   public void connectionListener() {
     this.testConnection();
   }

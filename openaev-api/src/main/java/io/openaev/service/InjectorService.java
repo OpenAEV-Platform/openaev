@@ -495,7 +495,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     List<String> existingIds = new ArrayList<>();
     List<InjectorContract> toUpdate = new ArrayList<>();
     List<String> toDelete = new ArrayList<>();
-    List<InjectorContract> contracts =  new ArrayList<>(injector.getContracts());
+    List<InjectorContract> contracts = new ArrayList<>(injector.getContracts());
     for (InjectorContract contractDB : contracts) {
       Optional<Contract> matchingContract =
           staticContracts.stream()

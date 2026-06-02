@@ -5,7 +5,6 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.Auditable;
 import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.id.TenantId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +14,6 @@ import lombok.Data;
 
 @Data
 @Entity
-@IdClass(TenantId.class)
 @Table(name = "tenants")
 @EntityListeners({ModelBaseListener.class, AuditableListener.class})
 public class Tenant implements Base, Auditable {

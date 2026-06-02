@@ -26,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.util.MimeMessageParser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -328,7 +327,7 @@ public class ImapService extends ExternalServiceBase {
   }
 
   // Sync folders every 10 sec
-  //@Scheduled(fixedDelay = 10000, initialDelay = 10000)
+  // @Scheduled(fixedDelay = 10000, initialDelay = 10000)
   public void connectionListener() throws Exception {
     if (enabled) {
       if (!imapStore.isConnected()) {

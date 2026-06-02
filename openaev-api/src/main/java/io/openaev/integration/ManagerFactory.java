@@ -4,11 +4,9 @@ import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.database.model.Tenant;
-
+import jakarta.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,7 +40,7 @@ public class ManagerFactory {
   }
 
   private Manager getManagerForTenant(String tenantId) {
-    if(!this.managers.containsKey(tenantId)) {
+    if (!this.managers.containsKey(tenantId)) {
       try {
         Manager manager = new Manager(factories, tenantId);
         manager.monitorIntegrations();

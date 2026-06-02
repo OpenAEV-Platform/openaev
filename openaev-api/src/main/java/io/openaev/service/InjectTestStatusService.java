@@ -137,7 +137,10 @@ public class InjectTestStatusService {
     ConnectorInstancePersisted connectorInstancePersisted =
         connectorInstanceRepository.findById(injector.getId()).orElse(null);
     if (connectorInstancePersisted == null) {
-      executor = managerFactory.getManager(inject.getTenant().getId()).requestInjectorExecutorByType(injector.getType());
+      executor =
+          managerFactory
+              .getManager(inject.getTenant().getId())
+              .requestInjectorExecutorByType(injector.getType());
     } else {
       executor =
           managerFactory

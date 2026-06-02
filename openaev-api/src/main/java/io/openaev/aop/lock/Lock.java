@@ -1,7 +1,5 @@
 package io.openaev.aop.lock;
 
-import io.openaev.integration.ManagerFactory;
-
 import java.lang.annotation.*;
 
 @Target({ElementType.METHOD})

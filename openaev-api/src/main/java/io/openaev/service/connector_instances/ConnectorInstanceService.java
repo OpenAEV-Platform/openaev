@@ -299,13 +299,21 @@ public class ConnectorInstanceService {
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
 
-    if (managerFactory.getManager(TenantContext.getCurrentTenant()).getSpawnedIntegrations().get(connectorInstance) != null) {
+    if (managerFactory
+            .getManager(TenantContext.getCurrentTenant())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+        != null) {
       // Setting the status to stopping and immediately calling initialize to effectively stop the
       // integration
       try {
         connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
         this.save(connectorInstance);
-        managerFactory.getManager(TenantContext.getCurrentTenant()).getSpawnedIntegrations().get(connectorInstance).initialise();
+        managerFactory
+            .getManager(TenantContext.getCurrentTenant())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+            .initialise();
       } catch (Exception e) {
         log.error("Could not stop the connector id {} before delete", id, e);
         throw new ConnectorStatusException(
