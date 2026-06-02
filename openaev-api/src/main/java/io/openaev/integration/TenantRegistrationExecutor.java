@@ -47,6 +47,23 @@ public class TenantRegistrationExecutor {
   }
 
   /**
+   * Registers built-in connectors for a single tenant within the caller's transaction. Switches
+   * tenant context, registers, then flushes (but does NOT clear the session — use this when an
+   * outer transaction must be preserved, e.g. during tenant creation in an HTTP request).
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void registerForTenantInCurrentSession(Tenant tenant) throws DependenciesManagerException {
+    String previousTenant = TenantContext.getCurrentTenant();
+    try {
+      switchTenantContext(tenant.getId());
+      registerForTenant(tenant);
+      entityManager.flush();
+    } finally {
+      switchTenantContext(previousTenant);
+    }
+  }
+
+  /**
    * Registers built-in connectors in the CURRENT transaction. Assumes the caller has already set up
    * TenantContext, Hibernate filter
    */

@@ -253,13 +253,12 @@ public class InjectorContractService implements DependenciesManager {
       Contract source, Injector injector, boolean isPayloads) {
     InjectorContract target = new InjectorContract();
     target.setId(source.getId());
-    // Populate the inverse (non-owning) side only so getInjector() works
-    // for tenant resolution in applyBuiltinContractData.
-    // Do NOT call addInjector() here — it modifies the owning side (Injector.contracts)
-    // and causes auto-flush issues since this contract is still transient.
-    if (injector != null) {
-      target.getInjectors().add(injector);
-    }
+    // Do NOT populate the inverse side (injectors) here.
+    // The injector parameter is passed directly to applyBuiltinContractData for any
+    // tenant-resolution needs, and the owning side (Injector.contracts) is updated
+    // after saveAll() returns. Populating injectors here would cause Hibernate's
+    // merge/replaceElements to load Injector by injector_id alone (non-composite),
+    // returning multiple rows when the same injector_id exists across tenants.
     target.setTenant(injector.getTenant());
 
     applyBuiltinContractData(target, source, isPayloads, injector);
@@ -858,6 +857,13 @@ public class InjectorContractService implements DependenciesManager {
           continue; // contract does not exist for the current tenant — skip
         }
         entityManager.detach(source);
+        // Reset the inverse (mappedBy) side before re-persisting.
+        // After detach(), source.injectors is a PersistentList whose internal session key
+        // still references the DEFAULT tenant. If we persist as-is, replaceElements() during
+        // a later merge() will initialize that collection using the DEFAULT tenant's key,
+        // then call loadByUniqueKey(injector_id) which returns multiple rows across tenants.
+        // Replacing with a plain ArrayList prevents that contamination.
+        source.setInjectors(new ArrayList<>());
         source.setTenant(tenant);
         entityManager.persist(source);
       }

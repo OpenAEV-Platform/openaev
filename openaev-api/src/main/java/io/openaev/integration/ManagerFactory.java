@@ -73,7 +73,9 @@ public class ManagerFactory implements DependenciesManager {
 
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    tenantRegistrationExecutor.registerForTenant(tenant);
+    // Use the session-preserving variant so the outer transaction (TenantService.create) is not
+    // cleared, while still switching TenantContext to the new tenant before registering connectors.
+    tenantRegistrationExecutor.registerForTenantInCurrentSession(tenant);
   }
 
   @Override

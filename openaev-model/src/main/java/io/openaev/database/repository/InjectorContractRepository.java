@@ -107,8 +107,16 @@ public interface InjectorContractRepository
   Optional<InjectorContract> findByIdOrExternalId(
       @Param("id") String id, @Param("externalId") String externalId);
 
+  /**
+   * Finds all InjectorContracts linked to the given Injector via the join table.
+   * Replaces the derived {@code findByInjectorsContaining} which generates a tuple comparison
+   * that Hibernate cannot translate when Injector uses a composite @IdClass PK (id + tenant).
+   */
   @NotNull
-  List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
+  @Query(
+      "SELECT ic FROM InjectorContract ic JOIN ic.injectors inj"
+          + " WHERE inj.id = :#{#injector.id} AND inj.tenant = :#{#injector.tenant}")
+  List<InjectorContract> findByInjectorsContaining(@NotNull @Param("injector") Injector injector);
 
   @NotNull
   Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);

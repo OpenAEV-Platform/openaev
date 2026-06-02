@@ -439,15 +439,17 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
-                List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
-                injectorContracts.forEach(
-                    injectorContract -> {
-                      injectorContract.getInjectors().remove(dummyInjector);
-                      injectorContract.getInjectors().add(newInjector);
-                    });
-                injectorContractRepository.saveAll(injectorContracts);
+                // Re-link contracts from the dummy to the real injector via the OWNING side
+                // (Injector.contracts). Never touch InjectorContract.injectors (the inverse/mappedBy
+                // side) for modifications — doing so triggers getInjectors() → lazy init → Hibernate
+                // resolves Injector from the join table by injector_id alone → "more than one row"
+                // across tenants.
+                Set<InjectorContract> contractsToMove =
+                    new HashSet<>(dummyInjector.getContracts());
+                newInjector.getContracts().addAll(contractsToMove);
+                injectorRepository.save(newInjector);
               }
+              // Deleting the dummy injector cascades the join table entries for the dummy.
               injectorRepository.deleteByIdAndTenantId(
                   dummyInjector.getId(), TenantContext.getCurrentTenant());
             });
