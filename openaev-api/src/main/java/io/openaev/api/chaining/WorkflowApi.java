@@ -47,7 +47,10 @@ public class WorkflowApi extends RestBehavior {
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @GetMapping("/{workflowId}/configuration")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
@@ -65,7 +68,10 @@ public class WorkflowApi extends RestBehavior {
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @PutMapping("/{workflowId}/configuration")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.WORKFLOW)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {

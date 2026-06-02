@@ -67,6 +67,13 @@ public class WorkflowService {
                         + workflowId));
   }
 
+  public Workflow findById(@NotBlank final String workflowId) {
+    return this.workflowRepository
+        .findById(workflowId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Workflow not found with id: " + workflowId));
+  }
+
   /**
    * Returns the TEMPLATE workflow for the given ID with its scope-rules collection eagerly
    * initialized, so the caller can safely read the collection after the session closes (e.g. inside
