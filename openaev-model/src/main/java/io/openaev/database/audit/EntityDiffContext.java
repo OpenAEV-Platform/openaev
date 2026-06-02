@@ -49,19 +49,10 @@ public final class EntityDiffContext {
     diffs().put(entityId, diff);
   }
 
-  /** Kept for backward compatibility: no-op in request-first mode. */
-  public static void promoteDiffsToRequestAttributes() {
-    // Request-first storage already writes directly to request attributes when available.
-  }
-
   public static Map<String, EntityDiff> consumeAll() {
     Map<String, EntityDiff> result = new LinkedHashMap<>(diffs());
     clear();
     return result;
-  }
-
-  public static boolean hasDiffs() {
-    return !diffs().isEmpty();
   }
 
   // -- Cleanup registration --

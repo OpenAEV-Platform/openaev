@@ -237,7 +237,6 @@ public class ModelBaseListener {
           new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
-              EntityDiffContext.promoteDiffsToRequestAttributes();
               EntityDiffContext.clearAfterTransactionCompletion();
             }
           });
