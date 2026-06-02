@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
@@ -33,7 +34,7 @@ public class TagRuleService {
   private final AssetGroupRepository assetGroupRepository;
 
   public Optional<TagRule> findById(String id) {
-    return tagRuleRepository.findById(id);
+    return tagRuleRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant());
   }
 
   public Optional<TagRule> findByTagName(String name) {
@@ -78,7 +79,7 @@ public class TagRuleService {
     // verify that the tag rule exists
     TagRule tagRule =
         tagRuleRepository
-            .findById(tagRuleId)
+            .findByIdAndTenantId(tagRuleId, TenantContext.getCurrentTenant())
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
@@ -125,13 +126,15 @@ public class TagRuleService {
   }
 
   public void deleteTagRule(@NotBlank final String tagRuleId) {
-    // verify that the TagRule exists
+    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
+    }
+    // verify that the TagRule is not protected (e.g. opencti tag)
     TagRule tagRule =
         tagRuleRepository
-            .findById(tagRuleId)
+            .findByIdAndTenantId(tagRuleId, TenantContext.getCurrentTenant())
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
-    // we block deletion of tagrule for the opencti tag
     if (tagRule.isProtected()) {
       throw new ForbiddenException(
           "Deletion of a rule of the tag " + tagRule.getTag().getName() + " is not allowed");
