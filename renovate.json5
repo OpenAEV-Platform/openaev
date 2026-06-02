@@ -1,103 +1,123 @@
 {
-$schema: 'https://docs.renovatebot.com/renovate-schema.json',
-extends: [
-'config:recommended',
-'docker:enableMajor',
-':semanticCommits',
-],
-labels: [
-'dependencies',
-'filigran team',
-],
-minimumReleaseAge: '3 days',
-prHourlyLimit: 2,
-prConcurrentLimit: 100,
-branchConcurrentLimit: 100,
-timezone: 'Europe/Paris',
-schedule: [
-'* 0-4,22-23 * * 1-5',
-'* * * * 0,6',
-],
-updateNotScheduled: false,
-rebaseWhen: 'conflicted',
-vulnerabilityAlerts: {
-// as we don't rely on Renovate to be informed of dependency security advisories,
-// vulnerabilityAlerts is disabled since it can cause problems by skipping minimumReleaseAge, schedule and others constraints
-enabled: false,
-},
-packageRules: [
-{
-description: 'Disable updates of internal packages',
-matchDatasources: [
-'maven',
-],
-enabled: false,
-matchPackageNames: [
-'/^io\\.openaev:/',
-],
-},
-// swagger-annotations-jakarta must stay aligned with swagger-core embedded in springdoc-openapi 2.6.0.
-// Versions > 2.2.43 cause /api-docs to return invalid schema. Requires Spring Boot 3.4+ and springdoc 2.7+ upgrade first.
-{
-description: 'Pin swagger-annotations-jakarta until springdoc 2.7+ upgrade',
-matchDatasources: ['maven'],
-matchPackageNames: ['io.swagger.core.v3:swagger-annotations-jakarta'],
-allowedVersions: '<=2.2.43',
-enabled: true,
-},
-// springdoc-openapi 2.7+ requires Spring Boot 3.4+ (uses LiteWebJarsResourceResolver from Spring Framework 6.2).
-// Blocked until Spring Boot is upgraded from 3.3.7.
-{
-description: 'Pin springdoc-openapi until Spring Boot 3.4+ upgrade',
-matchDatasources: ['maven'],
-matchPackageNames: ['/^org\\.springdoc:/'],
-allowedVersions: '<=2.6.0',
-enabled: true,
-},
-// sticks to MIT version of apexcharts
-{
-description: 'apexcharts >= 5 uses a commercial license (not MIT). Block major updates.',
-matchDepNames: ['apexcharts'],
-allowedVersions: '<5',
-},
-{
-description: 'react-apexcharts >= 1.8.0 depends on apexcharts >= 5 (commercial license). Block updates.',
-matchDepNames: ['react-apexcharts'],
-allowedVersions: '<1.8.0',
-},
-// patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
-{
-matchDepNames: ['react-apexcharts'],
-commitMessagePrefix: '[DANGER] chore(deps):',
-commitMessageSuffix: '(react-apexcharts has a yarn patch)',
-},
-{
-matchDepNames: ['html-to-image'],
-commitMessagePrefix: '[DANGER] chore(deps):',
-commitMessageSuffix: '(html-to-image has a yarn patch)',
-},
-// group non-major devDependencies once a week to avoid Renovate noise
-{
-groupName: 'devDependencies (non-major)',
-groupSlug: 'dev-dependencies-non-major',
-description: 'Batch non-major updates of dev dependencies once a week on Sunday',
-schedule: '* * * * 0',
-matchDepTypes: [
-'devDependencies',
-],
-matchUpdateTypes: [
-'minor',
-'patch',
-'pin',
-'digest',
-],
-rebaseWhen: 'auto',
-},
-],
-// do lock file maintenance once a week on Sunday
-lockFileMaintenance: {
-schedule: '* * * * 0',
-rebaseWhen: 'auto',
-enabled: true,
-},
+    $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+    extends: [
+        'config:recommended',
+        'docker:enableMajor',
+        ':semanticCommits',
+    ],
+    labels: [
+        'dependencies',
+        'filigran team',
+    ],
+    minimumReleaseAge: '3 days',
+    prHourlyLimit: 2,
+    prConcurrentLimit: 100,
+    branchConcurrentLimit: 100,
+    timezone: 'Europe/Paris',
+    schedule: [
+        '* 0-4,22-23 * * 1-5',
+        '* * * * 0,6',
+    ],
+    updateNotScheduled: false,
+    rebaseWhen: 'conflicted',
+    vulnerabilityAlerts: {
+        // as we don't rely on Renovate to be informed of dependency security advisories,
+        // vulnerabilityAlerts is disabled since it can cause problems by skipping minimumReleaseAge, schedule and others constraints
+        enabled: false,
+    },
+    packageRules: [
+        {
+            description: 'Disable updates of internal packages',
+            matchDatasources: [
+                'maven',
+            ],
+            enabled: false,
+            matchPackageNames: [
+                '/^io\\.openaev:/',
+            ],
+        },
+        // swagger-annotations-jakarta must stay aligned with swagger-core embedded in springdoc-openapi 2.6.0.
+        // Versions > 2.2.43 cause /api-docs to return invalid schema. Requires Spring Boot 3.4+ and springdoc 2.7+ upgrade first.
+        {
+            description: 'Pin swagger-annotations-jakarta until springdoc 2.7+ upgrade',
+            matchDatasources: [
+                'maven'
+            ],
+            matchPackageNames: [
+                'io.swagger.core.v3:swagger-annotations-jakarta'
+            ],
+            allowedVersions: '<=2.2.43',
+            enabled: true,
+        },
+        // springdoc-openapi 2.7+ requires Spring Boot 3.4+ (uses LiteWebJarsResourceResolver from Spring Framework 6.2).
+        // Blocked until Spring Boot is upgraded from 3.3.7.
+        {
+            description: 'Pin springdoc-openapi until Spring Boot 3.4+ upgrade',
+            matchDatasources: [
+                'maven'
+            ],
+            matchPackageNames: [
+                '/^org\\.springdoc:/'
+            ],
+            allowedVersions: '<=2.6.0',
+            enabled: true,
+        },
+        // sticks to MIT version of apexcharts
+        {
+            description: 'apexcharts >= 5 uses a commercial license (not MIT). Block major updates.',
+            matchDepNames: [
+                'apexcharts'
+            ],
+            allowedVersions: '<5',
+        },
+        {
+            description: 'react-apexcharts >= 1.8.0 depends on apexcharts >= 5 (commercial license). Block updates.',
+            matchDepNames: [
+                'react-apexcharts'
+            ],
+            allowedVersions: '<1.8.0',
+        },
+        // patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
+        {
+            matchDepNames: [
+                'react-apexcharts'
+            ],
+            commitMessagePrefix: '[DANGER] [deps]',
+            commitMessageSuffix: '(react-apexcharts has a yarn patch)',
+        },
+        {
+            matchDepNames: [
+                'html-to-image'
+            ],
+            commitMessagePrefix: '[DANGER] [deps]',
+            commitMessageSuffix: '(html-to-image has a yarn patch)',
+        },
+        // group non-major devDependencies once a week to avoid Renovate noise
+        {
+            groupName: 'devDependencies (non-major)',
+            groupSlug: 'dev-dependencies-non-major',
+            description: 'Batch non-major updates of dev dependencies once a week on Sunday',
+            schedule: [
+                '* * * * 0',
+            ],
+            matchDepTypes: [
+                'devDependencies',
+            ],
+            matchUpdateTypes: [
+                'minor',
+                'patch',
+                'pin',
+                'digest',
+            ],
+            rebaseWhen: 'auto',
+        },
+    ],
+    // do lock file maintenance once a week on Sunday
+    lockFileMaintenance: {
+        schedule: [
+            '* * * * 0',
+        ],
+        rebaseWhen: 'auto',
+        enabled: true,
+    },
 }
