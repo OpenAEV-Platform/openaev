@@ -6,6 +6,7 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 import { api } from '../../../network';
@@ -33,6 +34,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
 }) => {
   const theme = useTheme<Theme>();
   const { t } = useFormatter();
+  const location = useLocation();
   const { me, settings } = useAuth();
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [agentFetchState, setAgentFetchState] = useState<AgentFetchState>('loading');
@@ -60,6 +62,15 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     t('How do I configure detection rules?'),
     t('Summarize my recent findings'),
   ];
+
+  // Forward the user's current in-app location so the agent is always aware
+  // of the page (URI) the question is being asked from, e.g.
+  // `/admin/atomic_testings/<id>`. Only the pathname is sent — the query
+  // string is intentionally omitted to avoid forwarding UI state (filters,
+  // view settings, …) that would bloat the payload and could leak more than
+  // the agent needs. The shape is extensible — more context (page title,
+  // selected entity, etc.) can be added later.
+  const pageContext = { url: location.pathname };
 
   useEffect(() => {
     installChatbotCsrf();
@@ -152,6 +163,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
         messages: '/messages',
         sessions: '/sessions',
         upload: '/upload',
+        download: '/files',
       }}
       user={{ firstName }}
       disableFileManagement={false}
@@ -160,6 +172,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
       logoIcon={logoIcon}
       agentDashboardUrl={xtmOneUrl || undefined}
       promptSuggestions={promptSuggestions}
+      pageContext={pageContext}
       resizable={mode === 'sidebar'}
       onWidthChange={onWidthChange}
       onResizeStart={onResizeStart}

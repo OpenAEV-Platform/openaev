@@ -4,13 +4,13 @@ import io.openaev.database.model.Action;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
-@ConditionalOnProperty(name = "openaev.audit-logs.service.enabled", havingValue = "true")
+@ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
 @RequiredArgsConstructor
 public class AuditRequestValidator {
 
@@ -49,7 +49,9 @@ public class AuditRequestValidator {
   private boolean shouldSkip(Action action) {
     return switch (action) {
       case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
-      case READ, SEARCH -> true; // SKIP READ AND SEARCH
+      // READ/SEARCH are never audited on success — only unauthorized attempts are logged
+      // (captured separately via logAuthEvent when RBAC denies access).
+      case READ, SEARCH -> true;
       default -> true; // SKIP_RBAC, PROCESS
     };
   }
