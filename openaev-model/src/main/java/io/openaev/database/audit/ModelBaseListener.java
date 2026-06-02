@@ -210,41 +210,9 @@ public class ModelBaseListener {
    * the REST API (respects {@code @JsonIgnore}, {@code @JsonProperty}, custom serializers, etc.).
    */
   private Map<String, Object> buildSnapshot(Base entity) {
-    try {
-      // Serialize to JsonNode first to force a detached, immutable-by-reference snapshot.
-      return mapper.convertValue(
-          mapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
-    } catch (Exception e) {
-      log.debug(
-          "[AuditDiff] Snapshot failed for {}: {}",
-          entity.getClass().getSimpleName(),
-          e.getMessage());
-      return new LinkedHashMap<>();
-    }
-  }
-
-  /**
-   * Computes a field-level diff between two snapshots. Collections are compared as sorted lists to
-   * avoid order-dependent false positives (e.g., role IDs).
-   *
-   * @return a map {@code {field: {before: X, after: Y}}} containing only changed fields
-   */
-  private static Map<String, Object> computeDiff(
-      Map<String, Object> before, Map<String, Object> after) {
-    Map<String, Object> diff = new LinkedHashMap<>();
-    Set<String> allKeys = new LinkedHashSet<>(after.keySet());
-    allKeys.addAll(before.keySet());
-    for (String key : allKeys) {
-      Object beforeVal = before.get(key);
-      Object afterVal = after.get(key);
-      if (!Objects.equals(normalizeForComparison(beforeVal), normalizeForComparison(afterVal))) {
-        Map<String, Object> change = new LinkedHashMap<>();
-        change.put("before", beforeVal);
-        change.put("after", afterVal);
-        diff.put(key, change);
-      }
-    }
-    return diff;
+    // Let serialization failures propagate so callers skip storing/using a broken snapshot.
+    return mapper.convertValue(
+        mapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
   }
 
   /**
