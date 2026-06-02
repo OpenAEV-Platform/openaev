@@ -70,7 +70,7 @@ class StackDepthLimitingJsonEncoderTest {
     // The truncation marker puts the full message in the StackTraceElement className field,
     // which the JsonEncoder serializes as the "className" JSON property.
     assertTrue(
-        json.contains("frames truncated (framework internals)"),
+        json.contains("non-application frames truncated (io.openaev frames preserved)"),
         "Should contain truncation marker message");
 
     System.out.println("=== maxStackDepth=1 ===");
@@ -200,12 +200,14 @@ class StackDepthLimitingJsonEncoderTest {
 
     // The truncation marker should only count framework frames, not app frames
     assertTrue(
-        json.contains("frames truncated (framework internals)"),
+        json.contains("non-application frames truncated (io.openaev frames preserved)"),
         "Should contain truncation marker");
 
     // Framework frames from the middle should be truncated
     // Middle section is indices 3..17 (15 frames). 3 are app frames, so 12 framework frames cut.
-    assertTrue(json.contains("12 frames truncated"), "Should truncate exactly 12 framework frames");
+    assertTrue(
+        json.contains("12 non-application frames truncated"),
+        "Should truncate exactly 12 framework frames");
 
     System.out.println("=== app frame preservation test ===");
     System.out.println(MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(node));
