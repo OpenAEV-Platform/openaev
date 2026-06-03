@@ -48,10 +48,6 @@ public class AuditLogger {
     return auditRequestValidator.valid(action);
   }
 
-  public boolean isAuditUnauthorizedLoggingValid() {
-    return auditRequestValidator.validUnauthorized();
-  }
-
   public void prepareLogFailure() {
     // Halt the application when Halt-on-failure is enabled and a log failure occurs.
     try {

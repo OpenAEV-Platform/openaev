@@ -83,7 +83,7 @@ public class AccessControlAuditLogAspect {
     } catch (Throwable ex) {
       if (isActive) {
         try {
-          if (auditLogger.isAuditUnauthorizedLoggingValid() && isRbacDeniedException(ex)) {
+          if (isRbacDeniedException(ex)) {
             String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
