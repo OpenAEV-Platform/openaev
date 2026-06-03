@@ -23,7 +23,9 @@ public class ManagerIntegrationsSyncJob implements Job {
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      managerFactory.getManager().monitorIntegrations();
+      for (io.openaev.integration.Manager manager : managerFactory.getAllManagers()) {
+        manager.monitorIntegrations();
+      }
     } catch (Exception e) {
       throw new JobExecutionException(e);
     }

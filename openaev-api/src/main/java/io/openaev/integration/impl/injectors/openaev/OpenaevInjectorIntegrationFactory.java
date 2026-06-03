@@ -74,7 +74,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,

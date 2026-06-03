@@ -64,7 +64,7 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             ManualInjectorIntegration.MANUAL_INJECTOR_ID,

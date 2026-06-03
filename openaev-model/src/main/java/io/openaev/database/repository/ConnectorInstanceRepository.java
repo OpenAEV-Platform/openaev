@@ -25,6 +25,8 @@ public interface ConnectorInstanceRepository
 
   List<ConnectorInstancePersisted> findAllByCatalogConnectorId(String catalogConnectorId);
 
+  List<ConnectorInstancePersisted> findAllByTenantId(String tenantId);
+
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   List<ConnectorInstancePersisted> findAllByCatalogConnectorContainerType(
       ConnectorType containerType);

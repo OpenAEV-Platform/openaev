@@ -68,7 +68,7 @@ public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             EmailInjectorIntegration.EMAIL_INJECTOR_ID,

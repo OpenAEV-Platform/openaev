@@ -79,7 +79,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
