@@ -205,18 +205,32 @@ jobs:
       - backend-package-musl
       - docker-build
       - prepare-release-assets
-    if: >-
-      ${{
-        !cancelled() &&
-        needs.frontend-build.result == 'success' &&
-        needs.backend-compile.result == 'success' &&
-        needs.backend-package.result == 'success' &&
-        needs.backend-package-musl.result == 'success' &&
-        needs.docker-build.result == 'success'
-      }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check all upstream job results
+        run: |
+          echo "frontend-build:        ${{ needs.frontend-build.result }}"
+          echo "backend-compile:       ${{ needs.backend-compile.result }}"
+          echo "backend-package:       ${{ needs.backend-package.result }}"
+          echo "backend-package-musl:  ${{ needs.backend-package-musl.result }}"
+          echo "docker-build:          ${{ needs.docker-build.result }}"
+          echo "prepare-release-assets: ${{ needs.prepare-release-assets.result }}"
+
+          if [[ "${{ needs.frontend-build.result }}" == "failure" ]] ||
+             [[ "${{ needs.backend-compile.result }}" == "failure" ]] ||
+             [[ "${{ needs.backend-package.result }}" == "failure" ]] ||
+             [[ "${{ needs.backend-package-musl.result }}" == "failure" ]] ||
+             [[ "${{ needs.docker-build.result }}" == "failure" ]] ||
+             [[ "${{ needs.prepare-release-assets.result }}" == "failure" ]]; then
+            echo ""
+            echo "❌ One or more upstream jobs failed"
+            exit 1
+          fi
+          echo ""
+          echo "✅ All upstream jobs passed"
+
       - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:
