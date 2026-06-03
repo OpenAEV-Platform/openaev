@@ -471,9 +471,9 @@ public class EndpointService {
     // If agent is not temporary and not the same version as the platform => Create an upgrade task
     // for the agent if auto update is enabled (enabled by default)
     Endpoint endpoint = (Endpoint) agent.getAsset();
-    if (agentAutoUpdateEnabled
-        && agent.getParent() == null
-        && !agent.getVersion().equals(version)) {
+    boolean newAgentVersionAvailable =
+        agent.getParent() == null && !agent.getVersion().equals(version);
+    if (agentAutoUpdateEnabled && newAgentVersionAvailable) {
       if (assetAgentJobRepository
           .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
           .isEmpty()) {
@@ -498,11 +498,7 @@ public class EndpointService {
       } else {
         log.warn("Upgrade job already exists");
       }
-    }
-
-    if (!agentAutoUpdateEnabled
-        && agent.getParent() == null
-        && !agent.getVersion().equals(version)) {
+    } else if (!agentAutoUpdateEnabled && newAgentVersionAvailable) {
       log.warn(
           String.format(
               "A new version for the agent %s is available, his current version is %s and the new version is %s",
