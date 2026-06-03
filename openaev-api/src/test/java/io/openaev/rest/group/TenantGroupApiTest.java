@@ -496,7 +496,7 @@ public class TenantGroupApiTest extends IntegrationTest {
               "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
 
       TenantGroupCreateInput input = new TenantGroupCreateInput();
-      input.setName("Isolated Group");
+      input.setName("RLS Isolated Group");
 
       String createResponse =
           mvc.perform(

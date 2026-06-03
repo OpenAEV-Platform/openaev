@@ -546,12 +546,13 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(
+    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(exerciseOrScenarioId);
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+=======
+    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(exerciseOrScenarioId);
+>>>>>>> parent of cbf5fe504 ([backend] test(multi-tenancy): scenario API for multi-tenancy (#5718) (#5926))
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
@@ -581,17 +582,18 @@ public class DocumentApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   public void downloadPlayerDocument(
+<<<<<<< HEAD
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
       @RequestParam Optional<String> userId,
       HttpServletResponse response)
       throws IOException {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+<<<<<<< HEAD
+=======
+    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(exerciseOrScenarioId);
+    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(exerciseOrScenarioId);
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {

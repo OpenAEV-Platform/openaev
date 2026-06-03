@@ -8,6 +8,7 @@ import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.service.NotificationRuleService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import jakarta.validation.constraints.NotNull;
 import java.time.ZoneId;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
 public class ScenarioNotificationEventHandler implements NotificationEventHandler {
   private final OpenAEVConfig openAEVConfig;
   private final ExerciseService exerciseService;
+  private final ScenarioService scenarioService;
   private final NotificationRuleService notificationRuleService;
 
   @Override
@@ -58,7 +60,7 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
             lastSimulation.getScenario().getId(),
             NotificationRuleTrigger.DIFFERENCE,
             buildScenarioNotificationData(
-                lastSimulation.getScenario(),
+                lastSimulation.getScenario().getId(),
                 lastSimulation,
                 secondLastSimulation,
                 lastSimulationResultsMap,
@@ -68,7 +70,7 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
   }
 
   private Map<String, String> buildScenarioNotificationData(
-      @NotNull final Scenario scenario,
+      @NotNull final String scenarioId,
       @NotNull final Exercise lastSimulation,
       @NotNull final Exercise secondLastSimulation,
       @NotNull final Map<ExpectationType, ExpectationResultsByType> lastSimulationResultsMap,
@@ -78,7 +80,7 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     DateTimeFormatter formatter =
         DateTimeFormatter.ofPattern("yyyy/MM/dd").withZone(ZoneId.systemDefault());
 
-    String scenarioId = scenario.getId();
+    Scenario scenario = scenarioService.scenario(scenarioId);
     String url = openAEVConfig.getBaseUrl();
     float lastSimulationPrevScore =
         ScenarioStatisticService.getRoundedPercentage(

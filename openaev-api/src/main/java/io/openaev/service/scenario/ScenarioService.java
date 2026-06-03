@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -393,13 +392,13 @@ public class ScenarioService {
 
   public Scenario scenario(@NotBlank final String scenarioId) {
     return this.scenarioRepository
-        .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+        .findById(scenarioId)
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
+    RawScenario rawScenario = this.scenarioRepository.getScenarioById(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
     }
@@ -500,8 +499,6 @@ public class ScenarioService {
     scenario(scenarioId);
 >>>>>>> parent of cd292934e ([backend] test(multi-tenancy): findings API for multi-tenancy (#5718))
   public void deleteScenario(@NotBlank final String scenarioId) {
-    // Verify scenario belongs to current tenant before deleting
-    scenario(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -827,10 +824,7 @@ public class ScenarioService {
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
-      Scenario scenarioOrigin =
-          scenarioRepository
-              .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-              .orElseThrow();
+      Scenario scenarioOrigin = scenarioRepository.findById(scenarioId).orElseThrow();
       Scenario scenario = copyScenario(scenarioOrigin);
       Scenario scenarioDuplicate = scenarioRepository.save(scenario);
       getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);

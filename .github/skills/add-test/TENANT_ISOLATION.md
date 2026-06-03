@@ -69,8 +69,13 @@ class TenantIsolation {
 
 ### Step 4 — Evict Hibernate L1 Cache Between Create and Cross-Tenant Access
 
+**Critical**: When a test creates an entity and then reads it within the same `@Transactional`
+test, Hibernate's L1 (session) cache may return the entity directly **without hitting the
+database**. Since RLS filtering happens at the PostgreSQL level, a cached `findById()` bypasses
+RLS entirely — making the test pass even when isolation is broken.
+
 **Always call `entityManager.flush()` + `entityManager.clear()` between the create and the
-cross-tenant access** to force Hibernate to issue a real SQL query.
+cross-tenant access** to force Hibernate to issue a real SQL query that goes through RLS.
 
 > NOTE: this is done in switchToTenant() for example.
 ```java
@@ -82,12 +87,9 @@ public void switchToTenant(String tenantId, EntityManager entityManager) {
 ```
 ### Step 5 — Implement Test Methods
 
-> **Template**: All 6 test templates (READ, same-tenant READ, SEARCH, UPDATE, DELETE,
-> search-by-IDs) are in
+> **Template**: All 5 test templates (READ, same-tenant READ, SEARCH, UPDATE, DELETE) are in
 > [`examples/tenant-isolation-templates.md`](examples/tenant-isolation-templates.md).
 > Read that file for the full code templates with placeholder documentation.
-> Test 6 (search-by-IDs) is only needed when the API has a batch-lookup endpoint
-> (e.g., `POST /{entities}/search-by-id`).
 
 > **Real-world examples** (read these for patterns to follow):
 > - [`AssetGroupApiTest.TenantIsolation`](../../../openaev-api/src/test/java/io/openaev/rest/asset_group/AssetGroupApiTest.java) — fixture + REST API create
