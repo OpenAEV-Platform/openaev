@@ -27,10 +27,10 @@ permissions:
   actions: read
 
 jobs:
-
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/frontend-quality
@@ -142,11 +142,12 @@ jobs:
 
   codecov:
     name: "📊 Coverage Merge & Upload"
-    needs: [ api-tests, frontend-quality, e2e-tests ]
+    needs: [api-tests, frontend-quality, e2e-tests]
     # Always run so partial coverage (e.g. backend+frontend) is still
     # uploaded even when one upstream job fails or is cancelled.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -205,7 +206,8 @@ jobs:
 
       - name: Coverage report & threshold check
         if: steps.jacoco-merge.outcome == 'success'
-        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage
+        run:
+          mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage
           threshold check ⚠️"
 
       - name: Upload API coverage report

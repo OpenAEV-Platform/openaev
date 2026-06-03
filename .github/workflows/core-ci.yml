@@ -2,11 +2,11 @@ name: "[Core] CI"
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,10 +17,10 @@ permissions:
   actions: read
 
 jobs:
-
   spotless-check:
     name: "🔍 Spotless Check"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/spotless-check
@@ -28,6 +28,7 @@ jobs:
   backend-compile:
     name: "🔨 Backend Compile"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/backend-compile
@@ -35,6 +36,7 @@ jobs:
   frontend-build:
     name: "🎨 Frontend Build"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/frontend-build
@@ -80,6 +82,7 @@ jobs:
   prepare-release-assets:
     name: "📦 Prepare Release Assets"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -166,8 +169,9 @@ jobs:
   # Alpine/musl JAR build for Alpine-based Docker images
   backend-package-musl:
     name: "📦 Backend Package (musl)"
-    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    needs: [frontend-build, backend-compile, prepare-release-assets]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     container:
       image: maven:3.9.16-eclipse-temurin-21-alpine
     steps:

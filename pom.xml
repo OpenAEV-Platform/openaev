@@ -61,9 +61,31 @@
             </snapshots>
         </repository>
         <repository>
-            <id>shibboleth_repository</id>
-            <name>Shibboleth Maven Repository</name>
+            <id>shibboleth-releases</id>
+            <name>Shibboleth Releases</name>
+            <url>https://build.shibboleth.net/maven/releases/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>shibboleth-releases-legacy</id>
+            <name>Shibboleth Releases (Legacy Nexus)</name>
             <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>jboss-public</id>
+            <name>JBoss Public Repository</name>
+            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
     </repositories>
     <dependencyManagement>
