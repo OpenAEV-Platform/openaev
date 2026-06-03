@@ -20,7 +20,6 @@ inputs:
 runs:
   using: composite
   steps:
-
     - name: Start all services (non-blocking)
       shell: bash
       run: |
@@ -109,13 +108,15 @@ runs:
       run: |
         echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
         for i in $(seq 1 180); do
-          HTTP_CODE=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --include 2>&1 | head -1 | awk '{print $2}' || echo "000")
+          # Check if backend-compile has failed — abort immediately
+          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
+          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
+            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
+            exit 1
+          fi
           NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
             --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
-            echo "⚠️ GitHub API returned HTTP $HTTP_CODE (attempt $i/180)"
-          fi
           if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
             echo "✅ Artifact available (after ~$((i * 5))s)"
             break
@@ -182,7 +183,6 @@ runs:
 
         echo "✅ All services ready"
 
-
     - name: Start application
       run: java -jar openaev-api/target/openaev-api.jar &
       shell: bash
@@ -235,4 +235,3 @@ runs:
       with:
         name: playwright-coverage
         path: openaev-front/test-results/coverage/
-
