@@ -45,7 +45,7 @@ public class ObjectRedactionUtils {
   private static final Set<String> USER_PII_FIELDS_TO_HIDE = Set.of("user_pgp_key");
 
   private static final Set<ResourceType> USER_ENTITY_TYPES =
-      Set.of(ResourceType.USER, ResourceType.PLATFORM_USER);
+      Set.of(ResourceType.USER, ResourceType.PLATFORM_USER, ResourceType.PLAYER);
 
   /**
    * Redacts sensitive field values in a JSON tree. Operates on a deep copy — the original is never
