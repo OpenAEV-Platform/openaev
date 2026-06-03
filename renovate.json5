@@ -62,34 +62,27 @@
             allowedVersions: '<=2.6.0',
             enabled: true,
         },
-        // sticks to MIT version of apexcharts
         {
             description: 'apexcharts >= 5 uses a commercial license (not MIT). Block major updates.',
             matchDepNames: [
                 'apexcharts'
             ],
-            allowedVersions: '<5',
+            allowedVersions: '<5', // sticks to MIT version of apexcharts
         },
         {
             description: 'react-apexcharts >= 1.8.0 depends on apexcharts >= 5 (commercial license). Block updates.',
             matchDepNames: [
                 'react-apexcharts'
             ],
-            allowedVersions: '<1.8.0',
-        },
-        // patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
-        {
-            matchDepNames: [
-                'react-apexcharts'
-            ],
-            commitMessagePrefix: '[DANGER]',
+            allowedVersions: '<1.8.0', // sticks to MIT version of apexcharts
+            commitMessagePrefix: '[DANGER]', // patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
             commitMessageSuffix: '(react-apexcharts has a yarn patch)',
         },
         {
             matchDepNames: [
                 'html-to-image'
             ],
-            commitMessagePrefix: '[DANGER]',
+            commitMessagePrefix: '[DANGER]', // patched dependencies: [DANGER] prefix to flag PRs that need manual patch verification
             commitMessageSuffix: '(html-to-image has a yarn patch)',
         },
         // group non-major devDependencies once a week to avoid Renovate noise
