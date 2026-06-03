@@ -7,19 +7,16 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
-import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mapper.FindingMapper;
@@ -37,7 +34,6 @@ import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -66,7 +62,6 @@ class FindingApiTest extends IntegrationTest {
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingMapper findingMapper;
   @Autowired private EntityManager entityManager;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @BeforeEach
   void setUp() {
@@ -658,169 +653,6 @@ class FindingApiTest extends IntegrationTest {
             .node("content")
             .isEqualTo(mapper.writeValueAsString(expectedFindings));
       }
-    }
-  }
-
-  @Nested
-  @DisplayName("Tenant Isolation")
-  @WithMockUser
-  class TenantIsolation {
-
-    private Finding createFindingInTenant(String tenantId) {
-      String previousTenant = TenantContext.getCurrentTenant();
-      tenantIsolationHelper.switchToTenant(tenantId, entityManager);
-
-      InjectComposer.Composer injectWrapper =
-          injectComposer.forInject(InjectFixture.getDefaultInject()).persist();
-      Finding finding =
-          findingComposer
-              .forFinding(createDefaultTextFindingWithRandomValue())
-              .withInject(injectWrapper)
-              .persist()
-              .get();
-
-      tenantIsolationHelper.switchToTenant(previousTenant, entityManager);
-      return finding;
-    }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be readable from tenant Y")
-    void given_findingInTenantX_should_notBeReadableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  get("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Finding created in tenant X should be readable from tenant X")
-    void given_findingInTenantX_should_beReadableFromTenantX() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act & Assert --------
-      mvc.perform(
-              get("/api/tenants/" + tenantX.getId() + "/findings/" + finding.getId()).with(csrf()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.finding_id").value(finding.getId()));
-    }
-
-    @Test
-    @DisplayName("Finding search in tenant Y should NOT return findings from tenant X")
-    void given_findingInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_FINDINGS));
-
-      createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      SearchPaginationInput searchInput = PaginationFixture.getDefault().build();
-
-      // -------- Act & Assert --------
-      mvc.perform(
-              post("/api/tenants/" + tenantY.getId() + "/findings/search")
-                  .content(asJsonString(searchInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.totalElements").value(0));
-    }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be updatable from tenant Y")
-    void given_findingInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      FindingInput updateInput = new FindingInput();
-      updateInput.setField("updated_field");
-      updateInput.setType(ContractOutputType.Text);
-      updateInput.setValue("updated_value");
-      updateInput.setInjectId(finding.getInject().getId());
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  put("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
-    void given_findingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 

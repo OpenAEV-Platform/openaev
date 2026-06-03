@@ -486,6 +486,7 @@ public class ScenarioService {
     this.scenarioRepository.saveAll(scenarios);
   }
 
+<<<<<<< HEAD
   /** Validates that the scenario exists for the current tenant. Throws if not found. */
   public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
     if (!this.scenarioRepository.existsByIdAndTenantId(
@@ -495,8 +496,12 @@ public class ScenarioService {
   }
 
   @Transactional(rollbackFor = Exception.class)
+    // Verify scenario belongs to current tenant before deleting
+    scenario(scenarioId);
+>>>>>>> parent of cd292934e ([backend] test(multi-tenancy): findings API for multi-tenancy (#5718))
   public void deleteScenario(@NotBlank final String scenarioId) {
-    existsByIdAndTenantId(scenarioId);
+    // Verify scenario belongs to current tenant before deleting
+    scenario(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -769,10 +774,7 @@ public class ScenarioService {
     return teamService.find(fromIds(modifiedTeamIds));
   }
 
-  public Scenario addScenarioPlayer(
-      @NotBlank final String scenarioId,
-      @NotBlank final String teamId,
-      @NotNull final List<String> playerIds) {
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
@@ -783,10 +785,7 @@ public class ScenarioService {
   public Scenario enableAddScenarioTeamPlayer(
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
-      @NotNull final List<String> playerIds) {
     Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
-    return this.enablePlayers(scenarioId, team, playerIds);
-  }
 
   public Scenario enablePlayers(
       @NotBlank final String scenarioId,

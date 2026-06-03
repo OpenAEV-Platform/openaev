@@ -3,7 +3,6 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
@@ -45,7 +44,7 @@ public class FindingService {
 
   public Finding finding(@NotNull final String id) {
     return this.findingRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
   }
 
@@ -63,7 +62,7 @@ public class FindingService {
   }
 
   public void deleteFinding(@NotNull final String id) {
-    if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
+    if (!this.findingRepository.existsById(id)) {
       throw new EntityNotFoundException("Finding not found with id: " + id);
     }
     this.findingRepository.deleteById(id);
