@@ -38,10 +38,11 @@ public abstract class IntegrationFactory {
   public List<Integration> sync(List<ConnectorInstance> instances) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
+      log.info("==> in sync for instances {} ", instances.size());
       try {
         Integration integration = this.spawn(connectorInstance);
         integration.initialise();
-
+        log.info("==> integration.initialise {} ", integration.getCurrentStatus());
         list.add(integration);
       } catch (Exception e) {
         log.error(

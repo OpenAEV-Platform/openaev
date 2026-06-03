@@ -1,14 +1,16 @@
 package io.openaev.integration;
 
 import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
+import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.lock.Lock;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ManagerFactory implements DependenciesManager {
   private final List<IntegrationFactory> factories;
   private final List<BuiltinTenantRegistrable> builtinRegistrables;
+  private final TenantRepository tenantRepository;
 
   private final ConcurrentHashMap<String, Manager> managers = new ConcurrentHashMap<>();
 
@@ -39,24 +42,42 @@ public class ManagerFactory implements DependenciesManager {
   }
 
   /**
-   * Returns all currently active {@link Manager} instances across all tenants. Intended for
-   * background jobs that need to operate on every tenant's manager (e.g. sync jobs).
-   *
-   * @return collection of all tenant managers
+   * Loads all tenants from the database, ensures a {@link Manager} exists for each one (creating
+   * it lazily if needed), and calls {@link Manager#monitorIntegrations()} on each. This is the
+   * entry point for the {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob}: driving from
+   * the DB guarantees that tenants created between restarts are not missed, even though the
+   * in-memory map starts empty after every restart.
+   * TODO ==> Even though monitorIntegrations() passes tenantId explicitly to findRelatedInstances(tenantId), once inside Integration.initialise() the tenant context is needed in two places:
+   * connectorInstanceService.refresh(instance) → calls connectorInstanceRepository.findById() — this is a plain JPA findById on a @Filter("tenantFilter") entity. The Hibernate filter silently applies WHERE tenant_id = :currentTenant, so if TenantContext is unset it returns null, the integration thinks the instance was deleted, and stops instead of starting.
+   * connectorInstanceService.save(connectorInstance) → at the end of initialise(), it saves the updated currentStatus back. If TenantContext is wrong, the TenantBaseListener.@PrePersist could assign the wrong tenant.
+   * So yes — the underlying repositories still read TenantContext even when the service method was called with an explicit tenantId. The TenantContext.setCurrentTenant in monitorAllTenants() is necessary precisely because the Hibernate filter and entity listeners are wired to TenantContext, not to method arguments.
+   * The long-term fix would be to make refresh() use an explicit tenantId query (bypassing the Hibernate filter), but that's a larger refactor. The current setCurrentTenant per tenant in monitorAllTenants() is the correct approach for now.
    */
-  public Collection<Manager> getAllManagers() {
-    return managers.values();
+  @Transactional
+  public void monitorAllTenants() {
+    List<Tenant> tenants = fromIterable(tenantRepository.findAll());
+    for (Tenant tenant : tenants) {
+      log.info("==> Monitoring tenant " + tenant.getName());
+      TenantContext.setCurrentTenant(tenant.getId());
+      try {
+        getManager(tenant.getId()).monitorIntegrations();
+      } catch (Exception e) {
+        log.error(
+            "==> monitorAllTenants: error monitoring tenant '{}': {}",
+            tenant.getName(),
+            e.getMessage(),
+            e);
+        // do not rethrow; continue with remaining tenants
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
+    }
   }
 
   /**
-   * Creates and fully initializes a new {@link Manager} for the given tenant. Built-in connector
-   * registration is intentionally <b>not</b> performed here — it is the responsibility of the
-   * {@link DependenciesManager} framework: {@link #createDependencyForTenant(Tenant)} is called at
-   * application startup (for all existing tenants) and on every new tenant creation, so built-ins
-   * are guaranteed to exist before the first {@link #getManager(String)} call.
-   *
-   * @param tenantId the tenant identifier
-   * @return the newly created and initialized Manager
+   * Creates and fully initializes a new {@link Manager} for the given tenant. {@link
+   * Manager#monitorIntegrations()} is called immediately so that any already-persisted connector
+   * instances are picked up right away.
    */
   private Manager createManager(String tenantId) {
     try {
@@ -68,36 +89,47 @@ public class ManagerFactory implements DependenciesManager {
     }
   }
 
+  /**
+   * Returns the IDs of all tenants currently in the database. Used for logging/diagnostics.
+   *
+   * @return list of tenant IDs
+   */
+  @Transactional(readOnly = true)
+  public List<String> getTenantIds() {
+    return fromIterable(tenantRepository.findAll()).stream()
+        .map(Tenant::getId)
+        .toList();
+  }
+
   // -- TENANT DEPENDENCIES --
 
   /**
-   * Registers built-in connectors for the given tenant in the current transaction. Called by the
-   * {@link DependenciesManager} framework at application startup (for all existing tenants) and on
-   * every new tenant creation, ensuring built-ins exist before the first {@link
-   * #getManager(String)} call.
+   * Creates (or retrieves) the {@link Manager} for the given tenant. Called by the {@link
+   * DependenciesManager} framework on every new tenant creation.
+   *
+   * <p>Also registers all built-in connectors (injectors, executor) for the new tenant. {@link
+   * io.openaev.context.TenantContext} is already set to the new tenant by {@link
+   * io.openaev.service.tenants.TenantService} before this method is called.
    */
   @Override
-  @Transactional(rollbackFor = Exception.class)
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
+    // Register built-in connectors (injectors/executor) for the new tenant.
+    // TenantContext is already set by TenantService.create() at this point.
     for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
       try {
         registrable.registerForTenant();
       } catch (Exception e) {
         throw new DependenciesManagerException(
-            "Failed to register built-in connector %s for tenant %s"
-                .formatted(registrable.getClass().getSimpleName(), tenant.getName()),
-            e);
+            "Failed to register built-in connector for tenant " + tenant.getName(), e);
       }
     }
-    log.info(
-        "Successfully registered {} built-in connector(s) for tenant '{}'",
-        builtinRegistrables.size(),
-        tenant.getName());
+    // Create the Manager for this tenant (must run after registration so connectors exist in DB).
+    managers.computeIfAbsent(tenant.getId(), this::createManager);
   }
 
   @Override
   public void deleteDependencyForTenant(String tenantId) {
-    // Built-in connectors are tenant-scoped and deleted by CASCADE.
+    managers.remove(tenantId);
   }
 
   @Override
