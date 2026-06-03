@@ -151,10 +151,7 @@ public class MapperService {
   public ImportMapper getDuplicateImportMapper(@NotBlank String importMapperId) {
     if (StringUtils.isNotBlank(importMapperId)) {
       ImportMapper importMapperOrigin =
-          importMapperRepository
-              .findByIdAndTenantId(
-                  UUID.fromString(importMapperId), TenantContext.getCurrentTenant())
-              .orElseThrow(ElementNotFoundException::new);
+          importMapperRepository.findById(UUID.fromString(importMapperId)).orElseThrow(ElementNotFoundException::new);
       ImportMapper importMapper =
           CopyObjectListUtils.copyObjectWithoutId(importMapperOrigin, ImportMapper.class);
       importMapper.setName(duplicateString(importMapperOrigin.getName()));
@@ -191,7 +188,7 @@ public class MapperService {
       String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
     ImportMapper importMapper =
         importMapperRepository
-            .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
+            .findById(UUID.fromString(mapperId))
             .orElseThrow(ElementNotFoundException::new);
     importMapper.setUpdateAttributes(importMapperUpdateInput);
     importMapper.setUpdateDate(Instant.now());

@@ -60,8 +60,7 @@ public class ScenarioImportApi extends RestBehavior {
     // Getting the mapper to use
     ImportMapper importMapper =
         importMapperRepository
-            .findByIdAndTenantId(
-                UUID.fromString(input.getImportMapperId()), TenantContext.getCurrentTenant())
+            .findById(UUID.fromString(input.getImportMapperId()))
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
@@ -97,8 +96,7 @@ public class ScenarioImportApi extends RestBehavior {
     // Getting the mapper to use
     ImportMapper importMapper =
         importMapperRepository
-            .findByIdAndTenantId(
-                UUID.fromString(input.getImportMapperId()), TenantContext.getCurrentTenant())
+            .findById(UUID.fromString(input.getImportMapperId()))
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
