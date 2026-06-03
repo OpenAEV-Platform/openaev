@@ -35,7 +35,6 @@ import org.springframework.stereotype.Component;
 public class AuditLogger {
 
   private final ApplicationContext context;
-  private final AuditRequestValidator auditRequestValidator;
   private final AuditLogProperties auditLogProperties;
   private final LogService logService;
   private final AtomicBoolean shutdownTriggered = new AtomicBoolean(false);
@@ -45,7 +44,7 @@ public class AuditLogger {
   }
 
   public boolean isAuditLoggingValid(Action action) {
-    return !auditRequestValidator.shouldSkip(action);
+    return !shouldSkip(action);
   }
 
   public void prepareLogFailure() {
@@ -164,5 +163,15 @@ public class AuditLogger {
     }
 
     return CompletableFuture.completedFuture(status);
+  }
+
+  private boolean shouldSkip(Action action) {
+    return switch (action) {
+      case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
+      // READ/SEARCH are never audited on success — only unauthorized attempts are logged
+      // (captured separately via logAuthEvent when RBAC denies access).
+      case READ, SEARCH -> true;
+      default -> true; // SKIP_RBAC, PROCESS
+    };
   }
 }
