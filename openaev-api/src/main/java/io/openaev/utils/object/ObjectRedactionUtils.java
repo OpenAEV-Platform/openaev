@@ -29,7 +29,17 @@ public class ObjectRedactionUtils {
       Set.of(Pattern.compile(".*_date"), Pattern.compile(".*_time"), Pattern.compile(".*_at"));
 
   /** Fields redacted only when the entity type is User (PII protection). */
-  private static final Set<String> USER_PII_FIELDS = Set.of("name", "user_email");
+  private static final Set<String> USER_PII_FIELDS =
+      Set.of(
+          "name",
+          "user_firstname",
+          "user_lastname",
+          "user_email",
+          "user_phone",
+          "user_phone2",
+          "user_pgp_key",
+          "user_password",
+          "communications_users");
 
   private static final Set<ResourceType> USER_ENTITY_TYPES =
       Set.of(ResourceType.USER, ResourceType.PLATFORM_USER);
