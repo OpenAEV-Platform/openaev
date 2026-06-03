@@ -18,6 +18,8 @@ public interface ChallengeRepository
   @NotNull
   Optional<Challenge> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   @NotNull
   List<Challenge> findByNameIgnoreCase(@NotNull final String name);
 }
