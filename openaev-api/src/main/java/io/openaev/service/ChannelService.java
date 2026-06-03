@@ -7,6 +7,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
@@ -39,14 +40,16 @@ public class ChannelService {
 
   public Channel channel(@NotNull final String channelId) {
     return channelRepository
-        .findById(channelId)
+        .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Channel not found with id: " + channelId));
   }
 
   public ChannelReader validateArticles(String exerciseId, String channelId, User user) {
     ChannelReader channelReader;
     Channel channel =
-        channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
+        channelRepository
+            .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 
     Optional<Exercise> exerciseOpt = exerciseRepository.findById(exerciseId);

@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -89,7 +90,7 @@ class ChannelServiceTest {
       exercise.setId("exercise-1");
       exercise.setInjects(List.of(inject));
 
-      when(channelRepository.findById("channel-1")).thenReturn(Optional.of(channel));
+      when(channelRepository.findByIdAndTenantId(eq("channel-1"), any())).thenReturn(Optional.of(channel));
       when(exerciseRepository.findById("exercise-1")).thenReturn(Optional.of(exercise));
       when(articleRepository.findAllById(any())).thenReturn(List.of(article));
       when(injectExpectationExecutionRepository.findChannelExpectations(any(), any(), any()))

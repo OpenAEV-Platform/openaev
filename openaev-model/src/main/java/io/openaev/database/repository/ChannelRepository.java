@@ -15,6 +15,10 @@ public interface ChannelRepository
   @NotNull
   Optional<Channel> findById(@NotNull String id);
 
+  Optional<Channel> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
   List<Channel> findByNameIgnoreCase(String name);
 
   List<Channel> findDistinctByArticlesExerciseId(String simulationId);
