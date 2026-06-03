@@ -2,7 +2,6 @@ package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectExpectation;
@@ -41,7 +40,7 @@ public class WidgetService {
     // causing circular dependency
     CustomDashboard customDashboard =
         customDashboardRepository
-            .findByIdAndTenantId(customDashboardId, TenantContext.getCurrentTenant())
+            .findById(customDashboardId)
             .orElseThrow(
                 () ->
                     new EntityNotFoundException(
@@ -66,7 +65,7 @@ public class WidgetService {
   @Transactional(readOnly = true)
   public Widget widget(@NotBlank final String widgetId) {
     return this.widgetRepository
-        .findByIdAndTenantId(widgetId, TenantContext.getCurrentTenant())
+        .findById(widgetId)
         .orElseThrow(() -> new EntityNotFoundException("Widget with id: " + widgetId));
   }
 
