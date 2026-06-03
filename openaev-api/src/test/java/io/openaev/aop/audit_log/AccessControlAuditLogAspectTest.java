@@ -47,7 +47,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   void setup() {
     reset(auditLogger);
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
-    doReturn(true).when(auditLogger).isAuditUnauthorizedLoggingValid();
   }
 
   @Nested
@@ -69,6 +68,51 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
       // Act
       mvc.perform(delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID).with(csrf()))
+          .andExpect(status().isForbidden());
+
+      // Assert
+      verify(auditLogger, timeout(1000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              resourceTypeCaptor.capture(),
+              resourceIdCaptor.capture(),
+              inputCaptor.capture(),
+              outputCaptor.capture(),
+              signatureCaptor.capture(),
+              logUuidCaptor.capture());
+
+      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
+      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
+      assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
+      assertThat(inputCaptor.getValue()).isNull();
+      assertThat(outputCaptor.getValue()).isNotNull();
+      assertThat(outputCaptor.getValue().path("exception_type").asText())
+          .contains("AccessControlAspect$");
+      assertThat(signatureCaptor.getValue()).isNotNull();
+      assertThat(logUuidCaptor.getValue()).isNotBlank();
+    }
+
+    @Test
+    @WithMockUser
+    void given_missingCapabilityWithAutomatedUserAgent_should_logUnauthorizedEvent()
+        throws Exception {
+      // Arrange
+      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
+
+      // Act
+      mvc.perform(
+              delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID)
+                  .with(csrf())
+                  .header("User-Agent", "openaev-agent/x.x.x"))
           .andExpect(status().isForbidden());
 
       // Assert

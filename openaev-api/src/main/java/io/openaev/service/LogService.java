@@ -152,7 +152,7 @@ public class LogService {
       if ("status_change".equals(eventScope)) {
         message = LogUtils.buildStatusChangeMessage(input, entityTypeName, displayName);
       } else {
-        message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
+        message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
       }
 
       String eventType = LogUtils.getEventType(EventType.MUTATION);

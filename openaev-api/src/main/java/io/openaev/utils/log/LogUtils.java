@@ -7,6 +7,7 @@ import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
+import io.openaev.utils.object.ObjectRedactionUtils;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.logging.Level;
@@ -103,26 +104,30 @@ public class LogUtils {
    */
   public static String buildStatusChangeMessage(
       JsonNode input, String entityTypeName, String displayName) {
+    String dn = displayName != null && !displayName.isBlank() ? " `" + displayName + "`" : "";
+
     if (input == null) {
-      return "changes status of " + entityTypeName + " `" + displayName + "`";
+      return "changes status of " + entityTypeName + dn;
     }
     if (input.has("exercise_status")) {
       String newStatus = input.get("exercise_status").asText().toLowerCase();
-      return "changes status of "
-          + entityTypeName
-          + " `"
-          + displayName
-          + "` to `"
-          + newStatus
-          + "`";
+      return "changes status of " + entityTypeName + dn + " to `" + newStatus + "`";
     }
     if (input.has("action") && "launch".equals(input.get("action").asText())) {
-      return "launches " + entityTypeName + " `" + displayName + "`";
+      return "launches " + entityTypeName + dn;
     }
     if (input.has("scenario_recurrence")) {
-      return "updates recurrence of " + entityTypeName + " `" + displayName + "`";
+      return "updates recurrence of " + entityTypeName + dn;
     }
-    return "changes status of " + entityTypeName + " `" + displayName + "`";
+    return "changes status of " + entityTypeName + dn;
+  }
+
+  public static String buildRequestLogMessage(
+      String eventScope, String entityTypeName, String displayName) {
+    return eventScope
+        + "s "
+        + entityTypeName
+        + (displayName != null && !displayName.isBlank() ? " `" + displayName + "`" : "");
   }
 
   public static String buildAuthLogMessage(String eventScope, String eventStatus, String provider) {
@@ -210,7 +215,7 @@ public class LogUtils {
         }) {
       JsonNode node = snapshot.get(field);
       if (node != null && node.isTextual()) {
-        return node.asText();
+        return (String) ObjectRedactionUtils.redactFieldValue(node.asText(), field);
       }
     }
     return null;
