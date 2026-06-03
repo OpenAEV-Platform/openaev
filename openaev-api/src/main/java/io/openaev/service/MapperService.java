@@ -152,7 +152,8 @@ public class MapperService {
     if (StringUtils.isNotBlank(importMapperId)) {
       ImportMapper importMapperOrigin =
           importMapperRepository
-              .findById(UUID.fromString(importMapperId))
+              .findByIdAndTenantId(
+                  UUID.fromString(importMapperId), TenantContext.getCurrentTenant())
               .orElseThrow(ElementNotFoundException::new);
       ImportMapper importMapper =
           CopyObjectListUtils.copyObjectWithoutId(importMapperOrigin, ImportMapper.class);
@@ -190,7 +191,7 @@ public class MapperService {
       String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
     ImportMapper importMapper =
         importMapperRepository
-            .findById(UUID.fromString(mapperId))
+            .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     importMapper.setUpdateAttributes(importMapperUpdateInput);
     importMapper.setUpdateDate(Instant.now());
