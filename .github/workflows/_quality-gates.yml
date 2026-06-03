@@ -27,6 +27,14 @@ permissions:
   actions: read
 
 jobs:
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/spotless-check
+
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
     runs-on: ubuntu-latest
@@ -323,24 +331,25 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   quality-status:
     name: "🚦 Quality Status"
-    needs: [frontend-quality, api-tests, e2e-tests, api-types-check, codecov]
+    needs:
+      [spotless-check, frontend-quality, api-tests, e2e-tests, api-types-check]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
       - name: Check all quality gate results
         run: |
+          echo "spotless-check:   ${{ needs.spotless-check.result }}"
           echo "frontend-quality: ${{ needs.frontend-quality.result }}"
           echo "api-tests:        ${{ needs.api-tests.result }}"
           echo "e2e-tests:        ${{ needs.e2e-tests.result }}"
           echo "api-types-check:  ${{ needs.api-types-check.result }}"
-          echo "codecov:          ${{ needs.codecov.result }}"
 
-          if [[ "${{ needs.frontend-quality.result }}" == "failure" ]] ||
+          if [[ "${{ needs.spotless-check.result }}" == "failure" ]] ||
+             [[ "${{ needs.frontend-quality.result }}" == "failure" ]] ||
              [[ "${{ needs.api-tests.result }}" == "failure" ]] ||
              [[ "${{ needs.e2e-tests.result }}" == "failure" ]] ||
-             [[ "${{ needs.api-types-check.result }}" == "failure" ]] ||
-             [[ "${{ needs.codecov.result }}" == "failure" ]]; then
+             [[ "${{ needs.api-types-check.result }}" == "failure" ]]; then
             echo ""
             echo "❌ One or more quality gates failed"
             exit 1
