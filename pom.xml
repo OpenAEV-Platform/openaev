@@ -60,6 +60,11 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        <repository>
+            <id>shibboleth_repository</id>
+            <name>Shibboleth Maven Repository</name>
+            <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+        </repository>
     </repositories>
     <dependencyManagement>
         <dependencies>
