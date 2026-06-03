@@ -10,7 +10,7 @@
         'filigran team',
     ],
     minimumReleaseAge: '3 days',
-    prHourlyLimit: 2,
+    prHourlyLimit: 100,
     prConcurrentLimit: 100,
     branchConcurrentLimit: 100,
     timezone: 'Europe/Paris',
