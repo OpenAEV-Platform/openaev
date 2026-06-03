@@ -10,7 +10,6 @@ import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -46,7 +45,6 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
@@ -55,7 +53,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -591,154 +588,6 @@ class EndpointApiTest extends IntegrationTest {
   @DisplayName("Tenant Isolation")
   @WithMockUser(isAdmin = true)
   class TenantIsolation {
-
-    @Nested
-    @DisplayName("Scenario-style endpoint isolation")
-    @WithMockUser
-    class EndpointCrudIsolation {
-
-      private Endpoint createTenantEndpoint(String tenantId, String name) throws Exception {
-        Endpoint endpointInput = createEndpoint();
-        endpointInput.setName(name);
-        endpointInput.setHostname(name);
-
-        String createResponse =
-            mvc.perform(
-                    post("/api/tenants/" + tenantId + "/endpoints/agentless")
-                        .content(asJsonString(endpointInput))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        String endpointId = JsonPath.read(createResponse, "$.asset_id");
-        return endpointRepository.findByIdAndTenantId(endpointId, tenantId).orElseThrow();
-      }
-
-      @Test
-      @DisplayName("Endpoint created in tenant X should NOT be readable from tenant Y")
-      void given_endpointInTenantX_should_notBeReadableFromTenantY() throws Exception {
-        // -------- Arrange --------
-        Tenant tenantX =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-        Tenant tenantY =
-            tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
-
-        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Isolation Read Endpoint");
-        entityManager.flush();
-        entityManager.clear();
-
-        // -------- Act --------
-        int responseStatus =
-            mvc.perform(
-                    get("/api/tenants/" + tenantY.getId() + "/endpoints/" + endpointX.getId())
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andReturn()
-                .getResponse()
-                .getStatus();
-
-        // -------- Assert --------
-        assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-      }
-
-      @Test
-      @DisplayName("Endpoint created in tenant X should be readable from tenant X")
-      void given_endpointInTenantX_should_beReadableFromTenantX() throws Exception {
-        // -------- Arrange --------
-        Tenant tenantX =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Same Tenant Endpoint");
-
-        // -------- Act --------
-        String response =
-            mvc.perform(
-                    get("/api/tenants/" + tenantX.getId() + "/endpoints/" + endpointX.getId())
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        // -------- Assert --------
-        assertThatJson(response).node("asset_id").isEqualTo(endpointX.getId());
-      }
-
-      @Test
-      @DisplayName("Endpoint search in tenant Y should NOT return endpoints from tenant X")
-      void given_endpointInTenantX_should_notAppearInTenantYSearch() throws Exception {
-        // -------- Arrange --------
-        Tenant tenantX =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-        Tenant tenantY =
-            tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
-
-        createTenantEndpoint(tenantX.getId(), "CrossTenantSearchEndpoint");
-        entityManager.flush();
-        entityManager.clear();
-
-        SearchPaginationInput searchInput =
-            PaginationFixture.simpleTextSearch("CrossTenantSearchEndpoint");
-
-        // -------- Act --------
-        String searchResponse =
-            mvc.perform(
-                    post("/api/tenants/" + tenantY.getId() + "/endpoints/search")
-                        .content(asJsonString(searchInput))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        // -------- Assert --------
-        assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-      }
-
-      @Test
-      @DisplayName("Endpoint created in tenant X should NOT be updatable from tenant Y")
-      void given_endpointInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-        // -------- Arrange --------
-        Tenant tenantX =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-        Tenant tenantY =
-            tenantHelper.createTenantWithCapabilities(
-                "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
-
-        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Update Isolation Endpoint");
-        entityManager.flush();
-        entityManager.clear();
-
-        EndpointInput updateInput = createWindowsEndpointInput(List.of());
-        updateInput.setName("Hijacked Endpoint");
-        updateInput.setHostname("hijacked-endpoint");
-
-        // -------- Act --------
-        int responseStatus =
-            mvc.perform(
-                    put("/api/tenants/" + tenantY.getId() + "/endpoints/" + endpointX.getId())
-                        .content(asJsonString(updateInput))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.APPLICATION_JSON)
-                        .with(csrf()))
-                .andReturn()
-                .getResponse()
-                .getStatus();
-
-        // -------- Assert --------
-        assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-      }
-    }
 
     @Nested
     class AgentExecutorJoin {

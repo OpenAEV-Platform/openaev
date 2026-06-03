@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -145,13 +144,13 @@ public interface EndpointRepository
   List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   // For testing purposes only
+
   @Modifying
   @Query(
       value = "UPDATE assets SET asset_created_at = :creationDate where asset_id = :id",
       nativeQuery = true)
   void setCreationDate(@Param("creationDate") Instant creationDate, @Param("id") String assetId);
 
-  // For testing purposes only
   @Modifying
   @Query(
       value = "UPDATE assets SET asset_updated_at = :updateDate where asset_id = :id",
@@ -162,10 +161,7 @@ public interface EndpointRepository
   // Native query does the same as Hibernate query here because all "cascade" and other relations
   // are properly set in the database
   @Modifying
-  @Query(
-      value =
-          "DELETE FROM assets WHERE asset_id = :assetId AND tenant_id = :#{#tenantContext.currentTenant}",
-      nativeQuery = true)
+  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
   void deleteById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
@@ -175,6 +171,4 @@ public interface EndpointRepository
   List<Endpoint> findDistinctByInjectsExerciseId(String exerciseId);
 
   List<Endpoint> findDistinctByInjectsExerciseIdAndIdIn(String exerciseId, List<String> ids);
-
-  Optional<Endpoint> findByIdAndTenantId(String id, String tenantId);
 }
