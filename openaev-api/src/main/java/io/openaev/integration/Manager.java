@@ -13,9 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class Manager {
   private final List<IntegrationFactory> factories;
 
+  @Getter private final String tenantId;
+
   @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-  public Manager(List<IntegrationFactory> factories) throws Exception {
+  public Manager(String tenantId, List<IntegrationFactory> factories) throws Exception {
+    this.tenantId = tenantId;
     this.factories = factories;
 
     initialise();
@@ -119,7 +122,7 @@ public class Manager {
   public void monitorIntegrations() {
     for (IntegrationFactory factory : factories) {
       List<ConnectorInstance> newInstances =
-          factory.findRelatedInstances().stream()
+          factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
 

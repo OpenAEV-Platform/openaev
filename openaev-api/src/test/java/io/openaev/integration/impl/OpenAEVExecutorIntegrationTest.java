@@ -93,7 +93,7 @@ public class OpenAEVExecutorIntegrationTest {
 
     integrationFactory.initialise();
 
-    List<ConnectorInstance> instances = integrationFactory.findRelatedInstances();
+    List<ConnectorInstance> instances = integrationFactory.findRelatedInstances("test-tenant");
 
     assertThat(instances)
         .usingComparatorForType(
@@ -114,7 +114,7 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise();
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances());
+        integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
 
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);
     assertThat(syncedIntegrations)
@@ -134,7 +134,7 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise();
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances());
+        integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);
@@ -158,7 +158,7 @@ public class OpenAEVExecutorIntegrationTest {
 
     integrationFactory.initialise();
 
-    List<ConnectorInstance> instances = integrationFactory.findRelatedInstances();
+    List<ConnectorInstance> instances = integrationFactory.findRelatedInstances("test-tenant");
 
     assertThat(instances)
         .first()

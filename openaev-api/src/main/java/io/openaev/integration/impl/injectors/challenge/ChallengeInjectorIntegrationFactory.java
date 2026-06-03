@@ -81,7 +81,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,

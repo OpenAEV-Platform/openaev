@@ -1,12 +1,15 @@
 package io.openaev.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManagerException;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,56 +41,84 @@ class ManagerFactoryTest {
   }
 
   @Nested
-  @DisplayName("Startup path (registerBuiltinsForAllTenants)")
-  class StartupPath {
+  @DisplayName("getManager(tenantId) — per-tenant Manager creation")
+  class GetManager {
 
     @Test
-    @DisplayName("given_multipleTenants_should_callRegisterForTenantIsolatedForEach")
-    void given_multipleTenants_should_callRegisterForTenantIsolatedForEach() throws Exception {
+    @DisplayName("given_validTenantId_should_registerBuiltinsAndReturnManager")
+    void given_validTenantId_should_registerBuiltinsAndReturnManager() throws Exception {
       // Arrange
       Tenant tenantA = createTenant("tenant-a", "Tenant A");
-      Tenant tenantB = createTenant("tenant-b", "Tenant B");
-      when(tenantRepository.findAll()).thenReturn(List.of(tenantA, tenantB));
+      when(tenantRepository.findById("tenant-a")).thenReturn(Optional.of(tenantA));
 
-      // Act — getManager() triggers registerBuiltinsForAllTenants()
-      managerFactory.getManager();
+      // Act
+      Manager manager = managerFactory.getManager("tenant-a");
 
-      // Assert — each tenant gets its own isolated registration
+      // Assert
+      assertThat(manager).isNotNull();
+      assertThat(manager.getTenantId()).isEqualTo("tenant-a");
       verify(tenantRegistrationExecutor).registerForTenantIsolated(tenantA);
-      verify(tenantRegistrationExecutor).registerForTenantIsolated(tenantB);
-      // registerForTenant (join-transaction) should NOT be called in startup path
-      verify(tenantRegistrationExecutor, never()).registerForTenant(any());
     }
 
     @Test
-    @DisplayName("given_failingTenant_should_continueWithRemainingTenants")
-    void given_failingTenant_should_continueWithRemainingTenants() throws Exception {
+    @DisplayName("given_sameTenantId_should_returnSameManagerInstance")
+    void given_sameTenantId_should_returnSameManagerInstance() throws Exception {
+      // Arrange
+      Tenant tenantA = createTenant("tenant-a", "Tenant A");
+      when(tenantRepository.findById("tenant-a")).thenReturn(Optional.of(tenantA));
+
+      // Act — call twice with the same tenant
+      Manager first = managerFactory.getManager("tenant-a");
+      Manager second = managerFactory.getManager("tenant-a");
+
+      // Assert — same instance returned, registration only runs once
+      assertThat(first).isSameAs(second);
+      verify(tenantRegistrationExecutor, times(1)).registerForTenantIsolated(tenantA);
+    }
+
+    @Test
+    @DisplayName("given_differentTenantIds_should_returnDistinctManagers")
+    void given_differentTenantIds_should_returnDistinctManagers() throws Exception {
       // Arrange
       Tenant tenantA = createTenant("tenant-a", "Tenant A");
       Tenant tenantB = createTenant("tenant-b", "Tenant B");
-      when(tenantRepository.findAll()).thenReturn(List.of(tenantA, tenantB));
+      when(tenantRepository.findById("tenant-a")).thenReturn(Optional.of(tenantA));
+      when(tenantRepository.findById("tenant-b")).thenReturn(Optional.of(tenantB));
+
+      // Act
+      Manager managerA = managerFactory.getManager("tenant-a");
+      Manager managerB = managerFactory.getManager("tenant-b");
+
+      // Assert — distinct Manager instances, each with its own tenantId
+      assertThat(managerA).isNotSameAs(managerB);
+      assertThat(managerA.getTenantId()).isEqualTo("tenant-a");
+      assertThat(managerB.getTenantId()).isEqualTo("tenant-b");
+    }
+
+    @Test
+    @DisplayName("given_unknownTenantId_should_throwException")
+    void given_unknownTenantId_should_throwException() {
+      // Arrange
+      when(tenantRepository.findById("unknown")).thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertThatThrownBy(() -> managerFactory.getManager("unknown"))
+          .isInstanceOf(RuntimeException.class)
+          .hasMessageContaining("Failed to initialize Manager for tenant unknown");
+    }
+
+    @Test
+    @DisplayName("given_failingRegistration_should_throwWrappedException")
+    void given_failingRegistration_should_throwWrappedException() throws Exception {
+      // Arrange
+      Tenant tenantA = createTenant("tenant-a", "Tenant A");
+      when(tenantRepository.findById("tenant-a")).thenReturn(Optional.of(tenantA));
       doThrow(new DependenciesManagerException("boom", new RuntimeException()))
           .when(tenantRegistrationExecutor)
           .registerForTenantIsolated(tenantA);
 
-      // Act — should not throw, errors are logged per tenant
-      assertThatNoException().isThrownBy(() -> managerFactory.getManager());
-
-      // Assert — tenant B still gets registered despite tenant A failure
-      verify(tenantRegistrationExecutor).registerForTenantIsolated(tenantB);
-    }
-
-    @Test
-    @DisplayName("given_noTenants_should_succeedWithoutRegistration")
-    void given_noTenants_should_succeedWithoutRegistration() {
-      // Arrange
-      when(tenantRepository.findAll()).thenReturn(List.of());
-
-      // Act
-      assertThatNoException().isThrownBy(() -> managerFactory.getManager());
-
-      // Assert
-      verifyNoInteractions(tenantRegistrationExecutor);
+      // Act & Assert — registration error is logged but not surfaced as RuntimeException
+      assertThatNoException().isThrownBy(() -> managerFactory.getManager("tenant-a"));
     }
   }
 

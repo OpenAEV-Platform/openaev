@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -94,10 +95,10 @@ public class ConnectorInstanceService {
    * @return the list of connector instances in memory
    */
   public List<ConnectorInstanceInMemory> getConnectorInstancesInMemoryByConnectorType(
-      ConnectorType connectorType) {
+      ConnectorType connectorType, String tenantId) {
     List<ConnectorInstanceInMemory> instancesInMemory = new ArrayList<>();
     try {
-      Manager manager = this.managerFactory.getManager();
+      Manager manager = this.managerFactory.getManager(tenantId);
       instancesInMemory =
           manager.getSpawnedIntegrations().keySet().stream()
               .filter(ConnectorInstanceInMemory.class::isInstance)
@@ -112,6 +113,23 @@ public class ConnectorInstanceService {
       log.error("Failed to get executor connector instances in memory", e);
     }
     return instancesInMemory;
+  }
+
+  /**
+   * Retrieves all connector instances in memory for a specific connector type, using the current
+   * tenant from the request context.
+   *
+   * <p>TODO: migrate all callers to {@link
+   * #getConnectorInstancesInMemoryByConnectorType(ConnectorType, String)} once tenant propagation
+   * is fully in place.
+   *
+   * @param connectorType the type of connector to filter by
+   * @return the list of connector instances in memory for the current tenant
+   */
+  public List<ConnectorInstanceInMemory> getConnectorInstancesInMemoryByConnectorType(
+      ConnectorType connectorType) {
+    return getConnectorInstancesInMemoryByConnectorType(
+        connectorType, TenantContext.getCurrentTenant());
   }
 
   /**
@@ -182,8 +200,18 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Finds a connector instance by its ID.
+   * Retrieves all connector instances for a specific tenant, bypassing the Hibernate tenant filter.
+   * This method is intended for background contexts (e.g. Manager initialization) where the filter
+   * may not be active.
    *
+   * @param tenantId the tenant ID to filter by
+   * @return the list of connector instances for the given tenant
+   */
+  public List<ConnectorInstancePersisted> connectorInstancesByTenantId(String tenantId) {
+    return connectorInstanceRepository.findAllByTenantId(tenantId);
+  }
+
+  /**
    * @param id the connector instance id to search for
    * @return the connector instance matching the ID
    * @throws EntityNotFoundException if no connector instance is found with the given ID
@@ -298,13 +326,21 @@ public class ConnectorInstanceService {
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
 
-    if (managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance) != null) {
+    if (managerFactory
+            .getManager(connectorInstance.getTenant().getId())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+        != null) {
       // Setting the status to stopping and immediately calling initialize to effectively stop the
       // integration
       try {
         connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
         this.save(connectorInstance);
-        managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+        managerFactory
+            .getManager(connectorInstance.getTenant().getId())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+            .initialise();
       } catch (Exception e) {
         log.error("Could not stop the connector id {} before delete", id, e);
         throw new ConnectorStatusException(

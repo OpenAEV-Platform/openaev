@@ -1,7 +1,6 @@
 package io.openaev.integration;
 
 import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
-import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.database.audit.TenantAssertionControl;
@@ -11,7 +10,9 @@ import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,45 +26,71 @@ public class ManagerFactory implements DependenciesManager {
   private final TenantRepository tenantRepository;
   private final TenantRegistrationExecutor tenantRegistrationExecutor;
 
-  private volatile Manager manager = null;
+  private final ConcurrentHashMap<String, Manager> managers = new ConcurrentHashMap<>();
 
+  /**
+   * Returns the {@link Manager} for the given tenant, creating and initializing it on first access.
+   * One Manager instance is maintained per tenant.
+   *
+   * @param tenantId the tenant identifier
+   * @return the Manager for that tenant
+   */
   @Transactional
-  @Lock(type = MANAGER_FACTORY, key = "manager-factory")
-  public Manager getManager() {
-    if (manager == null) {
-      try {
-        registerBuiltinsForAllTenants();
-        this.manager = new Manager(factories);
-        this.manager.monitorIntegrations();
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize Manager", e);
-      }
-    }
-    return this.manager;
+  @Lock(type = MANAGER_FACTORY, key = "#tenantId")
+  public Manager getManager(String tenantId) {
+    return managers.computeIfAbsent(tenantId, this::createManager);
   }
 
   /**
-   * Ensures built-in connectors are registered for every existing tenant. Each tenant registration
-   * runs in its own transaction and persistence context (via {@link TenantRegistrationExecutor}) to
-   * avoid JPA entity identity collisions when connector IDs are reused across tenants.
+   * Returns all currently active {@link Manager} instances across all tenants. Intended for
+   * background jobs that need to operate on every tenant's manager (e.g. sync jobs).
+   *
+   * @return collection of all tenant managers
    */
-  private void registerBuiltinsForAllTenants() {
-    List<Tenant> tenants = fromIterable(tenantRepository.findAll());
+  public Collection<Manager> getAllManagers() {
+    return managers.values();
+  }
+
+  /**
+   * Creates and fully initializes a new {@link Manager} for the given tenant. Registers built-in
+   * connectors for that tenant, constructs the Manager, and runs the initial integration monitor.
+   *
+   * @param tenantId the tenant identifier
+   * @return the newly created and initialized Manager
+   */
+  private Manager createManager(String tenantId) {
+    try {
+      registerBuiltinsForTenant(tenantId);
+      Manager manager = new Manager(tenantId, factories);
+      manager.monitorIntegrations();
+      return manager;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize Manager for tenant " + tenantId, e);
+    }
+  }
+
+  /**
+   * Ensures built-in connectors are registered for the given tenant. The registration runs in its
+   * own transaction and persistence context (via {@link TenantRegistrationExecutor}) to avoid JPA
+   * entity identity collisions when connector IDs are reused across tenants.
+   *
+   * @param tenantId the tenant identifier
+   */
+  private void registerBuiltinsForTenant(String tenantId) {
+    Tenant tenant =
+        tenantRepository
+            .findById(tenantId)
+            .orElseThrow(
+                () -> new IllegalArgumentException("Tenant not found for id: " + tenantId));
     TenantAssertionControl.suppress();
     try {
-      for (Tenant tenant : tenants) {
-        try {
-          // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
-          // (connector IDs are reused across tenants).
-          tenantRegistrationExecutor.registerForTenantIsolated(tenant);
-        } catch (DependenciesManagerException e) {
-          log.error(
-              "Failed to register built-in connectors for tenant '{}': {}",
-              tenant.getName(),
-              e.getMessage(),
-              e);
-        }
-      }
+      tenantRegistrationExecutor.registerForTenantIsolated(tenant);
+    } catch (DependenciesManagerException e) {
+      log.error(
+          "Failed to register built-in connectors for tenant '{}': {}",
+          tenant.getName(),
+          e.getMessage(),
+          e);
     } finally {
       TenantAssertionControl.restore();
     }
