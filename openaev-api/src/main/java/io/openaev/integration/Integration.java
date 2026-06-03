@@ -1,5 +1,6 @@
 package io.openaev.integration;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.helper.ConnectorInstanceHashHelper;
@@ -34,6 +35,22 @@ public abstract class Integration {
   }
 
   protected abstract void innerStart() throws Exception;
+
+  /**
+   * Resolves the tenant ID for the current connector instance.
+   *
+   * <p>For persisted instances (user-created via API), the tenant is read directly from the entity.
+   * For in-memory autostart instances (e.g. OpenAEV built-in), TenantContext is used as a fallback
+   * — it is guaranteed to be set during Manager initialization via {@code
+   * TenantRegistrationExecutor}.
+   */
+  protected String resolveTenantId() {
+    ConnectorInstance instance = getConnectorInstance();
+    if (instance instanceof ConnectorInstancePersisted persisted) {
+      return persisted.getTenant().getId();
+    }
+    return TenantContext.getCurrentTenant();
+  }
 
   protected abstract void refresh() throws Exception;
 

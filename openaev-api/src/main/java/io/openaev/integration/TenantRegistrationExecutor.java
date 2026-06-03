@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -30,10 +31,11 @@ public class TenantRegistrationExecutor {
   private final EntityManager entityManager;
 
   /**
-   * Registers built-in connectors for a single tenant within the caller's transaction. Wraps {@link
-   * #registerForTenant(Tenant)} with tenant context switch, flush/clear, and restore.
+   * Registers built-in connectors for a single tenant in its own independent transaction. Uses
+   * {@code REQUIRES_NEW} so that a failure for one tenant does not poison the outer transaction
+   * (which would cause {@code UnexpectedRollbackException} on the caller's commit).
    */
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public void registerForTenantIsolated(Tenant tenant) throws DependenciesManagerException {
     String previousTenant = TenantContext.getCurrentTenant();
     try {

@@ -36,6 +36,7 @@ public class ManagerFactory implements DependenciesManager {
         this.manager = new Manager(factories);
         this.manager.monitorIntegrations();
       } catch (Exception e) {
+        log.error("Failed to initialize Manager — root cause:", e);
         throw new RuntimeException("Failed to initialize Manager", e);
       }
     }
@@ -56,7 +57,7 @@ public class ManagerFactory implements DependenciesManager {
           // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
           // (connector IDs are reused across tenants).
           tenantRegistrationExecutor.registerForTenantIsolated(tenant);
-        } catch (DependenciesManagerException e) {
+        } catch (Exception e) {
           log.error(
               "Failed to register built-in connectors for tenant '{}': {}",
               tenant.getName(),

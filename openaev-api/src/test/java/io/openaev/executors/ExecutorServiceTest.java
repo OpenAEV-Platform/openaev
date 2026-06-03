@@ -48,6 +48,7 @@ class ExecutorServiceTest {
       // -------- Act --------
       Executor result =
           executorService.register(
+              "tenant-001",
               "exec-new",
               "openaev_paloaltocortex_executor",
               "PaloAltoCortex",
@@ -89,6 +90,7 @@ class ExecutorServiceTest {
       // -------- Act --------
       Executor result =
           executorService.register(
+              "tenant-001",
               "exec-existing",
               "openaev_crowdstrike_executor",
               "NewName",
@@ -117,6 +119,7 @@ class ExecutorServiceTest {
 
       // -------- Act --------
       executorService.register(
+          "tenant-001",
           "exec-cap",
           "openaev_test_executor",
           "TestExecutor",

@@ -12,7 +12,6 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -102,19 +101,19 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
 
   @Override
   public void registerConnectorForTenant() throws Exception {
-    try {
-      injectorService.injector(ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
-    } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
-          challengeContract,
-          false,
-          "capture-the-flag",
-          null,
-          null,
-          false,
-          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
-    }
+    // Always call registerBuiltinInjector — it handles upsert and correctly avoids cross-tenant
+    // UPDATE via scoped native query. The old try/catch guard (injector() → return if exists)
+    // left a managed Injector entity in the session, causing flush to generate
+    // UPDATE WHERE injector_id=? (matching all tenants) and BatchedTooManyRowsAffectedException.
+    injectorService.registerBuiltinInjector(
+        ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
+        ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
+        challengeContract,
+        false,
+        "capture-the-flag",
+        null,
+        null,
+        false,
+        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
   }
 }

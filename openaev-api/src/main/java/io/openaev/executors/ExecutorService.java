@@ -20,18 +20,26 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
 
   public static final String EXT_PNG = ".png";
   @Resource protected ObjectMapper mapper;
+
+  @PersistenceContext private EntityManager entityManager;
 
   private final ExecutorRepository executorRepository;
   private final ExecutionTraceRepository executionTraceRepository;
@@ -140,8 +148,17 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     return this.executorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
   }
 
+  /**
+   * Registers or updates an executor for a specific tenant. The tenantId must be passed explicitly
+   * by the caller — never resolved from TenantContext, as this method is called from background
+   * jobs (Quartz) where the thread-local tenant context is not set.
+   *
+   * @param tenantId the tenant for which to register the executor
+   * @param id the executor id
+   */
   @Transactional
   public Executor register(
+      String tenantId,
       String id,
       String type,
       String name,
@@ -155,6 +172,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Executor ID must not be null or empty.");
     }
+    if (tenantId == null || tenantId.isEmpty()) {
+      throw new IllegalArgumentException("Tenant ID must not be null or empty.");
+    }
 
     // Save imgs
     if (iconData != null) {
@@ -164,23 +184,45 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Executor executor = executorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    log.info("===> Executor: {} for tenant: {}", executor, tenantId);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
       executor = new Executor();
       executor.setId(id);
-      executor.setTenant(tenant);
-      executor.setTenantId(tenant.getId());
+      executor.setTenant(new Tenant(tenantId));
+      executor.setTenantId(tenantId);
+      log.info("===> Creating new executor with id: {} for tenant: {}", id, tenantId);
+      executor.setName(name);
+      executor.setType(type);
+      executor.setDoc(documentationUrl);
+      executor.setBackgroundColor(backgroundColor);
+      executor.setPlatforms(platforms);
+      // Use persist() directly — not save() — to avoid Spring Data's isNew() check, which calls
+      // entityManager.find(id) without the tenant filter and finds a row belonging to another
+      // tenant, causing a cross-tenant UPDATE (BatchedTooManyRowsAffectedException).
+      entityManager.persist(executor);
+      return executor;
     }
 
+    // The executors table can have multiple rows sharing the same executor_id (one per tenant).
+    // Hibernate's dirty-checking generates UPDATE ... WHERE executor_id=? (only the @Id column),
+    // which would match every tenant's row and throw BatchedTooManyRowsAffectedException.
+    // Fix: detach the managed entity to suppress the dirty-check flush, then issue a native UPDATE
+    // that includes tenant_id in the WHERE clause so only this tenant's row is affected.
+    entityManager.detach(executor);
+    String platformsLiteral =
+        Arrays.stream(platforms != null ? platforms : new String[0])
+            .collect(Collectors.joining(",", "{", "}"));
+    executorRepository.updateByIdAndTenantId(
+        id, tenantId, name, type, documentationUrl, backgroundColor, platformsLiteral);
+
+    // Update fields on the detached entity for the return value (callers may inspect them).
     executor.setName(name);
     executor.setType(type);
     executor.setDoc(documentationUrl);
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
-
-    return executorRepository.save(executor);
+    return executor;
   }
 
   @Transactional

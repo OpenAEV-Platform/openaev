@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.Arrays;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -478,20 +479,12 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       List<ExternalServiceDependency> dependencies,
       List<Contract> staticContracts) {
 
-    // Update injector properties
-    injector.setExternal(false);
-    applyBuiltinInjectorProperties(
-        injector,
-        name,
-        isCustomizable,
-        contractor,
-        category,
-        executorCommands,
-        executorClearCommands,
-        isPayloads,
-        dependencies);
-
-    // Synchronize contracts
+    // Synchronize contracts BEFORE touching scalar fields.
+    // The injector entity is managed and clean here; only collection modifications are tracked.
+    // We must NOT call any scalar setter (setName, setType, …) at this stage, otherwise Hibernate
+    // would mark the entity dirty and generate UPDATE WHERE injector_id=? on flush — that UPDATE
+    // would affect every tenant's row (all share the same injector_id) and throw
+    // BatchedTooManyRowsAffectedException.
     List<String> existingIds = new ArrayList<>();
     List<InjectorContract> toUpdate = new ArrayList<>();
     List<String> toDelete = new ArrayList<>();
@@ -507,7 +500,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
-      } else if (shouldDeleteContract(contractDB, injector)) {
+      } else if (shouldDeleteContract(contractDB, isPayloads)) {
         toDelete.add(contractDB.getId());
       }
     }
@@ -522,7 +515,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, injector, isPayloads))
             .toList();
 
-    // Persist changes
+    // Persist contract changes
     injectorContractRepository.deleteAllById(toDelete);
     // Remove deleted contracts from the owning-side collection to keep it in sync
     injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
@@ -530,11 +523,68 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.saveAll(toUpdate);
     // Link managed instances returned by saveAll() — originals are detached after merge()
     injector.getContracts().addAll(toCreate);
-    injectorRepository.save(injector);
+
+    // Flush the join-table changes while the injector entity is still managed but CLEAN
+    // (no scalar setters called above), then detach it so the outer flush in
+    // TenantRegistrationExecutor.registerForTenantIsolated() does not see a dirty Injector
+    // and does not try to generate the problematic UPDATE WHERE injector_id=? statement.
+    entityManager.flush();
+    entityManager.detach(injector);
+
+    // Update scalar fields via a native query that scopes the WHERE to (injector_id, tenant_id)
+    // so only this tenant's row is touched.
+    injectorRepository.updateScalarFieldsByIdAndTenantId(
+        injector.getId(),
+        injector.getTenantId(),
+        name,
+        contractor.getType(),
+        category,
+        isCustomizable != null && isCustomizable,
+        toHstoreString(executorCommands),
+        toHstoreString(executorClearCommands),
+        isPayloads != null && isPayloads,
+        toPgTextArray(dependencies.toArray(new ExternalServiceDependency[0])));
   }
 
-  private boolean shouldDeleteContract(InjectorContract contractDB, Injector injector) {
-    return !contractDB.getCustom() && (!injector.isPayloads() || contractDB.getPayload() == null);
+  /**
+   * A contract should be deleted when it is not custom AND the injector no longer uses payloads (or
+   * the contract itself has no payload).
+   *
+   * <p>Accepts {@code isPayloads} directly instead of reading it from the managed entity, so this
+   * method stays correct even when called before scalar setters are applied.
+   */
+  private boolean shouldDeleteContract(InjectorContract contractDB, Boolean isPayloads) {
+    return !contractDB.getCustom()
+        && (isPayloads == null || !isPayloads || contractDB.getPayload() == null);
+  }
+
+  /**
+   * Serializes a {@code Map<String, String>} to PostgreSQL hstore literal format, e.g. {@code
+   * "k1"=>"v1","k2"=>"v2"}. Returns an empty string for null/empty maps (PostgreSQL treats {@code
+   * CAST('' AS hstore)} as an empty hstore).
+   */
+  private static String toHstoreString(Map<String, String> map) {
+    if (map == null || map.isEmpty()) return "";
+    return map.entrySet().stream()
+        .map(
+            e ->
+                "\""
+                    + e.getKey().replace("\\", "\\\\").replace("\"", "\\\"")
+                    + "\"=>\""
+                    + e.getValue().replace("\\", "\\\\").replace("\"", "\\\"")
+                    + "\"")
+        .collect(Collectors.joining(","));
+  }
+
+  /**
+   * Serializes an {@code ExternalServiceDependency[]} to a PostgreSQL text-array literal, e.g.
+   * {@code {SMTP,IMAP}}. Returns {@code {}} for null/empty arrays.
+   */
+  private static String toPgTextArray(ExternalServiceDependency[] deps) {
+    if (deps == null || deps.length == 0) return "{}";
+    return Arrays.stream(deps)
+        .map(ExternalServiceDependency::name)
+        .collect(Collectors.joining(",", "{", "}"));
   }
 
   private Injector createNewBuiltinInjector(

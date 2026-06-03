@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.openaev;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -9,7 +10,6 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -76,22 +76,25 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
 
   @Override
   public void registerConnectorForTenant() throws Exception {
-    try {
-      executorService.executor(OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID);
-    } catch (ElementNotFoundException e) {
-      executorService.register(
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_BACKGROUND_COLOR,
-          getClass().getResourceAsStream("/img/icon-openaev.png"),
-          getClass().getResourceAsStream("/img/banner-openaev.png"),
-          new String[] {
-            Endpoint.PLATFORM_TYPE.Windows.name(),
-            Endpoint.PLATFORM_TYPE.Linux.name(),
-            Endpoint.PLATFORM_TYPE.MacOS.name()
-          });
-    }
+    // Always call register() — it is idempotent (upsert semantics) and correctly handles
+    // the existing-entity case by detaching the loaded entity before issuing a scoped native
+    // UPDATE (WHERE executor_id AND tenant_id). Calling executor() here and returning early
+    // would leave a managed Executor in the session, causing Hibernate's flush to generate
+    // UPDATE WHERE executor_id=? only — matching every tenant's row and throwing
+    // BatchedTooManyRowsAffectedException.
+    executorService.register(
+        TenantContext.getCurrentTenant(),
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_BACKGROUND_COLOR,
+        getClass().getResourceAsStream("/img/icon-openaev.png"),
+        getClass().getResourceAsStream("/img/banner-openaev.png"),
+        new String[] {
+          Endpoint.PLATFORM_TYPE.Windows.name(),
+          Endpoint.PLATFORM_TYPE.Linux.name(),
+          Endpoint.PLATFORM_TYPE.MacOS.name()
+        });
   }
 }

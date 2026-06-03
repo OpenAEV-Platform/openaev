@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
@@ -115,6 +116,7 @@ public class TaniumExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            resolveTenantId(),
             executorId,
             TANIUM_EXECUTOR_TYPE,
             executorName,
