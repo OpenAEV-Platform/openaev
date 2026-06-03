@@ -10,6 +10,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -520,7 +521,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -563,7 +564,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -607,7 +608,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -636,7 +637,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Manager manager = mock(Manager.class);
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -675,7 +676,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
       doThrow(new RuntimeException("Integration failed to stop")).when(integration).initialise();
 

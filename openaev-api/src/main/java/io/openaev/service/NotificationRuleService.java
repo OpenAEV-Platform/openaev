@@ -148,7 +148,7 @@ public class NotificationRuleService {
 
       for (NotificationRule rule : tenantRules) {
         if (NotificationRuleType.EMAIL.equals(rule.getType())) {
-          emailNotificationService.sendNotification(rule, tenantData);
+          emailNotificationService.sendNotification(rule, tenantData, tenantId);
         }
       }
     }
