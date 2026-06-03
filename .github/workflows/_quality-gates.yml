@@ -114,9 +114,17 @@ jobs:
           shard-name: ${{ matrix.shard_name }}
 
   e2e-tests:
-    name: "🧪 E2E & API Types"
+    name: "🧪 E2E Tests (${{ matrix.browser }})"
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chrome
+            playwright-config: playwright.push.chrome_config.ts
+          - browser: webkit
+            playwright-config: playwright.push.webkit_config.ts
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
@@ -139,10 +147,37 @@ jobs:
       - uses: ./.github/actions/e2e-tests
         with:
           is-pr: ${{ inputs.is-pr }}
+          playwright-config: ${{ matrix.playwright-config }}
+          browser: ${{ matrix.browser }}
+
+  api-types-check:
+    name: "🔎 API Types Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/api-types-check
 
   codecov:
     name: "📊 Coverage Merge & Upload"
-    needs: [api-tests, frontend-quality, e2e-tests]
+    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
     # Always run so partial coverage (e.g. backend+frontend) is still
     # uploaded even when one upstream job fails or is cancelled.
     if: ${{ !cancelled() }}
@@ -228,12 +263,13 @@ jobs:
           path: coverage/frontend
         continue-on-error: true
 
-      - name: Download playwright coverage report
+      - name: Download playwright coverage reports
         if: ${{ inputs.upload-codecov && needs.e2e-tests.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
-          name: playwright-coverage
+          pattern: playwright-coverage-*
           path: coverage/e2e
+          merge-multiple: true
         continue-on-error: true
 
       # ── Detect which reports are available ─────────────────────────
@@ -281,3 +317,33 @@ jobs:
           flags: e2e
           disable_search: true
           fail_ci_if_error: false
+
+  # ──────────────────────────────────────────────────────────────────
+  # Gate: fail the workflow if ANY quality gate job failed.
+  # ──────────────────────────────────────────────────────────────────
+  quality-status:
+    name: "🚦 Quality Status"
+    needs: [frontend-quality, api-tests, e2e-tests, api-types-check, codecov]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check all quality gate results
+        run: |
+          echo "frontend-quality: ${{ needs.frontend-quality.result }}"
+          echo "api-tests:        ${{ needs.api-tests.result }}"
+          echo "e2e-tests:        ${{ needs.e2e-tests.result }}"
+          echo "api-types-check:  ${{ needs.api-types-check.result }}"
+          echo "codecov:          ${{ needs.codecov.result }}"
+
+          if [[ "${{ needs.frontend-quality.result }}" == "failure" ]] ||
+             [[ "${{ needs.api-tests.result }}" == "failure" ]] ||
+             [[ "${{ needs.e2e-tests.result }}" == "failure" ]] ||
+             [[ "${{ needs.api-types-check.result }}" == "failure" ]] ||
+             [[ "${{ needs.codecov.result }}" == "failure" ]]; then
+            echo ""
+            echo "❌ One or more quality gates failed"
+            exit 1
+          fi
+          echo ""
+          echo "✅ All quality gates passed"

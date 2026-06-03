@@ -12,7 +12,7 @@ runs:
         cache: maven
     - name: Compile and install all modules (skip tests)
       run: >-
-        mvn -B -ntp -T 1C install -DskipTests
+        mvn -U -B -ntp -T 1C install -DskipTests
         -Dspring-boot.repackage.skip=true
         -Djacoco.skip=true
       shell: bash
@@ -28,4 +28,3 @@ runs:
         path: |
           openaev-api/target/classes/
           openaev-api/target/test-classes/
-
