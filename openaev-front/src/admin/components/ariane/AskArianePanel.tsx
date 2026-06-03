@@ -151,6 +151,34 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     return null;
   }
 
+  const chatPanelProps = {
+    mode,
+    onClose,
+    onModeChange,
+    topOffset,
+    backendType: 'rest' as const,
+    apiBaseUrl: '/api/xtmone/chat',
+    apiEndpoints: {
+      agents: '/agents',
+      messages: '/messages',
+      sessions: '/sessions',
+      upload: '/upload',
+      download: '/files',
+    },
+    user: { firstName },
+    disableFileManagement: false,
+    t,
+    accentColor,
+    logoIcon,
+    agentDashboardUrl: xtmOneUrl || undefined,
+    promptSuggestions,
+    pageContext,
+    resizable: mode === 'sidebar',
+    onWidthChange,
+    onResizeStart,
+    onResizeEnd,
+  };
+
   return createPortal(
     <ChatPanel
       mode={mode}
