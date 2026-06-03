@@ -216,17 +216,16 @@ public class AuditLogger {
           .toList();
     }
 
-    List<FieldChange> changes = new ArrayList<>();
     Set<String> allKeys = new LinkedHashSet<>(after.keySet());
     allKeys.addAll(before.keySet());
-    for (String key : allKeys) {
-      Object beforeVal = before.get(key);
-      Object afterVal = after.get(key);
-      if (!Objects.equals(normalizeForComparison(beforeVal), normalizeForComparison(afterVal))) {
-        changes.add(new FieldChange(key, beforeVal, afterVal));
-      }
-    }
-    return changes;
+    return allKeys.stream()
+        .filter(
+            key ->
+                !Objects.equals(
+                    normalizeForComparison(before.get(key)),
+                    normalizeForComparison(after.get(key))))
+        .map(key -> new FieldChange(key, before.get(key), after.get(key)))
+        .toList();
   }
 
   /**
