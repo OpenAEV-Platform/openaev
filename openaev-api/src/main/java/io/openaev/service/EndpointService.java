@@ -499,6 +499,16 @@ public class EndpointService {
         log.warn("Upgrade job already exists");
       }
     }
+
+    if (!agentAutoUpdateEnabled
+        && agent.getParent() == null
+        && !agent.getVersion().equals(version)) {
+      log.warn(
+          String.format(
+              "A new version for the agent %s is available, his current version is %s and the new version is %s",
+              agent.getAsset().getName(), agent.getVersion(), version));
+    }
+
     return endpoint;
   }
 
