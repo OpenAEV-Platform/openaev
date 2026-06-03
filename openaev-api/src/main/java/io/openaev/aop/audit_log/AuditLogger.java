@@ -45,7 +45,7 @@ public class AuditLogger {
   }
 
   public boolean isAuditLoggingValid(Action action) {
-    return auditRequestValidator.valid(action);
+    return !auditRequestValidator.shouldSkip(action);
   }
 
   public void prepareLogFailure() {

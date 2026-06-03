@@ -9,17 +9,7 @@ import org.springframework.stereotype.Component;
 @ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
 @RequiredArgsConstructor
 public class AuditRequestValidator {
-
-  public boolean valid(Action action) {
-    // Skip actions we don't audit
-    if (shouldSkip(action)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private boolean shouldSkip(Action action) {
+  public boolean shouldSkip(Action action) {
     return switch (action) {
       case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
       // READ/SEARCH are never audited on success — only unauthorized attempts are logged
