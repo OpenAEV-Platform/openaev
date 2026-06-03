@@ -134,7 +134,8 @@ public class MapperServiceTest extends IntegrationTest {
   void duplicateMapper() throws Exception {
     // -- PREPARE --
     ImportMapper importMapper = MockMapperUtils.createImportMapper();
-    when(importMapperRepository.findById(any())).thenReturn(Optional.of(importMapper));
+    when(importMapperRepository.findByIdAndTenantId(any(), any()))
+        .thenReturn(Optional.of(importMapper));
     ImportMapper importMapperSaved = MockMapperUtils.createImportMapper();
     when(importMapperRepository.save(any(ImportMapper.class))).thenReturn(importMapperSaved);
 
@@ -205,7 +206,8 @@ public class MapperServiceTest extends IntegrationTest {
                   return injectImporterUpdateInput;
                 })
             .toList());
-    when(importMapperRepository.findById(any())).thenReturn(Optional.of(importMapper));
+    when(importMapperRepository.findByIdAndTenantId(any(), any()))
+        .thenReturn(Optional.of(importMapper));
     when(importMapperRepository.save(any())).thenReturn(importMapper);
     when(injectorContractRepository.findAllById(any()))
         .thenReturn(
@@ -260,7 +262,8 @@ public class MapperServiceTest extends IntegrationTest {
                   return injectImporterUpdateInput;
                 })
             .toList());
-    when(importMapperRepository.findById(any())).thenReturn(Optional.of(importMapper));
+    when(importMapperRepository.findByIdAndTenantId(any(), any()))
+        .thenReturn(Optional.of(importMapper));
     when(importMapperRepository.save(any())).thenReturn(importMapper);
     when(injectorContractRepository.findAllById(any()))
         .thenReturn(
@@ -316,7 +319,8 @@ public class MapperServiceTest extends IntegrationTest {
                   return injectImporterUpdateInput;
                 })
             .toList());
-    when(importMapperRepository.findById(any())).thenReturn(Optional.of(importMapper));
+    when(importMapperRepository.findByIdAndTenantId(any(), any()))
+        .thenReturn(Optional.of(importMapper));
     when(importMapperRepository.save(any())).thenReturn(importMapper);
     when(injectorContractRepository.findAllById(any()))
         .thenReturn(
