@@ -47,7 +47,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   void setup() {
     reset(auditLogger);
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
-    doReturn(true).when(auditLogger).isAuditUnauthorizedLoggingValid();
   }
 
   @Nested
