@@ -88,7 +88,6 @@ public class AccessControlAuditLogAspect {
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            // TODO AUDIT: Move this to enum just like in the issue/5483
             logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           } else if (isActionActive) {
             String eventScope = LogUtils.getEventScope(action);
