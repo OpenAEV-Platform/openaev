@@ -97,7 +97,19 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       String input = stepReady.getInput() != null ? stepReady.getInput() : "{}";
       int currentCount = getRateLimitCount(input);
       Gson gson = new Gson();
-      JsonObject json = gson.fromJson(input, JsonObject.class);
+      JsonObject json;
+      try {
+        json = gson.fromJson(input, JsonObject.class);
+      } catch (RuntimeException e) {
+        log.warn(
+            "Invalid step input JSON for step {}. Resetting rate-limit metadata.",
+            stepReady.getId(),
+            e);
+        json = new JsonObject();
+      }
+      if (json == null) {
+        json = new JsonObject();
+      }
       json.addProperty(RATE_LIMIT_COUNT_FIELD, currentCount + 1);
       stepReady.setInput(json.toString());
       stepDelayQueueService.reschedule(stepReady, backoffSeconds);
@@ -228,7 +240,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     try {
       String value = StepService.getField(input, RATE_LIMIT_COUNT_FIELD);
       return value != null ? Integer.parseInt(value) : 0;
-    } catch (NumberFormatException e) {
+    } catch (RuntimeException e) {
+      // Catching any parsing error that may occur.
       return 0;
     }
   }

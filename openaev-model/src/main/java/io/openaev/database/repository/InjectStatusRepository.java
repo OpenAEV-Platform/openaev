@@ -39,14 +39,14 @@ public interface InjectStatusRepository
   void deleteAllByIds(@Param("ids") List<String> ids);
 
   @Query(
-      "SELECT COUNT(DISTINCT is.inject.id) FROM InjectStatus is"
-          + " WHERE is.inject.exercise.id = :simulationId"
-          + " AND is.name IN (io.openaev.database.model.ExecutionStatus.EXECUTED,"
+      "SELECT COUNT(DISTINCT istatus.inject.id) FROM InjectStatus istatus"
+          + " WHERE istatus.inject.exercise.id = :simulationId"
+          + " AND istatus.name IN (io.openaev.database.model.ExecutionStatus.EXECUTED,"
           + " io.openaev.database.model.ExecutionStatus.PARTIAL,"
           + " io.openaev.database.model.ExecutionStatus.ERROR,"
           + " io.openaev.database.model.ExecutionStatus.MAYBE_PREVENTED,"
           + " io.openaev.database.model.ExecutionStatus.MAYBE_PARTIAL_PREVENTED)"
-          + " AND is.trackingSentDate >= :since")
+          + " AND istatus.trackingSentDate >= :since")
   long countTerminalInjectsSince(
       @Param("simulationId") String simulationId, @Param("since") Instant since);
 }
