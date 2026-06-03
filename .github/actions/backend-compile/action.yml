@@ -11,10 +11,23 @@ runs:
         distribution: temurin
         cache: maven
     - name: Compile and install all modules (skip tests)
-      run: >-
-        mvn -U -B -ntp -T 1C install -DskipTests
-        -Dspring-boot.repackage.skip=true
-        -Djacoco.skip=true
+      run: |
+        for attempt in 1 2; do
+          echo "::group::Attempt $attempt of 2"
+          if mvn -U -B -ntp -T 1C install -DskipTests \
+               -Dspring-boot.repackage.skip=true \
+               -Djacoco.skip=true; then
+            echo "::endgroup::"
+            echo "✅ Build succeeded on attempt $attempt"
+            exit 0
+          fi
+          echo "::endgroup::"
+          if [ "$attempt" -lt 2 ]; then
+            echo "⚠️ Attempt $attempt failed, retrying…"
+          fi
+        done
+        echo "❌ Build failed after 2 attempts"
+        exit 1
       shell: bash
     - name: Upload compiled Maven artifacts
       uses: actions/upload-artifact@v7
