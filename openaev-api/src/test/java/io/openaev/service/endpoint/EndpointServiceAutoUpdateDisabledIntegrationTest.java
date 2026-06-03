@@ -122,4 +122,3 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
     }
   }
 }
-
