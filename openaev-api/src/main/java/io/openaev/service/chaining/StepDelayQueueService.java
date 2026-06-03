@@ -98,17 +98,24 @@ public class StepDelayQueueService {
    * @param delaySeconds the backoff delay in seconds before the step becomes eligible again
    */
   public void reschedule(Step step, long delaySeconds) {
+    Step template = step.getStepTemplate();
+    if (template == null) {
+      log.error(
+          "Cannot reschedule step {} — no parent TEMPLATE step found. Skipping.", step.getId());
+      return;
+    }
     Instant now = Instant.now();
     long delayMillis = delaySeconds * 1000L;
     Instant goal = now.plusMillis(delayMillis);
     log.info(
-        "Rate limit reached — re-scheduling step {} for workflow {} in {}s (goal: {})",
+        "Rate limit reached — re-scheduling step {} (template {}) for workflow {} in {}s (goal: {})",
         step.getId(),
+        template.getId(),
         step.getWorkflow().getId(),
         delaySeconds,
         goal);
     pushStepTemplateIntoStepDelayQueue(
-        step, now, step.getInput(), delayMillis, step.getWorkflow(), goal);
+        template, now, step.getInput(), delayMillis, step.getWorkflow(), goal);
   }
 
   /**

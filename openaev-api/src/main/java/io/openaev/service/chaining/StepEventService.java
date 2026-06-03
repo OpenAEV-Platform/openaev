@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
@@ -92,9 +94,12 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
               : 60L;
       // Track rate limit count in step input so the info propagates through the delay queue
       // and can be surfaced as an INFO trace when the inject is eventually executed.
-      int currentCount = getRateLimitCount(stepReady.getInput());
-      stepReady.setInput(
-          StepService.setField(stepReady.getInput(), RATE_LIMIT_COUNT_FIELD, currentCount + 1));
+      String input = stepReady.getInput() != null ? stepReady.getInput() : "{}";
+      int currentCount = getRateLimitCount(input);
+      Gson gson = new Gson();
+      JsonObject json = gson.fromJson(input, JsonObject.class);
+      json.addProperty(RATE_LIMIT_COUNT_FIELD, currentCount + 1);
+      stepReady.setInput(json.toString());
       stepDelayQueueService.reschedule(stepReady, backoffSeconds);
       return;
     }

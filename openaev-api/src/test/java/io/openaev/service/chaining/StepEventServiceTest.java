@@ -454,6 +454,28 @@ class StepEventServiceTest {
       verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":3")));
       verify(stepDelayQueueService).reschedule(stepReady, 60L);
     }
+
+    @Test
+    void shouldHandleNullInput_whenRateLimitReached() {
+      // -------- Prepare --------
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-1");
+      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(30L);
+
+      Step stepReady = mock(Step.class);
+      when(stepReady.getWorkflow()).thenReturn(workflowRun);
+      when(stepReady.getInput()).thenReturn(null);
+
+      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
+      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
+
+      // -------- Act — should not throw NPE --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert — count should start at 1 from default {} --------
+      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
+      verify(stepDelayQueueService).reschedule(stepReady, 30L);
+    }
   }
 
   // -- GET RATE LIMIT COUNT --

@@ -55,15 +55,19 @@ class StepDelayQueueServiceTest {
     @Captor private ArgumentCaptor<StepDelayQueue> delayQueueCaptor;
 
     @Test
-    void shouldPushStepIntoDelayQueueWithCorrectParameters() {
+    void shouldPushTemplateStepIntoDelayQueueWithCorrectParameters() {
       // -------- Prepare --------
       Workflow workflowRun = mock(Workflow.class);
       when(workflowRun.getId()).thenReturn("wf-1");
+
+      Step template = mock(Step.class);
+      when(template.getId()).thenReturn("template-1");
 
       Step step = mock(Step.class);
       when(step.getId()).thenReturn("step-1");
       when(step.getInput()).thenReturn("{\"key\":\"value\"}");
       when(step.getWorkflow()).thenReturn(workflowRun);
+      when(step.getStepTemplate()).thenReturn(template);
 
       Instant before = Instant.now().minusSeconds(5);
 
@@ -78,10 +82,25 @@ class StepDelayQueueServiceTest {
 
       assertEquals("{\"key\":\"value\"}", captured.getInput());
       assertEquals(120_000L, captured.getDelay());
-      assertSame(step, captured.getStepTemplate());
+      assertSame(template, captured.getStepTemplate());
       assertSame(workflowRun, captured.getWorkflowRun());
       assertTrue(captured.getGoal().isAfter(before));
       assertTrue(captured.getGoal().isBefore(after));
+    }
+
+    @Test
+    void shouldNotEnqueueWhenNoParentTemplate() {
+      // -------- Prepare --------
+      Step step = mock(Step.class);
+      when(step.getId()).thenReturn("step-1");
+      when(step.getStepTemplate()).thenReturn(null);
+
+      // -------- Act --------
+      stepDelayQueueService.reschedule(step, 120L);
+
+      // -------- Assert --------
+      verify(stepDelayQueueRepository, org.mockito.Mockito.never())
+          .save(org.mockito.ArgumentMatchers.any());
     }
   }
 }
