@@ -471,38 +471,39 @@ public class EndpointService {
     // If agent is not temporary and not the same version as the platform => Create an upgrade task
     // for the agent if auto update is enabled (enabled by default)
     Endpoint endpoint = (Endpoint) agent.getAsset();
-    boolean newAgentVersionAvailable =
-        agent.getParent() == null && !agent.getVersion().equals(version);
-    if (agentAutoUpdateEnabled && newAgentVersionAvailable) {
-      if (assetAgentJobRepository
-          .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
-          .isEmpty()) {
-        AssetAgentJob assetAgentJob = new AssetAgentJob();
-        assetAgentJob.setCommand(
-            generateUpgradeCommand(
-                endpoint.getPlatform().name(),
-                input.getInstallationMode(),
-                input.getInstallationDirectory(),
-                input.getServiceName(),
-                agent.getTenant().getId()));
-        assetAgentJob.setAgent(agent);
-        assetAgentJob.setTenant(agent.getTenant());
-        assetAgentJob.setCreatedAt(now());
-
-        try {
-          assetAgentJobRepository.save(assetAgentJob);
-        } catch (DataIntegrityViolationException e) {
-          // Concurrent registration already created the upgrade job — safe to ignore
-          log.warn("Upgrade job already exists for agent {} (concurrent insert)", agent.getId(), e);
-        }
+    if (agent.getParent() == null && !agent.getVersion().equals(version)) {
+      if (!agentAutoUpdateEnabled) {
+        log.warn(
+            String.format(
+                "A new version for the agent %s is available, his current version is %s and the new version is %s",
+                agent.getAsset().getName(), agent.getVersion(), version));
       } else {
-        log.warn("Upgrade job already exists");
+        if (assetAgentJobRepository
+            .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
+            .isEmpty()) {
+          AssetAgentJob assetAgentJob = new AssetAgentJob();
+          assetAgentJob.setCommand(
+              generateUpgradeCommand(
+                  endpoint.getPlatform().name(),
+                  input.getInstallationMode(),
+                  input.getInstallationDirectory(),
+                  input.getServiceName(),
+                  agent.getTenant().getId()));
+          assetAgentJob.setAgent(agent);
+          assetAgentJob.setTenant(agent.getTenant());
+          assetAgentJob.setCreatedAt(now());
+
+          try {
+            assetAgentJobRepository.save(assetAgentJob);
+          } catch (DataIntegrityViolationException e) {
+            // Concurrent registration already created the upgrade job — safe to ignore
+            log.warn(
+                "Upgrade job already exists for agent {} (concurrent insert)", agent.getId(), e);
+          }
+        } else {
+          log.warn("Upgrade job already exists");
+        }
       }
-    } else if (!agentAutoUpdateEnabled && newAgentVersionAvailable) {
-      log.warn(
-          String.format(
-              "A new version for the agent %s is available, his current version is %s and the new version is %s",
-              agent.getAsset().getName(), agent.getVersion(), version));
     }
 
     return endpoint;
