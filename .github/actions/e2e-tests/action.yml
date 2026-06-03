@@ -220,7 +220,7 @@ runs:
         name: playwright-report-${{ inputs.browser }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && inputs.browser == 'chrome' }}
       uses: actions/upload-artifact@v7
       with:
         name: playwright-coverage-${{ inputs.browser }}
