@@ -3,9 +3,7 @@ package io.openaev.integration;
 import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 
 import io.openaev.aop.lock.Lock;
-import io.openaev.database.audit.TenantAssertionControl;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.TenantRepository;
 import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
@@ -23,8 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ManagerFactory implements DependenciesManager {
   private final List<IntegrationFactory> factories;
-  private final TenantRepository tenantRepository;
-  private final TenantRegistrationExecutor tenantRegistrationExecutor;
+  private final List<BuiltinTenantRegistrable> builtinRegistrables;
 
   private final ConcurrentHashMap<String, Manager> managers = new ConcurrentHashMap<>();
 
@@ -52,15 +49,17 @@ public class ManagerFactory implements DependenciesManager {
   }
 
   /**
-   * Creates and fully initializes a new {@link Manager} for the given tenant. Registers built-in
-   * connectors for that tenant, constructs the Manager, and runs the initial integration monitor.
+   * Creates and fully initializes a new {@link Manager} for the given tenant. Built-in connector
+   * registration is intentionally <b>not</b> performed here — it is the responsibility of the
+   * {@link DependenciesManager} framework: {@link #createDependencyForTenant(Tenant)} is called at
+   * application startup (for all existing tenants) and on every new tenant creation, so built-ins
+   * are guaranteed to exist before the first {@link #getManager(String)} call.
    *
    * @param tenantId the tenant identifier
    * @return the newly created and initialized Manager
    */
   private Manager createManager(String tenantId) {
     try {
-      registerBuiltinsForTenant(tenantId);
       Manager manager = new Manager(tenantId, factories);
       manager.monitorIntegrations();
       return manager;
@@ -69,38 +68,31 @@ public class ManagerFactory implements DependenciesManager {
     }
   }
 
-  /**
-   * Ensures built-in connectors are registered for the given tenant. The registration runs in its
-   * own transaction and persistence context (via {@link TenantRegistrationExecutor}) to avoid JPA
-   * entity identity collisions when connector IDs are reused across tenants.
-   *
-   * @param tenantId the tenant identifier
-   */
-  private void registerBuiltinsForTenant(String tenantId) {
-    Tenant tenant =
-        tenantRepository
-            .findById(tenantId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Tenant not found for id: " + tenantId));
-    TenantAssertionControl.suppress();
-    try {
-      tenantRegistrationExecutor.registerForTenantIsolated(tenant);
-    } catch (DependenciesManagerException e) {
-      log.error(
-          "Failed to register built-in connectors for tenant '{}': {}",
-          tenant.getName(),
-          e.getMessage(),
-          e);
-    } finally {
-      TenantAssertionControl.restore();
-    }
-  }
-
   // -- TENANT DEPENDENCIES --
 
+  /**
+   * Registers built-in connectors for the given tenant in the current transaction. Called by the
+   * {@link DependenciesManager} framework at application startup (for all existing tenants) and on
+   * every new tenant creation, ensuring built-ins exist before the first {@link
+   * #getManager(String)} call.
+   */
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    tenantRegistrationExecutor.registerForTenant(tenant);
+    for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
+      try {
+        registrable.registerForTenant();
+      } catch (Exception e) {
+        throw new DependenciesManagerException(
+            "Failed to register built-in connector %s for tenant %s"
+                .formatted(registrable.getClass().getSimpleName(), tenant.getName()),
+            e);
+      }
+    }
+    log.info(
+        "Successfully registered {} built-in connector(s) for tenant '{}'",
+        builtinRegistrables.size(),
+        tenant.getName());
   }
 
   @Override
