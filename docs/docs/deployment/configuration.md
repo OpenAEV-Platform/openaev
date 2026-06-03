@@ -73,13 +73,15 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 
 #### XTM Suite: OpenCTI
 
-| Parameter                           | Environment variable                | Default value | Description                                                                                                                           |
-|:------------------------------------|:------------------------------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.xtm.opencti.enable          | OPENAEV_XTM_OPENCTI_ENABLE          | false         | Enable integration with OpenCTI                                                                                                       |
-| openaev.xtm.opencti.url             | OPENAEV_XTM_OPENCTI_URL             |               | OpenCTI URL                                                                                                                           |
-| openaev.xtm.opencti.api_url         | OPENAEV_XTM_OPENCTI_API_URL         |               | OpenCTI API URL, it will completely override the OpenCTI URL, otherwise the default url will be `openaev.xtm.opencti.url` + '/graphql' |
-| openaev.xtm.opencti.token           | OPENAEV_XTM_OPENCTI_TOKEN           |               | OpenCTI token                                                                                                                         |
-| openaev.xtm.opencti.disable-display | OPENAEV_XTM_OPENCTI_DISABLE-DISPLAY | `false`       | Disable OpenCTI in the UI                                                                                                             |
+Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (`{id}`).
+
+| Parameter                                    | Environment variable                         | Default value | Description                                                                                                                                    |
+|:---------------------------------------------|:---------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.xtm.opencti.{id}.enable              | OPENAEV_XTM_OPENCTI_{id}_ENABLE              | false         | Enable this OpenCTI connection                                                                                                                 |
+| openaev.xtm.opencti.{id}.url                 | OPENAEV_XTM_OPENCTI_{id}_URL                 |               | OpenCTI instance URL                                                                                                                           |
+| openaev.xtm.opencti.{id}.api_url             | OPENAEV_XTM_OPENCTI_{id}_API_URL             |               | OpenCTI API URL — completely overrides the base URL. Defaults to `openaev.xtm.opencti.{id}.url` + `/graphql`                                   |
+| openaev.xtm.opencti.{id}.token               | OPENAEV_XTM_OPENCTI_{id}_TOKEN               |               | OpenCTI API token                                                                                                                              |
+| openaev.xtm.opencti.{id}.disable-display     | OPENAEV_XTM_OPENCTI_{id}_DISABLE-DISPLAY     | `false`       | Hide this OpenCTI instance in the UI                                                                                                           |
 
 #### XTM Suite: XTM Hub
 

@@ -200,6 +200,7 @@ nav:
   - Administration:
     - Introduction: administration/introduction.md
     - Enterprise edition: administration/enterprise.md
+    - Multi-tenancy: administration/multi-tenancy.md
     - Platform settings:
       - Parameters: administration/parameters.md
       - Security:
