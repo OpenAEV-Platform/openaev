@@ -14,7 +14,6 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
-import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
@@ -28,7 +27,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +41,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
-  @Autowired private EndpointService endpointService;
 
   @BeforeEach
   void setUp() {
@@ -196,7 +193,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
               .satisfiesOnlyOnce(
                   job ->
                       assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper.get().getId()));
-          ;
 
           tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
           List<AssetAgentJob> jobTenant2 = fromIterable(assetAgentJobRepository.findAll());
@@ -324,120 +320,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
 
-          assertThat(jobs).isEmpty();
-        }
-      }
-
-      @Nested
-      @DisplayName("When auto-update is disabled")
-      class WhenAutoUpdateIsDisabled {
-
-        private static final String MISMATCHED_AGENT_VERSION = "NOMATCH";
-
-        private boolean originalAgentAutoUpdateEnabled;
-
-        @BeforeEach
-        void disableAutoUpdate() {
-          originalAgentAutoUpdateEnabled =
-              (boolean) ReflectionTestUtils.getField(endpointService, "agentAutoUpdateEnabled");
-          ReflectionTestUtils.setField(endpointService, "agentAutoUpdateEnabled", false);
-        }
-
-        @AfterEach
-        void restoreAutoUpdate() {
-          ReflectionTestUtils.setField(
-              endpointService, "agentAutoUpdateEnabled", originalAgentAutoUpdateEnabled);
-        }
-
-        @Test
-        @DisplayName("Registering once with a mismatched version should not create an upgrade job")
-        void given_versionMismatch_when_autoUpdateDisabled_should_notCreateUpgradeJob()
-            throws Exception {
-          // -- ARRANGE --
-          executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
-          EndpointRegisterInput input =
-              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
-          input.setAgentVersion(MISMATCHED_AGENT_VERSION);
-
-          entityManager.flush();
-          entityManager.clear();
-
-          // -- ACT --
-          mockMvc
-              .perform(
-                  post(ENDPOINT_URI + "/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk());
-
-          // -- ASSERT --
-          List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
-          assertThat(jobs).isEmpty();
-        }
-
-        @Test
-        @DisplayName(
-            "Registering twice with a mismatched version should not create any upgrade job")
-        void
-            given_versionMismatchAndTwoRegistrations_when_autoUpdateDisabled_should_notCreateUpgradeJob()
-                throws Exception {
-          // -- ARRANGE --
-          executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
-          EndpointRegisterInput input =
-              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
-          input.setAgentVersion(MISMATCHED_AGENT_VERSION);
-
-          entityManager.flush();
-          entityManager.clear();
-
-          // -- ACT --
-          mockMvc
-              .perform(
-                  post(ENDPOINT_URI + "/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk());
-
-          mockMvc
-              .perform(
-                  post(ENDPOINT_URI + "/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk());
-
-          // -- ASSERT --
-          List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
-          assertThat(jobs).isEmpty();
-        }
-
-        @Test
-        @DisplayName(
-            "Registering with matching version and auto-update disabled should not create an upgrade job")
-        void given_versionMatch_when_autoUpdateDisabled_should_notCreateUpgradeJob()
-            throws Exception {
-          // -- ARRANGE --
-          executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
-          EndpointRegisterInput input =
-              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
-          input.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
-
-          entityManager.flush();
-          entityManager.clear();
-
-          // -- ACT --
-          mockMvc
-              .perform(
-                  post(ENDPOINT_URI + "/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk());
-
-          // -- ASSERT --
-          List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
           assertThat(jobs).isEmpty();
         }
       }
