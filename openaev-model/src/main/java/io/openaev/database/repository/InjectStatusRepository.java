@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.InjectStatus;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -36,4 +37,16 @@ public interface InjectStatusRepository
   @Modifying(clearAutomatically = true)
   @Query("delete from InjectStatus i where i.id in :ids")
   void deleteAllByIds(@Param("ids") List<String> ids);
+
+  @Query(
+      "SELECT COUNT(DISTINCT is.inject.id) FROM InjectStatus is"
+          + " WHERE is.inject.exercise.id = :simulationId"
+          + " AND is.name IN (io.openaev.database.model.ExecutionStatus.EXECUTED,"
+          + " io.openaev.database.model.ExecutionStatus.PARTIAL,"
+          + " io.openaev.database.model.ExecutionStatus.ERROR,"
+          + " io.openaev.database.model.ExecutionStatus.MAYBE_PREVENTED,"
+          + " io.openaev.database.model.ExecutionStatus.MAYBE_PARTIAL_PREVENTED)"
+          + " AND is.trackingSentDate >= :since")
+  long countTerminalInjectsSince(
+      @Param("simulationId") String simulationId, @Param("since") Instant since);
 }
