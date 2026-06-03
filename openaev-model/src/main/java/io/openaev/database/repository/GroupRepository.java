@@ -43,6 +43,4 @@ public interface GroupRepository
 
   @Query(value = "SELECT role_id FROM groups_roles WHERE group_id = :groupId", nativeQuery = true)
   Set<String> findRoleIdsByGroupId(@Param("groupId") String groupId);
-
-  long countByIdIn(Set<String> ids);
 }
