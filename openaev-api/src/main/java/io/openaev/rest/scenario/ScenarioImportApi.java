@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -56,7 +57,8 @@ public class ScenarioImportApi extends RestBehavior {
     // Getting the mapper to use
     ImportMapper importMapper =
         importMapperRepository
-            .findById(UUID.fromString(input.getImportMapperId()))
+            .findByIdAndTenantId(
+                UUID.fromString(input.getImportMapperId()), TenantContext.getCurrentTenant())
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
@@ -90,7 +92,8 @@ public class ScenarioImportApi extends RestBehavior {
     // Getting the mapper to use
     ImportMapper importMapper =
         importMapperRepository
-            .findById(UUID.fromString(input.getImportMapperId()))
+            .findByIdAndTenantId(
+                UUID.fromString(input.getImportMapperId()), TenantContext.getCurrentTenant())
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
