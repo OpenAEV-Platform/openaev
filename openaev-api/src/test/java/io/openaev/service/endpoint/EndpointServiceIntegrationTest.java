@@ -72,7 +72,8 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
     class UpgradeJobsTests {
 
       @Nested
-      @DisplayName("When auto-update is enabled (default) and agent version does not match server version")
+      @DisplayName(
+          "When auto-update is enabled (default) and agent version does not match server version")
       class UpgradeAgentVersionDoesNotMatchServerVersion {
         private final String agentVersion = "NOMATCH";
 
@@ -333,19 +334,23 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
         private static final String MISMATCHED_AGENT_VERSION = "NOMATCH";
 
+        private boolean originalAgentAutoUpdateEnabled;
+
         @BeforeEach
         void disableAutoUpdate() {
+          originalAgentAutoUpdateEnabled =
+              (boolean) ReflectionTestUtils.getField(endpointService, "agentAutoUpdateEnabled");
           ReflectionTestUtils.setField(endpointService, "agentAutoUpdateEnabled", false);
         }
 
         @AfterEach
         void restoreAutoUpdate() {
-          ReflectionTestUtils.setField(endpointService, "agentAutoUpdateEnabled", true);
+          ReflectionTestUtils.setField(
+              endpointService, "agentAutoUpdateEnabled", originalAgentAutoUpdateEnabled);
         }
 
         @Test
-        @DisplayName(
-            "Registering once with a mismatched version should not create an upgrade job")
+        @DisplayName("Registering once with a mismatched version should not create an upgrade job")
         void given_versionMismatch_when_autoUpdateDisabled_should_notCreateUpgradeJob()
             throws Exception {
           // -- ARRANGE --
@@ -374,8 +379,9 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
         @Test
         @DisplayName(
             "Registering twice with a mismatched version should not create any upgrade job")
-        void given_versionMismatchAndTwoRegistrations_when_autoUpdateDisabled_should_notCreateUpgradeJob()
-            throws Exception {
+        void
+            given_versionMismatchAndTwoRegistrations_when_autoUpdateDisabled_should_notCreateUpgradeJob()
+                throws Exception {
           // -- ARRANGE --
           executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
           EndpointRegisterInput input =
