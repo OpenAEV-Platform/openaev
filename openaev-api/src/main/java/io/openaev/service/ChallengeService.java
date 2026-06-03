@@ -9,6 +9,7 @@ import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChalleng
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -88,7 +89,7 @@ public class ChallengeService {
   public ChallengeResult tryChallenge(String challengeId, ChallengeTryInput input) {
     Challenge challenge =
         challengeRepository
-            .findById(challengeId)
+            .findByIdAndTenantId(challengeId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Challenge not found"));
     for (ChallengeFlag flag : challenge.getFlags()) {
       if (checkFlag(flag, input.getValue())) {

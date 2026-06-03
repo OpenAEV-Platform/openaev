@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -25,6 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,7 +73,9 @@ public class ChallengeApi extends RestBehavior {
   public Challenge updateChallenge(
       @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
     Challenge challenge =
-        challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
+        challengeRepository
+            .findByIdAndTenantId(challengeId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
     challenge.setUpdateAttributes(input);
@@ -104,16 +108,17 @@ public class ChallengeApi extends RestBehavior {
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
     List<ChallengeFlag> challengeFlags =
-        input.flags().stream()
-            .map(
-                flagInput -> {
-                  ChallengeFlag challengeFlag = new ChallengeFlag();
-                  challengeFlag.setType(FLAG_TYPE.valueOf(flagInput.getType()));
-                  challengeFlag.setValue(flagInput.getValue());
-                  challengeFlag.setChallenge(challenge);
-                  return challengeFlag;
-                })
-            .toList();
+        new ArrayList<>(
+            input.flags().stream()
+                .map(
+                    flagInput -> {
+                      ChallengeFlag challengeFlag = new ChallengeFlag();
+                      challengeFlag.setType(FLAG_TYPE.valueOf(flagInput.getType()));
+                      challengeFlag.setValue(flagInput.getValue());
+                      challengeFlag.setChallenge(challenge);
+                      return challengeFlag;
+                    })
+                .toList());
     challenge.setFlags(challengeFlags);
     return challengeRepository.save(challenge);
   }
@@ -125,6 +130,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public void deleteChallenge(@PathVariable String challengeId) {
+    challengeRepository
+        .findByIdAndTenantId(challengeId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new);
     challengeRepository.deleteById(challengeId);
   }
 

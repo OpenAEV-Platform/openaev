@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.database.model.ChallengeFlag.FLAG_TYPE.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
@@ -65,7 +66,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     input.setValue("test");
 
     // MOCK
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
 
     // EXECUTE
     ChallengeResult result = challengeService.tryChallenge("test", input);
@@ -89,7 +91,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     input.setValue("tests");
 
     // MOCK
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
 
     // EXECUTE
     ChallengeResult result = challengeService.tryChallenge("test", input);
@@ -113,7 +116,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     input.setValue("Test");
 
     // MOCK
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
 
     // EXECUTE
     ChallengeResult result = challengeService.tryChallenge("test", input);
@@ -137,7 +141,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     input.setValue("test");
 
     // MOCK
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
 
     // EXECUTE
     ChallengeResult result = challengeService.tryChallenge("test", input);
@@ -161,7 +166,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     input.setValue("this is a test that should succeed");
 
     // MOCK
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
 
     // EXECUTE
     ChallengeResult result = challengeService.tryChallenge("test", input);
@@ -185,7 +191,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     input.setValue("this one should fail");
 
     // MOCK
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
 
     // EXECUTE
     ChallengeResult result = challengeService.tryChallenge("test", input);
@@ -276,7 +283,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
     when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser("test", "test"))
         .thenReturn(playerExpectations);
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
     when(injectExpectationRepository.findByUserAndExerciseAndChallenge(
             user.getId(), "test", "test"))
         .thenReturn(playerExpectations);
@@ -335,7 +343,8 @@ public class ChallengeServiceTest extends IntegrationTest {
     when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
     when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser("test", "test"))
         .thenReturn(playerExpectations);
-    when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
+    when(challengeRepository.findByIdAndTenantId(eq("test"), any()))
+        .thenReturn(Optional.of(challenge));
     when(injectExpectationRepository.findByUserAndExerciseAndChallenge(
             user.getId(), "test", "test"))
         .thenReturn(playerExpectations);
