@@ -102,6 +102,9 @@ public class EndpointService {
   @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
   private int maxSimultaneousJobs;
 
+  @Value("${executor.openaev.agent.auto-update-enabled:true}")
+  private boolean agentAutoUpdateEnabled;
+
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -466,9 +469,11 @@ public class EndpointService {
       }
     }
     // If agent is not temporary and not the same version as the platform => Create an upgrade task
-    // for the agent
+    // for the agent if auto update is enabled (enabled by default)
     Endpoint endpoint = (Endpoint) agent.getAsset();
-    if (agent.getParent() == null && !agent.getVersion().equals(version)) {
+    if (agentAutoUpdateEnabled
+        && agent.getParent() == null
+        && !agent.getVersion().equals(version)) {
       if (assetAgentJobRepository
           .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
           .isEmpty()) {
