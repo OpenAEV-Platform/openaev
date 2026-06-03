@@ -145,6 +145,13 @@ public class LogUtils {
     return message;
   }
 
+  public static String buildSessionExpiredLogMessage(
+      long sessionDurationSeconds, String expiryReason) {
+    return String.format(
+        "Session expired: active for %ds, then expired due to %s",
+        sessionDurationSeconds, expiryReason.replace("_", " "));
+  }
+
   public static String getEventScope(Action action) {
     return switch (action) {
       case CREATE -> "create";

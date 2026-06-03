@@ -248,11 +248,7 @@ public class LogService {
       ctx.put("session_active_duration_seconds", sessionDurationSeconds);
       ctx.put("expiry_reason", expiryReason);
       ctx.put(
-          "message",
-          "Session expired: active for "
-              + sessionDurationSeconds
-              + "s, then expired due to "
-              + expiryReason.replace("_", " "));
+          "message", LogUtils.buildSessionExpiredLogMessage(sessionDurationSeconds, expiryReason));
       doc.setContextData(ctx);
 
       return emit(doc, java.util.logging.Level.INFO);

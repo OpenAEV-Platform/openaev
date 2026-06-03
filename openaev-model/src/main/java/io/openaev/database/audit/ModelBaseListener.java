@@ -7,8 +7,7 @@ import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.Base;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -127,28 +126,25 @@ public class ModelBaseListener {
     try {
       registerCleanupIfNeeded();
       Map<String, Object> snapshot = buildSnapshot(instance);
-      List<EntityDiffContext.Change> changes =
-          snapshot.entrySet().stream()
-              .map(e -> new EntityDiffContext.Change(e.getKey(), null, e.getValue()))
-              .toList();
-      EntityDiffContext.storeDiff(
+      EntityDiffContext.storeSnapshot(
           instance.getId(),
-          new EntityDiffContext.EntityDiff(instance.getClass().getSimpleName(), "create", changes));
+          new EntityDiffContext.EntitySnapshot(
+              instance.getClass().getSimpleName(), "create", null, snapshot));
     } catch (Exception e) {
       log.debug(
-          "[AuditDiff] Failed to capture create-diff for {}: {}",
+          "[AuditDiff] Failed to capture create-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());
     }
   }
 
   /**
-   * Computes and stores a field-level diff for {@link AuditDiffTracked} entities just before they
-   * are flushed to the database.
+   * Captures before/after snapshots for {@link AuditDiffTracked} entities just before they are
+   * flushed to the database. Diff computation is deferred to the async audit logger.
    *
    * <p>The "before" state is taken from the {@link EntityDiffContext} snapshot captured at
    * {@code @PostLoad} time. If no before-snapshot exists (entity was created in this transaction),
-   * the diff is skipped.
+   * the snapshot is skipped.
    */
   @PreUpdate
   void preUpdateForDiff(Object base) {
@@ -158,16 +154,13 @@ public class ModelBaseListener {
       Map<String, Object> before = EntityDiffContext.getBefore(instance.getId());
       if (before == null) return;
       Map<String, Object> after = buildSnapshot(instance);
-      List<EntityDiffContext.Change> changes = computeChanges(before, after);
-      if (!changes.isEmpty()) {
-        EntityDiffContext.storeDiff(
-            instance.getId(),
-            new EntityDiffContext.EntityDiff(
-                instance.getClass().getSimpleName(), "update", changes));
-      }
+      EntityDiffContext.storeSnapshot(
+          instance.getId(),
+          new EntityDiffContext.EntitySnapshot(
+              instance.getClass().getSimpleName(), "update", before, after));
     } catch (Exception e) {
       log.debug(
-          "[AuditDiff] Failed to compute update-diff for {}: {}",
+          "[AuditDiff] Failed to capture update-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());
     }
@@ -205,16 +198,13 @@ public class ModelBaseListener {
     try {
       registerCleanupIfNeeded();
       Map<String, Object> snapshot = buildSnapshot(instance);
-      List<EntityDiffContext.Change> changes =
-          snapshot.entrySet().stream()
-              .map(e -> new EntityDiffContext.Change(e.getKey(), e.getValue(), null))
-              .toList();
-      EntityDiffContext.storeDiff(
+      EntityDiffContext.storeSnapshot(
           instance.getId(),
-          new EntityDiffContext.EntityDiff(instance.getClass().getSimpleName(), "delete", changes));
+          new EntityDiffContext.EntitySnapshot(
+              instance.getClass().getSimpleName(), "delete", snapshot, null));
     } catch (Exception e) {
       log.debug(
-          "[AuditDiff] Failed to capture delete-diff for {}: {}",
+          "[AuditDiff] Failed to capture delete-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());
     }
@@ -263,45 +253,6 @@ public class ModelBaseListener {
     // Let serialization failures propagate so callers skip storing/using a broken snapshot.
     return mapper.convertValue(
         mapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
-  }
-
-  /**
-   * Computes a field-level change list between two snapshots in audit-friendly format.
-   *
-   * @return a list of changes {@code [{field, old_value, new_value}]} containing only changed
-   *     fields
-   */
-  private static List<EntityDiffContext.Change> computeChanges(
-      Map<String, Object> before, Map<String, Object> after) {
-    List<EntityDiffContext.Change> changes = new ArrayList<>();
-    Set<String> allKeys = new LinkedHashSet<>(after.keySet());
-    allKeys.addAll(before.keySet());
-    for (String key : allKeys) {
-      Object beforeVal = before.get(key);
-      Object afterVal = after.get(key);
-      if (!Objects.equals(normalizeForComparison(beforeVal), normalizeForComparison(afterVal))) {
-        changes.add(new EntityDiffContext.Change(key, beforeVal, afterVal));
-      }
-    }
-    return changes;
-  }
-
-  /**
-   * Normalizes a snapshot value for equality comparison. Lists (e.g., user IDs, role IDs) are
-   * sorted to avoid false positives caused by insertion-order differences.
-   */
-  private static String normalizeForComparison(Object val) {
-    if (val == null) return null;
-    if (val instanceof Collection<?> collection) {
-      return collection.stream().map(Object::toString).sorted().collect(Collectors.joining(","));
-    }
-    if (val instanceof Map<?, ?> map) {
-      return map.entrySet().stream()
-          .sorted(Map.Entry.comparingByKey(Comparator.comparing(Object::toString)))
-          .map(entry -> entry.getKey() + "=" + normalizeForComparison(entry.getValue()))
-          .collect(Collectors.joining("|"));
-    }
-    return val.toString();
   }
 
   private boolean shouldCaptureAuditDiff(Object entity) {

@@ -29,7 +29,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -80,7 +79,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
 
       // Act
@@ -97,7 +95,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               inputCaptor.capture(),
               outputCaptor.capture(),
               signatureCaptor.capture(),
-              entityDiffsCaptor.capture(),
+              any(),
               logUuidCaptor.capture());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
@@ -143,6 +141,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               inputCaptor.capture(),
               outputCaptor.capture(),
               signatureCaptor.capture(),
+              any(),
               logUuidCaptor.capture());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
@@ -426,35 +425,36 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Entity diff capture (captureEntityDiffs)")
+  @DisplayName("Entity snapshot capture (captureEntitySnapshots)")
   class EntityDiffCapture {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
     void given_entityDiffsInContext_should_serializeAndPassToAuditLogger() throws Exception {
       // Arrange — pre-populate EntityDiffContext via request attributes (the storage used during
-      // HTTP requests) to simulate diffs stored by @PreUpdate listener
+      // HTTP requests) to simulate snapshots stored by @PreUpdate listener
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
       entityManager.flush();
 
-      Map<String, EntityDiffContext.EntityDiff> diffsMap = new java.util.LinkedHashMap<>();
-      diffsMap.put(
+      Map<String, EntityDiffContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
+      snapshotsMap.put(
           team.getId(),
-          new EntityDiffContext.EntityDiff(
-              "Team",
-              "update",
-              List.of(new EntityDiffContext.Change("name", "Old Name", "New Name"))));
+          new EntityDiffContext.EntitySnapshot(
+              "Team", "update", Map.of("name", "Old Name"), Map.of("name", "New Name")));
 
-      ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+          ArgumentCaptor.forClass(Map.class);
 
-      // Act — pass diffs as request attribute so EntityDiffContext finds them during the request
+      // Act — pass snapshots as request attribute so EntityDiffContext finds them during the
+      // request
       mvc.perform(
               delete(TEAM_URI + "/{teamId}", team.getId())
                   .with(csrf())
-                  .requestAttr("openaev.audit.entityDiffs", diffsMap))
+                  .requestAttr("openaev.audit.entitySnapshots", snapshotsMap))
           .andExpect(status().isOk());
 
-      // Assert — captureEntityDiffs() should serialize the pre-stored diffs
+      // Assert — captureEntitySnapshots() should pass the pre-stored snapshots
       verify(auditLogger, timeout(1000))
           .logAccessControlEvent(
               anyString(),
@@ -464,31 +464,28 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               any(),
               any(),
-              entityDiffsCaptor.capture(),
+              snapshotsCaptor.capture(),
               anyString());
 
-      JsonNode entityDiffs = entityDiffsCaptor.getValue();
-      assertThat(entityDiffs).isNotNull();
-      assertThat(entityDiffs.isArray()).isTrue();
-      assertThat(entityDiffs.size()).isEqualTo(1);
-
-      JsonNode firstDiff = entityDiffs.get(0);
-      assertThat(firstDiff.path("id").asText()).isEqualTo(team.getId());
-      assertThat(firstDiff.path("entity_type").asText()).isEqualTo("Team");
-      assertThat(firstDiff.path("operation").asText()).isEqualTo("update");
-      assertThat(firstDiff.path("changes").isArray()).isTrue();
-      assertThat(firstDiff.path("changes").get(0).path("field").asText()).isEqualTo("name");
-      assertThat(firstDiff.path("changes").get(0).path("old_value").asText()).isEqualTo("Old Name");
-      assertThat(firstDiff.path("changes").get(0).path("new_value").asText()).isEqualTo("New Name");
+      Map<String, EntityDiffContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
+      assertThat(captured).isNotNull();
+      assertThat(captured).containsKey(team.getId());
+      EntityDiffContext.EntitySnapshot snapshot = captured.get(team.getId());
+      assertThat(snapshot.entityType()).isEqualTo("Team");
+      assertThat(snapshot.operation()).isEqualTo("update");
+      assertThat(snapshot.before().get("name")).isEqualTo("Old Name");
+      assertThat(snapshot.after().get("name")).isEqualTo("New Name");
     }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
     void given_noDiffsInContext_should_passNullEntityDiffs() throws Exception {
-      // Arrange — no diffs in EntityDiffContext
+      // Arrange — no snapshots in EntityDiffContext
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
-      ArgumentCaptor<JsonNode> entityDiffsCaptor = ArgumentCaptor.forClass(JsonNode.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+          ArgumentCaptor.forClass(Map.class);
 
       // Act
       mvc.perform(
@@ -505,10 +502,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               any(),
               any(),
-              entityDiffsCaptor.capture(),
+              snapshotsCaptor.capture(),
               anyString());
 
-      assertThat(entityDiffsCaptor.getValue()).isNull();
+      assertThat(snapshotsCaptor.getValue()).isNull();
     }
   }
 }

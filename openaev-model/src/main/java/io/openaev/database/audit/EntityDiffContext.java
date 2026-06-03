@@ -2,32 +2,31 @@ package io.openaev.database.audit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
 /**
- * Context that holds field-level diffs for audit enrichment.
+ * Context that holds before/after snapshots for audit enrichment.
  *
  * <p>Storage strategy is request-first:
  *
  * <ul>
- *   <li>If an HTTP request context is available, snapshots and diffs are stored in request
- *       attributes (isolated per request).
+ *   <li>If an HTTP request context is available, snapshots are stored in request attributes
+ *       (isolated per request).
  *   <li>Otherwise, a ThreadLocal fallback is used for non-web execution paths.
  * </ul>
  */
 public final class EntityDiffContext {
 
   private static final String REQUEST_ATTR_BEFORE_SNAPSHOTS = "openaev.audit.beforeSnapshots";
-  private static final String REQUEST_ATTR_ENTITY_DIFFS = "openaev.audit.entityDiffs";
+  private static final String REQUEST_ATTR_ENTITY_SNAPSHOTS = "openaev.audit.entitySnapshots";
   private static final String REQUEST_ATTR_CLEANUP_REGISTERED = "openaev.audit.cleanupRegistered";
 
   private static final ThreadLocal<Map<String, Map<String, Object>>> BEFORE_SNAPSHOTS_TL =
       ThreadLocal.withInitial(LinkedHashMap::new);
 
-  private static final ThreadLocal<Map<String, EntityDiff>> DIFFS_TL =
+  private static final ThreadLocal<Map<String, EntitySnapshot>> SNAPSHOTS_TL =
       ThreadLocal.withInitial(LinkedHashMap::new);
 
   private static final ThreadLocal<Boolean> CLEANUP_REGISTERED_TL =
@@ -45,14 +44,14 @@ public final class EntityDiffContext {
     return beforeSnapshots().get(entityId);
   }
 
-  // -- Diffs --
+  // -- Entity snapshots --
 
-  public static void storeDiff(String entityId, EntityDiff diff) {
-    diffs().put(entityId, diff);
+  public static void storeSnapshot(String entityId, EntitySnapshot snapshot) {
+    snapshots().put(entityId, snapshot);
   }
 
-  public static Map<String, EntityDiff> consumeAll() {
-    Map<String, EntityDiff> result = new LinkedHashMap<>(diffs());
+  public static Map<String, EntitySnapshot> consumeAllSnapshots() {
+    Map<String, EntitySnapshot> result = new LinkedHashMap<>(snapshots());
     clear();
     return result;
   }
@@ -83,11 +82,11 @@ public final class EntityDiffContext {
     if (hasRequestContext()) {
       RequestAttributes attrs = requestAttributes();
       attrs.removeAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
-      attrs.removeAttribute(REQUEST_ATTR_ENTITY_DIFFS, RequestAttributes.SCOPE_REQUEST);
+      attrs.removeAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
     } else {
       BEFORE_SNAPSHOTS_TL.get().clear();
-      DIFFS_TL.get().clear();
+      SNAPSHOTS_TL.get().clear();
       CLEANUP_REGISTERED_TL.set(false);
     }
   }
@@ -95,7 +94,7 @@ public final class EntityDiffContext {
   /**
    * Cleanup variant used from transaction-completion hooks.
    *
-   * <p>Important: when request-scoped storage is active, keep {@code REQUEST_ATTR_ENTITY_DIFFS}
+   * <p>Important: when request-scoped storage is active, keep {@code REQUEST_ATTR_ENTITY_SNAPSHOTS}
    * until the controller-level audit aspect consumes them.
    */
   public static void clearAfterTransactionCompletion() {
@@ -106,7 +105,7 @@ public final class EntityDiffContext {
     }
 
     BEFORE_SNAPSHOTS_TL.get().clear();
-    DIFFS_TL.get().clear();
+    SNAPSHOTS_TL.get().clear();
     CLEANUP_REGISTERED_TL.set(false);
   }
 
@@ -129,19 +128,19 @@ public final class EntityDiffContext {
   }
 
   @SuppressWarnings("unchecked")
-  private static Map<String, EntityDiff> diffs() {
+  private static Map<String, EntitySnapshot> snapshots() {
     if (hasRequestContext()) {
       RequestAttributes attrs = requestAttributes();
       Object existing =
-          attrs.getAttribute(REQUEST_ATTR_ENTITY_DIFFS, RequestAttributes.SCOPE_REQUEST);
+          attrs.getAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       if (existing instanceof Map<?, ?> map) {
-        return (Map<String, EntityDiff>) map;
+        return (Map<String, EntitySnapshot>) map;
       }
-      Map<String, EntityDiff> created = new LinkedHashMap<>();
-      attrs.setAttribute(REQUEST_ATTR_ENTITY_DIFFS, created, RequestAttributes.SCOPE_REQUEST);
+      Map<String, EntitySnapshot> created = new LinkedHashMap<>();
+      attrs.setAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, created, RequestAttributes.SCOPE_REQUEST);
       return created;
     }
-    return DIFFS_TL.get();
+    return SNAPSHOTS_TL.get();
   }
 
   private static boolean hasRequestContext() {
@@ -154,13 +153,10 @@ public final class EntityDiffContext {
 
   // -- Value types --
 
-  /** Per-entity diff entry, keyed by entity id in the context map. */
-  public record EntityDiff(
-      @JsonProperty("entity_type") String entityType, String operation, List<Change> changes) {}
-
-  /** Single changed field entry in audit-friendly format. */
-  public record Change(
-      String field,
-      @JsonProperty("old_value") Object oldValue,
-      @JsonProperty("new_value") Object newValue) {}
+  /** Per-entity snapshot entry holding before/after state. Diff is computed at log time. */
+  public record EntitySnapshot(
+      @JsonProperty("entity_type") String entityType,
+      String operation,
+      Map<String, Object> before,
+      Map<String, Object> after) {}
 }

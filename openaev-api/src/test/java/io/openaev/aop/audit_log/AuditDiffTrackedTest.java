@@ -68,24 +68,17 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush(); // triggers @PreUpdate → computes diff
 
       // Assert
-      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
-      assertThat(diffs).containsKey(group.getId());
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
+          EntityDiffContext.consumeAllSnapshots();
+      assertThat(snapshots).containsKey(group.getId());
 
-      EntityDiffContext.EntityDiff diff = diffs.get(group.getId());
-      assertThat(diff.entityType()).isEqualTo("Group");
-      assertThat(diff.operation()).isEqualTo("update");
-      assertThat(diff.changes()).isNotEmpty();
-
-      boolean hasNameChange =
-          diff.changes().stream()
-              .anyMatch(
-                  c ->
-                      "group_name".equals(c.field())
-                          && "OriginalName".equals(c.oldValue())
-                          && "UpdatedName".equals(c.newValue()));
-      assertThat(hasNameChange)
-          .as("Expected change entry for group_name: OriginalName → UpdatedName")
-          .isTrue();
+      EntityDiffContext.EntitySnapshot snapshot = snapshots.get(group.getId());
+      assertThat(snapshot.entityType()).isEqualTo("Group");
+      assertThat(snapshot.operation()).isEqualTo("update");
+      assertThat(snapshot.before()).isNotNull();
+      assertThat(snapshot.after()).isNotNull();
+      assertThat(snapshot.before().get("group_name")).isEqualTo("OriginalName");
+      assertThat(snapshot.after().get("group_name")).isEqualTo("UpdatedName");
     }
 
     @Test
@@ -106,12 +99,13 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
 
       // Assert
-      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
-      EntityDiffContext.EntityDiff diff = diffs.get(group.getId());
-      assertThat(diff).isNotNull();
-      assertThat(diff.changes()).anyMatch(c -> "group_description".equals(c.field()));
-      // Name should NOT appear in changes since it didn't change
-      assertThat(diff.changes()).noneMatch(c -> "group_name".equals(c.field()));
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
+          EntityDiffContext.consumeAllSnapshots();
+      EntityDiffContext.EntitySnapshot snapshot = snapshots.get(group.getId());
+      assertThat(snapshot).isNotNull();
+      assertThat(snapshot.after().get("group_description")).isEqualTo("New description");
+      // Name should NOT differ since it didn't change
+      assertThat(snapshot.before().get("group_name")).isEqualTo(snapshot.after().get("group_name"));
     }
   }
 
@@ -139,18 +133,15 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
 
       // Assert
-      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
-      assertThat(diffs).containsKey(role.getId());
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
+          EntityDiffContext.consumeAllSnapshots();
+      assertThat(snapshots).containsKey(role.getId());
 
-      EntityDiffContext.EntityDiff diff = diffs.get(role.getId());
-      assertThat(diff.entityType()).isEqualTo("Role");
-      assertThat(diff.operation()).isEqualTo("update");
-      assertThat(diff.changes())
-          .anyMatch(
-              c ->
-                  "role_name".equals(c.field())
-                      && "OldRoleName".equals(c.oldValue())
-                      && "NewRoleName".equals(c.newValue()));
+      EntityDiffContext.EntitySnapshot snapshot = snapshots.get(role.getId());
+      assertThat(snapshot.entityType()).isEqualTo("Role");
+      assertThat(snapshot.operation()).isEqualTo("update");
+      assertThat(snapshot.before().get("role_name")).isEqualTo("OldRoleName");
+      assertThat(snapshot.after().get("role_name")).isEqualTo("NewRoleName");
     }
   }
 
@@ -177,8 +168,9 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
 
       // Assert
-      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
-      assertThat(diffs).doesNotContainKey(group.getId());
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
+          EntityDiffContext.consumeAllSnapshots();
+      assertThat(snapshots).doesNotContainKey(group.getId());
     }
   }
 }

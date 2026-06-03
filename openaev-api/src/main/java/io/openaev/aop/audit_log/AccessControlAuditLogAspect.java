@@ -1,6 +1,5 @@
 package io.openaev.aop.audit_log;
 
-import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -13,7 +12,6 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -81,7 +79,7 @@ public class AccessControlAuditLogAspect {
     }
 
     Object result = null;
-    JsonNode entityDiffsNode = null;
+    Map<String, EntityDiffContext.EntitySnapshot> snapshots = null;
 
     try {
       result = joinPoint.proceed();
@@ -89,24 +87,24 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            // Capture diffs on the servlet thread before any async handoff.
-            entityDiffsNode = captureEntityDiffs();
+            // Capture snapshots on the servlet thread before any async handoff.
+            snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
             logAccessControlEvent(
-                joinPoint, accessControl, eventScope, eventStatus, errorNode, entityDiffsNode);
+                joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
           } else if (isActionActive) {
-            // Capture diffs on the servlet thread before any async handoff.
-            entityDiffsNode = captureEntityDiffs();
+            // Capture snapshots on the servlet thread before any async handoff.
+            snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(action);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
             logAccessControlEvent(
-                joinPoint, accessControl, eventScope, eventStatus, errorNode, entityDiffsNode);
+                joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
           }
         } catch (Exception e) {
           log.warn(LOG_ERROR_MSG, e);
@@ -117,14 +115,14 @@ public class AccessControlAuditLogAspect {
 
     if (isActive && isActionActive) {
       try {
-        // Capture diffs on the servlet thread before any async handoff.
-        entityDiffsNode = captureEntityDiffs();
+        // Capture snapshots on the servlet thread before any async handoff.
+        snapshots = captureEntitySnapshots();
         String eventScope = LogUtils.getEventScope(action);
         String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
 
         logAccessControlEvent(
-            joinPoint, accessControl, eventScope, eventStatus, resultNode, entityDiffsNode);
+            joinPoint, accessControl, eventScope, eventStatus, resultNode, snapshots);
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
@@ -139,7 +137,7 @@ public class AccessControlAuditLogAspect {
       String eventScope,
       String eventStatus,
       JsonNode outputNode,
-      JsonNode entityDiffsNode) {
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots) {
     try {
       String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
@@ -167,7 +165,7 @@ public class AccessControlAuditLogAspect {
               inputNode,
               outputNode,
               signatureNode,
-              entityDiffsNode,
+              snapshots,
               logUUID)
           .whenComplete(logCompletion);
     } catch (Exception ex) {
@@ -176,30 +174,16 @@ public class AccessControlAuditLogAspect {
   }
 
   /**
-   * Captures all pending entity diffs from {@link EntityDiffContext} and serializes them to a
-   * {@link JsonNode}. Must be called on the servlet thread before any async handoff, since {@link
-   * EntityDiffContext} is thread-local.
-   *
-   * <p>Output format is an array of entries with an explicit {@code id} field:
-   *
-   * <pre>
-   * [
-   *   {"id":"...","entity_type":"...","operation":"update","changes":[...]}
-   * ]
-   * </pre>
+   * Captures all pending entity snapshots from {@link EntityDiffContext}. Must be called on the
+   * servlet thread before any async handoff, since {@link EntityDiffContext} is request-scoped.
    */
-  private JsonNode captureEntityDiffs() {
+  private Map<String, EntityDiffContext.EntitySnapshot> captureEntitySnapshots() {
     try {
-      Map<String, EntityDiffContext.EntityDiff> diffs = EntityDiffContext.consumeAll();
-      if (diffs.isEmpty()) return null;
-
-      List<EntityDiffEntry> payload =
-          diffs.entrySet().stream()
-              .map(e -> new EntityDiffEntry(e.getKey(), e.getValue()))
-              .toList();
-      return objectMapper.valueToTree(payload);
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
+          EntityDiffContext.consumeAllSnapshots();
+      return snapshots.isEmpty() ? null : snapshots;
     } catch (Exception e) {
-      log.debug("[AUDIT] Failed to capture entity diffs: {}", e.getMessage());
+      log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
       EntityDiffContext.clear();
       return null;
     }
@@ -358,7 +342,4 @@ public class AccessControlAuditLogAspect {
 
     return false;
   }
-
-  /** Lightweight wrapper that adds an explicit {@code id} field when serialized by Jackson. */
-  private record EntityDiffEntry(String id, @JsonUnwrapped EntityDiffContext.EntityDiff diff) {}
 }
