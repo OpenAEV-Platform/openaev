@@ -773,10 +773,7 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
     Team savedTeam = teamRepository.save(team);
@@ -787,10 +784,7 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 
