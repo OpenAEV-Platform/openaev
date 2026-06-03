@@ -26,6 +26,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   private final StepService stepService;
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
+  private final RateLimitGuardService rateLimitGuardService;
+  private final StepDelayQueueService stepDelayQueueService;
 
   // -- READY EVENTS --
 
@@ -71,6 +73,16 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           "Ignoring run request for step {} because workflow run {} has ended.",
           stepReady.getId(),
           workflowRun.getId());
+      return;
+    }
+
+    // Guard: rate limit — re-schedule the step if the workflow has reached its rate limit.
+    if (workflowRun != null && !rateLimitGuardService.isExecutionAllowed(workflowRun)) {
+      long backoffSeconds =
+          workflowRun.getMaxTemporalRateSeconds() != null
+              ? workflowRun.getMaxTemporalRateSeconds()
+              : 60L;
+      stepDelayQueueService.reschedule(stepReady, backoffSeconds);
       return;
     }
 

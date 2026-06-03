@@ -11,10 +11,10 @@ import org.springframework.stereotype.Service;
 /**
  * Guards workflow execution against exceeding a configured rate limit.
  *
- * <p>When rate limiting is enabled on a workflow run, this service counts how many injects linked to
- * the workflow's simulation have reached a terminal execution status within a sliding time window
- * and compares against the configured maximum attempts. If the limit is reached, further inject
- * execution is denied until older executions fall outside the window.
+ * <p>When rate limiting is enabled on a workflow run, this service counts how many injects linked
+ * to the workflow's simulation have reached a terminal execution status within a sliding time
+ * window and compares against the configured maximum attempts. If the limit is reached, further
+ * inject execution is denied until older executions fall outside the window.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -61,4 +61,3 @@ public class RateLimitGuardService {
     return true;
   }
 }
-

@@ -1,19 +1,26 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
-import io.openaev.database.model.*;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,6 +29,8 @@ class StepEventServiceTest {
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
   @Mock private StepRepository stepRepository;
+  @Mock private RateLimitGuardService rateLimitGuardService;
+  @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private ActionStep actionStep;
 
   @InjectMocks private StepEventService stepEventService;
@@ -320,6 +329,103 @@ class StepEventServiceTest {
       verify(stepService).saveStep(updated);
       verify(workflowService).evaluateWorkflowProgress(workflowRun);
       verify(workflowService).saveWorkflowRun(workflowRun);
+    }
+  }
+
+  // -- RATE LIMIT GUARD --
+
+  @Nested
+  class RateLimitGuard {
+
+    @Test
+    void shouldRescheduleStep_whenRateLimitReached() throws ChainingException {
+      // -------- Prepare --------
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-1");
+      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(120L);
+
+      Step stepReady = mock(Step.class);
+      when(stepReady.getWorkflow()).thenReturn(workflowRun);
+
+      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
+      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
+
+      // -------- Act --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert --------
+      verify(stepDelayQueueService).reschedule(stepReady, 120L);
+      verify(stepService, never()).factoryAction(any(), any());
+      verify(stepService, never()).saveStep(any());
+    }
+
+    @Test
+    void shouldProceedWithExecution_whenRateLimitNotReached() throws ChainingException {
+      // -------- Prepare --------
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-1");
+
+      Step stepReady = mock(Step.class);
+      when(stepReady.getWorkflow()).thenReturn(workflowRun);
+      when(stepReady.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+
+      Step stepRun = mock(Step.class);
+
+      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
+      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(true);
+
+      ActionStep localActionStep = mock(ActionStep.class);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(localActionStep);
+      when(localActionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
+
+      // -------- Act --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert --------
+      verify(stepDelayQueueService, never()).reschedule(any(), anyLong());
+      verify(stepRun).setStatus(StepStatus.RUN);
+      verify(stepService).saveStep(stepRun);
+    }
+
+    @Test
+    void shouldUseFallbackDelay_whenMaxTemporalRateSecondsIsNull() {
+      // -------- Prepare --------
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-1");
+      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(null);
+
+      Step stepReady = mock(Step.class);
+      when(stepReady.getWorkflow()).thenReturn(workflowRun);
+
+      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
+      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
+
+      // -------- Act --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert --------
+      verify(stepDelayQueueService).reschedule(stepReady, 60L);
+    }
+
+    @Test
+    void shouldSkipRateLimitCheck_whenWorkflowRunIsNull() throws ChainingException {
+      // -------- Prepare --------
+      Step stepReady = new Step();
+      stepReady.setStepAction(StepActionClass.INJECT_EXECUTION);
+      Step stepRun = new Step();
+
+      when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
+          .thenReturn(actionStep);
+      when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
+
+      // -------- Act --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert --------
+      verify(rateLimitGuardService, never()).isExecutionAllowed(any());
+      assertEquals(StepStatus.RUN, stepRun.getStatus());
+      verify(stepService).saveStep(stepRun);
     }
   }
 }

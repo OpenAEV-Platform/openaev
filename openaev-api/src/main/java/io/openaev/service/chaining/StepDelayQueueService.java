@@ -87,6 +87,31 @@ public class StepDelayQueueService {
   }
 
   /**
+   * Re-schedules a step into the delay queue after a rate-limit backoff.
+   *
+   * <p>The step will be picked up by {@code QueueChainingJob} once its goal time is reached.
+   * Infinite-loop protection is provided by the existing workflow timeout mechanism: when the
+   * workflow times out, {@link #deleteAllByWorkflowRun(Workflow)} purges all pending delay-queue
+   * entries.
+   *
+   * @param step the step to re-schedule
+   * @param delaySeconds the backoff delay in seconds before the step becomes eligible again
+   */
+  public void reschedule(Step step, long delaySeconds) {
+    Instant now = Instant.now();
+    long delayMillis = delaySeconds * 1000L;
+    Instant goal = now.plusMillis(delayMillis);
+    log.info(
+        "Rate limit reached — re-scheduling step {} for workflow {} in {}s (goal: {})",
+        step.getId(),
+        step.getWorkflow().getId(),
+        delaySeconds,
+        goal);
+    pushStepTemplateIntoStepDelayQueue(
+        step, now, step.getInput(), delayMillis, step.getWorkflow(), goal);
+  }
+
+  /**
    * Find all step delayed for a given workflow
    *
    * @return list of steps
