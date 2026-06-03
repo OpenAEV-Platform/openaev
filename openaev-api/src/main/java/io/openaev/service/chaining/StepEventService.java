@@ -23,6 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StepEventService implements StepEventHandler, ExternalUpdateEventHandler {
 
+  /**
+   * JSON field name used to carry the rate-limit reschedule count through the delay queue. Stored
+   * inside the step's {@code input} JSON so it survives step re-creation and can be read by {@link
+   * io.openaev.api.chaining.InjectExecutionStep} to emit an INFO trace once the inject is finally
+   * executed.
+   */
+  public static final String RATE_LIMIT_COUNT_FIELD = "_rateLimitCount";
+
   private final StepService stepService;
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
@@ -82,6 +90,11 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           workflowRun.getMaxTemporalRateSeconds() != null
               ? workflowRun.getMaxTemporalRateSeconds()
               : 60L;
+      // Track rate limit count in step input so the info propagates through the delay queue
+      // and can be surfaced as an INFO trace when the inject is eventually executed.
+      int currentCount = getRateLimitCount(stepReady.getInput());
+      stepReady.setInput(
+          StepService.setField(stepReady.getInput(), RATE_LIMIT_COUNT_FIELD, currentCount + 1));
       stepDelayQueueService.reschedule(stepReady, backoffSeconds);
       return;
     }
@@ -194,6 +207,24 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
             e.getMessage(),
             e);
       }
+    }
+  }
+
+  /**
+   * Extracts the rate-limit reschedule count from the step input JSON.
+   *
+   * @param input the step input JSON string
+   * @return the current rate-limit count, or 0 if not present
+   */
+  public static int getRateLimitCount(String input) {
+    if (input == null) {
+      return 0;
+    }
+    try {
+      String value = StepService.getField(input, RATE_LIMIT_COUNT_FIELD);
+      return value != null ? Integer.parseInt(value) : 0;
+    } catch (NumberFormatException e) {
+      return 0;
     }
   }
 }

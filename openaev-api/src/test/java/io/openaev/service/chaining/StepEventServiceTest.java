@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
@@ -346,6 +347,7 @@ class StepEventServiceTest {
 
       Step stepReady = mock(Step.class);
       when(stepReady.getWorkflow()).thenReturn(workflowRun);
+      when(stepReady.getInput()).thenReturn("{}");
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
       when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
@@ -354,6 +356,7 @@ class StepEventServiceTest {
       stepEventService.run(stepReady);
 
       // -------- Assert --------
+      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
       verify(stepDelayQueueService).reschedule(stepReady, 120L);
       verify(stepService, never()).factoryAction(any(), any());
       verify(stepService, never()).saveStep(any());
@@ -397,6 +400,7 @@ class StepEventServiceTest {
 
       Step stepReady = mock(Step.class);
       when(stepReady.getWorkflow()).thenReturn(workflowRun);
+      when(stepReady.getInput()).thenReturn("{}");
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
       when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
@@ -426,6 +430,55 @@ class StepEventServiceTest {
       verify(rateLimitGuardService, never()).isExecutionAllowed(any());
       assertEquals(StepStatus.RUN, stepRun.getStatus());
       verify(stepService).saveStep(stepRun);
+    }
+
+    @Test
+    void shouldIncrementRateLimitCount_whenRescheduledMultipleTimes() {
+      // -------- Prepare --------
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-1");
+      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(60L);
+
+      // Simulate a step that was already rate-limited once
+      Step stepReady = mock(Step.class);
+      when(stepReady.getWorkflow()).thenReturn(workflowRun);
+      when(stepReady.getInput()).thenReturn("{\"_rateLimitCount\":2}");
+
+      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
+      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
+
+      // -------- Act --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert — count should be incremented to 3 --------
+      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":3")));
+      verify(stepDelayQueueService).reschedule(stepReady, 60L);
+    }
+  }
+
+  // -- GET RATE LIMIT COUNT --
+
+  @Nested
+  class GetRateLimitCount {
+
+    @Test
+    void shouldReturnZero_whenInputIsNull() {
+      assertEquals(0, StepEventService.getRateLimitCount(null));
+    }
+
+    @Test
+    void shouldReturnZero_whenFieldNotPresent() {
+      assertEquals(0, StepEventService.getRateLimitCount("{}"));
+    }
+
+    @Test
+    void shouldReturnCount_whenFieldPresent() {
+      assertEquals(3, StepEventService.getRateLimitCount("{\"_rateLimitCount\":3}"));
+    }
+
+    @Test
+    void shouldReturnZero_whenFieldIsNotANumber() {
+      assertEquals(0, StepEventService.getRateLimitCount("{\"_rateLimitCount\":\"abc\"}"));
     }
   }
 }
