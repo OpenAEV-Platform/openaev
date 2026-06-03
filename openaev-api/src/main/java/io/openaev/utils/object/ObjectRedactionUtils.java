@@ -41,6 +41,9 @@ public class ObjectRedactionUtils {
           "user_password",
           "communications_users");
 
+  /** Fields to hide only when the entity type is User (PII protection). */
+  private static final Set<String> USER_PII_FIELDS_TO_HIDE = Set.of("user_pgp_key");
+
   private static final Set<ResourceType> USER_ENTITY_TYPES =
       Set.of(ResourceType.USER, ResourceType.PLATFORM_USER);
 
@@ -74,10 +77,10 @@ public class ObjectRedactionUtils {
                             && !matchesAnyRegex(fieldName, ALLOWED_SENSITIVE_FIELDS_REGEX))
                         || (isUserEntity && USER_PII_FIELDS.contains(fieldName));
 
-                if (redact) {
-                  result.put(key, REDACTED);
-                } else {
+                if (!redact) {
                   result.set(key, redactNode(entry.getValue(), isUserEntity));
+                } else if (!isUserEntity || !USER_PII_FIELDS_TO_HIDE.contains(fieldName)) {
+                  result.put(key, REDACTED);
                 }
               });
       return result;
