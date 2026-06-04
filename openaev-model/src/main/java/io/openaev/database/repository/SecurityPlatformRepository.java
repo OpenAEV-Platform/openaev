@@ -26,8 +26,7 @@ public interface SecurityPlatformRepository
       @Param("externalReference") String externalReference);
 
   @NotNull
-  Optional<SecurityPlatform> findByIdAndTenantId(
-      @NotNull String id, @NotNull String tenantId);
+  Optional<SecurityPlatform> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @Override
   @Query(
