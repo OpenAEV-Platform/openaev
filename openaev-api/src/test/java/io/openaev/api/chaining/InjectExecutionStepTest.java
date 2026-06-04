@@ -15,6 +15,8 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.execution.ExecutableInject;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -628,6 +630,113 @@ public class InjectExecutionStepTest extends IntegrationTest {
     String idInject = ex.getMessage().replace("Inject execution failed. Inject ID: ", "");
     Assertions.assertFalse(
         injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
+  }
+
+  /**
+   * Tests that when a step carries a non-zero {@code _rateLimitCount} in its input, an INFO trace
+   * is added to the inject status after execution to surface the rate-limit delay to the user.
+   */
+  @Test
+  public void run_shouldAddInfoTrace_whenRateLimitCountIsPositive() throws Exception {
+    // PREPARE
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    step.setConditions(Collections.emptyList());
+
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
+    // Set input with _rateLimitCount = 3 to simulate 3 prior rate-limit reschedules
+    String inputWithRateLimit = "{\"_rateLimitCount\":3}";
+    Optional<Step> stepReadyOpt =
+        injectExecutionStep.ready(stepTemplate, inputWithRateLimit, workflowRun);
+    assertTrue(stepReadyOpt.isPresent());
+    Step stepReady = stepReadyOpt.get();
+
+    // Capture the InjectStatus returned by executor so we can inspect traces
+    InjectStatus capturedStatus = new InjectStatus();
+    doAnswer(
+            invocation -> {
+              // After createInject, the inject gets a status — wire it up
+              Inject createdInject = invocation.getArgument(0);
+              return injectRepository.save(createdInject);
+            })
+        .when(injectService)
+        .createInject(any(Inject.class));
+
+    doAnswer(
+            invocation -> {
+              ExecutableInject executableInject = invocation.getArgument(0);
+              Inject inject = (Inject) executableInject.getInjection();
+              inject.setStatus(capturedStatus);
+              return capturedStatus;
+            })
+        .when(executor)
+        .directExecute(any());
+
+    // ACT
+    Optional<Step> result = injectExecutionStep.run(stepReady);
+
+    // ASSERT
+    assertTrue(result.isPresent());
+    // The INFO trace should have been added to the status
+    assertEquals(1, capturedStatus.getTraces().size());
+    ExecutionTrace trace = capturedStatus.getTraces().get(0);
+    assertEquals(ExecutionTraceStatus.INFO, trace.getStatus());
+    assertEquals(ExecutionTraceAction.EXECUTION, trace.getAction());
+    assertTrue(
+        trace.getMessage().contains("delayed 3 time(s) by rate limiting"),
+        "Expected rate-limit delay message but got: " + trace.getMessage());
+  }
+
+  /** Tests that when a step has no {@code _rateLimitCount} (or zero), no INFO trace is added. */
+  @Test
+  public void run_shouldNotAddInfoTrace_whenRateLimitCountIsZero() throws Exception {
+    // PREPARE
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    step.setConditions(Collections.emptyList());
+
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
+    // Input without _rateLimitCount — normal execution, no rate limiting
+    Optional<Step> stepReadyOpt = injectExecutionStep.ready(stepTemplate, "{}", workflowRun);
+    assertTrue(stepReadyOpt.isPresent());
+    Step stepReady = stepReadyOpt.get();
+
+    InjectStatus capturedStatus = new InjectStatus();
+    doAnswer(
+            invocation -> {
+              ExecutableInject executableInject = invocation.getArgument(0);
+              Inject inject = (Inject) executableInject.getInjection();
+              inject.setStatus(capturedStatus);
+              return capturedStatus;
+            })
+        .when(executor)
+        .directExecute(any());
+
+    // ACT
+    Optional<Step> result = injectExecutionStep.run(stepReady);
+
+    // ASSERT
+    assertTrue(result.isPresent());
+    // No INFO trace should have been added
+    assertTrue(
+        capturedStatus.getTraces().isEmpty(),
+        "Expected no traces but found: " + capturedStatus.getTraces().size());
   }
 
   /**

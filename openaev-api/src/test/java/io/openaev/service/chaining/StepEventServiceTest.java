@@ -476,6 +476,28 @@ class StepEventServiceTest {
       verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
       verify(stepDelayQueueService).reschedule(stepReady, 30L);
     }
+
+    @Test
+    void shouldResetToEmptyJson_whenInputIsInvalidJson() {
+      // -------- Prepare --------
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-1");
+      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(60L);
+
+      Step stepReady = mock(Step.class);
+      when(stepReady.getWorkflow()).thenReturn(workflowRun);
+      when(stepReady.getInput()).thenReturn("{not-valid-json!!!");
+
+      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
+      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
+
+      // -------- Act — should not throw, should recover gracefully --------
+      stepEventService.run(stepReady);
+
+      // -------- Assert — count should start at 1 from a reset {} --------
+      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
+      verify(stepDelayQueueService).reschedule(stepReady, 60L);
+    }
   }
 
   // -- GET RATE LIMIT COUNT --
