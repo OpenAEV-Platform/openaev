@@ -179,9 +179,7 @@ public class AccessControlAuditLogAspect {
    */
   private Map<String, EntityDiffContext.EntitySnapshot> captureEntitySnapshots() {
     try {
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
-          EntityDiffContext.consumeAllSnapshots();
-      return snapshots.isEmpty() ? null : snapshots;
+      return EntityDiffContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
       EntityDiffContext.clear();
