@@ -8,6 +8,7 @@ import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
+import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.EventType;
@@ -31,7 +32,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -43,8 +43,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class LogService {
 
-  @Value("${openaev.audit-logs.service.enabled:false}")
-  private boolean auditLogsEnabled;
+  private final AuditLogProperties auditLogProperties;
 
   private final PreviewFeatureService previewFeatureService;
 
@@ -65,7 +64,8 @@ public class LogService {
 
   public boolean isEnabled() {
     boolean isAuditConfigured =
-        auditLogsEnabled && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
+        auditLogProperties.isEnabled()
+            && previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG);
     if (!isAuditConfigured) {
       return false;
     }
@@ -152,7 +152,7 @@ public class LogService {
       if ("status_change".equals(eventScope)) {
         message = LogUtils.buildStatusChangeMessage(input, entityTypeName, displayName);
       } else {
-        message = eventScope + "s " + entityTypeName + " `" + displayName + "`";
+        message = LogUtils.buildRequestLogMessage(eventScope, entityTypeName, displayName);
       }
 
       String eventType = LogUtils.getEventType(EventType.MUTATION);
@@ -189,6 +189,72 @@ public class LogService {
   }
 
   // -- Internal helpers --
+
+  /**
+   * Logs a session expiry audit event. Called from the session listener (no HTTP request context).
+   *
+   * @param userId the user whose session expired
+   * @param sessionId the HTTP session ID
+   * @param sessionDurationSeconds how long the session was active
+   * @param expiryReason "inactivity_timeout" or "explicit_invalidation"
+   */
+  public boolean logSessionExpiredEvent(
+      String userId,
+      String sessionId,
+      long sessionDurationSeconds,
+      String expiryReason,
+      String clientIp,
+      String userAgent) {
+    if (!isEnabled()) {
+      return true;
+    }
+
+    try {
+      String logUUID = UUID.randomUUID().toString();
+      LogEvent doc = new LogEvent();
+      Instant now = Instant.now();
+      doc.setId(logUUID);
+      doc.setCreatedAt(now);
+      doc.setTimestamp(now);
+      doc.setEventType("authentication");
+      doc.setEventStatus("success");
+      doc.setEventAccess("administration");
+      doc.setEventScope("session_expired");
+      doc.setUserId(userId);
+
+      // User metadata with session ID
+      LogEvent.UserMetadata metadata = new LogEvent.UserMetadata();
+      doc.setUserMetadata(metadata);
+
+      metadata.setSessionId(sessionId);
+      populateUserEmail(metadata, userId);
+      if (clientIp != null) {
+        metadata.setIp(clientIp);
+      }
+      if (userAgent != null) {
+        metadata.setUserAgent(userAgent);
+      }
+
+      // Context data
+      Map<String, Object> ctx = new LinkedHashMap<>();
+      ctx.put("session_id", sessionId);
+      ctx.put("user_id", userId);
+      ctx.put("session_active_duration_seconds", sessionDurationSeconds);
+      ctx.put("expiry_reason", expiryReason);
+      ctx.put(
+          "message",
+          "Session expired: active for "
+              + sessionDurationSeconds
+              + "s, then expired due to "
+              + expiryReason.replace("_", " "));
+      doc.setContextData(ctx);
+
+      return emit(doc, java.util.logging.Level.INFO);
+    } catch (Exception e) {
+      log.warn("[AUDIT] Failed to log session expiry event: {}", e.getMessage(), e);
+    }
+    return false;
+  }
 
   /** Builds the common part of an {@link LogEvent} with all envelope and user fields populated. */
   private LogEvent buildBaseAuditLog(
@@ -261,28 +327,44 @@ public class LogService {
     return id;
   }
 
-  /** Populates user metadata (email, IP, user agent) on the given audit log document. */
-  private void populateUserMetadata(LogEvent doc) {
-    LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
-    boolean hasData = false;
-
-    // User email — denormalized for display
+  /**
+   * Populates the hashed user email on the given metadata if the user exists.
+   *
+   * @return {@code true} if the email was set, {@code false} otherwise
+   */
+  private boolean populateUserEmail(LogEvent.UserMetadata meta, String userId) {
+    if (userId == null) {
+      return false;
+    }
     try {
-      String userId = doc.getUserId();
-      if (userId != null) {
-        User user = userService.user(userId);
-        if (user != null && user.getEmail() != null) {
-          String email = hashWithSHA256(user.getEmail());
-          meta.setUserEmail(email);
-          hasData = true;
-        }
+      User user = userService.user(userId);
+      if (user != null && user.getEmail() != null) {
+        meta.setUserEmail(hashWithSHA256(user.getEmail()));
+        return true;
       }
     } catch (Exception e) {
       // User not found or not in a request context — skip email
     }
+    return false;
+  }
+
+  /** Populates user metadata (email, IP, user agent) on the given audit log document. */
+  private void populateUserMetadata(LogEvent doc) {
+    LogEvent.UserMetadata meta = new LogEvent.UserMetadata();
+    boolean hasData = populateUserEmail(meta, doc.getUserId());
 
     // HTTP request headers
     HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
+
+    // Session ID for correlation
+    if (request != null) {
+      var session = request.getSession(false);
+      if (session != null) {
+        meta.setSessionId(session.getId());
+        hasData = true;
+      }
+    }
+
     Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
 
     if (headers != null) {

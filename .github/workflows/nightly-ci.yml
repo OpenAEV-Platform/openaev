@@ -302,7 +302,7 @@ jobs:
             docker run -d --name search -p 9200:9200 \
               -e discovery.type=single-node \
               -e DISABLE_SECURITY_PLUGIN=true \
-              -e "OPENSEARCH_JAVA_OPTS="-Xms2g -Xmx2g" \
+              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
               ${{ matrix.engine.image }}
           fi
           for i in $(seq 1 60); do
@@ -536,7 +536,7 @@ jobs:
             docker run -d --name search -p 9200:9200 \
               -e discovery.type=single-node \
               -e DISABLE_SECURITY_PLUGIN=true \
-              -e "OPENSEARCH_JAVA_OPTS="-Xms2g -Xmx2g" \
+              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
               ${{ matrix.engine.image }}
           fi
           for i in $(seq 1 60); do

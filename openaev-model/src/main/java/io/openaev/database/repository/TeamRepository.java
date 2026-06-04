@@ -106,4 +106,8 @@ public interface TeamRepository
               + "WHERE t.team_updated_at > :from ORDER BY t.team_updated_at LIMIT :limit;",
       nativeQuery = true)
   List<RawTeamIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
+
+  Optional<Team> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 }

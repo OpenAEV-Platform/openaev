@@ -83,12 +83,11 @@ public class AccessControlAuditLogAspect {
     } catch (Throwable ex) {
       if (isActive) {
         try {
-          if (auditLogger.isAuditUnauthorizedLoggingValid() && isRbacDeniedException(ex)) {
+          if (isRbacDeniedException(ex)) {
             String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            // TODO AUDIT: Move this to enum just like in the issue/5483
             logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           } else if (isActionActive) {
             String eventScope = LogUtils.getEventScope(action);

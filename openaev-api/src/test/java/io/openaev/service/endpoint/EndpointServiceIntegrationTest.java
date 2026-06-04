@@ -67,8 +67,10 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
     @Nested
     @DisplayName("Upgrade jobs tests")
     class UpgradeJobsTests {
+
       @Nested
-      @DisplayName("When agent version does not match server version")
+      @DisplayName(
+          "When auto-update is enabled (default) and agent version does not match server version")
       class UpgradeAgentVersionDoesNotMatchServerVersion {
         private final String agentVersion = "NOMATCH";
 
@@ -191,7 +193,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
               .satisfiesOnlyOnce(
                   job ->
                       assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper.get().getId()));
-          ;
 
           tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
           List<AssetAgentJob> jobTenant2 = fromIterable(assetAgentJobRepository.findAll());
@@ -263,7 +264,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
       }
 
       @Nested
-      @DisplayName("When agent version matches server version")
+      @DisplayName("When auto-update is enabled (default) and agent version matches server version")
       class UpgradeAgentVersionMatchesServerVersion {
         private final String agentVersion = DEFAULT_ENDPOINT_AGENT_VERSION;
 
