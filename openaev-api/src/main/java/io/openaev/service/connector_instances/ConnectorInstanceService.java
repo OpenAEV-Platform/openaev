@@ -625,7 +625,7 @@ public class ConnectorInstanceService {
 
   public ConnectorInstance refresh(ConnectorInstance instance) {
     if (instance instanceof ConnectorInstancePersisted) {
-      return connectorInstanceRepository.findById(instance.getId()).orElse(null);
+      return connectorInstanceRepository.findWithGraphById(instance.getId()).orElse(null);
     }
     return instance;
   }
