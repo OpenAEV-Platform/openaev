@@ -1,4 +1,4 @@
-package io.openaev.config.audit_log;
+package io.openaev.config;
 
 import io.openaev.database.model.LogTransport;
 import jakarta.annotation.PostConstruct;

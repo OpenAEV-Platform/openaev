@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -44,28 +43,4 @@ public interface GroupRepository
 
   @Query(value = "SELECT role_id FROM groups_roles WHERE group_id = :groupId", nativeQuery = true)
   Set<String> findRoleIdsByGroupId(@Param("groupId") String groupId);
-
-  @Modifying
-  @Query(value = "DELETE FROM groups WHERE group_id = :id", nativeQuery = true)
-  void deleteByIdNative(@Param("id") String id);
-
-  // -- Blocked JPA delete methods: use native query instead --
-
-  /**
-   * @deprecated Use {@link #deleteByIdNative(String)}.
-   */
-  @Override
-  @Deprecated
-  default void delete(@NotNull Group entity) {
-    throw new UnsupportedOperationException("Use deleteByIdNative(id) instead");
-  }
-
-  /**
-   * @deprecated Use {@link #deleteByIdNative(String)}.
-   */
-  @Override
-  @Deprecated
-  default void deleteById(@NotNull String id) {
-    throw new UnsupportedOperationException("Use deleteByIdNative(id) instead");
-  }
 }
