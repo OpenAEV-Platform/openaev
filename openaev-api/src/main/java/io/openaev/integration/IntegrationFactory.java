@@ -35,6 +35,7 @@ public abstract class IntegrationFactory {
     runMigrations();
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public List<Integration> sync(List<ConnectorInstance> instances) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {

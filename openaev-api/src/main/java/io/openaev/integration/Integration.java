@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public abstract class Integration {
@@ -55,9 +54,7 @@ public abstract class Integration {
     this.currentStatus = ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped;
   }
 
-  @Transactional
-  public void initialise() throws Exception {
-    try {
+  public void initialise() throws Exception {    try {
       this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance);
       if (connectorInstance == null) {
         // the instance cannot be found again in the DB

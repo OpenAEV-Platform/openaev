@@ -47,13 +47,18 @@ public class ManagerFactory implements DependenciesManager {
    * entry point for the {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob}: driving from
    * the DB guarantees that tenants created between restarts are not missed, even though the
    * in-memory map starts empty after every restart.
-   * TODO ==> Even though monitorIntegrations() passes tenantId explicitly to findRelatedInstances(tenantId), once inside Integration.initialise() the tenant context is needed in two places:
-   * connectorInstanceService.refresh(instance) → calls connectorInstanceRepository.findById() — this is a plain JPA findById on a @Filter("tenantFilter") entity. The Hibernate filter silently applies WHERE tenant_id = :currentTenant, so if TenantContext is unset it returns null, the integration thinks the instance was deleted, and stops instead of starting.
-   * connectorInstanceService.save(connectorInstance) → at the end of initialise(), it saves the updated currentStatus back. If TenantContext is wrong, the TenantBaseListener.@PrePersist could assign the wrong tenant.
-   * So yes — the underlying repositories still read TenantContext even when the service method was called with an explicit tenantId. The TenantContext.setCurrentTenant in monitorAllTenants() is necessary precisely because the Hibernate filter and entity listeners are wired to TenantContext, not to method arguments.
-   * The long-term fix would be to make refresh() use an explicit tenantId query (bypassing the Hibernate filter), but that's a larger refactor. The current setCurrentTenant per tenant in monitorAllTenants() is the correct approach for now.
+   *
+   * <p>{@link TenantContext} is set per tenant before each {@link Manager#monitorIntegrations()}
+   * call because the Hibernate tenant filter and {@link
+   * io.openaev.database.audit.TenantBaseListener} are wired to {@link TenantContext}, not to
+   * method arguments. Without it, {@code findById()} inside {@link
+   * io.openaev.integration.Integration#initialise()} returns {@code null} and the integration
+   * stops instead of starting.
+   *
+   * <p>Not annotated with {@code @Transactional} — each sub-call ({@link
+   * io.openaev.integration.Integration#initialise()}) manages its own transaction, keeping DB
+   * connections short-lived and failures isolated per tenant.
    */
-  @Transactional
   public void monitorAllTenants() {
     List<Tenant> tenants = fromIterable(tenantRepository.findAll());
     for (Tenant tenant : tenants) {
@@ -75,15 +80,15 @@ public class ManagerFactory implements DependenciesManager {
   }
 
   /**
-   * Creates and fully initializes a new {@link Manager} for the given tenant. {@link
-   * Manager#monitorIntegrations()} is called immediately so that any already-persisted connector
-   * instances are picked up right away.
+   * Creates a new {@link Manager} for the given tenant. Integration discovery and startup are
+   * handled by the next {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle via
+   * {@link #monitorAllTenants()} — no immediate {@link Manager#monitorIntegrations()} call here to
+   * avoid connecting to external services (Caldera, Tanium, etc.) during bean initialization or
+   * tenant creation, where those services may not be reachable.
    */
   private Manager createManager(String tenantId) {
     try {
-      Manager manager = new Manager(tenantId, factories);
-      manager.monitorIntegrations();
-      return manager;
+      return new Manager(tenantId, factories);
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize Manager for tenant " + tenantId, e);
     }
