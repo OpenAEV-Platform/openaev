@@ -151,6 +151,21 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       InputStream bannerData,
       String[] platforms)
       throws Exception {
+    return register(id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+  }
+
+  @Transactional
+  public Executor register(
+      String id,
+      String type,
+      String name,
+      String documentationUrl,
+      String backgroundColor,
+      InputStream iconData,
+      InputStream bannerData,
+      String[] platforms,
+      boolean external)
+      throws Exception {
     // Sanity checks
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Executor ID must not be null or empty.");
@@ -179,6 +194,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setDoc(documentationUrl);
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
+    executor.setExternal(external);
 
     return executorRepository.save(executor);
   }

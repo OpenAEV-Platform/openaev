@@ -46,6 +46,10 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("executor_platforms")
   private String[] platforms = new String[0];
 
+  @Column(name = "executor_external")
+  @JsonProperty("executor_external")
+  private boolean external = false;
+
   @Column(name = "executor_doc")
   @JsonProperty("executor_doc")
   private String doc;

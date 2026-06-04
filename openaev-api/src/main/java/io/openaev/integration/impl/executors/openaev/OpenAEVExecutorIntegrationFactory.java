@@ -91,7 +91,8 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
             Endpoint.PLATFORM_TYPE.Windows.name(),
             Endpoint.PLATFORM_TYPE.Linux.name(),
             Endpoint.PLATFORM_TYPE.MacOS.name()
-          });
+          },
+          false);
     }
   }
 }
