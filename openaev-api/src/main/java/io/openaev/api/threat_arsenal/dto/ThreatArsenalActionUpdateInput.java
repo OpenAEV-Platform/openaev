@@ -4,7 +4,7 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
@@ -23,7 +23,7 @@ public record ThreatArsenalActionUpdateInput(
     @JsonProperty("command_executor") @Schema(types = {"string", "null"}) String executor,
     @JsonProperty("command_content") @Schema(types = {"string", "null"}) String content,
     @JsonProperty("action_execution_arch") Payload.PAYLOAD_EXECUTION_ARCH executionArch,
-    @JsonProperty("action_expectations") InjectExpectation.EXPECTATION_TYPE[] expectations,
+    @JsonProperty("action_expectations") BaseInjectExpectation.EXPECTATION_TYPE[] expectations,
     @JsonProperty("executable_file") String executableFile,
     @JsonProperty("file_drop_file") String fileDropFile,
     @JsonProperty("dns_resolution_hostname") String hostname,

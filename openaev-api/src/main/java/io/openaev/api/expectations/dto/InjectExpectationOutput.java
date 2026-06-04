@@ -1,8 +1,8 @@
 package io.openaev.api.expectations.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_STATUS;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_STATUS;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.database.model.InjectExpectationTrace;
