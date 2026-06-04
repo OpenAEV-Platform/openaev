@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.rest.collector.service.CollectorService;
@@ -26,10 +27,12 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.criteria.Join;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +46,10 @@ public class ThreatArsenalService {
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final CollectorService collectorService;
+
+  /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
+  public static final List<String> TABLETOP_INJECTOR_TYPES =
+      List.of("openaev_email", "openaev_ovh_sms", "openaev_challenge", "openaev_channel");
 
   /**
    * Retrieves a threat arsenal action by its identifier and returns the full-detail output.
@@ -299,6 +306,36 @@ public class ThreatArsenalService {
             this.injectorContractService.getSinglePage(
                 spec,
                 specCount,
+                pageable,
+                mode,
+                input.getInjectorContractIdsToIgnore(),
+                input.getInjectorContractIdsToProcess()),
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input)),
+        InjectorContract.class);
+  }
+
+  /**
+   * Search for non-tabletop Injector Contracts (excludes email, SMS, challenges, media pressure).
+   * Adds a JPA specification to filter out contracts whose injector type is in {@link
+   * #TABLETOP_INJECTOR_TYPES}.
+   *
+   * @param mode output mode
+   * @param input to filter
+   * @return the injector contracts search results excluding tabletop types
+   */
+  public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(
+      InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+    Specification<InjectorContract> excludeTabletop =
+        (root, query, cb) -> {
+          Join<InjectorContract, Injector> injectorJoin = root.join("injectors");
+          return cb.not(injectorJoin.get("type").in(TABLETOP_INJECTOR_TYPES));
+        };
+
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            this.injectorContractService.getSinglePage(
+                spec.and(excludeTabletop),
+                specCount.and(excludeTabletop),
                 pageable,
                 mode,
                 input.getInjectorContractIdsToIgnore(),
