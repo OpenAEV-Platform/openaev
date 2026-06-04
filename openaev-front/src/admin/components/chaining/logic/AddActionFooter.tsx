@@ -66,7 +66,7 @@ const AddActionFooter = ({ numberOfSelectedElements, onClear, onSubmit }: AddAct
         color="primary"
         onClick={onSubmit}
       >
-        {t('Add Actions')}
+        {t('Add actions')}
       </Button>
     </Box>
   );
