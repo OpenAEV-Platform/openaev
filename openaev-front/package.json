@@ -59,7 +59,7 @@
     "classcat": "5.0.5",
     "cronstrue": "3.14.0",
     "d3-hierarchy": "3.1.2",
-    "date-fns": "4.2.1",
+    "date-fns": "4.4.0",
     "dompurify": "3.4.7",
     "eslint-import-resolver-next": "0.6.0",
     "filigran-icon": "0.21.0",
