@@ -1,7 +1,7 @@
 package io.openaev.utils.log.transport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.config.audit_log.AuditLogProperties;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.LogTransport;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.LogUtils;
