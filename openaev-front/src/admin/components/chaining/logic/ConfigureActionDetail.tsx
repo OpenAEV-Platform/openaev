@@ -11,12 +11,11 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import type { ScopeAssetOutput } from '../../../../actions/chaining/workflow-actions';
 import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
 import Drawer from '../../../../components/common/Drawer';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
-import type { ThreatArsenalAction } from '../../../../utils/api-types';
+import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../utils/Zod';
 import DrawerBreadcrumb from './DrawerBreadcrumb';
@@ -153,7 +152,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
       inject_injector: action.action_injector_type,
-      inject_assets: validAssets.map(a => a.asset_id),
+      inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
       inject_content: fieldValues,
       inject_field_links: fieldLinks,
       contract_fields: contractFields,

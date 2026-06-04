@@ -1,17 +1,10 @@
 import type { Dispatch } from 'redux';
 
 import { getReferential, putReferential, simpleCall } from '../../utils/Action';
-import type { WorkflowConfigurationInput } from '../../utils/api-types';
+import type { ScopeAssetOutput, WorkflowConfigurationInput } from '../../utils/api-types';
 import workflowConfigurationSchema from './workflow-schema';
 
 const WORKFLOW_URI = '/api/workflows';
-
-export interface ScopeAssetOutput {
-  asset_id: string;
-  asset_name: string;
-  asset_type: string;
-  asset_external_reference: string;
-}
 
 export const fetchWorkflowConfiguration = (workflowId: string) => (dispatch: Dispatch) => {
   const uri = `${WORKFLOW_URI}/${workflowId}/configuration`;

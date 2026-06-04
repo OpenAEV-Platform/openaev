@@ -5,9 +5,9 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 
 import { createStep } from '../../../../actions/chaining/chaining-actions';
-import { fetchValidAssets, type ScopeAssetOutput } from '../../../../actions/chaining/workflow-actions';
+import { fetchValidAssets } from '../../../../actions/chaining/workflow-actions';
 import { useFormatter } from '../../../../components/i18n';
-import type { ThreatArsenalAction } from '../../../../utils/api-types';
+import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import AddActionList from './AddActionList';
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
@@ -61,8 +61,8 @@ const Logic = ({ workflowId, context }: LogicProps) => {
 
   const handleBackToChoose = () => setDrawerView('choose');
 
-  const handleAddActions = (_selectedIds: string[]) => {
-    // TODO: create steps from selected action IDs
+  const handleAddActions = (_selectedActions: ThreatArsenalAction[]) => {
+    // TODO: create steps from selected actions
     setDrawerView('closed');
   };
 

@@ -14,7 +14,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
+import { searchNonTabletopThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import Drawer from '../../../../components/common/Drawer';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -58,7 +58,7 @@ interface AddActionListProps {
   open: boolean;
   onClose: () => void;
   onBack: () => void;
-  onAddActions: (selectedIds: string[]) => void;
+  onAddActions: (actions: ThreatArsenalAction[]) => void;
   onSelectAction?: (action: ThreatArsenalAction) => void;
 }
 
@@ -90,19 +90,10 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
     numberOfSelectedElements,
   } = useEntityToggle<ThreatArsenalAction>('injector_contract', actions, queryableHelpers.paginationHelpers.getTotalElements());
 
-  // Tabletop injector types to exclude (email, SMS, challenges, media pressure)
-  const EXCLUDED_INJECTOR_TYPES = ['openaev_email', 'openaev_ovh_sms', 'openaev_challenge', 'openaev_channel'];
-
   const searchActions = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
+    return searchNonTabletopThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
-
-  // Filter out tabletop actions client-side
-  const filteredActions = useMemo(
-    () => actions.filter(a => !EXCLUDED_INJECTOR_TYPES.includes(a.action_injector_type ?? '')),
-    [actions],
-  );
 
   const availableFilterNames = [
     'action_injectors',
@@ -163,12 +154,10 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
   ], []);
 
   const handleAddActions = () => {
-    const ids = selectAll
-      ? filteredActions
-          .map(a => a.injector_contract_id)
-          .filter(id => !(id in (deSelectedElements || {})))
-      : Object.keys(selectedElements);
-    onAddActions(ids);
+    const selected: ThreatArsenalAction[] = selectAll
+      ? actions.filter(a => !(a.injector_contract_id in (deSelectedElements || {})))
+      : Object.values(selectedElements);
+    onAddActions(selected);
     handleClearSelectedElements();
   };
 
@@ -222,7 +211,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
           </ListItem>
           {loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-            : filteredActions.map(action => (
+            : actions.map(action => (
                 <ListItem
                   key={action.injector_contract_id}
                   divider
