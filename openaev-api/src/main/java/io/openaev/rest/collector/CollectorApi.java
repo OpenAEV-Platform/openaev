@@ -3,6 +3,7 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -78,7 +79,9 @@ public class CollectorApi extends RestBehavior {
     collector.setLastExecution(lastExecution);
     if (securityPlatform != null) {
       collector.setSecurityPlatform(
-          securityPlatformRepository.findById(securityPlatform).orElseThrow());
+          securityPlatformRepository
+              .findByIdAndTenantId(securityPlatform, TenantContext.getCurrentTenant())
+              .orElseThrow());
     }
     return collectorRepository.save(collector);
   }

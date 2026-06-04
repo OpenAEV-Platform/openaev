@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -130,7 +131,7 @@ public class SecurityPlatformApi {
   public SecurityPlatform securityPlatform(
       @PathVariable @NotBlank final String securityPlatformId) {
     return this.securityPlatformRepository
-        .findById(securityPlatformId)
+        .findByIdAndTenantId(securityPlatformId, TenantContext.getCurrentTenant())
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -155,7 +156,9 @@ public class SecurityPlatformApi {
       @PathVariable @NotBlank final String securityPlatformId,
       @Valid @RequestBody final SecurityPlatformInput input) {
     SecurityPlatform securityPlatform =
-        this.securityPlatformRepository.findById(securityPlatformId).orElseThrow();
+        this.securityPlatformRepository
+            .findByIdAndTenantId(securityPlatformId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     securityPlatform.setUpdateAttributes(input);
     if (input.getLogoDark() != null) {
       securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));

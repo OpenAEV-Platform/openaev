@@ -2,6 +2,7 @@ package io.openaev.rest;
 
 import static io.openaev.rest.asset.security_platforms.SecurityPlatformApi.SECURITY_PLATFORM_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -12,25 +13,31 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.asset.security_platforms.form.SecurityPlatformInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.SecurityPlatformComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +52,7 @@ class SecurityPlatformApiTest extends IntegrationTest {
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private EntityManager entityManager;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @BeforeEach
   public void beforeEach() {
@@ -261,5 +269,118 @@ class SecurityPlatformApiTest extends IntegrationTest {
         Arguments.of("toto", 0),
         Arguments.of(SECURITY_PLATFORM_NAME, 2),
         Arguments.of(SECURITY_PLATFORM_NAME + "1", 1));
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @TestInstance(PER_CLASS)
+  @WithMockUser
+  class TenantIsolation {
+
+    private String createSecurityPlatformInTenant(String tenantId, String name) throws Exception {
+      SecurityPlatformInput input = new SecurityPlatformInput();
+      input.setName(name);
+      input.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
+
+      String response =
+          mvc.perform(
+                  post("/api/tenants/{tenantId}/security_platforms", tenantId)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.asset_id");
+    }
+
+    @Test
+    @DisplayName("Given security platform in tenant A, reading from tenant B should return 404")
+    void given_securityPlatformInTenantA_should_return404_whenReadFromTenantB() throws Exception {
+      // -- ARRANGE --
+      Tenant tenantA =
+          tenantHelper.createTenantWithCapabilities(
+              "TenantA-SP",
+              Set.of(
+                  Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
+      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-Isolation-Read");
+
+      Tenant tenantB =
+          tenantHelper.createTenantWithCapabilities(
+              "TenantB-SP", Set.of(Capability.ACCESS_SECURITY_PLATFORMS));
+      tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+      // -- ACT & ASSERT --
+      int status =
+          mvc.perform(
+                  get("/api/tenants/{tenantId}/security_platforms/{spId}", tenantB.getId(), spId)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(status).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Given security platform in tenant A, reading from tenant A should return 200")
+    void given_securityPlatformInTenantA_should_return200_whenReadFromSameTenant()
+        throws Exception {
+      // -- ARRANGE --
+      Tenant tenantA =
+          tenantHelper.createTenantWithCapabilities(
+              "TenantA-SP-Same",
+              Set.of(
+                  Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
+      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-SameTenant-Read");
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              get("/api/tenants/{tenantId}/security_platforms/{spId}", tenantA.getId(), spId)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given security platform in tenant A, updating from tenant B should return 404")
+    void given_securityPlatformInTenantA_should_return404_whenUpdatedFromTenantB()
+        throws Exception {
+      // -- ARRANGE --
+      Tenant tenantA =
+          tenantHelper.createTenantWithCapabilities(
+              "TenantA-SP-Upd",
+              Set.of(
+                  Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
+      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-Isolation-Update");
+      entityManager.flush();
+      entityManager.clear();
+
+      Tenant tenantB =
+          tenantHelper.createTenantWithCapabilities(
+              "TenantB-SP-Upd",
+              Set.of(
+                  Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
+      tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+      SecurityPlatformInput updateInput = new SecurityPlatformInput();
+      updateInput.setName("Hijacked-SP");
+      updateInput.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR);
+
+      // -- ACT & ASSERT --
+      int status =
+          mvc.perform(
+                  put("/api/tenants/{tenantId}/security_platforms/{spId}", tenantB.getId(), spId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      assertThat(status).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }

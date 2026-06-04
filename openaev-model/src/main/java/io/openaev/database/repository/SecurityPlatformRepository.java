@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -23,6 +24,10 @@ public interface SecurityPlatformRepository
 
   Optional<SecurityPlatform> findByExternalReference(
       @Param("externalReference") String externalReference);
+
+  @NotNull
+  Optional<SecurityPlatform> findByIdAndTenantId(
+      @NotNull String id, @NotNull String tenantId);
 
   @Override
   @Query(
