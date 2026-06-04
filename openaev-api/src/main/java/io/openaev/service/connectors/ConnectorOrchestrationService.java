@@ -256,7 +256,7 @@ public class ConnectorOrchestrationService {
       return;
     }
     ConnectorInstancePersisted instance =
-        connectorInstanceService.connectorInstanceById(connectorInstanceId);
+        connectorInstanceService.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
     connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }
