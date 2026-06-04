@@ -3,6 +3,7 @@ package io.openaev.executors.tanium.service;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -61,10 +62,27 @@ public class TaniumExecutorService implements Runnable {
     this.assetGroupService = assetGroupService;
   }
 
+  /*
+  Run calls endpointService.syncAgentsEndpoints, 4 out of 5 DB calls rely on TenantContext.getCurrentTenant():
+
+  findEndpointsByMacAddresses()
+  :#{#tenantContext.currentTenant} in native SQL
+  findEndpointByHostnameAndAtLeastOneMacAddress()
+  :#{#tenantContext.currentTenant} in native SQL
+  findEndpointByExternalReference() (in findExistingEndpoint)
+  :#{#tenantContext.currentTenant} in native SQL
+  assetService.saveAllAssets() / agentService.saveAllAgents()
+  TenantBaseListener.@PrePersist reads TenantContext to assign tenant on new entities
+  Only findByHostnameAndAtleastOneIp() is safe — it receives tenantId as an explicit parameter.
+  Conclusion: The TenantContext.setCurrentTenant(executor.getTenant().getId()) we added in TaniumExecutorService.run() is mandatory and sufficient — it covers all 4 affected paths in syncAgentsEndpoints before any of them are called.
+   */
+
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");
-    List<String> computerGroupIds =
+    TenantContext.setCurrentTenant(executor.getTenant().getId());
+    try {
+      List<String> computerGroupIds =
         Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
     for (String computerGroupId : computerGroupIds) {
       TaniumComputerGroup computerGroup =
@@ -95,6 +113,9 @@ public class TaniumExecutorService implements Runnable {
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
+    }
+    } finally {
+      TenantContext.clearCurrentTenant();
     }
   }
 
