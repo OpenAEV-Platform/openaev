@@ -1,7 +1,8 @@
-name: E2E Tests
+name: API Types Check
 description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
-  download and run the backend JAR, and run Playwright E2E tests.
+  download and run the backend JAR, and verify that generated API types
+  are up to date.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
   MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
@@ -9,18 +10,6 @@ description: >
   OPENAEV_ADMIN_PASSWORD, OPENAEV_ADMIN_TOKEN,
   OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
-
-inputs:
-  is-pr:
-    description: "Whether this run is triggered by a pull request (true/false)."
-    required: false
-    default: "false"
-  playwright-config:
-    description: "Playwright config file to use (relative to openaev-front/)."
-    required: true
-  browser:
-    description: "Browser name (chrome or webkit) — used for artifact naming and browser install."
-    required: true
 
 runs:
   using: composite
@@ -68,18 +57,22 @@ runs:
       with:
         java-version: "21"
         distribution: temurin
-    - name: Set up Node.js 22.11
+
+    - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
         node-version: "22.22.3"
+
     - name: Install corepack
       run: npm install -g corepack
       shell: bash
+
     - name: Get Yarn cache directory
       id: yarn-cache-dir
       run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
       shell: bash
       working-directory: openaev-front
+
     - name: Cache Yarn dependencies
       uses: actions/cache@v5
       with:
@@ -87,24 +80,9 @@ runs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+
     - name: Install frontend dependencies
       run: yarn install --immutable
-      shell: bash
-      working-directory: openaev-front
-    - name: Cache Playwright browsers
-      id: playwright-cache
-      uses: actions/cache@v5
-      with:
-        path: ~/.cache/ms-playwright
-        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
-    - name: Install Playwright browser (${{ inputs.browser }})
-      if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps ${{ inputs.browser }}
-      shell: bash
-      working-directory: openaev-front
-    - name: Install Playwright system dependencies (cache hit)
-      if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps ${{ inputs.browser }}
       shell: bash
       working-directory: openaev-front
 
@@ -191,6 +169,7 @@ runs:
     - name: Start application
       run: java -jar openaev-api/target/openaev-api.jar &
       shell: bash
+
     - name: Wait for application to be ready
       shell: bash
       run: |
@@ -206,22 +185,14 @@ runs:
           exit 1
         }
         echo "✅ Application is ready (HTTP 200)"
-    - name: Run E2E tests (${{ inputs.browser }})
-      run: yarn playwright test --config ${{ inputs.playwright-config }}
+
+    - name: Verify API types are up to date
       shell: bash
       working-directory: openaev-front
-      env:
-        APP_URL: http://localhost:8080
-        E2E_COVERAGE: "true"
-    - name: Upload Playwright report (${{ inputs.browser }})
-      if: ${{ !cancelled() }}
-      uses: actions/upload-artifact@v7
-      with:
-        name: playwright-report-${{ inputs.browser }}
-        path: openaev-front/test-results/
-    - name: Upload E2E coverage report (${{ inputs.browser }})
-      if: ${{ !cancelled() && inputs.browser == 'chrome' }}
-      uses: actions/upload-artifact@v7
-      with:
-        name: playwright-coverage-${{ inputs.browser }}
-        path: openaev-front/test-results/coverage/
+      run: |
+        API_URL=http://localhost:8080 yarn generate-types-from-api
+        if git diff --name-only | grep -q 'src/utils/api-types.d.ts'; then
+          echo "Detected changes in src/utils/api-types.d.ts:";
+          git diff -- src/utils/api-types.d.ts || git diff -- openaev-front/src/utils/api-types.d.ts;
+          echo "⚠️ Forgot to generate types! Please run 'yarn run generate-types-from-api' before committing."; exit 1;
+        fi
