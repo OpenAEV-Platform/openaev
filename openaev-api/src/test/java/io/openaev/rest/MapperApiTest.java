@@ -63,7 +63,6 @@ public class MapperApiTest extends IntegrationTest {
 
   private MockMvc mvc;
 
-
   @Mock private ImportMapperRepository importMapperRepository;
 
   @Mock private MapperService mapperService;

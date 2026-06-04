@@ -347,7 +347,7 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
-   * @param csvType used to know which entity list we want to export
+   * @param CsvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
@@ -550,7 +550,7 @@ public class MapperService {
    * Import CSV with options
    *
    * @param file file to import
-   * @param csvType entity to know which columns format we use for the import
+   * @param targetType entity to know which columns format we use for the import
    * @throws Exception exception if problem during the import
    */
   public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {
