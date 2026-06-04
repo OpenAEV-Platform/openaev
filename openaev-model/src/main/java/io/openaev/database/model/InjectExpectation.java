@@ -25,8 +25,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
-@Entity
+@Entity(name = "InjectExpectation")
 @Table(name = "injects_expectations")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "inject_expectation_type", discriminatorType = DiscriminatorType.STRING)
+@DiscriminatorValue("TEXT")
 @EntityListeners(ModelBaseListener.class)
 public class InjectExpectation implements Base, Cloneable {
 
@@ -81,7 +84,7 @@ public class InjectExpectation implements Base, Cloneable {
 
   @Queryable(filterable = true, label = "inject expectation type")
   @Setter
-  @Column(name = "inject_expectation_type")
+  @Column(name = "inject_expectation_type", insertable = false, updatable = false)
   @JsonProperty("inject_expectation_type")
   @Enumerated(EnumType.STRING)
   @NotNull
@@ -280,6 +283,24 @@ public class InjectExpectation implements Base, Cloneable {
     this.agent = agent;
     this.asset = asset;
     this.assetGroup = assetGroup;
+  }
+
+  public String getSuccessLabel() {
+    return switch (type) {
+      case DETECTION -> "Detected";
+      case PREVENTION -> "Prevented";
+      case VULNERABILITY -> "Not vulnerable";
+      default -> "Successful";
+    };
+  }
+
+  public String getFailureLabel() {
+    return switch (type) {
+      case DETECTION -> "Not Detected";
+      case PREVENTION -> "Not Prevented";
+      case VULNERABILITY -> "Vulnerable";
+      default -> "Failed";
+    };
   }
 
   public boolean isUserHasAccess(User user) {
