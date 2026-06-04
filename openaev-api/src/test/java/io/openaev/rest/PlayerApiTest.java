@@ -5,6 +5,7 @@ import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
+import static org.assertj.core.api.Assertions.assertThat;
 import static io.openaev.utils.fixtures.UrlAccessTokenFixture.DEFAULT_RAW_TOKEN;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,24 +17,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.Cookie;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +62,8 @@ class PlayerApiTest extends IntegrationTest {
   @Autowired private OrganizationRepository organizationRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private EntityManager entityManager;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private LessonsCategoryComposer lessonsCategoryComposer;
@@ -934,16 +948,28 @@ class PlayerApiTest extends IntegrationTest {
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
-    User user = new User();
-    user.setUpdateAttributes(playerInput);
-    userRepository.save(user);
+
+    // Create via API so that the user is attached to the current tenant
+    String createResponse =
+        mvc.perform(
+                post(PLAYER_URI)
+                    .content(asJsonString(playerInput))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String userId = JsonPath.read(createResponse, "$.user_id");
     String newFirstname = "updatedFirstname";
     playerInput.setFirstname(newFirstname);
 
     // --EXECUTE--
     String response =
         mvc.perform(
-                put(PLAYER_URI + "/" + user.getId())
+                put(PLAYER_URI + "/" + userId)
                     .content(asJsonString(playerInput))
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -1026,5 +1052,94 @@ class PlayerApiTest extends IntegrationTest {
     player.setOrganizationId(organization.getId());
     player.setTagIds(List.of(tag.getId()));
     return player;
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(isAdmin = true)
+  class TenantIsolation {
+
+    private User createTenantPlayer(String tenantId) throws Exception {
+      PlayerInput input = PlayerFixture.createPlayerInput();
+      // Use a unique email per call to avoid unique constraint violations
+      input.setEmail("player-" + UUID.randomUUID() + "@example.com");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantId + "/players")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String userId = JsonPath.read(createResponse, "$.user_id");
+      entityManager.flush();
+      entityManager.clear();
+      return userRepository.findByIdAndTenantId(userId, tenantId).orElseThrow();
+    }
+
+    @Test
+    @DisplayName("Player created in tenant X should NOT be updatable from tenant Y")
+    void given_playerInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS, Capability.MANAGE_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS, Capability.MANAGE_TEAMS_AND_PLAYERS));
+
+      User playerX = createTenantPlayer(tenantX.getId());
+
+      PlayerInput updateInput = PlayerFixture.createPlayerInput();
+      updateInput.setEmail(playerX.getEmail());
+      updateInput.setFirstname("Hijacked");
+
+      // -------- Act --------
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/players/" + playerX.getId())
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Player created in tenant X should be updatable from tenant X")
+    void given_playerInTenantX_should_beUpdatableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS, Capability.MANAGE_TEAMS_AND_PLAYERS));
+
+      User playerX = createTenantPlayer(tenantX.getId());
+
+      PlayerInput updateInput = PlayerFixture.createPlayerInput();
+      updateInput.setEmail(playerX.getEmail());
+      updateInput.setFirstname("Updated");
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put("/api/tenants/" + tenantX.getId() + "/players/" + playerX.getId())
+                  .content(asJsonString(updateInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
   }
 }

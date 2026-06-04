@@ -115,7 +115,9 @@ public class PlayerService {
       String userId = existingUser.get().getId();
       tenantUserService.attachToTenant(userId, TenantContext.getCurrentTenant());
       // Reload user after @Modifying queries cleared the persistence context
-      return userRepository.findById(userId).orElseThrow();
+      return userRepository
+          .findByIdAndTenantId(userId, TenantContext.getCurrentTenant())
+          .orElseThrow();
     }
     User user = new User();
     user.setUpdateAttributes(input);

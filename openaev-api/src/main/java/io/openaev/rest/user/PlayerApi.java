@@ -8,6 +8,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
@@ -83,7 +84,10 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    User user =
+        userRepository
+            .findByIdAndTenantId(userId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(

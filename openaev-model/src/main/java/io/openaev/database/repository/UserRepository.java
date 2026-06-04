@@ -175,6 +175,10 @@ public interface UserRepository
 
   // -- Tenant-scoped --
 
+  @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id = :id AND t.id = :tenantId")
+  Optional<User> findByIdAndTenantId(
+      @Param("id") String id, @Param("tenantId") String tenantId);
+
   @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id IN :ids AND t.id = :tenantId")
   List<User> findAllByIdInAndTenantId(
       @Param("ids") List<String> ids, @Param("tenantId") String tenantId);
