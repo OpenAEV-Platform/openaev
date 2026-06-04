@@ -29,7 +29,8 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import type { EndpointOutput, EventOutput, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
-import edgeTypes from './edges';
+import edgeTypes from './chaining_flow/edges';
+import nodeTypes from './chaining_flow/nodes';
 import type { CreateActionData } from './forms/CreateActionForm';
 import CreateActionForm from './forms/CreateActionForm';
 import type { ConditionRow, CreateEventData } from './forms/CreateEventForm';
@@ -39,7 +40,6 @@ import type { UpdateActionData } from './forms/UpdateActionForm';
 import UpdateActionForm from './forms/UpdateActionForm';
 import type { UpdateEventData } from './forms/UpdateEventForm';
 import UpdateEventForm from './forms/UpdateEventForm';
-import nodeTypes from './nodes';
 
 type DrawerView = 'choose' | 'action' | 'event' | 'editAction' | 'editEvent';
 
@@ -55,6 +55,7 @@ interface ActionMeta {
   step_conditions: MapperConditionRow[];
   contract_fields: ContractElement[];
 }
+
 interface EventMeta {
   event_name: string;
   event_description: string;

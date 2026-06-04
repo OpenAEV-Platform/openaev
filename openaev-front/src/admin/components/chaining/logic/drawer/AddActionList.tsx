@@ -14,22 +14,22 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchNonTabletopThreatArsenalActions } from '../../../../actions/threat_arsenals/threatArsenal-actions';
-import Drawer from '../../../../components/common/Drawer';
-import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
-import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
-import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
-import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
-import { type Header } from '../../../../components/common/SortHeadersList';
-import { useFormatter } from '../../../../components/i18n';
-import ItemDomains from '../../../../components/ItemDomains';
-import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import PlatformIcon from '../../../../components/PlatformIcon';
-import type { SearchPaginationInput, ThreatArsenalAction } from '../../../../utils/api-types';
-import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import InjectIcon from '../../common/injects/InjectIcon';
+import { searchNonTabletopThreatArsenalActions } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
+import Drawer from '../../../../../components/common/Drawer';
+import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
+import SortHeadersComponentV2 from '../../../../../components/common/queryable/sort/SortHeadersComponentV2';
+import { useQueryable } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import { type Header } from '../../../../../components/common/SortHeadersList';
+import { useFormatter } from '../../../../../components/i18n';
+import ItemDomains from '../../../../../components/ItemDomains';
+import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import PlatformIcon from '../../../../../components/PlatformIcon';
+import type { SearchPaginationInput, ThreatArsenalAction } from '../../../../../utils/api-types';
+import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
+import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
+import InjectIcon from '../../../common/injects/InjectIcon';
 import AddActionFooter from './AddActionFooter';
-import DrawerBreadcrumb from './DrawerBreadcrumb';
 
 const useStyles = makeStyles()(theme => ({
   itemHead: { textTransform: 'uppercase' },
