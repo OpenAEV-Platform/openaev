@@ -104,24 +104,23 @@ public class ThreadPoolTaskLoggerConfig {
 
   public static ThreadRequestContextHolder.RequestContextData buildThreadRequestContextHolder(
       HttpServletRequest request, Authentication authentication) {
-    // GET REQUEST HEADERS AND IP, REQUEST URI and BODY (PARENT THREAD)
     Map<String, String> headers;
-    String remoteAddress, method, url;
+    String remoteAddress, method, url, sessionId;
 
     if (request != null) {
       headers = HttpReqRespUtils.extractHeaders(request);
       remoteAddress = request.getRemoteAddr();
       method = request.getMethod();
-
       url = request.getRequestURL().toString();
+      var session = request.getSession(false);
+      sessionId = session != null ? session.getId() : null;
     } else {
       headers = null;
-      remoteAddress = method = url = null;
+      remoteAddress = method = url = sessionId = null;
     }
 
-    // STORE HEADERS AND REMOTE ADDRESS
     return new ThreadRequestContextHolder.RequestContextData(
-        headers, remoteAddress, method, url, authentication);
+        headers, remoteAddress, method, url, sessionId, authentication);
   }
 
   public static class ThreadRequestContextHolder {
@@ -131,6 +130,7 @@ public class ThreadPoolTaskLoggerConfig {
         String remoteAddress,
         String method,
         String url,
+        String sessionId,
         Authentication authentication) {}
 
     private static final ThreadLocal<Map<String, Object>> CONTEXT = new ThreadLocal<>();

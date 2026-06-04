@@ -358,13 +358,13 @@ public class LogService {
     // HTTP request headers
     HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
 
-    // Session ID for correlation
-    if (request != null) {
-      var session = request.getSession(false);
-      if (session != null) {
-        meta.setSessionId(session.getId());
-        hasData = true;
-      }
+    // Session ID for correlation — always comes from RequestContextData captured on servlet thread,
+    // since populateUserMetadata runs on the async taskLoggerExecutor thread.
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    if (rcd != null && rcd.sessionId() != null) {
+      meta.setSessionId(rcd.sessionId());
+      hasData = true;
     }
 
     Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
