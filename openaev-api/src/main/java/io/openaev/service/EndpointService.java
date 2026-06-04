@@ -343,6 +343,11 @@ public class EndpointService {
    */
   public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents) {
+    log.info(
+        ":::::> syncAgentsEndpoints: tenantId={}, inputs={}, existingAgents={}",
+        io.openaev.context.TenantContext.getCurrentTenant(),
+        inputs.size(),
+        existingAgents.size());
     List<Agent> agentsToSave = new ArrayList<>();
     List<Asset> endpointsToSave = new ArrayList<>();
     Endpoint endpointToSave;
@@ -364,6 +369,9 @@ public class EndpointService {
             inputsByExternalReference.get(agentToUpdate.getExternalReference());
         endpointToSave = (Endpoint) agentToUpdate.getAsset();
         setUpdatedEndpointAttributes(endpointToSave, inputToSave);
+        // Ensure the endpoint tenant is always consistent with the executor's tenant.
+        // Guards against stale cross-tenant data created before TenantContext was set correctly.
+        endpointToSave.setTenant(inputToSave.getExecutor().getTenant());
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
         // TODO: Making this function transactional is not helping to solve tags
@@ -430,7 +438,19 @@ public class EndpointService {
     }
     // Save all in database
     assetService.saveAllAssets(endpointsToSave);
-    return agentService.saveAllAgents(agentsToSave);
+    List<Agent> savedAgents = agentService.saveAllAgents(agentsToSave);
+    log.info(
+        ":::::> syncAgentsEndpoints saved: endpoints={}, agents={}, tenantId={}",
+        endpointsToSave.stream()
+            .map(
+                a ->
+                    a.getId()
+                        + "/"
+                        + (a.getTenant() != null ? a.getTenant().getId() : "NO_TENANT"))
+            .toList(),
+        savedAgents.stream().map(Agent::getId).toList(),
+        TenantContext.getCurrentTenant());
+    return savedAgents;
   }
 
   @Transactional
