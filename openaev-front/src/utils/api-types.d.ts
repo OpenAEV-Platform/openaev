@@ -1257,7 +1257,14 @@ export interface ConditionCreateInput {
   /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
-  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_subtype?:
+    | "port"
+    | "ipv4"
+    | "ipv6"
+    | "username"
+    | "password"
+    | "service"
+    | "host";
   /** Path to the value in the output of the step from */
   condition_key_type?:
     | "execution_time"
@@ -1315,7 +1322,14 @@ export interface ConditionCreateInput {
 export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
-  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_subtype?:
+    | "port"
+    | "ipv4"
+    | "ipv6"
+    | "username"
+    | "password"
+    | "service"
+    | "host";
   condition_key_type?:
     | "execution_time"
     | "step_template_id"
