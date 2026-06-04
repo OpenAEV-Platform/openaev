@@ -479,7 +479,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
-    void given_noDiffsInContext_should_passNullEntityDiffs() throws Exception {
+    void given_noDiffsInContext_should_passEmptyEntityDiffs() throws Exception {
       // Arrange — no snapshots in EntityDiffContext
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
@@ -505,7 +505,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               snapshotsCaptor.capture(),
               anyString());
 
-      assertThat(snapshotsCaptor.getValue()).isNull();
+      assertThat(snapshotsCaptor.getValue()).isEmpty();
     }
   }
 }
