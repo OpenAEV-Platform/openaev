@@ -50,20 +50,35 @@
     </distributionManagement>
 
     <repositories>
+        <!-- Maven Central declared first so most artifacts resolve without hitting other repos (see Repository Order: https://maven.apache.org/guides/mini/guide-multiple-repositories.html#repository-order) -->
         <repository>
-            <id>ossrh-snapshots</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
             <snapshots>
-                <enabled>true</enabled>
+                <enabled>false</enabled>
             </snapshots>
         </repository>
+        <!-- OpenSAML (org.opensaml:opensaml-saml-impl) is only published here, not on Central -->
         <repository>
-            <id>shibboleth_repository</id>
-            <name>Shibboleth Maven Repository</name>
-            <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+            <id>shibboleth-releases</id>
+            <name>Shibboleth Releases</name>
+            <url>https://build.shibboleth.net/maven/releases/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <!-- Fallback for OpenSAML artifacts if Shibboleth repo is unreachable -->
+        <repository>
+            <id>jboss-public</id>
+            <name>JBoss Public Repository</name>
+            <url>https://repository.jboss.org/nexus/content/groups/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
     </repositories>
     <dependencyManagement>
