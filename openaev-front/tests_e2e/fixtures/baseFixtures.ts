@@ -5,7 +5,10 @@ import { addCoverageReport } from 'monocart-reporter';
 const test = testBase.extend<{ autoTestFixture: string }>({
   autoTestFixture: [async ({ context }, use) => {
     const activateCoverage = process.env.E2E_COVERAGE;
-    const isChromium = test.info().project.name === 'chromium';
+    const isChromium = test.info().project.use?.defaultBrowserType === 'chromium'
+      || test.info().project.name === 'chromium'
+      || test.info().project.name === 'Google Chrome'
+      || test.info().project.name === 'chrome';
 
     const handlePageEvent = async (page: Page) => {
       await Promise.all([

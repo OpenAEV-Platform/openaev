@@ -4,6 +4,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.annotation.AuditDiffTracked;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -24,6 +25,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "roles")
 @EntityListeners({ModelBaseListener.class})
+@AuditDiffTracked
 public class Role implements DualScopeBase {
 
   @Id
