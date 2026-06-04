@@ -24,11 +24,39 @@ runs:
         restore-keys: |
           ${{ runner.os }}-yarn-
     - name: Install dependencies
-      run: yarn install --immutable
+      run: |
+        for attempt in 1 2; do
+          echo "::group::Attempt $attempt of 2"
+          if yarn install --immutable; then
+            echo "::endgroup::"
+            echo "✅ Install succeeded on attempt $attempt"
+            exit 0
+          fi
+          echo "::endgroup::"
+          if [ "$attempt" -lt 2 ]; then
+            echo "⚠️ Attempt $attempt failed, retrying…"
+          fi
+        done
+        echo "❌ Install failed after 2 attempts"
+        exit 1
       shell: bash
       working-directory: openaev-front
     - name: Build frontend
-      run: yarn build
+      run: |
+        for attempt in 1 2; do
+          echo "::group::Attempt $attempt of 2"
+          if yarn build; then
+            echo "::endgroup::"
+            echo "✅ Build succeeded on attempt $attempt"
+            exit 0
+          fi
+          echo "::endgroup::"
+          if [ "$attempt" -lt 2 ]; then
+            echo "⚠️ Attempt $attempt failed, retrying…"
+          fi
+        done
+        echo "❌ Build failed after 2 attempts"
+        exit 1
       shell: bash
       working-directory: openaev-front
     - name: Upload frontend build artifact

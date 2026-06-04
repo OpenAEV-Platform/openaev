@@ -81,6 +81,6 @@ public class PlatformRoleService {
 
   public void deletePlatformRole(@NotBlank final String roleId) {
     Role role = findById(roleId);
-    roleRepository.deleteByIdNative(role.getId());
+    roleRepository.delete(role);
   }
 }

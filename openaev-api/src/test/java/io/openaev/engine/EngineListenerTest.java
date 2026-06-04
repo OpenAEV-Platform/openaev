@@ -1,0 +1,123 @@
+package io.openaev.engine;
+
+import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import io.openaev.database.audit.IndexEvent;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+@ExtendWith(MockitoExtension.class)
+class EngineListenerTest {
+
+  @Mock private EngineService engineService;
+
+  @InjectMocks private EngineListener engineListener;
+
+  @AfterEach
+  void cleanupSynchronization() {
+    TransactionSynchronizationManager.unbindResourceIfPossible(
+        EngineListener.PENDING_DELETE_IDS_RESOURCE_KEY);
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
+  }
+
+  @Test
+  @DisplayName("given_deleteEventOutsideTransaction_should_deleteImmediately")
+  void given_deleteEventOutsideTransaction_should_deleteImmediately() {
+    // Arrange
+    IndexEvent event = new IndexEvent(DATA_DELETE, "inject-1");
+
+    // Act
+    engineListener.listenIndexEvent(event);
+
+    // Assert
+    verify(engineService).bulkDelete(List.of("inject-1"));
+  }
+
+  @Test
+  @DisplayName("given_multipleDeleteEventsInTransaction_should_flushOnceAfterCommit")
+  void given_multipleDeleteEventsInTransaction_should_flushOnceAfterCommit() {
+    // Arrange
+    TransactionSynchronizationManager.initSynchronization();
+
+    // Act
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1"));
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-2"));
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1"));
+
+    List<TransactionSynchronization> synchronizations =
+        TransactionSynchronizationManager.getSynchronizations();
+    synchronizations.forEach(TransactionSynchronization::afterCommit);
+    synchronizations.forEach(
+        synchronization ->
+            synchronization.afterCompletion(TransactionSynchronization.STATUS_COMMITTED));
+    TransactionSynchronizationManager.clearSynchronization();
+
+    // Assert
+    ArgumentCaptor<List<String>> idsCaptor = ArgumentCaptor.forClass(List.class);
+    verify(engineService).bulkDelete(idsCaptor.capture());
+    assertThat(idsCaptor.getValue()).containsExactly("inject-1", "inject-2");
+  }
+
+  @Test
+  @DisplayName("given_deleteEventsInTransactionRollback_should_notFlush")
+  void given_deleteEventsInTransactionRollback_should_notFlush() {
+    // Arrange
+    TransactionSynchronizationManager.initSynchronization();
+
+    // Act
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1"));
+
+    List<TransactionSynchronization> synchronizations =
+        TransactionSynchronizationManager.getSynchronizations();
+    synchronizations.forEach(
+        synchronization ->
+            synchronization.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+    TransactionSynchronizationManager.clearSynchronization();
+
+    // Assert
+    verify(engineService, never()).bulkDelete(List.of("inject-1"));
+  }
+
+  @Test
+  @DisplayName("given_deleteEventInTransaction_should_bindPendingIdsAsTransactionResource")
+  void given_deleteEventInTransaction_should_bindPendingIdsAsTransactionResource() {
+    // Arrange
+    TransactionSynchronizationManager.initSynchronization();
+
+    // Act
+    engineListener.listenIndexEvent(new IndexEvent(DATA_DELETE, "inject-1"));
+
+    // Assert
+    assertThat(
+            TransactionSynchronizationManager.hasResource(
+                EngineListener.PENDING_DELETE_IDS_RESOURCE_KEY))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("given_nonDeleteEvent_should_ignore")
+  void given_nonDeleteEvent_should_ignore() {
+    // Arrange
+    IndexEvent event = new IndexEvent("DATA_UPDATE", "inject-1");
+
+    // Act
+    engineListener.listenIndexEvent(event);
+
+    // Assert
+    verify(engineService, never()).bulkDelete(List.of("inject-1"));
+  }
+}
