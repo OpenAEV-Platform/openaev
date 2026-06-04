@@ -209,20 +209,20 @@ class LogServiceTest {
   class LogAuthEvent {
 
     @Test
-    @DisplayName("given_activeSession_should_populateSessionIdInUserMetadata")
-    void given_activeSession_should_populateSessionIdInUserMetadata() {
+    @DisplayName("given_loginRequestContext_should_populateSessionIdInUserMetadata")
+    void given_loginRequestContext_should_populateSessionIdInUserMetadata() {
       // -- PREPARE --
       when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
       when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
 
       ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(
           new ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData(
-              null, null, "GET", "/api/logout", "session-xyz", null));
+              null, null, "POST", "/api/login", "session-xyz", null));
 
       // -- EXECUTE --
       boolean result;
       try {
-        result = logService.logAuthEvent("logout", "success", "local", null, null, null);
+        result = logService.logAuthEvent("login", "success", "local", null, null, null);
       } finally {
         ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.clear();
       }
