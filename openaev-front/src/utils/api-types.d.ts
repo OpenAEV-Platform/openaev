@@ -5451,6 +5451,25 @@ export interface PageInjectTestStatusOutput {
   totalPages?: number;
 }
 
+export interface PageInjectorContractBaseOutput {
+  content?: InjectorContractBaseOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageKillChainPhase {
   content?: KillChainPhase[];
   empty?: boolean;
