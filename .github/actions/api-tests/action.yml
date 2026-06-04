@@ -12,9 +12,9 @@ inputs:
     description: 'Surefire test include patterns (multi-line) or "catchall"'
     required: true
   excludes:
-    description: 'Surefire test exclude patterns (multi-line, optional)'
+    description: "Surefire test exclude patterns (multi-line, optional)"
     required: false
-    default: ''
+    default: ""
   shard:
     description: Shard number (used for artifact naming)
     required: true
@@ -25,7 +25,6 @@ inputs:
 runs:
   using: composite
   steps:
-
     - name: Start all services (non-blocking)
       shell: bash
       run: |
@@ -76,13 +75,15 @@ runs:
       run: |
         echo "⏳ Waiting for backend-compile artifacts (services booting in parallel)..."
         for i in $(seq 1 120); do
-          HTTP_CODE=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --include 2>&1 | head -1 | awk '{print $2}' || echo "000")
+          # Check if backend-compile has failed — abort immediately
+          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
+          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
+            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
+            exit 1
+          fi
           NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
             --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
-            echo "⚠️ GitHub API returned HTTP $HTTP_CODE (attempt $i/120)"
-          fi
           if echo "$NAMES" | grep -q '"api-build-output"'; then
             echo "✅ Artifacts available (after ~$((i * 5))s)"
             break
@@ -199,7 +200,6 @@ runs:
         curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
 
         echo "✅ All services ready"
-
 
     - name: Prepare test suite
       id: suite
