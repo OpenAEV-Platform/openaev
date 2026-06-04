@@ -8,8 +8,8 @@ import io.openaev.database.model.Base;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -50,6 +50,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ModelBaseListener {
 
   /** Event type constant for entity creation. */
@@ -63,28 +64,8 @@ public class ModelBaseListener {
 
   @Resource protected ObjectMapper mapper;
 
-  private AuditLogProperties auditLogProperties;
-  private ApplicationEventPublisher appPublisher;
-
-  /**
-   * Sets the audit log properties for determining whether diff tracking is enabled.
-   *
-   * @param auditLogProperties the audit log configuration properties
-   */
-  @Autowired
-  public void setAuditLogProperties(AuditLogProperties auditLogProperties) {
-    this.auditLogProperties = auditLogProperties;
-  }
-
-  /**
-   * Sets the application event publisher for broadcasting entity lifecycle events.
-   *
-   * @param applicationEventPublisher the Spring event publisher
-   */
-  @Autowired
-  public void setApplicationEventPublisher(ApplicationEventPublisher applicationEventPublisher) {
-    this.appPublisher = applicationEventPublisher;
-  }
+  private final AuditLogProperties auditLogProperties;
+  private final ApplicationEventPublisher appPublisher;
 
   // -- Standard lifecycle events --
 
@@ -101,7 +82,7 @@ public class ModelBaseListener {
       registerCleanupIfNeeded();
       EntityDiffContext.storeBefore(instance.getId(), buildSnapshot(instance));
     } catch (Exception e) {
-      log.debug(
+      log.error(
           "[AuditDiff] Failed to store before-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());
@@ -131,7 +112,7 @@ public class ModelBaseListener {
           new EntityDiffContext.EntitySnapshot(
               instance.getClass().getSimpleName(), "create", null, snapshot));
     } catch (Exception e) {
-      log.debug(
+      log.error(
           "[AuditDiff] Failed to capture create-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());
@@ -159,7 +140,7 @@ public class ModelBaseListener {
           new EntityDiffContext.EntitySnapshot(
               instance.getClass().getSimpleName(), "update", before, after));
     } catch (Exception e) {
-      log.debug(
+      log.error(
           "[AuditDiff] Failed to capture update-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());
@@ -203,7 +184,7 @@ public class ModelBaseListener {
           new EntityDiffContext.EntitySnapshot(
               instance.getClass().getSimpleName(), "delete", snapshot, null));
     } catch (Exception e) {
-      log.debug(
+      log.error(
           "[AuditDiff] Failed to capture delete-snapshot for {}: {}",
           base.getClass().getSimpleName(),
           e.getMessage());

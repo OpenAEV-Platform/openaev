@@ -85,9 +85,9 @@ public final class EntityDiffContext {
       attrs.removeAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
     } else {
-      BEFORE_SNAPSHOTS_TL.get().clear();
-      SNAPSHOTS_TL.get().clear();
-      CLEANUP_REGISTERED_TL.set(false);
+      BEFORE_SNAPSHOTS_TL.remove();
+      SNAPSHOTS_TL.remove();
+      CLEANUP_REGISTERED_TL.remove();
     }
   }
 
@@ -104,9 +104,9 @@ public final class EntityDiffContext {
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
     }
 
-    BEFORE_SNAPSHOTS_TL.get().clear();
-    SNAPSHOTS_TL.get().clear();
-    CLEANUP_REGISTERED_TL.set(false);
+    BEFORE_SNAPSHOTS_TL.remove();
+    SNAPSHOTS_TL.remove();
+    CLEANUP_REGISTERED_TL.remove();
   }
 
   // -- Request/thread storage helpers --

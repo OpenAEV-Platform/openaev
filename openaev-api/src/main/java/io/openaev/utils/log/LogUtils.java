@@ -145,6 +145,13 @@ public class LogUtils {
     return message;
   }
 
+  /**
+   * Build an expired log message
+   *
+   * @param sessionDurationSeconds the duration in seconds
+   * @param expiryReason the expiry reason
+   * @return a message giving information on the expiration of the session
+   */
   public static String buildSessionExpiredLogMessage(
       long sessionDurationSeconds, String expiryReason) {
     return String.format(
