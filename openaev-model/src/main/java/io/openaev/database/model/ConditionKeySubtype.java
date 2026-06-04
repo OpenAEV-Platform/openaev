@@ -18,5 +18,11 @@ public enum ConditionKeySubtype {
   USERNAME,
 
   @JsonProperty("password")
-  PASSWORD;
+  PASSWORD,
+
+  @JsonProperty("service")
+  SERVICE,
+
+  @JsonProperty("host")
+  HOST;
 }

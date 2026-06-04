@@ -5,7 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import io.openaev.config.audit_log.AuditLogProperties;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.engine.model.log.LogEvent;
 import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
