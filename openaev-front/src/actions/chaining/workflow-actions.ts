@@ -6,7 +6,6 @@ import workflowConfigurationSchema from './workflow-schema';
 
 const WORKFLOW_URI = '/api/workflows';
 
-
 export const fetchWorkflowConfiguration = (workflowId: string) => (dispatch: Dispatch) => {
   const uri = `${WORKFLOW_URI}/${workflowId}/configuration`;
   return getReferential(workflowConfigurationSchema(workflowId), uri)(dispatch);
