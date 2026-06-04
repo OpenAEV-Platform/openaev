@@ -157,7 +157,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
-  }, [workflowId, t, setNodes, setEdges]); // killChainPhasesMap intentionally omitted — read via ref
+  }, [workflowId, t, setNodes, setEdges]);
 
   useEffect(() => {
     refreshGraph();
@@ -203,6 +203,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
     [nodes, setEdges, workflowId, actionMetas, buildStepUpdate],
   );
 
+  // ----- TODO : update all method about edges when we'll do edge creation ----------
   /**
      * Remove an edge between an event and an action node.
      * Unlinks the event from the step's condition list and persists to the backend.
