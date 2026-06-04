@@ -273,7 +273,6 @@ class SecurityPlatformApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Tenant Isolation")
-  @TestInstance(PER_CLASS)
   @WithMockUser
   class TenantIsolation {
 
@@ -300,16 +299,20 @@ class SecurityPlatformApiTest extends IntegrationTest {
     @DisplayName("Given security platform in tenant A, reading from tenant B should return 404")
     void given_securityPlatformInTenantA_should_return404_whenReadFromTenantB() throws Exception {
       // -- ARRANGE --
+      // Create both tenants before any HTTP request so that SecurityContextHolder
+      // (cleared by SecurityContextHolderFilter after each MockMvc dispatch) is still
+      // valid when TenantUserService.createDependencyForTenant calls currentUser().
       Tenant tenantA =
           tenantHelper.createTenantWithCapabilities(
               "TenantA-SP",
               Set.of(
                   Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
-      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-Isolation-Read");
-
       Tenant tenantB =
           tenantHelper.createTenantWithCapabilities(
               "TenantB-SP", Set.of(Capability.ACCESS_SECURITY_PLATFORMS));
+
+      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-Isolation-Read");
+
       tenantHelper.switchToTenant(tenantB.getId(), entityManager);
 
       // -- ACT & ASSERT --
@@ -348,20 +351,21 @@ class SecurityPlatformApiTest extends IntegrationTest {
     void given_securityPlatformInTenantA_should_return404_whenUpdatedFromTenantB()
         throws Exception {
       // -- ARRANGE --
+      // Create both tenants before any HTTP request (see comment in read-isolation test).
       Tenant tenantA =
           tenantHelper.createTenantWithCapabilities(
               "TenantA-SP-Upd",
               Set.of(
                   Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
-      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-Isolation-Update");
-      entityManager.flush();
-      entityManager.clear();
-
       Tenant tenantB =
           tenantHelper.createTenantWithCapabilities(
               "TenantB-SP-Upd",
               Set.of(
                   Capability.MANAGE_SECURITY_PLATFORMS, Capability.ACCESS_SECURITY_PLATFORMS));
+
+      String spId = createSecurityPlatformInTenant(tenantA.getId(), "SP-Isolation-Update");
+      entityManager.flush();
+      entityManager.clear();
       tenantHelper.switchToTenant(tenantB.getId(), entityManager);
 
       SecurityPlatformInput updateInput = new SecurityPlatformInput();
