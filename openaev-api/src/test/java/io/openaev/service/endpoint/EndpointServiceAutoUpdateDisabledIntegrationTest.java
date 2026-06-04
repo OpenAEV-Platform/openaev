@@ -4,6 +4,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.fixtures.EndpointRegisterInputFixture.DEFAULT_ENDPOINT_AGENT_VERSION;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +15,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
@@ -28,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +48,7 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void setUp() {
@@ -64,7 +69,11 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
 
     @Test
     @DisplayName("Registering once with a mismatched version should not create an upgrade job")
-    void given_versionMismatch_when_registeringOnce_should_notCreateUpgradeJob() throws Exception {
+    void
+        given_autoUpdateDisabledAndLicenseActive_when_registeringOnceWithVersionMismatch_should_notCreateUpgradeJob()
+            throws Exception {
+      // Arrange
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
       EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
       input.setAgentVersion(MISMATCHED_AGENT_VERSION);
@@ -72,15 +81,21 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      // Act
       mvcRegister(input);
 
+      // Assert
       List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
       assertThat(jobs).isEmpty();
     }
 
     @Test
     @DisplayName("Registering twice with a mismatched version should not create any upgrade job")
-    void given_versionMismatch_when_registeringTwice_should_notCreateUpgradeJob() throws Exception {
+    void
+        given_autoUpdateDisabledAndLicenseActive_when_registeringTwiceWithVersionMismatch_should_notCreateUpgradeJob()
+            throws Exception {
+      // Arrange
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
       EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
       input.setAgentVersion(MISMATCHED_AGENT_VERSION);
@@ -88,16 +103,43 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      // Act
       mvcRegister(input);
       mvcRegister(input);
 
+      // Assert
       List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
       assertThat(jobs).isEmpty();
     }
 
     @Test
+    @DisplayName(
+        "Registering once with a mismatched version should create an upgrade job when license is inactive")
+    void
+        given_autoUpdateDisabledAndLicenseInactive_when_registeringOnceWithVersionMismatch_should_createUpgradeJob()
+            throws Exception {
+      // Arrange
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+      EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+      input.setAgentVersion(MISMATCHED_AGENT_VERSION);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvcRegister(input);
+
+      // Assert
+      List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
+      assertThat(jobs).satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull());
+    }
+
+    @Test
     @DisplayName("Registering with matching version should not create an upgrade job")
-    void given_versionMatch_when_registering_should_notCreateUpgradeJob() throws Exception {
+    void given_matchingVersion_when_registering_should_notCreateUpgradeJob() throws Exception {
+      // Arrange
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
       EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
       input.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
@@ -105,8 +147,10 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
+      // Act
       mvcRegister(input);
 
+      // Assert
       List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
       assertThat(jobs).isEmpty();
     }
