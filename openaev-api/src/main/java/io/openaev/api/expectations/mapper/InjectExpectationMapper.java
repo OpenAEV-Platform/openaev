@@ -1,7 +1,7 @@
 package io.openaev.api.expectations.mapper;
 
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import java.util.List;
 import java.util.Objects;
 
@@ -9,7 +9,7 @@ public final class InjectExpectationMapper {
 
   private InjectExpectationMapper() {}
 
-  public static InjectExpectationOutput toOutput(InjectExpectation expectation) {
+  public static InjectExpectationOutput toOutput(BaseInjectExpectation expectation) {
     Objects.requireNonNull(expectation, "expectation must not be null");
 
     return new InjectExpectationOutput(
@@ -39,12 +39,12 @@ public final class InjectExpectationMapper {
         resolveTargetId(expectation));
   }
 
-  public static List<InjectExpectationOutput> toOutputs(List<InjectExpectation> expectations) {
+  public static List<InjectExpectationOutput> toOutputs(List<BaseInjectExpectation> expectations) {
     Objects.requireNonNull(expectations, "expectations must not be null");
     return expectations.stream().map(InjectExpectationMapper::toOutput).toList();
   }
 
-  private static String resolveTargetId(InjectExpectation expectation) {
+  private static String resolveTargetId(BaseInjectExpectation expectation) {
     if (expectation.getUser() != null) {
       return expectation.getUser().getId();
     }

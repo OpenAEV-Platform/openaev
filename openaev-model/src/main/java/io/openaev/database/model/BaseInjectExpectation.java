@@ -31,7 +31,7 @@ import org.hibernate.annotations.UuidGenerator;
 @DiscriminatorColumn(name = "inject_expectation_type", discriminatorType = DiscriminatorType.STRING)
 @DiscriminatorValue("TEXT")
 @EntityListeners(ModelBaseListener.class)
-public class InjectExpectation implements Base, Cloneable {
+public class BaseInjectExpectation implements Base, Cloneable {
 
   /**
    * Creates a shallow clone of this InjectExpectation with deep-copied collections.
@@ -50,9 +50,9 @@ public class InjectExpectation implements Base, Cloneable {
    * @return a new InjectExpectation with copied signatures and results, but empty traces
    */
   @Override
-  public InjectExpectation clone() {
+  public BaseInjectExpectation clone() {
     try {
-      InjectExpectation clone = (InjectExpectation) super.clone();
+      BaseInjectExpectation clone = (BaseInjectExpectation) super.clone();
       clone.signatures =
           this.signatures != null ? new ArrayList<>(this.signatures) : new ArrayList<>();
       clone.results = this.results != null ? new ArrayList<>(this.results) : new ArrayList<>();
