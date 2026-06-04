@@ -17,11 +17,13 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,7 @@ public class ConnectorInstanceService {
 
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
+  private final EntityManager entityManager;
 
   public ConnectorInstanceService(
       ObjectMapper objectMapper,
@@ -54,6 +57,7 @@ public class ConnectorInstanceService {
       CollectorRepository collectorRepository,
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
+      EntityManager entityManager,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
@@ -65,6 +69,7 @@ public class ConnectorInstanceService {
     this.collectorRepository = collectorRepository;
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
+    this.entityManager = entityManager;
     this.managerFactory = managerFactory;
   }
 
@@ -225,6 +230,26 @@ public class ConnectorInstanceService {
   }
 
   /**
+   * Finds a connector instance by ID, bypassing the Hibernate tenant filter.
+   *
+   * <p>Use only for platform-level operations (e.g. XtmComposer callbacks) where the request is
+   * not scoped to a specific tenant and the instance must be found regardless of the current tenant
+   * context. Native queries bypass the Hibernate {@code tenantFilter}.
+   *
+   * @param id the connector instance ID to search for
+   * @return the connector instance matching the ID
+   * @throws EntityNotFoundException if no connector instance is found with the given ID
+   */
+  public ConnectorInstancePersisted connectorInstanceByIdIgnoringTenantFilter(String id)
+      throws EntityNotFoundException {
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+    return connectorInstanceRepository
+        .findWithGraphById(id)
+        .orElseThrow(
+            () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+  }
+
+  /**
    * Finds a connector instance by its ID as ConnectorInstanceOutput format
    *
    * @param id the connector instance id to search for
@@ -281,7 +306,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted updateCurrentStatus(
       String connectorInstanceId, ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
-    ConnectorInstancePersisted instance = this.connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance =
+        this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
     instance.setCurrentStatus(newCurrentStatus);
     return (ConnectorInstancePersisted) this.save(instance);
   }
@@ -614,7 +640,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted patchConnectorInstanceHealthCheck(
       String connectorInstanceId, ConnectorInstanceHealthInput input) {
-    ConnectorInstancePersisted instance = this.connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance =
+        this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
 
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
