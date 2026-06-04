@@ -219,7 +219,7 @@ public class ConnectorInstanceService {
   public ConnectorInstancePersisted connectorInstanceById(String id)
       throws EntityNotFoundException {
     return connectorInstanceRepository
-        .findById(id)
+        .findWithGraphById(id)
         .orElseThrow(
             () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
   }
