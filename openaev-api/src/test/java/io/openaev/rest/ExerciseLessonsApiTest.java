@@ -6,12 +6,15 @@ import static io.openaev.utils.fixtures.ExerciseFixture.getExercise;
 import static io.openaev.utils.fixtures.ExerciseLessonsCategoryFixture.getLessonsCategory;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.CallContext;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
@@ -107,9 +110,10 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
     // -- ASSERT --
     verify(mailingService)
         .sendEmail(
-            lessonSubject,
-            lessonBody,
-            List.of(user),
-            exerciseRepository.findById(EXERCISE.getId()));
+            any(CallContext.class),
+            eq(lessonSubject),
+            eq(lessonBody),
+            eq(List.of(user)),
+            eq(exerciseRepository.findById(EXERCISE.getId())));
   }
 }

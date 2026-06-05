@@ -164,8 +164,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     deleteDummyInjectorIfItExists(injectorType, null, tenantId);
   }
 
-  public List<Injector> findAll() {
-    return injectorRepository.findAllByTenantId(TenantContext.getCurrentTenant());
+  public List<Injector> findAll(CallContext callContext) {
+    return injectorRepository.findAllByTenantId(callContext.getTenantId());
   }
 
   public List<Injector> findAllByIds(List<String> ids) {

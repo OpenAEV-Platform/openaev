@@ -7,6 +7,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
@@ -92,7 +93,9 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       }
       // hack the wrapped object to match the well-known CHALLENGE_PUBLISH characteristics
       InjectorContract challengeInjectorContract =
-          injectorContractRepository.findById(CHALLENGE_PUBLISH).orElseThrow();
+          injectorContractRepository
+              .findByIdAndTenantId(CHALLENGE_PUBLISH, TenantContext.getCurrentTenant())
+              .orElseThrow();
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
@@ -112,7 +115,9 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       }
 
       InjectorContract articleInjectorContract =
-          injectorContractRepository.findById(CHANNEL_PUBLISH).orElseThrow();
+          injectorContractRepository
+              .findByIdAndTenantId(CHANNEL_PUBLISH, TenantContext.getCurrentTenant())
+              .orElseThrow();
       this.injectorContract.setId(articleInjectorContract.getId());
       this.injectorContract.setContent(articleInjectorContract.getContent());
       this.injectorContract.setConvertedContent(articleInjectorContract.getConvertedContent());

@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -1356,8 +1357,9 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
-    List<Injector> injectors = this.injectorService.findAll();
+    CallContext callContext = CallContext.of(inject.getTenant().getId());
+    List<Collector> collectors = this.collectorService.securityPlatformCollectors(callContext);
+    List<Injector> injectors = this.injectorService.findAll(callContext);
     List<HealthCheck> healthChecks = new ArrayList<>();
 
     healthChecks.addAll(

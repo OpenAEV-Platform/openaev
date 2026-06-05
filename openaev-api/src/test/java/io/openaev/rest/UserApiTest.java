@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -182,7 +183,9 @@ class UserApiTest extends IntegrationTest {
           .until(
               () -> {
                 try {
-                  verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+                  verify(mailingService)
+                      .sendEmail(
+                          any(CallContext.class), anyString(), anyString(), userCaptor.capture());
                   return true;
                 } catch (Exception e) {
                   return false;
@@ -218,7 +221,8 @@ class UserApiTest extends IntegrationTest {
                 try {
                   ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
                   verify(mailingService, times(1))
-                      .sendEmail(anyString(), anyString(), userCaptor.capture());
+                      .sendEmail(
+                          any(CallContext.class), anyString(), anyString(), userCaptor.capture());
                   return true;
                 } catch (Exception e) {
                   return false;
@@ -240,7 +244,8 @@ class UserApiTest extends IntegrationTest {
                 try {
                   ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
                   verify(mailingService, times(2))
-                      .sendEmail(anyString(), anyString(), userCaptor.capture());
+                      .sendEmail(
+                          any(CallContext.class), anyString(), anyString(), userCaptor.capture());
                   return true;
                 } catch (Exception e) {
                   return false;
@@ -284,7 +289,9 @@ class UserApiTest extends IntegrationTest {
               () -> {
                 try {
                   ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
-                  verify(mailingService).sendEmail(anyString(), anyString(), userCaptor.capture());
+                  verify(mailingService)
+                      .sendEmail(
+                          any(CallContext.class), anyString(), anyString(), userCaptor.capture());
                   return true;
                 } catch (Exception e) {
                   return false;
@@ -333,7 +340,8 @@ class UserApiTest extends IntegrationTest {
           .andExpect(status().isOk());
 
       // -- ASSERT --
-      verify(mailingService, never()).sendEmail(anyString(), anyString(), any(List.class));
+      verify(mailingService, never())
+          .sendEmail(any(CallContext.class), anyString(), anyString(), any(List.class));
     }
   }
 }

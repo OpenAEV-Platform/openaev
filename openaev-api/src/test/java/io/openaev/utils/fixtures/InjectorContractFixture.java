@@ -55,31 +55,32 @@ public class InjectorContractFixture {
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
+    String tenantId = TenantContext.getCurrentTenant();
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findById(EMAIL_DEFAULT);
+        injectorContractRepository.findByIdAndTenantId(EMAIL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      Manager manager =
-          new Manager(List.of(emailInjectorIntegrationFactory), TenantContext.getCurrentTenant());
+      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory), tenantId);
       manager.monitorIntegrations();
-      return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+      return injectorContractRepository.findByIdAndTenantId(EMAIL_DEFAULT, tenantId).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   public InjectorContract getWellKnownGlobalEmailContract() {
-    Optional<InjectorContract> injectorContract = injectorContractRepository.findById(EMAIL_GLOBAL);
+    String tenantId = TenantContext.getCurrentTenant();
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findByIdAndTenantId(EMAIL_GLOBAL, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      Manager manager =
-          new Manager(List.of(emailInjectorIntegrationFactory), TenantContext.getCurrentTenant());
+      Manager manager = new Manager(List.of(emailInjectorIntegrationFactory), tenantId);
       manager.monitorIntegrations();
-      return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+      return injectorContractRepository.findByIdAndTenantId(EMAIL_GLOBAL, tenantId).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -401,17 +402,17 @@ public class InjectorContractFixture {
   }
 
   public InjectorContract getWellKnownSingleManualContract() {
+    String tenantId = TenantContext.getCurrentTenant();
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findById(MANUAL_DEFAULT);
+        injectorContractRepository.findByIdAndTenantId(MANUAL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
       new io.openaev.integration.Manager(
-              java.util.List.of(manualInjectorIntegrationFactory),
-              io.openaev.context.TenantContext.getCurrentTenant())
+              java.util.List.of(manualInjectorIntegrationFactory), tenantId)
           .monitorIntegrations();
-      return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
+      return injectorContractRepository.findByIdAndTenantId(MANUAL_DEFAULT, tenantId).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

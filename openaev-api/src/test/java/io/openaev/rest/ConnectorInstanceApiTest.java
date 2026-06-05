@@ -520,7 +520,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(TenantContext.getCurrentTenant())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -563,7 +563,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(TenantContext.getCurrentTenant())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -574,7 +574,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
       assertFalse(
           executorRepository
-              .findByIdAndTenantId(executor.getId(), TenantContext.getCurrentTenant())
+              .findById(executor.getId(), TenantContext.getCurrentTenant())
               .isPresent());
     }
 
@@ -607,7 +607,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(TenantContext.getCurrentTenant())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -618,7 +618,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
       assertFalse(
           injectorRepository
-              .findById(injector.getId(), TenantContext.getCurrentTenant())
+              .findByIdAndTenantId(injector.getId(), TenantContext.getCurrentTenant())
               .isPresent());
     }
 
@@ -636,7 +636,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Manager manager = mock(Manager.class);
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(TenantContext.getCurrentTenant())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -675,7 +675,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(TenantContext.getCurrentTenant())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
       doThrow(new RuntimeException("Integration failed to stop"))
           .when(integration)

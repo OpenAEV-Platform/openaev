@@ -273,7 +273,7 @@ public class ExecutionExecutorServiceTest {
           mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
       when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
       when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-              "EXECUTOR_ID", executorId))
+              eq("EXECUTOR_ID"), eq(executorId), anyString()))
           .thenReturn(ids);
       when(connectorInstanceRepository.findById(instance.getId()))
           .thenReturn(Optional.of(instance));
@@ -293,7 +293,7 @@ public class ExecutionExecutorServiceTest {
       Inject inject = createInjectWithActiveAgent(executor);
 
       Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-1");
@@ -310,7 +310,8 @@ public class ExecutionExecutorServiceTest {
 
       // Assert
       verify(connectorInstanceConfigurationRepository)
-          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
+          .findInstanceAndCatalogIdsByKeyValue(
+              eq("EXECUTOR_ID"), eq(executor.getId()), anyString());
       verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
       verify(mockContextService).launchBatchExecutorSubprocess(eq(inject), any(), any());
       verify(mockContextService).launchExecutorSubprocess(eq(inject), any(Endpoint.class), any());
@@ -330,7 +331,7 @@ public class ExecutionExecutorServiceTest {
       Inject inject = createInjectWithActiveAgent(executor);
 
       Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-fail");
@@ -399,7 +400,7 @@ public class ExecutionExecutorServiceTest {
               new AgentsAndAssetsAgentless(new HashSet<>(Set.of(agent1, agent2)), new HashSet<>()));
 
       Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
 
       ConnectorInstancePersisted instance1 = new ConnectorInstancePersisted();
       instance1.setId("instance-cs-1");

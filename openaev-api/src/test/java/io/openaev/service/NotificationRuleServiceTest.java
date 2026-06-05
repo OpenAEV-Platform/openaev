@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.NotificationRule;
 import io.openaev.database.model.NotificationRuleResourceType;
 import io.openaev.database.model.NotificationRuleTrigger;
@@ -67,6 +68,6 @@ public class NotificationRuleServiceTest extends IntegrationTest {
         rule.getResourceId(), rule.getTrigger(), data);
 
     // -------- Assert --------
-    verify(emailNotificationService).sendNotification(eq(rule), any());
+    verify(emailNotificationService).sendNotification(any(CallContext.class), eq(rule), any());
   }
 }

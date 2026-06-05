@@ -33,6 +33,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.persistence.EntityManagerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import org.assertj.core.api.AssertionsForClassTypes;
@@ -72,6 +73,7 @@ public class TaniumExecutorIntegrationTest {
 
   @Autowired private FileService fileService;
   @Autowired private TransactionTemplate transactionTemplate;
+  @Autowired private EntityManagerFactory entityManagerFactory;
 
   private TaniumExecutorIntegrationFactory getFactory() {
     return new TaniumExecutorIntegrationFactory(
@@ -89,7 +91,8 @@ public class TaniumExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        transactionTemplate);
+        transactionTemplate,
+        entityManagerFactory);
   }
 
   @Test
@@ -227,7 +230,8 @@ public class TaniumExecutorIntegrationTest {
                     taskScheduler,
                     null,
                     httpClientFactory,
-                    transactionTemplate))
+                    transactionTemplate,
+                    entityManagerFactory))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

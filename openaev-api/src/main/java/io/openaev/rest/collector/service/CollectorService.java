@@ -141,7 +141,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return getConnectorRelationsId(collectorId);
   }
 
-  public List<Collector> securityPlatformCollectors() {
+  public List<Collector> securityPlatformCollectors(CallContext callContext) {
     return fromIterable(
         collectorRepository.findAll(
             hasSecurityPlatform()

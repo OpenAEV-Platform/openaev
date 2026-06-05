@@ -1,6 +1,7 @@
 package io.openaev.context;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
 
 /**
  * Contextual scope passed explicitly to service methods. Carries the tenant ID and can be extended
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
  * myService.doSomething(ctx);
  * }</pre>
  */
+@Getter
 public class CallContext {
 
   private final @NotBlank String tenantId;
@@ -27,9 +29,5 @@ public class CallContext {
   /** Create a context with just a tenant ID. */
   public static CallContext of(String tenantId) {
     return new CallContext(tenantId);
-  }
-
-  public String getTenantId() {
-    return tenantId;
   }
 }

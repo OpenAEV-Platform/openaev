@@ -92,10 +92,10 @@ public class InjectUtils {
    * @return the resolved Injector proxy, or {@code null} if no contract is provided
    */
   public Injector resolveInjectorReference(
-      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+      @Nullable String injectorId, @NotNull InjectorContract injectorContract) {
     if (StringUtils.isNotBlank(injectorId)) {
       return injectorRepository
-          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+          .findByIdAndTenantId(injectorId, injectorContract.getTenant().getId())
           .orElse(null);
     }
     // Auto-resolve from the contract's linked injector (single-instance fallback)

@@ -2,7 +2,9 @@ package io.openaev.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.mockito.Mockito.mock;
 
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +21,7 @@ class ManagerFactoryTest {
 
   @BeforeEach
   void setUp() {
-    managerFactory = new ManagerFactory(List.of(), List.of());
+    managerFactory = new ManagerFactory(List.of(), List.of(), mock(EntityManager.class));
   }
 
   @Nested

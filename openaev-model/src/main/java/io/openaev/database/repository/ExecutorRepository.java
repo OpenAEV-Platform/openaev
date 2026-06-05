@@ -14,17 +14,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ExecutorRepository extends JpaRepository<Executor, ExecutorId> {
 
-  /**
-   * ⛔ FORBIDDEN — This entity is tenant-scoped. Use {@link #findAllByCompositeIdTenantId(String)}
-   * instead.
-   */
-  @Override
-  default List<Executor> findAll() {
-    throw new UnsupportedOperationException(
-        "findAll() is forbidden on ExecutorRepository (tenant-scoped). "
-            + "Use findAllByCompositeIdTenantId(tenantId) instead.");
-  }
-
   List<Executor> findAllByCompositeIdTenantId(@NotNull String tenantId);
 
   /**

@@ -19,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ConnectorInstanceServiceTest {
 
+  private static final String TENANT_ID = "test-tenant-id";
+
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
 
   @InjectMocks private ConnectorInstanceService connectorInstanceService;
@@ -32,11 +34,12 @@ class ConnectorInstanceServiceTest {
       // Arrange
       String injectorId = "injector-1";
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
-              ConnectorType.INJECTOR.getIdKeyName(), injectorId))
+              ConnectorType.INJECTOR.getIdKeyName(), injectorId, TENANT_ID))
           .thenReturn(Optional.of(ConnectorInstance.CURRENT_STATUS_TYPE.started.name()));
 
       // Act
-      boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
+      boolean result =
+          connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId, TENANT_ID);
 
       // Assert
       assertTrue(result);
@@ -47,26 +50,28 @@ class ConnectorInstanceServiceTest {
       // Arrange
       String injectorId = "injector-2";
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
-              ConnectorType.INJECTOR.getIdKeyName(), injectorId))
+              ConnectorType.INJECTOR.getIdKeyName(), injectorId, TENANT_ID))
           .thenReturn(Optional.of(ConnectorInstance.CURRENT_STATUS_TYPE.stopped.name()));
 
       // Act
-      boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
+      boolean result =
+          connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId, TENANT_ID);
 
       // Assert
       assertFalse(result);
     }
 
     @Test
-    void given_missingStatusInDatabase_should_useFallbackRequestAndReturnTrueWhenRequestSucceeds() {
+    void given_missingStatusInDatabase_should_returnTrue() {
       // Arrange
       String injectorId = "injector-3";
       when(connectorInstanceConfigurationRepository.findStatusByKeyValue(
-              ConnectorType.INJECTOR.getIdKeyName(), injectorId))
+              ConnectorType.INJECTOR.getIdKeyName(), injectorId, TENANT_ID))
           .thenReturn(Optional.empty());
 
       // Act
-      boolean result = connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId);
+      boolean result =
+          connectorInstanceService.hasStartedConnectorInstanceForInjector(injectorId, TENANT_ID);
 
       // Assert
       assertTrue(result);
