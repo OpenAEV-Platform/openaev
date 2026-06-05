@@ -22,7 +22,6 @@ test.describe('Scenario - Teams management', () => {
         }
       `;
       document.head.appendChild(style);
-
     });
 
     // First admin load can force a one-time Getting Started redirect in clean contexts.
@@ -33,12 +32,11 @@ test.describe('Scenario - Teams management', () => {
     });
 
     // Retry once because tenant initialization can still race with the first navigation.
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    await page.goto(scenarioDefinitionPath);
+    await page.waitForLoadState('domcontentloaded');
+    if (!await scenarioPage.definitionTab.isVisible()) {
       await page.goto(scenarioDefinitionPath);
       await page.waitForLoadState('domcontentloaded');
-      if (await scenarioPage.definitionTab.isVisible()) {
-        break;
-      }
     }
 
     await expect(scenarioPage.definitionTab).toBeVisible();
