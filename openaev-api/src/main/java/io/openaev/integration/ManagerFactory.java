@@ -77,7 +77,7 @@ public class ManagerFactory implements DependenciesManager {
         TenantContext.clearCurrentTenant();
       }
     }
-  }
+  }challenges_documents
 
   /**
    * Creates a new {@link Manager} for the given tenant. Integration discovery and startup are
