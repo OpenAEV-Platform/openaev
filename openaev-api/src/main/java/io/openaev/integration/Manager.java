@@ -7,7 +7,6 @@ import io.openaev.integration.exception.ComponentNotFoundException;
 import java.util.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public class Manager {
@@ -124,7 +123,11 @@ public class Manager {
           factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
-      log.info("==> Found {} new instances for factory {}, tenantId={}", newInstances.size(), factory.getClassName(), tenantId);
+      log.info(
+          "==> Found {} new instances for factory {}, tenantId={}",
+          newInstances.size(),
+          factory.getClassName(),
+          tenantId);
       if (!newInstances.isEmpty()) {
         log.info(
             "==> monitorIntegrations: found {} new instance(s) for factory {}: {}",

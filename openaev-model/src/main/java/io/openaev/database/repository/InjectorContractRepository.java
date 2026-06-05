@@ -153,12 +153,12 @@ public interface InjectorContractRepository
   /**
    * Deletes injector contracts by their IDs scoped to a specific tenant.
    *
-   * <p>Uses a native query intentionally to bypass Hibernate's SQM DELETE machinery
-   * ({@code SqmMutationStrategyHelper.cleanUpCollectionTables}), which triggers an
-   * auto-flush mid-execution. That auto-flush batches UPDATEs for dirty {@link InjectorContract}
-   * entities and — due to a Hibernate 6.x behaviour with {@code @EmbeddedId} fields marked
-   * {@code updatable = false} — can generate an UPDATE WHERE clause that omits {@code tenant_id},
-   * matching multiple rows and throwing {@code BatchedTooManyRowsAffectedException}.
+   * <p>Uses a native query intentionally to bypass Hibernate's SQM DELETE machinery ({@code
+   * SqmMutationStrategyHelper.cleanUpCollectionTables}), which triggers an auto-flush
+   * mid-execution. That auto-flush batches UPDATEs for dirty {@link InjectorContract} entities and
+   * — due to a Hibernate 6.x behaviour with {@code @EmbeddedId} fields marked {@code updatable =
+   * false} — can generate an UPDATE WHERE clause that omits {@code tenant_id}, matching multiple
+   * rows and throwing {@code BatchedTooManyRowsAffectedException}.
    *
    * <p>The native DELETE avoids that path entirely; join-table rows are cleaned up automatically
    * via the database {@code ON DELETE CASCADE} constraints.

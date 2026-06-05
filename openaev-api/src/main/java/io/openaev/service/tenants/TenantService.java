@@ -39,7 +39,6 @@ public class TenantService {
 
   // -- CREATE --
 
-
   /** Creates a new tenant and initializes all required dependencies (ordered by prerequisites). */
   public Tenant create(Tenant tenant) throws DependenciesManagerException {
     Objects.requireNonNull(tenant, "tenant must not be null");

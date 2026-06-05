@@ -232,8 +232,8 @@ public class ConnectorInstanceService {
   /**
    * Finds a connector instance by ID, bypassing the Hibernate tenant filter.
    *
-   * <p>Use only for platform-level operations (e.g. XtmComposer callbacks) where the request is
-   * not scoped to a specific tenant and the instance must be found regardless of the current tenant
+   * <p>Use only for platform-level operations (e.g. XtmComposer callbacks) where the request is not
+   * scoped to a specific tenant and the instance must be found regardless of the current tenant
    * context. Native queries bypass the Hibernate {@code tenantFilter}.
    *
    * @param id the connector instance ID to search for
@@ -547,9 +547,9 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstanceConfiguration createTenantIdConfiguration(
-          ConnectorInstancePersisted instance, String tenantId) {
+      ConnectorInstancePersisted instance, String tenantId) {
     return createConfiguration(
-            "OPENAEV_TENANT_ID", objectMapper.getNodeFactory().textNode(tenantId), false, instance);
+        "OPENAEV_TENANT_ID", objectMapper.getNodeFactory().textNode(tenantId), false, instance);
   }
 
   /**
