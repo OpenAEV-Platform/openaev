@@ -16,24 +16,12 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
+      use: { ...devices['Desktop Safari'] },
     },
     {
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
-        viewport: {
-          width: 1920,
-          height: 1080,
-        },
-      },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'Google Chrome',
-      use: {
-        ...devices['Desktop Chrome'],
-        channel: 'chrome',
         storageState: 'tests_e2e/.auth/user.json',
         viewport: {
           width: 1920,
