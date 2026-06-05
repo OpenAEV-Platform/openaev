@@ -110,7 +110,9 @@ class AuditLoggerDocumentTest extends IntegrationTest {
   void teardownAuditFileAppender() {
     LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
     ch.qos.logback.classic.Logger auditLog = context.getLogger("AUDIT_LOG");
-    if (auditLog.getAppender(TEST_APPENDER_NAME) != null) {
+    var appender = auditLog.getAppender(TEST_APPENDER_NAME);
+    if (appender != null) {
+      appender.stop();
       auditLog.detachAppender(TEST_APPENDER_NAME);
     }
   }
