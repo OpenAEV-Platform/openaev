@@ -6,7 +6,8 @@ import lombok.Getter;
 public enum ConnectorType {
   COLLECTOR("COLLECTOR_ID"),
   INJECTOR("INJECTOR_ID"),
-  EXECUTOR("EXECUTOR_ID");
+  EXECUTOR("EXECUTOR_ID"),
+  SECRETS_PROVIDER("SECRETS_PROVIDER_ID");
 
   public final String idKeyName;
 
