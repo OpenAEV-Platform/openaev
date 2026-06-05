@@ -58,7 +58,7 @@ import org.springframework.transaction.annotation.Transactional;
       "openaev.audit-logs.halt-on-failure=false",
       "AUDIT_LOG_DIR=target/test-audit-logger"
     })
-class DocumentAuditLogE2eTest extends IntegrationTest {
+class AuditLoggerDocumentTest extends IntegrationTest {
 
   static {
     System.setProperty("AUDIT_LOG_DIR", "target/test-audit-logger");
