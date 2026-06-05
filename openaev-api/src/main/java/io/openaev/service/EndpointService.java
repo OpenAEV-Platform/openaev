@@ -19,10 +19,12 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -112,6 +114,8 @@ public class EndpointService {
   private final TagRepository tagRepository;
   private final AgentService agentService;
   private final AssetService assetService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -472,7 +476,8 @@ public class EndpointService {
     // for the agent if auto update is enabled (enabled by default)
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
-      if (!agentAutoUpdateEnabled) {
+      if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())
+          && !agentAutoUpdateEnabled) {
         log.warn(
             String.format(
                 "A new version for the agent %s is available, his current version is %s and the new version is %s",
