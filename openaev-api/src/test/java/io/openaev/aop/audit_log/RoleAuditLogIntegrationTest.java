@@ -28,6 +28,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -221,11 +223,23 @@ class RoleAuditLogIntegrationTest extends IntegrationTest {
 
       // Validate add/remove behavior across sequential updates.
       assertThat(firstUpdateLog).contains("ACCESS_ASSESSMENT");
-      assertThat(secondUpdateLog).doesNotContain("MANAGE_PAYLOADS");
+      String secondUpdateInputCapabilities = extractInputCapabilitiesBlock(secondUpdateLog);
+      assertThat(secondUpdateInputCapabilities).doesNotContain("ACCESS_ASSESSMENT");
+      assertThat(secondUpdateInputCapabilities).contains("MANAGE_ASSESSMENT");
 
-      assertThat(secondUpdateLog).doesNotContain("\"old_value\" : [ 0");
-      assertThat(secondUpdateLog).doesNotContain("\"new_value\" : [ 0");
+      assertThat(secondUpdateLog).doesNotContainPattern("\\\"old_value\\\"\\s*:\\s*\\[\\s*\\d");
+      assertThat(secondUpdateLog).doesNotContainPattern("\\\"new_value\\\"\\s*:\\s*\\[\\s*\\d");
     }
+  }
+
+  private String extractInputCapabilitiesBlock(String logEntry) {
+    Pattern inputCapabilitiesPattern =
+        Pattern.compile(
+            "\\\"input\\\"\\s*:\\s*\\{.*?\\\"role_capabilities\\\"\\s*:\\s*\\[(.*?)\\]",
+            Pattern.DOTALL);
+    Matcher matcher = inputCapabilitiesPattern.matcher(logEntry);
+    assertThat(matcher.find()).isTrue();
+    return matcher.group(1);
   }
 
   private String readNewAuditLogContent(long sizeBefore) {
@@ -239,9 +253,11 @@ class RoleAuditLogIntegrationTest extends IntegrationTest {
               long sizeAfter = Files.size(AUDIT_LOG_FILE);
               assertThat(sizeAfter).isGreaterThan(sizeBefore);
 
-              String fullContent = Files.readString(AUDIT_LOG_FILE, StandardCharsets.UTF_8);
+              byte[] bytes = Files.readAllBytes(AUDIT_LOG_FILE);
+              int start = (int) Math.min(sizeBefore, bytes.length);
+
               String newContent =
-                  fullContent.substring((int) Math.min(sizeBefore, fullContent.length()));
+                  new String(bytes, start, bytes.length - start, StandardCharsets.UTF_8);
               newContentRef.set(newContent);
             });
 
