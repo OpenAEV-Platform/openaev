@@ -32,9 +32,6 @@ public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
   private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
-  private static final String PLAYER_COMMUNICATION_URI = "/api/player/{userId}/communications";
-  private static final String TENANT_PLAYER_COMMUNICATION_URI =
-      TENANT_PREFIX + "/player/{userId}/communications";
 
   @Resource private SessionManager sessionManager;
 
@@ -61,12 +58,6 @@ public class PlayerApi extends RestBehavior {
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.playerService.playerPagination(searchPaginationInput);
-  }
-
-  @GetMapping({PLAYER_COMMUNICATION_URI, TENANT_PLAYER_COMMUNICATION_URI})
-  @AccessControl(skipRBAC = true)
-  public Iterable<Communication> playerCommunications(@PathVariable String userId) {
-    return communicationRepository.findByUser(userId);
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})

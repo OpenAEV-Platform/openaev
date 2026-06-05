@@ -786,6 +786,8 @@
   "Error or prevented": "Error or prevented",
   "Error switching tenant": "Error switching tenant",
   "ERRORS DETECTED:": "ERRORS DETECTED:",
+  "errors.401": "This page is not accessible. You do not have, or no longer have, the rights to access it.",
+  "errors.UNKNOWN": "An unknown error has occurred.",
   "Evaluate": "Evaluate",
   "Event": "Event",
   "every_fem_plural": "Every",

@@ -786,6 +786,8 @@
   "Error or prevented": "오류 또는 방지됨",
   "Error switching tenant": "Tenant 전환 오류",
   "ERRORS DETECTED:": "오류가 감지되었습니다:",
+  "errors.401": "이 페이지에 액세스할 수 없습니다. 이 페이지에 액세스할 수 있는 권한이 없거나 더 이상 없습니다.",
+  "errors.UNKNOWN": "알 수 없는 오류가 발생했습니다.",
   "Evaluate": "평가 중",
   "Event": "Event",
   "every_fem_plural": "모든",
