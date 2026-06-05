@@ -64,7 +64,10 @@ const cancelPendingBatches = () => {
     clearTimeout(batchTimeoutId);
     batchTimeoutId = undefined;
   }
-  if (idleCallbackId && typeof cancelIdleCallback === 'function') {
+  // requestIdleCallback can return 0 in some polyfills, so compare against
+  // undefined explicitly (matching flushPendingActions) rather than a truthy
+  // check that would skip cancellation for a 0 handle.
+  if (idleCallbackId !== undefined && typeof cancelIdleCallback === 'function') {
     cancelIdleCallback(idleCallbackId);
     idleCallbackId = undefined;
   }

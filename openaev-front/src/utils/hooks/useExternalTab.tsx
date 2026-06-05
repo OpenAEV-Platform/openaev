@@ -22,6 +22,18 @@ const useExternalTab = ({
 }: UseExternalTabProps): UseExternalTabReturn => {
   const tabRef = useRef<WindowProxy | null>(null);
   const [isTabOpen, setIsTabOpen] = useState(false);
+
+  // Keep the latest callbacks in refs so the message listener and the
+  // tab-closed polling interval always invoke the current closures without
+  // re-subscribing on every render (which would otherwise reset the 500ms
+  // interval whenever the caller passes new inline callbacks).
+  const onMessageRef = useRef(onMessage);
+  const onClosingTabRef = useRef(onClosingTab);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onClosingTabRef.current = onClosingTab;
+  }, [onMessage, onClosingTab]);
+
   const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
     event.preventDefault();
     return null;
@@ -49,7 +61,7 @@ const useExternalTab = ({
         if (closingTabEvent.includes(event.data.action)) {
           closeTab();
         }
-        onMessage(event);
+        onMessageRef.current(event);
       }
     };
     let checkInterval: ReturnType<typeof setInterval> | undefined;
@@ -58,7 +70,7 @@ const useExternalTab = ({
       window.addEventListener('beforeunload', beforeUnloadHandler);
       checkInterval = setInterval(() => {
         if (tabRef.current?.closed) {
-          onClosingTab();
+          onClosingTabRef.current();
           closeTab();
           clearInterval(checkInterval);
         }
@@ -72,7 +84,7 @@ const useExternalTab = ({
       window.removeEventListener('message', handleMessage);
       window.removeEventListener('beforeunload', beforeUnloadHandler);
     };
-  }, [isTabOpen]);
+  }, [isTabOpen, closeTab]);
 
   return {
     isTabOpen,
