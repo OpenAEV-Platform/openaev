@@ -91,7 +91,6 @@ const Logic = ({ workflowId, context }: LogicProps) => {
 
     // Create a step for each selected action in parallel
     const promises = selectedActions.map((action) => {
-      const attackPatternIds = action.action_attack_patterns_ids ?? [];
       const title = action.action_labels?.en
         ?? action.action_labels?.fr
         ?? 'Untitled action';
@@ -102,7 +101,6 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         step_data_step: {
           inject_title: title,
           inject_injector_contract: action.injector_contract_id,
-          inject_attack_patterns_ids: attackPatternIds,
           inject_assets: [],
           inject_content: {},
           inject_tags: [],
@@ -181,7 +179,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     if (!workflowId) return;
 
     // Build step_conditions from field links (type + local/global scope)
-    const stepConditions = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
+    const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
       const parts = link.outputType.split('.');
       return {
         condition_temporary_id: String(i),
@@ -189,7 +187,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         condition_key_type: parts[0] as ConditionCreateInput['condition_key_type'],
         condition_key_subtype: (parts.length > 1 ? parts.slice(1).join('.') : undefined) as ConditionCreateInput['condition_key_subtype'],
         condition_key: fieldKey,
-        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as 'GLOBAL',
+        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
       };
     });
 
@@ -202,7 +200,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         inject_injector_contract: data.inject_injector_contract,
         inject_assets: data.inject_assets,
         inject_content: data.inject_content,
-        inject_attack_patterns_ids: selectedAction?.action_attack_patterns_ids ?? [],
+        // Note: inject_attack_patterns_ids is NOT sent — derived from contract at display time.
         inject_tags: [],
         inject_all_teams: false,
         inject_teams: [],

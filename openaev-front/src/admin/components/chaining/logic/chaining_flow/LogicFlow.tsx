@@ -26,7 +26,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { useHelper } from '../../../../../store';
-import type { KillChainPhase } from '../../../../../utils/api-types';
+import type { ConditionCreateInput, KillChainPhase } from '../../../../../utils/api-types';
 import {
   buildActionMetas,
   buildEdges,
@@ -94,12 +94,14 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
      * Build the step for updateStep API calls.
      */
   const buildStepUpdate = useCallback((action: ActionMeta, newCondIds: string[]) => {
-    const stepConditions = action.step_conditions.map((c, i) => ({
+    const stepConditions: ConditionCreateInput[] = action.step_conditions.map((c, i) => ({
       condition_temporary_id: String(i),
       condition_type: 'MAPPER' as const,
-      condition_key_type: c.condition_key_type as 'text',
+      condition_key_type: c.condition_key_type as ConditionCreateInput['condition_key_type'],
+      condition_key_subtype: c.condition_key_subtype as ConditionCreateInput['condition_key_subtype'],
       condition_key: c.condition_key,
-      condition_mapping_type: c.condition_mapping_type as 'GLOBAL',
+      condition_value: c.condition_value,
+      condition_mapping_type: c.condition_mapping_type as ConditionCreateInput['condition_mapping_type'],
     }));
 
     return {
@@ -122,7 +124,6 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
      * then build the complete ReactFlow graph.
      */
   const refreshGraph = useCallback(async () => {
-    setLoading(true);
     const [stepsRes, eventsRes] = await Promise.all([
       fetchSteps(workflowId),
       fetchConditions(workflowId),
@@ -131,11 +132,11 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
     const actionMetasData = buildActionMetas(stepsRes.data);
     const { eventMetas, eventNodes } = buildEventData(eventsRes.data);
 
-    // Fetch contract fields for form pre-population
-    const enrichedActionMetas = await enrichActionMetasWithContracts(actionMetasData);
-
     // Read from ref to avoid stale closure without adding killChainPhasesMap to deps
     const currentKillChainPhasesMap = killChainPhasesMapRef.current as Record<string, KillChainPhase>;
+
+    // Fetch contract fields for form pre-population
+    const enrichedActionMetas = await enrichActionMetasWithContracts(actionMetasData);
 
     // Group steps into tactic columns based on associated Attack Patterns
     const tacticForStep = buildTacticForStep({

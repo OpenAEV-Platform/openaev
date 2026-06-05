@@ -70,11 +70,15 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         step_condition_ids: s.step_condition_ids ?? [],
         step_conditions: (((s as unknown as Record<string, unknown>).step_mapper_conditions ?? []) as Array<{
           condition_key_type?: string;
+          condition_key_subtype?: string;
           condition_key?: string;
+          condition_value?: string;
           condition_mapping_type?: string;
         }>).map(mc => ({
           condition_key_type: mc.condition_key_type ?? 'text',
+          condition_key_subtype: mc.condition_key_subtype,
           condition_key: mc.condition_key ?? '',
+          condition_value: mc.condition_value,
           condition_mapping_type: mc.condition_mapping_type ?? 'GLOBAL',
         })),
         contract_fields: [],

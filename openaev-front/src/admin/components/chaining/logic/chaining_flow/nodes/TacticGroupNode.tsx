@@ -31,7 +31,7 @@ const TacticGroupNode = ({ data }: NodeProps<TacticGroupNodeData>) => {
       <div
         style={{
           background: `${theme.palette.primary.main}18`,
-          borderRadius: 8,
+          borderRadius: theme.spacing(1),
           flex: 1,
         }}
       />
