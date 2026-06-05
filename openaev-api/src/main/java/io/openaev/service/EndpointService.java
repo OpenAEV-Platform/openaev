@@ -132,9 +132,9 @@ public class EndpointService {
     return createEndpoint(endpoint);
   }
 
-  public Endpoint endpoint(@NotBlank final String endpointId) {
+  public Endpoint endpoint(@NotBlank final String endpointId, @NotNull final String tenantId) {
     return this.endpointRepository
-        .findByIdAndTenantId(endpointId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(endpointId, tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Endpoint not found"));
   }
 
@@ -145,32 +145,29 @@ public class EndpointService {
     return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
   }
 
-  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
-      @NotBlank final String hostname, @NotNull final String[] ips) {
-    String tenantId = TenantContext.getCurrentTenant();
-    if (tenantId == null) {
-      return List.of();
-    }
-    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
-  }
-
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneMacAddress(
-      @NotBlank final String hostname, @NotNull final String[] macAddresses) {
-    return this.endpointRepository.findByHostnameAndAtleastOneMacAddress(hostname, macAddresses);
+      @NotBlank final String hostname,
+      @NotNull final String[] macAddresses,
+      @NotNull final String tenantId) {
+    return this.endpointRepository.findByHostnameAndAtleastOneMacAddress(
+        hostname, macAddresses, tenantId);
   }
 
   public Optional<Endpoint> findEndpointByExternalReference(
-      @NotNull final String externalReference) {
-    return this.endpointRepository.findByExternalReference(externalReference).stream().findFirst();
+      @NotNull final String externalReference, @NotNull final String tenantId) {
+    return this.endpointRepository.findByExternalReference(externalReference, tenantId).stream()
+        .findFirst();
   }
 
   public Optional<Endpoint> findEndpointByAtLeastOneMacAddress(
-      @NotNull final String[] macAddresses) {
-    return this.endpointRepository.findByAtleastOneMacAddress(macAddresses).stream().findFirst();
+      @NotNull final String[] macAddresses, @NotNull final String tenantId) {
+    return this.endpointRepository.findByAtleastOneMacAddress(macAddresses, tenantId).stream()
+        .findFirst();
   }
 
-  public List<Endpoint> findEndpointsByMacAddresses(final String[] macAddresses) {
-    return this.endpointRepository.findByAtleastOneMacAddress(macAddresses);
+  public List<Endpoint> findEndpointsByMacAddresses(
+      final String[] macAddresses, @NotNull final String tenantId) {
+    return this.endpointRepository.findByAtleastOneMacAddress(macAddresses, tenantId);
   }
 
   public List<Endpoint> endpoints() {
@@ -194,8 +191,8 @@ public class EndpointService {
     this.endpointRepository.deleteById(endpointId);
   }
 
-  public Endpoint getEndpoint(@NotBlank final String endpointId) {
-    return endpoint(endpointId);
+  public Endpoint getEndpoint(@NotBlank final String endpointId, @NotNull final String tenantId) {
+    return endpoint(endpointId, tenantId);
   }
 
   public Page<Endpoint> searchEndpoints(SearchPaginationInput searchPaginationInput) {
@@ -324,8 +321,10 @@ public class EndpointService {
   }
 
   public Endpoint updateEndpoint(
-      @NotBlank final String endpointId, @NotNull final EndpointInput input) {
-    Endpoint toUpdate = this.endpoint(endpointId);
+      @NotBlank final String endpointId,
+      @NotNull final EndpointInput input,
+      @NotNull final String tenantId) {
+    Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -342,10 +341,10 @@ public class EndpointService {
    * @return OpenAEV agents
    */
   public List<Agent> syncAgentsEndpoints(
-      List<AgentRegisterInput> inputs, List<Agent> existingAgents) {
+      List<AgentRegisterInput> inputs, List<Agent> existingAgents, @NotNull String tenantId) {
     log.info(
         ":::::> syncAgentsEndpoints: tenantId={}, inputs={}, existingAgents={}",
-        io.openaev.context.TenantContext.getCurrentTenant(),
+        tenantId,
         inputs.size(),
         existingAgents.size());
     List<Agent> agentsToSave = new ArrayList<>();
@@ -388,7 +387,7 @@ public class EndpointService {
             .flatMap(Arrays::stream)
             .toArray(String[]::new);
     if (inputsMacAddresses.length > 0) {
-      List<Endpoint> endpointsToUpdate = findEndpointsByMacAddresses(inputsMacAddresses);
+      List<Endpoint> endpointsToUpdate = findEndpointsByMacAddresses(inputsMacAddresses, tenantId);
       Optional<AgentRegisterInput> optionalInputToSave;
       for (Endpoint endpointToUpdate : endpointsToUpdate) {
         optionalInputToSave =
@@ -427,6 +426,8 @@ public class EndpointService {
         endpointToSave.setIps(inputToUpdate.getIps());
         endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
         endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
+        // Set tenant explicitly so TenantBaseListener is not needed for this background path.
+        endpointToSave.setTenant(new Tenant(tenantId));
         // TODO: Making this function transactional is not helping to solve tags
         // addSourceTagToEndpoint(endpointToSave, inputToUpdate);
         endpointsToSave.add(endpointToSave);
@@ -444,23 +445,21 @@ public class EndpointService {
         endpointsToSave.stream()
             .map(
                 a ->
-                    a.getId()
-                        + "/"
-                        + (a.getTenant() != null ? a.getTenant().getId() : "NO_TENANT"))
+                    a.getId() + "/" + (a.getTenant() != null ? a.getTenant().getId() : "NO_TENANT"))
             .toList(),
         savedAgents.stream().map(Agent::getId).toList(),
-        TenantContext.getCurrentTenant());
+        tenantId);
     return savedAgents;
   }
 
   @Transactional
-  public Endpoint register(final EndpointRegisterInput input) throws IOException {
-    AgentRegisterInput agentInput = toAgentEndpoint(input);
+  public Endpoint register(final EndpointRegisterInput input, @NotNull final String tenantId)
+      throws IOException {
+    AgentRegisterInput agentInput = toAgentEndpoint(input, tenantId);
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
-        agentService.findByExternalReference(
-            agentInput.getExternalReference(), TenantContext.getCurrentTenant());
+        agentService.findByExternalReference(agentInput.getExternalReference(), tenantId);
     if (!existingAgents.isEmpty()) {
       // Check if this specific agent exist
       Agent.DEPLOYMENT_MODE deploymentMode =
@@ -485,7 +484,7 @@ public class EndpointService {
     } else {
       // Check if endpoint exists
       Optional<Endpoint> existingEndpoint =
-          findEndpointByAtLeastOneMacAddress(agentInput.getMacAddresses());
+          findEndpointByAtLeastOneMacAddress(agentInput.getMacAddresses(), tenantId);
       if (existingEndpoint.isPresent()) {
         agent = updateExistingEndpointAndManageAgent(existingEndpoint.get(), agentInput);
       } else {
@@ -671,12 +670,11 @@ public class EndpointService {
     agent.setTenant(input.getExecutor().getTenant());
   }
 
-  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
+  private AgentRegisterInput toAgentEndpoint(
+      EndpointRegisterInput input, @NotNull String tenantId) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
     agentInput.setExecutor(
-        executorRepository
-            .findByIdAndTenantId(OPENAEV_EXECUTOR_ID, TenantContext.getCurrentTenant())
-            .orElse(null));
+        executorRepository.findByIdAndTenantId(OPENAEV_EXECUTOR_ID, tenantId).orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());
@@ -833,8 +831,7 @@ public class EndpointService {
       String tenantId)
       throws IOException {
     // FIND TOKEN BY TENANT
-    String token =
-        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+    String token = privilegeService.getTokenUserServiceAccountByTenant(tenantId);
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
       upgradeName = upgradeName.concat("-").concat(installationMode);
@@ -902,8 +899,8 @@ public class EndpointService {
    * @param input the endpoint input data
    * @return the created or updated Endpoint entity
    */
-  public Endpoint upsertEndpoint(EndpointInput input) {
-    Optional<Endpoint> endpoint = findExistingEndpoint(input);
+  public Endpoint upsertEndpoint(EndpointInput input, @NotNull String tenantId) {
+    Optional<Endpoint> endpoint = findExistingEndpoint(input, tenantId);
     if (endpoint.isPresent()) {
       Endpoint endpointToUpdate = endpoint.get();
       // Mandatory fields
@@ -946,19 +943,21 @@ public class EndpointService {
    * Returns the first match found, or {@code Optional.empty()} if no match exists.
    *
    * @param input the endpoint input data
+   * @param tenantId the tenant scope for the lookup
    * @return an Optional containing the found Endpoint, or empty if none found
    */
-  public Optional<Endpoint> findExistingEndpoint(EndpointInput input) {
+  public Optional<Endpoint> findExistingEndpoint(EndpointInput input, @NotNull String tenantId) {
     // 1. By external reference
     if (input.getExternalReference() != null && !input.getExternalReference().isEmpty()) {
-      Optional<Endpoint> found = findEndpointByExternalReference(input.getExternalReference());
+      Optional<Endpoint> found =
+          findEndpointByExternalReference(input.getExternalReference(), tenantId);
       if (found.isPresent()) return found;
     }
 
     // 2. By hostname + at least one IP
     if (input.getIps() != null) {
       List<Endpoint> found =
-          findEndpointByHostnameAndAtLeastOneIp(input.getHostname(), input.getIps());
+          findEndpointByHostnameAndAtLeastOneIp(input.getHostname(), input.getIps(), tenantId);
       if (!found.isEmpty()) return Optional.of(found.getFirst());
     }
 
@@ -966,7 +965,7 @@ public class EndpointService {
     if (input.getMacAddresses() != null) {
       List<Endpoint> found =
           findEndpointByHostnameAndAtLeastOneMacAddress(
-              input.getHostname(), input.getMacAddresses());
+              input.getHostname(), input.getMacAddresses(), tenantId);
       if (!found.isEmpty()) return Optional.of(found.getFirst());
     }
     return Optional.empty();

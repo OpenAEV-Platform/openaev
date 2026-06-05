@@ -151,7 +151,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       InputStream bannerData,
       String[] platforms)
       throws Exception {
-    return register(id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+    return register(
+        id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
   }
 
   @Transactional

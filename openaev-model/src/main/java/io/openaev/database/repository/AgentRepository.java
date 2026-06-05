@@ -36,6 +36,8 @@ public interface AgentRepository
 
   List<Agent> findByExecutorId(String executorId);
 
+  List<Agent> findByExecutorIdAndTenantId(String executorId, String tenantId);
+
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 
   @Modifying

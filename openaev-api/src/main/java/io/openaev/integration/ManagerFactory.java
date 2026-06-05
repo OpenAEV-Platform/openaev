@@ -42,18 +42,18 @@ public class ManagerFactory implements DependenciesManager {
   }
 
   /**
-   * Loads all tenants from the database, ensures a {@link Manager} exists for each one (creating
-   * it lazily if needed), and calls {@link Manager#monitorIntegrations()} on each. This is the
-   * entry point for the {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob}: driving from
-   * the DB guarantees that tenants created between restarts are not missed, even though the
-   * in-memory map starts empty after every restart.
+   * Loads all tenants from the database, ensures a {@link Manager} exists for each one (creating it
+   * lazily if needed), and calls {@link Manager#monitorIntegrations()} on each. This is the entry
+   * point for the {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob}: driving from the DB
+   * guarantees that tenants created between restarts are not missed, even though the in-memory map
+   * starts empty after every restart.
    *
    * <p>{@link TenantContext} is set per tenant before each {@link Manager#monitorIntegrations()}
    * call because the Hibernate tenant filter and {@link
-   * io.openaev.database.audit.TenantBaseListener} are wired to {@link TenantContext}, not to
-   * method arguments. Without it, {@code findById()} inside {@link
-   * io.openaev.integration.Integration#initialise()} returns {@code null} and the integration
-   * stops instead of starting.
+   * io.openaev.database.audit.TenantBaseListener} are wired to {@link TenantContext}, not to method
+   * arguments. Without it, {@code findById()} inside {@link
+   * io.openaev.integration.Integration#initialise()} returns {@code null} and the integration stops
+   * instead of starting.
    *
    * <p>Not annotated with {@code @Transactional} — each sub-call ({@link
    * io.openaev.integration.Integration#initialise()}) manages its own transaction, keeping DB
@@ -101,9 +101,7 @@ public class ManagerFactory implements DependenciesManager {
    */
   @Transactional(readOnly = true)
   public List<String> getTenantIds() {
-    return fromIterable(tenantRepository.findAll()).stream()
-        .map(Tenant::getId)
-        .toList();
+    return fromIterable(tenantRepository.findAll()).stream().map(Tenant::getId).toList();
   }
 
   // -- TENANT DEPENDENCIES --

@@ -118,11 +118,11 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint endpoint = new Endpoint();
       endpoint.setId("ep-1");
-      when(endpointRepository.findByIdAndTenantId("ep-1", TenantContext.getCurrentTenant()))
+      when(endpointRepository.findByIdAndTenantId("ep-1", "tenant1"))
           .thenReturn(Optional.of(endpoint));
 
       // -------- Act --------
-      Endpoint result = endpointService.endpoint("ep-1");
+      Endpoint result = endpointService.endpoint("ep-1", "tenant1");
 
       // -------- Assert --------
       assertNotNull(result);
@@ -132,11 +132,12 @@ class EndpointServiceTest {
     @Test
     void shouldThrowElementNotFoundException_whenNotFound() {
       // -------- Prepare --------
-      when(endpointRepository.findByIdAndTenantId("missing", TenantContext.getCurrentTenant()))
+      when(endpointRepository.findByIdAndTenantId("missing", "tenant1"))
           .thenReturn(Optional.empty());
 
       // -------- Act / Assert --------
-      assertThrows(ElementNotFoundException.class, () -> endpointService.endpoint("missing"));
+      assertThrows(
+          ElementNotFoundException.class, () -> endpointService.endpoint("missing", "tenant1"));
     }
 
     @Test
@@ -191,12 +192,12 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] macs = {"AA:BB:CC:DD:EE:FF"};
-      when(endpointRepository.findByHostnameAndAtleastOneMacAddress("host1", macs))
+      when(endpointRepository.findByHostnameAndAtleastOneMacAddress("host1", macs, "tenant1"))
           .thenReturn(List.of(ep));
 
       // -------- Act --------
       List<Endpoint> result =
-          endpointService.findEndpointByHostnameAndAtLeastOneMacAddress("host1", macs);
+          endpointService.findEndpointByHostnameAndAtLeastOneMacAddress("host1", macs, "tenant1");
 
       // -------- Assert --------
       assertEquals(1, result.size());
@@ -206,10 +207,12 @@ class EndpointServiceTest {
     void shouldFindByExternalReference() {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
-      when(endpointRepository.findByExternalReference("ext-ref")).thenReturn(List.of(ep));
+      when(endpointRepository.findByExternalReference("ext-ref", "tenant1"))
+          .thenReturn(List.of(ep));
 
       // -------- Act --------
-      Optional<Endpoint> result = endpointService.findEndpointByExternalReference("ext-ref");
+      Optional<Endpoint> result =
+          endpointService.findEndpointByExternalReference("ext-ref", "tenant1");
 
       // -------- Assert --------
       assertTrue(result.isPresent());
@@ -220,10 +223,11 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] macs = {"AA:BB:CC:DD:EE:FF"};
-      when(endpointRepository.findByAtleastOneMacAddress(macs)).thenReturn(List.of(ep));
+      when(endpointRepository.findByAtleastOneMacAddress(macs, "tenant1")).thenReturn(List.of(ep));
 
       // -------- Act --------
-      Optional<Endpoint> result = endpointService.findEndpointByAtLeastOneMacAddress(macs);
+      Optional<Endpoint> result =
+          endpointService.findEndpointByAtLeastOneMacAddress(macs, "tenant1");
 
       // -------- Assert --------
       assertTrue(result.isPresent());
@@ -233,10 +237,12 @@ class EndpointServiceTest {
     void shouldReturnEmptyOptional_whenNoMacAddressMatch() {
       // -------- Prepare --------
       String[] macs = {"00:00:00:00:00:00"};
-      when(endpointRepository.findByAtleastOneMacAddress(macs)).thenReturn(Collections.emptyList());
+      when(endpointRepository.findByAtleastOneMacAddress(macs, "tenant1"))
+          .thenReturn(Collections.emptyList());
 
       // -------- Act --------
-      Optional<Endpoint> result = endpointService.findEndpointByAtLeastOneMacAddress(macs);
+      Optional<Endpoint> result =
+          endpointService.findEndpointByAtLeastOneMacAddress(macs, "tenant1");
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -251,14 +257,13 @@ class EndpointServiceTest {
     @DisplayName("Endpoint lookup should use current tenant and return endpoint from same tenant")
     void given_endpointInTenantX_should_beReadableFromTenantX() {
       // -------- Prepare --------
-      TenantContext.setCurrentTenant("tenant-x");
       Endpoint endpoint = new Endpoint();
       endpoint.setId("ep-tenant-x");
       when(endpointRepository.findByIdAndTenantId("ep-tenant-x", "tenant-x"))
           .thenReturn(Optional.of(endpoint));
 
       // -------- Act --------
-      Endpoint result = endpointService.endpoint("ep-tenant-x");
+      Endpoint result = endpointService.endpoint("ep-tenant-x", "tenant-x");
 
       // -------- Assert --------
       assertNotNull(result);
@@ -270,26 +275,27 @@ class EndpointServiceTest {
     @DisplayName("Endpoint lookup should NOT return endpoint from another tenant")
     void given_endpointInTenantX_should_notBeReadableFromTenantY() {
       // -------- Prepare --------
-      TenantContext.setCurrentTenant("tenant-y");
       when(endpointRepository.findByIdAndTenantId("ep-tenant-x", "tenant-y"))
           .thenReturn(Optional.empty());
 
       // -------- Act / Assert --------
-      assertThrows(ElementNotFoundException.class, () -> endpointService.endpoint("ep-tenant-x"));
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> endpointService.endpoint("ep-tenant-x", "tenant-y"));
       verify(endpointRepository).findByIdAndTenantId("ep-tenant-x", "tenant-y");
     }
 
     @Test
-    @DisplayName("Hostname and IP lookup should use current tenant")
-    void given_hostnameAndIpLookup_should_useCurrentTenant() {
+    @DisplayName("Hostname and IP lookup with explicit tenant should use provided tenant")
+    void given_hostnameAndIpLookup_should_useProvidedTenant() {
       // -------- Prepare --------
-      TenantContext.setCurrentTenant("tenant-x");
       String[] ips = {"10.0.0.1"};
       when(endpointRepository.findByHostnameAndAtleastOneIp("host-x", ips, "tenant-x"))
           .thenReturn(List.of(new Endpoint()));
 
       // -------- Act --------
-      List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp("host-x", ips);
+      List<Endpoint> result =
+          endpointService.findEndpointByHostnameAndAtLeastOneIp("host-x", ips, "tenant-x");
 
       // -------- Assert --------
       assertThat(result).hasSize(1);
@@ -384,7 +390,7 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint existing = new Endpoint();
       existing.setId("ep-1");
-      when(endpointRepository.findByIdAndTenantId("ep-1", TenantContext.getCurrentTenant()))
+      when(endpointRepository.findByIdAndTenantId("ep-1", "tenant1"))
           .thenReturn(Optional.of(existing));
 
       EndpointInput input = new EndpointInput();
@@ -399,7 +405,7 @@ class EndpointServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
-      Endpoint result = endpointService.updateEndpoint("ep-1", input);
+      Endpoint result = endpointService.updateEndpoint("ep-1", input, "tenant1");
 
       // -------- Assert --------
       assertNotNull(result);
