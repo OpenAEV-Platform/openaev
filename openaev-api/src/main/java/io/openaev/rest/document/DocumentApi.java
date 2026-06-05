@@ -407,7 +407,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String collectorId) throws IOException {
     Collector collector =
         this.collectorRepository
-            .findById(collectorId)
+            .findById(collectorId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
         fileService.getCollectorImage(collector.getType(), collector.isExternal());
