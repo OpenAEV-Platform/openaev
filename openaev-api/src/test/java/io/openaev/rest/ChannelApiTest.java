@@ -319,8 +319,7 @@ class ChannelApiTest extends IntegrationTest {
       // Act — delete from tenant Y
       int responseStatus =
           mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/channels/" + channelId)
-                      .with(csrf()))
+                  delete("/api/tenants/" + tenantY.getId() + "/channels/" + channelId).with(csrf()))
               .andReturn()
               .getResponse()
               .getStatus();
