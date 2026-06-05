@@ -64,7 +64,7 @@ class DocumentAuditLogE2eTest extends IntegrationTest {
     System.setProperty("AUDIT_LOG_DIR", "target/test-audit-logger");
   }
 
-  private static final Path AUDIT_LOG_FILE = Paths.get("target/test-audit-logger/audit.log");
+  private static final Path AUDIT_LOG_FILE = Paths.get("target/test-audit-log-doc/audit.log");
   private static final String TEST_APPENDER_NAME = "AUDIT_LOG_DOCUMENT_E2E_TEST_APPENDER";
 
   @Autowired private MockMvc mvc;
