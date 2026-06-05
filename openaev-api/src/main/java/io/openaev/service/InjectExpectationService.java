@@ -13,6 +13,8 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
@@ -1138,7 +1140,9 @@ public class InjectExpectationService {
    */
   private void setupDefaultExpectationResults(
       @NotNull final List<InjectExpectation> injectExpectations) {
-    List<Collector> collectors = collectorService.securityPlatformCollectors();
+    List<Collector> collectors =
+        collectorService.securityPlatformCollectors(
+            CallContext.of(TenantContext.getCurrentTenant()));
 
     injectExpectations.forEach(
         ie -> {
