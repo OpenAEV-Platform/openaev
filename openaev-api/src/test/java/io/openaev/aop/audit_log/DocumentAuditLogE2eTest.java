@@ -196,7 +196,8 @@ class DocumentAuditLogE2eTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS, Capability.DELETE_DOCUMENTS})
-    void given_documentDeletion_should_logEntityTypeAndDocumentNameInMessage() throws Exception {
+    void given_documentDeletion_should_logEntityTypeAndDocumentIdInMessageForCurrentContract()
+        throws Exception {
       // Arrange
       String fileName = "audit-delete-" + UUID.randomUUID() + ".txt";
       String uploadResponse =
