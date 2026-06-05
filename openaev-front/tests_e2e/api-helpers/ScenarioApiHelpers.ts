@@ -2,7 +2,6 @@ import { type APIRequestContext } from '@playwright/test';
 
 class ScenarioApiHelpers {
   readonly scenarioUri = '/api/scenarios';
-
   constructor(private request: APIRequestContext) {}
 
   async createScenario(name?: string) {
