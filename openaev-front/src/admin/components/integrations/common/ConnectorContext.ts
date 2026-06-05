@@ -11,9 +11,13 @@ import type {
   CollectorOutput, ConnectorIds,
   ConnectorInstanceOutput,
   ExecutorOutput,
-  InjectorOutput,
+  InjectorOutput, SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
+import {
+  fetchSecretProvider, fetchSecretsProviderRelatedIds,
+  fetchSecretsProviders
+} from "../../../../actions/secrets_providers/secrets-providers-action";
 
 /**
  * Freshest of the available heartbeat signals: an external collector bumps its
@@ -53,7 +57,7 @@ export const isSupportedByFiligran = (
   || (connector != null && connector.isExternal !== true && connector.isExisting === true);
 
 export interface ConnectorContextType<T> {
-  connectorType: 'collector' | 'injector' | 'executor';
+  connectorType: 'collector' | 'injector' | 'executor' | 'secrets_provider';
   connectorCatalog?: CatalogConnectorOutput;
   connector?: ConnectorOutput;
   connectorInstance?: ConnectorInstanceOutput;
@@ -146,12 +150,34 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
   }),
 };
 
-export const ConnectorContext = createContext<ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput>>({
+export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> = {
+  connectorType: 'secrets_provider',
+  apiRequest: {
+    fetchAll: () => fetchSecretsProviders(true),
+    fetchSingle: (id: string) => fetchSecretProvider(id),
+    getRelatedIds: (id: string) => fetchSecretsProviderRelatedIds(id),
+  },
+  routes: {
+    list: '/admin/integrations/secrets_providers',
+    detail: (id: string) => `/admin/integrations/secrets_providers/${id}`,
+  },
+  logoUrl: (type: string) => buildTenantApiPath(`/api/images/secrets_providers/icons/${type}`),
+  normalizeSingle: data => ({
+    id: data?.secrets_provider_id,
+    name: data?.secrets_provider_name,
+    type: data?.secrets_provider_type,
+    catalog: data?.catalog,
+    isVerified: data?.is_verified ?? false,
+    connectorInstance: data?.connector_instance,
+  }),
+};
+
+export const ConnectorContext = createContext<ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput | SecretsProviderOutput>>({
   connectorType: 'collector',
   logoUrl: _type => '',
   apiRequest: {
     fetchAll: () => async (_dispatch: Dispatch) => [],
-    fetchSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve({}) as Promise<InjectorOutput | CollectorOutput | ExecutorOutput>,
+    fetchSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve({}) as Promise<InjectorOutput | CollectorOutput | ExecutorOutput | SecretsProviderOutput>,
     getRelatedIds: (_id: string) => Promise.resolve({ data: {} }) as Promise<AxiosResponse<ConnectorIds>>,
     deleteSingle: (_id: string) => async (_dispatch: Dispatch) => Promise.resolve(),
   },
@@ -159,5 +185,5 @@ export const ConnectorContext = createContext<ConnectorContextType<InjectorOutpu
     list: '/admin/integrations',
     detail: (_id: string) => '/admin/integrations',
   },
-  normalizeSingle: (_data: InjectorOutput | CollectorOutput | ExecutorOutput) => ({} as ConnectorOutput),
+  normalizeSingle: (_data: InjectorOutput | CollectorOutput | ExecutorOutput | SecretsProviderOutput) => ({} as ConnectorOutput),
 });

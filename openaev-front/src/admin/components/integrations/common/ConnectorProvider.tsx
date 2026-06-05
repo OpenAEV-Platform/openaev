@@ -4,12 +4,12 @@ import type {
   CatalogConnectorOutput,
   CollectorOutput,
   ExecutorOutput,
-  InjectorOutput,
+  InjectorOutput, SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import {
   collectorConfig,
   ConnectorContext,
-  type ConnectorContextType, executorConfig, injectorConfig,
+  type ConnectorContextType, executorConfig, injectorConfig, secretsProviderConfig,
 } from './ConnectorContext';
 
 interface Props {
@@ -22,10 +22,11 @@ const ConnectorProvider = ({ children, type }: Props) => {
     INJECTOR: injectorConfig,
     COLLECTOR: collectorConfig,
     EXECUTOR: executorConfig,
+    SECRETS_PROVIDER: secretsProviderConfig
   };
 
   return (
-    <ConnectorContext.Provider value={config[type] as ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput>}>
+    <ConnectorContext.Provider value={config[type] as ConnectorContextType<InjectorOutput | CollectorOutput | ExecutorOutput | SecretsProviderOutput>}>
       {children}
     </ConnectorContext.Provider>
   );
