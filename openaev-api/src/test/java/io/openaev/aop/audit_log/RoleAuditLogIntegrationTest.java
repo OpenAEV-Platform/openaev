@@ -61,10 +61,10 @@ import org.springframework.transaction.annotation.Transactional;
 class RoleAuditLogIntegrationTest extends IntegrationTest {
 
   static {
-    System.setProperty("AUDIT_LOG_DIR", "target/test-audit-role-audit");
+    System.setProperty("AUDIT_LOG_DIR", "target/test-audit-log-role");
   }
 
-  private static final Path AUDIT_LOG_FILE = Paths.get("target/test-audit-role-audit/audit.log");
+  private static final Path AUDIT_LOG_FILE = Paths.get("target/test-audit-log-role/audit.log");
   private static final String TEST_APPENDER_NAME = "AUDIT_ROLE_LOG_TEST_APPENDER";
 
   @Autowired private MockMvc mvc;
