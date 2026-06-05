@@ -7,6 +7,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.CallContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
@@ -325,7 +327,8 @@ public class ManagerTest {
     assertThat(manager.getSpawnedIntegrations().get(singleInstance).getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
 
-    connectorInstanceService.deleteById(singleInstance.getId());
+    connectorInstanceService.deleteById(
+        CallContext.of(TenantContext.getCurrentTenant()), singleInstance.getId());
 
     // REFRESH integrations
     manager.monitorIntegrations();

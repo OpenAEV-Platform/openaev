@@ -51,6 +51,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestExecutionListeners;
 
@@ -443,7 +444,8 @@ public class MapperServiceTest extends IntegrationTest {
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
 
-    when(injectorContractRepository.findAll(any())).thenReturn(List.of(injectorContract));
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(injectorContract));
 
     // Act
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
@@ -493,7 +495,8 @@ public class MapperServiceTest extends IntegrationTest {
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
 
-    when(injectorContractRepository.findAll(any())).thenReturn(List.of(injectorContract));
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(injectorContract));
 
     // Act
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
@@ -544,7 +547,8 @@ public class MapperServiceTest extends IntegrationTest {
         new org.springframework.mock.web.MockHttpServletResponse();
     RuntimeException repositoryException = new RuntimeException("boom");
 
-    when(injectorContractRepository.findAll(any())).thenThrow(repositoryException);
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenThrow(repositoryException);
 
     // Act
     RuntimeException thrown =

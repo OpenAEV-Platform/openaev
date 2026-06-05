@@ -633,7 +633,7 @@ public class ExerciseApiTest extends IntegrationTest {
       // démarrage)
       validInjectorContractId =
           injectorContractRepository
-              .findById(ic.getId())
+              .findByIdAndTenantId(ic.getId(), TenantContext.getCurrentTenant())
               .map(InjectorContract::getId)
               .orElseThrow(
                   () ->

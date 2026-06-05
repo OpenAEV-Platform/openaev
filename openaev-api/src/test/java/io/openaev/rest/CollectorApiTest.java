@@ -358,7 +358,7 @@ public class CollectorApiTest extends IntegrationTest {
       Collector existing = getCollector("reregister-type");
       Collector persisted =
           collectorRepository
-              .findByIdAndTenantId(existing.getId(), TenantContext.getCurrentTenant())
+              .findById(existing.getId(), TenantContext.getCurrentTenant())
               .orElseThrow();
       java.time.Instant originalUpdatedAt = persisted.getUpdatedAt();
 
@@ -378,7 +378,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       Collector updated =
           collectorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .findById(input.getId(), TenantContext.getCurrentTenant())
               .orElseThrow();
       assertThat(updated.isExternal()).isTrue();
       assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(originalUpdatedAt);

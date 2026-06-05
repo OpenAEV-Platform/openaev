@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.CallContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -794,8 +795,8 @@ class InjectServiceTest {
 
     // MOCK
     when(smtpService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    when(injectorService.findAll()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healtchChecks = injectService.runChecks(inject);
@@ -830,8 +831,8 @@ class InjectServiceTest {
 
     // MOCK
     when(imapService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    when(injectorService.findAll()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healtchChecks = injectService.runChecks(inject);
@@ -859,8 +860,8 @@ class InjectServiceTest {
     inject.getInjectorContract().get().setNeedsExecutor(true);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    when(injectorService.findAll()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healtchChecks = injectService.runChecks(inject);
@@ -904,8 +905,8 @@ class InjectServiceTest {
     inject.setContent(content);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    when(injectorService.findAll()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healtchChecks = injectService.runChecks(inject);
@@ -940,11 +941,11 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
     Injector nmapInjector = new Injector();
     nmapInjector.setId("testNmap");
     nmapInjector.setType("openaev_nmap");
-    when(injectorService.findAll()).thenReturn(List.of(nmapInjector));
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of(nmapInjector));
 
     // RUN
     List<HealthCheck> healtchChecks = injectService.runChecks(inject);
@@ -969,8 +970,8 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    when(injectorService.findAll()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healthChecks = injectService.runChecks(inject);
@@ -1003,8 +1004,8 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    when(injectorService.findAll()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any(CallContext.class))).thenReturn(List.of());
+    when(injectorService.findAll(any(CallContext.class))).thenReturn(List.of());
 
     // RUN
     List<HealthCheck> healthChecks = injectService.runChecks(inject);

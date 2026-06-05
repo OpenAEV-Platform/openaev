@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Domain;
@@ -143,7 +144,10 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       assertFalse(importedLabels.isEmpty());
       assertTrue(importedLabels.values().stream().allMatch(label -> label.endsWith(" (Import)")));
       assertTrue(payloadRepository.findById(importedPayloadId).isPresent());
-      assertTrue(injectorContractRepository.findById(importedActionId).isPresent());
+      assertTrue(
+          injectorContractRepository
+              .findByIdAndTenantId(importedActionId, TenantContext.getCurrentTenant())
+              .isPresent());
     }
   }
 

@@ -17,6 +17,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.collectors.utils.CollectorsUtils;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CollectorRepository;
@@ -792,7 +793,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Assert
       InjectorContract injectorContractUpdated =
-          injectorContractRepository.findById(nonPayloadContract.getId()).orElse(null);
+          injectorContractRepository
+              .findByIdAndTenantId(nonPayloadContract.getId(), TenantContext.getCurrentTenant())
+              .orElse(null);
       assertNotNull(injectorContractUpdated);
       assertEquals(
           nonPayloadContract.getLabels(),

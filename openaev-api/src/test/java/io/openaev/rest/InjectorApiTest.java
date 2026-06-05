@@ -308,7 +308,7 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorId);
 
       Optional<Injector> persisted =
-          injectorRepository.findById(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getName()).isEqualTo("External Injector");
@@ -363,7 +363,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ASSERT --
       Optional<Injector> persisted =
-          injectorRepository.findById(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getName()).isEqualTo("Updated Name");
       assertThat(persisted.get().getCategory()).isEqualTo("updated-category");
@@ -395,7 +395,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ASSERT --
       Optional<Injector> persisted =
-          injectorRepository.findById(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getExecutorCommands()).isNullOrEmpty();
@@ -444,15 +444,17 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findById(dummyId, TenantContext.getCurrentTenant())).isEmpty();
+      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
+          .isEmpty();
 
       Optional<Injector> realInjector =
-          injectorRepository.findById(realInjectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
       Optional<InjectorContract> reassignedContract =
-          injectorContractRepository.findById(dummyContractId);
+          injectorContractRepository.findByIdAndTenantId(
+              dummyContractId, TenantContext.getCurrentTenant());
       assertThat(reassignedContract).isPresent();
       assertThat(reassignedContract.get().getInjectors())
           .extracting(Injector::getId)
@@ -626,7 +628,8 @@ public class InjectorApiTest extends IntegrationTest {
       em.clear();
 
       // -- Act: update injector in tenant B --
-      Injector loadedB = injectorRepository.findById(sharedId, tenantB.getId()).orElseThrow();
+      Injector loadedB =
+          injectorRepository.findByIdAndTenantId(sharedId, tenantB.getId()).orElseThrow();
       loadedB.setName("Updated-In-TenantB");
       injectorRepository.save(loadedB);
       em.flush();
@@ -634,7 +637,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- Assert: injector in tenant A is unchanged --
       tenantHelper.switchToTenant(tenantA, em);
-      Injector reloadedA = injectorRepository.findById(sharedId, tenantA).orElseThrow();
+      Injector reloadedA = injectorRepository.findByIdAndTenantId(sharedId, tenantA).orElseThrow();
       assertThat(reloadedA.getName())
           .as("Injector in tenant A should NOT have been modified by tenant B's update")
           .isEqualTo("Injector-TenantA");

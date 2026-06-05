@@ -72,7 +72,9 @@ class ChallengeApiTest extends IntegrationTest {
 
     Inject inject =
         createDefaultInjectChallenge(
-            this.injectorContractRepository.findById(CHALLENGE_PUBLISH).orElseThrow(),
+            this.injectorContractRepository
+                .findByIdAndTenantId(CHALLENGE_PUBLISH, TenantContext.getCurrentTenant())
+                .orElseThrow(),
             this.objectMapper,
             List.of(CHALLENGE_ID));
     inject.setScenario(scenarioCreated);
