@@ -2,6 +2,7 @@ package io.openaev.rest.report.service;
 
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Report;
 import io.openaev.database.model.ReportInformation;
@@ -25,7 +26,9 @@ public class ReportService {
   private final ReportRepository reportRepository;
 
   public Report report(@NotNull final UUID reportId) {
-    return this.reportRepository.findById(reportId).orElseThrow(ElementNotFoundException::new);
+    return this.reportRepository
+        .findByIdAndTenantId(reportId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   /**
@@ -39,7 +42,7 @@ public class ReportService {
   public Report reportFromSimulation(
       @NotBlank final String simulationId, @NotNull final UUID reportId) {
     return this.reportRepository
-        .findByIdAndExercise_Id(reportId, simulationId)
+        .findByIdAndExercise_IdAndTenantId(reportId, simulationId, TenantContext.getCurrentTenant())
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -50,26 +53,29 @@ public class ReportService {
   public Report updateReport(@NotNull final Report report, @NotNull final ReportInput input) {
     report.setUpdateAttributes(input);
     report.setUpdateDate(now());
-    input
-        .getReportInformations()
-        .forEach(
-            i -> {
-              ReportInformation reportInformation =
-                  report.getReportInformations().stream()
-                      .filter(
-                          r -> r.getReportInformationsType().equals(i.getReportInformationsType()))
-                      .findFirst()
-                      .orElse(null);
-              if (reportInformation != null) {
-                reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
-              } else {
-                reportInformation = new ReportInformation();
-                reportInformation.setReport(report);
-                reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
-                reportInformation.setReportInformationsType(i.getReportInformationsType());
-                report.getReportInformations().add(reportInformation);
-              }
-            });
+    if (input.getReportInformations() != null) {
+      input
+          .getReportInformations()
+          .forEach(
+              i -> {
+                ReportInformation reportInformation =
+                    report.getReportInformations().stream()
+                        .filter(
+                            r ->
+                                r.getReportInformationsType().equals(i.getReportInformationsType()))
+                        .findFirst()
+                        .orElse(null);
+                if (reportInformation != null) {
+                  reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
+                } else {
+                  reportInformation = new ReportInformation();
+                  reportInformation.setReport(report);
+                  reportInformation.setReportInformationsDisplay(i.getReportInformationsDisplay());
+                  reportInformation.setReportInformationsType(i.getReportInformationsType());
+                  report.getReportInformations().add(reportInformation);
+                }
+              });
+    }
     return this.reportRepository.save(report);
   }
 
@@ -95,6 +101,8 @@ public class ReportService {
   }
 
   public void deleteReport(@NotBlank final UUID reportId) {
+    // Verify the report belongs to the current tenant before deleting
+    report(reportId);
     this.reportRepository.deleteById(reportId);
   }
 }

@@ -1,11 +1,13 @@
 package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +16,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Tenant;
+import io.openaev.rest.exercise.ExerciseApi;
+import io.openaev.rest.exercise.form.ExerciseInput;
 import io.openaev.database.model.Report;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
@@ -22,22 +27,27 @@ import io.openaev.rest.report.ReportApi;
 import io.openaev.rest.report.form.ReportInjectCommentInput;
 import io.openaev.rest.report.form.ReportInput;
 import io.openaev.rest.report.service.ReportService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.persistence.EntityManager;
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -55,6 +65,9 @@ public class ReportApiTest extends IntegrationTest {
   @Mock private InjectService injectService;
 
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private MockMvc integrationMvc;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private EntityManager entityManager;
 
   private Exercise exercise;
   private Report report;
@@ -225,6 +238,148 @@ public class ReportApiTest extends IntegrationTest {
 
       // -- ASSERT --
       verify(reportService, times(1)).deleteReport(UUID.fromString(report.getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(isAdmin = true)
+  @Transactional
+  class TenantIsolation {
+
+    private String createTenantExercise(String tenantId) throws Exception {
+      ExerciseInput input = new ExerciseInput();
+      input.setName("Isolation Exercise " + UUID.randomUUID());
+
+      String createResponse =
+          integrationMvc
+              .perform(
+                  post(ExerciseApi.TENANT_EXERCISE_URI.replace("{tenantId}", tenantId))
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      return JsonPath.read(createResponse, "$.exercise_id");
+    }
+
+    private String createTenantReport(String tenantId, String exerciseId) throws Exception {
+      ReportInput input = new ReportInput();
+      input.setName("Isolation Report");
+
+      String createResponse =
+          integrationMvc
+              .perform(
+                  post("/api/tenants/" + tenantId + "/exercises/" + exerciseId + "/reports")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+      return JsonPath.read(createResponse, "$.report_id");
+    }
+
+    @Test
+    @DisplayName("Report in tenant X should NOT be readable from tenant Y")
+    void given_reportInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+
+      String exerciseId = createTenantExercise(tenantX.getId());
+      String reportId = createTenantReport(tenantX.getId(), exerciseId);
+
+      // -------- Act --------
+      int responseStatus =
+          integrationMvc
+              .perform(
+                  get("/api/tenants/"
+                          + tenantY.getId()
+                          + "/exercises/"
+                          + exerciseId
+                          + "/reports/"
+                          + reportId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Report in tenant X should be readable from tenant X")
+    void given_reportInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+
+      String exerciseId = createTenantExercise(tenantX.getId());
+      String reportId = createTenantReport(tenantX.getId(), exerciseId);
+
+      // -------- Act & Assert --------
+      integrationMvc
+          .perform(
+              get("/api/tenants/"
+                      + tenantX.getId()
+                      + "/exercises/"
+                      + exerciseId
+                      + "/reports/"
+                      + reportId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Report in tenant X should NOT be deletable from tenant Y")
+    void given_reportInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+
+      String exerciseId = createTenantExercise(tenantX.getId());
+      String reportId = createTenantReport(tenantX.getId(), exerciseId);
+
+      // -------- Act --------
+      int responseStatus =
+          integrationMvc
+              .perform(
+                  delete(
+                          "/api/tenants/"
+                              + tenantY.getId()
+                              + "/exercises/"
+                              + exerciseId
+                              + "/reports/"
+                              + reportId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }
 }
