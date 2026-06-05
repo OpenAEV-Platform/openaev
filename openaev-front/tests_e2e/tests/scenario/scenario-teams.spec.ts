@@ -12,6 +12,7 @@ test.describe('Scenario - Teams management', () => {
   test.beforeEach(async ({ page, emptyScenario }) => {
     updateTeamDialog = new UpdateTeamDialog(page);
     scenarioPage = new ScenarioPage(page);
+    const scenarioDefinitionPath = tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/definition`);
     await page.addInitScript(() => {
       const style = document.createElement('style');
       style.innerHTML = `
@@ -21,10 +22,26 @@ test.describe('Scenario - Teams management', () => {
         }
       `;
       document.head.appendChild(style);
+
     });
-    await page.goto(tenantUrl(`/admin/scenarios/${emptyScenario.scenario_id}/definition`));
-    await page.waitForLoadState('domcontentloaded');
-    await scenarioPage.definitionTab.waitFor({ state: 'visible' });
+
+    // First admin load can force a one-time Getting Started redirect in clean contexts.
+    await page.goto(tenantUrl('/admin'));
+    await page.evaluate(() => {
+      // Disable that redirect so this spec stays on scenario routes.
+      localStorage.setItem('go-to-getting-started', 'false');
+    });
+
+    // Retry once because tenant initialization can still race with the first navigation.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await page.goto(scenarioDefinitionPath);
+      await page.waitForLoadState('domcontentloaded');
+      if (await scenarioPage.definitionTab.isVisible()) {
+        break;
+      }
+    }
+
+    await expect(scenarioPage.definitionTab).toBeVisible();
   });
 
   test.describe('Team CRUD Operations in scenario', () => {
