@@ -13,6 +13,7 @@ import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
+import io.openaev.secrets.provider.impl.vault.VaultSecretProviderConfig;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -105,7 +106,7 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
     connector.setSubscriptionLink("https://www.hashicorp.com/en/products/vault");
     connector.setContainerType(ConnectorType.SECRETS_PROVIDER);
     connector.setCatalogConnectorConfigurations(
-        new CrowdStrikeExecutorConfig().toCatalogConfigurationSet(connector));
+        new VaultSecretProviderConfig().toCatalogConfigurationSet(connector));
     catalogConnectorService.saveAll(List.of(connector));
   }
 
