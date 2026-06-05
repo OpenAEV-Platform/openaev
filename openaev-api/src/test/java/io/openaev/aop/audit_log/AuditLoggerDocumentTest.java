@@ -61,7 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AuditLoggerDocumentTest extends IntegrationTest {
 
   static {
-    System.setProperty("AUDIT_LOG_DIR", "target/test-audit-logger");
+    System.setProperty("AUDIT_LOG_DIR", "target/test-audit-log-doc");
   }
 
   private static final Path AUDIT_LOG_FILE = Paths.get("target/test-audit-log-doc/audit.log");
