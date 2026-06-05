@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.AuditLogProperties;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ResourceType;
 import io.openaev.ee.EnterpriseEditionService;
@@ -200,6 +201,64 @@ class LogServiceTest {
       // -- VERIFY --
       assertFalse(result);
       verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("logAuthEvent")
+  class LogAuthEvent {
+
+    @Test
+    @DisplayName("given_loginRequestContext_should_populateSessionIdInUserMetadata")
+    void given_loginRequestContext_should_populateSessionIdInUserMetadata() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(
+          new ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData(
+              null, null, "POST", "/api/login", "session-xyz", null));
+
+      // -- EXECUTE --
+      boolean result;
+      try {
+        result = logService.logAuthEvent("login", "success", "local", null, null, null);
+      } finally {
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.clear();
+      }
+
+      // -- VERIFY --
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      assertNotNull(event.getUserMetadata());
+      assertEquals("session-xyz", event.getUserMetadata().getSessionId());
+    }
+
+    @Test
+    @DisplayName("given_noActiveSession_should_notSetSessionIdInUserMetadata")
+    void given_noActiveSession_should_notSetSessionIdInUserMetadata() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      // No ThreadRequestContextHolder set — simulates no active HTTP session
+
+      // -- EXECUTE --
+      boolean result = logService.logAuthEvent("logout", "success", "local", null, null, null);
+
+      // -- VERIFY --
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      // UserMetadata may be null or sessionId must be null — no session to correlate
+      if (event.getUserMetadata() != null) {
+        assertNull(event.getUserMetadata().getSessionId());
+      }
     }
   }
 
