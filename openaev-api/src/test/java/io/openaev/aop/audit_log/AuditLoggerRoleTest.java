@@ -58,7 +58,7 @@ import org.springframework.transaction.annotation.Transactional;
       "AUDIT_LOG_DIR=target/test-audit-role-audit"
     })
 @DisplayName("Role audit logging integration tests")
-class RoleAuditLogIntegrationTest extends IntegrationTest {
+class AuditLoggerRoleTest extends IntegrationTest {
 
   static {
     System.setProperty("AUDIT_LOG_DIR", "target/test-audit-log-role");
