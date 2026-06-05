@@ -33,6 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping({SecretsProviderApi.TENANT_SECRETS_PROVIDER_URI})
+@RequestMapping({SecretsProviderApi.SECRETS_PROVIDER_URI, SecretsProviderApi.TENANT_SECRETS_PROVIDER_URI})
 @Tag(name = "Secrets Providers API", description = "Operations related to Secrets Providers")
 public class SecretsProviderApi extends RestBehavior {
   public static final String TENANT_SECRETS_PROVIDER_URI = TENANT_PREFIX + "/secrets_providers";

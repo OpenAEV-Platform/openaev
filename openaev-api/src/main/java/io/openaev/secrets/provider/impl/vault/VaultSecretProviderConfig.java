@@ -10,16 +10,6 @@ import lombok.EqualsAndHashCode;
 @Data
 public class VaultSecretProviderConfig extends BaseIntegrationConfiguration {
   @IntegrationConfigKey(
-      key = "SECRETS_PROVIDER_ID",
-      description =
-          """
-                ID of the builtin HashiCorp Vault secrets manager
-                """,
-      isRequired = true)
-  @NotBlank
-  private String id;
-
-  @IntegrationConfigKey(
       key = "SECRETS_PROVIDER_NAME",
       description =
           """

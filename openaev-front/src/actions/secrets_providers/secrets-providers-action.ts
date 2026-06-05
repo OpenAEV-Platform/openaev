@@ -10,11 +10,11 @@ export const fetchSecretsProviders = (isNextIncluded = false) => (dispatch: Disp
   return getReferential(schema.arrayOfSecretsProviders, uri)(dispatch);
 };
 
-export const fetchSecretProvider = (secrets_providerId: string) => (dispatch: Dispatch) => {
-  const uri = `${SECRETS_PROVIDERS_URI}/${secrets_providerId}`;
+export const fetchSecretProvider = (secretProviderId: string) => (dispatch: Dispatch) => {
+  const uri = `${SECRETS_PROVIDERS_URI}/${secretProviderId}`;
   return getReferential(schema.secretsProvider, uri)(dispatch);
 };
 
-export const fetchSecretsProviderRelatedIds = (secrets_providerId: string) => {
-  return simpleCall(`${SECRETS_PROVIDERS_URI}/${secrets_providerId}/related-ids`);
+export const fetchSecretsProviderRelatedIds = (secretsProviderId: string) => {
+  return simpleCall(`${SECRETS_PROVIDERS_URI}/${secretsProviderId}/related-ids`);
 };
