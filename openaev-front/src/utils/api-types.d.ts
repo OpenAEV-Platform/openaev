@@ -809,7 +809,11 @@ export interface CatalogConnector {
   /** Connector support version */
   catalog_connector_support_version?: string;
   /** Connector type */
-  catalog_connector_type?: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type?:
+    | "COLLECTOR"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "SECRETS_PROVIDER";
   /**
    * Connector use cases
    * @uniqueItems true
@@ -879,7 +883,11 @@ export interface CatalogConnectorOutput {
   catalog_connector_subscription_link?: string;
   /** @minLength 1 */
   catalog_connector_title: string;
-  catalog_connector_type: "COLLECTOR" | "INJECTOR" | "EXECUTOR";
+  catalog_connector_type:
+    | "COLLECTOR"
+    | "INJECTOR"
+    | "EXECUTOR"
+    | "SECRETS_PROVIDER";
   /** @uniqueItems true */
   catalog_connector_use_cases?: string[];
   catalog_connector_verified?: boolean;
@@ -7411,6 +7419,23 @@ export interface SearchPaginationInput {
 
 export interface SearchTerm {
   searchTerm?: string;
+}
+
+/** Secrets provider output */
+export interface SecretsProviderOutput {
+  /** Catalog simple output */
+  catalog?: CatalogConnectorSimpleOutput;
+  connector_instance?: ConnectorInstanceOutput;
+  is_verified?: boolean;
+  /**
+   * Secrets provider id
+   * @minLength 1
+   */
+  secrets_provider_id: string;
+  /** @minLength 1 */
+  secrets_provider_name: string;
+  /** @minLength 1 */
+  secrets_provider_type: string;
 }
 
 export interface SecurityPlatform {
