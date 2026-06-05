@@ -24,12 +24,12 @@ test.describe('Scenario - Teams management', () => {
       document.head.appendChild(style);
     });
 
-    // First admin load can force a one-time Getting Started redirect in clean contexts.
-    await page.goto(tenantUrl('/admin'));
-    await page.evaluate(() => {
+    await page.addInitScript(() => {
       // Disable that redirect so this spec stays on scenario routes.
       localStorage.setItem('go-to-getting-started', 'false');
     });
+    // First admin load can force a one-time Getting Started redirect in clean contexts.
+    await page.goto(tenantUrl('/admin'));
 
     // Retry once because tenant initialization can still race with the first navigation.
     await page.goto(scenarioDefinitionPath);
