@@ -546,6 +546,12 @@ public class ConnectorInstanceService {
         instance);
   }
 
+  private ConnectorInstanceConfiguration createTenantIdConfiguration(
+          ConnectorInstancePersisted instance, String tenantId) {
+    return createConfiguration(
+            "OPENAEV_TENANT_ID", objectMapper.getNodeFactory().textNode(tenantId), false, instance);
+  }
+
   /**
    * Creates a connector instance from a catalog connector.
    *
@@ -564,6 +570,7 @@ public class ConnectorInstanceService {
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
+    configurations.add(createTenantIdConfiguration(newInstance, TenantContext.getCurrentTenant()));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
         .noneMatch(
