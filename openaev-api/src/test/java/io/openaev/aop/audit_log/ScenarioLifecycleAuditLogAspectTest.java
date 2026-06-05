@@ -191,7 +191,8 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       // Assert
       // Capture audit events emitted through dispatcher transport.
       ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
-      verify(auditLogTransportDispatcherUtils, timeout(3000).atLeast(4))
+      // Wait for all lifecycle dispatches from this scenario flow to be emitted.
+      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(5))
           .dispatch(eventCaptor.capture(), any());
 
       // Keep only events that belong to this scenario lifecycle.
