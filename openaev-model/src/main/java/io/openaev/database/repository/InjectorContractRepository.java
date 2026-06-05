@@ -150,6 +150,29 @@ public interface InjectorContractRepository
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
   void deleteAllById(@Param("ids") @NotNull List<String> ids);
 
+  /**
+   * Deletes injector contracts by their IDs scoped to a specific tenant.
+   *
+   * <p>Uses a native query intentionally to bypass Hibernate's SQM DELETE machinery
+   * ({@code SqmMutationStrategyHelper.cleanUpCollectionTables}), which triggers an
+   * auto-flush mid-execution. That auto-flush batches UPDATEs for dirty {@link InjectorContract}
+   * entities and — due to a Hibernate 6.x behaviour with {@code @EmbeddedId} fields marked
+   * {@code updatable = false} — can generate an UPDATE WHERE clause that omits {@code tenant_id},
+   * matching multiple rows and throwing {@code BatchedTooManyRowsAffectedException}.
+   *
+   * <p>The native DELETE avoids that path entirely; join-table rows are cleaned up automatically
+   * via the database {@code ON DELETE CASCADE} constraints.
+   */
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injectors_contracts"
+              + " WHERE (injector_contract_id, tenant_id)"
+              + " IN (SELECT unnest(:ids::text[]), :tenantId::text)",
+      nativeQuery = true)
+  void deleteAllByIdAndTenantId(
+      @Param("ids") @NotNull String[] ids, @Param("tenantId") @NotNull String tenantId);
+
   @Query(
       value =
           """
