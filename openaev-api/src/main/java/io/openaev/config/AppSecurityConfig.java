@@ -19,6 +19,7 @@ import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.log.LogUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -129,6 +130,13 @@ public class AppSecurityConfig {
                     // invalidates the session and clears cookies
                     .addLogoutHandler(
                         (request, response, authentication) -> {
+                          // Mark session as explicitly logged out BEFORE invalidation,
+                          // so sessionDestroyed does not emit a spurious session_expired event.
+                          HttpSession session = request.getSession(false);
+                          if (session != null) {
+                            session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
+                          }
+
                           auditLogger.ifPresent(
                               logger -> {
                                 ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder

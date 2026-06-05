@@ -449,6 +449,7 @@ public class PlatformGroupApiTest extends IntegrationTest {
           .andExpect(status().isNoContent());
 
       // -------- Assert --------
+      entityManager.flush();
       entityManager.clear();
       assertFalse(
           groupRepository.findById(group.getId()).filter(g -> g.getTenant() == null).isPresent());

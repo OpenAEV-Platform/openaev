@@ -35,6 +35,7 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.SecurityCoverageComposer;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
+import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -61,6 +62,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private ArticleRepository articleRepository;
   @Autowired InjectRepository injectRepository;
+  @Autowired private InjectDependenciesRepository injectDependenciesRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
@@ -83,6 +85,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private CustomDashboardService customDashboardService;
   @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
+  @Autowired private ScenarioService scenarioServiceBean;
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
@@ -160,6 +163,65 @@ class ScenarioServiceTest extends IntegrationTest {
 
     assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
     assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+        .isInstanceOf(ElementNotFoundException.class);
+  }
+
+  @DisplayName(
+      "given scenario with cross inject dependencies should delete without exception and clear dependency rows")
+  @Test
+  @Transactional
+  @WithMockUser
+  void
+      given_scenarioWithCrossInjectDependencies_should_deleteScenarioWithoutException_and_clearDependencies() {
+    // Arrange
+    Scenario scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .persist()
+            .get();
+
+    Inject injectA = InjectFixture.getDefaultInject();
+    injectA.setScenario(scenario);
+    injectA.setTitle("inject-a-" + UUID.randomUUID());
+    Inject injectB = InjectFixture.getDefaultInject();
+    injectB.setScenario(scenario);
+    injectB.setTitle("inject-b-" + UUID.randomUUID());
+
+    Inject persistedInjectA = injectComposer.forInject(injectA).persist().get();
+    Inject persistedInjectB = injectComposer.forInject(injectB).persist().get();
+
+    InjectDependencyId dependencyAtoBId = new InjectDependencyId();
+    dependencyAtoBId.setInjectParent(persistedInjectA);
+    dependencyAtoBId.setInjectChildren(persistedInjectB);
+    InjectDependency dependencyAtoB = new InjectDependency();
+    dependencyAtoB.setCompositeId(dependencyAtoBId);
+
+    InjectDependencyId dependencyBtoAId = new InjectDependencyId();
+    dependencyBtoAId.setInjectParent(persistedInjectB);
+    dependencyBtoAId.setInjectChildren(persistedInjectA);
+    InjectDependency dependencyBtoA = new InjectDependency();
+    dependencyBtoA.setCompositeId(dependencyBtoAId);
+
+    injectDependenciesRepository.save(dependencyAtoB);
+    injectDependenciesRepository.save(dependencyBtoA);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // Act
+    assertDoesNotThrow(() -> scenarioServiceBean.deleteScenario(scenario.getId()));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // Assert
+    assertThat(
+            injectDependenciesRepository.findParents(
+                List.of(persistedInjectA.getId(), persistedInjectB.getId())))
+        .isEmpty();
+    assertThat(injectRepository.findById(persistedInjectA.getId())).isEmpty();
+    assertThat(injectRepository.findById(persistedInjectB.getId())).isEmpty();
+    assertThatThrownBy(() -> scenarioServiceBean.getScenarioById(scenario.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 

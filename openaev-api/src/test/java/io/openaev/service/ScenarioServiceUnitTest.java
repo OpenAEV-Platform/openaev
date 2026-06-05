@@ -223,8 +223,7 @@ class ScenarioServiceUnitTest {
       scenario.setId("sc-1");
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
-            .thenReturn(Optional.of(scenario));
+        when(scenarioRepository.existsByIdAndTenantId("sc-1", "tenant-1")).thenReturn(true);
 
         scenarioService.deleteScenario("sc-1");
 

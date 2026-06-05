@@ -127,16 +127,15 @@ openaev-front/
 **ALL commit messages MUST follow Conventional Commits format:**
 
 ```
-[<context>] <type>(<scope>?): <short description> (#<issue-number>?)
+<type>(<scope>)?: <short description> (#<issue-number>)?
 ```
 
 **Examples:**
 
-- `[backend] feat(auth): add JWT authentication (#123)`
-- `[frontend] fix(ui): resolve button alignment issue`
-- `[docs] chore: update README with setup instructions`
+- `feat(auth): add JWT authentication (#123)`
+- `fix(ui): resolve button alignment issue`
+- `chore: update README with setup instructions`
 
-**Context values**: `backend`, `frontend`, `tools`, `agent`, `docs`, `[collector-name]`
 **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## Key Commands Reference
