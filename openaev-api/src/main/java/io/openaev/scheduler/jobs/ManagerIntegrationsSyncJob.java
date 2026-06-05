@@ -23,7 +23,10 @@ public class ManagerIntegrationsSyncJob implements Job {
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       List<String> tenantIds = managerFactory.getTenantIds();
-      log.info("===> ManagerIntegrationsSyncJob: starting sync for {} tenant(s): {}", tenantIds.size(), tenantIds);
+      log.info(
+          "===> ManagerIntegrationsSyncJob: starting sync for {} tenant(s): {}",
+          tenantIds.size(),
+          tenantIds);
       managerFactory.monitorAllTenants();
     } catch (Exception e) {
       throw new JobExecutionException(e);

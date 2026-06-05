@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -1396,9 +1397,18 @@ class InjectApiTest extends IntegrationTest {
 
       // Deduplication
 
-      @Test
+      /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
+      private InjectExecutionInput buildStdoutInput(String stdoutContent) {
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+        return input;
+      }
+
       @DisplayName(
           "Should consolidate duplicate CVE findings when structured output contains multiple entries with the same id")
+      @Test
       void shouldConsolidateDuplicateCveFindingsWhenStructuredOutputContainsDuplicates()
           throws Exception {
         // -- PREPARE --
@@ -2049,7 +2059,7 @@ class InjectApiTest extends IntegrationTest {
           "Should not create IPv4 findings when raw output contains no valid IPv4 addresses")
       void shouldNotCreateIPv4FindingsWhenRawOutputContainsNoValidIPv4Addresses() throws Exception {
         // -- PREPARE --
-        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$1");
         ContractOutputElement ipv4Element =
             OutputParserFixture.getContractOutputElement(
                 ContractOutputType.IPv4,
@@ -2061,7 +2071,6 @@ class InjectApiTest extends IntegrationTest {
         Inject ipv4Inject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        // 999.x.x.x is not a valid IPv4, the processor's validate() rejects it
         InjectExecutionInput input = buildStdoutInput("host 999.999.999.999 is unknown");
 
         // -- EXECUTE --
@@ -2688,8 +2697,12 @@ class InjectApiTest extends IntegrationTest {
         Inject vulnInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        String rawOutput = "VULN: EternalBlue EXPLOITABLE\\nVULN: BlueKeep PATCHED\\n";
-        InjectExecutionInput input = buildStdoutInput(rawOutput);
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
+                + "[CVE-2025-99999] [http] [high] http://192.168.1.20/\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
 
         // -- EXECUTE --
         performCallbackRequest(agentId, vulnInject.getId(), input);
@@ -3047,9 +3060,11 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
         List<Endpoint> endpointsB =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetB", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals(1, endpointsB.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
@@ -3139,7 +3154,8 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
       }
@@ -3269,7 +3285,8 @@ class InjectApiTest extends IntegrationTest {
             .until(
                 () -> {
                   List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                      endpointRepository.findByExternalReference(
+                          "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
                   return endpointsA.isEmpty();
                 });
       }
@@ -3341,7 +3358,8 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetC", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());

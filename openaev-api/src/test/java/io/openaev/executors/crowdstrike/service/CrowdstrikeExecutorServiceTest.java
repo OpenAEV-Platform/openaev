@@ -3,6 +3,7 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -82,7 +83,7 @@ public class CrowdstrikeExecutorServiceTest {
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
-    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture());
+    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture(), any());
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 
