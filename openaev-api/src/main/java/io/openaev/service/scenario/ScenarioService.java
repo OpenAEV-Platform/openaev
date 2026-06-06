@@ -692,7 +692,8 @@ public class ScenarioService {
         .distinct()
         .forEach(
             docId -> {
-              Document doc = this.documentRepository.findById(docId).orElseThrow();
+              Document doc =
+                  this.documentRepository.forCurrentTenant().findById(docId).orElseThrow();
               Optional<InputStream> docStream = this.fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {

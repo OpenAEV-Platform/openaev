@@ -59,12 +59,14 @@ public class SecurityPlatformApi {
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
     if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
+      securityPlatform.setLogoDark(
+          documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+      securityPlatform.setLogoLight(
+          documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }
@@ -85,13 +87,13 @@ public class SecurityPlatformApi {
       existingSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
       if (input.getLogoDark() != null) {
         existingSecurityPlatform.setLogoDark(
-            documentRepository.findById(input.getLogoDark()).orElse(null));
+            documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
       } else {
         existingSecurityPlatform.setLogoDark(null);
       }
       if (input.getLogoLight() != null) {
         existingSecurityPlatform.setLogoLight(
-            documentRepository.findById(input.getLogoLight()).orElse(null));
+            documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
       } else {
         existingSecurityPlatform.setLogoLight(null);
       }
@@ -104,13 +106,13 @@ public class SecurityPlatformApi {
       newSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
       if (input.getLogoDark() != null) {
         newSecurityPlatform.setLogoDark(
-            documentRepository.findById(input.getLogoDark()).orElse(null));
+            documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
       } else {
         newSecurityPlatform.setLogoDark(null);
       }
       if (input.getLogoLight() != null) {
         newSecurityPlatform.setLogoLight(
-            documentRepository.findById(input.getLogoLight()).orElse(null));
+            documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
       } else {
         newSecurityPlatform.setLogoLight(null);
       }
@@ -158,12 +160,14 @@ public class SecurityPlatformApi {
         this.securityPlatformRepository.findById(securityPlatformId).orElseThrow();
     securityPlatform.setUpdateAttributes(input);
     if (input.getLogoDark() != null) {
-      securityPlatform.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
+      securityPlatform.setLogoDark(
+          documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
-      securityPlatform.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+      securityPlatform.setLogoLight(
+          documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }

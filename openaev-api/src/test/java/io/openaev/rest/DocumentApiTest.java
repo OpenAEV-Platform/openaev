@@ -104,7 +104,8 @@ class DocumentApiTest extends IntegrationTest {
       mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
           .andExpect(status().isBadRequest());
 
-      Assertions.assertTrue(documentRepository.findById(document.getId()).isPresent());
+      Assertions.assertTrue(
+          documentRepository.forCurrentTenant().findById(document.getId()).isPresent());
     }
 
     @Test
@@ -116,7 +117,7 @@ class DocumentApiTest extends IntegrationTest {
       mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
           .andExpect(status().isOk());
 
-      assertFalse(documentRepository.findById(document.getId()).isPresent());
+      assertFalse(documentRepository.forCurrentTenant().findById(document.getId()).isPresent());
       assertTrue(challengeRepository.findById(challenge.getId()).isPresent());
     }
 
@@ -209,7 +210,7 @@ class DocumentApiTest extends IntegrationTest {
               .get();
       document.setExercises(new HashSet<>(Set.of(exercise)));
       document.setScenarios(new HashSet<>(Set.of(scenario)));
-      documentRepository.save(document);
+      documentRepository.forCurrentTenant().save(document);
 
       DocumentCreateInput input = new DocumentCreateInput();
       input.setDescription("My test document");
@@ -272,7 +273,7 @@ class DocumentApiTest extends IntegrationTest {
               + extension;
       document.setDescription("My test document");
       document.setTarget(fileTarget);
-      documentRepository.save(document);
+      documentRepository.forCurrentTenant().save(document);
 
       DocumentCreateInput input = new DocumentCreateInput();
       input.setDescription("Should not have this description");

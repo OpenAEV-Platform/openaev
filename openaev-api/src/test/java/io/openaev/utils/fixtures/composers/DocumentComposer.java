@@ -84,13 +84,13 @@ public class DocumentComposer extends ComposerBase<Document> {
               document.getTarget(), mmf.getInputStream(), mmf.getSize(), document.getType());
         }
       }
-      documentRepository.save(document);
+      documentRepository.forCurrentTenant().save(document);
       return this;
     }
 
     @Override
     public Composer delete() {
-      documentRepository.delete(document);
+      documentRepository.forCurrentTenant().delete(document);
       this.tagComposers.forEach(TagComposer.Composer::delete);
       this.challengeComposers.forEach(ChallengeComposer.Composer::delete);
       this.payloadExecutableComposers.forEach(PayloadComposer.Composer::delete);

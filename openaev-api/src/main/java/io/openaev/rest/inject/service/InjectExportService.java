@@ -77,7 +77,10 @@ public class InjectExportService {
         .forEach(
             docId -> {
               Document doc =
-                  documentRepository.findById(docId).orElseThrow(ElementNotFoundException::new);
+                  documentRepository
+                      .forCurrentTenant()
+                      .findById(docId)
+                      .orElseThrow(ElementNotFoundException::new);
               Optional<InputStream> docStream = fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {

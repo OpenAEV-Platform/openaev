@@ -52,7 +52,7 @@ public class PayloadApiSearchTest extends IntegrationTest {
     PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
     Document document = DocumentFixture.getDocumentJpeg();
-    Document documentSaved = this.documentRepository.save(document);
+    Document documentSaved = this.documentRepository.forCurrentTenant().save(document);
 
     Payload executable = createDefaultExecutable(documentSaved);
     Payload executableSaved = this.payloadRepository.save(executable);

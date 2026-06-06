@@ -11,6 +11,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.context.OperationState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -95,12 +96,14 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document uploadDocument(
+      OperationState operationState,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.forTenant(operationState).findByTarget(fileTarget);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -162,18 +165,19 @@ public class DocumentApi extends RestBehavior {
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
-  public List<RawDocument> documents() {
-    return documentRepository.rawAllDocuments();
+  public List<RawDocument> documents(OperationState operationState) {
+    return documentService.rawAllDocuments(operationState);
   }
 
   @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
+      OperationState operationState,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     return buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
-                this.documentRepository.findAll(specification, pageable),
+                this.documentRepository.forTenant(operationState).findAll(specification, pageable),
             searchPaginationInput,
             Document.class)
         .map(
@@ -190,10 +194,8 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public Document document(@PathVariable String documentId) {
-    return documentRepository
-        .findById(documentId)
-        .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+  public Document document(OperationState operationState, @PathVariable String documentId) {
+    return documentService.document(operationState, documentId);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -201,9 +203,10 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public Set<Tag> documentTags(@PathVariable String documentId) {
+  public Set<Tag> documentTags(OperationState operationState, @PathVariable String documentId) {
     Document document =
         documentRepository
+            .forTenant(operationState)
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     return document.getTags();
@@ -215,9 +218,12 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
-      @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
+      OperationState operationState,
+      @PathVariable String documentId,
+      @RequestBody DocumentTagUpdateInput input) {
     Document document =
         documentRepository
+            .forTenant(operationState)
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -231,9 +237,12 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
-      @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
+      OperationState operationState,
+      @PathVariable String documentId,
+      @Valid @RequestBody DocumentUpdateInput input) {
     Document document =
         documentRepository
+            .forTenant(operationState)
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setUpdateAttributes(input);
@@ -538,8 +547,8 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
-  public void deleteDocument(@PathVariable String documentId) {
-    documentService.deleteDocument(documentId);
+  public void deleteDocument(OperationState operationState, @PathVariable String documentId) {
+    documentService.deleteDocument(operationState, documentId);
   }
 
   // -- EXERCISE & SENARIO--

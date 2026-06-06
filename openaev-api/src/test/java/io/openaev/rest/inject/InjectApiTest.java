@@ -160,8 +160,8 @@ class InjectApiTest extends IntegrationTest {
     Document document2 = new Document();
     document2.setName("Document 2");
     document2.setType("pdf");
-    DOCUMENT1 = documentRepository.save(document1);
-    DOCUMENT2 = documentRepository.save(document2);
+    DOCUMENT1 = documentRepository.forCurrentTenant().save(document1);
+    DOCUMENT2 = documentRepository.forCurrentTenant().save(document2);
 
     Team team = new Team();
     team.setName("team");
@@ -239,7 +239,7 @@ class InjectApiTest extends IntegrationTest {
         injectRepository.findByScenarioId(SCENARIO.getId()).isEmpty(),
         "There should be no injects for the scenario in the database");
     assertTrue(
-        documentRepository.existsById(DOCUMENT2.getId()),
+        documentRepository.forCurrentTenant().existsById(DOCUMENT2.getId()),
         "The document should still exist in the database");
     assertTrue(
         injectExpectationRepository
@@ -612,7 +612,7 @@ class InjectApiTest extends IntegrationTest {
         injectRepository.findByExerciseId(EXERCISE.getId()).isEmpty(),
         "There should be no injects for the exercise in the database");
     assertTrue(
-        documentRepository.existsById(DOCUMENT1.getId()),
+        documentRepository.forCurrentTenant().existsById(DOCUMENT1.getId()),
         "The document should still exist in the database");
     assertFalse(
         communicationRepository.existsById(createdCommunication.getId()),

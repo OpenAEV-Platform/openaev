@@ -518,8 +518,10 @@ public class ExerciseApi extends RestBehavior {
   public Exercise updateExerciseLogos(
       @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateLogoInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
-    exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
-    exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+    exercise.setLogoDark(
+        documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+    exercise.setLogoLight(
+        documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
     return exerciseRepository.save(exercise);
   }
 
@@ -712,19 +714,22 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
-        documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
+        documentRepository
+            .forCurrentTenant()
+            .findById(documentId)
+            .orElseThrow(ElementNotFoundException::new);
     Set<Exercise> docExercises =
         doc.getExercises().stream()
             .filter(ex -> !ex.getId().equals(exerciseId))
             .collect(Collectors.toSet());
     if (docExercises.isEmpty()) {
       // Document is no longer associate to any exercise, delete it
-      documentRepository.delete(doc);
+      documentRepository.forCurrentTenant().delete(doc);
       // All associations with this document will be automatically cleanup.
     } else {
       // Document associated to other exercise, cleanup
       doc.setExercises(docExercises);
-      documentRepository.save(doc);
+      documentRepository.forCurrentTenant().save(doc);
       // Delete document from all exercise injects
       injectService.cleanInjectsDocExercise(exerciseId, documentId);
     }

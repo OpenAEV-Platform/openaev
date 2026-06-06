@@ -583,7 +583,8 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
-    Optional<Document> targetDocument = this.documentRepository.findByTarget(target);
+    Optional<Document> targetDocument =
+        this.documentRepository.forCurrentTenant().findByTarget(target);
 
     if (targetDocument.isPresent()) {
       updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
@@ -610,7 +611,7 @@ public class V1_DataImporter implements Importer {
     document.setTags(
         computeTagsCompletion(
             document.getTags(), resolveJsonIds(nodeDoc, "document_tags"), baseIds));
-    Document savedDocument = this.documentRepository.save(document);
+    Document savedDocument = this.documentRepository.forCurrentTenant().save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);
   }
 
@@ -646,7 +647,7 @@ public class V1_DataImporter implements Importer {
             .toList();
     document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
     document.setType(contentType);
-    Document savedDocument = this.documentRepository.save(document);
+    Document savedDocument = this.documentRepository.forCurrentTenant().save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);
   }
 

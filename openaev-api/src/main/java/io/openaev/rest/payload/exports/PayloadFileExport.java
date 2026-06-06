@@ -43,7 +43,11 @@ public class PayloadFileExport extends FileExportBase {
   private List<Document> getArgumentsDocuments() {
     return this.payload.getArguments().stream()
         .filter(payloadArgument -> ArgumentType.Document == payloadArgument.getType())
-        .map(payloadArgument -> this.documentRepository.findById(payloadArgument.getDefaultValue()))
+        .map(
+            payloadArgument ->
+                this.documentRepository
+                    .forCurrentTenant()
+                    .findById(payloadArgument.getDefaultValue()))
         .flatMap(Optional::stream)
         .toList();
   }

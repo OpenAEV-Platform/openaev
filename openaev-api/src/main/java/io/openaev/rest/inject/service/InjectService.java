@@ -810,7 +810,8 @@ public class InjectService {
         .filter(doc -> !currentDocumentIds.contains(doc.getDocumentId()))
         .forEach(
             in -> {
-              Optional<Document> doc = this.documentRepository.findById(in.getDocumentId());
+              Optional<Document> doc =
+                  this.documentRepository.forCurrentTenant().findById(in.getDocumentId());
               if (doc.isPresent()) {
                 InjectDocument injectDocument = new InjectDocument();
                 injectDocument.setInject(inject);

@@ -4,7 +4,9 @@ import static io.openaev.config.SessionHelper.ANONYMOUS_USER;
 import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.OperationState;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantExecutionContext;
 import io.openaev.rest.exception.TenantAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,6 +50,7 @@ public class TenantInterceptor implements HandlerInterceptor {
       }
 
       TenantContext.setCurrentTenant(tenantId);
+      TenantExecutionContext.set(OperationState.of(tenantId));
     }
     return true;
   }
@@ -56,5 +59,6 @@ public class TenantInterceptor implements HandlerInterceptor {
   public void afterCompletion(
       HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
     TenantContext.clearCurrentTenant();
+    TenantExecutionContext.clear();
   }
 }

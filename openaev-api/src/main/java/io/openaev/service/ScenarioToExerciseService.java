@@ -146,7 +146,7 @@ public class ScenarioToExerciseService {
     // Documents
     List<Document> scenarioDocuments =
         addExerciseToDocuments(scenario.getDocuments(), exerciseSaved);
-    this.documentRepository.saveAll(scenarioDocuments);
+    this.documentRepository.forCurrentTenant().saveAll(scenarioDocuments);
 
     // Articles
     Map<String, Article> articles = new HashMap<>();

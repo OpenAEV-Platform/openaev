@@ -81,14 +81,17 @@ class PayloadApiTest extends IntegrationTest {
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("SENTINEL")).persist();
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("DEFENDER")).persist();
-    EXECUTABLE_FILE = documentRepository.save(PayloadInputFixture.createDefaultExecutableFile());
+    EXECUTABLE_FILE =
+        documentRepository
+            .forCurrentTenant()
+            .save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
   @AfterAll
   void afterAll() {
     this.payloadRepository.deleteAll();
     if (EXECUTABLE_FILE != null) {
-      this.documentRepository.deleteById(EXECUTABLE_FILE.getId());
+      this.documentRepository.forCurrentTenant().deleteById(EXECUTABLE_FILE.getId());
     }
     this.collectorRepository.deleteAll();
   }

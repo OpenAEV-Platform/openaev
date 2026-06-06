@@ -153,7 +153,10 @@ public class ZipJsonService<T extends Base> {
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out) {
     Document resolved =
-        documentRepository.findById(doc.getId()).orElseThrow(IllegalArgumentException::new);
+        documentRepository
+            .forCurrentTenant()
+            .findById(doc.getId())
+            .orElseThrow(IllegalArgumentException::new);
 
     Optional<InputStream> docStream = fileService.getFile(resolved);
     if (docStream.isPresent()) {

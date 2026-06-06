@@ -87,14 +87,17 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
     collectorComposer.reset();
-    EXECUTABLE_FILE = documentRepository.save(PayloadInputFixture.createDefaultExecutableFile());
+    EXECUTABLE_FILE =
+        documentRepository
+            .forCurrentTenant()
+            .save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
   @AfterAll
   void afterAll() {
     payloadRepository.deleteAll();
     if (EXECUTABLE_FILE != null) {
-      documentRepository.deleteById(EXECUTABLE_FILE.getId());
+      documentRepository.forCurrentTenant().deleteById(EXECUTABLE_FILE.getId());
     }
     collectorRepository.deleteAll();
   }

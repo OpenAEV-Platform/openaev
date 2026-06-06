@@ -12,6 +12,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -28,10 +29,16 @@ public class MvcConfig implements WebMvcConfigurer {
 
   @Resource private ObjectMapper objectMapper;
   @Resource private TenantInterceptor tenantInterceptor;
+  @Resource private OperationStateArgumentResolver operationStateArgumentResolver;
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
     registry.addInterceptor(tenantInterceptor).addPathPatterns("/api/tenants/**");
+  }
+
+  @Override
+  public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+    resolvers.add(operationStateArgumentResolver);
   }
 
   @Bean

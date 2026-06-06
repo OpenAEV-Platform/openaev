@@ -73,7 +73,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
     injectStatus.setInject(injectWithPayload);
     INJECT_STATUS = injectStatusRepository.save(injectStatus);
 
-    DOCUMENT = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    DOCUMENT = documentRepository.forCurrentTenant().save(DocumentFixture.getDocumentJpeg());
 
     entityManager.flush();
     entityManager.clear();

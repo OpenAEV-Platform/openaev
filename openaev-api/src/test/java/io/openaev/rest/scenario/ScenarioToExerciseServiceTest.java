@@ -118,7 +118,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
 
     // Document
     Document document = getDocumentJpeg();
-    Document documentSaved = this.documentRepository.save(document);
+    Document documentSaved = this.documentRepository.forCurrentTenant().save(document);
     scenario.setDocuments(
         new ArrayList<>() {
           {
@@ -131,7 +131,8 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     String documentArticleName = "A document for my article";
     documentArticle.setName(documentArticleName);
     documentArticle.setType("image/jpeg");
-    Document documentArticleSaved = this.documentRepository.save(documentArticle);
+    Document documentArticleSaved =
+        this.documentRepository.forCurrentTenant().save(documentArticle);
     Channel channel = new Channel();
     channel.setName("A channel");
     Channel channelSaved = this.channelRepository.save(channel);

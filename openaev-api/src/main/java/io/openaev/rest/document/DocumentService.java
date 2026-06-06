@@ -6,6 +6,9 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.OperationState;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantExecutionContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -47,10 +50,40 @@ public class DocumentService {
 
   // -- CRUD --
 
-  public Document document(@NotBlank final String documentId) {
+  /**
+   * Lists all documents for the tenant carried by {@code operationState}. The {@link
+   * TenantContextAspect} sets the tenant context automatically.
+   */
+  public List<RawDocument> rawAllDocuments(OperationState operationState) {
+    return documentRepository.forTenant(operationState).rawAllDocuments();
+  }
+
+  /**
+   * Fetch a document by ID, scoped to the provided tenant.
+   *
+   * <p>The {@link TenantContextAspect} automatically sets {@link TenantExecutionContext} from
+   * {@code operationState} before this method runs, so the {@link TenantStatementInspector} will
+   * filter all repository queries to the correct tenant. No manual wrapping needed.
+   *
+   * @param operationState tenant scope for this operation
+   * @param documentId the document to fetch
+   */
+  public Document document(OperationState operationState, @NotBlank final String documentId) {
     return documentRepository
+        .forTenant(operationState)
         .findById(documentId)
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+  }
+
+  /**
+   * @deprecated Legacy bridge for internal callers (jobs, connectors) that do not yet carry an
+   *     {@link OperationState}. Builds an {@code OperationState} from the current {@link
+   *     TenantContext} so the {@link TenantContextAspect} can still apply tenant filtering. Migrate
+   *     callers to {@link #document(OperationState, String)} to make the contract explicit.
+   */
+  @Deprecated(since = "migration", forRemoval = true)
+  public Document document(@NotBlank final String documentId) {
+    return document(OperationState.of(TenantContext.getCurrentTenant()), documentId);
   }
 
   /**
@@ -74,7 +107,8 @@ public class DocumentService {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.findByTarget(fileTarget);
+    Optional<Document> targetDocument =
+        documentRepository.forCurrentTenant().findByTarget(fileTarget);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -101,7 +135,8 @@ public class DocumentService {
       document.setTags(tags);
       return save(document);
     } else {
-      Optional<Document> existingDocument = documentRepository.findByName(fileName);
+      Optional<Document> existingDocument =
+          documentRepository.forCurrentTenant().findByName(fileName);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
@@ -187,8 +222,8 @@ public class DocumentService {
         .toList();
   }
 
-  public void deleteDocument(String documentId) {
-    Document document = document(documentId); // fetch or throw if not found
+  public void deleteDocument(OperationState operationState, String documentId) {
+    Document document = document(operationState, documentId);
 
     boolean isUsedInFileDrop =
         document.getPayloadsByFileDrop() != null && !document.getPayloadsByFileDrop().isEmpty();
@@ -201,7 +236,7 @@ public class DocumentService {
           "Document is still in use for some payloads and cannot be deleted.");
     }
 
-    List<Document> documents = documentRepository.removeById(documentId);
+    List<Document> documents = documentRepository.forCurrentTenant().removeById(documentId);
 
     // Remove document from minio
     documents.forEach(
@@ -220,38 +255,42 @@ public class DocumentService {
   }
 
   public List<Document> documentsForScenario(String scenarioId) {
-    return this.documentRepository.findAllDistinctByScenarioId(scenarioId);
+    return this.documentRepository.forCurrentTenant().findAllDistinctByScenarioId(scenarioId);
   }
 
   public List<Document> documentsForSimulation(String simulationId) {
-    return this.documentRepository.findAllDistinctBySimulationId(simulationId);
+    return this.documentRepository.forCurrentTenant().findAllDistinctBySimulationId(simulationId);
   }
 
   public List<RawDocument> documentsForChannel(@NotBlank String channelId) {
-    return this.documentRepository.rawAllDocumentsByChannelId(channelId);
+    return this.documentRepository.forCurrentTenant().rawAllDocumentsByChannelId(channelId);
   }
 
   public List<RawDocument> documentsForSecurityPlatform(@NotBlank String securityPlatformId) {
-    return this.documentRepository.rawAllDocumentsBySecurityPlatformId(securityPlatformId);
+    return this.documentRepository
+        .forCurrentTenant()
+        .rawAllDocumentsBySecurityPlatformId(securityPlatformId);
   }
 
   public List<RawDocument> documentsForChallenge(@NotBlank String challengeId) {
-    return this.documentRepository.rawAllDocumentsByChallengeId(challengeId);
+    return this.documentRepository.forCurrentTenant().rawAllDocumentsByChallengeId(challengeId);
   }
 
   public List<RawDocument> documentsForPayload(@NotBlank String payloadId) {
-    return this.documentRepository.rawAllDocumentsByPayloadId(payloadId);
+    return this.documentRepository.forCurrentTenant().rawAllDocumentsByPayloadId(payloadId);
   }
 
   public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {
-    return this.documentRepository.findAllDistinctOnInjectsByScenarioId(scenarioId);
+    return this.documentRepository
+        .forCurrentTenant()
+        .findAllDistinctOnInjectsByScenarioId(scenarioId);
   }
 
   public boolean documentExists(String documentId) {
-    return this.documentRepository.existsById(documentId);
+    return this.documentRepository.forCurrentTenant().existsById(documentId);
   }
 
   public Document save(Document document) {
-    return documentRepository.save(document);
+    return documentRepository.forCurrentTenant().save(document);
   }
 }

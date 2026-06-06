@@ -98,7 +98,7 @@ public abstract class Injector {
         attachment -> {
           String documentId = attachment.getId();
           Optional<Document> askedDocument =
-              this.context.getDocumentRepository().findById(documentId);
+              this.context.getDocumentRepository().forCurrentTenant().findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
             InputStream fileInputStream = this.context.getFileService().getFile(doc).orElseThrow();

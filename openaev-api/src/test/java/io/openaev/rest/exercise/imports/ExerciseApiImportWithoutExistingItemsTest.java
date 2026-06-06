@@ -849,7 +849,8 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     entityManager.clear();
 
     for (Document expected : documentComposer.generatedItems) {
-      Optional<Document> docFromDb = documentRepository.findByName(expected.getName());
+      Optional<Document> docFromDb =
+          documentRepository.forCurrentTenant().findByName(expected.getName());
       if (docFromDb.isEmpty()) {
         Assertions.fail("Document " + expected.getName() + " not found");
       }
