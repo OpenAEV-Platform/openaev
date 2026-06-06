@@ -4,6 +4,7 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -47,7 +48,10 @@ public class ScenarioToExerciseService {
 
   @Transactional(rollbackFor = Exception.class)
   public Exercise toExercise(
-      @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
+      @NotNull final ExecState state,
+      @NotBlank final Scenario scenario,
+      @Nullable final Instant start,
+      final boolean isRunning) {
     Exercise exercise = new Exercise();
     exercise.setScenario(scenario);
     exercise.setName(scenario.getName());
@@ -146,7 +150,7 @@ public class ScenarioToExerciseService {
     // Documents
     List<Document> scenarioDocuments =
         addExerciseToDocuments(scenario.getDocuments(), exerciseSaved);
-    this.documentRepository.forCurrentTenant().saveAll(scenarioDocuments);
+    this.documentRepository.forOp(state).saveAll(scenarioDocuments);
 
     // Articles
     Map<String, Article> articles = new HashMap<>();

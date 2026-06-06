@@ -112,7 +112,7 @@ public class EmailExecutorTest extends IntegrationTest {
     emailInjectorIntegrationFactory.registerConnectorForTenant();
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
-    emailExecutor.process(execution, executableInject);
+    emailExecutor.process(io.openaev.context.ExecState.of("tenant"), execution, executableInject);
 
     // -- ASSERT --
     // No injectExpectation should be created.
@@ -158,7 +158,7 @@ public class EmailExecutorTest extends IntegrationTest {
     emailInjectorIntegrationFactory.registerConnectorForTenant();
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
-    emailExecutor.process(execution, executableInject);
+    emailExecutor.process(io.openaev.context.ExecState.of("tenant"), execution, executableInject);
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for team - 2 for the user (expectation A and

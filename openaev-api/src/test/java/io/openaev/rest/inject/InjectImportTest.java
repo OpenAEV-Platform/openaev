@@ -15,6 +15,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.ExerciseRepository;
@@ -284,7 +286,7 @@ class InjectImportTest extends IntegrationTest {
     List<Inject> injects = wrappers.stream().map(InjectComposer.Composer::get).toList();
     byte[] data =
         exportService.exportInjectsToZip(
-            injects, ExportOptions.mask(withPlayers, withTeams, withVariableValues));
+            ExecState.of(TenantContext.getCurrentTenant()), injects, ExportOptions.mask(withPlayers, withTeams, withVariableValues));
     clearEntityManager();
     return data;
   }

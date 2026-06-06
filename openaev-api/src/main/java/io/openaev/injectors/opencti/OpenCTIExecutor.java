@@ -59,7 +59,7 @@ public class OpenCTIExecutor extends Injector {
 
   @Override
   public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     CaseContent content = contentConvert(injection, CaseContent.class);
@@ -68,7 +68,7 @@ public class OpenCTIExecutor extends Injector {
             .filter(InjectDocument::isAttached)
             .map(InjectDocument::getDocument)
             .toList();
-    List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
+    List<DataAttachment> attachments = resolveAttachments(state, execution, injection, documents);
     String name = content.getName();
     String description = content.getDescription();
 

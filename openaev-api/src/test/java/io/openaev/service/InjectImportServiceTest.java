@@ -12,6 +12,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.context.ExecState;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
@@ -360,10 +361,11 @@ public class InjectImportServiceTest {
             .thenReturn(Optional.of(scenario));
 
         // -------- Act --------
-        injectImportService.importInjectsForScenario(file, "sc-1");
+        ExecState state = ExecState.of("tenant-1");
+        injectImportService.importInjectsForScenario(state, file, "sc-1");
 
         // -------- Assert --------
-        verify(importService).handleFileImport(file, null, scenario);
+        verify(importService).handleFileImport(state, file, null, scenario);
       }
     }
 
@@ -377,10 +379,11 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act --------
-      injectImportService.importInjectsForSimulation(file, "ex-1");
+      ExecState state = ExecState.of("tenant-1");
+      injectImportService.importInjectsForSimulation(state, file, "ex-1");
 
       // -------- Assert --------
-      verify(importService).handleFileImport(file, exercise, null);
+      verify(importService).handleFileImport(state, file, exercise, null);
     }
 
     @Test
@@ -389,10 +392,11 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act --------
-      injectImportService.importInjectsForAtomicTestings(file);
+      ExecState state = ExecState.of("tenant-1");
+      injectImportService.importInjectsForAtomicTestings(state, file);
 
       // -------- Assert --------
-      verify(importService).handleFileImport(file, null, null);
+      verify(importService).handleFileImport(state, file, null, null);
     }
 
     @Test
@@ -406,9 +410,10 @@ public class InjectImportServiceTest {
             .thenReturn(Optional.empty());
 
         // -------- Act / Assert --------
+        ExecState state = ExecState.of("tenant-1");
         assertThrows(
             ElementNotFoundException.class,
-            () -> injectImportService.importInjectsForScenario(file, "missing"));
+            () -> injectImportService.importInjectsForScenario(state, file, "missing"));
       }
     }
 
@@ -419,9 +424,10 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act / Assert --------
+      ExecState state = ExecState.of("tenant-1");
       assertThrows(
           ElementNotFoundException.class,
-          () -> injectImportService.importInjectsForSimulation(file, "missing"));
+          () -> injectImportService.importInjectsForSimulation(state, file, "missing"));
     }
   }
 

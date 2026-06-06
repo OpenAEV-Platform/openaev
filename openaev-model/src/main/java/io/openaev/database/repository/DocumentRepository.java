@@ -18,20 +18,14 @@ import org.springframework.stereotype.Component;
  *
  * <pre>{@code
  * // In a service or controller:
- * documentRepository.forTenant(state).findById(id);
- * documentRepository.forTenant(state).rawAllDocuments();
+ * documentRepository.forOp(state).findById(id);
+ * documentRepository.forOp(state).rawAllDocuments();
  *
  * // In a parallel stream — no TenantExecutionContext.run() needed:
  * ids.parallelStream()
- *    .map(id -> documentRepository.forTenant(state).findById(id))
+ *    .map(id -> documentRepository.forOp(state).findById(id))
  *    .toList();
  * }</pre>
- *
- * <h3>Legacy / internal callers</h3>
- *
- * <p>Internal services (jobs, connectors) that do not yet carry an {@link ExecState} may use {@link
- * #forCurrentTenant()} as a temporary bridge. Migrate them to {@link #forOp(ExecState)} to make the
- * tenant contract explicit.
  */
 @Component
 @RequiredArgsConstructor
@@ -53,20 +47,4 @@ public class DocumentRepository {
     return TenantProxy.of(internal, DocumentJpaRepository.class, state);
   }
 
-  /**
-   * Bridge for legacy callers that do not yet carry an {@link ExecState}. Uses the {@link
-   * ExecState} already set in the {@link StateExecutionContext} by the interceptor or caller.
-   *
-   * @deprecated Migrate callers to {@link #forOp(ExecState)} to make the tenant contract explicit
-   *     and safe for parallel execution.
-   */
-  @Deprecated(since = "migration", forRemoval = true)
-  public DocumentJpaRepository forCurrentTenant() {
-    ExecState state = StateExecutionContext.get();
-    if (state == null) {
-      throw new IllegalStateException(
-          "No TenantExecutionContext active — use forOp(ExecState) instead");
-    }
-    return forOp(state);
-  }
 }

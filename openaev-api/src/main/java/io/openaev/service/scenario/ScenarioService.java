@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
@@ -504,6 +505,7 @@ public class ScenarioService {
 
   @Transactional
   public void exportScenario(
+      @NotNull final ExecState state,
       @NotBlank final String scenarioId,
       final boolean isWithTeams,
       final boolean isWithPlayers,
@@ -693,7 +695,7 @@ public class ScenarioService {
         .forEach(
             docId -> {
               Document doc =
-                  this.documentRepository.forCurrentTenant().findById(docId).orElseThrow();
+                  this.documentRepository.forOp(state).findById(docId).orElseThrow();
               Optional<InputStream> docStream = this.fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {

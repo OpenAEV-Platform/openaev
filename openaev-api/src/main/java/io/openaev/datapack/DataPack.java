@@ -1,5 +1,6 @@
 package io.openaev.datapack;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.DataPackService;
 import lombok.Getter;
@@ -14,7 +15,7 @@ public abstract class DataPack {
     this.dataPackService = dataPackService;
   }
 
-  protected abstract boolean doProcess();
+  protected abstract boolean doProcess(ExecState state);
 
   @Getter private final String packId = this.getClass().getCanonicalName();
 
@@ -33,7 +34,8 @@ public abstract class DataPack {
                   "Processing datapack '{}' for tenant {}.",
                   this.getClass().getCanonicalName(),
                   tenant.getId());
-              if (doProcess()) {
+              ExecState state = ExecState.of(tenant.getId());
+              if (doProcess(state)) {
                 dataPackService.registerDataPack(packId, tenant);
               }
               return DataPackProcessingResult.PROCESSED;

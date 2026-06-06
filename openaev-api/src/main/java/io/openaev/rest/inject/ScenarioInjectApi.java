@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -203,10 +204,11 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public InjectOutput updateInjectForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
-    return scenarioInjectService.updateInjectForScenario(scenarioId, injectId, input);
+    return scenarioInjectService.updateInjectForScenario(state, scenarioId, injectId, input);
   }
 
   @PutMapping({

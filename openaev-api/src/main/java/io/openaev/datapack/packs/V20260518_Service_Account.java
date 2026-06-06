@@ -19,7 +19,7 @@ public class V20260518_Service_Account extends DataPack {
   }
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(io.openaev.context.ExecState state) {
     try {
       privilegeService.ensurePrivilegedUserExists(TenantContext.getCurrentTenant());
     } catch (Exception e) {

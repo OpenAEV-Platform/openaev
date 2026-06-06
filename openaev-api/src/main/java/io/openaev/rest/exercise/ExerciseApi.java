@@ -13,6 +13,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -516,12 +517,14 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseLogos(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateLogoInput input) {
+      ExecState state,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateLogoInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setLogoDark(
-        documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+        documentRepository.forOp(state).findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(
-        documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
+        documentRepository.forOp(state).findById(input.getLogoLight()).orElse(null));
     return exerciseRepository.save(exercise);
   }
 
@@ -710,12 +713,13 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Exercise deleteDocument(@PathVariable String exerciseId, @PathVariable String documentId) {
+  public Exercise deleteDocument(
+      ExecState state, @PathVariable String exerciseId, @PathVariable String documentId) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
         documentRepository
-            .forCurrentTenant()
+            .forOp(state)
             .findById(documentId)
             .orElseThrow(ElementNotFoundException::new);
     Set<Exercise> docExercises =
@@ -724,12 +728,12 @@ public class ExerciseApi extends RestBehavior {
             .collect(Collectors.toSet());
     if (docExercises.isEmpty()) {
       // Document is no longer associate to any exercise, delete it
-      documentRepository.forCurrentTenant().delete(doc);
+      documentRepository.forOp(state).delete(doc);
       // All associations with this document will be automatically cleanup.
     } else {
       // Document associated to other exercise, cleanup
       doc.setExercises(docExercises);
-      documentRepository.forCurrentTenant().save(doc);
+      documentRepository.forOp(state).save(doc);
       // Delete document from all exercise injects
       injectService.cleanInjectsDocExercise(exerciseId, documentId);
     }
@@ -843,6 +847,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public void exerciseExport(
+      ExecState state,
       @NotBlank @PathVariable final String exerciseId,
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
@@ -852,7 +857,7 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
 
-    byte[] zippedExport = exportService.exportExerciseToZip(exercise, exportOptionsMask);
+    byte[] zippedExport = exportService.exportExerciseToZip(state, exercise, exportOptionsMask);
     String zipName = exportService.getZipFileName(exercise, exportOptionsMask);
 
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
@@ -865,8 +870,8 @@ public class ExerciseApi extends RestBehavior {
 
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
-    importService.handleFileImport(file, null, null);
+  public void exerciseImport(ExecState state, @RequestPart("file") MultipartFile file) throws Exception {
+    importService.handleFileImport(state, file, null, null);
   }
 
   @PostMapping({

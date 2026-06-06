@@ -9,6 +9,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.context.ExecState;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
@@ -70,7 +71,8 @@ public class Executor {
     io.openaev.executors.Injector executor =
         managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
 
-    Execution execution = executor.executeInjection(executableInject);
+    ExecState state = ExecState.of(inject.getTenant().getId());
+    Execution execution = executor.executeInjection(state, executableInject);
     // After execution, expectations are already created
     // Injection status is filled after complete execution
     // Report inject execution

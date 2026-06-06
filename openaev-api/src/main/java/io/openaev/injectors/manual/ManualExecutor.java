@@ -27,7 +27,7 @@ public class ManualExecutor extends Injector {
 
   @Override
   public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception {
 
     ManualContent content = contentConvert(injection, ManualContent.class);

@@ -84,7 +84,7 @@ public class EmailExecutor extends Injector {
 
   @Override
   public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     EmailContent content = contentConvert(injection, EmailContent.class);
@@ -93,7 +93,7 @@ public class EmailExecutor extends Injector {
             .filter(InjectDocument::isAttached)
             .map(InjectDocument::getDocument)
             .toList();
-    List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
+    List<DataAttachment> attachments = resolveAttachments(state, execution, injection, documents);
     String inReplyTo = content.getInReplyTo();
     String subject = content.getSubject();
     String message = content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Inject;
+import io.openaev.context.ExecState;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -103,7 +105,7 @@ class ScenarioInjectServiceTest extends IntegrationTest {
       // -- ACT --
       InjectOutput result =
           scenarioInjectService.updateInjectForScenario(
-              scenarioA.getId(), injectInA.getId(), input);
+              ExecState.of(TenantContext.getCurrentTenant()), scenarioA.getId(), injectInA.getId(), input);
 
       // -- ASSERT --
       assertThat(result.getId()).isEqualTo(injectInA.getId());
@@ -122,7 +124,7 @@ class ScenarioInjectServiceTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   scenarioInjectService.updateInjectForScenario(
-                      scenarioA.getId(), injectInB.getId(), input))
+                      ExecState.of(TenantContext.getCurrentTenant()), scenarioA.getId(), injectInB.getId(), input))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }

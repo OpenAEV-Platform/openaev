@@ -11,6 +11,7 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.export.FileExportBase;
+import io.openaev.context.ExecState;
 import java.util.List;
 import java.util.Optional;
 import lombok.Getter;
@@ -18,6 +19,7 @@ import lombok.Getter;
 @Getter
 @JsonInclude(NON_NULL)
 public class PayloadFileExport extends FileExportBase {
+  @JsonIgnore protected final ExecState state;
   @JsonIgnore protected final DocumentRepository documentRepository;
 
   @JsonProperty("payload_information")
@@ -46,9 +48,9 @@ public class PayloadFileExport extends FileExportBase {
         .map(
             payloadArgument ->
                 this.documentRepository
-                    .forCurrentTenant()
+                    .forOp(this.state)
                     .findById(payloadArgument.getDefaultValue()))
-        .flatMap(Optional::stream)
+        .filter(Optional::isPresent).map(Optional::get)
         .toList();
   }
 
@@ -59,14 +61,15 @@ public class PayloadFileExport extends FileExportBase {
   //  }
 
   private PayloadFileExport(
-      Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
+      ExecState state, Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
     super(objectMapper, null, null);
+    this.state = state;
     this.payload = payload;
     this.documentRepository = documentRepository;
   }
 
   public static PayloadFileExport fromPayload(
-      Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
-    return new PayloadFileExport(payload, objectMapper, documentRepository);
+      ExecState state, Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
+    return new PayloadFileExport(state, payload, objectMapper, documentRepository);
   }
 }

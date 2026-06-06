@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Document;
+import io.openaev.context.ExecState;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.jsonapi.*;
 import jakarta.annotation.Resource;
@@ -70,7 +71,7 @@ public class ZipJsonService<T extends Base> {
    * @throws IOException if writing the archive fails
    */
   public byte[] handleExportResource(
-      T entity, Map<String, byte[]> extras, JsonApiDocument<ResourceObject> resource)
+      ExecState state, T entity, Map<String, byte[]> extras, JsonApiDocument<ResourceObject> resource)
       throws IOException {
     if (extras == null) {
       extras = new HashMap<>();
@@ -90,11 +91,11 @@ public class ZipJsonService<T extends Base> {
         Collection<?> col = toCollection(value);
         for (Object item : col) {
           if (item instanceof Document doc) {
-            addDocumentToExtras(doc, extras);
+            addDocumentToExtras(state, doc, extras);
           }
         }
       } else if (value instanceof Document doc) {
-        addDocumentToExtras(doc, extras);
+        addDocumentToExtras(state, doc, extras);
       }
     }
 
@@ -151,10 +152,10 @@ public class ZipJsonService<T extends Base> {
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
   }
 
-  private void addDocumentToExtras(Document doc, Map<String, byte[]> out) {
+  private void addDocumentToExtras(ExecState state, Document doc, Map<String, byte[]> out) {
     Document resolved =
         documentRepository
-            .forCurrentTenant()
+            .forOp(state)
             .findById(doc.getId())
             .orElseThrow(IllegalArgumentException::new);
 

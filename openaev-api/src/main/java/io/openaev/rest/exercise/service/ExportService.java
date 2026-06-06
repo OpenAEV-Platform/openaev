@@ -5,6 +5,7 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.DocumentRepository;
@@ -15,6 +16,7 @@ import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotNull;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,7 +53,7 @@ public class ExportService {
     return (exercise.getName() + "_" + now().toString()) + "_" + infos + ".zip";
   }
 
-  public byte[] exportExerciseToZip(Exercise exercise, int exportOptionsMask) throws IOException {
+  public byte[] exportExerciseToZip(@NotNull final ExecState state, Exercise exercise, int exportOptionsMask) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
     ExerciseFileExport importExport =
@@ -77,7 +79,7 @@ public class ExportService {
             docId -> {
               Document doc =
                   documentRepository
-                      .forCurrentTenant()
+                      .forOp(state)
                       .findById(docId)
                       .orElseThrow(ElementNotFoundException::new);
               Optional<InputStream> docStream = fileService.getFile(doc);

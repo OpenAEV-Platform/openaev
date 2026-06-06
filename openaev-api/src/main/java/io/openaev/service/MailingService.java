@@ -10,6 +10,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.context.ExecState;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
@@ -79,7 +80,8 @@ public class MailingService {
                   managerFactory
                       .getManager()
                       .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
-              executor.executeInjection(injection);
+              ExecState state = ExecState.of(inject.getTenant().getId());
+              executor.executeInjection(state, injection);
             });
   }
 

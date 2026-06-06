@@ -20,7 +20,7 @@ public class TestDataPack extends DataPack {
   }
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(io.openaev.context.ExecState state) {
     // insert a new tag with static name
     TagCreateInput input = new TagCreateInput();
     input.setName(tagName);

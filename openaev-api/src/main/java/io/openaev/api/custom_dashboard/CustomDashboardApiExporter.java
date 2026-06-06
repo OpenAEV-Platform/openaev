@@ -1,6 +1,7 @@
 package io.openaev.api.custom_dashboard;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -36,9 +37,9 @@ public class CustomDashboardApiExporter extends RestBehavior {
   @GetMapping(value = "/{customDashboardId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
-  public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String customDashboardId)
+  public ResponseEntity<byte[]> export(ExecState state, @PathVariable @NotBlank final String customDashboardId)
       throws IOException {
     CustomDashboard customDashboard = customDashboardService.customDashboard(customDashboardId);
-    return zipJsonApi.handleExport(customDashboard);
+    return zipJsonApi.handleExport(state, customDashboard);
   }
 }

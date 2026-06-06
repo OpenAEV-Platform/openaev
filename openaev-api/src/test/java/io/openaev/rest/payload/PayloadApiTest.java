@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.JsonPath;
+import io.openaev.context.ExecState;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
@@ -83,7 +84,7 @@ class PayloadApiTest extends IntegrationTest {
     collectorComposer.forCollector(CollectorFixture.createDefaultCollector("DEFENDER")).persist();
     EXECUTABLE_FILE =
         documentRepository
-            .forCurrentTenant()
+            .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
             .save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
@@ -91,7 +92,7 @@ class PayloadApiTest extends IntegrationTest {
   void afterAll() {
     this.payloadRepository.deleteAll();
     if (EXECUTABLE_FILE != null) {
-      this.documentRepository.forCurrentTenant().deleteById(EXECUTABLE_FILE.getId());
+      this.documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).deleteById(EXECUTABLE_FILE.getId());
     }
     this.collectorRepository.deleteAll();
   }

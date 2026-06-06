@@ -11,6 +11,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -254,6 +255,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.SCENARIO)
   public void exportScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
@@ -261,15 +263,15 @@ public class ScenarioApi extends RestBehavior {
       HttpServletResponse response)
       throws IOException {
     this.scenarioService.exportScenario(
-        scenarioId, isWithTeams, isWithPlayers, isWithVariableValues, response);
+        state, scenarioId, isWithTeams, isWithPlayers, isWithVariableValues, response);
   }
 
   // -- IMPORT --
 
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
-    this.importService.handleFileImport(file, null, null);
+  public void importScenario(ExecState state, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
+    this.importService.handleFileImport(state, file, null, null);
   }
 
   // -- TEAMS --
@@ -476,7 +478,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
+  public Exercise createRunningExerciseFromScenario(ExecState state, @PathVariable @NotBlank final String scenarioId)
       throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
@@ -485,14 +487,14 @@ public class ScenarioApi extends RestBehavior {
         && workflowService.isScenarioChaining(scenarioId)) {
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              state, scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              state, scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
     }
 
     return simulation;

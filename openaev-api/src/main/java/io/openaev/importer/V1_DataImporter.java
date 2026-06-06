@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
@@ -154,6 +155,7 @@ public class V1_DataImporter implements Importer {
   @Override
   @Transactional
   public void importData(
+      ExecState state,
       JsonNode importNode,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
@@ -176,8 +178,8 @@ public class V1_DataImporter implements Importer {
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
         Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
-    importDocuments(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
-    importDocument(importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
+    importDocuments(state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
+    importDocument(state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
 
     // Should be done after tags & documents
     if (prefix.equals("payload_")) {
@@ -522,6 +524,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importDocuments(
+      ExecState state,
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
@@ -535,7 +538,7 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
           }
         });
     // Handle argument documents
@@ -547,12 +550,13 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
           }
         });
   }
 
   private void importDocument(
+      ExecState state,
       JsonNode importNode,
       String prefix,
       Map<String, ImportEntry> docReferences,
@@ -570,12 +574,13 @@ public class V1_DataImporter implements Importer {
     if (target != null) {
       ImportEntry entry = docReferences.get(target);
       if (entry != null) {
-        handleDocumentWithEntry(nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+        handleDocumentWithEntry(state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
       }
     }
   }
 
   private void handleDocumentWithEntry(
+      ExecState state,
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
@@ -584,16 +589,17 @@ public class V1_DataImporter implements Importer {
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
     Optional<Document> targetDocument =
-        this.documentRepository.forCurrentTenant().findByTarget(target);
+        this.documentRepository.forOp(state).findByTarget(target);
 
     if (targetDocument.isPresent()) {
-      updateExistingDocument(nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
+      updateExistingDocument(state, nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
     } else {
-      uploadNewDocument(nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
+      uploadNewDocument(state, nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
     }
   }
 
   private void updateExistingDocument(
+      ExecState state,
       JsonNode nodeDoc,
       Document document,
       Exercise savedExercise,
@@ -611,11 +617,12 @@ public class V1_DataImporter implements Importer {
     document.setTags(
         computeTagsCompletion(
             document.getTags(), resolveJsonIds(nodeDoc, "document_tags"), baseIds));
-    Document savedDocument = this.documentRepository.forCurrentTenant().save(document);
+    Document savedDocument = this.documentRepository.forOp(state).save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);
   }
 
   private void uploadNewDocument(
+      ExecState state,
       JsonNode nodeDoc,
       ImportEntry entry,
       String target,
@@ -647,7 +654,7 @@ public class V1_DataImporter implements Importer {
             .toList();
     document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
     document.setType(contentType);
-    Document savedDocument = this.documentRepository.forCurrentTenant().save(document);
+    Document savedDocument = this.documentRepository.forOp(state).save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);
   }
 

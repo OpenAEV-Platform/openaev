@@ -1,5 +1,6 @@
 package io.openaev.datapack.packs;
 
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
@@ -87,7 +88,7 @@ public class V20260101_Starter_pack extends DataPack {
   private final ResourcePatternResolver resolver;
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(ExecState state) {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
@@ -126,7 +127,7 @@ public class V20260101_Starter_pack extends DataPack {
           openCTITagRule.getTag().getName(),
           new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
 
-      this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
+      this.importScenariosFromResources(state, honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
       return true;
     } catch (Exception e) {
@@ -165,13 +166,13 @@ public class V20260101_Starter_pack extends DataPack {
     return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
   }
 
-  private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {
+  private void importScenariosFromResources(ExecState state, Asset asset, AssetGroup assetGroup) {
     listFilesInResourceFolder(Config.SCENARIOS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
+                    state, resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());

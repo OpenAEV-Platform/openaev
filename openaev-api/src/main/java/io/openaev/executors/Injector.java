@@ -24,7 +24,7 @@ public abstract class Injector {
     this.context = context;
   }
 
-  public abstract ExecutionProcess process(Execution execution, ExecutableInject injection)
+  public abstract ExecutionProcess process(io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception;
 
   public StatusPayload getPayloadOutput(String externalId) {
@@ -32,7 +32,7 @@ public abstract class Injector {
   }
 
   @Transactional
-  public Execution execute(ExecutableInject executableInject) {
+  public Execution execute(io.openaev.context.ExecState state, ExecutableInject executableInject) {
     Execution execution = new Execution(executableInject.isRuntime());
     try {
       boolean isScheduledInject = !executableInject.isDirect();
@@ -51,7 +51,7 @@ public abstract class Injector {
                 + Instant.now());
       }
       // Process the execution
-      ExecutionProcess executionProcess = process(execution, executableInject);
+      ExecutionProcess executionProcess = process(state, execution, executableInject);
       execution.setAsync(executionProcess.isAsync());
     } catch (Exception e) {
       execution.addTrace(getNewErrorTrace(e.getMessage(), ExecutionTraceAction.COMPLETE));
@@ -61,8 +61,8 @@ public abstract class Injector {
     return execution;
   }
 
-  public Execution executeInjection(ExecutableInject executableInject) {
-    return execute(executableInject);
+  public Execution executeInjection(io.openaev.context.ExecState state, ExecutableInject executableInject) {
+    return execute(state, executableInject);
   }
 
   // region utils
@@ -76,7 +76,7 @@ public abstract class Injector {
   }
 
   public List<DataAttachment> resolveAttachments(
-      Execution execution, ExecutableInject injection, List<Document> documents) {
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection, List<Document> documents) {
     List<DataAttachment> resolved = new ArrayList<>();
     // Add attachments from direct configuration
     injection
@@ -98,7 +98,7 @@ public abstract class Injector {
         attachment -> {
           String documentId = attachment.getId();
           Optional<Document> askedDocument =
-              this.context.getDocumentRepository().forCurrentTenant().findById(documentId);
+              this.context.getDocumentRepository().forOp(state).findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
             InputStream fileInputStream = this.context.getFileService().getFile(doc).orElseThrow();

@@ -1,5 +1,8 @@
 package io.openaev.rest.inject.service;
 
+import io.openaev.context.ExecState;
+import jakarta.validation.constraints.NotNull;
+
 import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
 import static java.time.Instant.now;
@@ -52,7 +55,7 @@ public class InjectExportService {
     return ("injects_" + now().toString()) + "_" + infos + ".zip";
   }
 
-  public byte[] exportInjectsToZip(List<Inject> injects, int exportOptionsMask) throws IOException {
+  public byte[] exportInjectsToZip(@NotNull final ExecState state, List<Inject> injects, int exportOptionsMask) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
     InjectsFileExport importExport =
@@ -76,11 +79,11 @@ public class InjectExportService {
         .distinct()
         .forEach(
             docId -> {
-              Document doc =
-                  documentRepository
-                      .forCurrentTenant()
-                      .findById(docId)
-                      .orElseThrow(ElementNotFoundException::new);
+                Document doc =
+                    documentRepository
+                        .forOp(state)
+                        .findById(docId)
+                        .orElseThrow(ElementNotFoundException::new);
               Optional<InputStream> docStream = fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {

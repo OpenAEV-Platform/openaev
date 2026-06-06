@@ -4,6 +4,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
+import io.openaev.context.ExecState;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.jsonapi.IncludeOptions;
 import io.openaev.jsonapi.ZipJsonApi;
@@ -36,14 +37,10 @@ public class PayloadApiExporter extends RestBehavior {
   @GetMapping(value = "/{payloadId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
-  public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String payloadId)
+  public ResponseEntity<byte[]> export(ExecState state, @PathVariable @NotBlank final String payloadId)
       throws IOException {
-    Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
-    opts.put("exclude from payload export", IncludeOptions.IncludeMode.FALSE);
-    IncludeOptions includeOptions = IncludeOptions.of(opts);
-
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
-    return zipJsonApi.handleExport(payload, null, includeOptions);
+    return zipJsonApi.handleExport(state, payload);
   }
 }

@@ -11,9 +11,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
+import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
@@ -114,7 +116,8 @@ public class ComchecksExecutionJob implements Job {
                     new ExecutableInject(false, true, emailInject, userInjectContexts);
                 io.openaev.executors.Injector emailExecutor =
                     this.managerFactory.getManager().requestEmailInjector();
-                Execution execution = emailExecutor.executeInjection(injection);
+                ExecState state = ExecState.of(comCheck.getExercise().getTenant().getId());
+                Execution execution = emailExecutor.executeInjection(state, injection);
                 // Save the status sent date
                 List<String> usersSuccessfullyNotified =
                     execution.getTraces().stream()

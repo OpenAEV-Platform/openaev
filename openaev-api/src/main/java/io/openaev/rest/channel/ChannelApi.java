@@ -8,6 +8,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -90,18 +91,18 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHANNEL)
   public Channel updateChannelLogos(
-      @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
+      ExecState state, @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     if (input.getLogoDark() != null) {
       channel.setLogoDark(
-          documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+          documentRepository.forOp(state).findById(input.getLogoDark()).orElse(null));
     } else {
       channel.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
       channel.setLogoLight(
-          documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
+          documentRepository.forOp(state).findById(input.getLogoLight()).orElse(null));
     } else {
       channel.setLogoLight(null);
     }
@@ -191,7 +192,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackOn = Exception.class)
   public Article createArticleForExercise(
-      @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
+      ExecState state, @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -208,7 +209,7 @@ public class ChannelApi extends RestBehavior {
     List<Document> finalArticleDocuments = new ArrayList<>();
     articleDocuments.forEach(
         articleDocument -> {
-          Optional<Document> doc = documentRepository.forCurrentTenant().findById(articleDocument);
+          Optional<Document> doc = documentRepository.forOp(state).findById(articleDocument);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -232,6 +233,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Article updateArticleForExercise(
+      ExecState state,
       @PathVariable String exerciseId,
       @PathVariable String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
@@ -260,7 +262,7 @@ public class ChannelApi extends RestBehavior {
         .filter(doc -> !currentDocumentIds.contains(doc))
         .forEach(
             in -> {
-              Optional<Document> doc = documentRepository.forCurrentTenant().findById(in);
+              Optional<Document> doc = documentRepository.forOp(state).findById(in);
               if (doc.isPresent()) {
                 Document document = doc.get();
                 articleDocuments.add(document);
@@ -302,6 +304,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public Article createArticleForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody ArticleCreateInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
@@ -318,7 +321,7 @@ public class ChannelApi extends RestBehavior {
     articleDocuments.forEach(
         articleDocument -> {
           Optional<Document> doc =
-              this.documentRepository.forCurrentTenant().findById(articleDocument);
+              this.documentRepository.forOp(state).findById(articleDocument);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -343,6 +346,7 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public Article updateArticleForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
@@ -368,7 +372,7 @@ public class ChannelApi extends RestBehavior {
         .filter(doc -> !currentDocumentIds.contains(doc))
         .forEach(
             in -> {
-              Optional<Document> doc = documentRepository.forCurrentTenant().findById(in);
+              Optional<Document> doc = documentRepository.forOp(state).findById(in);
               if (doc.isPresent()) {
                 Document document = doc.get();
                 articleDocuments.add(document);

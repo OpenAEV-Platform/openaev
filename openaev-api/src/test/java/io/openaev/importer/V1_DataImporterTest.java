@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -80,6 +81,7 @@ class V1_DataImporterTest extends IntegrationTest {
   void testImportData() {
     // -- EXECUTE --
     this.importer.importData(
+        ExecState.of(TenantContext.getCurrentTenant()),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
@@ -120,6 +122,7 @@ class V1_DataImporterTest extends IntegrationTest {
                     "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
     this.importNode = mapper.readTree(jsonContent);
     this.importer.importData(
+        ExecState.of(TenantContext.getCurrentTenant()),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
@@ -148,6 +151,7 @@ class V1_DataImporterTest extends IntegrationTest {
     openaevInjectorIntegrationFactory.registerConnectorForTenant();
 
     this.importer.importData(
+        ExecState.of(TenantContext.getCurrentTenant()),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
     InjectorContract injectorContract2 =
@@ -175,6 +179,7 @@ class V1_DataImporterTest extends IntegrationTest {
                     "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
     this.importNode = mapper.readTree(jsonContent);
     this.importer.importData(
+        ExecState.of(TenantContext.getCurrentTenant()),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // dummy injector should be created with 1 associated injector contract
@@ -205,6 +210,7 @@ class V1_DataImporterTest extends IntegrationTest {
       String jsonContent = Files.readString(xtmScenariosFilePath);
       JsonNode importNode = mapper.readTree(jsonContent);
       this.importer.importData(
+          ExecState.of(TenantContext.getCurrentTenant()),
           importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     }
   }
@@ -247,6 +253,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- EXECUTE --
     this.importer.importData(
+        ExecState.of(TenantContext.getCurrentTenant()),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
@@ -284,6 +291,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- EXECUTE --
     this.importer.importData(
+        ExecState.of(TenantContext.getCurrentTenant()),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --

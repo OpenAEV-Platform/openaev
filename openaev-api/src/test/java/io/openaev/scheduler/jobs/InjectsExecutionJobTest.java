@@ -246,7 +246,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
     // Mock the email executor to capture the ExecutableInject
     io.openaev.executors.Injector mockEmailExecutor = mock(io.openaev.executors.Injector.class);
     Execution successExecution = new Execution(false);
-    when(mockEmailExecutor.executeInjection(any())).thenReturn(successExecution);
+    when(mockEmailExecutor.executeInjection(any(io.openaev.context.ExecState.class), any())).thenReturn(successExecution);
 
     Manager mockManager = mock(Manager.class);
     when(mockManager.requestEmailInjector()).thenReturn(mockEmailExecutor);
@@ -257,7 +257,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
     // -- ASSERT --
     ArgumentCaptor<ExecutableInject> captor = ArgumentCaptor.forClass(ExecutableInject.class);
-    verify(mockEmailExecutor).executeInjection(captor.capture());
+    verify(mockEmailExecutor).executeInjection(any(io.openaev.context.ExecState.class), captor.capture());
 
     Inject emailInject = captor.getValue().getInjection().getInject();
     assertNotNull(

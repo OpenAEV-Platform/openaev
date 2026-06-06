@@ -1,5 +1,6 @@
 package io.openaev.rest.inject.service;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.InjectRepository;
@@ -44,12 +45,13 @@ public class ScenarioInjectService {
 
   /** Updates an inject that belongs to the given scenario. */
   public InjectOutput updateInjectForScenario(
+      ExecState state,
       @NotBlank final String scenarioId,
       @NotBlank final String injectId,
       @NotNull InjectInput input) {
     checkInjectForScenario(scenarioId, injectId);
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    Inject inject = injectService.updateInject(injectId, input);
+    Inject inject = injectService.updateInject(state, injectId, input);
 
     // It should not be possible to add EE executor on inject when the scenario is already
     // scheduled.

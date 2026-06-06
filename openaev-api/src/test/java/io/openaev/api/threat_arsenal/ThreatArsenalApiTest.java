@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.collectors.utils.CollectorsUtils;
@@ -89,7 +90,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     collectorComposer.reset();
     EXECUTABLE_FILE =
         documentRepository
-            .forCurrentTenant()
+            .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
             .save(PayloadInputFixture.createDefaultExecutableFile());
   }
 
@@ -97,7 +98,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   void afterAll() {
     payloadRepository.deleteAll();
     if (EXECUTABLE_FILE != null) {
-      documentRepository.forCurrentTenant().deleteById(EXECUTABLE_FILE.getId());
+      documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).deleteById(EXECUTABLE_FILE.getId());
     }
     collectorRepository.deleteAll();
   }

@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
@@ -79,8 +80,9 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
+      ExecState state,
       @Valid @RequestBody AtomicTestingInput input) {
-    return this.atomicTestingService.createOrUpdate(input, null);
+    return this.atomicTestingService.createOrUpdate(state, input, null);
   }
 
   @PutMapping("/{injectId}")
@@ -90,9 +92,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
+      ExecState state,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
-    return atomicTestingService.createOrUpdate(input, injectId);
+    return atomicTestingService.createOrUpdate(state, input, injectId);
   }
 
   @DeleteMapping("/{injectId}")
@@ -236,11 +239,11 @@ public class AtomicTestingApi extends RestBehavior {
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
-      @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
+      ExecState state, @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    this.injectImportService.importInjectsForAtomicTestings(file);
+    this.injectImportService.importInjectsForAtomicTestings(state, file);
   }
 }

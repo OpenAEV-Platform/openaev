@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
@@ -68,12 +69,12 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackOn = Exception.class)
   public Challenge updateChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
+      ExecState state, @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(
-        fromIterable(documentRepository.forCurrentTenant().findAllById(input.documentIds())));
+        fromIterable(documentRepository.forOp(state).findAllById(input.documentIds())));
     challenge.setUpdateAttributes(input);
     challenge.setUpdatedAt(Instant.now());
     // Clear all flags
@@ -98,12 +99,12 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackOn = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
+  public Challenge createChallenge(ExecState state, @Valid @RequestBody ChallengeInput input) {
     Challenge challenge = new Challenge();
     challenge.setUpdateAttributes(input);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(
-        fromIterable(documentRepository.forCurrentTenant().findAllById(input.documentIds())));
+        fromIterable(documentRepository.forOp(state).findAllById(input.documentIds())));
     List<ChallengeFlag> challengeFlags =
         input.flags().stream()
             .map(

@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -160,8 +161,8 @@ class InjectApiTest extends IntegrationTest {
     Document document2 = new Document();
     document2.setName("Document 2");
     document2.setType("pdf");
-    DOCUMENT1 = documentRepository.forCurrentTenant().save(document1);
-    DOCUMENT2 = documentRepository.forCurrentTenant().save(document2);
+    DOCUMENT1 = documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document1);
+    DOCUMENT2 = documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document2);
 
     Team team = new Team();
     team.setName("team");
@@ -239,7 +240,7 @@ class InjectApiTest extends IntegrationTest {
         injectRepository.findByScenarioId(SCENARIO.getId()).isEmpty(),
         "There should be no injects for the scenario in the database");
     assertTrue(
-        documentRepository.forCurrentTenant().existsById(DOCUMENT2.getId()),
+        documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).existsById(DOCUMENT2.getId()),
         "The document should still exist in the database");
     assertTrue(
         injectExpectationRepository
@@ -612,7 +613,7 @@ class InjectApiTest extends IntegrationTest {
         injectRepository.findByExerciseId(EXERCISE.getId()).isEmpty(),
         "There should be no injects for the exercise in the database");
     assertTrue(
-        documentRepository.forCurrentTenant().existsById(DOCUMENT1.getId()),
+        documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).existsById(DOCUMENT1.getId()),
         "The document should still exist in the database");
     assertFalse(
         communicationRepository.existsById(createdCommunication.getId()),

@@ -3,6 +3,7 @@ package io.openaev.scheduler.jobs;
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
@@ -85,7 +86,9 @@ public class ScenarioExecutionJob implements Job {
             scenario -> {
               try {
                 TenantContext.setCurrentTenant(scenario.getTenant().getId());
+                ExecState state = ExecState.of(scenario.getTenant().getId());
                 this.scenarioToExerciseService.toExercise(
+                    state,
                     scenario,
                     scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
                     false);

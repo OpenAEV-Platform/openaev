@@ -46,7 +46,7 @@ public class V20260330_Default_tenant_data extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  protected boolean doProcess(io.openaev.context.ExecState state) {
     try {
       if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
         // Init vulnerabilities

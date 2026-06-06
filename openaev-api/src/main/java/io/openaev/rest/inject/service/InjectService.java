@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -703,7 +704,9 @@ public class InjectService {
   }
 
   public Inject updateInject(
-      @NotBlank final String injectId, @jakarta.validation.constraints.NotNull InjectInput input) {
+      ExecState state,
+      @NotBlank final String injectId,
+      @jakarta.validation.constraints.NotNull InjectInput input) {
     Inject inject =
         this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     // Managing case where input.dependsDuration is null, as the field is marked as NotNull
@@ -811,7 +814,7 @@ public class InjectService {
         .forEach(
             in -> {
               Optional<Document> doc =
-                  this.documentRepository.forCurrentTenant().findById(in.getDocumentId());
+                  this.documentRepository.forOp(state).findById(in.getDocumentId());
               if (doc.isPresent()) {
                 InjectDocument injectDocument = new InjectDocument();
                 injectDocument.setInject(inject);

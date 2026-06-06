@@ -74,7 +74,7 @@ public class ChallengeExecutor extends Injector {
 
   @Override
   public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection) {
     try {
       ChallengeContent content = contentConvert(injection, ChallengeContent.class);
       List<Challenge> challenges =
@@ -108,7 +108,7 @@ public class ChallengeExecutor extends Injector {
                 .filter(InjectDocument::isAttached)
                 .map(InjectDocument::getDocument)
                 .toList();
-        List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
+        List<DataAttachment> attachments = resolveAttachments(state, execution, injection, documents);
         String message =
             content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
         boolean encrypted = content.isEncrypted();

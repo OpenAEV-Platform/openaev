@@ -10,6 +10,7 @@ import io.openaev.database.repository.InjectTestStatusRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.InjectTestSpecification;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.context.ExecState;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.integration.ManagerFactory;
@@ -154,7 +155,8 @@ public class InjectTestStatusService {
             inject.getAssets(),
             inject.getAssetGroups(),
             List.of(userInjectContext));
-    Execution execution = executor.executeInjection(injection);
+    ExecState state = ExecState.of(inject.getTenant().getId());
+    Execution execution = executor.executeInjection(state, injection);
 
     InjectTestStatus injectTestStatus =
         this.injectTestStatusRepository

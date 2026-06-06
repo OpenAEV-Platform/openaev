@@ -49,7 +49,7 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  protected boolean doProcess(io.openaev.context.ExecState state) {
     try {
       tagService.ensureWellKnownTags();
       Set<TagRule> presetRules = tagRuleService.ensurePresetRules();

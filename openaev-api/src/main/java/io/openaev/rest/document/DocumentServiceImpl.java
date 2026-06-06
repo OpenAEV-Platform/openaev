@@ -48,13 +48,13 @@ public class DocumentServiceImpl implements DocumentServiceInternal {
 
   @Override
   public List<RawDocument> rawAllDocuments() {
-    return documentRepository.forCurrentTenant().rawAllDocuments();
+    return documentRepository.forOp(StateExecutionContext.get()).rawAllDocuments();
   }
 
   @Override
   public Document document(@NotBlank final String documentId) {
     return documentRepository
-        .forCurrentTenant()
+        .forOp(StateExecutionContext.get())
         .findById(documentId)
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
   }
@@ -70,7 +70,7 @@ public class DocumentServiceImpl implements DocumentServiceInternal {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
-    Optional<Document> targetDocument = documentRepository.forCurrentTenant().findByTarget(fileTarget);
+    Optional<Document> targetDocument = documentRepository.forOp(StateExecutionContext.get()).findByTarget(fileTarget);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -97,7 +97,7 @@ public class DocumentServiceImpl implements DocumentServiceInternal {
       document.setTags(tags);
       return save(document);
     } else {
-      Optional<Document> existingDocument = documentRepository.forCurrentTenant().findByName(fileName);
+      Optional<Document> existingDocument = documentRepository.forOp(StateExecutionContext.get()).findByName(fileName);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
@@ -200,7 +200,7 @@ public class DocumentServiceImpl implements DocumentServiceInternal {
           "Document is still in use for some payloads and cannot be deleted.");
     }
 
-    List<Document> documents = documentRepository.forCurrentTenant().removeById(documentId);
+    List<Document> documents = documentRepository.forOp(StateExecutionContext.get()).removeById(documentId);
 
     // Remove document from minio
     documents.forEach(
@@ -216,50 +216,50 @@ public class DocumentServiceImpl implements DocumentServiceInternal {
 
   @Override
   public List<Document> documentsForScenario(String scenarioId) {
-    return this.documentRepository.forCurrentTenant().findAllDistinctByScenarioId(scenarioId);
+    return this.documentRepository.forOp(StateExecutionContext.get()).findAllDistinctByScenarioId(scenarioId);
   }
 
   @Override
   public List<Document> documentsForSimulation(String simulationId) {
-    return this.documentRepository.forCurrentTenant().findAllDistinctBySimulationId(simulationId);
+    return this.documentRepository.forOp(StateExecutionContext.get()).findAllDistinctBySimulationId(simulationId);
   }
 
   @Override
   public List<RawDocument> documentsForChannel(@NotBlank String channelId) {
-    return this.documentRepository.forCurrentTenant().rawAllDocumentsByChannelId(channelId);
+    return this.documentRepository.forOp(StateExecutionContext.get()).rawAllDocumentsByChannelId(channelId);
   }
 
   @Override
   public List<RawDocument> documentsForSecurityPlatform(@NotBlank String securityPlatformId) {
     return this.documentRepository
-        .forCurrentTenant()
+        .forOp(StateExecutionContext.get())
         .rawAllDocumentsBySecurityPlatformId(securityPlatformId);
   }
 
   @Override
   public List<RawDocument> documentsForChallenge(@NotBlank String challengeId) {
-    return this.documentRepository.forCurrentTenant().rawAllDocumentsByChallengeId(challengeId);
+    return this.documentRepository.forOp(StateExecutionContext.get()).rawAllDocumentsByChallengeId(challengeId);
   }
 
   @Override
   public List<RawDocument> documentsForPayload(@NotBlank String payloadId) {
-    return this.documentRepository.forCurrentTenant().rawAllDocumentsByPayloadId(payloadId);
+    return this.documentRepository.forOp(StateExecutionContext.get()).rawAllDocumentsByPayloadId(payloadId);
   }
 
   @Override
   public List<Document> findAllDistinctOnInjectsByScenarioId(@NotBlank String scenarioId) {
     return this.documentRepository
-        .forCurrentTenant()
+        .forOp(StateExecutionContext.get())
         .findAllDistinctOnInjectsByScenarioId(scenarioId);
   }
 
   @Override
   public boolean documentExists(String documentId) {
-    return this.documentRepository.forCurrentTenant().existsById(documentId);
+    return this.documentRepository.forOp(StateExecutionContext.get()).existsById(documentId);
   }
 
   @Override
   public Document save(Document document) {
-    return documentRepository.forCurrentTenant().save(document);
+    return documentRepository.forOp(StateExecutionContext.get()).save(document);
   }
 }

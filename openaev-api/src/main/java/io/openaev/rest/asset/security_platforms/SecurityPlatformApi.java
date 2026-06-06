@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -54,19 +55,19 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
-      @Valid @RequestBody final SecurityPlatformInput input) {
+      ExecState state, @Valid @RequestBody final SecurityPlatformInput input) {
     SecurityPlatform securityPlatform = new SecurityPlatform();
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
     if (input.getLogoDark() != null) {
       securityPlatform.setLogoDark(
-          documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+          documentRepository.forOp(state).findById(input.getLogoDark()).orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
       securityPlatform.setLogoLight(
-          documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
+          documentRepository.forOp(state).findById(input.getLogoLight()).orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }
@@ -78,7 +79,7 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
-      @Valid @RequestBody SecurityPlatformUpsertInput input) {
+      ExecState state, @Valid @RequestBody SecurityPlatformUpsertInput input) {
     Optional<SecurityPlatform> securityPlatform =
         securityPlatformRepository.findByExternalReference(input.getExternalReference());
     if (securityPlatform.isPresent()) {
@@ -87,13 +88,13 @@ public class SecurityPlatformApi {
       existingSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
       if (input.getLogoDark() != null) {
         existingSecurityPlatform.setLogoDark(
-            documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+            documentRepository.forOp(state).findById(input.getLogoDark()).orElse(null));
       } else {
         existingSecurityPlatform.setLogoDark(null);
       }
       if (input.getLogoLight() != null) {
         existingSecurityPlatform.setLogoLight(
-            documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
+            documentRepository.forOp(state).findById(input.getLogoLight()).orElse(null));
       } else {
         existingSecurityPlatform.setLogoLight(null);
       }
@@ -106,13 +107,13 @@ public class SecurityPlatformApi {
       newSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
       if (input.getLogoDark() != null) {
         newSecurityPlatform.setLogoDark(
-            documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+            documentRepository.forOp(state).findById(input.getLogoDark()).orElse(null));
       } else {
         newSecurityPlatform.setLogoDark(null);
       }
       if (input.getLogoLight() != null) {
         newSecurityPlatform.setLogoLight(
-            documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
+            documentRepository.forOp(state).findById(input.getLogoLight()).orElse(null));
       } else {
         newSecurityPlatform.setLogoLight(null);
       }
@@ -154,6 +155,7 @@ public class SecurityPlatformApi {
       resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform updateSecurityPlatform(
+      ExecState state,
       @PathVariable @NotBlank final String securityPlatformId,
       @Valid @RequestBody final SecurityPlatformInput input) {
     SecurityPlatform securityPlatform =
@@ -161,13 +163,13 @@ public class SecurityPlatformApi {
     securityPlatform.setUpdateAttributes(input);
     if (input.getLogoDark() != null) {
       securityPlatform.setLogoDark(
-          documentRepository.forCurrentTenant().findById(input.getLogoDark()).orElse(null));
+          documentRepository.forOp(state).findById(input.getLogoDark()).orElse(null));
     } else {
       securityPlatform.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
       securityPlatform.setLogoLight(
-          documentRepository.forCurrentTenant().findById(input.getLogoLight()).orElse(null));
+          documentRepository.forOp(state).findById(input.getLogoLight()).orElse(null));
     } else {
       securityPlatform.setLogoLight(null);
     }

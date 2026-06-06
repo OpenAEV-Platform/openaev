@@ -60,7 +60,7 @@ public class ManualExecutorTest extends IntegrationTest {
     when(mapper.treeToValue(content, ManualContent.class)).thenReturn(manualContent);
 
     ManualExecutor executor = new ManualExecutor(injectorContext, injectExpectationService);
-    executor.process(execution, executableInject);
+    executor.process(io.openaev.context.ExecState.of("tenant"), execution, executableInject);
 
     // verify that the expectations are saved
     verify(injectExpectationService)

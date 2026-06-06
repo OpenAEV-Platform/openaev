@@ -13,6 +13,7 @@ import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -118,7 +119,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
 
     // Document
     Document document = getDocumentJpeg();
-    Document documentSaved = this.documentRepository.forCurrentTenant().save(document);
+    Document documentSaved = this.documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document);
     scenario.setDocuments(
         new ArrayList<>() {
           {
@@ -132,7 +133,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     documentArticle.setName(documentArticleName);
     documentArticle.setType("image/jpeg");
     Document documentArticleSaved =
-        this.documentRepository.forCurrentTenant().save(documentArticle);
+        this.documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(documentArticle);
     Channel channel = new Channel();
     channel.setName("A channel");
     Channel channelSaved = this.channelRepository.save(channel);
@@ -227,7 +228,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
                   return s;
                 }));
     // -- EXECUTE --
-    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false);
+    Exercise exercise = this.scenarioToExerciseService.toExercise(ExecState.of(TenantContext.getCurrentTenant()), scenario, null, false);
     String exerciseId = exercise.getId();
     entityManager.flush();
     entityManager.clear();

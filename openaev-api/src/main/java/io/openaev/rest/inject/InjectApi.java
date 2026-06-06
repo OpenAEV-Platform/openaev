@@ -12,6 +12,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -143,6 +144,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/search/export", TENANT_INJECT_URI + "/search/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
+      ExecState state,
       @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
       throws IOException {
 
@@ -155,6 +157,7 @@ public class InjectApi extends RestBehavior {
     }
 
     runInjectExport(
+        state,
         injects,
         ExportOptions.mask(
             input.getExportOptions().isWithPlayers(),
@@ -166,6 +169,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/export", TENANT_INJECT_URI + "/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
+      ExecState state,
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
       HttpServletResponse response)
       throws IOException {
@@ -194,7 +198,7 @@ public class InjectApi extends RestBehavior {
             injectExportRequestInput.getExportOptions().isWithPlayers(),
             injectExportRequestInput.getExportOptions().isWithTeams(),
             injectExportRequestInput.getExportOptions().isWithVariableValues());
-    runInjectExport(injects, exportOptionsMask, response);
+    runInjectExport(state, injects, exportOptionsMask, response);
   }
 
   @Operation(summary = "Export an inject")
@@ -212,6 +216,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
+      ExecState state,
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
           final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
@@ -224,13 +229,13 @@ public class InjectApi extends RestBehavior {
             injectIndividualExportRequestInput.getExportOptions().isWithPlayers(),
             injectIndividualExportRequestInput.getExportOptions().isWithTeams(),
             injectIndividualExportRequestInput.getExportOptions().isWithVariableValues());
-    runInjectExport(List.of(inject), exportOptionsMask, response);
+    runInjectExport(state, List.of(inject), exportOptionsMask, response);
   }
 
   private void runInjectExport(
-      List<Inject> injects, int exportOptionsMask, HttpServletResponse response)
+      ExecState state, List<Inject> injects, int exportOptionsMask, HttpServletResponse response)
       throws IOException {
-    byte[] zippedExport = injectExportService.exportInjectsToZip(injects, exportOptionsMask);
+    byte[] zippedExport = injectExportService.exportInjectsToZip(state, injects, exportOptionsMask);
     String zipName = injectExportService.getZipFileName(exportOptionsMask);
 
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
@@ -477,6 +482,7 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
+      ExecState state,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
@@ -484,7 +490,7 @@ public class InjectApi extends RestBehavior {
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    Inject inject = injectService.updateInject(injectId, input);
+    Inject inject = injectService.updateInject(state, injectId, input);
 
     // It should not be possible to add a EE executor on inject when the exercise is already
     // started.

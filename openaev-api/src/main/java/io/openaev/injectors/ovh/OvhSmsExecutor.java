@@ -42,7 +42,7 @@ public class OvhSmsExecutor extends Injector {
 
   @Override
   public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     OvhSmsContent content = contentConvert(injection, OvhSmsContent.class);
