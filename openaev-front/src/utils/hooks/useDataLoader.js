@@ -89,6 +89,11 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       clearInterval(autoReConnectIntervalId);
       autoReConnectIntervalId = undefined;
     }
+    // Reset the ping clock for the fresh connection. Otherwise a stale
+    // lastPingDate (e.g. after all listeners unmounted for a while and later
+    // remounted) would make the autoReConnect check fire immediately and loop
+    // before the first ping of the new connection arrives.
+    lastPingDate = new Date().getTime();
     sseClient = new EventSource(buildUri('/api/stream'), { withCredentials: true });
     autoReConnectIntervalId = setInterval(() => {
       if (listeners.size === 0) {

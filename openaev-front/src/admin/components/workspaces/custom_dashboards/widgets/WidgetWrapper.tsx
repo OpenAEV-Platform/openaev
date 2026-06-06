@@ -106,7 +106,8 @@ const WidgetWrapper = ({
       const params = buildParams(customDashboardParameters);
       const config = widgetConfig[widget.widget_type] ?? defaultConfig;
 
-      await config.fetchFn(widget.widget_id, params, pagination).then((response) => {
+      try {
+        const response = await config.fetchFn(widget.widget_id, params, pagination);
         if (!isMountedRef.current) return;
         if (response.data) {
           setVizData({
@@ -116,10 +117,10 @@ const WidgetWrapper = ({
               : response.data,
           } as WidgetVizData);
         }
-      }).catch((error) => {
+      } catch (error) {
         if (!isMountedRef.current) return;
-        setErrorMessage(error.message);
-      });
+        setErrorMessage((error as Error).message);
+      }
     },
     [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig],
   );
