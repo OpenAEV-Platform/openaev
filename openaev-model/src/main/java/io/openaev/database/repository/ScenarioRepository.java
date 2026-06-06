@@ -170,7 +170,10 @@ public interface ScenarioRepository
               + "scenario_users AS ( "
               + "  SELECT scenario_id, "
               + "         COUNT(DISTINCT user_id) AS scenario_users_number, "
-              + "         json_agg(DISTINCT stu.*) FILTER (WHERE stu IS NOT NULL) AS scenario_teams_users "
+              // json_agg(stu) is semantically identical to json_agg(stu.*) in PostgreSQL.
+              // The stu.* wildcard inside aggregate function arguments is not supported by
+              // JSQLParser.
+              + "         json_agg(stu) FILTER (WHERE stu.user_id IS NOT NULL) AS scenario_teams_users "
               + "  FROM scenarios_teams_users stu "
               + "  WHERE scenario_id = :scenarioId "
               + "  GROUP BY scenario_id "
@@ -184,7 +187,8 @@ public interface ScenarioRepository
               + "), "
               + "kill_chain AS ( "
               + "  SELECT i.inject_scenario AS scenario_id, "
-              + "         json_agg(DISTINCT kcp.*) FILTER (WHERE kcp IS NOT NULL) AS scenario_kill_chain_phases "
+              // json_agg(kcp) is semantically identical to json_agg(kcp.*) in PostgreSQL.
+              + "         json_agg(kcp) FILTER (WHERE kcp.phase_id IS NOT NULL) AS scenario_kill_chain_phases "
               + "  FROM injects i "
               + "  JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
               + "  JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
@@ -227,7 +231,11 @@ public interface ScenarioRepository
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN tags tg ON tg.scenario_id = s.scenario_id "
               + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
-              + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",
+              // Tenant filter is automatically injected by TenantStatementInspector at the JDBC
+              // level.
+              // The :#{#tenantContext.currentTenant} SpEL expression is removed: it uses the old
+              // TenantContext pattern and is not parseable by JSQLParser.
+              + "WHERE s.scenario_id = :scenarioId",
       nativeQuery = true)
   RawScenario getScenarioByIdAndTenantId(@Param("scenarioId") final String scenarioId);
 

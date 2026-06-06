@@ -4,7 +4,7 @@ import static io.openaev.config.SessionHelper.ANONYMOUS_USER;
 import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.context.OperationState;
+import io.openaev.context.ExecState;
 import io.openaev.rest.exception.TenantAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
@@ -20,21 +20,21 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 import org.springframework.web.servlet.HandlerMapping;
 
 /**
- * Spring MVC argument resolver that injects an {@link OperationState} into any controller method
- * that declares it as a parameter.
+ * Spring MVC argument resolver that injects an {@link ExecState} into any controller method that
+ * declares it as a parameter.
  *
  * <p>For tenant-scoped requests ({@code /api/tenants/{tenantId}/**}), extracts the tenant ID from
  * the URL path variable and validates that the authenticated user belongs to that tenant.
  *
- * <p>For non-tenant requests (e.g. admin routes), returns an {@link OperationState} with a null
- * tenant ID — callers must handle this case explicitly.
+ * <p>For non-tenant requests (e.g. admin routes), returns an {@link ExecState} with a null tenant
+ * ID — callers must handle this case explicitly.
  *
  * <p>Usage in a controller:
  *
  * <pre>{@code
  * @GetMapping({"/api/documents", "/api/tenants/{tenantId}/documents"})
- * public List<RawDocument> documents(OperationState operationState) {
- *     return documentRepository.forCurrentTenant().rawAllDocuments(operationState.tenantId());
+ * public List<RawDocument> documents(OperationState state) {
+ *     return documentRepository.forCurrentTenant().rawAllDocuments(state.tenantId());
  * }
  * }</pre>
  */
@@ -46,7 +46,7 @@ public class OperationStateArgumentResolver implements HandlerMethodArgumentReso
 
   @Override
   public boolean supportsParameter(MethodParameter parameter) {
-    return OperationState.class.equals(parameter.getParameterType());
+    return ExecState.class.equals(parameter.getParameterType());
   }
 
   @Override
@@ -63,7 +63,7 @@ public class OperationStateArgumentResolver implements HandlerMethodArgumentReso
 
     if (pathVariables == null || !pathVariables.containsKey(TENANT_ID_PATH_VARIABLE)) {
       // Non-tenant route (admin, public, etc.) — no tenant context
-      return OperationState.empty();
+      return ExecState.empty();
     }
 
     String tenantId = pathVariables.get(TENANT_ID_PATH_VARIABLE);
@@ -79,6 +79,6 @@ public class OperationStateArgumentResolver implements HandlerMethodArgumentReso
       }
     }
 
-    return OperationState.of(tenantId);
+    return ExecState.of(tenantId);
   }
 }

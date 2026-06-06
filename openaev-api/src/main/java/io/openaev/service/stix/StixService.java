@@ -1,5 +1,6 @@
 package io.openaev.service.stix;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Scenario;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.stix.error.BundleValidationError;
@@ -28,21 +29,21 @@ public class StixService {
    * @param stixJson string form of the provided stix bundle
    * @return Scenario
    */
-  public Scenario processBundle(String stixJson, String tenantId)
+  public Scenario processBundle(ExecState state, String stixJson, String tenantId)
       throws IOException, ParsingException, ConnectorError, BundleValidationError {
     Bundle bundle = stixParser.parseBundle(stixJson);
 
-    return processSecurityCoverage(bundle, tenantId);
+    return processSecurityCoverage(state, bundle, tenantId);
   }
 
-  private Scenario processSecurityCoverage(Bundle bundle, String tenantId)
+  private Scenario processSecurityCoverage(ExecState state, Bundle bundle, String tenantId)
       throws BundleValidationError, ParsingException, ConnectorError, IOException {
     ObjectBase securityCoverageObj = securityCoverageUtils.extractAndValidateCoverage(bundle);
     String securityCoverageStixId =
         securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
 
     return securityCoverageService.handleSecurityCoverageProcessing(
-        securityCoverageStixId, securityCoverageObj, bundle, tenantId);
+        state, securityCoverageStixId, securityCoverageObj, bundle, tenantId);
   }
 
   /**

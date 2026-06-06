@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -99,13 +100,17 @@ public class SecurityCoverageService {
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
   @Transactional(rollbackFor = Exception.class)
   public Scenario handleSecurityCoverageProcessing(
-      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle, String tenantId)
+      ExecState state,
+      String securityCoverageStixId,
+      ObjectBase securityCoverageObj,
+      Bundle bundle,
+      String tenantId)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
     String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
 
     SecurityCoverage securityCoverage =
         buildSecurityCoverageFromStix(
-            securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
+            state, securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
     Scenario scenario = buildScenarioFromSecurityCoverage(securityCoverage);
 
     // FIXME: extract this behaviour into an async worker
@@ -126,6 +131,7 @@ public class SecurityCoverageService {
    * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    */
   private SecurityCoverage buildSecurityCoverageFromStix(
+      ExecState state,
       ObjectBase stixCoverageObj,
       Bundle bundle,
       String externalId,
@@ -192,22 +198,22 @@ public class SecurityCoverageService {
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
         securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.ATTACK_PATTERN), tenantId));
+            state, bundle.findByType(ObjectTypes.ATTACK_PATTERN), tenantId));
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
         securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.VULNERABILITY), tenantId));
+            state, bundle.findByType(ObjectTypes.VULNERABILITY), tenantId));
 
     // Extract indicators
     securityCoverage.setIndicatorsRefs(
         securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.INDICATOR), tenantId));
+            state, bundle.findByType(ObjectTypes.INDICATOR), tenantId));
 
     // Extract artifacts
     securityCoverage.setArtifactsRefs(
         securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.ARTIFACT), tenantId));
+            state, bundle.findByType(ObjectTypes.ARTIFACT), tenantId));
 
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");

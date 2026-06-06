@@ -3,7 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.OperationState;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -90,11 +90,11 @@ public class PayloadUpsertService {
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(
           documentService.document(
-              OperationState.of(TenantContext.getCurrentTenant()), input.getExecutableFile()));
+              ExecState.of(TenantContext.getCurrentTenant()), input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
       fileDrop.setFileDropFile(
           documentService.document(
-              OperationState.of(TenantContext.getCurrentTenant()), input.getFileDropFile()));
+              ExecState.of(TenantContext.getCurrentTenant()), input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);
@@ -143,11 +143,11 @@ public class PayloadUpsertService {
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(
           documentService.document(
-              OperationState.of(TenantContext.getCurrentTenant()), input.getExecutableFile()));
+              ExecState.of(TenantContext.getCurrentTenant()), input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
       fileDrop.setFileDropFile(
           documentService.document(
-              OperationState.of(TenantContext.getCurrentTenant()), input.getFileDropFile()));
+              ExecState.of(TenantContext.getCurrentTenant()), input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);

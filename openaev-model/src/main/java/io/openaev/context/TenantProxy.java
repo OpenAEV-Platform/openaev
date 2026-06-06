@@ -11,18 +11,18 @@ import java.util.List;
  *
  * <p>Each repository exposes a {@code forTenant(OperationState)} factory method backed by this
  * utility. The caller <em>cannot</em> invoke any repository method without providing an {@link
- * OperationState} — enforced at compile time:
+ * ExecState} — enforced at compile time:
  *
  * <pre>{@code
  * // compile error — DocumentRepository no longer exposes JPA methods directly
  * documentRepository.findById(id);
  *
  * // correct — tenant context is set automatically for every call
- * documentRepository.forTenant(operationState).findById(id);
+ * documentRepository.forTenant(state).findById(id);
  *
  * // also correct in parallel — each call scopes its own thread
  * ids.parallelStream()
- *    .map(id -> documentRepository.forTenant(operationState).findById(id))
+ *    .map(id -> documentRepository.forTenant(state).findById(id))
  *    .toList();
  * }</pre>
  *
@@ -60,7 +60,7 @@ public final class TenantProxy {
    * @return a proxy that sets {@link TenantExecutionContext} around every method call
    */
   @SuppressWarnings("unchecked")
-  public static <T> T of(T delegate, Class<T> iface, OperationState op) {
+  public static <T> T of(T delegate, Class<T> iface, ExecState op) {
     return (T)
         Proxy.newProxyInstance(
             iface.getClassLoader(),
@@ -79,7 +79,7 @@ public final class TenantProxy {
                 if (previous == null) {
                   TenantExecutionContext.clear();
                 } else {
-                  TenantExecutionContext.set(new OperationState(previous));
+                  TenantExecutionContext.set(new ExecState(previous));
                 }
               }
             });

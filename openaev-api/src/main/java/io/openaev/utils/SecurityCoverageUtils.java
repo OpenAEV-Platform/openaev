@@ -2,6 +2,7 @@ package io.openaev.utils;
 
 import static io.openaev.utils.constants.StixConstants.*;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.opencti.service.OpenCTIService;
@@ -67,7 +68,7 @@ public class SecurityCoverageUtils {
    * @return a set of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
   public Set<StixRefToExternalRef> extractObjectReferences(
-      List<ObjectBase> objects, final String tenantId) {
+      ExecState state, List<ObjectBase> objects, final String tenantId) {
     Set<StixRefToExternalRef> stixToRef = new HashSet<>();
 
     for (ObjectBase obj : objects) {
@@ -113,7 +114,7 @@ public class SecurityCoverageUtils {
             && filesValue instanceof io.openaev.stix.types.List<?> filesList) {
           List<String> documentIds =
               getAllDocumentIdsFromFiles(
-                  (io.openaev.stix.types.List<Dictionary>) filesList, tenantId);
+                  state, (io.openaev.stix.types.List<Dictionary>) filesList, tenantId);
           manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
         }
         continue;
@@ -184,7 +185,7 @@ public class SecurityCoverageUtils {
   }
 
   private List<String> getAllDocumentIdsFromFiles(
-      io.openaev.stix.types.List<Dictionary> filesList, final String tenantId) {
+      ExecState state, io.openaev.stix.types.List<Dictionary> filesList, final String tenantId) {
     return filesList.getValue().stream()
         .filter(
             file ->
@@ -195,6 +196,7 @@ public class SecurityCoverageUtils {
             file -> {
               Document document =
                   openCtiService.downloadAndSaveFile(
+                      state,
                       (String) file.get(CommonProperties.URI.toString()).getValue(),
                       (String) file.get(CommonProperties.NAME.toString()).getValue(),
                       (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue(),

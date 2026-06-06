@@ -54,8 +54,8 @@ public final class TenantExecutionContext {
    * finally block. Prefer {@link #run} for narrow-window scoping — use this only from the
    * interceptor or from job schedulers that manage their own lifecycle.
    */
-  public static void set(OperationState operationState) {
-    CURRENT_TENANTS.set(operationState.tenantIds());
+  public static void set(ExecState state) {
+    CURRENT_TENANTS.set(state.tenantIds());
   }
 
   /**
@@ -74,10 +74,10 @@ public final class TenantExecutionContext {
    * Executes the given supplier within a narrow tenant scope. Saves and restores any previously
    * active tenant context (safe to nest, e.g. parallel call inside an HTTP request).
    */
-  public static <T> T run(OperationState operationState, Supplier<T> task) {
+  public static <T> T run(ExecState state, Supplier<T> task) {
     List<String> previous = CURRENT_TENANTS.get();
     try {
-      CURRENT_TENANTS.set(operationState.tenantIds());
+      CURRENT_TENANTS.set(state.tenantIds());
       return task.get();
     } finally {
       if (previous == null) {
@@ -92,10 +92,10 @@ public final class TenantExecutionContext {
    * Executes the given runnable within a narrow tenant scope. Saves and restores any previously
    * active tenant context.
    */
-  public static void run(OperationState operationState, Runnable task) {
+  public static void run(ExecState state, Runnable task) {
     List<String> previous = CURRENT_TENANTS.get();
     try {
-      CURRENT_TENANTS.set(operationState.tenantIds());
+      CURRENT_TENANTS.set(state.tenantIds());
       task.run();
     } finally {
       if (previous == null) {

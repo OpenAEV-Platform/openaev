@@ -29,7 +29,7 @@ public class MvcConfig implements WebMvcConfigurer {
 
   @Resource private ObjectMapper objectMapper;
   @Resource private TenantInterceptor tenantInterceptor;
-  @Resource private OperationStateArgumentResolver operationStateArgumentResolver;
+  @Resource private OperationStateArgumentResolver stateArgumentResolver;
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
@@ -38,7 +38,7 @@ public class MvcConfig implements WebMvcConfigurer {
 
   @Override
   public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-    resolvers.add(operationStateArgumentResolver);
+    resolvers.add(stateArgumentResolver);
   }
 
   @Bean

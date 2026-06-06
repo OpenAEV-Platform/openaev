@@ -26,11 +26,11 @@ import java.util.List;
  * <p>Never stored in a static field or ThreadLocal — passed explicitly and consumed via {@link
  * TenantExecutionContext#run}.
  */
-public record OperationState(List<String> tenantIds) {
+public record ExecState(List<String> tenantIds) {
 
   /** Represents an operation with no tenant scope (admin / system context). */
-  public static OperationState empty() {
-    return new OperationState(List.of());
+  public static ExecState empty() {
+    return new ExecState(List.of());
   }
 
   /**
@@ -38,8 +38,8 @@ public record OperationState(List<String> tenantIds) {
    *
    * @param tenantId the tenant identifier extracted from the URL
    */
-  public static OperationState of(String tenantId) {
-    return new OperationState(tenantId == null ? List.of() : List.of(tenantId));
+  public static ExecState of(String tenantId) {
+    return new ExecState(tenantId == null ? List.of() : List.of(tenantId));
   }
 
   /**
@@ -47,8 +47,8 @@ public record OperationState(List<String> tenantIds) {
    *
    * @param tenantIds effective set of tenants the current principal can access
    */
-  public static OperationState of(List<String> tenantIds) {
-    return new OperationState(tenantIds == null ? List.of() : List.copyOf(tenantIds));
+  public static ExecState of(List<String> tenantIds) {
+    return new ExecState(tenantIds == null ? List.of() : List.copyOf(tenantIds));
   }
 
   /**

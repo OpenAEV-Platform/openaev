@@ -1,6 +1,6 @@
 package io.openaev.config;
 
-import io.openaev.context.OperationState;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantExecutionContext;
 import java.util.Arrays;
 import java.util.List;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * AOP aspect that automatically sets the {@link TenantExecutionContext} for any {@code @Service}
- * method that declares an {@link OperationState} parameter.
+ * method that declares an {@link ExecState} parameter.
  *
  * <h3>Why AOP instead of explicit {@code TenantExecutionContext.run()} calls</h3>
  *
@@ -25,14 +25,14 @@ import org.springframework.stereotype.Component;
  *   <li>Cannot be enforced by the compiler
  * </ul>
  *
- * <p>With this aspect, the contract is simple: <em>declare {@link OperationState} as a method
- * parameter and the tenant context is set automatically</em>. This works correctly for parallel
- * streams because each invocation goes through the Spring proxy on its own thread:
+ * <p>With this aspect, the contract is simple: <em>declare {@link ExecState} as a method parameter
+ * and the tenant context is set automatically</em>. This works correctly for parallel streams
+ * because each invocation goes through the Spring proxy on its own thread:
  *
  * <pre>{@code
  * // No TenantExecutionContext.run() needed — works correctly in parallel
  * ids.parallelStream()
- *    .map(id -> documentService.document(operationState, id))
+ *    .map(id -> documentService.document(state, id))
  *    .toList();
  * }</pre>
  *
@@ -53,15 +53,15 @@ import org.springframework.stereotype.Component;
 public class TenantContextAspect {
 
   /**
-   * Intercepts any method on a {@code @Service} bean that has at least one {@link OperationState}
+   * Intercepts any method on a {@code @Service} bean that has at least one {@link ExecState}
    * parameter. Sets the tenant context from that parameter for the duration of the method call,
    * saving and restoring any previously active context (safe to nest).
    */
   @Around("@within(org.springframework.stereotype.Service)")
   public Object propagateTenantContext(ProceedingJoinPoint joinPoint) throws Throwable {
-    OperationState operationState = findOperationState(joinPoint.getArgs());
+    ExecState state = findOperationState(joinPoint.getArgs());
 
-    if (operationState == null || !operationState.hasTenant()) {
+    if (state == null || !state.hasTenant()) {
       // No OperationState in args, or empty tenant list — proceed without modifying context
       return joinPoint.proceed();
     }
@@ -69,22 +69,22 @@ public class TenantContextAspect {
     // Save any previously active context (e.g. when a service calls another service)
     List<String> previous = TenantExecutionContext.get();
     try {
-      TenantExecutionContext.set(operationState);
+      TenantExecutionContext.set(state);
       return joinPoint.proceed();
     } finally {
       if (previous == null) {
         TenantExecutionContext.clear();
       } else {
-        TenantExecutionContext.set(new OperationState(previous));
+        TenantExecutionContext.set(new ExecState(previous));
       }
     }
   }
 
-  private OperationState findOperationState(Object[] args) {
+  private ExecState findOperationState(Object[] args) {
     if (args == null) return null;
     return Arrays.stream(args)
-        .filter(arg -> arg instanceof OperationState)
-        .map(OperationState.class::cast)
+        .filter(arg -> arg instanceof ExecState)
+        .map(ExecState.class::cast)
         .findFirst()
         .orElse(null);
   }

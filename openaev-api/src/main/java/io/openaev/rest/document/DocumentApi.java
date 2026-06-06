@@ -11,7 +11,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.OperationState;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -96,14 +96,13 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document uploadDocument(
-      OperationState operationState,
+      ExecState state,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
-    Optional<Document> targetDocument =
-        documentRepository.forTenant(operationState).findByTarget(fileTarget);
+    Optional<Document> targetDocument = documentRepository.forOp(state).findByTarget(fileTarget);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -152,10 +151,12 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document upsertDocument(
+      ExecState state,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
     return documentService.upsert(
+        state,
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
@@ -165,19 +166,18 @@ public class DocumentApi extends RestBehavior {
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
-  public List<RawDocument> documents(OperationState operationState) {
-    return documentService.rawAllDocuments(operationState);
+  public List<RawDocument> documents(ExecState state) {
+    return documentService.rawAllDocuments(state);
   }
 
   @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
-      OperationState operationState,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      ExecState state, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     return buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
-                this.documentRepository.forTenant(operationState).findAll(specification, pageable),
+                this.documentRepository.forOp(state).findAll(specification, pageable),
             searchPaginationInput,
             Document.class)
         .map(
@@ -194,8 +194,8 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public Document document(OperationState operationState, @PathVariable String documentId) {
-    return documentService.document(operationState, documentId);
+  public Document document(ExecState state, @PathVariable String documentId) {
+    return documentService.document(state, documentId);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -203,10 +203,10 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public Set<Tag> documentTags(OperationState operationState, @PathVariable String documentId) {
+  public Set<Tag> documentTags(ExecState state, @PathVariable String documentId) {
     Document document =
         documentRepository
-            .forTenant(operationState)
+            .forOp(state)
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     return document.getTags();
@@ -218,12 +218,10 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
-      OperationState operationState,
-      @PathVariable String documentId,
-      @RequestBody DocumentTagUpdateInput input) {
+      ExecState state, @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
     Document document =
         documentRepository
-            .forTenant(operationState)
+            .forOp(state)
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -237,12 +235,12 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
-      OperationState operationState,
+      ExecState state,
       @PathVariable String documentId,
       @Valid @RequestBody DocumentUpdateInput input) {
     Document document =
         documentRepository
-            .forTenant(operationState)
+            .forOp(state)
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setUpdateAttributes(input);
@@ -301,9 +299,10 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public void downloadDocument(@PathVariable String documentId, HttpServletResponse response)
+  public void downloadDocument(
+      ExecState state, @PathVariable String documentId, HttpServletResponse response)
       throws IOException {
-    Document document = documentService.document(documentId);
+    Document document = documentService.document(state, documentId);
 
     String encodedFilename = DocumentService.encodeFileName(document.getName());
 
@@ -435,16 +434,19 @@ public class DocumentApi extends RestBehavior {
       })
   @AccessControl(skipRBAC = true)
   public void getSecurityPlatformImageFromId(
-      @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
+      ExecState state,
+      @PathVariable String assetId,
+      @PathVariable String theme,
+      HttpServletResponse response)
       throws IOException {
     SecurityPlatform securityPlatform =
         this.securityPlatformRepository
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      downloadDocument(securityPlatform.getLogoDark().getId(), response);
+      downloadDocument(state, securityPlatform.getLogoDark().getId(), response);
     } else if (securityPlatform.getLogoLight() != null) {
-      downloadDocument(securityPlatform.getLogoLight().getId(), response);
+      downloadDocument(state, securityPlatform.getLogoLight().getId(), response);
     } else {
       downloadCollectorImage("openaev_fake_detector", response);
     }
@@ -466,14 +468,17 @@ public class DocumentApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Channel not found")
       })
   public void getChannelImageFromId(
-      @PathVariable String channelId, @PathVariable String theme, HttpServletResponse response)
+      ExecState state,
+      @PathVariable String channelId,
+      @PathVariable String theme,
+      HttpServletResponse response)
       throws IOException {
     Channel channel = channelService.channel(channelId);
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      downloadDocument(channel.getLogoDark().getId(), response);
+      downloadDocument(state, channel.getLogoDark().getId(), response);
     } else if (channel.getLogoLight() != null) {
-      downloadDocument(channel.getLogoLight().getId(), response);
+      downloadDocument(state, channel.getLogoLight().getId(), response);
     } else {
       downloadCollectorImage("openaev_fake_detector", response);
     }
@@ -537,8 +542,9 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public DocumentRelationsOutput getDocumentRelations(@PathVariable String documentId) {
-    return toDocumentRelationsOutput(documentService.document(documentId));
+  public DocumentRelationsOutput getDocumentRelations(
+      ExecState state, @PathVariable String documentId) {
+    return toDocumentRelationsOutput(documentService.document(state, documentId));
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -547,8 +553,8 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
-  public void deleteDocument(OperationState operationState, @PathVariable String documentId) {
-    documentService.deleteDocument(operationState, documentId);
+  public void deleteDocument(ExecState state, @PathVariable String documentId) {
+    documentService.deleteDocument(state, documentId);
   }
 
   // -- EXERCISE & SENARIO--

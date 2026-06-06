@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Document;
 import io.openaev.database.raw.RawDocument;
 import jakarta.validation.constraints.NotNull;
@@ -18,9 +19,8 @@ import org.springframework.stereotype.Repository;
  * Internal Spring Data JPA interface for {@link Document} persistence.
  *
  * <p><strong>Do not inject this interface directly.</strong> Use {@link DocumentRepository}
- * instead, which enforces tenant scoping via {@link
- * DocumentRepository#forTenant(io.openaev.context.OperationState)}. Injecting this interface
- * bypasses tenant isolation.
+ * instead, which enforces tenant scoping via {@link DocumentRepository#forOp(ExecState)}. Injecting
+ * this interface bypasses tenant isolation.
  */
 @Repository
 public interface DocumentJpaRepository

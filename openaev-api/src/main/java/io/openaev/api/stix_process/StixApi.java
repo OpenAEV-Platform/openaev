@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -60,14 +61,15 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
+  public ResponseEntity<?> processBundle(ExecState state, @RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
     String tenantId = TenantContext.getCurrentTenant();
     try {
       openCTIService.acknowledgeReceivedOfCoverage(
           ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId);
+      Scenario scenario =
+          stixService.processBundle(state, ctiEvent.getEvent().getStixObjects(), tenantId);
 
       openCTIService.acknowledgeProcessedOfCoverage(
           ctiEvent.getInternal().getWorkId(),

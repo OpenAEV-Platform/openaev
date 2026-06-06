@@ -4,7 +4,7 @@ import static io.openaev.config.SessionHelper.ANONYMOUS_USER;
 import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.context.OperationState;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantExecutionContext;
 import io.openaev.rest.exception.TenantAccessDeniedException;
@@ -50,7 +50,7 @@ public class TenantInterceptor implements HandlerInterceptor {
       }
 
       TenantContext.setCurrentTenant(tenantId);
-      TenantExecutionContext.set(OperationState.of(tenantId));
+      TenantExecutionContext.set(ExecState.of(tenantId));
     }
     return true;
   }

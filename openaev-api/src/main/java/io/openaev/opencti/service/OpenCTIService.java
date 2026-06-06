@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.client.mutations.*;
@@ -284,7 +285,8 @@ public class OpenCTIService {
    * @param mimeType of the file to download
    * @return the document created from downloaded file
    */
-  public Document downloadAndSaveFile(String uri, String name, String mimeType, String tenantId) {
+  public Document downloadAndSaveFile(
+      ExecState state, String uri, String name, String mimeType, String tenantId) {
     try {
       ResponseFile octiResponseFile = downloadFile(uri, tenantId);
 
@@ -297,6 +299,7 @@ public class OpenCTIService {
         }
 
         return documentService.upsert(
+            state,
             name,
             octiResponseFile.getInputStream(),
             octiResponseFile.getSize(),

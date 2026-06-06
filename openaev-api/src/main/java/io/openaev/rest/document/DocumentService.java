@@ -6,7 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.OperationState;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantExecutionContext;
 import io.openaev.database.model.*;
@@ -51,39 +51,39 @@ public class DocumentService {
   // -- CRUD --
 
   /**
-   * Lists all documents for the tenant carried by {@code operationState}. The {@link
-   * TenantContextAspect} sets the tenant context automatically.
+   * Lists all documents for the tenant carried by {@code state}. The {@link TenantContextAspect}
+   * sets the tenant context automatically.
    */
-  public List<RawDocument> rawAllDocuments(OperationState operationState) {
-    return documentRepository.forTenant(operationState).rawAllDocuments();
+  public List<RawDocument> rawAllDocuments(ExecState state) {
+    return documentRepository.forOp(state).rawAllDocuments();
   }
 
   /**
    * Fetch a document by ID, scoped to the provided tenant.
    *
    * <p>The {@link TenantContextAspect} automatically sets {@link TenantExecutionContext} from
-   * {@code operationState} before this method runs, so the {@link TenantStatementInspector} will
-   * filter all repository queries to the correct tenant. No manual wrapping needed.
+   * {@code state} before this method runs, so the {@link TenantStatementInspector} will filter all
+   * repository queries to the correct tenant. No manual wrapping needed.
    *
-   * @param operationState tenant scope for this operation
+   * @param state tenant scope for this operation
    * @param documentId the document to fetch
    */
-  public Document document(OperationState operationState, @NotBlank final String documentId) {
+  public Document document(ExecState state, @NotBlank final String documentId) {
     return documentRepository
-        .forTenant(operationState)
+        .forOp(state)
         .findById(documentId)
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
   }
 
   /**
    * @deprecated Legacy bridge for internal callers (jobs, connectors) that do not yet carry an
-   *     {@link OperationState}. Builds an {@code OperationState} from the current {@link
-   *     TenantContext} so the {@link TenantContextAspect} can still apply tenant filtering. Migrate
-   *     callers to {@link #document(OperationState, String)} to make the contract explicit.
+   *     {@link ExecState}. Builds an {@code OperationState} from the current {@link TenantContext}
+   *     so the {@link TenantContextAspect} can still apply tenant filtering. Migrate callers to
+   *     {@link #document(ExecState, String)} to make the contract explicit.
    */
   @Deprecated(since = "migration", forRemoval = true)
   public Document document(@NotBlank final String documentId) {
-    return document(OperationState.of(TenantContext.getCurrentTenant()), documentId);
+    return document(ExecState.of(TenantContext.getCurrentTenant()), documentId);
   }
 
   /**
@@ -98,6 +98,7 @@ public class DocumentService {
    * @throws Exception when an upload issue occur
    */
   public Document upsert(
+      ExecState state,
       String fileName,
       InputStream fileIS,
       long fileSize,
@@ -107,8 +108,7 @@ public class DocumentService {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
-    Optional<Document> targetDocument =
-        documentRepository.forCurrentTenant().findByTarget(fileTarget);
+    Optional<Document> targetDocument = documentRepository.forOp(state).findByTarget(fileTarget);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -135,8 +135,7 @@ public class DocumentService {
       document.setTags(tags);
       return save(document);
     } else {
-      Optional<Document> existingDocument =
-          documentRepository.forCurrentTenant().findByName(fileName);
+      Optional<Document> existingDocument = documentRepository.forOp(state).findByName(fileName);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
@@ -222,8 +221,8 @@ public class DocumentService {
         .toList();
   }
 
-  public void deleteDocument(OperationState operationState, String documentId) {
-    Document document = document(operationState, documentId);
+  public void deleteDocument(ExecState state, String documentId) {
+    Document document = document(state, documentId);
 
     boolean isUsedInFileDrop =
         document.getPayloadsByFileDrop() != null && !document.getPayloadsByFileDrop().isEmpty();
@@ -236,7 +235,7 @@ public class DocumentService {
           "Document is still in use for some payloads and cannot be deleted.");
     }
 
-    List<Document> documents = documentRepository.forCurrentTenant().removeById(documentId);
+    List<Document> documents = documentRepository.forOp(state).removeById(documentId);
 
     // Remove document from minio
     documents.forEach(

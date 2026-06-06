@@ -110,13 +110,15 @@ public class TenantStatementInspector implements StatementInspector {
       String rewritten = sql;
       if (statement instanceof PlainSelect select) {
         rewritten = rewriteSelect(select, tenantIds, sql);
+      } else if (statement instanceof SetOperationList setOpList) {
+        rewritten = rewriteSetOperationList(setOpList, tenantIds, sql);
       } else if (statement instanceof Update update) {
         rewritten = rewriteUpdate(update, tenantIds, sql);
       } else if (statement instanceof Delete delete) {
         rewritten = rewriteDelete(delete, tenantIds, sql);
       }
       if (!rewritten.equals(sql)) {
-        log.info(
+        log.warn(
             "TenantStatementInspector [tenants={}]:\n  BEFORE: {}\n  AFTER:  {}",
             tenantIds,
             sql,
@@ -163,6 +165,20 @@ public class TenantStatementInspector implements StatementInspector {
     String ref = table.getAlias() != null ? table.getAlias().getName() : table.getName();
     select.setWhere(and(select.getWhere(), buildTenantFilter(ref, tenantIds)));
     return select.toString();
+  }
+
+  private String rewriteSetOperationList(
+      SetOperationList setOpList, List<String> tenantIds, String originalSql) {
+    if (setOpList.getSelects() != null) {
+      for (Select select : setOpList.getSelects()) {
+        if (select instanceof PlainSelect plainSelect) {
+          rewriteSelect(plainSelect, tenantIds, originalSql);
+        } else if (select instanceof SetOperationList nestedSetOpList) {
+          rewriteSetOperationList(nestedSetOpList, tenantIds, originalSql);
+        }
+      }
+    }
+    return setOpList.toString();
   }
 
   // ---------------------------------------------------------------------------

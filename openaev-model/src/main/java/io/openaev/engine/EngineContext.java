@@ -33,17 +33,26 @@ public class EngineContext {
         .toList();
   }
 
-  @SuppressWarnings("rawtypes")
+  @SuppressWarnings({"rawtypes", "unchecked"})
   private <T extends EsBase> Class<T> resolveGenericType(Handler handler) {
-    for (Type iface : handler.getClass().getGenericInterfaces()) {
-      if (iface instanceof ParameterizedType pType) {
-        if (pType.getRawType().equals(Handler.class)) {
-          Type actualType = pType.getActualTypeArguments()[0];
-          if (actualType instanceof Class<?> cls && EsBase.class.isAssignableFrom(cls)) {
-            return (Class<T>) cls;
+    // When Spring AOP proxies a @Service bean (e.g. via TenantContextAspect's @within(Service)
+    // pointcut), CGLIB generates a subclass (e.g. AssetGroupHandler$$SpringCGLIB$$0) that
+    // extends the real implementation class. Calling handler.getClass().getGenericInterfaces()
+    // on the proxy returns [] because the generic interface is declared on the parent class.
+    // Traversing the full hierarchy with getSuperclass() finds Handler<T> on the actual class.
+    Class<?> clazz = handler.getClass();
+    while (clazz != null && clazz != Object.class) {
+      for (Type iface : clazz.getGenericInterfaces()) {
+        if (iface instanceof ParameterizedType pType) {
+          if (pType.getRawType().equals(Handler.class)) {
+            Type actualType = pType.getActualTypeArguments()[0];
+            if (actualType instanceof Class<?> cls && EsBase.class.isAssignableFrom(cls)) {
+              return (Class<T>) cls;
+            }
           }
         }
       }
+      clazz = clazz.getSuperclass();
     }
     return null;
   }
