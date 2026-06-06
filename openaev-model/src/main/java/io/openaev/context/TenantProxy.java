@@ -2,7 +2,6 @@ package io.openaev.context;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
-import java.util.List;
 
 /**
  * Creates JDK dynamic proxies that enforce tenant isolation on any Spring Data repository.
@@ -28,7 +27,7 @@ import java.util.List;
  *
  * <h3>How it works</h3>
  *
- * <p>The proxy intercepts every method call and wraps it in a narrow {@link TenantExecutionContext}
+ * <p>The proxy intercepts every method call and wraps it in a narrow {@link StateExecutionContext}
  * window: set the tenant list before the call, restore the previous context after (safe to nest).
  * The {@link io.openaev.config.TenantStatementInspector} reads this context and rewrites the SQL.
  *
@@ -57,7 +56,7 @@ public final class TenantProxy {
    * @param iface the repository interface to proxy (must be an interface)
    * @param op the tenant scope for all calls made through the returned proxy
    * @param <T> the repository interface type
-   * @return a proxy that sets {@link TenantExecutionContext} around every method call
+   * @return a proxy that sets {@link StateExecutionContext} around every method call
    */
   @SuppressWarnings("unchecked")
   public static <T> T of(T delegate, Class<T> iface, ExecState op) {
@@ -68,18 +67,18 @@ public final class TenantProxy {
             (proxy, method, args) -> {
               // Save any previously active context (safe to nest — e.g. service calling another
               // service)
-              List<String> previous = TenantExecutionContext.get();
+              ExecState previous = StateExecutionContext.get();
               try {
-                TenantExecutionContext.set(op);
+                StateExecutionContext.set(op);
                 return method.invoke(delegate, args);
               } catch (InvocationTargetException e) {
                 // Unwrap the reflection wrapper so callers see the original exception
                 throw e.getCause();
               } finally {
                 if (previous == null) {
-                  TenantExecutionContext.clear();
+                  StateExecutionContext.clear();
                 } else {
-                  TenantExecutionContext.set(new ExecState(previous));
+                  StateExecutionContext.set(previous);
                 }
               }
             });

@@ -7,8 +7,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.ExecState;
-import io.openaev.context.TenantContext;
-import io.openaev.context.TenantExecutionContext;
+import io.openaev.context.StateExecutionContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -61,7 +60,7 @@ public class DocumentService {
   /**
    * Fetch a document by ID, scoped to the provided tenant.
    *
-   * <p>The {@link TenantContextAspect} automatically sets {@link TenantExecutionContext} from
+   * <p>The {@link TenantContextAspect} automatically sets {@link StateExecutionContext} from
    * {@code state} before this method runs, so the {@link TenantStatementInspector} will filter all
    * repository queries to the correct tenant. No manual wrapping needed.
    *
@@ -77,13 +76,18 @@ public class DocumentService {
 
   /**
    * @deprecated Legacy bridge for internal callers (jobs, connectors) that do not yet carry an
-   *     {@link ExecState}. Builds an {@code OperationState} from the current {@link TenantContext}
-   *     so the {@link TenantContextAspect} can still apply tenant filtering. Migrate callers to
-   *     {@link #document(ExecState, String)} to make the contract explicit.
+   *     {@link ExecState}. Uses the {@link ExecState} already set in the {@link
+   *     StateExecutionContext} by the interceptor or caller. Migrate callers to {@link
+   *     #document(ExecState, String)} to make the contract explicit.
    */
   @Deprecated(since = "migration", forRemoval = true)
   public Document document(@NotBlank final String documentId) {
-    return document(ExecState.of(TenantContext.getCurrentTenant()), documentId);
+    ExecState state = StateExecutionContext.get();
+    if (state == null) {
+      throw new IllegalStateException(
+          "No TenantExecutionContext active — use document(ExecState, String) instead");
+    }
+    return document(state, documentId);
   }
 
   /**
@@ -170,6 +174,7 @@ public class DocumentService {
             fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
         document.setTarget(fileTarget);
+        document.setTenant(state.currentTenant());
         document.setName(fileName);
         document.setDescription(input.getDescription());
         if (!input.getExerciseIds().isEmpty()) {

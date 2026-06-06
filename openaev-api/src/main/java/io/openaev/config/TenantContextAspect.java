@@ -1,9 +1,9 @@
 package io.openaev.config;
 
 import io.openaev.context.ExecState;
-import io.openaev.context.TenantExecutionContext;
+import io.openaev.context.StateExecutionContext;
 import java.util.Arrays;
-import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -11,7 +11,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 
 /**
- * AOP aspect that automatically sets the {@link TenantExecutionContext} for any {@code @Service}
+ * AOP aspect that automatically sets the {@link StateExecutionContext} for any {@code @Service}
  * method that declares an {@link ExecState} parameter.
  *
  * <h3>Why AOP instead of explicit {@code TenantExecutionContext.run()} calls</h3>
@@ -45,7 +45,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>Only intercepts Spring beans annotated with {@code @Service}. Repository calls directly from
  * non-service beans (e.g. schedulers, event listeners) must still use {@link
- * TenantExecutionContext#run} or {@link TenantExecutionContext#set} explicitly.
+ * StateExecutionContext#run} or {@link StateExecutionContext#set} explicitly.
  */
 @Aspect
 @Component
@@ -61,21 +61,21 @@ public class TenantContextAspect {
   public Object propagateTenantContext(ProceedingJoinPoint joinPoint) throws Throwable {
     ExecState state = findOperationState(joinPoint.getArgs());
 
-    if (state == null || !state.hasTenant()) {
+    if (state == null) {
       // No OperationState in args, or empty tenant list — proceed without modifying context
       return joinPoint.proceed();
     }
 
     // Save any previously active context (e.g. when a service calls another service)
-    List<String> previous = TenantExecutionContext.get();
+    ExecState previous = StateExecutionContext.get();
     try {
-      TenantExecutionContext.set(state);
+      StateExecutionContext.set(state);
       return joinPoint.proceed();
     } finally {
       if (previous == null) {
-        TenantExecutionContext.clear();
+        StateExecutionContext.clear();
       } else {
-        TenantExecutionContext.set(new ExecState(previous));
+        StateExecutionContext.set(previous);
       }
     }
   }

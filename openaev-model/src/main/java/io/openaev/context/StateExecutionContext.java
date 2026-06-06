@@ -1,6 +1,5 @@
 package io.openaev.context;
 
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -39,11 +38,11 @@ import java.util.function.Supplier;
  * <p>The {@link io.openaev.config.TenantStatementInspector} reads this value before each SQL
  * statement and automatically adds the tenant filter.
  */
-public final class TenantExecutionContext {
+public final class StateExecutionContext {
 
-  private static final ThreadLocal<List<String>> CURRENT_TENANTS = new ThreadLocal<>();
+  private static final ThreadLocal<ExecState> CURRENT_STATE = new ThreadLocal<>();
 
-  private TenantExecutionContext() {}
+  private StateExecutionContext() {}
 
   // ---------------------------------------------------------------------------
   // Request-scoped API (called by TenantInterceptor for HTTP requests)
@@ -55,7 +54,7 @@ public final class TenantExecutionContext {
    * interceptor or from job schedulers that manage their own lifecycle.
    */
   public static void set(ExecState state) {
-    CURRENT_TENANTS.set(state.tenantIds());
+    CURRENT_STATE.set(state);
   }
 
   /**
@@ -63,7 +62,7 @@ public final class TenantExecutionContext {
    * io.openaev.config.TenantInterceptor} in {@code afterCompletion}.
    */
   public static void clear() {
-    CURRENT_TENANTS.remove();
+    CURRENT_STATE.remove();
   }
 
   // ---------------------------------------------------------------------------
@@ -75,15 +74,15 @@ public final class TenantExecutionContext {
    * active tenant context (safe to nest, e.g. parallel call inside an HTTP request).
    */
   public static <T> T run(ExecState state, Supplier<T> task) {
-    List<String> previous = CURRENT_TENANTS.get();
+    ExecState previous = CURRENT_STATE.get();
     try {
-      CURRENT_TENANTS.set(state.tenantIds());
+      CURRENT_STATE.set(state);
       return task.get();
     } finally {
       if (previous == null) {
-        CURRENT_TENANTS.remove();
+        CURRENT_STATE.remove();
       } else {
-        CURRENT_TENANTS.set(previous);
+        CURRENT_STATE.set(previous);
       }
     }
   }
@@ -93,24 +92,24 @@ public final class TenantExecutionContext {
    * active tenant context.
    */
   public static void run(ExecState state, Runnable task) {
-    List<String> previous = CURRENT_TENANTS.get();
+    ExecState previous = CURRENT_STATE.get();
     try {
-      CURRENT_TENANTS.set(state.tenantIds());
+      CURRENT_STATE.set(state);
       task.run();
     } finally {
       if (previous == null) {
-        CURRENT_TENANTS.remove();
+        CURRENT_STATE.remove();
       } else {
-        CURRENT_TENANTS.set(previous);
+        CURRENT_STATE.set(previous);
       }
     }
   }
 
   /**
-   * Returns the current effective tenant ID list, or {@code null} if no context is active. Called
+   * Returns the current effective ExecState, or {@code null} if no context is active. Called
    * by {@link io.openaev.config.TenantStatementInspector} before each SQL statement.
    */
-  public static List<String> get() {
-    return CURRENT_TENANTS.get();
+  public static ExecState get() {
+    return CURRENT_STATE.get();
   }
 }

@@ -132,6 +132,7 @@ public class DocumentApi extends RestBehavior {
       Document document = new Document();
       document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
+      document.setTenant(state.currentTenant());
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
         document.setExercises(

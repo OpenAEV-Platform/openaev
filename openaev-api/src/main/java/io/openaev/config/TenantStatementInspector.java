@@ -1,6 +1,7 @@
 package io.openaev.config;
 
-import io.openaev.context.TenantExecutionContext;
+import io.openaev.context.ExecState;
+import io.openaev.context.StateExecutionContext;
 import jakarta.annotation.PostConstruct;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -99,11 +100,12 @@ public class TenantStatementInspector implements StatementInspector {
 
   @Override
   public String inspect(String sql) {
-    List<String> tenantIds = TenantExecutionContext.get();
-    if (tenantIds == null || tenantIds.isEmpty()) {
+    ExecState state = StateExecutionContext.get();
+    if (state == null) {
       // No tenant context active — bypass filtering (admin / system operations)
       return sql;
     }
+    List<String> tenantIds = state.accessibleTenantIds();
 
     try {
       Statement statement = CCJSqlParserUtil.parse(sql);

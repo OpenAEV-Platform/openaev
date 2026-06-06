@@ -1,7 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.context.ExecState;
-import io.openaev.context.TenantContext;
+import io.openaev.context.StateExecutionContext;
 import io.openaev.context.TenantProxy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -42,7 +42,7 @@ public class DocumentRepository {
 
   /**
    * Returns a tenant-scoped proxy. Every call on the returned object automatically sets {@link
-   * io.openaev.context.TenantExecutionContext} from {@code state}, so the {@link
+   * StateExecutionContext} from {@code state}, so the {@link
    * io.openaev.config.TenantStatementInspector} adds the correct {@code WHERE tenant_id} clause to
    * all SQL statements.
    *
@@ -54,14 +54,19 @@ public class DocumentRepository {
   }
 
   /**
-   * Bridge for legacy callers that do not yet carry an {@link ExecState}. Reads the current tenant
-   * from {@link TenantContext} (set by the HTTP interceptor or the job scheduler).
+   * Bridge for legacy callers that do not yet carry an {@link ExecState}. Uses the {@link
+   * ExecState} already set in the {@link StateExecutionContext} by the interceptor or caller.
    *
    * @deprecated Migrate callers to {@link #forOp(ExecState)} to make the tenant contract explicit
    *     and safe for parallel execution.
    */
   @Deprecated(since = "migration", forRemoval = true)
   public DocumentJpaRepository forCurrentTenant() {
-    return forOp(ExecState.of(TenantContext.getCurrentTenant()));
+    ExecState state = StateExecutionContext.get();
+    if (state == null) {
+      throw new IllegalStateException(
+          "No TenantExecutionContext active — use forOp(ExecState) instead");
+    }
+    return forOp(state);
   }
 }
