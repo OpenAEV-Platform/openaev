@@ -615,7 +615,7 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get documents. Can only be called if the user has access to the given scenario.",
       description = "Get all documents used by injects for a given scenario")
   public List<Document> documents(@PathVariable String scenarioId) {
-    return this.documentService.documentsForScenario(scenarioId);
+    return this.documentService.forCurrentTenant().documentsForScenario(scenarioId);
   }
 
   // end region

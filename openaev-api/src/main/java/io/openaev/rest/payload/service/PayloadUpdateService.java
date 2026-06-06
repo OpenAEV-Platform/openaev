@@ -69,9 +69,9 @@ public class PayloadUpdateService {
     payload.setDetectionRemediations(originalDrs);
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+      executable.setExecutableFile(documentService.forCurrentTenant().document(input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.forCurrentTenant().document(input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);

@@ -117,7 +117,7 @@ public class ExecutableInjectService {
                 && (ArgumentType.Document == defaultPayloadArgument.getType());
         if (isDocArg && !value.isEmpty()) {
           try {
-            Document doc = documentService.document(value);
+            Document doc = documentService.forCurrentTenant().document(value);
             value = "#{location}/" + doc.getName();
           } catch (ElementNotFoundException e) {
             log.error("Payload argument target unexisting document", e);

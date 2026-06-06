@@ -990,7 +990,7 @@ public class ExerciseApi extends RestBehavior {
       summary = "Get documents. Can only be called if the user has access to the given simulation.",
       description = "Get all documents used by injects for a given simulation")
   public List<Document> documents(@PathVariable String exerciseId) {
-    return this.documentService.documentsForSimulation(exerciseId);
+    return this.documentService.forCurrentTenant().documentsForSimulation(exerciseId);
   }
 
   @GetMapping({

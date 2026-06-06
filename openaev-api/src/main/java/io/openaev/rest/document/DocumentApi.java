@@ -126,7 +126,7 @@ public class DocumentApi extends RestBehavior {
       List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
       tags.addAll(inputTags);
       document.setTags(tags);
-      return documentService.save(document);
+      return documentService.forOp(state).save(document);
     } else {
       fileService.uploadFile(fileTarget, file);
       Document document = new Document();
@@ -144,7 +144,7 @@ public class DocumentApi extends RestBehavior {
       }
       document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       document.setType(file.getContentType());
-      return documentService.save(document);
+      return documentService.forOp(state).save(document);
     }
   }
 
@@ -156,8 +156,7 @@ public class DocumentApi extends RestBehavior {
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
-    return documentService.upsert(
-        state,
+    return documentService.forOp(state).upsert(
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
@@ -168,7 +167,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents(ExecState state) {
-    return documentService.rawAllDocuments(state);
+    return documentService.forOp(state).rawAllDocuments();
   }
 
   @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
@@ -196,7 +195,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(ExecState state, @PathVariable String documentId) {
-    return documentService.document(state, documentId);
+    return documentService.forOp(state).document(documentId);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -226,7 +225,7 @@ public class DocumentApi extends RestBehavior {
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return documentService.save(document);
+    return documentService.forOp(state).save(document);
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -292,7 +291,7 @@ public class DocumentApi extends RestBehavior {
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
 
     // Save and return
-    return documentService.save(document);
+    return documentService.forOp(state).save(document);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/file", TENANT_DOCUMENT_API + "/{documentId}/file"})
@@ -303,7 +302,7 @@ public class DocumentApi extends RestBehavior {
   public void downloadDocument(
       ExecState state, @PathVariable String documentId, HttpServletResponse response)
       throws IOException {
-    Document document = documentService.document(state, documentId);
+    Document document = documentService.forOp(state).document(documentId);
 
     String encodedFilename = DocumentService.encodeFileName(document.getName());
 
@@ -524,13 +523,13 @@ public class DocumentApi extends RestBehavior {
   private List<Document> getExercisePlayerDocuments(Exercise exercise) {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();
-    return documentService.getPlayerDocuments(articles, injects);
+    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
   }
 
   private List<Document> getScenarioPlayerDocuments(Scenario scenario) {
     List<Article> articles = scenario.getArticles();
     List<Inject> injects = scenario.getInjects();
-    return documentService.getPlayerDocuments(articles, injects);
+    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
   }
 
   @LogExecutionTime
@@ -545,7 +544,7 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(
       ExecState state, @PathVariable String documentId) {
-    return toDocumentRelationsOutput(documentService.document(state, documentId));
+    return toDocumentRelationsOutput(documentService.forOp(state).document(documentId));
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -555,7 +554,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(ExecState state, @PathVariable String documentId) {
-    documentService.deleteDocument(state, documentId);
+    documentService.forOp(state).deleteDocument(documentId);
   }
 
   // -- EXERCISE & SENARIO--

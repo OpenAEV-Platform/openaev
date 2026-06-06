@@ -391,7 +391,7 @@ public class InjectExecutionStep implements ActionStep {
 
     List<InjectDocument> injectDocuments =
         data.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(i -> i.toDocument(documentService.forCurrentTenant().document(i.getDocumentId()), inject))
             .toList();
     inject.setDocuments(injectDocuments);
     Set<Tag> tags = new HashSet<>();

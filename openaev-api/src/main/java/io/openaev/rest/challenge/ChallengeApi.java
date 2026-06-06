@@ -157,6 +157,6 @@ public class ChallengeApi extends RestBehavior {
             description = "The list of Documents used in the Challenge")
       })
   public List<RawDocument> documentsFromChallenge(@PathVariable String challengeId) {
-    return documentService.documentsForChallenge(challengeId);
+    return documentService.forCurrentTenant().documentsForChallenge(challengeId);
   }
 }

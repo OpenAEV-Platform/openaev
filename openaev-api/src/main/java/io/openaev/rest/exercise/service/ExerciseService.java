@@ -281,7 +281,7 @@ public class ExerciseService {
   public List<Document> getExercisePlayerDocuments(Exercise exercise) {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();
-    return documentService.getPlayerDocuments(articles, injects);
+    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
   }
 
   public Optional<Exercise> getFollowingSimulation(Exercise exercise) {

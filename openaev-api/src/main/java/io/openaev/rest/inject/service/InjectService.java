@@ -185,7 +185,7 @@ public class InjectService {
     inject.setTags(tagService.tagSet(input.getTagIds()));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.document(i.getDocumentId()), inject))
+            .map(i -> i.toDocument(documentService.forCurrentTenant().document(i.getDocumentId()), inject))
             .toList();
     inject.setDocuments(injectDocuments);
     // Set dependencies

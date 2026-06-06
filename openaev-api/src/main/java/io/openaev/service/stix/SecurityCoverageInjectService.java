@@ -147,7 +147,7 @@ public class SecurityCoverageInjectService {
                     artifact.getExternalRefs() != null && !artifact.getExternalRefs().isEmpty())
             .collect(Collectors.toSet());
     List<Document> previousDocuments =
-        documentService.findAllDistinctOnInjectsByScenarioId(scenario.getId());
+        documentService.forCurrentTenant().findAllDistinctOnInjectsByScenarioId(scenario.getId());
 
     // 1. Remove Inject and Scenario on Documents with contract related to File Drop if there is no
     // any Artifact to
@@ -189,7 +189,7 @@ public class SecurityCoverageInjectService {
                     }
 
                     // 6. Create placeholders for missing files
-                    if (!this.documentService.documentExists(documentId)) {
+                    if (!this.documentService.forCurrentTenant().documentExists(documentId)) {
                       Inject inject =
                           injectAssistantService.buildManualInject(
                               contractForPlaceholder,
@@ -250,7 +250,7 @@ public class SecurityCoverageInjectService {
         .forEach(
             documentToClean -> {
               documentToClean.getScenarios().remove(scenario);
-              documentService.save(documentToClean);
+              documentService.forCurrentTenant().save(documentToClean);
             });
   }
 

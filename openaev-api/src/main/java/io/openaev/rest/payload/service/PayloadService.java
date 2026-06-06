@@ -400,7 +400,7 @@ public class PayloadService {
             .findByDocumentId(documentId)
             .orElseGet(() -> this.createFileDropPayload(documentId));
     fileDrop.getFileDropFile().getScenarios().add(scenario);
-    this.documentService.save(fileDrop.getFileDropFile());
+    this.documentService.forCurrentTenant().save(fileDrop.getFileDropFile());
     return fileDrop;
   }
 
@@ -411,7 +411,7 @@ public class PayloadService {
    * @return created file drop payload
    */
   public FileDrop createFileDropPayload(String documentId) {
-    Document document = this.documentService.document(documentId);
+    Document document = this.documentService.forCurrentTenant().document(documentId);
 
     FileDrop fileDrop = new FileDrop();
     fileDrop.setFileDropFile(document);

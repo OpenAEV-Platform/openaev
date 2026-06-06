@@ -15,6 +15,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.document.DocumentServiceInternal;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -49,6 +50,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private AssetService assetService;
   @MockitoBean private TagService tagService;
   @MockitoBean private DocumentService documentService;
+  @MockitoBean private DocumentServiceInternal documentServiceInternal;
   @MockitoBean private InjectService injectService;
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
@@ -79,7 +81,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(null).when(documentService).document(any());
+    doReturn(documentServiceInternal).when(documentService).forCurrentTenant();
+    doReturn(null).when(documentServiceInternal).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 

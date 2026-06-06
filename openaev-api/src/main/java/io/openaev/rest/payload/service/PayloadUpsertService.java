@@ -88,10 +88,10 @@ public class PayloadUpsertService {
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(
-          documentService.document(input.getExecutableFile()));
+          documentService.forCurrentTenant().document(input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
       fileDrop.setFileDropFile(
-          documentService.document(input.getFileDropFile()));
+          documentService.forCurrentTenant().document(input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);
@@ -139,10 +139,10 @@ public class PayloadUpsertService {
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(
-          documentService.document(input.getExecutableFile()));
+          documentService.forCurrentTenant().document(input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
       fileDrop.setFileDropFile(
-          documentService.document(input.getFileDropFile()));
+          documentService.forCurrentTenant().document(input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);

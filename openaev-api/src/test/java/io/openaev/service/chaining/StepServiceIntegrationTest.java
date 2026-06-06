@@ -12,6 +12,7 @@ import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.document.DocumentServiceInternal;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -49,6 +50,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @MockBean private AssetService assetService;
   @MockBean private TagService tagService;
   @MockBean private DocumentService documentService;
+  @MockBean private DocumentServiceInternal documentServiceInternal;
   @MockBean private InjectService injectService;
   @MockBean private io.openaev.executors.Executor executor;
   @Autowired private InjectorContractRepository injectorContractRepository;
@@ -75,7 +77,8 @@ class StepServiceIntegrationTest extends IntegrationTest {
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(null).when(documentService).document(any());
+    doReturn(documentServiceInternal).when(documentService).forCurrentTenant();
+    doReturn(null).when(documentServiceInternal).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 

@@ -36,7 +36,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   public List<Document> getScenarioPlayerDocuments(Scenario scenario) {
     List<Article> articles = scenario.getArticles();
     List<Inject> injects = scenario.getInjects();
-    return documentService.getPlayerDocuments(articles, injects);
+    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
   }
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")

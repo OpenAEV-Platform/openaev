@@ -298,8 +298,7 @@ public class OpenCTIService {
           documentCreateInput.setTagIds(new ArrayList<>(Set.of(openCtiTag.getId())));
         }
 
-        return documentService.upsert(
-            state,
+        return documentService.forOp(state).upsert(
             name,
             octiResponseFile.getInputStream(),
             octiResponseFile.getSize(),
