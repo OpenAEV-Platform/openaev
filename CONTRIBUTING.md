@@ -48,14 +48,18 @@ For general suggestions or questions about the project or the documentation, you
 
 * If you are interested in contributing to developing OpenAEV, please refer to the [detailed documentation](https://docs.openaev.io). It can be either to fix an issue which is meaningful to you, or to develop a feature requested by others.
 
-* All commit messages must follow the Conventional Commits format: `<type>(<scope>)?: <short description> (#<issue-number>)?`
+* All commit and Pull Request titles must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format: `type(scope?)!?: description (#issue)`
 
-  - `<type>` must be one of the predefined commit types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-  - `<scope>` is optional and describes the affected part of the code
-  - `#<issue-number>` optionally references the issue that the commit addresses
+  - `type` must be one of: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `revert`
+  - `scope` is optional, a lowercase noun describing the affected part of the code. The old `[backend]` / `[frontend]` bracket prefixes are **discontinued** — use a scope instead.
+  - the description starts with a lowercase letter and has no trailing period
+  - Pull request titles **must** end with the related issue reference, e.g. `(#1234)`, and every Pull Request must be linked to an issue. **Renovate** pull requests are exempt.
 
-**Example:**
-feat(auth): add JWT authentication (#123)
+  **Example:** `feat(auth): add JWT authentication (#123)`
+
+* All commits must be signed. See the [GitHub documentation on signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
+
+* See [`.github/LABELS.md`](.github/LABELS.md) for the full title & label taxonomy.
 
 ### How can you get in touch for other questions?
 
