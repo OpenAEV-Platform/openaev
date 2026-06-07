@@ -209,7 +209,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
       />
       <Drawer
         open={openReports}
-        containerStyle={{ padding: '0px' }}
+        disableContainerPadding
         handleClose={handleCloseReports}
         title={t('Reports')}
       >

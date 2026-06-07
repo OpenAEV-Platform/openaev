@@ -58,6 +58,8 @@ interface DrawerProps {
   PaperProps?: PaperProps;
   disableEnforceFocus?: boolean;
   containerStyle?: CSSProperties;
+  disableContainerPadding?: boolean;
+  containerMaxHeight?: CSSProperties['maxHeight'];
 }
 
 const Drawer: FunctionComponent<DrawerProps> = ({
@@ -71,6 +73,8 @@ const Drawer: FunctionComponent<DrawerProps> = ({
   PaperProps = undefined,
   disableEnforceFocus = false,
   containerStyle = {},
+  disableContainerPadding = false,
+  containerMaxHeight,
 }) => {
   const theme = useTheme();
   const { settings } = useAuth();
@@ -150,7 +154,8 @@ const Drawer: FunctionComponent<DrawerProps> = ({
         </div>
       </div>
       <div style={{
-        padding: '10px 20px 20px 20px',
+        ...(disableContainerPadding ? {} : { padding: '10px 20px 20px 20px' }),
+        ...(containerMaxHeight ? { maxHeight: containerMaxHeight } : {}),
         ...containerStyle,
       }}
       >

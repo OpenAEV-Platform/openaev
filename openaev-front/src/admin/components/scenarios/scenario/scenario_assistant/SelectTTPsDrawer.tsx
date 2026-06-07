@@ -66,10 +66,8 @@ const SelectTTPsDrawer = ({ open, onClose, initialSelectedTTPIds, onUpdateAttack
       handleClose={onClose}
       title={t('ATT&CK Matrix')}
       variant="full"
-      containerStyle={{
-        padding: 0,
-        maxHeight: '100%',
-      }}
+      disableContainerPadding
+      containerMaxHeight="100%"
     >
       <>
         <MitreFilter
