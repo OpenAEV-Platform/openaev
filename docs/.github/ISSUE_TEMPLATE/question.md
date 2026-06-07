@@ -1,6 +1,6 @@
 ---
 name: Question
-about: Ask a question about the project
+about: Ask a question about OpenAEV
 title: ''
 labels: needs triage, question
 assignees: ''
@@ -16,6 +16,12 @@ assignees: ''
 ## Description
 
 <!-- Please provide a clear and concise description of your question. -->
+
+## Environment
+
+1. OS: { e.g. macOS 14, Windows 11, Ubuntu 22.04, etc. }
+2. Version: { e.g. 1.2.3 }
+3. Other environment details:
 
 ## Additional information
 

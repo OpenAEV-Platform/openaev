@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a new feature or capability
+about: Suggest a new feature or capability for OpenAEV
 title: 'feat: '
 labels: needs triage, feature
 assignees: ''
@@ -23,3 +23,7 @@ type: feature
 ## Additional information
 
 <!-- Any additional information, including logs or screenshots if you have any. -->
+
+## If the feature request is approved, would you be willing to submit a PR?
+
+Yes / No (help can be provided if you need assistance submitting a PR)
