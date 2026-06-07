@@ -36,7 +36,6 @@ import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
@@ -59,18 +58,13 @@ public class OpenTelemetryConfig {
   private static final DateTimeFormatter CREATION_DATE_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss[.n]");
 
-  @Value("${openbas.telemetry.enabled:${openaev.telemetry.enabled:true}}")
-  private boolean telemetryEnabled;
-
   @Bean
   public OpenTelemetry openTelemetry() {
-    if (!telemetryEnabled) {
-      log.info("OpenTelemetry is disabled via 'openaev.telemetry.enabled=false'. Skipping init.");
-      return OpenTelemetry.noop();
-    }
-
+    // Telemetry is always on (no user-facing opt-out): the connectivity probe
+    // below is the only gate, mirroring OpenCTI and XTM One. Air-gapped or
+    // egress-blocked installs self-disable when the collector is unreachable.
     String endpoint = getOTELEndpoint();
-    log.info("Telemetry enabled - using endpoint: " + endpoint);
+    log.info("Telemetry - using endpoint: " + endpoint);
     log.info("Telemetry - Using collect interval: " + collectInterval);
     log.info("Telemetry - Using export interval: " + exportInterval);
 
