@@ -109,10 +109,10 @@ public class OpenTelemetryConfig {
 
   // -- PRIVATE --
   private String getOTELEndpoint() {
-    String endpoint = "https://telemetry.obas.filigran.io/v1/metrics";
+    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
     if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
         || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
-      endpoint = "https://telemetry.obas.staging.filigran.io/v1/metrics";
+      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
     }
     return endpoint;
   }
