@@ -64,9 +64,9 @@ public class OpenTelemetryConfig {
     // below is the only gate, mirroring OpenCTI and XTM One. Air-gapped or
     // egress-blocked installs self-disable when the collector is unreachable.
     String endpoint = getOTELEndpoint();
-    log.info("Telemetry - using endpoint: " + endpoint);
-    log.info("Telemetry - Using collect interval: " + collectInterval);
-    log.info("Telemetry - Using export interval: " + exportInterval);
+    log.info("Telemetry - Using endpoint: {}", endpoint);
+    log.info("Telemetry - Using collect interval: {}", collectInterval);
+    log.info("Telemetry - Using export interval: {}", exportInterval);
 
     if (!isEndpointReachable(endpoint)) {
       log.warn("OTLP endpoint not reachable. Falling back to noop OpenTelemetry.");
