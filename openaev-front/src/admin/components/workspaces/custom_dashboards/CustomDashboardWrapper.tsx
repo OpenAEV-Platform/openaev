@@ -77,8 +77,11 @@ const CustomDashboardWrapper = ({
 
   useEffect(() => {
     return () => {
-      if (dataReadyTimeoutRef.current) {
+      // Compare against undefined rather than truthiness: a valid timer handle
+      // can be 0 in some implementations/polyfills.
+      if (dataReadyTimeoutRef.current !== undefined) {
         clearTimeout(dataReadyTimeoutRef.current);
+        dataReadyTimeoutRef.current = undefined;
       }
     };
   }, []);
@@ -106,7 +109,7 @@ const CustomDashboardWrapper = ({
   const setDataReadyWithDelay = () => {
     const elapsed = Date.now() - loadingStartTime.current;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
-    if (dataReadyTimeoutRef.current) {
+    if (dataReadyTimeoutRef.current !== undefined) {
       clearTimeout(dataReadyTimeoutRef.current);
     }
     dataReadyTimeoutRef.current = setTimeout(() => setDataReady(true), remainingTime);

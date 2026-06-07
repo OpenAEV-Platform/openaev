@@ -78,7 +78,9 @@ const useExternalTab = ({
     }
 
     return () => {
-      if (checkInterval) {
+      // Compare against undefined rather than truthiness: a valid timer handle
+      // can be 0 in some implementations/polyfills.
+      if (checkInterval !== undefined) {
         clearInterval(checkInterval);
       }
       window.removeEventListener('message', handleMessage);

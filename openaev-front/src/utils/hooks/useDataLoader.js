@@ -54,13 +54,15 @@ const flushPendingActions = () => {
 
 const scheduleBatchedDispatch = (action) => {
   pendingActions.push(action);
-  if (!batchTimeoutId) {
+  // Timer handles are compared against undefined (not truthiness) since a valid
+  // handle can be 0 in some implementations/polyfills.
+  if (batchTimeoutId === undefined) {
     batchTimeoutId = setTimeout(flushPendingActions, SSE_BATCH_INTERVAL);
   }
 };
 
 const cancelPendingBatches = () => {
-  if (batchTimeoutId) {
+  if (batchTimeoutId !== undefined) {
     clearTimeout(batchTimeoutId);
     batchTimeoutId = undefined;
   }
@@ -81,11 +83,11 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     if (typeof EventSource === 'undefined') {
       return undefined;
     }
-    if (reconnectTimeoutId) {
+    if (reconnectTimeoutId !== undefined) {
       clearTimeout(reconnectTimeoutId);
       reconnectTimeoutId = undefined;
     }
-    if (autoReConnectIntervalId) {
+    if (autoReConnectIntervalId !== undefined) {
       clearInterval(autoReConnectIntervalId);
       autoReConnectIntervalId = undefined;
     }
@@ -175,11 +177,11 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     return () => {
       listeners.delete(loader);
       if (listeners.size === 0) {
-        if (reconnectTimeoutId) {
+        if (reconnectTimeoutId !== undefined) {
           clearTimeout(reconnectTimeoutId);
           reconnectTimeoutId = undefined;
         }
-        if (autoReConnectIntervalId) {
+        if (autoReConnectIntervalId !== undefined) {
           clearInterval(autoReConnectIntervalId);
           autoReConnectIntervalId = undefined;
         }
