@@ -155,7 +155,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       </div>
       <div style={{
         ...(disableContainerPadding ? {} : { padding: '10px 20px 20px 20px' }),
-        ...(containerMaxHeight ? { maxHeight: containerMaxHeight } : {}),
+        ...(containerMaxHeight !== undefined && containerMaxHeight !== null ? { maxHeight: containerMaxHeight } : {}),
         ...containerStyle,
       }}
       >
