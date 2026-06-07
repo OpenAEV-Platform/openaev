@@ -211,6 +211,7 @@ const CustomDashboardWrapper = ({
     fetchEntities,
     fetchEntitiesRuntime,
     fetchCount,
+    fetchAverage,
     fetchSeries,
     fetchAttackPaths,
     handleOpenWidgetDataDrawer,
