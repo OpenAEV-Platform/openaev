@@ -37,6 +37,7 @@ const SimulationReport = lazy(() => import('./admin/components/simulations/simul
 const Challenges = lazy(() => import('./public/components/challenges/ChallengesPlayer'));
 const ExerciseViewLessons = lazy(() => import('./public/components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./public/components/lessons/ScenarioViewLessons'));
+const UrlAccess = lazy(() => import('./public/components/url_access/UrlAccess'));
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 
@@ -154,6 +155,7 @@ const Root = () => {
                     <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
                     <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
                     <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
+                    <Route path="url/access" element={errorWrapper(UrlAccess)()} />
                     <Route path="reports/:reportId/exercise/:exerciseId" element={errorWrapper(SimulationReport)()} />
 
                     {/* Not found */}
