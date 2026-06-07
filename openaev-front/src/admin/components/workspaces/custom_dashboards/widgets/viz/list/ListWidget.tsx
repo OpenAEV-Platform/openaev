@@ -239,6 +239,7 @@ const ListWidget = ({
           <MuiList
             component="div"
             role="list"
+            disablePadding
             style={{
               height: virtualizer.getTotalSize(),
               position: 'relative',
