@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -126,8 +127,8 @@ public class ThreatArsenalApi {
   @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction createAction(
-      @Valid @RequestBody ThreatArsenalActionCreateInput input) {
-    return threatArsenalService.create(input);
+      ExecState state, @Valid @RequestBody ThreatArsenalActionCreateInput input) {
+    return threatArsenalService.create(state, input);
   }
 
   @PutMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
@@ -136,9 +137,10 @@ public class ThreatArsenalApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction updateAction(
+      ExecState state,
       @NotBlank @PathVariable final String actionId,
       @Valid @RequestBody ThreatArsenalActionUpdateInput input) {
-    return threatArsenalService.update(actionId, input);
+    return threatArsenalService.update(state, actionId, input);
   }
 
   @PostMapping({

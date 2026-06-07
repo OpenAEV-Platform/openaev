@@ -9,6 +9,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -98,7 +99,7 @@ public class SimulationChallengeApi extends RestBehavior {
   @UrlAccessControl(userId = "#userId")
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
-      @PathVariable String simulationId, @RequestParam Optional<String> userId) {
+      ExecState state, @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
@@ -110,7 +111,7 @@ public class SimulationChallengeApi extends RestBehavior {
           && !exerciseOpt.get().getUsers().contains(user)) {
         throw new UnsupportedOperationException("The given player is not in this exercise");
       }
-      return exerciseService.getExercisePlayerDocuments(exerciseOpt.get());
+      return exerciseService.getExercisePlayerDocuments(state, exerciseOpt.get());
     } else {
       throw new IllegalArgumentException("Simulation ID not found");
     }

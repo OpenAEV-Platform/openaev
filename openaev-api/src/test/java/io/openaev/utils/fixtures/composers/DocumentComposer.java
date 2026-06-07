@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Executable;
@@ -7,7 +8,6 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.service.FileService;
 import io.openaev.utils.fixtures.files.BaseFile;
-import io.openaev.context.ExecState;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,13 +85,17 @@ public class DocumentComposer extends ComposerBase<Document> {
               document.getTarget(), mmf.getInputStream(), mmf.getSize(), document.getType());
         }
       }
-      documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document);
+      documentRepository
+          .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+          .save(document);
       return this;
     }
 
     @Override
     public Composer delete() {
-      documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).delete(document);
+      documentRepository
+          .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+          .delete(document);
       this.tagComposers.forEach(TagComposer.Composer::delete);
       this.challengeComposers.forEach(ChallengeComposer.Composer::delete);
       this.payloadExecutableComposers.forEach(PayloadComposer.Composer::delete);

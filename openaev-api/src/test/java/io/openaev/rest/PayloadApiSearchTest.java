@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
@@ -27,7 +28,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.ArrayList;
 import java.util.List;
-import io.openaev.context.ExecState;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -53,7 +53,10 @@ public class PayloadApiSearchTest extends IntegrationTest {
     PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
     Document document = DocumentFixture.getDocumentJpeg();
-    Document documentSaved = this.documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document);
+    Document documentSaved =
+        this.documentRepository
+            .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+            .save(document);
 
     Payload executable = createDefaultExecutable(documentSaved);
     Payload executableSaved = this.payloadRepository.save(executable);

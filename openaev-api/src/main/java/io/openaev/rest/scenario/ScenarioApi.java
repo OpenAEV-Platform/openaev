@@ -125,8 +125,9 @@ public class ScenarioApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
-      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+      ExecState state, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     return this.scenarioService.createScenarioWithInjectorContracts(
+        state,
         TenantContext.getCurrentTenant(),
         inputs.getScenarioInput(),
         inputs.getInjectorContractSearchPaginationInput(),
@@ -139,8 +140,9 @@ public class ScenarioApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
-      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+      ExecState state, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
     return this.scenarioService.updateScenariosWithInjectorContracts(
+        state,
         inputs.getScenarioIds(),
         inputs.getInjectorContractSearchPaginationInput(),
         inputs.getLocale());
@@ -270,7 +272,8 @@ public class ScenarioApi extends RestBehavior {
 
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public void importScenario(ExecState state, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
+  public void importScenario(ExecState state, @RequestPart("file") @NotNull MultipartFile file)
+      throws Exception {
     this.importService.handleFileImport(state, file, null, null);
   }
 
@@ -478,8 +481,8 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(ExecState state, @PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Exercise createRunningExerciseFromScenario(
+      ExecState state, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 
@@ -616,8 +619,8 @@ public class ScenarioApi extends RestBehavior {
   @Operation(
       summary = "Get documents. Can only be called if the user has access to the given scenario.",
       description = "Get all documents used by injects for a given scenario")
-  public List<Document> documents(@PathVariable String scenarioId) {
-    return this.documentService.forCurrentTenant().documentsForScenario(scenarioId);
+  public List<Document> documents(ExecState state, @PathVariable String scenarioId) {
+    return this.documentService.documentsForScenario(state, scenarioId);
   }
 
   // end region

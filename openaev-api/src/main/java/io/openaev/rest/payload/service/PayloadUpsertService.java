@@ -3,6 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -46,7 +47,7 @@ public class PayloadUpsertService {
   private final DomainService domainService;
 
   @Transactional(rollbackOn = Exception.class)
-  public Payload upsertPayload(PayloadUpsertInput input) {
+  public Payload upsertPayload(ExecState state, PayloadUpsertInput input) {
     Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
@@ -68,14 +69,17 @@ public class PayloadUpsertService {
         attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
             input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
     if (payload.isPresent()) {
-      return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collectorType);
+      return updatePayloadFromUpsert(state, input, payload.get(), attackPatterns, collectorType);
     } else {
-      return createPayloadFromUpsert(input, attackPatterns, collectorType);
+      return createPayloadFromUpsert(state, input, attackPatterns, collectorType);
     }
   }
 
   private Payload createPayloadFromUpsert(
-      PayloadUpsertInput input, List<AttackPattern> attackPatterns, CollectorType collectorType) {
+      ExecState state,
+      PayloadUpsertInput input,
+      List<AttackPattern> attackPatterns,
+      CollectorType collectorType) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
@@ -87,11 +91,9 @@ public class PayloadUpsertService {
     }
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(
-          documentService.forCurrentTenant().document(input.getExecutableFile()));
+      executable.setExecutableFile(documentService.document(state, input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(
-          documentService.forCurrentTenant().document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.document(state, input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);
@@ -113,6 +115,7 @@ public class PayloadUpsertService {
   }
 
   public Payload updatePayloadFromUpsert(
+      ExecState state,
       PayloadUpsertInput input,
       Payload existingPayload,
       List<AttackPattern> attackPatterns,
@@ -138,11 +141,9 @@ public class PayloadUpsertService {
         this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant());
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(
-          documentService.forCurrentTenant().document(input.getExecutableFile()));
+      executable.setExecutableFile(documentService.document(state, input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(
-          documentService.forCurrentTenant().document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.document(state, input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);

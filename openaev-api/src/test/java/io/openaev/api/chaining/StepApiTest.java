@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepService;
@@ -39,18 +40,21 @@ class StepApiTest {
         .thenReturn(workflow);
 
     Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");
-    when(stepService.createStepTemplate(eq(workflow), any(StepsCreateInput.StepInput.class)))
+    when(stepService.createStepTemplate(
+            ExecState.of("tenant"), eq(workflow), any(StepsCreateInput.StepInput.class)))
         .thenReturn(created);
 
     // Act
-    StepOutput result = stepApi.createStep(input);
+    StepOutput result = stepApi.createStep(ExecState.of("tenant"), input);
 
     // Assert
     assertNotNull(result);
     assertEquals("step-1", result.getId());
     assertEquals(StepStatus.TEMPLATE, result.getStatus());
     assertEquals("{\"a\":1}", result.getData().toString());
-    verify(stepService).createStepTemplate(eq(workflow), any(StepsCreateInput.StepInput.class));
+    verify(stepService)
+        .createStepTemplate(
+            ExecState.of("tenant"), eq(workflow), any(StepsCreateInput.StepInput.class));
   }
 
   @Test
@@ -90,16 +94,16 @@ class StepApiTest {
     input.setWorkflowId("wf-1");
     input.setStepAction(StepActionClass.INJECT_EXECUTION);
 
-    when(stepService.updateStepTemplate("s-1", input))
+    when(stepService.updateStepTemplate(ExecState.of("tenant"), "s-1", input))
         .thenReturn(step("s-1", 9, StepStatus.TEMPLATE, "{\"updated\":true}"));
 
     // Act
-    StepOutput result = stepApi.updateStep("s-1", input);
+    StepOutput result = stepApi.updateStep(ExecState.of("tenant"), "s-1", input);
 
     // Assert
     assertNotNull(result);
     assertEquals("s-1", result.getId());
-    verify(stepService).updateStepTemplate("s-1", input);
+    verify(stepService).updateStepTemplate(ExecState.of("tenant"), "s-1", input);
   }
 
   @Test

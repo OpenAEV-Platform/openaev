@@ -2,7 +2,6 @@ package io.openaev.context;
 
 import io.openaev.database.model.Tenant;
 import jakarta.validation.constraints.NotBlank;
-
 import java.util.List;
 
 /**
@@ -22,8 +21,8 @@ import java.util.List;
  * to {@code WHERE tenant_id IN (...)} in the SQL layer — no service or repository changes needed.
  *
  * <p>Today, {@code accessibleTenants} is always {@code List.of(tenant)} (single-tenant). When
- * cross-tenant grants are implemented, the interceptor will query the grants table and populate this
- * list with additional tenants.
+ * cross-tenant grants are implemented, the interceptor will query the grants table and populate
+ * this list with additional tenants.
  *
  * <h3>Usage</h3>
  *
@@ -44,7 +43,6 @@ import java.util.List;
  * }</pre>
  */
 public record ExecState(String currentTenantId, List<String> accessibleTenantIds) {
-
 
   /** Single-tenant context: the current tenant is the only accessible tenant. */
   public static ExecState of(String tenant) {

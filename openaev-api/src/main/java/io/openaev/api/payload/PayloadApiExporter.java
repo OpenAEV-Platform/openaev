@@ -1,12 +1,11 @@
 package io.openaev.api.payload;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
-import io.openaev.context.ExecState;
 import io.openaev.database.repository.PayloadRepository;
-import io.openaev.jsonapi.IncludeOptions;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
@@ -14,8 +13,6 @@ import io.openaev.rest.payload.PayloadApi;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,8 +34,8 @@ public class PayloadApiExporter extends RestBehavior {
   @GetMapping(value = "/{payloadId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
-  public ResponseEntity<byte[]> export(ExecState state, @PathVariable @NotBlank final String payloadId)
-      throws IOException {
+  public ResponseEntity<byte[]> export(
+      ExecState state, @PathVariable @NotBlank final String payloadId) throws IOException {
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
     return zipJsonApi.handleExport(state, payload);

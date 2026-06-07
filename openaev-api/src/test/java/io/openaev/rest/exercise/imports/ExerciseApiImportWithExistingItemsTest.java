@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -26,8 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
-import io.openaev.context.ExecState;
-import io.openaev.context.TenantContext;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -170,7 +170,8 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   private byte[] doExport(ExerciseComposer.Composer composer) throws Exception {
     Exercise exercise = composer.persist().get();
-    return exportService.exportExerciseToZip(ExecState.of(TenantContext.getCurrentTenant()), exercise, FULL_EXPORT_OPTIONS);
+    return exportService.exportExerciseToZip(
+        ExecState.of(TenantContext.getCurrentTenant()), exercise, FULL_EXPORT_OPTIONS);
   }
 
   @DisplayName(

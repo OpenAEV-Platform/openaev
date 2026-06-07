@@ -6,8 +6,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.ExecState;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -157,7 +157,8 @@ public class ChallengeApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Challenge")
       })
-  public List<RawDocument> documentsFromChallenge(@PathVariable String challengeId) {
-    return documentService.forCurrentTenant().documentsForChallenge(challengeId);
+  public List<RawDocument> documentsFromChallenge(
+      ExecState state, @PathVariable String challengeId) {
+    return documentService.documentsForChallenge(state, challengeId);
   }
 }

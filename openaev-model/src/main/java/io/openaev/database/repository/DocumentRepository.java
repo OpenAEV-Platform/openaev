@@ -46,5 +46,4 @@ public class DocumentRepository {
   public DocumentJpaRepository forOp(ExecState state) {
     return TenantProxy.of(internal, DocumentJpaRepository.class, state);
   }
-
 }

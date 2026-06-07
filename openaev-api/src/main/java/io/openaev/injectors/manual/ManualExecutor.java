@@ -11,7 +11,6 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Stream;
 

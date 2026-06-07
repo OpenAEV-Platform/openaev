@@ -2,8 +2,8 @@ package io.openaev.jsonapi;
 
 import static java.time.format.DateTimeFormatter.ofPattern;
 
-import io.openaev.database.model.Base;
 import io.openaev.context.ExecState;
+import io.openaev.database.model.Base;
 import io.openaev.service.ZipJsonService;
 import java.io.IOException;
 import java.time.ZonedDateTime;
@@ -35,7 +35,8 @@ public class ZipJsonApi<T extends Base> {
   }
 
   public ResponseEntity<byte[]> handleExport(
-      ExecState state, T entity, Map<String, byte[]> extras, IncludeOptions includeOptions) throws IOException {
+      ExecState state, T entity, Map<String, byte[]> extras, IncludeOptions includeOptions)
+      throws IOException {
 
     JsonApiDocument<ResourceObject> resource = exporter.handleExport(entity, includeOptions);
     byte[] zipBytes = this.zipJsonService.handleExportResource(state, entity, extras, resource);

@@ -6,6 +6,7 @@ import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -198,11 +199,11 @@ public class ThreatArsenalService {
    * @return the created threat arsenal action
    */
   @Transactional(rollbackFor = Exception.class)
-  public ThreatArsenalAction create(ThreatArsenalActionCreateInput actionInput) {
+  public ThreatArsenalAction create(ExecState state, ThreatArsenalActionCreateInput actionInput) {
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(state, payloadCreateInput);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 
@@ -218,7 +219,8 @@ public class ThreatArsenalService {
    * @return the updated threat arsenal action
    */
   @Transactional(rollbackFor = Exception.class)
-  public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
+  public ThreatArsenalAction update(
+      ExecState state, String actionId, ThreatArsenalActionUpdateInput actionInput) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
 
@@ -226,11 +228,13 @@ public class ThreatArsenalService {
       return updateActionNotPayloadBased(injectorContract, actionInput);
     }
 
-    return updateActionPayloadBased(injectorContract, actionInput);
+    return updateActionPayloadBased(state, injectorContract, actionInput);
   }
 
   private ThreatArsenalAction updateActionPayloadBased(
-      InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+      ExecState state,
+      InjectorContract injectorContract,
+      ThreatArsenalActionUpdateInput actionInput) {
     if (actionInput.executionArch() == null) {
       throw new IllegalArgumentException(
           "action_execution_arch is required for payload-based actions");
@@ -244,7 +248,7 @@ public class ThreatArsenalService {
     // update payload using the resolved payload ID
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadUpdateService.updatePayload(
-            injectorContract.getPayload().getId(), payloadInput);
+            state, injectorContract.getPayload().getId(), payloadInput);
     // convert to ThreatArsenalAction
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }

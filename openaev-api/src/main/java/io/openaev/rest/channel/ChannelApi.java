@@ -91,7 +91,9 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHANNEL)
   public Channel updateChannelLogos(
-      ExecState state, @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
+      ExecState state,
+      @PathVariable String channelId,
+      @Valid @RequestBody ChannelUpdateLogoInput input) {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     if (input.getLogoDark() != null) {
@@ -192,7 +194,9 @@ public class ChannelApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackOn = Exception.class)
   public Article createArticleForExercise(
-      ExecState state, @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
+      ExecState state,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -320,8 +324,7 @@ public class ChannelApi extends RestBehavior {
     List<Document> finalArticleDocuments = new ArrayList<>();
     articleDocuments.forEach(
         articleDocument -> {
-          Optional<Document> doc =
-              this.documentRepository.forOp(state).findById(articleDocument);
+          Optional<Document> doc = this.documentRepository.forOp(state).findById(articleDocument);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -418,7 +421,7 @@ public class ChannelApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Channel")
       })
-  public List<RawDocument> documentsFromChannel(@PathVariable String channelId) {
-    return documentService.forCurrentTenant().documentsForChannel(channelId);
+  public List<RawDocument> documentsFromChannel(ExecState state, @PathVariable String channelId) {
+    return documentService.documentsForChannel(state, channelId);
   }
 }

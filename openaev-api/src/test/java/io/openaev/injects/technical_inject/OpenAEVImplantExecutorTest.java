@@ -147,7 +147,8 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    openAEVImplantExecutor.process(io.openaev.context.ExecState.of("tenant"), execution, executableInject);
+    openAEVImplantExecutor.process(
+        io.openaev.context.ExecState.of("tenant"), execution, executableInject);
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for asset group - 1 for the endpoint - 1 per agent

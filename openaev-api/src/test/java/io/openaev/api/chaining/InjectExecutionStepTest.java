@@ -10,12 +10,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.document.DocumentServiceInternal;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -50,7 +50,6 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private AssetService assetService;
   @MockitoBean private TagService tagService;
   @MockitoBean private DocumentService documentService;
-  @MockitoBean private DocumentServiceInternal documentServiceInternal;
   @MockitoBean private InjectService injectService;
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
@@ -81,8 +80,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(documentServiceInternal).when(documentService).forCurrentTenant();
-    doReturn(null).when(documentServiceInternal).document(any());
+    doReturn(null).when(documentService).document(any(), any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 
@@ -238,7 +236,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     IllegalArgumentException ex =
         Assertions.assertThrows(
-            IllegalArgumentException.class, () -> injectExecutionStep.create(stepInput, workflow));
+            IllegalArgumentException.class,
+            () -> injectExecutionStep.create(ExecState.of("tenant"), stepInput, workflow));
 
     Assertions.assertEquals("Data step of new step (TEMPLATE) is null", ex.getMessage());
   }
@@ -303,7 +302,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     // ACT
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt =
+        injectExecutionStep.create(ExecState.of("tenant"), step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -356,7 +356,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
 
     // ACT
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt =
+        injectExecutionStep.create(ExecState.of("tenant"), step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -403,7 +404,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setConditions(Collections.singletonList(conditionMapper));
     // ACT
 
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt =
+        injectExecutionStep.create(ExecState.of("tenant"), step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -443,7 +445,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
     workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
     // PERSIST STEP TEMPLATE
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt =
+        injectExecutionStep.create(ExecState.of("tenant"), step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -505,7 +508,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setConditions(Collections.singletonList(conditionMapper));
 
     // ACT
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt =
+        injectExecutionStep.create(ExecState.of("tenant"), step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 
@@ -563,7 +567,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
             .build();
     step.setConditions(Collections.singletonList(conditionMapper));
     // ACT
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    Optional<Step> stepTemplateOpt =
+        injectExecutionStep.create(ExecState.of("tenant"), step, workflowTemplate);
     assertTrue(stepTemplateOpt.isPresent());
     Step stepTemplate = stepTemplateOpt.get();
 

@@ -17,8 +17,8 @@ import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.expression.operators.relational.InExpression;
+import net.sf.jsqlparser.expression.operators.relational.ParenthesedExpressionList;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
@@ -228,8 +228,8 @@ public class TenantStatementInspector implements StatementInspector {
     if (tenantIds.size() == 1) {
       return new EqualsTo(col, new StringValue(tenantIds.get(0)));
     }
-    ExpressionList<StringValue> values =
-        new ExpressionList<>(tenantIds.stream().map(StringValue::new).toList());
+    ParenthesedExpressionList<StringValue> values =
+        new ParenthesedExpressionList<>(tenantIds.stream().map(StringValue::new).toList());
     return new InExpression(col, values);
   }
 

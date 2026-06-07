@@ -146,23 +146,27 @@ public class InjectService {
   // -- CRUD --
 
   public Inject createAndSaveInject(
+      ExecState state,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
-    return injectRepository.save(buildInject(exercise, scenario, input));
+    return injectRepository.save(buildInject(state, exercise, scenario, input));
   }
 
   public List<Inject> createAndSaveInjectList(
+      ExecState state,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       List<InjectInput> injectInputs) {
 
     List<Inject> injects = new ArrayList<>();
-    injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
+    injectInputs.forEach(
+        injectInput -> injects.add(buildInject(state, exercise, scenario, injectInput)));
     return injectRepository.saveAll(injects);
   }
 
   private Inject buildInject(
+      ExecState state,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
@@ -186,7 +190,7 @@ public class InjectService {
     inject.setTags(tagService.tagSet(input.getTagIds()));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.forCurrentTenant().document(i.getDocumentId()), inject))
+            .map(i -> i.toDocument(documentService.document(state, i.getDocumentId()), inject))
             .toList();
     inject.setDocuments(injectDocuments);
     // Set dependencies
@@ -1441,6 +1445,7 @@ public class InjectService {
    * @param locale to set default inject label
    */
   public void createInjectsFromInjectorContractInput(
+      ExecState state,
       Exercise exercise,
       List<Scenario> scenarios,
       InjectorContractSearchPaginationInput input,
@@ -1458,7 +1463,8 @@ public class InjectService {
       page = fetchInjectorContractsPage(input, pageNumber);
       List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
       if (!injectInputs.isEmpty()) {
-        scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+        scenarios.forEach(
+            scenario -> createAndSaveInjectList(state, exercise, scenario, injectInputs));
       }
       pageNumber++;
     } while (page.hasNext());

@@ -1226,7 +1226,8 @@ public class InjectImportService {
                                     - earliestInstant.getEpochSecond())));
   }
 
-  public void importInjectsForScenario(ExecState state, MultipartFile file, String scenarioId) throws Exception {
+  public void importInjectsForScenario(ExecState state, MultipartFile file, String scenarioId)
+      throws Exception {
     Scenario targetScenario =
         scenarioRepository
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
@@ -1235,7 +1236,8 @@ public class InjectImportService {
     this.importService.handleFileImport(state, file, null, targetScenario);
   }
 
-  public void importInjectsForSimulation(ExecState state, MultipartFile file, String simulationId) throws Exception {
+  public void importInjectsForSimulation(ExecState state, MultipartFile file, String simulationId)
+      throws Exception {
     Exercise targetSimulation =
         exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
 

@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Workflow;
@@ -49,7 +50,8 @@ public class StepApi {
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
+  public StepOutput createStep(ExecState state, @Valid @RequestBody StepInput input)
+      throws ChainingException {
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
             .stepAction(input.getStepAction())
@@ -60,7 +62,7 @@ public class StepApi {
     Workflow workflow =
         workflowService.getWorkflowByIdAndStatus(input.getWorkflowId(), WorkflowStatus.TEMPLATE);
 
-    return toOutput(stepService.createStepTemplate(workflow, createInput));
+    return toOutput(stepService.createStepTemplate(state, workflow, createInput));
   }
 
   // -- READ --
@@ -96,9 +98,10 @@ public class StepApi {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @PutMapping("/{stepId}")
-  public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
+  public StepOutput updateStep(
+      ExecState state, @PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
-    return toOutput(stepService.updateStepTemplate(stepId, input));
+    return toOutput(stepService.updateStepTemplate(state, stepId, input));
   }
 
   // -- DELETE --

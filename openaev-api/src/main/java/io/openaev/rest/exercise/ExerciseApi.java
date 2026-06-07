@@ -870,7 +870,8 @@ public class ExerciseApi extends RestBehavior {
 
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public void exerciseImport(ExecState state, @RequestPart("file") MultipartFile file) throws Exception {
+  public void exerciseImport(ExecState state, @RequestPart("file") MultipartFile file)
+      throws Exception {
     importService.handleFileImport(state, file, null, null);
   }
 
@@ -994,8 +995,8 @@ public class ExerciseApi extends RestBehavior {
   @Operation(
       summary = "Get documents. Can only be called if the user has access to the given simulation.",
       description = "Get all documents used by injects for a given simulation")
-  public List<Document> documents(@PathVariable String exerciseId) {
-    return this.documentService.forCurrentTenant().documentsForSimulation(exerciseId);
+  public List<Document> documents(ExecState state, @PathVariable String exerciseId) {
+    return this.documentService.documentsForSimulation(state, exerciseId);
   }
 
   @GetMapping({

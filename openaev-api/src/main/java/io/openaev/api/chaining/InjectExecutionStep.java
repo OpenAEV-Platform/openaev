@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -102,15 +103,16 @@ public class InjectExecutionStep implements ActionStep {
    * @return a step in TEMPLATE status
    */
   @Override
-  public Optional<Step> create(StepsCreateInput.StepInput newStep, Workflow workflow)
+  public Optional<Step> create(
+      ExecState state, StepsCreateInput.StepInput newStep, Workflow workflow)
       throws ChainingException {
     String data = null;
 
     if (workflow.getScenario() != null) {
-      data = stepData(newStep, null, workflow.getScenario());
+      data = stepData(state, newStep, null, workflow.getScenario());
 
     } else if (workflow.getSimulation() != null) {
-      data = stepData(newStep, workflow.getSimulation(), null);
+      data = stepData(state, newStep, workflow.getSimulation(), null);
     }
     if (data == null) {
       throw new ChainingException(
@@ -358,7 +360,8 @@ public class InjectExecutionStep implements ActionStep {
    * @return a JSON string representing the serialized inject, or {@code null} if the injector
    *     contract is missing
    */
-  private String stepData(StepsCreateInput.StepInput step, Exercise simulation, Scenario scenario)
+  private String stepData(
+      ExecState state, StepsCreateInput.StepInput step, Exercise simulation, Scenario scenario)
       throws ChainingException {
 
     InjectInput data = (InjectInput) step.getDataStep();
@@ -391,7 +394,7 @@ public class InjectExecutionStep implements ActionStep {
 
     List<InjectDocument> injectDocuments =
         data.getDocuments().stream()
-            .map(i -> i.toDocument(documentService.forCurrentTenant().document(i.getDocumentId()), inject))
+            .map(i -> i.toDocument(documentService.document(state, i.getDocumentId()), inject))
             .toList();
     inject.setDocuments(injectDocuments);
     Set<Tag> tags = new HashSet<>();

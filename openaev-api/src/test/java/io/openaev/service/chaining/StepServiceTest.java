@@ -10,6 +10,7 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
@@ -75,7 +76,9 @@ class StepServiceTest {
       // Act + Assert
       assertThrows(
           ChainingException.class,
-          () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
+          () ->
+              stepService.createStepTemplates(
+                  ExecState.of("tenant"), workflow, List.of(stepInput)));
 
       verify(conditionService, never()).saveCondition(any());
     }
@@ -96,7 +99,7 @@ class StepServiceTest {
       setupCreateStepTemplates(stepInput);
 
       // Act
-      stepService.createStepTemplates(workflow, List.of(stepInput));
+      stepService.createStepTemplates(ExecState.of("tenant"), workflow, List.of(stepInput));
 
       // Assert
       verify(conditionService, never()).saveCondition(any());
@@ -172,7 +175,7 @@ class StepServiceTest {
           .createConditionTree(any(), any(), any(), any(), isNull());
 
       // Act
-      stepService.createStepTemplates(workflow, List.of(stepInput));
+      stepService.createStepTemplates(ExecState.of("tenant"), workflow, List.of(stepInput));
 
       // Assert
       verify(conditionService).createConditionTree(eq(inputs), any(), any(), any(), isNull());
@@ -255,7 +258,9 @@ class StepServiceTest {
       // Act + Assert
       assertThrows(
           IllegalArgumentException.class,
-          () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
+          () ->
+              stepService.createStepTemplates(
+                  ExecState.of("tenant"), workflow, List.of(stepInput)));
     }
 
     @Test
@@ -273,7 +278,8 @@ class StepServiceTest {
 
       when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
-      when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.ofNullable(step));
+      when(actionStep.create(ExecState.of("tenant"), any(), eq(workflow)))
+          .thenReturn(Optional.ofNullable(step));
 
       assertNotNull(step);
       when(stepRepository.save(step)).thenReturn(step);
@@ -287,7 +293,9 @@ class StepServiceTest {
       // Act + Assert
       assertThrows(
           IllegalArgumentException.class,
-          () -> stepService.createStepTemplates(workflow, List.of(stepInput)));
+          () ->
+              stepService.createStepTemplates(
+                  ExecState.of("tenant"), workflow, List.of(stepInput)));
     }
   }
 
@@ -827,7 +835,8 @@ class StepServiceTest {
 
     doReturn(actionStep).when(stepService).factoryAction(any(), any());
 
-    when(actionStep.create(any(), eq(localWorkflow))).thenReturn(Optional.of(step));
+    when(actionStep.create(ExecState.of("tenant"), any(), eq(localWorkflow)))
+        .thenReturn(Optional.of(step));
 
     when(stepRepository.save(step)).thenReturn(step);
 
@@ -838,7 +847,8 @@ class StepServiceTest {
     // Act + Assert
     assertThrows(
         IllegalArgumentException.class,
-        () -> stepService.createStepTemplates(localWorkflow, List.of(input)));
+        () ->
+            stepService.createStepTemplates(ExecState.of("tenant"), localWorkflow, List.of(input)));
   }
 
   /* ============================================================
@@ -852,7 +862,8 @@ class StepServiceTest {
 
     when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
-    when(actionStep.create(any(), eq(workflow))).thenReturn(Optional.ofNullable(step));
+    when(actionStep.create(ExecState.of("tenant"), any(), eq(workflow)))
+        .thenReturn(Optional.ofNullable(step));
 
     assertNotNull(step);
     when(stepRepository.save(step)).thenReturn(step);
@@ -901,11 +912,13 @@ class StepServiceTest {
       when(stepInput.getConditions()).thenReturn(Collections.emptyList());
       when(stepInput.getConditionIds()).thenReturn(conditionIds);
       doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
-      when(actionStep.create(stepInput, localWorkflow)).thenReturn(Optional.of(created));
+      when(actionStep.create(ExecState.of("tenant"), stepInput, localWorkflow))
+          .thenReturn(Optional.of(created));
       when(stepRepository.save(created)).thenReturn(created);
 
       // Act
-      Step result = stepService.createStepTemplate(localWorkflow, stepInput);
+      Step result =
+          stepService.createStepTemplate(ExecState.of("tenant"), localWorkflow, stepInput);
 
       // Assert
       assertSame(created, result);
@@ -938,12 +951,13 @@ class StepServiceTest {
       doReturn(actionStep)
           .when(stepService)
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
-      when(actionStep.create(any(StepsCreateInput.StepInput.class), eq(existingWorkflow)))
+      when(actionStep.create(
+              ExecState.of("tenant"), any(StepsCreateInput.StepInput.class), eq(existingWorkflow)))
           .thenReturn(Optional.of(candidate));
       when(stepRepository.save(existing)).thenReturn(existing);
 
       // Act
-      Step updated = stepService.updateStepTemplate(stepId, stepInput);
+      Step updated = stepService.updateStepTemplate(ExecState.of("tenant"), stepId, stepInput);
 
       // Assert
       assertSame(existing, updated);

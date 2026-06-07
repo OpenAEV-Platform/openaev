@@ -106,8 +106,8 @@ public final class StateExecutionContext {
   }
 
   /**
-   * Returns the current effective ExecState, or {@code null} if no context is active. Called
-   * by {@link io.openaev.config.TenantStatementInspector} before each SQL statement.
+   * Returns the current effective ExecState, or {@code null} if no context is active. Called by
+   * {@link io.openaev.config.TenantStatementInspector} before each SQL statement.
    */
   public static ExecState get() {
     return CURRENT_STATE.get();

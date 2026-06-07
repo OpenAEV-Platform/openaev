@@ -53,7 +53,8 @@ public class ExportService {
     return (exercise.getName() + "_" + now().toString()) + "_" + infos + ".zip";
   }
 
-  public byte[] exportExerciseToZip(@NotNull final ExecState state, Exercise exercise, int exportOptionsMask) throws IOException {
+  public byte[] exportExerciseToZip(
+      @NotNull final ExecState state, Exercise exercise, int exportOptionsMask) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
     ExerciseFileExport importExport =

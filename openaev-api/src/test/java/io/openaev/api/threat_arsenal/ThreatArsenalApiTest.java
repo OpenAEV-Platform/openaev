@@ -14,10 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.ExecState;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.collectors.utils.CollectorsUtils;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CollectorRepository;
@@ -98,7 +98,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   void afterAll() {
     payloadRepository.deleteAll();
     if (EXECUTABLE_FILE != null) {
-      documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).deleteById(EXECUTABLE_FILE.getId());
+      documentRepository
+          .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+          .deleteById(EXECUTABLE_FILE.getId());
     }
     collectorRepository.deleteAll();
   }

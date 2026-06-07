@@ -5,6 +5,7 @@ import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUT
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -66,7 +67,7 @@ public class SecurityCoverageInjectService {
    * @return list injects related to this scenario
    */
   public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
-      Scenario scenario, SecurityCoverage securityCoverage) {
+      ExecState state, Scenario scenario, SecurityCoverage securityCoverage) {
 
     // 1. Remove all inject placeholders
     cleanInjectPlaceholders(scenario.getId());
@@ -102,6 +103,7 @@ public class SecurityCoverageInjectService {
 
     // 8. Build injects from Artifacts
     createInjectsByArtifacts(
+        state,
         scenario,
         securityCoverage.getArtifactsRefs(),
         requiredAssetGroupMap,
@@ -136,6 +138,7 @@ public class SecurityCoverageInjectService {
    * @param contractForPlaceholder to create placeholder on failed download
    */
   private void createInjectsByArtifacts(
+      ExecState state,
       Scenario scenario,
       Set<StixRefToExternalRef> artifactsRefs,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -147,7 +150,7 @@ public class SecurityCoverageInjectService {
                     artifact.getExternalRefs() != null && !artifact.getExternalRefs().isEmpty())
             .collect(Collectors.toSet());
     List<Document> previousDocuments =
-        documentService.forCurrentTenant().findAllDistinctOnInjectsByScenarioId(scenario.getId());
+        documentService.findAllDistinctOnInjectsByScenarioId(state, scenario.getId());
 
     // 1. Remove Inject and Scenario on Documents with contract related to File Drop if there is no
     // any Artifact to
@@ -157,7 +160,7 @@ public class SecurityCoverageInjectService {
       injectRepository.deleteAllInjectsWithFileDropContractsByScenarioId(scenario.getId());
       Set<String> allInjectIds =
           scenario.getInjects().stream().map(Inject::getId).collect(Collectors.toSet());
-      cleanScenarioFromDocuments(scenario, previousDocuments, allInjectIds);
+      cleanScenarioFromDocuments(state, scenario, previousDocuments, allInjectIds);
       return;
     }
 
@@ -189,7 +192,7 @@ public class SecurityCoverageInjectService {
                     }
 
                     // 6. Create placeholders for missing files
-                    if (!this.documentService.forCurrentTenant().documentExists(documentId)) {
+                    if (!this.documentService.documentExists(state, documentId)) {
                       Inject inject =
                           injectAssistantService.buildManualInject(
                               contractForPlaceholder,
@@ -204,7 +207,7 @@ public class SecurityCoverageInjectService {
 
                     // 7. Fetch existing or created FileDrop Payload by document id
                     FileDrop fileDrop =
-                        payloadService.getFileDropPayloadByDocument(documentId, scenario);
+                        payloadService.getFileDropPayloadByDocument(state, documentId, scenario);
 
                     // 8. Create an inject, linked to the scenario for each contract
                     createInjectsByInjectorContracts(fileDrop, assetsFromGroupMap, scenario);
@@ -220,7 +223,7 @@ public class SecurityCoverageInjectService {
     injectRepository.deleteAllByIdInBatch(injectToDelete);
 
     // 9. Clean all Scenario on unused documents
-    cleanScenarioFromDocuments(scenario, previousDocuments, injectToDelete);
+    cleanScenarioFromDocuments(state, scenario, previousDocuments, injectToDelete);
   }
 
   /**
@@ -231,7 +234,10 @@ public class SecurityCoverageInjectService {
    * @param deletedInjects to filter
    */
   private void cleanScenarioFromDocuments(
-      Scenario scenario, List<Document> previousDocuments, Set<String> deletedInjects) {
+      ExecState state,
+      Scenario scenario,
+      List<Document> previousDocuments,
+      Set<String> deletedInjects) {
     List<Inject> currentInjects =
         scenario.getInjects().stream()
             .filter(inject -> !deletedInjects.contains(inject.getId()))
@@ -250,7 +256,7 @@ public class SecurityCoverageInjectService {
         .forEach(
             documentToClean -> {
               documentToClean.getScenarios().remove(scenario);
-              documentService.forCurrentTenant().save(documentToClean);
+              documentService.save(state, documentToClean);
             });
   }
 

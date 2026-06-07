@@ -1,6 +1,7 @@
 package io.openaev.api.chaining;
 
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.rest.exception.ChainingException;
@@ -15,7 +16,7 @@ public interface ActionStep {
    * @param workflow the workflow
    * @return the step
    */
-  Optional<Step> create(StepsCreateInput.StepInput stepInput, Workflow workflow)
+  Optional<Step> create(ExecState state, StepsCreateInput.StepInput stepInput, Workflow workflow)
       throws ChainingException;
 
   /**

@@ -16,10 +16,10 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.document.DocumentServiceInternal;
 import io.openaev.rest.exercise.form.CreateExerciseInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -74,7 +74,6 @@ class ChainingIntegrationTest extends IntegrationTest {
   @MockitoBean private AssetService assetService;
   @MockitoBean private TagService tagService;
   @MockitoBean private DocumentService documentService;
-  @MockitoBean private DocumentServiceInternal documentServiceInternal;
   @MockitoBean private InjectService injectService;
   @MockitoBean private io.openaev.executors.Executor executor;
   @Autowired private MockMvc mvc;
@@ -100,8 +99,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(documentServiceInternal).when(documentService).forCurrentTenant();
-    doReturn(null).when(documentServiceInternal).document(any());
+    doReturn(null).when(documentService).document(any(), any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
     doAnswer(invocation -> testUserHolder.get()).when(userService).currentUser();
@@ -232,7 +230,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       long stepCountBefore = stepRepository.count();
 
-      stepService.createStepTemplates(workflowTemplate, List.of(step1, step2));
+      stepService.createStepTemplates(
+          ExecState.of("tenant"), workflowTemplate, List.of(step1, step2));
 
       assertEquals(stepCountBefore + 2, stepRepository.count());
 
@@ -362,7 +361,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate, List.of(step));
+      stepService.createStepTemplates(ExecState.of("tenant"), workflowTemplate, List.of(step));
 
       String simulationResult =
           mvc.perform(
@@ -455,7 +454,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       step.setStepAction(StepActionClass.INJECT_EXECUTION);
       step.setDataStep(injectInput);
       step.setConditions(List.of());
-      stepService.createStepTemplates(workflowTemplate, List.of(step));
+      stepService.createStepTemplates(ExecState.of("tenant"), workflowTemplate, List.of(step));
       String simulation =
           mvc.perform(
                   post(tenantUri(
@@ -548,7 +547,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepsCreateInput.StepInput step = buildValidStepInput();
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate, List.of(step));
+      stepService.createStepTemplates(ExecState.of("tenant"), workflowTemplate, List.of(step));
 
       String result =
           mvc.perform(

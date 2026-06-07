@@ -7,6 +7,7 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
@@ -44,12 +45,13 @@ public class StepService {
    * @return created step template
    */
   @Transactional(rollbackFor = Exception.class)
-  public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
+  public Step createStepTemplate(
+      ExecState state, Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
     Step step =
         actionStep
-            .create(stepInput, workflow)
+            .create(state, stepInput, workflow)
             .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
 
     step = saveStep(step);
@@ -65,10 +67,11 @@ public class StepService {
    * @param steps list of input to create step templates
    */
   @Transactional(rollbackFor = Exception.class)
-  public void createStepTemplates(Workflow workflow, List<StepsCreateInput.StepInput> steps)
+  public void createStepTemplates(
+      ExecState state, Workflow workflow, List<StepsCreateInput.StepInput> steps)
       throws ChainingException {
     for (StepsCreateInput.StepInput stepInput : steps) {
-      createStepTemplate(workflow, stepInput);
+      createStepTemplate(state, workflow, stepInput);
     }
   }
 
@@ -458,7 +461,8 @@ public class StepService {
    * @return updated step template
    */
   @Transactional(rollbackFor = Exception.class)
-  public Step updateStepTemplate(String stepId, StepInput stepInput) throws ChainingException {
+  public Step updateStepTemplate(ExecState state, String stepId, StepInput stepInput)
+      throws ChainingException {
     // Retrieve the existing step template from a database
     Step existing = findStepTemplateById(stepId);
 
@@ -472,7 +476,7 @@ public class StepService {
     // This ensures validation and mapping rules are reused
     Step updatedCandidate =
         actionStep
-            .create(createInput, existing.getWorkflow())
+            .create(state, createInput, existing.getWorkflow())
             .orElseThrow(() -> new ChainingException("Failed to update step (TEMPLATE)"));
 
     // Apply updated fields from the candidate to the existing persistent entity

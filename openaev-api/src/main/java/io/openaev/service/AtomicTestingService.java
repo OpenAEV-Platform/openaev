@@ -106,7 +106,8 @@ public class AtomicTestingService {
   }
 
   @Transactional
-  public InjectResultOverviewOutput createOrUpdate(@NotNull final ExecState state, AtomicTestingInput input, String injectId) {
+  public InjectResultOverviewOutput createOrUpdate(
+      @NotNull final ExecState state, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
     if (injectId != null) {
       injectToSave = findInject(injectId);
@@ -157,10 +158,7 @@ public class AtomicTestingService {
                 injectDocument.setCompositeId(injectDocumentId);
                 injectDocument.setInject(finalInjectToSave);
                 injectDocument.setDocument(
-                    documentRepository
-                        .forOp(state)
-                        .findById(i.getDocumentId())
-                        .orElseThrow());
+                    documentRepository.forOp(state).findById(i.getDocumentId()).orElseThrow());
               }
               injectDocument.setAttached(i.isAttached());
               finalInjectToSave

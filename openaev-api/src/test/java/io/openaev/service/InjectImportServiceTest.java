@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.RuleAttribute;
@@ -12,7 +13,6 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.context.ExecState;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;

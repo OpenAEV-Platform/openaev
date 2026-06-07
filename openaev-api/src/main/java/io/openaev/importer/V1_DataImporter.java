@@ -178,12 +178,13 @@ public class V1_DataImporter implements Importer {
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
         Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
-    importDocuments(state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
+    importDocuments(
+        state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
     importDocument(state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
 
     // Should be done after tags & documents
     if (prefix.equals("payload_")) {
-      importPayloadAsMain(importNode, baseIds);
+      importPayloadAsMain(state, importNode, baseIds);
     }
 
     importOrganizations(importNode, prefix, baseIds);
@@ -194,7 +195,8 @@ public class V1_DataImporter implements Importer {
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
     importObjectives(importNode, prefix, savedExercise, savedScenario, baseIds);
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
-    importInjects(importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
+    importInjects(
+        state, importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
     importVariables(importNode, savedExercise, savedScenario, baseIds);
   }
 
@@ -538,7 +540,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
           }
         });
     // Handle argument documents
@@ -550,7 +553,8 @@ public class V1_DataImporter implements Importer {
           ImportEntry entry = docReferences.get(target);
 
           if (entry != null) {
-            handleDocumentWithEntry(state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+            handleDocumentWithEntry(
+                state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
           }
         });
   }
@@ -574,7 +578,8 @@ public class V1_DataImporter implements Importer {
     if (target != null) {
       ImportEntry entry = docReferences.get(target);
       if (entry != null) {
-        handleDocumentWithEntry(state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
+        handleDocumentWithEntry(
+            state, nodeDoc, entry, target, savedExercise, savedScenario, baseIds);
       }
     }
   }
@@ -588,13 +593,14 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Map<String, Base> baseIds) {
     String contentType = new MimetypesFileTypeMap().getContentType(entry.getEntry().getName());
-    Optional<Document> targetDocument =
-        this.documentRepository.forOp(state).findByTarget(target);
+    Optional<Document> targetDocument = this.documentRepository.forOp(state).findByTarget(target);
 
     if (targetDocument.isPresent()) {
-      updateExistingDocument(state, nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
+      updateExistingDocument(
+          state, nodeDoc, targetDocument.get(), savedExercise, savedScenario, baseIds);
     } else {
-      uploadNewDocument(state, nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
+      uploadNewDocument(
+          state, nodeDoc, entry, target, savedExercise, savedScenario, contentType, baseIds);
     }
   }
 
@@ -1083,6 +1089,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importInjects(
+      ExecState state,
       JsonNode importNode,
       String prefix,
       Exercise savedExercise,
@@ -1128,6 +1135,7 @@ public class V1_DataImporter implements Importer {
             .filter(jsonNode -> !children.contains(jsonNode.get("inject_id").asText()));
 
     importInjects(
+        state,
         baseIds,
         savedExercise,
         savedScenario,
@@ -1138,6 +1146,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importInjects(
+      ExecState state,
       Map<String, Base> baseIds,
       Exercise exercise,
       Scenario scenario,
@@ -1188,13 +1197,13 @@ public class V1_DataImporter implements Importer {
                   log.info(
                       "Inject comes from a collector not set up in your environment, a new payload has been created.");
                   injectorContract =
-                      Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
+                      Optional.of(importPayload(state, payloadNode, injectContractNode, baseIds));
                   injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
                 }
                 // Create new payload
               } else {
                 injectorContract =
-                    Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
+                    Optional.of(importPayload(state, payloadNode, injectContractNode, baseIds));
                 injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
               }
             }
@@ -1368,7 +1377,8 @@ public class V1_DataImporter implements Importer {
                 })
             .toList();
     if (!childInjects.isEmpty()) {
-      importInjects(baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects);
+      importInjects(
+          state, baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects);
     }
   }
 
@@ -1542,7 +1552,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private String importPayloadAsMain(
-      @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
+      ExecState state, @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = importNode.get("payload_information");
     if (payloadNode == null) {
       return null;
@@ -1576,7 +1586,7 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(baseIds, payloadNode, null);
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(state, payloadCreateInput);
     if (result.injectorContract() != null) {
       return result.injectorContract().getId();
     } else {
@@ -1586,6 +1596,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private InjectorContract importPayload(
+      ExecState state,
       @NotNull final JsonNode payloadNode,
       @NotNull final JsonNode injectContractNode,
       Map<String, Base> baseIds) {
@@ -1605,7 +1616,7 @@ public class V1_DataImporter implements Importer {
     PayloadCreateInput payloadCreateInput =
         buildPayloadCreateInput(baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(payloadCreateInput);
+        this.payloadCreationService.createPayload(state, payloadCreateInput);
 
     if (result.injectorContract() != null) {
       return result.injectorContract();

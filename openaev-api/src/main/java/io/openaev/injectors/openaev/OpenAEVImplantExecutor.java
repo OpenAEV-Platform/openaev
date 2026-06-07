@@ -47,7 +47,8 @@ public class OpenAEVImplantExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
+  public ExecutionProcess process(
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception {
     Inject inject = this.injectService.inject(injection.getInjection().getInject().getId());
 

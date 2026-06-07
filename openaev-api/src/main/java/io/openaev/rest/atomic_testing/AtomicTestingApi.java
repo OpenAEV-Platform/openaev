@@ -80,8 +80,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
-      ExecState state,
-      @Valid @RequestBody AtomicTestingInput input) {
+      ExecState state, @Valid @RequestBody AtomicTestingInput input) {
     return this.atomicTestingService.createOrUpdate(state, input, null);
   }
 
@@ -239,7 +238,8 @@ public class AtomicTestingApi extends RestBehavior {
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
-      ExecState state, @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
+      ExecState state, @RequestPart("file") MultipartFile file, HttpServletResponse response)
+      throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }

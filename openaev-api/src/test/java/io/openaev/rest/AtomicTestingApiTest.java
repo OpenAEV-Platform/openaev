@@ -12,8 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.context.ExecState;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -74,7 +74,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
     injectStatus.setInject(injectWithPayload);
     INJECT_STATUS = injectStatusRepository.save(injectStatus);
 
-    DOCUMENT = documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(DocumentFixture.getDocumentJpeg());
+    DOCUMENT =
+        documentRepository
+            .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+            .save(DocumentFixture.getDocumentJpeg());
 
     entityManager.flush();
     entityManager.clear();

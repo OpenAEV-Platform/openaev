@@ -168,6 +168,7 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenarioWithInjectorContracts(
+      ExecState state,
       @NotBlank final String tenantId,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
@@ -175,18 +176,23 @@ public class ScenarioService {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
-        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+        state,
+        null,
+        new ArrayList<>(List.of(scenario)),
+        injectorContractSearchPaginationInput,
+        locale);
     return scenario;
   }
 
   @Transactional
   public List<Scenario> updateScenariosWithInjectorContracts(
+      ExecState state,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
     this.injectService.createInjectsFromInjectorContractInput(
-        null, scenarios, injectorContractSearchPaginationInput, locale);
+        state, null, scenarios, injectorContractSearchPaginationInput, locale);
     return scenarios;
   }
 
@@ -694,8 +700,7 @@ public class ScenarioService {
         .distinct()
         .forEach(
             docId -> {
-              Document doc =
-                  this.documentRepository.forOp(state).findById(docId).orElseThrow();
+              Document doc = this.documentRepository.forOp(state).findById(docId).orElseThrow();
               Optional<InputStream> docStream = this.fileService.getFile(doc);
               if (docStream.isPresent()) {
                 try {

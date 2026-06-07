@@ -111,7 +111,7 @@ public class SecurityCoverageService {
     SecurityCoverage securityCoverage =
         buildSecurityCoverageFromStix(
             state, securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
-    Scenario scenario = buildScenarioFromSecurityCoverage(securityCoverage);
+    Scenario scenario = buildScenarioFromSecurityCoverage(state, securityCoverage);
 
     // FIXME: extract this behaviour into an async worker
     pushSecurityCoverageBundleWithExternalURI(scenario);
@@ -324,12 +324,13 @@ public class SecurityCoverageService {
    * @param securityCoverage the source coverage
    * @return the created or updated {@link Scenario}
    */
-  public Scenario buildScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+  public Scenario buildScenarioFromSecurityCoverage(
+      ExecState state, SecurityCoverage securityCoverage) {
     Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(securityCoverage);
     securityCoverage.setScenario(scenario);
     Set<Inject> injects =
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
-            scenario, securityCoverage);
+            state, scenario, securityCoverage);
     scenario.setInjects(injects);
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",

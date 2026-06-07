@@ -145,7 +145,8 @@ public class InjectApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
       ExecState state,
-      @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
+      @RequestBody @Valid InjectExportFromSearchRequestInput input,
+      HttpServletResponse response)
       throws IOException {
 
     // Control and format inputs
@@ -458,9 +459,12 @@ public class InjectApi extends RestBehavior {
       description =
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
   public Payload getExecutablePayloadInject(
-      @PathVariable @NotBlank final String injectId, @PathVariable @NotBlank final String agentId)
+      ExecState state,
+      @PathVariable @NotBlank final String injectId,
+      @PathVariable @NotBlank final String agentId)
       throws Exception {
-    return executableInjectService.getExecutablePayloadAndUpdateInjectStatus(injectId, agentId);
+    return executableInjectService.getExecutablePayloadAndUpdateInjectStatus(
+        state, injectId, agentId);
   }
 
   // -- EXERCISES --
@@ -668,14 +672,14 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
-      @PathVariable String injectId, @PathVariable String payloadId) {
+      ExecState state, @PathVariable String injectId, @PathVariable String payloadId) {
     Payload payload = injectService.getPayloadByInjectId(injectId);
 
     if (!payloadId.equals(payload.getId())) {
       throw new BadRequestException("provided payload id mismatch with provided inject id");
     }
 
-    return documentService.forCurrentTenant().documentsForPayload(payloadId);
+    return documentService.documentsForPayload(state, payloadId);
   }
 
   @VisibleForTesting

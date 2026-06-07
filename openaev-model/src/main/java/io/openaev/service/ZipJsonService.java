@@ -8,9 +8,9 @@ import static io.openaev.utils.reflection.RelationUtils.isRelation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Document;
-import io.openaev.context.ExecState;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.jsonapi.*;
 import jakarta.annotation.Resource;
@@ -71,7 +71,10 @@ public class ZipJsonService<T extends Base> {
    * @throws IOException if writing the archive fails
    */
   public byte[] handleExportResource(
-      ExecState state, T entity, Map<String, byte[]> extras, JsonApiDocument<ResourceObject> resource)
+      ExecState state,
+      T entity,
+      Map<String, byte[]> extras,
+      JsonApiDocument<ResourceObject> resource)
       throws IOException {
     if (extras == null) {
       extras = new HashMap<>();

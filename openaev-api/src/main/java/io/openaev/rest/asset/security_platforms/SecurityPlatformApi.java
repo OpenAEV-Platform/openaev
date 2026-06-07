@@ -205,8 +205,9 @@ public class SecurityPlatformApi {
             responseCode = "200",
             description = "The list of Documents used in the security platform")
       })
-  public List<RawDocument> documentsFromSecurityPlatform(@PathVariable String securityPlatformId) {
-    return documentService.forCurrentTenant().documentsForSecurityPlatform(securityPlatformId);
+  public List<RawDocument> documentsFromSecurityPlatform(
+      ExecState state, @PathVariable String securityPlatformId) {
+    return documentService.documentsForSecurityPlatform(state, securityPlatformId);
   }
 
   @GetMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})

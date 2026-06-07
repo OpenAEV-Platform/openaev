@@ -74,8 +74,8 @@ public class ImportService {
   }
 
   @Transactional(rollbackOn = Exception.class)
-  public void handleFileImport(ExecState state, MultipartFile file, Exercise exercise, Scenario scenario)
-      throws Exception {
+  public void handleFileImport(
+      ExecState state, MultipartFile file, Exercise exercise, Scenario scenario) throws Exception {
     handleInputStreamImport(
         state,
         file.getInputStream(),
@@ -252,7 +252,8 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(state, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
+        handleDataImport(
+            state, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
       }
     } finally {
       tempFile.delete();

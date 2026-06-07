@@ -10,6 +10,7 @@ import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -122,7 +123,7 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForSimulationChaining(
-      @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
+      ExecState state, @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
       throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
@@ -141,7 +142,7 @@ public class ChainingApi extends RestBehavior {
                           "Simulation is configured for chaining but no workflow TEMPLATE found. Simulation ID: "
                               + simulationId));
 
-      stepService.createStepTemplates(workflow, List.of(step));
+      stepService.createStepTemplates(state, workflow, List.of(step));
 
       // Todo return Action, Event and Link
     }
@@ -208,7 +209,9 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForScenarioChaining(
-      @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input)
+      ExecState state,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody InjectInput input)
       throws ChainingException {
     workflowService.isPreviewFeatureChainingEnable();
 
@@ -226,7 +229,7 @@ public class ChainingApi extends RestBehavior {
                           "Scenario is configured for chaining but no workflow TEMPLATE found. Scenario ID: "
                               + scenarioId));
 
-      stepService.createStepTemplates(workflow, List.of(step));
+      stepService.createStepTemplates(state, workflow, List.of(step));
       // Todo return Action, Event and Link
     }
   }

@@ -1,8 +1,8 @@
 package io.openaev.api.threat_arsenal;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.database.model.Action;
 import io.openaev.context.ExecState;
+import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
 import io.openaev.jsonapi.IncludeOptions;
@@ -47,8 +47,8 @@ public class ThreatArsenalApiExporter {
   @GetMapping(value = "/{actionId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
-  public ResponseEntity<byte[]> export(ExecState state, @PathVariable @NotBlank final String actionId)
-      throws IOException {
+  public ResponseEntity<byte[]> export(
+      ExecState state, @PathVariable @NotBlank final String actionId) throws IOException {
     Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
     opts.put("exclude from action export", IncludeOptions.IncludeMode.FALSE);
     IncludeOptions includeOptions = IncludeOptions.of(opts);

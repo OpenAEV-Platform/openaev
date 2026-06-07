@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPayloadRelatedIds;
@@ -394,13 +395,14 @@ public class PayloadService {
    * @param scenario to add to document if file drop is created
    * @return retrieved or created FileDrop
    */
-  public FileDrop getFileDropPayloadByDocument(String documentId, Scenario scenario) {
+  public FileDrop getFileDropPayloadByDocument(
+      ExecState state, String documentId, Scenario scenario) {
     FileDrop fileDrop =
         payloadRepository
             .findByDocumentId(documentId)
-            .orElseGet(() -> this.createFileDropPayload(documentId));
+            .orElseGet(() -> this.createFileDropPayload(state, documentId));
     fileDrop.getFileDropFile().getScenarios().add(scenario);
-    this.documentService.forCurrentTenant().save(fileDrop.getFileDropFile());
+    this.documentService.save(state, fileDrop.getFileDropFile());
     return fileDrop;
   }
 
@@ -410,8 +412,8 @@ public class PayloadService {
    * @param documentId to link to FileDrop Payload
    * @return created file drop payload
    */
-  public FileDrop createFileDropPayload(String documentId) {
-    Document document = this.documentService.forCurrentTenant().document(documentId);
+  public FileDrop createFileDropPayload(ExecState state, String documentId) {
+    Document document = this.documentService.document(state, documentId);
 
     FileDrop fileDrop = new FileDrop();
     fileDrop.setFileDropFile(document);

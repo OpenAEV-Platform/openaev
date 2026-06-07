@@ -9,10 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.rest.document.DocumentServiceInternal;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
@@ -50,7 +50,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @MockBean private AssetService assetService;
   @MockBean private TagService tagService;
   @MockBean private DocumentService documentService;
-  @MockBean private DocumentServiceInternal documentServiceInternal;
   @MockBean private InjectService injectService;
   @MockBean private io.openaev.executors.Executor executor;
   @Autowired private InjectorContractRepository injectorContractRepository;
@@ -77,8 +76,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(any());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(documentServiceInternal).when(documentService).forCurrentTenant();
-    doReturn(null).when(documentServiceInternal).document(any());
+    doReturn(null).when(documentService).document(any(), any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 
@@ -179,7 +177,8 @@ class StepServiceIntegrationTest extends IntegrationTest {
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> stepService.createStepTemplates(workflow, List.of(input)));
+            () ->
+                stepService.createStepTemplates(ExecState.of("tenant"), workflow, List.of(input)));
 
     // vérification du message
     assertEquals(
@@ -207,7 +206,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
 
     long countBefore = stepRepository.count();
 
-    stepService.createStepTemplates(workflow, List.of(input1, input2));
+    stepService.createStepTemplates(ExecState.of("tenant"), workflow, List.of(input1, input2));
 
     // vérification du message
 
@@ -236,7 +235,9 @@ class StepServiceIntegrationTest extends IntegrationTest {
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> stepService.createStepTemplates(workflow, List.of(input1, input2)));
+            () ->
+                stepService.createStepTemplates(
+                    ExecState.of("tenant"), workflow, List.of(input1, input2)));
 
     // vérification du message
     assertEquals(

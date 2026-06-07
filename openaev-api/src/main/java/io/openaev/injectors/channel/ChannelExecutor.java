@@ -24,7 +24,6 @@ import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
-import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -120,7 +119,8 @@ public class ChannelExecutor extends Injector {
                   .filter(InjectDocument::isAttached)
                   .map(InjectDocument::getDocument)
                   .toList();
-          List<DataAttachment> attachments = resolveAttachments(state, execution, injection, documents);
+          List<DataAttachment> attachments =
+              resolveAttachments(state, execution, injection, documents);
           String message =
               content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
           boolean encrypted = content.isEncrypted();

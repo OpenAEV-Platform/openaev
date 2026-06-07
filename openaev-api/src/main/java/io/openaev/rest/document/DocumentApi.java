@@ -126,7 +126,7 @@ public class DocumentApi extends RestBehavior {
       List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
       tags.addAll(inputTags);
       document.setTags(tags);
-      return documentService.forOp(state).save(document);
+      return documentService.save(state, document);
     } else {
       fileService.uploadFile(fileTarget, file);
       Document document = new Document();
@@ -144,7 +144,7 @@ public class DocumentApi extends RestBehavior {
       }
       document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       document.setType(file.getContentType());
-      return documentService.forOp(state).save(document);
+      return documentService.save(state, document);
     }
   }
 
@@ -156,7 +156,8 @@ public class DocumentApi extends RestBehavior {
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
-    return documentService.forOp(state).upsert(
+    return documentService.upsert(
+        state,
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
@@ -167,7 +168,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents(ExecState state) {
-    return documentService.forOp(state).rawAllDocuments();
+    return documentService.rawAllDocuments(state);
   }
 
   @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
@@ -195,7 +196,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(ExecState state, @PathVariable String documentId) {
-    return documentService.forOp(state).document(documentId);
+    return documentService.document(state, documentId);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -225,7 +226,7 @@ public class DocumentApi extends RestBehavior {
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return documentService.forOp(state).save(document);
+    return documentService.save(state, document);
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -291,7 +292,7 @@ public class DocumentApi extends RestBehavior {
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
 
     // Save and return
-    return documentService.forOp(state).save(document);
+    return documentService.save(state, document);
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/file", TENANT_DOCUMENT_API + "/{documentId}/file"})
@@ -302,7 +303,7 @@ public class DocumentApi extends RestBehavior {
   public void downloadDocument(
       ExecState state, @PathVariable String documentId, HttpServletResponse response)
       throws IOException {
-    Document document = documentService.forOp(state).document(documentId);
+    Document document = documentService.document(state, documentId);
 
     String encodedFilename = DocumentService.encodeFileName(document.getName());
 
@@ -520,16 +521,16 @@ public class DocumentApi extends RestBehavior {
     return null;
   }
 
-  private List<Document> getExercisePlayerDocuments(Exercise exercise) {
+  private List<Document> getExercisePlayerDocuments(ExecState state, Exercise exercise) {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();
-    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
+    return documentService.getPlayerDocuments(state, articles, injects);
   }
 
-  private List<Document> getScenarioPlayerDocuments(Scenario scenario) {
+  private List<Document> getScenarioPlayerDocuments(ExecState state, Scenario scenario) {
     List<Article> articles = scenario.getArticles();
     List<Inject> injects = scenario.getInjects();
-    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
+    return documentService.getPlayerDocuments(state, articles, injects);
   }
 
   @LogExecutionTime
@@ -544,7 +545,7 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(
       ExecState state, @PathVariable String documentId) {
-    return toDocumentRelationsOutput(documentService.forOp(state).document(documentId));
+    return toDocumentRelationsOutput(documentService.document(state, documentId));
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -554,7 +555,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(ExecState state, @PathVariable String documentId) {
-    documentService.forOp(state).deleteDocument(documentId);
+    documentService.deleteDocument(state, documentId);
   }
 
   // -- EXERCISE & SENARIO--
@@ -562,7 +563,9 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
+      ExecState state,
+      @PathVariable String exerciseOrScenarioId,
+      @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
@@ -580,13 +583,13 @@ public class DocumentApi extends RestBehavior {
           && !exerciseOpt.get().getUsers().contains(user)) {
         throw new UnsupportedOperationException("The given player is not in this exercise");
       }
-      return getExercisePlayerDocuments(exerciseOpt.get());
+      return getExercisePlayerDocuments(state, exerciseOpt.get());
     } else if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
           && !scenarioOpt.get().getUsers().contains(user)) {
         throw new UnsupportedOperationException("The given player is not in this exercise");
       }
-      return getScenarioPlayerDocuments(scenarioOpt.get());
+      return getScenarioPlayerDocuments(state, scenarioOpt.get());
     } else {
       throw new ElementNotFoundException("Exercise or scenario not found");
     }
@@ -599,6 +602,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public void downloadPlayerDocument(
+      ExecState state,
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
       @RequestParam Optional<String> userId,
@@ -623,7 +627,7 @@ public class DocumentApi extends RestBehavior {
         throw new UnsupportedOperationException("The given player is not in this exercise");
       }
       document =
-          getExercisePlayerDocuments(exerciseOpt.get()).stream()
+          getExercisePlayerDocuments(state, exerciseOpt.get()).stream()
               .filter(doc -> doc.getId().equals(documentId))
               .findFirst()
               .orElseThrow(() -> new ElementNotFoundException("Document not found"));
@@ -633,7 +637,7 @@ public class DocumentApi extends RestBehavior {
         throw new UnsupportedOperationException("The given player is not in this exercise");
       }
       document =
-          getScenarioPlayerDocuments(scenarioOpt.get()).stream()
+          getScenarioPlayerDocuments(state, scenarioOpt.get()).stream()
               .filter(doc -> doc.getId().equals(documentId))
               .findFirst()
               .orElseThrow(() -> new ElementNotFoundException("Document not found"));

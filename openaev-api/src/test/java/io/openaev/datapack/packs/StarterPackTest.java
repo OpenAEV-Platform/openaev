@@ -176,7 +176,9 @@ public class StarterPackTest extends IntegrationTest {
             zipJsonService,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
-    doThrow(new Exception()).when(mockImportService).handleFileImport(any(), any(), isNull(), isNull());
+    doThrow(new Exception())
+        .when(mockImportService)
+        .handleFileImport(any(), any(), isNull(), isNull());
 
     // EXECUTE
     datapack.process(new Tenant(TenantContext.getCurrentTenant()));

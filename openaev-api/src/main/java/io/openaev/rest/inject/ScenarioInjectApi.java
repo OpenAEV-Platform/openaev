@@ -133,9 +133,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public InjectOutput createInjectForScenario(
-      @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input) {
+      ExecState state,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(state, null, scenario, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -149,10 +151,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> createInjectsForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody List<InjectInput> inputs) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createAndSaveInjectList(null, scenario, inputs);
+    return this.injectService.createAndSaveInjectList(state, null, scenario, inputs);
   }
 
   @PostMapping({

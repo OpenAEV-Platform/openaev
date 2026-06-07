@@ -119,7 +119,10 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
 
     // Document
     Document document = getDocumentJpeg();
-    Document documentSaved = this.documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document);
+    Document documentSaved =
+        this.documentRepository
+            .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+            .save(document);
     scenario.setDocuments(
         new ArrayList<>() {
           {
@@ -133,7 +136,9 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     documentArticle.setName(documentArticleName);
     documentArticle.setType("image/jpeg");
     Document documentArticleSaved =
-        this.documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(documentArticle);
+        this.documentRepository
+            .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+            .save(documentArticle);
     Channel channel = new Channel();
     channel.setName("A channel");
     Channel channelSaved = this.channelRepository.save(channel);
@@ -228,7 +233,9 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
                   return s;
                 }));
     // -- EXECUTE --
-    Exercise exercise = this.scenarioToExerciseService.toExercise(ExecState.of(TenantContext.getCurrentTenant()), scenario, null, false);
+    Exercise exercise =
+        this.scenarioToExerciseService.toExercise(
+            ExecState.of(TenantContext.getCurrentTenant()), scenario, null, false);
     String exerciseId = exercise.getId();
     entityManager.flush();
     entityManager.clear();

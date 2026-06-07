@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
@@ -278,10 +279,10 @@ public class ExerciseService {
     return exerciseDuplicate;
   }
 
-  public List<Document> getExercisePlayerDocuments(Exercise exercise) {
+  public List<Document> getExercisePlayerDocuments(ExecState state, Exercise exercise) {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();
-    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
+    return documentService.getPlayerDocuments(state, articles, injects);
   }
 
   public Optional<Exercise> getFollowingSimulation(Exercise exercise) {

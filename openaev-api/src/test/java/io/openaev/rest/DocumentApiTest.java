@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.DocumentRepository;
@@ -26,7 +27,6 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayInputStream;
 import java.util.*;
-import io.openaev.context.ExecState;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.*;
@@ -106,7 +106,10 @@ class DocumentApiTest extends IntegrationTest {
           .andExpect(status().isBadRequest());
 
       Assertions.assertTrue(
-          documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).findById(document.getId()).isPresent());
+          documentRepository
+              .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+              .findById(document.getId())
+              .isPresent());
     }
 
     @Test
@@ -118,7 +121,11 @@ class DocumentApiTest extends IntegrationTest {
       mvc.perform(delete(DOCUMENT_API + "/" + document.getId()).with(csrf()))
           .andExpect(status().isOk());
 
-      assertFalse(documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).findById(document.getId()).isPresent());
+      assertFalse(
+          documentRepository
+              .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+              .findById(document.getId())
+              .isPresent());
       assertTrue(challengeRepository.findById(challenge.getId()).isPresent());
     }
 
@@ -211,7 +218,9 @@ class DocumentApiTest extends IntegrationTest {
               .get();
       document.setExercises(new HashSet<>(Set.of(exercise)));
       document.setScenarios(new HashSet<>(Set.of(scenario)));
-      documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document);
+      documentRepository
+          .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+          .save(document);
 
       DocumentCreateInput input = new DocumentCreateInput();
       input.setDescription("My test document");
@@ -274,7 +283,9 @@ class DocumentApiTest extends IntegrationTest {
               + extension;
       document.setDescription("My test document");
       document.setTarget(fileTarget);
-      documentRepository.forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant())).save(document);
+      documentRepository
+          .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
+          .save(document);
 
       DocumentCreateInput input = new DocumentCreateInput();
       input.setDescription("Should not have this description");

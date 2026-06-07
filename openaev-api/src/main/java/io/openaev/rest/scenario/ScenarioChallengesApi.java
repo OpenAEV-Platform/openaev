@@ -4,6 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -33,17 +34,17 @@ public class ScenarioChallengesApi extends RestBehavior {
   private final DocumentService documentService;
   private final ChallengeService challengeService;
 
-  public List<Document> getScenarioPlayerDocuments(Scenario scenario) {
+  public List<Document> getScenarioPlayerDocuments(ExecState state, Scenario scenario) {
     List<Article> articles = scenario.getArticles();
     List<Inject> injects = scenario.getInjects();
-    return documentService.forCurrentTenant().getPlayerDocuments(articles, injects);
+    return documentService.getPlayerDocuments(state, articles, injects);
   }
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
+      ExecState state, @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
@@ -55,7 +56,7 @@ public class ScenarioChallengesApi extends RestBehavior {
           && !scenarioOpt.get().getUsers().contains(user)) {
         throw new UnsupportedOperationException("The given player is not in this exercise");
       }
-      return getScenarioPlayerDocuments(scenarioOpt.get());
+      return getScenarioPlayerDocuments(state, scenarioOpt.get());
     } else {
       throw new IllegalArgumentException("Scenario ID not found");
     }

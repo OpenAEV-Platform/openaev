@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.DomainRepository;
@@ -41,7 +42,7 @@ public class PayloadUpdateService {
 
   @Transactional(rollbackOn = Exception.class)
   public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
-      String payloadId, PayloadUpdateInput input) {
+      ExecState state, String payloadId, PayloadUpdateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
@@ -51,11 +52,14 @@ public class PayloadUpdateService {
         this.payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
     List<AttackPattern> attackPatterns =
         fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds()));
-    return update(input, payload, attackPatterns);
+    return update(state, input, payload, attackPatterns);
   }
 
   private PayloadCreationService.PayloadInjectorContractCreationResult update(
-      PayloadUpdateInput input, Payload existingPayload, List<AttackPattern> attackPatterns) {
+      ExecState state,
+      PayloadUpdateInput input,
+      Payload existingPayload,
+      List<AttackPattern> attackPatterns) {
     PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
@@ -69,9 +73,9 @@ public class PayloadUpdateService {
     payload.setDetectionRemediations(originalDrs);
 
     if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.forCurrentTenant().document(input.getExecutableFile()));
+      executable.setExecutableFile(documentService.document(state, input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.forCurrentTenant().document(input.getFileDropFile()));
+      fileDrop.setFileDropFile(documentService.document(state, input.getFileDropFile()));
     }
 
     Payload saved = payloadRepository.save(payload);

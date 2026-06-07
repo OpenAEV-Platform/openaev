@@ -4,13 +4,13 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.context.ExecState;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;

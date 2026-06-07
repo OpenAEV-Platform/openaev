@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -634,7 +635,7 @@ class InjectServiceTest {
     injectInput.setInjectorContract(injectorContractId);
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
 
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(ExecState.of("tenant"), null, scenario, injectInput);
 
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
     verify(injectRepository).save(injectCaptor.capture());
@@ -677,7 +678,7 @@ class InjectServiceTest {
     when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
 
     // -- ACT --
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(ExecState.of("tenant"), null, scenario, injectInput);
 
     // -- ASSERT --
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
@@ -721,7 +722,7 @@ class InjectServiceTest {
     when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
 
     // -- ACT --
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(ExecState.of("tenant"), null, scenario, injectInput);
 
     // -- ASSERT --
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
@@ -763,7 +764,8 @@ class InjectServiceTest {
     // -- ACT & ASSERT --
     assertThrows(
         ElementNotFoundException.class,
-        () -> injectService.createAndSaveInject(null, scenario, injectInput));
+        () ->
+            injectService.createAndSaveInject(ExecState.of("tenant"), null, scenario, injectInput));
     verify(injectUtils).resolveInjector(unknownInjectorId, injectorContract);
     verify(injectRepository, never()).save(any());
   }

@@ -8,6 +8,7 @@ import static org.springframework.util.StringUtils.hasText;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
@@ -81,6 +82,7 @@ public class ExecutableInjectService {
   }
 
   private String replaceArgumentsByValue(
+      ExecState state,
       String command,
       List<PayloadArgument> defaultPayloadArguments,
       List<ObjectNode> injectorContractContentFields,
@@ -117,7 +119,7 @@ public class ExecutableInjectService {
                 && (ArgumentType.Document == defaultPayloadArgument.getType());
         if (isDocArg && !value.isEmpty()) {
           try {
-            Document doc = documentService.forCurrentTenant().document(value);
+            Document doc = documentService.document(state, value);
             value = "#{location}/" + doc.getName();
           } catch (ElementNotFoundException e) {
             log.error("Payload argument target unexisting document", e);
@@ -170,6 +172,7 @@ public class ExecutableInjectService {
   }
 
   private String processAndEncodeCommand(
+      ExecState state,
       String command,
       String executor,
       List<PayloadArgument> defaultPayloadArguments,
@@ -179,7 +182,7 @@ public class ExecutableInjectService {
     OpenAEVObfuscationMap obfuscationMap = new OpenAEVObfuscationMap(executor);
     String computedCommand =
         replaceArgumentsByValue(
-            command, defaultPayloadArguments, injectorContractContentFields, injectContent);
+            state, command, defaultPayloadArguments, injectorContractContentFields, injectContent);
 
     if (CMD.equals(executor)) {
       computedCommand = replaceCmdVariables(computedCommand);
@@ -191,8 +194,8 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
-  public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
-      throws Exception {
+  public Payload getExecutablePayloadAndUpdateInjectStatus(
+      ExecState state, String injectId, String agentId) throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
     // this whole process is
     // called at the beginning of the implant execution. A better solution would be to have the
@@ -200,7 +203,7 @@ public class ExecutableInjectService {
     // but it would require more changes in the implant code and change this endpoint from a get to
     // a post.
     Instant startTime = Instant.now();
-    Payload payloadToExecute = getExecutablePayloadInject(injectId);
+    Payload payloadToExecute = getExecutablePayloadInject(state, injectId);
     this.injectStatusService.addStartImplantExecutionTraceByInject(
         injectId, agentId, "Implant is up and starting execution", startTime);
     this.injectExpectationService.addStartDateSignatureToInjectExpectationsByAgent(
@@ -208,7 +211,7 @@ public class ExecutableInjectService {
     return payloadToExecute;
   }
 
-  private Payload getExecutablePayloadInject(String injectId) throws Exception {
+  private Payload getExecutablePayloadInject(ExecState state, String injectId) throws Exception {
     Inject inject = injectService.inject(injectId);
     InjectorContract contract =
         inject
@@ -241,6 +244,7 @@ public class ExecutableInjectService {
                 if (hasText(prerequisite.getCheckCommand())) {
                   payload.setCheckCommand(
                       processAndEncodeCommand(
+                          state,
                           prerequisite.getCheckCommand(),
                           prerequisite.getExecutor(),
                           contract.getPayload().getArguments(),
@@ -251,6 +255,7 @@ public class ExecutableInjectService {
                 if (hasText(prerequisite.getGetCommand())) {
                   payload.setGetCommand(
                       processAndEncodeCommand(
+                          state,
                           prerequisite.getGetCommand(),
                           prerequisite.getExecutor(),
                           contract.getPayload().getArguments(),
@@ -268,6 +273,7 @@ public class ExecutableInjectService {
       payloadToExecute.setCleanupExecutor(contract.getPayload().getCleanupExecutor());
       payloadToExecute.setCleanupCommand(
           processAndEncodeCommand(
+              state,
               contract.getPayload().getCleanupCommand(),
               contract.getPayload().getCleanupExecutor(),
               contract.getPayload().getArguments(),
@@ -277,10 +283,11 @@ public class ExecutableInjectService {
     }
 
     return processPayloadToExecute(
-        payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+        state, payloadToExecute, contract, inject, injectorContractFields, obfuscator);
   }
 
   private Payload processPayloadToExecute(
+      ExecState state,
       Payload payloadToExecute,
       InjectorContract contract,
       Inject inject,
@@ -289,9 +296,9 @@ public class ExecutableInjectService {
     switch (contract.getPayload().getTypeEnum()) {
       case PayloadType.COMMAND:
         return processCommandPayload(
-            payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+            state, payloadToExecute, contract, inject, injectorContractFields, obfuscator);
       case PayloadType.DNS_RESOLUTION:
-        return processDnsResolutionPayload(payloadToExecute, inject);
+        return processDnsResolutionPayload(state, payloadToExecute, inject);
       default:
         // All other payload types are intentionally passed through unchanged.
         return payloadToExecute;
@@ -299,6 +306,7 @@ public class ExecutableInjectService {
   }
 
   private Payload processCommandPayload(
+      ExecState state,
       Payload payloadToExecute,
       InjectorContract contract,
       Inject inject,
@@ -308,6 +316,7 @@ public class ExecutableInjectService {
     payloadCommand.setExecutor(((Command) contract.getPayload()).getExecutor());
     payloadCommand.setContent(
         processAndEncodeCommand(
+            state,
             payloadCommand.getContent(),
             payloadCommand.getExecutor(),
             contract.getPayload().getArguments(),
@@ -317,11 +326,16 @@ public class ExecutableInjectService {
     return payloadCommand;
   }
 
-  private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
+  private Payload processDnsResolutionPayload(
+      ExecState state, Payload payloadToExecute, Inject inject) {
     DnsResolution dnsResolution = (DnsResolution) payloadToExecute;
     dnsResolution.setHostname(
         replaceArgumentsByValue(
-            dnsResolution.getHostname(), dnsResolution.getArguments(), null, inject.getContent()));
+            state,
+            dnsResolution.getHostname(),
+            dnsResolution.getArguments(),
+            null,
+            inject.getContent()));
     return dnsResolution;
   }
 }

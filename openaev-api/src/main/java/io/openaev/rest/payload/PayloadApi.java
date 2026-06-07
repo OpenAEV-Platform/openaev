@@ -3,6 +3,7 @@ package io.openaev.rest.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.rest.collector.service.CollectorService;
@@ -66,9 +67,10 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI, TENANT_PAYLOAD_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
-  public PayloadOutput createPayload(@Valid @RequestBody PayloadCreateInput input) {
+  public PayloadOutput createPayload(
+      ExecState state, @Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadCreationService.createPayload(input);
+        this.payloadCreationService.createPayload(state, input);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
@@ -79,10 +81,11 @@ public class PayloadApi extends RestBehavior {
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public PayloadOutput updatePayload(
+      ExecState state,
       @NotBlank @PathVariable final String payloadId,
       @Valid @RequestBody PayloadUpdateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadUpdateService.updatePayload(payloadId, input);
+        this.payloadUpdateService.updatePayload(state, payloadId, input);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
   }
 
@@ -104,8 +107,8 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
-    return this.payloadUpsertService.upsertPayload(input);
+  public Payload upsertPayload(ExecState state, @Valid @RequestBody PayloadUpsertInput input) {
+    return this.payloadUpsertService.upsertPayload(state, input);
   }
 
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
@@ -139,8 +142,8 @@ public class PayloadApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "The list of Documents used in a payload")
       })
-  public List<RawDocument> documentsFromPayload(@PathVariable String payloadId) {
-    return documentService.forCurrentTenant().documentsForPayload(payloadId);
+  public List<RawDocument> documentsFromPayload(ExecState state, @PathVariable String payloadId) {
+    return documentService.documentsForPayload(state, payloadId);
   }
 
   @GetMapping({

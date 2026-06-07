@@ -24,7 +24,8 @@ public abstract class Injector {
     this.context = context;
   }
 
-  public abstract ExecutionProcess process(io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
+  public abstract ExecutionProcess process(
+      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection)
       throws Exception;
 
   public StatusPayload getPayloadOutput(String externalId) {
@@ -61,7 +62,8 @@ public abstract class Injector {
     return execution;
   }
 
-  public Execution executeInjection(io.openaev.context.ExecState state, ExecutableInject executableInject) {
+  public Execution executeInjection(
+      io.openaev.context.ExecState state, ExecutableInject executableInject) {
     return execute(state, executableInject);
   }
 
@@ -76,7 +78,10 @@ public abstract class Injector {
   }
 
   public List<DataAttachment> resolveAttachments(
-      io.openaev.context.ExecState state, Execution execution, ExecutableInject injection, List<Document> documents) {
+      io.openaev.context.ExecState state,
+      Execution execution,
+      ExecutableInject injection,
+      List<Document> documents) {
     List<DataAttachment> resolved = new ArrayList<>();
     // Add attachments from direct configuration
     injection

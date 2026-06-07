@@ -6,12 +6,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Payload;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.export.FileExportBase;
-import io.openaev.context.ExecState;
 import java.util.List;
 import java.util.Optional;
 import lombok.Getter;
@@ -50,7 +50,8 @@ public class PayloadFileExport extends FileExportBase {
                 this.documentRepository
                     .forOp(this.state)
                     .findById(payloadArgument.getDefaultValue()))
-        .filter(Optional::isPresent).map(Optional::get)
+        .filter(Optional::isPresent)
+        .map(Optional::get)
         .toList();
   }
 
@@ -61,7 +62,10 @@ public class PayloadFileExport extends FileExportBase {
   //  }
 
   private PayloadFileExport(
-      ExecState state, Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
+      ExecState state,
+      Payload payload,
+      ObjectMapper objectMapper,
+      DocumentRepository documentRepository) {
     super(objectMapper, null, null);
     this.state = state;
     this.payload = payload;
@@ -69,7 +73,10 @@ public class PayloadFileExport extends FileExportBase {
   }
 
   public static PayloadFileExport fromPayload(
-      ExecState state, Payload payload, ObjectMapper objectMapper, DocumentRepository documentRepository) {
+      ExecState state,
+      Payload payload,
+      ObjectMapper objectMapper,
+      DocumentRepository documentRepository) {
     return new PayloadFileExport(state, payload, objectMapper, documentRepository);
   }
 }
