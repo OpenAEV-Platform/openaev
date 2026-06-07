@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Ask for a new feature to be implemented in OpenAEV
-title: ''
+title: 'feat: '
 labels: feature, needs triage
 assignees: ''
 
