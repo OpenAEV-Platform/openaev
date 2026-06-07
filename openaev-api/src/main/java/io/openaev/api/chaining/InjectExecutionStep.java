@@ -175,6 +175,7 @@ public class InjectExecutionStep implements ActionStep {
   public Optional<Step> run(Step readyStep) throws ChainingException {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
+    ExecState state = ExecState.of(inject.getTenant().getId());
     // CREATE & SAVE INJECT
 
     inject = injectService.createInject(inject);
@@ -199,7 +200,7 @@ public class InjectExecutionStep implements ActionStep {
       // TODO Check add documents? Executable Payloads
       // executableInject.addDirectAttachment(inject.getDocuments());
 
-      executor.directExecute(executableInject);
+      executor.directExecute(state, executableInject);
       return Optional.of(readyStep);
     } catch (Exception e) {
       throw new ChainingException(

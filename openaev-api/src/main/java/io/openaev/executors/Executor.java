@@ -66,12 +66,12 @@ public class Executor {
     return this.injectStatusRepository.save(injectStatus);
   }
 
-  private InjectStatus executeInternal(ExecutableInject executableInject, Injector injector) {
+  private InjectStatus executeInternal(
+      ExecState state, ExecutableInject executableInject, Injector injector) {
     Inject inject = executableInject.getInjection().getInject();
     io.openaev.executors.Injector executor =
         managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
 
-    ExecState state = ExecState.of(inject.getTenant().getId());
     Execution execution = executor.executeInjection(state, executableInject);
     // After execution, expectations are already created
     // Injection status is filled after complete execution
@@ -82,7 +82,7 @@ public class Executor {
     return injectStatusRepository.save(completeStatus);
   }
 
-  public InjectStatus execute(ExecutableInject executableInject) throws Exception {
+  public InjectStatus execute(ExecState state, ExecutableInject executableInject) throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     InjectorContract injectorContract =
         inject
@@ -125,11 +125,12 @@ public class Executor {
     if (injector.isExternal()) {
       return executeExternal(executableInject, injector);
     } else {
-      return executeInternal(executableInject, injector);
+      return executeInternal(state, executableInject, injector);
     }
   }
 
-  public InjectStatus directExecute(ExecutableInject executableInject) throws Exception {
+  public InjectStatus directExecute(ExecState state, ExecutableInject executableInject)
+      throws Exception {
     boolean isScheduledInject = !executableInject.isDirect();
     // If empty content, inject must be rejected
     Inject inject = executableInject.getInjection().getInject();
@@ -147,6 +148,6 @@ public class Executor {
               + Instant.now());
     }
 
-    return this.execute(executableInject);
+    return this.execute(state, executableInject);
   }
 }

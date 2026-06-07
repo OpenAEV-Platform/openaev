@@ -376,7 +376,7 @@ class InjectApiTest extends IntegrationTest {
     assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
     ArgumentCaptor<ExecutableInject> executableInjectCaptor =
         ArgumentCaptor.forClass(ExecutableInject.class);
-    verify(executor).execute(executableInjectCaptor.capture());
+    verify(executor).execute(any(), executableInjectCaptor.capture());
 
     verify(javaMailSender).send(mimeMessageArgumentCaptor.capture());
     assertEquals("Subject", mimeMessageArgumentCaptor.getValue().getSubject());
@@ -499,7 +499,7 @@ class InjectApiTest extends IntegrationTest {
               return invocation.callRealMethod();
             })
         .when(executor)
-        .execute(any());
+        .execute(any(), any());
 
     // -- ACT --
     String response =

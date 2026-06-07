@@ -82,7 +82,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any(), any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
-    doReturn(new InjectStatus()).when(executor).directExecute(any());
+    doReturn(new InjectStatus()).when(executor).directExecute(any(), any());
 
     doAnswer(
             invocation -> {
@@ -490,7 +490,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // PREPARE
     RuntimeException exception = new RuntimeException("direct execute throw an exception");
 
-    doThrow(exception).when(executor).directExecute(any());
+    doThrow(exception).when(executor).directExecute(any(), any());
 
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
     workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
@@ -526,7 +526,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // ASSERT
 
-    verify(executor).directExecute(any());
+    verify(executor).directExecute(any(), any());
 
     // ASSERT
     Assertions.assertTrue(ex.getMessage().contains("Inject execution failed. Inject ID: "));

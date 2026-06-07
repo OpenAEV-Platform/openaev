@@ -8,6 +8,7 @@ import static java.util.stream.Collectors.groupingBy;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
@@ -197,7 +198,7 @@ public class InjectsExecutionJob implements Job {
             .collect(Collectors.toList()));
   }
 
-  private void executeInject(ExecutableInject executableInject) throws Exception {
+  private void executeInject(ExecState state, ExecutableInject executableInject) throws Exception {
     // Depending on injector type (internal or external) execution must be done differently
     Inject inject = executableInject.getInjection().getInject();
     // We are now checking if we depend on another inject and if it did not failed
@@ -209,7 +210,7 @@ public class InjectsExecutionJob implements Job {
           "The inject is not ready to be executed (missing mandatory fields)");
     }
     log.info("Executing inject {}", inject.getInject().getTitle());
-    this.executor.execute(executableInject);
+    this.executor.execute(state, executableInject);
   }
 
   /**
@@ -429,7 +430,15 @@ public class InjectsExecutionJob implements Job {
                     .forEach(
                         executableInject -> {
                           try {
-                            this.executeInject(executableInject);
+                            // Setup the execution state to inject execution Tenant.
+                            ExecState state =
+                                ExecState.of(
+                                    executableInject
+                                        .getInjection()
+                                        .getInject()
+                                        .getTenant()
+                                        .getId());
+                            this.executeInject(state, executableInject);
                           } catch (Exception e) {
                             Inject inject = executableInject.getInjection().getInject();
                             log.warn(e.getMessage(), e);

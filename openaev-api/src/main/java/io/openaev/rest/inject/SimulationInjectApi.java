@@ -277,6 +277,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public InjectStatus executeInject(
+      ExecState state,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {
@@ -315,7 +316,7 @@ public class SimulationInjectApi extends RestBehavior {
             userInjectContexts);
     file.ifPresent(injection::addDirectAttachment);
     try {
-      return executor.directExecute(injection);
+      return executor.directExecute(state, injection);
     } catch (Exception e) {
       log.warn(e.getMessage(), e);
       return injectStatusService.failInjectStatus(inject.getId(), e.getMessage());

@@ -78,7 +78,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any(), any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
-    doReturn(new InjectStatus()).when(executor).directExecute(any());
+    doReturn(new InjectStatus()).when(executor).directExecute(any(), any());
 
     doAnswer(
             invocation -> {
