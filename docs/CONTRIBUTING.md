@@ -50,12 +50,13 @@ in [`.github/LABELS.md`](.github/LABELS.md). In short:
 * **Labels** — Every **issue** carries one primary type label matching its title
   prefix (`feature` for `feat:`, `bug` for `fix:`, `documentation` for `docs:`)
   plus optional area labels, and its GitHub **Type** (Feature / Bug / Task) set
-  to match. **Pull requests are labelled with ownership only** — exactly one of
-  `filigran team` or `community`, and **nothing else**: type, area/scope and
-  workflow labels are issue-only (Renovate/Dependabot dependency labels are
-  exempt). Do not use the deprecated `enhancement` / `feature request` labels —
-  use `feature`. See [`.github/LABELS.md`](.github/LABELS.md) for the shared
-  palette ([`.github/labels.yml`](.github/labels.yml)).
+  to match. **Pull requests carry a restricted label set** — exactly one
+  ownership label (`filigran team` or `community`), optionally `vibe-coded` (an
+  AI-assisted change the author reviews first), and the automatic language /
+  `dependencies` labels. Type, area/scope and workflow labels are issue-only. Do
+  not use the deprecated `enhancement` / `feature request` labels — use
+  `feature`. See [`.github/LABELS.md`](.github/LABELS.md) for the shared palette
+  ([`.github/labels.yml`](.github/labels.yml)).
 <!-- filigran-conventions:end -->
 
 ## How can you get in touch for other questions?
