@@ -51,6 +51,7 @@
     "@mui/system": "7.3.11",
     "@mui/x-date-pickers": "8.28.7",
     "@redux-devtools/extension": "4.0.0",
+    "@tanstack/react-virtual": "3.13.23",
     "@uiw/react-md-editor": "4.1.1",
     "@xyflow/react": "12.10.2",
     "apexcharts": "4.7.0",
