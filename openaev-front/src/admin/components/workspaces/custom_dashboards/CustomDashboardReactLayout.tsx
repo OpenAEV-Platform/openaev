@@ -7,7 +7,9 @@ import { type Widget, type WidgetLayout } from '../../../../utils/api-types';
 import { CustomDashboardContext } from './CustomDashboardContext';
 import WidgetWrapper from './widgets/WidgetWrapper';
 
-const LazyWidget = memo<{ children: ReactNode }>(function LazyWidget({ children }) {
+interface LazyWidgetProps { children: ReactNode }
+
+const LazyWidget = memo(function LazyWidget({ children }: LazyWidgetProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(
     typeof IntersectionObserver === 'undefined',
