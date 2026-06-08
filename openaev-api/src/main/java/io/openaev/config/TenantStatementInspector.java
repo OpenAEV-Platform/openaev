@@ -102,10 +102,16 @@ public class TenantStatementInspector implements StatementInspector {
   public String inspect(String sql) {
     ExecState state = StateExecutionContext.get();
     if (state == null) {
-      // No tenant context active — bypass filtering (admin / system operations)
+      return sql;
+      // TODO Change to IllegalStateException after changing all repositories
+      // throw new IllegalStateException("TenantStatementInspector: no state available");
+    }
+
+    // No tenant context active — bypass filtering (admin / system operations)
+    List<String> tenantIds = state.restrictedTenantIds();
+    if (tenantIds.isEmpty()) {
       return sql;
     }
-    List<String> tenantIds = state.accessibleTenantIds();
 
     try {
       Statement statement = CCJSqlParserUtil.parse(sql);
