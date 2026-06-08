@@ -1568,6 +1568,11 @@
                         "default": false,
                         "description": "Enable deep visibility search for SentinelOne threat searches.",
                         "type": "boolean"
+                    },
+                    "SENTINELONE_DISABLE_STRICT_END_DATE": {
+                        "default": false,
+                        "description": "Disable ignoring OpenAEV expectations without a proper end dates.",
+                        "type": "boolean"
                     }
                 },
                 "required": [
