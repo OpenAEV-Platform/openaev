@@ -50,7 +50,7 @@ const Index = () => {
 
           <Route path="secrets-providers" element={errorWrapper(SecretsProviderLayout)()}>
             <Route index element={<ConnectorList />} />
-            <Route path=":secretsProviderId" element={<ConnectorPage />} />
+            <Route path=":secrets_providerId" element={<ConnectorPage />} />
           </Route>
 
           {/* Not found */}

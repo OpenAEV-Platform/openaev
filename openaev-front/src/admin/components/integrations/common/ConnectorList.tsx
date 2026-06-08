@@ -17,7 +17,7 @@ import type {
   CatalogConnectorOutput,
   CollectorOutput,
   ExecutorOutput,
-  InjectorOutput,
+  InjectorOutput, SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -75,7 +75,7 @@ const ConnectorList = () => {
 
   const rawConnectors = getRawConnectors();
   const connectors = normalizeSingle
-    ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput) => normalizeSingle(c))
+    ? rawConnectors.map((c: CollectorOutput | ExecutorOutput | InjectorOutput | SecretsProviderOutput) => normalizeSingle(c))
     : rawConnectors;
 
   const canMigrate = (connector: ConnectorOutput) => {
