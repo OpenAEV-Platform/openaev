@@ -46,7 +46,8 @@ class ScenarioServiceUnitTest {
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private ExerciseMapper exerciseMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
-  @Mock private ScenarioRepository scenarioRepository;
+  @Mock(answer = org.mockito.Answers.RETURNS_DEEP_STUBS)
+  private ScenarioRepository scenarioRepository;
   @Mock private TeamRepository teamRepository;
   @Mock private UserRepository userRepository;
   @Mock private DocumentRepository documentRepository;

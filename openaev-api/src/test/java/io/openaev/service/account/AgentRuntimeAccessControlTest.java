@@ -291,7 +291,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     void given_manageAssetsOnly_should_forbidGetPayload() throws Exception {
       // Act & Assert
       mvc.perform(
-              get(INJECT_URI + "/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload")
+              get(tenantUri("/api/tenants/{tenantId}/injects/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload"))
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isForbidden());
     }
@@ -302,7 +302,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     void given_agentRuntimeAccess_should_allowGetPayload() throws Exception {
       // Act & Assert — will get 404 (inject not found) which proves RBAC passed
       mvc.perform(
-              get(INJECT_URI + "/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload")
+              get(tenantUri("/api/tenants/{tenantId}/injects/" + FAKE_INJECT_ID + "/" + FAKE_AGENT_ID + "/executable-payload"))
                   .accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound());
     }
@@ -381,7 +381,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     void given_agentRuntimeAccess_should_forbidInjectSearch() throws Exception {
       // Act & Assert
       mvc.perform(
-              post(INJECT_URI + "/search/export")
+              post(tenantUri("/api/tenants/{tenantId}/injects/search/export"))
                   .content("{}")
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)

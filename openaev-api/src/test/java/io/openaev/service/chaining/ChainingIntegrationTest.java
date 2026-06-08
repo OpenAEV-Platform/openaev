@@ -387,7 +387,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       entityManager.clear();
       // DELETE
-      mvc.perform(delete("/api/scenarios/" + scenarioId).with(csrf()))
+      mvc.perform(delete(tenantUri("/api/tenants/{tenantId}/scenarios/" + scenarioId)).with(csrf()))
           .andExpect(status().is2xxSuccessful());
       entityManager.flush();
       entityManager.clear();
@@ -497,7 +497,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       // The inject must NOT be accessible via the atomic testing API
       String result =
           mvc.perform(
-                  post("/api/atomic-testings/search")
+                  post(tenantUri("/api/tenants/{tenantId}/atomic-testings/search"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(
