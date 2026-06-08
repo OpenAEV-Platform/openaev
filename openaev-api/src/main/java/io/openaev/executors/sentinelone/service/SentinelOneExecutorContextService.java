@@ -53,13 +53,14 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent) {
+      @NotNull final Agent agent,
+      @NotNull final String token) {
     // launchBatchExecutorSubprocess is used here for better performances
   }
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token) {
 
     enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
@@ -90,21 +91,24 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
                       getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
                       injector,
                       inject,
-                      arch.name()));
+                      arch.name(),
+                      token));
           case Linux ->
               actions.addAll(
                   getLinuxActions(
                       getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
                       injector,
                       inject,
-                      arch.name()));
+                      arch.name(),
+                      token));
           case MacOS ->
               actions.addAll(
                   getMacOSActions(
                       getAgentsFromOSAndArch(sentinelOneAgents, platform, arch),
                       injector,
                       inject,
-                      arch.name()));
+                      arch.name(),
+                      token));
           default -> { // No need, only Mac, Windows and Linux for now
           }
         }
@@ -138,7 +142,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   }
 
   private List<SentinelOneAction> getWindowsActions(
-      List<Agent> agents, Injector injector, Inject inject, String arch) {
+      List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
     if (!agents.isEmpty()) {
       SentinelOneAction actionWindows = new SentinelOneAction();
@@ -161,7 +165,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       command = WINDOWS_EXTERNAL_REFERENCE + command;
       command =
           replaceArgs(
-              platform, command, inject.getId(), AGENT_ID_VARIABLE, inject.getTenant().getId());
+              platform,
+              command,
+              inject.getId(),
+              AGENT_ID_VARIABLE,
+              inject.getTenant().getId(),
+              token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -175,14 +184,19 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   }
 
   private List<SentinelOneAction> getLinuxActions(
-      List<Agent> agents, Injector injector, Inject inject, String arch) {
+      List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
     if (!agents.isEmpty()) {
       SentinelOneAction actionLinux = new SentinelOneAction();
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
           getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux, injector, inject, LINUX_EXTERNAL_REFERENCE, arch));
+              Endpoint.PLATFORM_TYPE.Linux,
+              injector,
+              inject,
+              LINUX_EXTERNAL_REFERENCE,
+              arch,
+              token));
       actionLinux.setAgents(agents);
       actions.add(actionLinux);
     }
@@ -190,14 +204,14 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   }
 
   private List<SentinelOneAction> getMacOSActions(
-      List<Agent> agents, Injector injector, Inject inject, String arch) {
+      List<Agent> agents, Injector injector, Inject inject, String arch, String token) {
     List<SentinelOneAction> actions = new ArrayList<>();
     if (!agents.isEmpty()) {
       SentinelOneAction actionMac = new SentinelOneAction();
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
           getUnixCommand(
-              Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, arch));
+              Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, arch, token));
       actionMac.setAgents(agents);
       actions.add(actionMac);
     }
@@ -209,7 +223,8 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       Injector injector,
       Inject inject,
       String externalReferenceVariable,
-      String arch) {
+      String arch,
+      String token) {
     String implantLocation =
         "location="
             + ExecutorHelper.IMPLANT_LOCATION_UNIX
@@ -227,7 +242,12 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     command = externalReferenceVariable + command;
     command =
         replaceArgs(
-            platform, command, inject.getId(), AGENT_ID_VARIABLE, inject.getTenant().getId());
+            platform,
+            command,
+            inject.getId(),
+            AGENT_ID_VARIABLE,
+            inject.getTenant().getId(),
+            token);
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

@@ -120,7 +120,7 @@ public class CrowdstrikeExecutorServiceTest {
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
-        inject, new HashSet<>(agents), injectStatus);
+        inject, new HashSet<>(agents), injectStatus, "token");
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
@@ -166,7 +166,7 @@ public class CrowdstrikeExecutorServiceTest {
 
     // Act
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
-        inject, new HashSet<>(agents), injectStatus);
+        inject, new HashSet<>(agents), injectStatus, "token");
     Thread.sleep(1000);
 
     // Assert

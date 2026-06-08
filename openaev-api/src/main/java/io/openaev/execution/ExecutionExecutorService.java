@@ -11,6 +11,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +31,7 @@ public class ExecutionExecutorService {
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
   private final ConnectorInstanceService connectorInstanceService;
+  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -99,15 +101,19 @@ public class ExecutionExecutorService {
               manager.request(
                   new ComponentRequest(executor.getName()), ExecutorContextService.class);
         }
+        String token =
+            serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+                inject.getTenant().getId());
         List<Agent> agentsProcessed =
-            executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+            executorContextService.launchBatchExecutorSubprocess(
+                inject, agents, injectStatus, token);
         List<Agent> remainingAgents = new ArrayList<>(agents);
         remainingAgents.removeAll(agentsProcessed);
         // Also handle individual execution for executor context services whose batch
         // implementation is a no-op (e.g. OpenAEV agent)
         for (Agent agent : remainingAgents) {
           Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
-          executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
+          executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent, token);
         }
         atLeastOneExecution.set(true);
       } catch (Exception e) {
