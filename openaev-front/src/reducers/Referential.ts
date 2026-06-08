@@ -53,6 +53,7 @@ export const entitiesInitializer = Map({
     injectors: Map({}),
     collectors: Map({}),
     executors: Map({}),
+    secretsproviders: Map({}),
     mitigations: Map({}),
     agents: Map({}),
     domains: Map({}),
