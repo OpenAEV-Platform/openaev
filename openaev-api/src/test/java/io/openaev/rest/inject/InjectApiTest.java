@@ -32,6 +32,7 @@ import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -135,11 +136,13 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
 
   @BeforeEach
   void beforeEach() throws Exception {
     emailInjectorIntegrationFactory.registerConnectorForTenant();
     openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -2698,9 +2701,9 @@ class InjectApiTest extends IntegrationTest {
         String agentId = (String) setup[1];
 
         InjectExecutionInput input = new InjectExecutionInput();
-        input.setMessage(
-            "{\"stdout\":\"[CVE-2025-25241] [http] [critical] http://192.168.1.10/\\n"
-                + "[CVE-2025-99999] [http] [high] http://192.168.1.20/\\n\"}");
+        // Input uses "VULN: <name> <status>" format to match the regex VULN:\s*(\S+)\s+(\S+)
+        // which captures name=$1 and status=$2. toFindingValue() returns "name [status]".
+        input.setMessage("{\"stdout\":\"VULN: EternalBlue critical\\nVULN: BlueKeep high\\n\"}");
         input.setAction(InjectExecutionAction.command_execution);
         input.setStatus("SUCCESS");
 
