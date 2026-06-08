@@ -36,6 +36,9 @@ public class ExecutorOutput extends ConnectorOutput {
   @JsonProperty("existing_executor")
   private boolean existing;
 
+  @JsonProperty("executor_external")
+  private boolean external;
+
   @JsonProperty("executor_background_color")
   private String backgroundColor;
 }
