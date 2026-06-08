@@ -256,7 +256,7 @@ export const executor = new schema.Entity(
 export const arrayOfExecutors = new schema.Array(executor);
 
 export const secretsProvider = new schema.Entity(
-    'secrets-providers',
+    'secretsproviders',
     {},
     { idAttribute: 'secrets_provider_id' },
 );
@@ -445,7 +445,9 @@ export const storeHelper = state => ({
   getExecutorsIncludingPending: () => entities('executors', state),
   getExecutorsMap: () => maps('executors', state),
   // secrets providers
-  getSecretsProvider: id => entity(id, 'secrets_providers', state),
+  getSecretsProvider: id => entity(id, 'secretsproviders', state),
+  getSecretsProvidersIncludingPending: () => entities('secretsproviders', state),
+  getSecretsProvidersMap: () => maps('secretsproviders', state),
   // channels
   getChannels: () => entities('channels', state),
   getChannel: id => entity(id, 'channels', state),
