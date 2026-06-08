@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
@@ -93,7 +92,8 @@ public class ManagerTest {
       throws Exception {
     Manager manager =
         new Manager(
-                Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+            Tenant.DEFAULT_TENANT_UUID,
+            List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
 
     assertThatNoException().isThrownBy(manager::monitorIntegrations);
 
@@ -133,7 +133,8 @@ public class ManagerTest {
       throws Exception {
     Manager manager =
         new Manager(
-                Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+            Tenant.DEFAULT_TENANT_UUID,
+            List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
     // prepopulate integrations
     ConnectorInstance throwingInstance = getThrowingInstance();
     manager
@@ -195,7 +196,10 @@ public class ManagerTest {
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
     assertThatThrownBy(
-            () -> new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory(), getFactoryInitThrows())))
+            () ->
+                new Manager(
+                    Tenant.DEFAULT_TENANT_UUID,
+                    List.of(getRegularFactory(), getFactoryInitThrows())))
         .isInstanceOf(RuntimeException.class)
         .hasMessageContaining("deliberate throw");
   }
