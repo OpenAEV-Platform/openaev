@@ -1,0 +1,165 @@
+name: Deploy feature branch via /deploy
+
+# Triggered when a user comments /deploy on a PR.
+# Builds Docker images using the same composite actions as core-ci.yml.
+# After a successful build, n8n triggers the feature-branch-promote workflow
+# in the release repo to push and deploy.
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: feature-deploy-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  init:
+    name: "🚀 Initialize deploy"
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/deploy')
+    runs-on: ubuntu-latest
+    outputs:
+      head_ref: ${{ steps.pr.outputs.head_ref }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      comment_id: ${{ steps.comment.outputs.comment_id }}
+    steps:
+      - name: Minimize previous deploy comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const markers = [
+              '🚀 Feature branch deploy',
+              '✅ Feature branch build',
+              '❌ Feature branch build',
+              '⏳ Feature branch deployment',
+              '### ✅ Feature branch deployed',
+              '### ❌ Feature branch deploy',
+              '### 🧪 Feature branch deploy'
+            ];
+            const deployComments = comments.filter(c =>
+              markers.some(m => c.body.startsWith(m))
+            );
+            for (const c of deployComments) {
+              try {
+                await github.graphql(`
+                  mutation($id: ID!) {
+                    minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
+                      minimizedComment { isMinimized }
+                    }
+                  }
+                `, { id: c.node_id });
+              } catch (e) {
+                core.warning(`Could not minimize comment ${c.id}: ${e.message}`);
+              }
+            }
+
+      - name: Reply with build link
+        id: comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const { data } = await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🚀 Feature branch deploy is in progress — [follow the build](${runUrl})`
+            });
+            core.setOutput('comment_id', data.id);
+
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+            core.setOutput('head_sha', pr.data.head.sha);
+
+  backend-compile:
+    name: "🔨 Backend Compile"
+    needs: init
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.init.outputs.head_sha }}
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    needs: init
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.init.outputs.head_sha }}
+      - uses: ./.github/actions/frontend-build
+
+  backend-package:
+    name: "📦 Backend Package"
+    needs: [init, frontend-build, backend-compile]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.init.outputs.head_sha }}
+      - uses: ./.github/actions/backend-package
+
+  docker-build:
+    name: "🐳 Docker Build"
+    needs: [init, backend-package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.init.outputs.head_sha }}
+      - uses: ./.github/actions/docker-build-push
+        with:
+          tags: openaev:feat-${{ needs.init.outputs.head_ref }}
+
+  finalize:
+    name: "📝 Update PR comment"
+    needs: [init, docker-build]
+    if: always() && needs.init.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Edit comment with result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const buildResult = '${{ needs.docker-build.result }}';
+            let body;
+            if (buildResult === 'success') {
+              body = `✅ Feature branch build finished — [view run](${runUrl})\n\n⏳ Deployment is ongoing, a new comment will be posted once it completes.`;
+            } else {
+              body = `❌ Feature branch build failed — [view run](${runUrl})`;
+            }
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ needs.init.outputs.comment_id }},
+              body
+            });
