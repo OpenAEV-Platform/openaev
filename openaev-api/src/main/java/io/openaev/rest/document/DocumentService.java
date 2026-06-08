@@ -89,7 +89,7 @@ public class DocumentService {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.forOp(state).findAllById(input.getScenarioIds()));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
@@ -120,7 +120,7 @@ public class DocumentService {
         if (!document.getScenarios().isEmpty()) {
           Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
           List<Scenario> inputScenarios =
-              fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+              fromIterable(scenarioRepository.forOp(state).findAllById(input.getScenarioIds()));
           scenarios.addAll(inputScenarios);
           document.setScenarios(scenarios);
         }
@@ -144,7 +144,7 @@ public class DocumentService {
         }
         if (!input.getScenarioIds().isEmpty()) {
           document.setScenarios(
-              iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+              iterableToSet(scenarioRepository.forOp(state).findAllById(input.getScenarioIds())));
         }
         document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
         document.setType(fileContentType);

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doThrow;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -102,7 +103,7 @@ public class StarterPackTest extends IntegrationTest {
     long assetGroupCount = assetGroupRepository.count();
     assertEquals(0, assetGroupCount);
 
-    long scenarioCount = scenarioRepository.count();
+    long scenarioCount = scenarioRepository.forOp(ExecState.noTenant()).count();
     assertEquals(0, scenarioCount);
 
     long dashboardCount = customDashboardRepository.count();
@@ -146,7 +147,7 @@ public class StarterPackTest extends IntegrationTest {
     long assetGroupCount = assetGroupRepository.count();
     assertEquals(1, assetGroupCount);
 
-    long scenarioCount = scenarioRepository.count();
+    long scenarioCount = scenarioRepository.forOp(ExecState.noTenant()).count();
     assertEquals(3, scenarioCount);
 
     long dashboardCount = customDashboardRepository.count();
@@ -187,7 +188,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
-    assertThat(scenarioRepository.findAll()).isEmpty();
+    assertThat(scenarioRepository.forOp(ExecState.noTenant()).findAll()).isEmpty();
     this.verifyDashboardExist();
     this.verifyDataPackExist();
     this.verifyDefaultHomeDashboardParameterExist();
@@ -259,7 +260,7 @@ public class StarterPackTest extends IntegrationTest {
     this.verifyTagsExist();
     this.verifyEndpointExist();
     this.verifyAssetGroupExist();
-    long scenarioCount = scenarioRepository.count();
+    long scenarioCount = scenarioRepository.forOp(ExecState.noTenant()).count();
     assertEquals(0, scenarioCount);
     long dashboardCount = customDashboardRepository.count();
     assertEquals(0, dashboardCount);
@@ -537,7 +538,7 @@ public class StarterPackTest extends IntegrationTest {
   }
 
   private void verifyScenarioExist() {
-    List<Scenario> scenarios = scenarioRepository.findAll();
+    List<Scenario> scenarios = scenarioRepository.forOp(ExecState.noTenant()).findAll();
     assertEquals(3, scenarios.size());
 
     assertThat(scenarios)

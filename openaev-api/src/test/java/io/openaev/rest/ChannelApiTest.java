@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Channel;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ArticleRepository;
@@ -51,7 +52,7 @@ class ChannelApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteById(SCENARIO_ID);
+    this.scenarioRepository.forOp(ExecState.noTenant()).deleteById(SCENARIO_ID);
     this.channelRepository.deleteById(CHANNEL_ID);
     this.articleRepository.deleteById(ARTICLE_ID);
   }
@@ -66,7 +67,7 @@ class ChannelApiTest extends IntegrationTest {
     // -- PREPARE --
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
-    Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
+    Scenario scenarioCreated = this.scenarioService.createScenario(ExecState.noTenant(), scenario);
     SCENARIO_ID = scenarioCreated.getId();
 
     Channel channel = new Channel();

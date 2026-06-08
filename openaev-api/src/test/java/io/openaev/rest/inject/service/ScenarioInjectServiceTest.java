@@ -180,7 +180,8 @@ class ScenarioInjectServiceTest extends IntegrationTest {
     @WithMockUser(isAdmin = true)
     void given_injectBelongsToScenario_should_deleteInject() {
       // -- ACT --
-      scenarioInjectService.deleteInject(scenarioA.getId(), injectInA.getId());
+      scenarioInjectService.deleteInject(
+          ExecState.noTenant(), scenarioA.getId(), injectInA.getId());
 
       // -- ASSERT --
       assertThat(injectRepository.findById(injectInA.getId())).isEmpty();
@@ -191,7 +192,9 @@ class ScenarioInjectServiceTest extends IntegrationTest {
     void given_injectBelongsToAnotherScenario_should_throwElementNotFoundException() {
       // -- ACT & ASSERT --
       assertThatThrownBy(
-              () -> scenarioInjectService.deleteInject(scenarioA.getId(), injectInB.getId()))
+              () ->
+                  scenarioInjectService.deleteInject(
+                      ExecState.noTenant(), scenarioA.getId(), injectInB.getId()))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }

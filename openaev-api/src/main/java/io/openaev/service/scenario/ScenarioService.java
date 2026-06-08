@@ -149,18 +149,18 @@ public class ScenarioService {
   private final WorkflowService workflowService;
 
   @Transactional
-  public Scenario createScenario(@NotNull final Scenario scenario) {
-    return computeAndCreateScenario(scenario);
+  public Scenario createScenario(ExecState state, @NotNull final Scenario scenario) {
+    return computeAndCreateScenario(state, scenario);
   }
 
   @Transactional
-  public Scenario createScenarioChaining(@NotNull final Scenario scenario)
+  public Scenario createScenarioChaining(ExecState state, @NotNull final Scenario scenario)
       throws ChainingException {
     workflowService.isPreviewFeatureChainingEnable();
 
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
-    Scenario savedScenario = this.scenarioRepository.save(scenario);
+    Scenario savedScenario = this.scenarioRepository.forOp(state).save(scenario);
     workflowService.creationWorkflow(savedScenario);
 
     return savedScenario;
@@ -174,7 +174,7 @@ public class ScenarioService {
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
-    Scenario scenario = computeAndCreateScenario(preparedScenario);
+    Scenario scenario = computeAndCreateScenario(state, preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         state,
         null,
@@ -190,7 +190,7 @@ public class ScenarioService {
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    List<Scenario> scenarios = this.scenarioRepository.forOp(state).findAllById(scenarioIds);
     this.injectService.createInjectsFromInjectorContractInput(
         state, null, scenarios, injectorContractSearchPaginationInput, locale);
     return scenarios;
@@ -211,27 +211,29 @@ public class ScenarioService {
     }
   }
 
-  public List<ScenarioSimple> scenarios() {
+  public List<ScenarioSimple> scenarios(ExecState state) {
     List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      scenarios = fromIterable(this.scenarioRepository.rawAll());
+      scenarios = fromIterable(this.scenarioRepository.forOp(state).rawAll());
     } else {
-      scenarios = this.scenarioRepository.rawAllGranted(currentUser().getId());
+      scenarios = this.scenarioRepository.forOp(state).rawAllGranted(currentUser().getId());
     }
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
 
-  public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
+  public List<ScenarioSimple> scenarios(ExecState state, final List<String> scenarioIds) {
     List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      scenarios = fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds));
+      scenarios = fromIterable(this.scenarioRepository.forOp(state).rawByScenarioIds(scenarioIds));
     } else {
       scenarios =
-          this.scenarioRepository.rawGrantedByScenarioIds(currentUser().getId(), scenarioIds);
+          this.scenarioRepository
+              .forOp(state)
+              .rawGrantedByScenarioIds(currentUser().getId(), scenarioIds);
     }
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
@@ -383,30 +385,37 @@ public class ScenarioService {
   }
 
   /** Scenario is recurring AND end date is after now */
-  public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
-    return this.scenarioRepository.findAll(
-        ScenarioSpecification.isRecurring()
-            .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
+  public List<Scenario> recurringScenarios(ExecState state, @NotNull final Instant instant) {
+    return this.scenarioRepository
+        .forOp(state)
+        .findAll(
+            ScenarioSpecification.isRecurring()
+                .and(ScenarioSpecification.recurrenceStopDateAfter(instant)));
   }
 
   /** Scenario is recurring AND start date is before now OR stop date is before now */
-  public List<Scenario> potentialOutdatedRecurringScenario(@NotNull final Instant instant) {
-    return this.scenarioRepository.findAll(
-        ScenarioSpecification.isRecurring()
-            .and(
-                ScenarioSpecification.recurrenceStartDateBefore(instant)
-                    .or(ScenarioSpecification.recurrenceStopDateBefore(instant))));
+  public List<Scenario> potentialOutdatedRecurringScenario(
+      ExecState state, @NotNull final Instant instant) {
+    return this.scenarioRepository
+        .forOp(state)
+        .findAll(
+            ScenarioSpecification.isRecurring()
+                .and(
+                    ScenarioSpecification.recurrenceStartDateBefore(instant)
+                        .or(ScenarioSpecification.recurrenceStopDateBefore(instant))));
   }
 
-  public Scenario scenario(@NotBlank final String scenarioId) {
+  public Scenario scenario(ExecState state, @NotBlank final String scenarioId) {
     return this.scenarioRepository
+        .forOp(state)
         .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
-  public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
+  public ScenarioOutput getScenarioById(ExecState state, @NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
+    RawScenario rawScenario =
+        this.scenarioRepository.forOp(state).getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
     }
@@ -432,8 +441,9 @@ public class ScenarioService {
     return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
   }
 
-  public Scenario scenarioFromSimulationId(@NotBlank final String simulationId) {
+  public Scenario scenarioFromSimulationId(ExecState state, @NotBlank final String simulationId) {
     return this.scenarioRepository
+        .forOp(state)
         .findByExercises_Id(simulationId)
         .orElseThrow(
             () ->
@@ -442,9 +452,12 @@ public class ScenarioService {
 
   @Transactional(readOnly = true)
   public ExerciseSimple latestExerciseByExternalReference(
-      @NotBlank final String scenarioExternalReference) {
+      ExecState state, @NotBlank final String scenarioExternalReference) {
     Optional<RawExerciseSimple> latestEndedExercise =
-        scenarioRepository.rawAllByExternalReference(scenarioExternalReference).stream()
+        scenarioRepository
+            .forOp(state)
+            .rawAllByExternalReference(scenarioExternalReference)
+            .stream()
             .filter(rawExercise -> rawExercise.getExercise_end_date() != null)
             .max(Comparator.comparing(RawExerciseSimple::getExercise_end_date));
 
@@ -453,8 +466,8 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Latest exercise not found"));
   }
 
-  public Scenario updateScenario(@NotNull final Scenario scenario) {
-    return this.updateScenario(scenario, null, false);
+  public Scenario updateScenario(ExecState state, @NotNull final Scenario scenario) {
+    return this.updateScenario(state, scenario, null, false);
   }
 
   /**
@@ -466,7 +479,7 @@ public class ScenarioService {
    */
   @Transactional
   public Scenario updateScenario(
-      @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
+      ExecState state, @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
       // Get asset groups from the TagRule of the added tags
       List<AssetGroup> defaultAssetGroupsToAdd =
@@ -485,26 +498,27 @@ public class ScenarioService {
                       inject.getId(), defaultAssetGroupsToAdd));
     }
     scenario.setUpdatedAt(now());
-    return this.scenarioRepository.save(scenario);
+    return this.scenarioRepository.forOp(state).save(scenario);
   }
 
-  public void updateScenarios(@NotNull final List<Scenario> scenarios) {
+  public void updateScenarios(ExecState state, @NotNull final List<Scenario> scenarios) {
     scenarios.forEach(scenario -> scenario.setUpdatedAt(now()));
-    this.scenarioRepository.saveAll(scenarios);
+    this.scenarioRepository.forOp(state).saveAll(scenarios);
   }
 
   /** Validates that the scenario exists for the current tenant. Throws if not found. */
-  public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
-    if (!this.scenarioRepository.existsByIdAndTenantId(
-        scenarioId, TenantContext.getCurrentTenant())) {
+  public void existsByIdAndTenantId(ExecState state, @NotBlank final String scenarioId) {
+    if (!this.scenarioRepository
+        .forOp(state)
+        .existsByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())) {
       throw new ElementNotFoundException("Scenario not found");
     }
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void deleteScenario(@NotBlank final String scenarioId) {
-    existsByIdAndTenantId(scenarioId);
-    this.scenarioRepository.deleteById(scenarioId);
+  public void deleteScenario(ExecState state, @NotBlank final String scenarioId) {
+    existsByIdAndTenantId(state, scenarioId);
+    this.scenarioRepository.forOp(state).deleteById(scenarioId);
   }
 
   // -- EXPORT --
@@ -519,7 +533,7 @@ public class ScenarioService {
       HttpServletResponse response)
       throws IOException {
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
-    Scenario scenario = this.scenario(scenarioId);
+    Scenario scenario = this.scenario(state, scenarioId);
 
     // Start exporting scenario
     ScenarioFileExport scenarioFileExport = new ScenarioFileExport();
@@ -723,9 +737,9 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
-      @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+      ExecState state, @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
     // Remove teams from scenario
-    this.scenarioRepository.removeTeams(scenarioId, teamIds);
+    this.scenarioRepository.forOp(state).removeTeams(scenarioId, teamIds);
     // Remove only associations for this scenario
     this.scenarioTeamUserRepository.deleteByScenarioIdAndTeamIds(scenarioId, teamIds);
     // Remove all association between injects and teams
@@ -737,8 +751,8 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
-      @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
-    Scenario scenario = this.scenario(scenarioId);
+      ExecState state, @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+    Scenario scenario = this.scenario(state, scenarioId);
     Set<String> previousTeamIds =
         scenario.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
     Set<String> targetTeamIds = new LinkedHashSet<>(teamIds);
@@ -755,7 +769,7 @@ public class ScenarioService {
     // Replace teams from a scenario
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
     scenario.setTeams(teams);
-    this.scenarioRepository.save(scenario);
+    this.scenarioRepository.forOp(state).save(scenario);
 
     List<String> teamIdsAdded =
         targetTeamIds.stream().filter(id -> !previousTeamIds.contains(id)).toList();
@@ -766,7 +780,7 @@ public class ScenarioService {
     teamsAdded.forEach(
         team -> {
           List<String> playerIds = team.getUsers().stream().map(User::getId).toList();
-          this.enablePlayers(scenarioId, team, playerIds);
+          this.enablePlayers(state, scenarioId, team, playerIds);
         });
 
     // You must return all the modified teams to ensure the frontend store updates correctly
@@ -778,6 +792,7 @@ public class ScenarioService {
   }
 
   public Scenario addScenarioPlayer(
+      ExecState state,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
@@ -788,10 +803,11 @@ public class ScenarioService {
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
     Team savedTeam = teamRepository.save(team);
-    return this.enablePlayers(scenarioId, savedTeam, playerIds);
+    return this.enablePlayers(state, scenarioId, savedTeam, playerIds);
   }
 
   public Scenario enableAddScenarioTeamPlayer(
+      ExecState state,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
@@ -799,14 +815,15 @@ public class ScenarioService {
         teamRepository
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    return this.enablePlayers(scenarioId, team, playerIds);
+    return this.enablePlayers(state, scenarioId, team, playerIds);
   }
 
   public Scenario enablePlayers(
+      ExecState state,
       @NotBlank final String scenarioId,
       @NotBlank final Team team,
       @NotNull final List<String> playerIds) {
-    Scenario scenario = this.scenario(scenarioId);
+    Scenario scenario = this.scenario(state, scenarioId);
     playerIds.forEach(
         playerId -> {
           boolean alreadyLinked =
@@ -825,6 +842,7 @@ public class ScenarioService {
   }
 
   public Scenario disablePlayers(
+      ExecState state,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
@@ -836,18 +854,19 @@ public class ScenarioService {
           scenarioTeamUserId.setUserId(playerId);
           this.scenarioTeamUserRepository.deleteById(scenarioTeamUserId);
         });
-    return this.scenario(scenarioId);
+    return this.scenario(state, scenarioId);
   }
 
   @Transactional
-  public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
+  public Scenario getDuplicateScenario(ExecState state, @NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
       Scenario scenarioOrigin =
           scenarioRepository
+              .forOp(state)
               .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
               .orElseThrow();
       Scenario scenario = copyScenario(scenarioOrigin);
-      Scenario scenarioDuplicate = scenarioRepository.save(scenario);
+      Scenario scenarioDuplicate = scenarioRepository.forOp(state).save(scenario);
       getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);
       getListOfScenarioTeams(scenarioDuplicate, scenarioOrigin);
       getListOfArticles(scenarioDuplicate, scenarioOrigin);
@@ -855,7 +874,7 @@ public class ScenarioService {
       getObjectives(scenarioDuplicate, scenarioOrigin);
       getLessonsCategories(scenarioDuplicate, scenarioOrigin);
       this.actionMetricCollector.addScenarioCreatedCount();
-      return scenarioRepository.save(scenario);
+      return scenarioRepository.forOp(state).save(scenario);
     }
     throw new ElementNotFoundException();
   }
@@ -1071,14 +1090,14 @@ public class ScenarioService {
    * @return founded healthcheck list
    */
   @Transactional(readOnly = true)
-  public List<HealthCheck> runChecks(String scenarioId) {
+  public List<HealthCheck> runChecks(ExecState state, String scenarioId) {
     if (scenarioId == null) {
       return null;
     }
 
     List<HealthCheck> healthChecks = new ArrayList<>();
 
-    Scenario scenario = this.scenario(scenarioId);
+    Scenario scenario = this.scenario(state, scenarioId);
 
     // get the healthcheck for each injects, remove duplicate from injects HealthCheck results and
     // add them to the result
@@ -1144,10 +1163,10 @@ public class ScenarioService {
     return healthChecks;
   }
 
-  private Scenario computeAndCreateScenario(Scenario scenario) {
+  private Scenario computeAndCreateScenario(ExecState state, Scenario scenario) {
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
-    return this.scenarioRepository.save(scenario);
+    return this.scenarioRepository.forOp(state).save(scenario);
   }
 
   private Scenario prepareScenarioFromScenarioInput(

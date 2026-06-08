@@ -8,6 +8,7 @@ import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mockStatic;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
@@ -65,7 +66,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
               + " "
               + hourToStart
               + " * * *"); // Every day now + 1 hour
-      Scenario scenarioSaved = scenarioService.createScenario(scenario);
+      Scenario scenarioSaved = scenarioService.createScenario(ExecState.noTenant(), scenario);
       SCENARIO_ID_1 = scenarioSaved.getId();
 
       // -- EXECUTE --
@@ -93,7 +94,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
       scenario.setRecurrence(
           "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
-      Scenario scenarioSaved = scenarioService.createScenario(scenario);
+      Scenario scenarioSaved = scenarioService.createScenario(ExecState.noTenant(), scenario);
       SCENARIO_ID_2 = scenarioSaved.getId();
 
       // -- EXECUTE --
@@ -126,7 +127,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
 
       scenario.setRecurrence(
           "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
-      Scenario scenarioSaved = scenarioService.createScenario(scenario);
+      Scenario scenarioSaved = scenarioService.createScenario(ExecState.noTenant(), scenario);
       SCENARIO_ID_2 = scenarioSaved.getId();
 
       // -- EXECUTE --
@@ -160,7 +161,7 @@ class ScenarioExecutionJobTest extends IntegrationTest {
               + zonedDateTime.getHour()
               + " * * *"); // Every day now + 1 minute
       scenario.setRecurrenceEnd(Instant.now().minus(0, ChronoUnit.DAYS));
-      Scenario scenarioSaved = scenarioService.createScenario(scenario);
+      Scenario scenarioSaved = scenarioService.createScenario(ExecState.noTenant(), scenario);
       SCENARIO_ID_3 = scenarioSaved.getId();
 
       // -- EXECUTE --

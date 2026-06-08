@@ -4,6 +4,7 @@ import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.raw.RawInjectIndexing;
 import io.openaev.database.repository.InjectRepository;
@@ -28,7 +29,7 @@ public class InjectHandler implements Handler<EsInject> {
   }
 
   @Override
-  public List<EsInject> fetch(Instant from, int limit) {
+  public List<EsInject> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawInjectIndexing> forIndexing = injectRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()

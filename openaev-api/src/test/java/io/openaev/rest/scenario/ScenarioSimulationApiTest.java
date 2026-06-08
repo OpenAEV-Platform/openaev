@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Scenario;
@@ -55,7 +56,7 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
   void beforeEach() {
     // Create scenarios
     Scenario defaultScenario = ScenarioFixture.createDefaultCrisisScenario();
-    scenario = this.scenarioRepository.save(defaultScenario);
+    scenario = this.scenarioRepository.forOp(ExecState.noTenant()).save(defaultScenario);
 
     // Create exercises linked to the scenario
     this.exerciseRepository.deleteAll();

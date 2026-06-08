@@ -13,6 +13,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
@@ -149,7 +150,7 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team createTeam(ExecState state, @Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
     Team team = new Team();
     team.setUpdateAttributes(input);
@@ -157,7 +158,8 @@ public class TeamApi extends RestBehavior {
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     team.setExercises(fromIterable(exerciseRepository.findAllById(input.getExerciseIds())));
-    team.setScenarios(fromIterable(scenarioRepository.findAllById(input.getScenarioIds())));
+    team.setScenarios(
+        fromIterable(scenarioRepository.forOp(state).findAllById(input.getScenarioIds())));
     return teamRepository.save(team);
   }
 
@@ -167,7 +169,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The created/updated team")})
   @Operation(description = "Create a new team or update an existing team", summary = "Upsert team")
-  public Team upsertTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team upsertTeam(ExecState state, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");
@@ -190,7 +192,8 @@ public class TeamApi extends RestBehavior {
               input.getOrganizationId(), newTeam.getOrganization(), organizationRepository));
       newTeam.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       newTeam.setExercises(fromIterable(exerciseRepository.findAllById(input.getExerciseIds())));
-      newTeam.setScenarios(fromIterable(scenarioRepository.findAllById(input.getScenarioIds())));
+      newTeam.setScenarios(
+          fromIterable(scenarioRepository.forOp(state).findAllById(input.getScenarioIds())));
       return teamRepository.save(newTeam);
     }
   }

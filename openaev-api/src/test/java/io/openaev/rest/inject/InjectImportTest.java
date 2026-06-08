@@ -874,7 +874,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Inject expected : injectComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Inject> recreated =
               dest.getInjects().stream()
                   .filter(i -> i.getTitle().equals(expected.getTitle()))
@@ -912,7 +915,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Article expected : articleComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Article> recreated =
               dest.getArticles().stream()
                   .filter(a -> a.getName().equals(expected.getName()))
@@ -944,7 +950,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Channel expected : channelComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Channel> recreated =
               dest.getArticles().stream()
                   .map(Article::getChannel)
@@ -981,7 +990,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Challenge expected : challengeComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Challenge> recreated =
               fromIterable(challengeService.getScenarioChallenges(dest)).stream()
                   .filter(c -> c.getName().equals(expected.getName()))
@@ -1027,7 +1039,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Payload expected : payloadComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Payload> recreated =
               dest.getInjects().stream()
                   .map(Inject::getInjectorContract)
@@ -1084,7 +1099,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Team expected : teamComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Team> recreated =
               dest.getTeams().stream()
                   .filter(c -> c.getName().equals(expected.getName()))
@@ -1111,7 +1129,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (User expected : userComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<User> recreated =
               dest.getTeams().stream()
                   .flatMap(team -> team.getUsers().stream())
@@ -1145,7 +1166,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Organization expected : organizationComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           List<Organization> orgs = new ArrayList<>();
           orgs.addAll(
               dest.getInjects().stream()
@@ -1183,7 +1207,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Tag expected : tagComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
 
           Optional<Tag> recreated =
               TagHelper.crawlAllScenarioTags(dest, challengeService).stream()
@@ -1212,7 +1239,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Document expected : documentComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Document> recreated =
               crawlDocumentsFromInjects(dest.getInjects()).stream()
                   .filter(c -> c.getName().equals(expected.getName()))
@@ -1809,7 +1839,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Inject expected : injectComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Inject> reused =
               dest.getInjects().stream()
                   .filter(i -> i.getTitle().equals(expected.getTitle()))
@@ -1845,7 +1878,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Article expected : articleComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Article> reused =
               dest.getArticles().stream()
                   .filter(a -> a.getName().equals(expected.getName()))
@@ -1876,7 +1912,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Channel expected : channelComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Channel> reused =
               dest.getArticles().stream()
                   .map(Article::getChannel)
@@ -1898,7 +1937,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Challenge expected : challengeComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Challenge> reused =
               fromIterable(challengeService.getScenarioChallenges(dest)).stream()
                   .filter(c -> c.getId().equals(expected.getId()))
@@ -1919,7 +1961,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Payload expected : payloadComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Payload> reused =
               dest.getInjects().stream()
                   .map(Inject::getInjectorContract)
@@ -1945,7 +1990,10 @@ class InjectImportTest extends IntegrationTest {
         for (Team expected :
             teamComposer.generatedItems.stream().filter(team -> !team.getContextual()).toList()) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Team> reused =
               dest.getTeams().stream().filter(c -> c.getId().equals(expected.getId())).findAny();
 
@@ -1965,7 +2013,10 @@ class InjectImportTest extends IntegrationTest {
         for (Team expected :
             teamComposer.generatedItems.stream().filter(Team::getContextual).toList()) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Team> recreated =
               dest.getTeams().stream()
                   .filter(c -> c.getName().equals(expected.getName()))
@@ -1991,7 +2042,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (User expected : userComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<User> reused =
               dest.getTeams().stream()
                   .flatMap(team -> team.getUsers().stream())
@@ -2013,7 +2067,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Organization expected : organizationComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           List<Organization> orgs = new ArrayList<>();
           orgs.addAll(
               dest.getInjects().stream()
@@ -2046,7 +2103,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Tag expected : tagComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
 
           Optional<Tag> reused =
               TagHelper.crawlAllScenarioTags(dest, challengeService).stream()
@@ -2069,7 +2129,10 @@ class InjectImportTest extends IntegrationTest {
 
         for (Document expected : documentComposer.generatedItems) {
           Scenario dest =
-              scenarioRepository.findById(destinationScenarioWrapper.get().getId()).orElseThrow();
+              scenarioRepository
+                  .forOp(ExecState.noTenant())
+                  .findById(destinationScenarioWrapper.get().getId())
+                  .orElseThrow();
           Optional<Document> reused =
               crawlDocumentsFromInjects(dest.getInjects()).stream()
                   .filter(c -> c.getId().equals(expected.getId()))

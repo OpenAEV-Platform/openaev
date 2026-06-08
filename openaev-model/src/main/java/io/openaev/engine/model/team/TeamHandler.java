@@ -2,6 +2,7 @@ package io.openaev.engine.model.team;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.engine.Handler;
@@ -17,7 +18,7 @@ public class TeamHandler implements Handler<EsTeam> {
   private final TeamRepository teamRepository;
 
   @Override
-  public List<EsTeam> fetch(Instant from, int limit) {
+  public List<EsTeam> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawTeamIndexing> forIndexing = teamRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()

@@ -2,6 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.StringUtils.duplicateString;
 
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
@@ -35,9 +36,10 @@ public class InjectDuplicateService {
 
   @Transactional
   public Inject duplicateInjectForScenarioWithDuplicateWordInTitle(
-      final String scenarioId, final String injectId) {
+      ExecState state, final String scenarioId, final String injectId) {
     Scenario scenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);

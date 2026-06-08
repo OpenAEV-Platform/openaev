@@ -8,6 +8,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
@@ -398,6 +399,7 @@ public class OpenSearchService implements EngineService {
   // region indexing
 
   public <T extends EsBase> void bulkProcessing(Stream<EsModel<T>> models) {
+    ExecState state = ExecState.noTenant();
     List<IndexingStatus> statuses =
         models
             .map(
@@ -409,7 +411,7 @@ public class OpenSearchService implements EngineService {
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
                   List<? extends EsBase> results =
-                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                      handler.fetch(state, fetchInstant, engineConfig.getIndexingBatchSize());
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();

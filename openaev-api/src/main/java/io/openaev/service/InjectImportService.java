@@ -1230,6 +1230,7 @@ public class InjectImportService {
       throws Exception {
     Scenario targetScenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
 

@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
@@ -46,8 +47,9 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group groupGrant(@PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
-    return tenantGroupService.addGrant(groupId, input);
+  public Group groupGrant(
+      ExecState state, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
+    return tenantGroupService.addGrant(state, groupId, input);
   }
 
   // -- READ --

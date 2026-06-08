@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -74,10 +75,10 @@ class ScenarioServiceUnitTest {
 
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
-    when(scenarioRepository.save(scenario)).thenReturn(scenario);
+    when(scenarioRepository.forOp(ExecState.noTenant()).save(scenario)).thenReturn(scenario);
     when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(true);
 
-    scenarioService.updateScenario(scenario, currentTags, true);
+    scenarioService.updateScenario(ExecState.noTenant(), scenario, currentTags, true);
 
     scenario
         .getInjects()
@@ -85,7 +86,7 @@ class ScenarioServiceUnitTest {
             inject ->
                 verify(injectService)
                     .applyDefaultAssetGroupsToInject(inject.getId(), assetGroupsToAdd));
-    verify(scenarioRepository).save(scenario);
+    verify(scenarioRepository).forOp(ExecState.noTenant()).save(scenario);
   }
 
   @Test
@@ -106,13 +107,13 @@ class ScenarioServiceUnitTest {
 
     when(tagRuleService.getAssetGroupsFromTagIds(List.of(tag1.getId())))
         .thenReturn(assetGroupsToAdd);
-    when(scenarioRepository.save(scenario)).thenReturn(scenario);
+    when(scenarioRepository.forOp(ExecState.noTenant()).save(scenario)).thenReturn(scenario);
     when(injectService.canApplyTargetType(any(), eq(TargetType.ASSETS_GROUPS))).thenReturn(false);
 
-    scenarioService.updateScenario(scenario, currentTags, true);
+    scenarioService.updateScenario(ExecState.noTenant(), scenario, currentTags, true);
 
     verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
-    verify(scenarioRepository).save(scenario);
+    verify(scenarioRepository).forOp(ExecState.noTenant()).save(scenario);
   }
 
   @Test
@@ -128,12 +129,12 @@ class ScenarioServiceUnitTest {
     scenario.setTags(Set.of(tag1, tag2));
     Set<Tag> currentTags = Set.of(tag2, tag3);
 
-    when(scenarioRepository.save(scenario)).thenReturn(scenario);
+    when(scenarioRepository.forOp(ExecState.noTenant()).save(scenario)).thenReturn(scenario);
 
-    scenarioService.updateScenario(scenario, currentTags, false);
+    scenarioService.updateScenario(ExecState.noTenant(), scenario, currentTags, false);
 
     verify(injectService, never()).applyDefaultAssetGroupsToInject(any(), any());
-    verify(scenarioRepository).save(scenario);
+    verify(scenarioRepository).forOp(ExecState.noTenant()).save(scenario);
   }
 
   private AssetGroup getAssetGroup(String name) {
@@ -148,10 +149,10 @@ class ScenarioServiceUnitTest {
     @Test
     void shouldSaveScenario_andKeepExistingFrom() {
       Scenario scenario = ScenarioFixture.getScenario();
-      when(scenarioRepository.save(any(Scenario.class)))
+      when(scenarioRepository.forOp(ExecState.noTenant()).save(any(Scenario.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
-      Scenario result = scenarioService.createScenario(scenario);
+      Scenario result = scenarioService.createScenario(ExecState.noTenant(), scenario);
 
       assertNotNull(result);
       assertEquals("simulation@mail.fr", result.getFrom());
@@ -162,9 +163,10 @@ class ScenarioServiceUnitTest {
       Scenario scenario = ScenarioFixture.getScenario();
       Scenario saved = ScenarioFixture.getScenario();
       saved.setId("saved-id");
-      when(scenarioRepository.save(any(Scenario.class))).thenReturn(saved);
+      when(scenarioRepository.forOp(ExecState.noTenant()).save(any(Scenario.class)))
+          .thenReturn(saved);
 
-      Scenario result = scenarioService.createScenario(scenario);
+      Scenario result = scenarioService.createScenario(ExecState.noTenant(), scenario);
 
       assertNotNull(result);
       assertEquals("saved-id", result.getId());
@@ -194,10 +196,10 @@ class ScenarioServiceUnitTest {
       scenario.setId("sc-1");
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
+        when(scenarioRepository.forOp(ExecState.noTenant()).findByIdAndTenantId("sc-1", "tenant-1"))
             .thenReturn(Optional.of(scenario));
 
-        Scenario result = scenarioService.scenario("sc-1");
+        Scenario result = scenarioService.scenario(ExecState.noTenant(), "sc-1");
 
         assertNotNull(result);
         assertEquals("sc-1", result.getId());
@@ -208,12 +210,14 @@ class ScenarioServiceUnitTest {
     void shouldThrowElementNotFoundException_whenNotFound() {
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("missing", "tenant-1"))
+        when(scenarioRepository
+                .forOp(ExecState.noTenant())
+                .findByIdAndTenantId("missing", "tenant-1"))
             .thenReturn(Optional.empty());
 
         assertThrows(
             io.openaev.rest.exception.ElementNotFoundException.class,
-            () -> scenarioService.scenario("missing"));
+            () -> scenarioService.scenario(ExecState.noTenant(), "missing"));
       }
     }
 
@@ -223,11 +227,14 @@ class ScenarioServiceUnitTest {
       scenario.setId("sc-1");
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.existsByIdAndTenantId("sc-1", "tenant-1")).thenReturn(true);
+        when(scenarioRepository
+                .forOp(ExecState.noTenant())
+                .existsByIdAndTenantId("sc-1", "tenant-1"))
+            .thenReturn(true);
 
-        scenarioService.deleteScenario("sc-1");
+        scenarioService.deleteScenario(ExecState.noTenant(), "sc-1");
 
-        verify(scenarioRepository).deleteById("sc-1");
+        verify(scenarioRepository).forOp(ExecState.noTenant()).deleteById("sc-1");
       }
     }
   }
@@ -238,21 +245,27 @@ class ScenarioServiceUnitTest {
     @Test
     void shouldReturnRecurringScenarios_afterInstant() {
       Scenario scenario = new Scenario();
-      when(scenarioRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
+      when(scenarioRepository
+              .forOp(ExecState.noTenant())
+              .findAll(any(org.springframework.data.jpa.domain.Specification.class)))
           .thenReturn(List.of(scenario));
 
-      List<Scenario> result = scenarioService.recurringScenarios(java.time.Instant.now());
+      List<Scenario> result =
+          scenarioService.recurringScenarios(ExecState.noTenant(), java.time.Instant.now());
 
       assertEquals(1, result.size());
     }
 
     @Test
     void shouldReturnPotentiallyOutdatedScenarios() {
-      when(scenarioRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
+      when(scenarioRepository
+              .forOp(ExecState.noTenant())
+              .findAll(any(org.springframework.data.jpa.domain.Specification.class)))
           .thenReturn(Collections.emptyList());
 
       List<Scenario> result =
-          scenarioService.potentialOutdatedRecurringScenario(java.time.Instant.now());
+          scenarioService.potentialOutdatedRecurringScenario(
+              ExecState.noTenant(), java.time.Instant.now());
 
       assertNotNull(result);
       assertTrue(result.isEmpty());
@@ -269,10 +282,12 @@ class ScenarioServiceUnitTest {
       scenario.setInjects(new HashSet<>());
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
+        when(scenarioRepository.forOp(ExecState.noTenant()).findByIdAndTenantId("sc-1", "tenant-1"))
             .thenReturn(Optional.of(scenario));
 
-        Scenario result = scenarioService.disablePlayers("sc-1", "team-id", List.of("player-1"));
+        Scenario result =
+            scenarioService.disablePlayers(
+                ExecState.noTenant(), "sc-1", "team-id", List.of("player-1"));
 
         assertNotNull(result);
         assertEquals("sc-1", result.getId());
@@ -360,7 +375,9 @@ class ScenarioServiceUnitTest {
 
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId(scenarioId, "tenant-1"))
+        when(scenarioRepository
+                .forOp(ExecState.noTenant())
+                .findByIdAndTenantId(scenarioId, "tenant-1"))
             .thenReturn(Optional.of(scenario));
         when(teamRepository.findAllById(any()))
             .thenAnswer(
@@ -383,7 +400,8 @@ class ScenarioServiceUnitTest {
             .thenReturn(false);
         when(teamService.find(any())).thenReturn(List.of());
 
-        scenarioService.replaceTeams(scenarioId, List.of("team-2", "team-3", "team-3"));
+        scenarioService.replaceTeams(
+            ExecState.noTenant(), scenarioId, List.of("team-2", "team-3", "team-3"));
 
         verify(scenarioTeamUserRepository)
             .deleteByScenarioIdAndTeamIds(
@@ -420,12 +438,14 @@ class ScenarioServiceUnitTest {
 
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId(scenarioId, "tenant-1"))
+        when(scenarioRepository
+                .forOp(ExecState.noTenant())
+                .findByIdAndTenantId(scenarioId, "tenant-1"))
             .thenReturn(Optional.of(scenario));
         when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
         when(teamService.find(any())).thenReturn(List.of());
 
-        scenarioService.replaceTeams(scenarioId, List.of("team-1"));
+        scenarioService.replaceTeams(ExecState.noTenant(), scenarioId, List.of("team-1"));
 
         verify(scenarioTeamUserRepository, never()).deleteByScenarioIdAndTeamIds(any(), any());
         verify(injectRepository, never()).removeTeamsForScenario(any(), any());

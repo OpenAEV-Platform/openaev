@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
@@ -107,11 +108,12 @@ public class VariableApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Variable createVariableForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     variable.setScenario(scenario);
     return this.variableService.createVariable(variable);
   }

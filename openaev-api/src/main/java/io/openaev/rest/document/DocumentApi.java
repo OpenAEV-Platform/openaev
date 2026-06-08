@@ -117,7 +117,7 @@ public class DocumentApi extends RestBehavior {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.forOp(state).findAllById(input.getScenarioIds()));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
@@ -140,7 +140,7 @@ public class DocumentApi extends RestBehavior {
       }
       if (!input.getScenarioIds().isEmpty()) {
         document.setScenarios(
-            iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+            iterableToSet(scenarioRepository.forOp(state).findAllById(input.getScenarioIds())));
       }
       document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       document.setType(file.getContentType());
@@ -286,7 +286,8 @@ public class DocumentApi extends RestBehavior {
         document.getScenarios().stream()
             .filter(scenario -> !askScenarioIds.contains(scenario.getId()))
             .toList();
-    document.setScenarios(iterableToSet(scenarioRepository.findAllById(askScenarioIds)));
+    document.setScenarios(
+        iterableToSet(scenarioRepository.forOp(state).findAllById(askScenarioIds)));
     // In case of scenario removal, all inject doc attachment for scenario
     removedScenarios.forEach(
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
@@ -570,8 +571,9 @@ public class DocumentApi extends RestBehavior {
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
     Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+        this.scenarioRepository
+            .forOp(state)
+            .findByIdAndTenantId(exerciseOrScenarioId, TenantContext.getCurrentTenant());
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
@@ -612,8 +614,9 @@ public class DocumentApi extends RestBehavior {
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
     Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+        this.scenarioRepository
+            .forOp(state)
+            .findByIdAndTenantId(exerciseOrScenarioId, TenantContext.getCurrentTenant());
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {

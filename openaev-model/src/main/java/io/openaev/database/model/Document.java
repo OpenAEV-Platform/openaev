@@ -32,6 +32,12 @@ import org.hibernate.annotations.UuidGenerator;
 })
 public class Document implements TenantBase {
 
+  public static Document from(String tenantId) {
+    Document document = new Document();
+    document.setTenant(new Tenant(tenantId));
+    return document;
+  }
+
   @Id
   @Column(name = "document_id")
   @GeneratedValue(generator = "UUID")

@@ -3,6 +3,7 @@ package io.openaev.engine.model.scenario;
 import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.ScenarioRepository;
@@ -24,10 +25,10 @@ public class ScenarioHandler implements Handler<EsScenario> {
   }
 
   @Override
-  public List<EsScenario> fetch(Instant from, int limit) {
+  public List<EsScenario> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawScenarioSimpleIndexing> forIndexing =
-        scenarioRepository.findForIndexing(queryFrom, limit);
+        scenarioRepository.forOp(state).findForIndexing(queryFrom, limit);
     return forIndexing.stream()
         .map(
             scenario -> {

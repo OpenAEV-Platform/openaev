@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
@@ -100,12 +101,13 @@ class ChainingApiUnitTest {
       Workflow duplicatedWorkflow = new Workflow();
 
       doNothing().when(workflowService).isPreviewFeatureChainingEnable();
-      when(scenarioService.getDuplicateScenario(scenarioId)).thenReturn(scenario);
+      when(scenarioService.getDuplicateScenario(ExecState.noTenant(), scenarioId))
+          .thenReturn(scenario);
       when(workflowService.findWorkflowTemplateByScenarioId(scenarioId))
           .thenReturn(Optional.of(sourceWorkflow));
       when(workflowService.duplicateScenario(scenarioId, scenario)).thenReturn(duplicatedWorkflow);
 
-      chainingApi.duplicateScenarioChaining(scenarioId);
+      chainingApi.duplicateScenarioChaining(ExecState.noTenant(), scenarioId);
 
       verify(stepService).copyStepTemplate(sourceWorkflow, duplicatedWorkflow);
     }
@@ -115,7 +117,8 @@ class ChainingApiUnitTest {
       doThrow(new ChainingException("")).when(workflowService).isPreviewFeatureChainingEnable();
 
       assertThrows(
-          ChainingException.class, () -> chainingApi.duplicateScenarioChaining("scenario-id"));
+          ChainingException.class,
+          () -> chainingApi.duplicateScenarioChaining(ExecState.noTenant(), "scenario-id"));
 
       verifyNoInteractions(scenarioService, stepService);
     }
@@ -125,12 +128,14 @@ class ChainingApiUnitTest {
       String scenarioId = "scenario-id";
       Scenario scenario = new Scenario();
       doNothing().when(workflowService).isPreviewFeatureChainingEnable();
-      when(scenarioService.getDuplicateScenario(scenarioId)).thenReturn(scenario);
+      when(scenarioService.getDuplicateScenario(ExecState.noTenant(), scenarioId))
+          .thenReturn(scenario);
       when(workflowService.findWorkflowTemplateByScenarioId(scenarioId))
           .thenReturn(Optional.empty());
 
       assertThrows(
-          ChainingException.class, () -> chainingApi.duplicateScenarioChaining(scenarioId));
+          ChainingException.class,
+          () -> chainingApi.duplicateScenarioChaining(ExecState.noTenant(), scenarioId));
 
       verify(workflowService, never()).duplicateScenario(anyString(), any(Scenario.class));
       verify(stepService, never()).copyStepTemplate(any(Workflow.class), any(Workflow.class));

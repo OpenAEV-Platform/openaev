@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.service.scenario.ScenarioService;
@@ -77,24 +78,26 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
 
     @Override
     public Composer persist() {
+      ExecState state = ExecState.noTenant();
       articleComposers.forEach(ArticleComposer.Composer::persist);
       simulationComposers.forEach(ExerciseComposer.Composer::persist);
-      scenarioRepository.save(scenario);
+      scenarioRepository.forOp(state).save(scenario);
       tagComposers.forEach(TagComposer.Composer::persist);
       injectComposers.forEach(InjectComposer.Composer::persist);
       variableComposers.forEach(VariableComposer.Composer::persist);
-      scenarioService.createScenario(scenario);
+      scenarioService.createScenario(state, scenario);
       return this;
     }
 
     @Override
     public Composer delete() {
+      ExecState state = ExecState.noTenant();
       articleComposers.forEach(ArticleComposer.Composer::delete);
       injectComposers.forEach(InjectComposer.Composer::delete);
       tagComposers.forEach(TagComposer.Composer::delete);
       simulationComposers.forEach(ExerciseComposer.Composer::delete);
       variableComposers.forEach(VariableComposer.Composer::delete);
-      scenarioRepository.delete(scenario);
+      scenarioRepository.forOp(state).delete(scenario);
       return this;
     }
 

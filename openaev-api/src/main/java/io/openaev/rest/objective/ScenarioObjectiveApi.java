@@ -7,6 +7,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
@@ -56,9 +57,10 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public Objective createObjective(
-      @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
+      ExecState state, @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
@@ -136,6 +138,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public Evaluation createEvaluation(
+      ExecState state,
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @Valid @RequestBody EvaluationInput input) {
@@ -152,10 +155,11 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objectiveRepository.save(objective);
     Scenario scenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
-    scenarioRepository.save(scenario);
+    scenarioRepository.forOp(state).save(scenario);
     return result;
   }
 
@@ -168,6 +172,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Evaluation updateEvaluation(
+      ExecState state,
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @PathVariable String evaluationId,
@@ -182,10 +187,11 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objectiveRepository.save(objective);
     Scenario scenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
-    scenarioRepository.save(scenario);
+    scenarioRepository.forOp(state).save(scenario);
     return result;
   }
 

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -200,7 +201,8 @@ class StepServiceScenarioIntegrationTest {
   void should_throw_when_findWorkflowTemplateByScenarioId_returns_empty() {
     // PREPARE
     Scenario scenarioWithoutWorkflow = ScenarioFixture.getScenario();
-    scenarioWithoutWorkflow = scenarioRepository.save(scenarioWithoutWorkflow);
+    scenarioWithoutWorkflow =
+        scenarioRepository.forOp(ExecState.noTenant()).save(scenarioWithoutWorkflow);
     String scenarioId = scenarioWithoutWorkflow.getId();
 
     // ACT & ASSERT

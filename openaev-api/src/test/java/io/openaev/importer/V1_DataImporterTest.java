@@ -64,7 +64,7 @@ class V1_DataImporterTest extends IntegrationTest {
     killChainPhaseRepository.deleteAll();
     attackPatternRepository.deleteAll();
     exerciseRepository.deleteAll();
-    scenarioRepository.deleteAll();
+    scenarioRepository.forOp(ExecState.noTenant()).deleteAll();
     injectRepository.deleteAll();
     injectorContractRepository.deleteAll();
     injectorRepository.deleteAll();
@@ -156,7 +156,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // Delete in FK order: injects → injector contracts → scenarios → payloads
     injectRepository.deleteAll();
     injectorContractRepository.deleteAll();
-    scenarioRepository.deleteAll();
+    scenarioRepository.forOp(ExecState.noTenant()).deleteAll();
     payloadRepository.deleteAll();
     entityManager.flush();
     entityManager.clear();

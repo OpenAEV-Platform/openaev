@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -65,11 +66,11 @@ public class FullTextSearchTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
     Scenario scenario1 = ScenarioFixture.createDefaultCrisisScenario();
-    testScenarioCrisis = this.scenarioRepository.save(scenario1);
+    testScenarioCrisis = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario1);
     SCENARIO_IDS.add(testScenarioCrisis.getId());
 
     Scenario scenario2 = ScenarioFixture.createDefaultIncidentResponseScenario();
-    testScenarioIncident = this.scenarioRepository.save(scenario2);
+    testScenarioIncident = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario2);
     SCENARIO_IDS.add(testScenarioIncident.getId());
 
     Asset asset = AssetFixture.createDefaultAsset("Asset for full text search test");
@@ -78,7 +79,7 @@ public class FullTextSearchTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteAllById(SCENARIO_IDS);
+    this.scenarioRepository.forOp(ExecState.noTenant()).deleteAllById(SCENARIO_IDS);
     this.assetRepository.delete(assetForTest);
   }
 

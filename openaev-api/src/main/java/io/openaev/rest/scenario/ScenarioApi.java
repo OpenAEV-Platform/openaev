@@ -86,7 +86,7 @@ public class ScenarioApi extends RestBehavior {
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenario(@Valid @RequestBody final ScenarioInput input) {
+  public Scenario createScenario(ExecState state, @Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
@@ -107,7 +107,7 @@ public class ScenarioApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    Scenario savedScenario = this.scenarioService.createScenario(scenario);
+    Scenario savedScenario = this.scenarioService.createScenario(state, scenario);
 
     // If the chaining feature flag is enabled and the engine is "chaining", create and link a
     // workflow to the scenario
@@ -153,14 +153,15 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO)
-  public Scenario duplicateScenario(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.getDuplicateScenario(scenarioId);
+  public Scenario duplicateScenario(
+      ExecState state, @PathVariable @NotBlank final String scenarioId) {
+    return scenarioService.getDuplicateScenario(state, scenarioId);
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<ScenarioSimple> scenarios() {
-    return this.scenarioService.scenarios();
+  public List<ScenarioSimple> scenarios(ExecState state) {
+    return this.scenarioService.scenarios(state);
   }
 
   @LogExecutionTime
@@ -178,8 +179,8 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get scenarios by their id",
       description = "Get the scenarios with the specified ids if you have the right to see them")
   public List<ScenarioSimple> scenariosById(
-      @RequestBody final GetScenariosInput getScenariosInput) {
-    return this.scenarioService.scenarios(getScenariosInput.getScenarioIds());
+      ExecState state, @RequestBody final GetScenariosInput getScenariosInput) {
+    return this.scenarioService.scenarios(state, getScenariosInput.getScenarioIds());
   }
 
   @GetMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -187,8 +188,8 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public ScenarioOutput scenario(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.getScenarioById(scenarioId);
+  public ScenarioOutput scenario(ExecState state, @PathVariable @NotBlank final String scenarioId) {
+    return scenarioService.getScenarioById(state, scenarioId);
   }
 
   @GetMapping({
@@ -199,8 +200,9 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.runChecks(scenarioId);
+  public List<HealthCheck> streamHealthChecks(
+      ExecState state, @PathVariable @NotBlank final String scenarioId) {
+    return scenarioService.runChecks(state, scenarioId);
   }
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -209,9 +211,10 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario updateScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final UpdateScenarioInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -221,7 +224,8 @@ public class ScenarioApi extends RestBehavior {
     } else {
       scenario.setCustomDashboard(null);
     }
-    return this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule());
+    return this.scenarioService.updateScenario(
+        state, scenario, currentTagList, input.isApplyTagRule());
   }
 
   @DeleteMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -229,8 +233,8 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
-    this.scenarioService.deleteScenario(scenarioId);
+  public void deleteScenario(ExecState state, @PathVariable @NotBlank final String scenarioId) {
+    this.scenarioService.deleteScenario(state, scenarioId);
   }
 
   // -- TAGS --
@@ -241,12 +245,14 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario updateScenarioTags(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTagsInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    return this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule());
+    return this.scenarioService.updateScenario(
+        state, scenario, currentTagList, input.isApplyTagRule());
   }
 
   // -- EXPORT --
@@ -298,9 +304,10 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Iterable<TeamOutput> removeScenarioTeams(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
-    return this.scenarioService.removeTeams(scenarioId, input.getTeamIds());
+    return this.scenarioService.removeTeams(state, scenarioId, input.getTeamIds());
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -313,9 +320,10 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public List<TeamOutput> replaceScenarioTeams(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
-    return this.scenarioService.replaceTeams(scenarioId, input.getTeamIds());
+    return this.scenarioService.replaceTeams(state, scenarioId, input.getTeamIds());
   }
 
   @GetMapping({
@@ -340,11 +348,12 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario enableScenarioTeamPlayers(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
     return this.scenarioService.enableAddScenarioTeamPlayer(
-        scenarioId, teamId, input.getPlayersIds());
+        state, scenarioId, teamId, input.getPlayersIds());
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -357,10 +366,11 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario disableScenarioTeamPlayers(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    return this.scenarioService.disablePlayers(scenarioId, teamId, input.getPlayersIds());
+    return this.scenarioService.disablePlayers(state, scenarioId, teamId, input.getPlayersIds());
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -373,10 +383,11 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario addScenarioTeamPlayers(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
-    return this.scenarioService.addScenarioPlayer(scenarioId, teamId, input.getPlayersIds());
+    return this.scenarioService.addScenarioPlayer(state, scenarioId, teamId, input.getPlayersIds());
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -389,6 +400,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario removeScenarioTeamPlayers(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
@@ -399,7 +411,7 @@ public class ScenarioApi extends RestBehavior {
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
     teamRepository.save(team);
-    return this.scenarioService.disablePlayers(scenarioId, teamId, input.getPlayersIds());
+    return this.scenarioService.disablePlayers(state, scenarioId, teamId, input.getPlayersIds());
   }
 
   // -- RECURRENCE --
@@ -413,14 +425,15 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
   public Scenario updateScenarioRecurrence(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     if (input.getRecurrenceStart() != null) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);
-    return this.scenarioService.updateScenario(scenario);
+    return this.scenarioService.updateScenario(state, scenario);
   }
 
   // -- OPTION --
@@ -428,10 +441,11 @@ public class ScenarioApi extends RestBehavior {
   @GetMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      ExecState state, @RequestParam(required = false) final String searchText) {
     return fromIterable(
-            this.scenarioRepository.findAll(
-                byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
+            this.scenarioRepository
+                .forOp(state)
+                .findAll(byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
         .stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -439,8 +453,9 @@ public class ScenarioApi extends RestBehavior {
 
   @PostMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
-    return fromIterable(this.scenarioRepository.findAllById(ids)).stream()
+  public List<FilterUtilsJpa.Option> optionsById(
+      ExecState state, @RequestBody final List<String> ids) {
+    return fromIterable(this.scenarioRepository.forOp(state).findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }
@@ -448,8 +463,9 @@ public class ScenarioApi extends RestBehavior {
   @GetMapping({SCENARIO_URI + "/category/options", TENANT_SCENARIO_URI + "/category/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> categoryOptionsByName(
-      @RequestParam(required = false) final String searchText) {
+      ExecState state, @RequestParam(required = false) final String searchText) {
     return this.scenarioRepository
+        .forOp(state)
         .findDistinctCategoriesBySearchTerm(searchText, PageRequest.of(0, 10))
         .stream()
         .map(i -> new FilterUtilsJpa.Option(i, i))
@@ -467,10 +483,10 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public Scenario updateScenarioLessons(
-      @PathVariable String scenarioId, @Valid @RequestBody LessonsInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+      ExecState state, @PathVariable String scenarioId, @Valid @RequestBody LessonsInput input) {
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     scenario.setLessonsAnonymized(input.isLessonsAnonymized());
-    return scenarioRepository.save(scenario);
+    return scenarioRepository.forOp(state).save(scenario);
   }
 
   @PostMapping({
@@ -483,7 +499,7 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public Exercise createRunningExerciseFromScenario(
       ExecState state, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Exercise simulation;
 
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
@@ -517,9 +533,10 @@ public class ScenarioApi extends RestBehavior {
       })
   @Operation(summary = "Check rules", description = "Check if the rules apply to a scenario update")
   public CheckScenarioRulesOutput checkIfRuleApplies(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final CheckScenarioRulesInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     return CheckScenarioRulesOutput.builder()
         .rulesFound(this.scenarioService.checkIfTagRulesApplies(scenario, input.getNewTags()))
         .build();

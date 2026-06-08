@@ -49,10 +49,11 @@ public class ScenarioImportApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary dryRunImportXLSFile(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(state, scenarioId);
 
     // Getting the mapper to use
     ImportMapper importMapper =
@@ -79,10 +80,11 @@ public class ScenarioImportApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Validate and import injects from an xls file")
   public ImportTestSummary validateImportXLSFile(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(state, scenarioId);
 
     if (input.getLaunchDate() != null) {
       scenario.setRecurrenceStart(input.getLaunchDate().toInstant());
@@ -101,7 +103,7 @@ public class ScenarioImportApi extends RestBehavior {
     ImportTestSummary importTestSummary =
         injectImportService.importInjectIntoScenarioFromXLS(
             scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), true);
-    scenarioService.updateScenario(scenario);
+    scenarioService.updateScenario(state, scenario);
     return importTestSummary;
   }
 

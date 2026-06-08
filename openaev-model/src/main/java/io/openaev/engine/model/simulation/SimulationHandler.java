@@ -4,6 +4,7 @@ import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.engine.Handler;
@@ -20,7 +21,7 @@ public class SimulationHandler implements Handler<EsSimulation> {
   private final ExerciseRepository simulationRepository;
 
   @Override
-  public List<EsSimulation> fetch(Instant from, int limit) {
+  public List<EsSimulation> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawSimulationIndexing> forIndexing =
         simulationRepository.findForIndexing(queryFrom, limit);

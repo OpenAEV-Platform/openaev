@@ -50,7 +50,7 @@ public class ScenarioInjectService {
       @NotBlank final String injectId,
       @NotNull InjectInput input) {
     checkInjectForScenario(scenarioId, injectId);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Inject inject = injectService.updateInject(state, injectId, input);
 
     // It should not be possible to add EE executor on inject when the scenario is already
@@ -68,7 +68,7 @@ public class ScenarioInjectService {
                 scenario.getDocuments().add(document.getDocument());
               }
             });
-    this.scenarioService.updateScenario(scenario);
+    this.scenarioService.updateScenario(state, scenario);
     Inject persistedInject = injectRepository.save(inject);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
@@ -85,11 +85,12 @@ public class ScenarioInjectService {
   // -- DELETE --
 
   /** Deletes an inject that belongs to the given scenario. */
-  public void deleteInject(@NotBlank final String scenarioId, @NotBlank final String injectId) {
+  public void deleteInject(
+      ExecState state, @NotBlank final String scenarioId, @NotBlank final String injectId) {
     checkInjectForScenario(scenarioId, injectId);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     this.injectService.delete(injectId);
-    this.scenarioService.updateScenario(scenario);
+    this.scenarioService.updateScenario(state, scenario);
   }
 
   // -- PRIVATE --

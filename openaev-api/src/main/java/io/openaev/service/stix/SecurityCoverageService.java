@@ -326,7 +326,7 @@ public class SecurityCoverageService {
    */
   public Scenario buildScenarioFromSecurityCoverage(
       ExecState state, SecurityCoverage securityCoverage) {
-    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(securityCoverage);
+    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(state, securityCoverage);
     securityCoverage.setScenario(scenario);
     Set<Inject> injects =
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
@@ -384,26 +384,28 @@ public class SecurityCoverageService {
    * @param securityCoverage the {@link SecurityCoverage}
    * @return the updated or newly created {@link Scenario}
    */
-  public Scenario updateOrCreateScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+  public Scenario updateOrCreateScenarioFromSecurityCoverage(
+      ExecState state, SecurityCoverage securityCoverage) {
     if (securityCoverage.getScenario() != null) {
       return scenarioRepository
+          .forOp(state)
           .findById(securityCoverage.getScenario().getId())
-          .map(existing -> updateScenarioFromSecurityCoverage(existing, securityCoverage))
-          .orElseGet(() -> createAndInitializeScenario(securityCoverage));
+          .map(existing -> updateScenarioFromSecurityCoverage(state, existing, securityCoverage))
+          .orElseGet(() -> createAndInitializeScenario(state, securityCoverage));
     }
-    return createAndInitializeScenario(securityCoverage);
+    return createAndInitializeScenario(state, securityCoverage);
   }
 
-  private Scenario createAndInitializeScenario(SecurityCoverage securityCoverage) {
+  private Scenario createAndInitializeScenario(ExecState state, SecurityCoverage securityCoverage) {
     Scenario scenario = new Scenario();
     updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
-    return scenarioService.createScenario(scenario);
+    return scenarioService.createScenario(state, scenario);
   }
 
   private Scenario updateScenarioFromSecurityCoverage(
-      Scenario scenario, SecurityCoverage securityCoverage) {
+      ExecState state, Scenario scenario, SecurityCoverage securityCoverage) {
     updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
-    return scenarioService.updateScenario(scenario);
+    return scenarioService.updateScenario(state, scenario);
   }
 
   private void updatePropertiesFromSecurityCoverage(Scenario scenario, SecurityCoverage sa) {

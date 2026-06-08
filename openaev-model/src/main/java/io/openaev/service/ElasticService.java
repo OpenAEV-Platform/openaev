@@ -15,6 +15,7 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
@@ -331,6 +332,7 @@ public class ElasticService implements EngineService {
 
   // region indexing
   public <T extends EsBase> void bulkProcessing(Stream<EsModel<T>> models) {
+    ExecState state = ExecState.noTenant();
     List<IndexingStatus> statuses =
         models
             .map(
@@ -342,7 +344,7 @@ public class ElasticService implements EngineService {
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
                   List<? extends EsBase> results =
-                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                      handler.fetch(state, fetchInstant, engineConfig.getIndexingBatchSize());
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();

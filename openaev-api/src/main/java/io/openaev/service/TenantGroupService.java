@@ -4,6 +4,7 @@ import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -55,8 +56,8 @@ public class TenantGroupService {
   }
 
   /** Add a grant to a tenant group. */
-  public Group addGrant(@NotBlank final String groupId, GroupGrantInput input) {
-    grantService.validateResourceIdForGrant(input.getResourceId());
+  public Group addGrant(ExecState state, @NotBlank final String groupId, GroupGrantInput input) {
+    grantService.validateResourceIdForGrant(state, input.getResourceId());
     String tenantId = TenantContext.getCurrentTenant();
     Group group =
         groupRepository

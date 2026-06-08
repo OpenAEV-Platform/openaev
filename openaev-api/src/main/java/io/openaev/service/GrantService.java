@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE;
 import io.openaev.database.model.Grant.GRANT_TYPE;
@@ -51,14 +52,14 @@ public class GrantService {
    * @param resourceId the resource ID to validate
    * @throws IllegalArgumentException if the resource ID is blank or does not exist
    */
-  public void validateResourceIdForGrant(String resourceId) {
+  public void validateResourceIdForGrant(ExecState state, String resourceId) {
     if (StringUtils.isBlank(resourceId)) {
       throw new IllegalArgumentException("A valid resource ID should be present");
     }
 
     boolean exists =
         exerciseRepository.existsById(resourceId)
-            || scenarioRepository.existsById(resourceId)
+            || scenarioRepository.forOp(state).existsById(resourceId)
             // Atomic testings:
             || injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId)
             // Threat arsenal (grant on injector contract ID):

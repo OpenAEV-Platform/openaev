@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.database.repository.ScenarioRepository;
@@ -46,7 +47,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
   @AfterEach
   void afterEach() {
     notificationRuleRepository.deleteAll();
-    scenarioRepository.deleteAll();
+    scenarioRepository.forOp(ExecState.noTenant()).deleteAll();
   }
 
   @Test
@@ -59,7 +60,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
     scenario.setDescription("Test scenario");
     scenario.setName("Test scenario");
     scenario.setFrom("test@openaev.io");
-    scenario = scenarioRepository.save(scenario);
+    scenario = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     CreateNotificationRuleInput input =
         CreateNotificationRuleInput.builder()

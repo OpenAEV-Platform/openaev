@@ -114,9 +114,10 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Inject scenarioInject(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     assert scenarioId.equals(scenario.getId());
     return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
@@ -136,7 +137,7 @@ public class ScenarioInjectApi extends RestBehavior {
       ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Inject persistedInject = this.injectService.createAndSaveInject(state, null, scenario, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
@@ -154,7 +155,7 @@ public class ScenarioInjectApi extends RestBehavior {
       ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody List<InjectInput> inputs) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     return this.injectService.createAndSaveInjectList(state, null, scenario, inputs);
   }
 
@@ -171,9 +172,10 @@ public class ScenarioInjectApi extends RestBehavior {
       summary = "Assistant to generate injects for scenario",
       description = "Generates injects based on the provided attack pattern and targets.")
   public List<Inject> generateInjectsForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     return injectService.saveAll(
         this.injectAssistantService.generateInjectsForScenario(scenario, input));
   }
@@ -187,11 +189,12 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public InjectOutput duplicateInjectForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
     Inject persistedInject =
         injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-            scenarioId, injectId);
+            state, scenarioId, injectId);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -241,8 +244,9 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public void deleteInjectForScenario(
+      ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    this.scenarioInjectService.deleteInject(scenarioId, injectId);
+    this.scenarioInjectService.deleteInject(state, scenarioId, injectId);
   }
 }

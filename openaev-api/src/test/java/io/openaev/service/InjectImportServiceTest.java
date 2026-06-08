@@ -357,7 +357,7 @@ public class InjectImportServiceTest {
 
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
+        when(scenarioRepository.forOp(ExecState.noTenant()).findByIdAndTenantId("sc-1", "tenant-1"))
             .thenReturn(Optional.of(scenario));
 
         // -------- Act --------
@@ -406,7 +406,9 @@ public class InjectImportServiceTest {
 
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("missing", "tenant-1"))
+        when(scenarioRepository
+                .forOp(ExecState.noTenant())
+                .findByIdAndTenantId("missing", "tenant-1"))
             .thenReturn(Optional.empty());
 
         // -------- Act / Assert --------

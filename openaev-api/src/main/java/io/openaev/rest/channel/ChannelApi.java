@@ -138,7 +138,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public ChannelReader observerArticles(
-      @PathVariable String exerciseId, @PathVariable String channelId) {
+      ExecState state, @PathVariable String exerciseId, @PathVariable String channelId) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
@@ -154,7 +154,7 @@ public class ChannelApi extends RestBehavior {
               exercise.getInjects(), publishedArticles, this.mapper);
       channelReader.setChannelArticles(articles);
     } else {
-      Scenario scenario = this.scenarioService.scenario(exerciseId);
+      Scenario scenario = this.scenarioService.scenario(state, exerciseId);
       channelReader = new ChannelReader(channel, scenario);
       List<Article> publishedArticles = scenario.getArticlesForChannel(channel);
       List<Article> articles =
@@ -172,6 +172,7 @@ public class ChannelApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public ChannelReader playerArticles(
+      ExecState state,
       @PathVariable String exerciseId,
       @PathVariable String channelId,
       @RequestParam Optional<String> userId) {
@@ -179,7 +180,7 @@ public class ChannelApi extends RestBehavior {
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
     }
-    return channelService.validateArticles(exerciseId, channelId, user);
+    return channelService.validateArticles(state, exerciseId, channelId, user);
   }
 
   // -- EXERCISES --
@@ -311,7 +312,7 @@ public class ChannelApi extends RestBehavior {
       ExecState state,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody ArticleCreateInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
@@ -331,7 +332,7 @@ public class ChannelApi extends RestBehavior {
             // If Document not yet linked directly to the exercise, attached it
             if (!document.getScenarios().contains(scenario)) {
               scenario.getDocuments().add(document);
-              this.scenarioService.updateScenario(scenario);
+              this.scenarioService.updateScenario(state, scenario);
             }
           }
         });
@@ -353,7 +354,7 @@ public class ChannelApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(state, scenarioId);
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
@@ -382,7 +383,7 @@ public class ChannelApi extends RestBehavior {
                 // If Document not yet linked directly to the exercise, attached it
                 if (!document.getScenarios().contains(scenario)) {
                   scenario.getDocuments().add(document);
-                  this.scenarioService.updateScenario(scenario);
+                  this.scenarioService.updateScenario(state, scenario);
                 }
               }
             });

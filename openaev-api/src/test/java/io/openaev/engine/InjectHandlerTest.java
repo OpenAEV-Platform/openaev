@@ -3,6 +3,7 @@ package io.openaev.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -62,7 +63,7 @@ class InjectHandlerTest extends IntegrationTest {
       Inject inject = injectWrapper.get();
 
       // Act
-      List<EsInject> results = injectHandler.fetch(null, 5000);
+      List<EsInject> results = injectHandler.fetch(ExecState.noTenant(), null, 5000);
 
       // Assert
       assertThat(results).isNotEmpty();
@@ -91,7 +92,8 @@ class InjectHandlerTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      List<EsInject> results = injectHandler.fetch(Instant.now().plusSeconds(3600), 5000);
+      List<EsInject> results =
+          injectHandler.fetch(ExecState.noTenant(), Instant.now().plusSeconds(3600), 5000);
 
       // Assert
       assertThat(results).isEmpty();
@@ -111,7 +113,7 @@ class InjectHandlerTest extends IntegrationTest {
       entityManager.clear();
 
       // Act
-      List<EsInject> results = injectHandler.fetch(null, 2);
+      List<EsInject> results = injectHandler.fetch(ExecState.noTenant(), null, 2);
 
       // Assert
       assertThat(results).hasSize(2);

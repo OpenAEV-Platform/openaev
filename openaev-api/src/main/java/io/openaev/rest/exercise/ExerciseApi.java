@@ -1016,9 +1016,10 @@ public class ExerciseApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Simulation or Scenario not found")
       })
   public Scenario scenarioFromSimulation(
+      ExecState state,
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
-    return scenarioService.scenarioFromSimulationId(simulationId);
+    return scenarioService.scenarioFromSimulationId(state, simulationId);
   }
 
   // end region

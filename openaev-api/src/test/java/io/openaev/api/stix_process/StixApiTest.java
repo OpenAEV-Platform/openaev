@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.InjectRepository;
@@ -265,7 +266,8 @@ class StixApiTest extends IntegrationTest {
       verify(securityCoverageService).pushSecurityCoverageBundleWithExternalURI(any());
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
 
       Tag customTagLinux = tagRepository.findByName(Tag.SECURITY_COVERAGE_LINUX_TAG_NAME).get();
       Tag customTagWindows = tagRepository.findByName(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME).get();
@@ -326,7 +328,8 @@ class StixApiTest extends IntegrationTest {
 
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       Tag customTagLinux = tagRepository.findByName(Tag.SECURITY_COVERAGE_LINUX_TAG_NAME).get();
       Tag customTagWindows = tagRepository.findByName(Tag.SECURITY_COVERAGE_WINDOWS_TAG_NAME).get();
       Tag customTagMacOS = tagRepository.findByName(Tag.SECURITY_COVERAGE_MACOS_TAG_NAME).get();
@@ -434,7 +437,8 @@ class StixApiTest extends IntegrationTest {
 
       assertThat(response).isNotBlank();
       String scenarioId = JsonPath.read(response, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
 
       // -- ASSERT Scenario --
       assertThat(createdScenario.getRecurrence()).isEqualTo("P1D");
@@ -510,7 +514,8 @@ class StixApiTest extends IntegrationTest {
     @DisplayName("Should create the scenario from stix bundle")
     void shouldCreateScenario() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
 
       // -- ASSERT Scenario --
       assertThat(createdScenario.getName())
@@ -571,7 +576,8 @@ class StixApiTest extends IntegrationTest {
       JsonNode updated = deleteStixObjectField(stixSecurityCoverage, STIX_TYPE_AFFINITY);
 
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
 
       assertThat(createdScenario.getTypeAffinity()).isNull();
     }
@@ -594,7 +600,8 @@ class StixApiTest extends IntegrationTest {
 
       // should update
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
 
       assertThat(createdScenario.getTypeAffinity()).isEqualTo("New value");
     }
@@ -621,7 +628,8 @@ class StixApiTest extends IntegrationTest {
           .persist();
 
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -655,7 +663,8 @@ class StixApiTest extends IntegrationTest {
       updated =
           updateStixObjectField(updated, StixConstants.STIX_NAME, "CVE-2025-56786", emptyList(), 1);
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -678,7 +687,8 @@ class StixApiTest extends IntegrationTest {
               List.of("no-asset-groups"),
               0);
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -694,7 +704,8 @@ class StixApiTest extends IntegrationTest {
     void shouldCreateScenarioWithOneInjectWhenPlatformsAffinityAreNotDefined() throws Exception {
       String scenarioId =
           getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverageOnlyVulns));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -711,7 +722,8 @@ class StixApiTest extends IntegrationTest {
     void shouldUpdateScenarioAndKeepSameNumberInjectsWhenUpdatedStixHasSameAttacks()
         throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -731,7 +743,8 @@ class StixApiTest extends IntegrationTest {
 
       // Push same stix in order to check the number of created injects
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario updatedScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
       // ASSERT injects for updated stix
@@ -744,7 +757,8 @@ class StixApiTest extends IntegrationTest {
         "Should update scenario from same security coverage but deleting injects when attack-objects are not defined in stix")
     void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsAttacks() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -761,7 +775,8 @@ class StixApiTest extends IntegrationTest {
 
       // Push stix without object type attack-pattern
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario updatedScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
 
@@ -783,7 +798,8 @@ class StixApiTest extends IntegrationTest {
         "Should update scenario from same security coverage but deleting injects when vulnerabilities are not defined in stix")
     void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsVulnerabilities() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -803,7 +819,8 @@ class StixApiTest extends IntegrationTest {
 
       // Push stix without object type attack-pattern
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario updatedScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
 
@@ -825,7 +842,8 @@ class StixApiTest extends IntegrationTest {
         "Should update scenario from same security coverage but deleting injects when none objects are not defined in stix")
     void shouldUpdateScenarioAndDeleteInjectWhenStixNotContainsOtherObjects() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
@@ -842,7 +860,8 @@ class StixApiTest extends IntegrationTest {
 
       // Push stix without object type attack-pattern
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario updatedScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getName())
           .isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ -- UPDATED");
 
@@ -870,7 +889,8 @@ class StixApiTest extends IntegrationTest {
                   .withAsset(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
           .persist();
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario scenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(scenario.getName()).isEqualTo("Security Coverage Q3 2025 - Threat Report XYZ");
 
       Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
@@ -889,7 +909,7 @@ class StixApiTest extends IntegrationTest {
               0);
 
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      scenario = scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
       assertThat(injects.stream().findFirst().get().getAssets()).hasSize(3);
@@ -927,7 +947,8 @@ class StixApiTest extends IntegrationTest {
               List.of("empty-asset-groups"),
               0);
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario scenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       Set<Inject> injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
 
@@ -946,7 +967,7 @@ class StixApiTest extends IntegrationTest {
               0);
 
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      scenario = scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       injects = injectRepository.findByScenarioId(scenario.getId());
       assertThat(injects).hasSize(1);
       assertThat(
@@ -961,7 +982,8 @@ class StixApiTest extends IntegrationTest {
     @DisplayName("Should update security coverage stix modified")
     void shouldUpdateSecurityCoverageStixModified() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getSecurityCoverage().getStixModified())
           .isEqualTo("2025-12-31T14:00:00Z");
 
@@ -974,7 +996,8 @@ class StixApiTest extends IntegrationTest {
               emptyList(),
               0);
       scenarioId = getScenarioIdResponse(mapper.writeValueAsString(updated));
-      Scenario updatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario updatedScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(updatedScenario.getSecurityCoverage().getStixModified())
           .isEqualTo(modifiedDateForTesting);
     }
@@ -984,10 +1007,11 @@ class StixApiTest extends IntegrationTest {
     void shouldExistSecurityCoverage() throws Exception {
       String scenarioId = getScenarioIdResponse(mapper.writeValueAsString(stixSecurityCoverage));
       entityManager.clear();
-      Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario scenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       String securityCoverageId = scenario.getSecurityCoverage().getId();
       entityManager.clear();
-      scenarioRepository.deleteById(scenarioId);
+      scenarioRepository.forOp(ExecState.noTenant()).deleteById(scenarioId);
       entityManager.clear();
       assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
     }
@@ -1008,7 +1032,8 @@ class StixApiTest extends IntegrationTest {
               .getContentAsString();
 
       scenarioId = JsonPath.read(duplicated, "$.scenario_id");
-      Scenario duplicatedScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario duplicatedScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(duplicatedScenario.getSecurityCoverage()).isNull();
     }
 
@@ -1027,7 +1052,8 @@ class StixApiTest extends IntegrationTest {
               .getContentAsString();
 
       String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName()).isEqualTo("test domain name");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
@@ -1069,7 +1095,8 @@ class StixApiTest extends IntegrationTest {
 
       // VERIFY
       String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName()).isEqualTo("test artifacts");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());
@@ -1111,7 +1138,8 @@ class StixApiTest extends IntegrationTest {
 
       // VERIFY
       String scenarioId = JsonPath.read(createdResponse, "$.scenarioId");
-      Scenario createdScenario = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario createdScenario =
+          scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioId).orElseThrow();
       assertThat(createdScenario.getName()).isEqualTo("test failing artifacts");
 
       Set<Inject> injects = injectRepository.findByScenarioId(createdScenario.getId());

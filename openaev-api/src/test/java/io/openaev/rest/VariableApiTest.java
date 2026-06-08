@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Variable;
 import io.openaev.database.repository.ScenarioRepository;
@@ -47,7 +48,7 @@ public class VariableApiTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteById(SCENARIO_ID);
+    this.scenarioRepository.forOp(ExecState.noTenant()).deleteById(SCENARIO_ID);
     this.variableRepository.deleteById(VARIABLE_ID);
   }
 
@@ -61,7 +62,7 @@ public class VariableApiTest extends IntegrationTest {
     // -- PREPARE --
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
-    Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
+    Scenario scenarioCreated = this.scenarioService.createScenario(ExecState.noTenant(), scenario);
     SCENARIO_ID = scenarioCreated.getId();
     Variable variable = new Variable();
 

@@ -2,6 +2,7 @@ package io.openaev.engine.model.assetgroup;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawAssetGroupIndexing;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.engine.Handler;
@@ -17,7 +18,7 @@ public class AssetGroupHandler implements Handler<EsAssetGroup> {
   private final AssetGroupRepository assetGroupRepository;
 
   @Override
-  public List<EsAssetGroup> fetch(Instant from, int limit) {
+  public List<EsAssetGroup> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawAssetGroupIndexing> forIndexing =
         assetGroupRepository.findForIndexing(queryFrom, limit);

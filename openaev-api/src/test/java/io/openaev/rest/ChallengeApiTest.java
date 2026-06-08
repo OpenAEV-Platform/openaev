@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -58,7 +59,7 @@ class ChallengeApiTest extends IntegrationTest {
   void retrieveChallengesVariableForScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario scenario = createDefaultCrisisScenario();
-    Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
+    Scenario scenarioCreated = this.scenarioService.createScenario(ExecState.noTenant(), scenario);
     assertNotNull(scenarioCreated, "Scenario should be successfully created");
     String SCENARIO_ID = scenarioCreated.getId();
 

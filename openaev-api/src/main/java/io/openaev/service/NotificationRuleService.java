@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
@@ -53,12 +54,13 @@ public class NotificationRuleService {
     return notificationRuleRepository.findNotificationRuleByResourceAndUser(resourceId, userId);
   }
 
-  public NotificationRule createNotificationRule(@NotNull final NotificationRule notificationRule) {
+  public NotificationRule createNotificationRule(
+      ExecState state, @NotNull final NotificationRule notificationRule) {
     User currentUser = userService.currentUser();
     if (NotificationRuleResourceType.SCENARIO.equals(
         notificationRule.getNotificationResourceType())) {
       // verify if the scenario exists
-      if (scenarioService.scenario(notificationRule.getResourceId()) == null) {
+      if (scenarioService.scenario(state, notificationRule.getResourceId()) == null) {
         throw new ElementNotFoundException(
             "Scenario not found with id: " + notificationRule.getResourceId());
       }

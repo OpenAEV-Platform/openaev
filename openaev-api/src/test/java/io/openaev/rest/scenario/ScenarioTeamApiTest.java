@@ -18,6 +18,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScenarioTeamUser;
 import io.openaev.database.model.Team;
@@ -67,7 +68,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
     teamToRemove.setName("teamToRemove");
     Team teamToRemoveSaved = this.teamRepository.save(teamToRemove);
     scenario.setTeams(List.of(teamToRemoveSaved));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Scenario scenarioCreated = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     Team teamToAdd = new Team();
     teamToAdd.setName(TEAM_NAME);
@@ -108,7 +109,8 @@ class ScenarioTeamApiTest extends IntegrationTest {
     assertEquals(
         List.of(scenarioCreated.getId()), responseMap.get(TEAM_NAME).get("team_scenarios"));
 
-    Optional<Scenario> scenarioSaved = this.scenarioRepository.findById(scenarioCreated.getId());
+    Optional<Scenario> scenarioSaved =
+        this.scenarioRepository.forOp(ExecState.noTenant()).findById(scenarioCreated.getId());
     assertTrue(scenarioSaved.isPresent());
     assertEquals(1, (long) scenarioSaved.get().getTeams().size());
     assertEquals(teamCreated.getId(), scenarioSaved.get().getTeams().getFirst().getId());
@@ -125,7 +127,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     Scenario scenario = getScenario();
     scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Scenario scenarioCreated = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     // -- EXECUTE --
     String response =
@@ -155,7 +157,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     Scenario scenario = getScenario();
     scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Scenario scenarioCreated = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     User user = UserFixture.getUser();
     User userCreated = this.userRepository.save(user);
@@ -202,7 +204,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     Scenario scenario = getScenario();
     scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Scenario scenarioCreated = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     User user = UserFixture.getUser();
     User userCreated = this.userRepository.save(user);
@@ -252,7 +254,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
     Scenario scenario = getScenario();
     scenario.setTeams(List.of(teamCreated));
-    Scenario scenarioCreated = this.scenarioRepository.save(scenario);
+    Scenario scenarioCreated = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
     input.setTeamIds(List.of(teamCreated.getId()));
@@ -294,7 +296,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
       Scenario scenario = getScenario();
       scenario.setTeams(savedTeams.stream().filter(Team::getContextual).toList());
-      Scenario scenarioCreated = scenarioRepository.save(scenario);
+      Scenario scenarioCreated = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
       SearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
       searchPaginationInput.setTextSearch(teamName);
@@ -339,7 +341,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
       Scenario scenario = getScenario();
       scenario.setTeams(scenarioTeams);
-      Scenario scenarioCreated = scenarioRepository.save(scenario);
+      Scenario scenarioCreated = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
       SearchPaginationInput searchPaginationInput = PaginationFixture.getOptioned();
       searchPaginationInput.setTextSearch(teamName);
@@ -382,7 +384,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
       // scenarioA
       Scenario scenarioA = getScenario();
       scenarioA.setTeams(List.of(sharedTeam));
-      Scenario scenarioASaved = scenarioRepository.save(scenarioA);
+      Scenario scenarioASaved = scenarioRepository.forOp(ExecState.noTenant()).save(scenarioA);
 
       ScenarioTeamUser linkA = new ScenarioTeamUser();
       linkA.setScenario(scenarioASaved);
@@ -393,7 +395,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
       // scenarioB
       Scenario scenarioB = getScenario();
       scenarioB.setTeams(List.of(sharedTeam));
-      Scenario scenarioBSaved = scenarioRepository.save(scenarioB);
+      Scenario scenarioBSaved = scenarioRepository.forOp(ExecState.noTenant()).save(scenarioB);
 
       ScenarioTeamUser linkB = new ScenarioTeamUser();
       linkB.setScenario(scenarioBSaved);
@@ -432,11 +434,17 @@ class ScenarioTeamApiTest extends IntegrationTest {
           "The scenario-team-user links of scenarioB must not be deleted when the team is removed from scenarioA");
 
       Scenario scenarioAReloaded =
-          scenarioRepository.findById(scenarioASaved.getId()).orElseThrow();
+          scenarioRepository
+              .forOp(ExecState.noTenant())
+              .findById(scenarioASaved.getId())
+              .orElseThrow();
       assertTrue(scenarioAReloaded.getTeams().isEmpty());
 
       Scenario scenarioBReloaded =
-          scenarioRepository.findById(scenarioBSaved.getId()).orElseThrow();
+          scenarioRepository
+              .forOp(ExecState.noTenant())
+              .findById(scenarioBSaved.getId())
+              .orElseThrow();
       assertEquals(1, scenarioBReloaded.getTeams().size());
     }
 
@@ -453,7 +461,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
       Scenario scenario = getScenario();
       scenario.setTeams(List.of());
-      Scenario scenarioSaved = scenarioRepository.save(scenario);
+      Scenario scenarioSaved = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
       ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
       input.setTeamIds(List.of(team.getId()));
@@ -504,7 +512,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
       Scenario scenario = getScenario();
       scenario.setTeams(List.of(teamToRemove, teamToKeep));
-      Scenario scenarioSaved = scenarioRepository.save(scenario);
+      Scenario scenarioSaved = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
       ScenarioUpdateTeamsInput input = new ScenarioUpdateTeamsInput();
       input.setTeamIds(List.of(teamToKeep.getId(), teamToAdd.getId()));
@@ -519,7 +527,11 @@ class ScenarioTeamApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Scenario reloaded = scenarioRepository.findById(scenarioSaved.getId()).orElseThrow();
+      Scenario reloaded =
+          scenarioRepository
+              .forOp(ExecState.noTenant())
+              .findById(scenarioSaved.getId())
+              .orElseThrow();
       List<String> teamIds = reloaded.getTeams().stream().map(Team::getId).toList();
 
       assertEquals(2, teamIds.size());

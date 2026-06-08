@@ -174,8 +174,8 @@ public class ChainingApi extends RestBehavior {
   // CREATE SCENARIO
   @PostMapping(SCENARIO_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
-      throws ChainingException {
+  public Scenario createScenarioChaining(
+      ExecState state, @Valid @RequestBody final ScenarioInput input) throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
 
@@ -199,7 +199,7 @@ public class ChainingApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    return this.scenarioService.createScenarioChaining(scenario);
+    return this.scenarioService.createScenarioChaining(state, scenario);
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}/injects")
@@ -216,7 +216,7 @@ public class ChainingApi extends RestBehavior {
     workflowService.isPreviewFeatureChainingEnable();
 
     if (workflowService.isScenarioChaining(scenarioId)) {
-      this.scenarioService.scenario(scenarioId);
+      this.scenarioService.scenario(state, scenarioId);
 
       StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(input);
 
@@ -239,12 +239,12 @@ public class ChainingApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO)
-  public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Scenario duplicateScenarioChaining(
+      ExecState state, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
 
-    Scenario scenario = scenarioService.getDuplicateScenario(scenarioId);
+    Scenario scenario = scenarioService.getDuplicateScenario(state, scenarioId);
     Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateByScenarioId(scenarioId);
     if (workflowOpt.isEmpty())
       throw new ChainingException("No workflow TEMPLATE found. Scenario ID: " + scenarioId);

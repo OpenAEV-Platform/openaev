@@ -177,7 +177,7 @@ public class V1_DataImporter implements Importer {
     Exercise savedExercise =
         Optional.ofNullable(importExercise(importNode, baseIds, suffix)).orElse(exercise);
     Scenario savedScenario =
-        Optional.ofNullable(importScenario(importNode, baseIds, suffix)).orElse(scenario);
+        Optional.ofNullable(importScenario(state, importNode, baseIds, suffix)).orElse(scenario);
     importDocuments(
         state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
     importDocument(state, importNode, prefix, docReferences, savedExercise, savedScenario, baseIds);
@@ -480,7 +480,8 @@ public class V1_DataImporter implements Importer {
 
   // -- SCENARIO --
 
-  private Scenario importScenario(JsonNode importNode, Map<String, Base> baseIds, String suffix) {
+  private Scenario importScenario(
+      ExecState state, JsonNode importNode, Map<String, Base> baseIds, String suffix) {
     JsonNode scenarioNode = importNode.get("scenario_information");
     if (scenarioNode == null) {
       return null;
@@ -522,7 +523,7 @@ public class V1_DataImporter implements Importer {
                         .toArray(Scenario.Dependency[]::new))
             .orElse(new Scenario.Dependency[0]));
 
-    return scenarioService.createScenario(scenario);
+    return scenarioService.createScenario(state, scenario);
   }
 
   private void importDocuments(

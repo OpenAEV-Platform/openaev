@@ -6,6 +6,7 @@ import static java.lang.String.valueOf;
 import static org.springframework.util.CollectionUtils.isEmpty;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.engine.Handler;
@@ -23,7 +24,7 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
   private final InjectExpectationRepository injectExpectationRepository;
 
   @Override
-  public List<EsInjectExpectation> fetch(Instant from, int limit) {
+  public List<EsInjectExpectation> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawInjectExpectationIndexing> forIndexing =
         this.injectExpectationRepository.findForIndexing(queryFrom, limit);

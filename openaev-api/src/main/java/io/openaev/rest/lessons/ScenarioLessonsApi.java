@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -54,9 +55,10 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public Iterable<LessonsCategory> applyScenarioLessonsTemplate(
-      @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
+      ExecState state, @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
     Scenario scenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
@@ -99,9 +101,12 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackOn = Exception.class)
   public LessonsCategory createScenarioLessonsCategory(
-      @PathVariable String scenarioId, @Valid @RequestBody LessonsCategoryCreateInput input) {
+      ExecState state,
+      @PathVariable String scenarioId,
+      @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
         scenarioRepository
+            .forOp(state)
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();

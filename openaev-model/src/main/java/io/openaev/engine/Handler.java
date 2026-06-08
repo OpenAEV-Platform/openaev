@@ -1,5 +1,6 @@
 package io.openaev.engine;
 
+import io.openaev.context.ExecState;
 import io.openaev.engine.model.EsBase;
 import java.time.Instant;
 import java.util.List;
@@ -20,5 +21,5 @@ public interface Handler<T extends EsBase> {
    * @param limit maximum number of records to fetch per batch
    * @return list data to index
    */
-  List<T> fetch(Instant from, int limit);
+  List<T> fetch(ExecState state, Instant from, int limit);
 }

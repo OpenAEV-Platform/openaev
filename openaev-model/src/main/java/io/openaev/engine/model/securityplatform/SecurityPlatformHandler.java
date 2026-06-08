@@ -2,6 +2,7 @@ package io.openaev.engine.model.securityplatform;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawAssetIndexing;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.engine.Handler;
@@ -17,7 +18,7 @@ public class SecurityPlatformHandler implements Handler<EsSecurityPlatform> {
   private final SecurityPlatformRepository securityPlatformRepository;
 
   @Override
-  public List<EsSecurityPlatform> fetch(Instant from, int limit) {
+  public List<EsSecurityPlatform> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawAssetIndexing> forIndexing =
         securityPlatformRepository.findForIndexing(queryFrom, limit);

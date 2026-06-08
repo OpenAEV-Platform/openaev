@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
@@ -97,7 +98,10 @@ class ChannelServiceTest {
           .thenReturn(List.of());
 
       // Act
-      assertDoesNotThrow(() -> channelService.validateArticles("exercise-1", "channel-1", user));
+      assertDoesNotThrow(
+          () ->
+              channelService.validateArticles(
+                  ExecState.noTenant(), "exercise-1", "channel-1", user));
 
       // Assert
       ArgumentCaptor<InjectExpectation> captor = ArgumentCaptor.forClass(InjectExpectation.class);

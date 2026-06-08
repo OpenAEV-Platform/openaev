@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
@@ -48,7 +49,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
     EMAIL_INJECTOR_CONTRACT_ID = injectorContract.getFirstInjector().getId();
 
     Scenario scenario = createDefaultCrisisScenario();
-    Scenario scenarioSaved = this.scenarioRepository.save(scenario);
+    Scenario scenarioSaved = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
     SCENARIO_ID = scenarioSaved.getId();
 
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
@@ -68,7 +69,7 @@ public class ScenarioInjectApiSearchTest extends IntegrationTest {
   @AfterAll
   void afterAll() {
     this.injectRepository.deleteAllById(INJECT_IDS);
-    this.scenarioRepository.deleteById(SCENARIO_ID);
+    this.scenarioRepository.forOp(ExecState.noTenant()).deleteById(SCENARIO_ID);
   }
 
   @Nested

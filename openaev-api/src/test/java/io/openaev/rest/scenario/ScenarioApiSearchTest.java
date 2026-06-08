@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
@@ -46,17 +47,17 @@ public class ScenarioApiSearchTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
     Scenario scenario1 = ScenarioFixture.createDefaultCrisisScenario();
-    Scenario scenario1Saved = this.scenarioRepository.save(scenario1);
+    Scenario scenario1Saved = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario1);
     SCENARIO_IDS.add(scenario1Saved.getId());
 
     Scenario scenario2 = ScenarioFixture.createDefaultIncidentResponseScenario();
-    Scenario scenario2Saved = this.scenarioRepository.save(scenario2);
+    Scenario scenario2Saved = this.scenarioRepository.forOp(ExecState.noTenant()).save(scenario2);
     SCENARIO_IDS.add(scenario2Saved.getId());
   }
 
   @AfterAll
   void afterAll() {
-    this.scenarioRepository.deleteAllById(SCENARIO_IDS);
+    this.scenarioRepository.forOp(ExecState.noTenant()).deleteAllById(SCENARIO_IDS);
   }
 
   @Nested
@@ -262,7 +263,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
         group.setName("test");
         group = groupRepository.save(group);
         scenarioGranted.getGrants().addAll(group.getGrants());
-        scenarioGranted = scenarioRepository.save(scenarioGranted);
+        scenarioGranted = scenarioRepository.forOp(ExecState.noTenant()).save(scenarioGranted);
 
         Grant grantObserver = new Grant();
         grantObserver.setResourceId(scenarioGranted.getId());
@@ -295,7 +296,7 @@ public class ScenarioApiSearchTest extends IntegrationTest {
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$.length()").value(1));
 
-        scenarioRepository.delete(scenarioGranted);
+        scenarioRepository.forOp(ExecState.noTenant()).delete(scenarioGranted);
       }
     }
   }

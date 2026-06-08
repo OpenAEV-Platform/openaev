@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -144,6 +145,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   @Transactional
   public void shouldDeleteInjectsAtTheSameTImeAsTheScenarioItself() {
+    ExecState state = ExecState.noTenant();
     InjectComposer.Composer injectWrapper =
         injectComposer.forInject(InjectFixture.getDefaultInject());
     Scenario scenario =
@@ -157,12 +159,12 @@ class ScenarioServiceTest extends IntegrationTest {
 
     String scenarioId = scenario.getId();
 
-    scenarioService.deleteScenario(scenarioId);
+    scenarioService.deleteScenario(state, scenarioId);
     entityManager.flush();
     entityManager.clear();
 
     assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
-    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+    assertThatThrownBy(() -> scenarioService.getScenarioById(state, scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -209,7 +211,8 @@ class ScenarioServiceTest extends IntegrationTest {
     entityManager.clear();
 
     // Act
-    assertDoesNotThrow(() -> scenarioServiceBean.deleteScenario(scenario.getId()));
+    assertDoesNotThrow(
+        () -> scenarioServiceBean.deleteScenario(ExecState.noTenant(), scenario.getId()));
 
     entityManager.flush();
     entityManager.clear();
@@ -221,7 +224,8 @@ class ScenarioServiceTest extends IntegrationTest {
         .isEmpty();
     assertThat(injectRepository.findById(persistedInjectA.getId())).isEmpty();
     assertThat(injectRepository.findById(persistedInjectB.getId())).isEmpty();
-    assertThatThrownBy(() -> scenarioServiceBean.getScenarioById(scenario.getId()))
+    assertThatThrownBy(
+            () -> scenarioServiceBean.getScenarioById(ExecState.noTenant(), scenario.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -247,11 +251,11 @@ class ScenarioServiceTest extends IntegrationTest {
 
     String scenarioId = scenarioWrapper.get().getId();
 
-    scenarioService.deleteScenario(scenarioId);
+    scenarioService.deleteScenario(ExecState.noTenant(), scenarioId);
     entityManager.flush();
     entityManager.clear();
 
-    assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+    assertThatThrownBy(() -> scenarioService.getScenarioById(ExecState.noTenant(), scenarioId))
         .isInstanceOf(ElementNotFoundException.class);
 
     assertThat(exerciseRepository.findById(simulationWrapper.get().getId()))
@@ -282,12 +286,15 @@ class ScenarioServiceTest extends IntegrationTest {
     Set<Inject> scenarioInjects = new HashSet<>();
     scenarioInjects.add(this.injectRepository.save(inject));
     Scenario scenario =
-        this.scenarioRepository.save(ScenarioFixture.getScenario(scenarioTeams, scenarioInjects));
+        scenarioRepository
+            .forOp(ExecState.noTenant())
+            .save(ScenarioFixture.getScenario(scenarioTeams, scenarioInjects));
 
     entityManager.flush();
 
     // -- EXECUTE --
-    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+    Scenario scenarioDuplicated =
+        scenarioService.getDuplicateScenario(ExecState.noTenant(), scenario.getId());
 
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
@@ -339,7 +346,7 @@ class ScenarioServiceTest extends IntegrationTest {
     TEAM_ID = teamSaved.getId();
     Scenario scenario = ScenarioFixture.getScenario();
     scenario.setTeams(List.of(teamSaved));
-    Scenario scenarioSaved = this.scenarioRepository.saveAndFlush(scenario);
+    Scenario scenarioSaved = scenarioRepository.forOp(ExecState.noTenant()).saveAndFlush(scenario);
 
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
@@ -349,7 +356,8 @@ class ScenarioServiceTest extends IntegrationTest {
     INJECT_ID = injectDefaultEmailSaved.getId();
 
     // -- EXECUTE --
-    this.scenarioService.removeTeams(scenarioSaved.getId(), List.of(teamSaved.getId()));
+    this.scenarioService.removeTeams(
+        ExecState.noTenant(), scenarioSaved.getId(), List.of(teamSaved.getId()));
 
     // -- ASSERT --
     List<Team> teams = this.teamRepository.findAll(fromScenario(scenarioSaved.getId()));
@@ -360,7 +368,7 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @Test
   public void testRunChecksWhenScenarioIsNull() {
-    List<HealthCheck> healthchecks = scenarioService.runChecks(null);
+    List<HealthCheck> healthchecks = scenarioService.runChecks(ExecState.noTenant(), null);
 
     assertNull(healthchecks);
   }
@@ -372,7 +380,7 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -385,7 +393,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -407,7 +416,7 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -420,7 +429,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -442,7 +452,7 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -454,7 +464,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -476,7 +487,7 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -488,7 +499,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -510,7 +522,7 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = new Inject();
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     HealthCheck healthCheck =
         new HealthCheck(
@@ -522,7 +534,8 @@ class ScenarioServiceTest extends IntegrationTest {
     when(this.injectService.runChecks(any())).thenReturn(List.of(healthCheck));
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());
@@ -545,11 +558,12 @@ class ScenarioServiceTest extends IntegrationTest {
     inject.setEnabled(false);
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     // Act
     when(this.injectService.runChecks(any())).thenReturn(List.of());
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // Assert
     boolean hasMissingContent =
@@ -579,13 +593,14 @@ class ScenarioServiceTest extends IntegrationTest {
     Inject inject = InjectFixture.createInject(injectorContract, "test");
     inject.setInjector(injector);
     scenario.setInjects(new HashSet<>(List.of(inject)));
-    this.scenarioRepository.save(scenario);
+    scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     // MOCK
     when(this.injectService.runChecks(any())).thenReturn(List.of());
 
     // RUN
-    List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
+    List<HealthCheck> healthchecks =
+        scenarioService.runChecks(ExecState.noTenant(), scenario.getId());
 
     // VERIFY
     assertFalse(healthchecks.isEmpty());

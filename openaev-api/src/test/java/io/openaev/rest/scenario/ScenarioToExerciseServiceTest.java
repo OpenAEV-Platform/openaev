@@ -94,7 +94,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
           }
         });
 
-    Scenario scenarioSaved = this.scenarioService.createScenario(scenario);
+    Scenario scenarioSaved = this.scenarioService.createScenario(ExecState.noTenant(), scenario);
 
     // Team Users
     ScenarioTeamUser scenarioTeamUser = new ScenarioTeamUser();

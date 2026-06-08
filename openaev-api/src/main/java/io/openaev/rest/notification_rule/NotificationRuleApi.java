@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.notification_rule.form.CreateNotificationRuleInput;
@@ -140,10 +141,10 @@ public class NotificationRuleApi {
         @ApiResponse(responseCode = "404", description = "Resource not found")
       })
   public NotificationRuleOutput createNotificationRule(
-      @Valid @RequestBody final CreateNotificationRuleInput input) {
+      ExecState state, @Valid @RequestBody final CreateNotificationRuleInput input) {
     return notificationRuleMapper.toNotificationRuleOutput(
         notificationRuleService.createNotificationRule(
-            notificationRuleMapper.toNotificationRule(input)));
+            state, notificationRuleMapper.toNotificationRule(input)));
   }
 
   @LogExecutionTime

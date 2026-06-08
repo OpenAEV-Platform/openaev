@@ -2,6 +2,7 @@ package io.openaev.engine.model.endpoint;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawEndpoint;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.engine.Handler;
@@ -22,7 +23,7 @@ public class EndpointHandler implements Handler<EsEndpoint> {
   }
 
   @Override
-  public List<EsEndpoint> fetch(Instant from, int limit) {
+  public List<EsEndpoint> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawEndpoint> forIndexing = endpointRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()

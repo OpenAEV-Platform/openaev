@@ -145,7 +145,7 @@ class InjectApiTest extends IntegrationTest {
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
     scenario.setReplyTos(new ArrayList<>(List.of("test@test.com")));
-    SCENARIO = scenarioService.createScenario(scenario);
+    SCENARIO = scenarioService.createScenario(ExecState.noTenant(), scenario);
 
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
@@ -240,7 +240,7 @@ class InjectApiTest extends IntegrationTest {
         injectRepository.existsById(createdInject.getId()),
         "The inject should be deleted from the database");
     assertTrue(
-        scenarioRepository.existsById(SCENARIO.getId()),
+        scenarioRepository.forOp(ExecState.noTenant()).existsById(SCENARIO.getId()),
         "The scenario should still exist in the database");
     assertTrue(
         injectRepository.findByScenarioId(SCENARIO.getId()).isEmpty(),

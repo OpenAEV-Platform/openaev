@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -84,7 +85,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
     scenario.setReplyTos(List.of("test@test.com"));
-    SCENARIO = scenarioService.createScenario(scenario);
+    SCENARIO = scenarioService.createScenario(ExecState.noTenant(), scenario);
 
     ATTACKPATTERN = attackPatternRepository.save(AttackPatternFixture.createDefaultAttackPattern());
     LINUX_X86_64 =

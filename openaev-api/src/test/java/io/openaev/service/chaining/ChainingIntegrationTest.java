@@ -151,7 +151,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     @Test
     @WithMockUser(isAdmin = true)
     void should_create_scenario_and_workflow_template_when_chaining_enabled() throws Exception {
-      long scenarioCountBefore = scenarioRepository.count();
+      long scenarioCountBefore = scenarioRepository.forOp(ExecState.noTenant()).count();
       long workflowCountBefore = workflowRepository.count();
 
       ScenarioInput input = buildScenarioInput();
@@ -169,7 +169,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       assertNotNull(createdScenario);
       assertNotNull(createdScenario.getId());
-      assertEquals(scenarioCountBefore + 1, scenarioRepository.count());
+      assertEquals(scenarioCountBefore + 1, scenarioRepository.forOp(ExecState.noTenant()).count());
 
       // A Workflow TEMPLATE must have been created and linked to the scenario
       assertEquals(workflowCountBefore + 1, workflowRepository.count());
@@ -392,7 +392,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       // Scenario deleted
-      assertFalse(scenarioRepository.existsById(scenarioId));
+      assertFalse(scenarioRepository.forOp(ExecState.noTenant()).existsById(scenarioId));
 
       // Workflows deleted (TEMPLATE + RUN)
       assertFalse(

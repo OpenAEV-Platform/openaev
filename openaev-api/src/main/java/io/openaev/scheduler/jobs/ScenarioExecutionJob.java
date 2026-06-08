@@ -46,13 +46,15 @@ public class ScenarioExecutionJob implements Job {
     // Disable tenant filter — this job runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     createExercisesFromScenarios();
-    cleanOutdatedRecurringScenario();
+    ExecState state = ExecState.noTenant();
+    cleanOutdatedRecurringScenario(state);
   }
 
   private void createExercisesFromScenarios() {
     Instant now = Instant.now();
+    ExecState globalState = ExecState.noTenant();
     // Find each scenario with cron where now is between start and end date
-    List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
+    List<Scenario> scenarios = this.scenarioService.recurringScenarios(globalState, now);
     // Filter on valid cron scenario -> Start date on cron is in 1 minute
     List<Scenario> validScenarios =
         scenarios.stream()
@@ -98,10 +100,10 @@ public class ScenarioExecutionJob implements Job {
             });
   }
 
-  private void cleanOutdatedRecurringScenario() {
+  private void cleanOutdatedRecurringScenario(ExecState state) {
     // Find each scenario with cron is outdated:
     List<Scenario> scenarios =
-        this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());
+        this.scenarioService.potentialOutdatedRecurringScenario(state, Instant.now());
     List<Scenario> validScenarios = scenarios.stream().filter(this::isScenarioOutdated).toList();
 
     // Remove recurring setup
@@ -112,7 +114,7 @@ public class ScenarioExecutionJob implements Job {
           s.setRecurrence(null);
         });
     // Save it
-    if (!validScenarios.isEmpty()) this.scenarioService.updateScenarios(validScenarios);
+    if (!validScenarios.isEmpty()) this.scenarioService.updateScenarios(state, validScenarios);
   }
 
   private boolean isScenarioOutdated(@NotNull final Scenario scenario) {

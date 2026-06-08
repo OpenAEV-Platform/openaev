@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.ExecState;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -202,7 +203,8 @@ public class ScenarioApiTest extends IntegrationTest {
 
     // -- ASSERT --
     String newScenarioId = JsonPath.read(response, "$.scenario_id");
-    Scenario newScenario = this.scenarioRepository.findById(newScenarioId).orElseThrow();
+    Scenario newScenario =
+        this.scenarioRepository.forOp(ExecState.noTenant()).findById(newScenarioId).orElseThrow();
     assertEquals(customDashboardSaved.getId(), newScenario.getCustomDashboard().getId());
   }
 
@@ -336,7 +338,8 @@ public class ScenarioApiTest extends IntegrationTest {
     tagRule.setAssetGroups(List.of(assetGroup));
     this.tagRuleRepository.save(tagRule);
 
-    Scenario scenario = this.scenarioRepository.save(ScenarioFixture.getScenario());
+    Scenario scenario =
+        this.scenarioRepository.forOp(ExecState.noTenant()).save(ScenarioFixture.getScenario());
 
     CheckScenarioRulesInput input = new CheckScenarioRulesInput();
     input.setNewTags(List.of(tag2.getId()));
@@ -369,7 +372,8 @@ public class ScenarioApiTest extends IntegrationTest {
     CheckScenarioRulesInput input = new CheckScenarioRulesInput();
     input.setNewTags(List.of(tag2.getId()));
 
-    Scenario scenario = this.scenarioRepository.save(ScenarioFixture.getScenario());
+    Scenario scenario =
+        this.scenarioRepository.forOp(ExecState.noTenant()).save(ScenarioFixture.getScenario());
 
     String response =
         this.mvc
@@ -507,7 +511,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setTeams(Collections.singletonList(teamA));
-    Scenario scenarioSaved = scenarioRepository.save(scenario);
+    Scenario scenarioSaved = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     // -- ACT --
     List<String> newTeamIds = Arrays.asList(teamA.getId(), teamB.getId());

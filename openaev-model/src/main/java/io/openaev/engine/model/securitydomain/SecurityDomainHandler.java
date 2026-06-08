@@ -2,6 +2,7 @@ package io.openaev.engine.model.securitydomain;
 
 import static io.openaev.engine.EsUtils.buildRestrictions;
 
+import io.openaev.context.ExecState;
 import io.openaev.database.raw.RawDomainIndexing;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.engine.Handler;
@@ -21,7 +22,7 @@ public class SecurityDomainHandler implements Handler<EsSecurityDomain> {
   }
 
   @Override
-  public List<EsSecurityDomain> fetch(Instant from, int limit) {
+  public List<EsSecurityDomain> fetch(ExecState state, Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
     List<RawDomainIndexing> forIndexing = domainRepository.findForIndexing(queryFrom, limit);
     return forIndexing.stream()

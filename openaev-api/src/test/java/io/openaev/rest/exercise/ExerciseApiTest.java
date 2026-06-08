@@ -227,7 +227,7 @@ public class ExerciseApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void givenExerciseId_whenGettingScenarioFromExercise_thenReturnScenario() throws Exception {
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
-    Scenario scenarioSaved = scenarioRepository.save(scenario);
+    Scenario scenarioSaved = scenarioRepository.forOp(ExecState.noTenant()).save(scenario);
 
     Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
     exercise.setScenario(scenarioSaved);
