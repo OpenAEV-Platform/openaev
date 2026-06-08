@@ -1571,7 +1571,7 @@
                     },
                     "SENTINELONE_DISABLE_STRICT_END_DATE": {
                         "default": false,
-                        "description": "Disable ignoring OpenAEV expectations without a proper end dates.",
+                        "description": "Disable strict end date enforcement (do not ignore expectations missing an end date).",
                         "type": "boolean"
                     }
                 },
