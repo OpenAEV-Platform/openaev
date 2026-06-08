@@ -168,7 +168,7 @@ public interface InjectorContractRepository
       value =
           "DELETE FROM injectors_contracts"
               + " WHERE (injector_contract_id, tenant_id)"
-              + " IN (SELECT unnest(:ids::text[]), :tenantId::text)",
+              + " IN (SELECT unnest(CAST(:ids AS text[])), CAST(:tenantId AS text))",
       nativeQuery = true)
   void deleteAllByIdAndTenantId(
       @Param("ids") @NotNull String[] ids, @Param("tenantId") @NotNull String tenantId);
