@@ -37,7 +37,7 @@ public class FullTextSearchService<T extends Base> {
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final OrganizationRepository organizationRepository;
-  private final ScenarioRepository scenarioRepository;
+  private final ScenarioJpaRepository scenarioJpaRepository;
   private final ExerciseRepository exerciseRepository;
   private final UserService userService;
 
@@ -57,7 +57,7 @@ public class FullTextSearchService<T extends Base> {
             (Class<T>) Team.class, (JpaSpecificationExecutor<T>) this.teamRepository,
             (Class<T>) Organization.class,
                 (JpaSpecificationExecutor<T>) this.organizationRepository,
-            (Class<T>) Scenario.class, (JpaSpecificationExecutor<T>) this.scenarioRepository,
+            (Class<T>) Scenario.class, (JpaSpecificationExecutor<T>) this.scenarioJpaRepository,
             (Class<T>) Exercise.class, (JpaSpecificationExecutor<T>) this.exerciseRepository);
 
     this.searchListByClassMap =

@@ -2822,8 +2822,8 @@ export interface EventOutput {
 }
 
 export interface ExecState {
-  accessibleTenantIds?: string[];
   currentTenantId?: string;
+  restrictedTenantIds?: string[];
 }
 
 export interface Executable {
