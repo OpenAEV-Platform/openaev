@@ -34,6 +34,8 @@ extra_css:
 
 # Extra
 extra:
+  feature_flags:
+    disabled: !ENV [DOCS_FEATURE_FLAGS, "audit-log"]
   version:
     provider: mike
   analytics:
@@ -60,6 +62,7 @@ plugins:
       alias_type: symlink
       canonical_version: latest
   - search
+  - macros
   - git-committers:
       repository: OpenAEV-Platform/docs
       branch: main

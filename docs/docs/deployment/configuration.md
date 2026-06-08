@@ -69,6 +69,21 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
+{% if "audit-log" not in (config.extra.feature_flags.disabled|string|lower|replace(" ", "")).split(",") %}
+#### Audit Logging
+
+Audit logging will allow you to have a trace of the actions performed using API calls.
+⚠️ **Important**: Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions. 
+
+| Parameter                          | Environment variable               | Default value    | Description                                                                                                                                              |
+|:-----------------------------------|:-----------------------------------|:-----------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |                  | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console |
+| openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
+| logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
+|                                    | AUDIT_LOG_DIR                      | ./logs           | If file transport is used, this parameter is used to set the path of the log file.                                                                       |
+|                                    | AUDIT_LOG_FILE                     | ./logs/audit.log | If file transport is used, this parameter is used to set the file path.                                                                                  |
+{% endif %}
+
 ### Dependencies
 
 #### XTM Suite: OpenCTI
