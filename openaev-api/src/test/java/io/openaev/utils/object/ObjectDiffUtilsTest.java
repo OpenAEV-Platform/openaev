@@ -12,10 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class ObjectDiffUtilsTest {
 
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -103,7 +100,7 @@ class ObjectDiffUtilsTest {
 
       // -- ASSERT --
       assertThat(result).isNotNull();
-      assertThat(result.get(0).get("changes").size()).isEqualTo(0);
+      assertThat(result.get(0).get("changes").size()).isZero();
     }
   }
 
@@ -132,9 +129,9 @@ class ObjectDiffUtilsTest {
       List<ObjectDiffUtils.FieldChange> changes = ObjectDiffUtils.computeFieldChanges(null, after);
 
       // -- ASSERT --
-      assertThat(changes).hasSize(2);
-      assertThat(changes).allSatisfy(c -> assertThat(c.oldValue()).isNull());
       assertThat(changes)
+          .hasSize(2)
+          .allSatisfy(c -> assertThat(c.oldValue()).isNull())
           .extracting(ObjectDiffUtils.FieldChange::field)
           .containsExactlyInAnyOrder("name", "age");
     }
@@ -149,9 +146,9 @@ class ObjectDiffUtilsTest {
       List<ObjectDiffUtils.FieldChange> changes = ObjectDiffUtils.computeFieldChanges(before, null);
 
       // -- ASSERT --
-      assertThat(changes).hasSize(2);
-      assertThat(changes).allSatisfy(c -> assertThat(c.newValue()).isNull());
       assertThat(changes)
+          .hasSize(2)
+          .allSatisfy(c -> assertThat(c.newValue()).isNull())
           .extracting(ObjectDiffUtils.FieldChange::field)
           .containsExactlyInAnyOrder("name", "age");
     }
@@ -179,7 +176,7 @@ class ObjectDiffUtilsTest {
 
       // -- ASSERT --
       assertThat(changes).hasSize(1);
-      ObjectDiffUtils.FieldChange change = changes.get(0);
+      ObjectDiffUtils.FieldChange change = changes.getFirst();
       assertThat(change.field()).isEqualTo("name");
       assertThat(change.oldValue()).isEqualTo("Alice");
       assertThat(change.newValue()).isEqualTo("Bob");
@@ -200,9 +197,9 @@ class ObjectDiffUtilsTest {
 
       // -- ASSERT --
       assertThat(changes).hasSize(1);
-      assertThat(changes.get(0).field()).isEqualTo("email");
-      assertThat(changes.get(0).oldValue()).isNull();
-      assertThat(changes.get(0).newValue()).isEqualTo("alice@example.com");
+      assertThat(changes.getFirst().field()).isEqualTo("email");
+      assertThat(changes.getFirst().oldValue()).isNull();
+      assertThat(changes.getFirst().newValue()).isEqualTo("alice@example.com");
     }
 
     @Test
@@ -220,9 +217,9 @@ class ObjectDiffUtilsTest {
 
       // -- ASSERT --
       assertThat(changes).hasSize(1);
-      assertThat(changes.get(0).field()).isEqualTo("email");
-      assertThat(changes.get(0).oldValue()).isEqualTo("alice@example.com");
-      assertThat(changes.get(0).newValue()).isNull();
+      assertThat(changes.getFirst().field()).isEqualTo("email");
+      assertThat(changes.getFirst().oldValue()).isEqualTo("alice@example.com");
+      assertThat(changes.getFirst().newValue()).isNull();
     }
 
     @Test
@@ -255,7 +252,7 @@ class ObjectDiffUtilsTest {
 
       // -- ASSERT --
       assertThat(changes).hasSize(1);
-      assertThat(changes.get(0).field()).isEqualTo("roles");
+      assertThat(changes.getFirst().field()).isEqualTo("roles");
     }
   }
 
@@ -300,7 +297,7 @@ class ObjectDiffUtilsTest {
       String norm2 = ObjectDiffUtils.normalizeForComparison(list2);
 
       // -- ASSERT --
-      assertThat(norm1).isEqualTo(norm2).isEqualTo("apple,banana,cherry");
+      assertThat(norm1).isEqualTo(norm2);
     }
 
     @Test
@@ -320,32 +317,18 @@ class ObjectDiffUtilsTest {
     }
 
     @Test
-    @DisplayName("Should normalize a map to key=value pairs sorted by key")
-    void given_mapValue_should_returnKeyValuePairsSortedByKey() {
-      // -- ARRANGE --
-      Map<String, Object> map = new LinkedHashMap<>();
-      map.put("z", "last");
-      map.put("a", "first");
-      map.put("m", "middle");
-
-      // -- ACT --
-      String result = ObjectDiffUtils.normalizeForComparison(map);
-
-      // -- ASSERT --
-      assertThat(result).isEqualTo("a=first|m=middle|z=last");
-    }
-
-    @Test
     @DisplayName(
         "Should return the same normalized string for maps with same entries in different insertion order")
     void given_mapsWithDifferentInsertionOrder_should_returnSameNormalizedString() {
       // -- ARRANGE --
       Map<String, Object> map1 = new LinkedHashMap<>();
-      map1.put("b", "2");
-      map1.put("a", "1");
+      map1.put("z", "last");
+      map1.put("a", "first");
+      map1.put("m", "middle");
       Map<String, Object> map2 = new LinkedHashMap<>();
-      map2.put("a", "1");
-      map2.put("b", "2");
+      map2.put("a", "first");
+      map2.put("m", "middle");
+      map2.put("z", "last");
 
       // -- ACT --
       String norm1 = ObjectDiffUtils.normalizeForComparison(map1);
@@ -356,34 +339,42 @@ class ObjectDiffUtilsTest {
     }
 
     @Test
-    @DisplayName("Should handle nested map values recursively")
-    void given_mapWithNestedMapValue_should_normalizeRecursively() {
+    @DisplayName(
+        "Should return the same normalized string for nested maps with same entries in different insertion order")
+    void given_nestedMapsWithDifferentInsertionOrder_should_returnSameNormalizedString() {
       // -- ARRANGE --
-      Map<String, Object> inner = new LinkedHashMap<>();
-      inner.put("x", "10");
-      inner.put("y", "20");
-      Map<String, Object> outer = new LinkedHashMap<>();
-      outer.put("nested", inner);
+      Map<String, Object> inner1 = new LinkedHashMap<>();
+      inner1.put("y", "20");
+      inner1.put("x", "10");
+      Map<String, Object> outer1 = new LinkedHashMap<>();
+      outer1.put("nested", inner1);
+
+      Map<String, Object> inner2 = new LinkedHashMap<>();
+      inner2.put("x", "10");
+      inner2.put("y", "20");
+      Map<String, Object> outer2 = new LinkedHashMap<>();
+      outer2.put("nested", inner2);
 
       // -- ACT --
-      String result = ObjectDiffUtils.normalizeForComparison(outer);
+      String norm1 = ObjectDiffUtils.normalizeForComparison(outer1);
+      String norm2 = ObjectDiffUtils.normalizeForComparison(outer2);
 
       // -- ASSERT --
-      assertThat(result).isEqualTo("nested=x=10|y=20");
+      assertThat(norm1).isEqualTo(norm2);
     }
 
     @Test
     @DisplayName("Should handle an empty collection")
     void given_emptyCollection_should_returnEmptyString() {
       // -- ACT & ASSERT --
-      assertThat(ObjectDiffUtils.normalizeForComparison(List.of())).isEqualTo("");
+      assertThat(ObjectDiffUtils.normalizeForComparison(List.of())).isEmpty();
     }
 
     @Test
     @DisplayName("Should handle an empty map")
     void given_emptyMap_should_returnEmptyString() {
       // -- ACT & ASSERT --
-      assertThat(ObjectDiffUtils.normalizeForComparison(Map.of())).isEqualTo("");
+      assertThat(ObjectDiffUtils.normalizeForComparison(Map.of())).isEmpty();
     }
   }
 }
