@@ -13,6 +13,11 @@ test.describe('Authentication flow', () => {
   });
 
   test('should login and logout successfully', async ({ page }) => {
+    test.info().annotations.push({
+      type: 'manual',
+      description: 'Verify backend-api console contains audit log entries for login and logout (console transport enabled).',
+    });
+
     // -- ARRANGE --
     const loginPage = new LoginPage(page);
     const username = process.env.E2E_USERNAME ?? 'admin@openaev.io';
@@ -26,7 +31,7 @@ test.describe('Authentication flow', () => {
     await loginPage.getPasswordInput().fill(password);
     await loginPage.getSignInButton().click();
 
-    // Ensure we are on an admin page where the top bar account menu is rendered.
+    // Ensure we are on an admin page (the URL assertion below prevents /admin/login redirects)
     await page.goto(tenantUrl('/admin'));
     await expect(page).toHaveURL(/\/admin(?!\/login)/);
 
