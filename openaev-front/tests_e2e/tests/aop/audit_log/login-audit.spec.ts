@@ -15,7 +15,7 @@ test.describe('Authentication flow', () => {
   test('should login and logout successfully', async ({ page }) => {
     test.info().annotations.push({
       type: 'manual',
-      description: 'Verify backend-api console contains audit log entries for login and logout (console transport enabled).',
+      description: 'Please verify if backend-api console contains audit log entries for login and logout (console transport enabled).',
     });
 
     // -- ARRANGE --
