@@ -14,7 +14,7 @@ import io.openaev.executors.caldera.service.CalderaExecutorService;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.EndpointService;
