@@ -16,7 +16,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.utils.fixtures.*;
@@ -42,6 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 public class ScenarioInjectTestApiTest extends IntegrationTest {
 
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer simulationComposer;
@@ -60,7 +63,9 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   private InjectTestStatusComposer.Composer injectTestStatus1Wrapper, injectTestStatus2Wrapper;
 
   @BeforeEach
-  public void setup() {
+  public void setup() throws Exception {
+    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
     Mockito.reset(mailSender);
   }
 
