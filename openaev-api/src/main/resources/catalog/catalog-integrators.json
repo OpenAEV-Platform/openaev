@@ -1568,6 +1568,11 @@
                         "default": false,
                         "description": "Enable deep visibility search for SentinelOne threat searches.",
                         "type": "boolean"
+                    },
+                    "SENTINELONE_DISABLE_STRICT_END_DATE": {
+                        "default": false,
+                        "description": "Disable strict end date enforcement (do not ignore expectations missing an end date).",
+                        "type": "boolean"
                     }
                 },
                 "required": [
