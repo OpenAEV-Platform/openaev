@@ -1,3 +1,4 @@
+import { InfoOutlined } from '@mui/icons-material';
 import {
   Box,
   FormControl,
@@ -7,6 +8,7 @@ import {
   Select,
   type SelectChangeEvent,
   Switch,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -77,7 +79,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: '80px 80px 1fr',
+            gridTemplateColumns: '80px 80px auto',
             gap: theme.spacing(2),
             alignItems: 'end',
           }}
@@ -116,17 +118,17 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
             </Select>
           </FormControl>
 
-          <Typography
-            variant="body2"
-            sx={{
+          <Tooltip
+            title={t('Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached.')}
+            placement="top"
+          >
+            <InfoOutlined sx={{
               color: theme.palette.grey['500'],
               alignSelf: 'center',
+              cursor: 'help',
             }}
-          >
-            {t(
-              'Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached.',
-            )}
-          </Typography>
+            />
+          </Tooltip>
         </Box>
       </Paper>
     </Box>
