@@ -57,20 +57,33 @@ public class Manager {
     return requestMany(request, requestedType).getFirst();
   }
 
+  public <T> List<T> requestManyAllStates(ComponentRequest request, Class<T> requestedType) {
+    return requestManyInternal(
+        getSpawnedIntegrations().values().stream().toList(), request, requestedType);
+  }
+
   public <T> List<T> requestMany(ComponentRequest request, Class<T> requestedType) {
+    return requestManyInternal(
+        spawnedIntegrations.values().stream()
+            .filter(si -> CURRENT_STATUS_TYPE.started.equals(si.getCurrentStatus()))
+            .toList(),
+        request,
+        requestedType);
+  }
+
+  private <T> List<T> requestManyInternal(
+      List<Integration> integrations, ComponentRequest request, Class<T> requestedType) {
     List<T> candidates = new ArrayList<>();
-    for (Map.Entry<ConnectorInstance, Integration> si : spawnedIntegrations.entrySet()) {
-      if (CURRENT_STATUS_TYPE.started.equals(si.getValue().getCurrentStatus())) {
-        candidates.addAll(si.getValue().requestComponent(request, requestedType));
-      }
+    for (Integration si : integrations) {
+      candidates.addAll(si.requestComponent(request, requestedType));
     }
 
-    //    if (candidates.isEmpty()) {
-    //      throw new NoSuchElementException(
-    //          String.format(
-    //              "No candidate found for requestId=%s, requestedType=%s",
-    //              request.identifier(), requestedType.getCanonicalName()));
-    //    }
+    if (candidates.isEmpty()) {
+      throw new NoSuchElementException(
+          String.format(
+              "No candidate found for requestId=%s, requestedType=%s",
+              request.identifier(), requestedType.getCanonicalName()));
+    }
 
     return candidates;
   }
