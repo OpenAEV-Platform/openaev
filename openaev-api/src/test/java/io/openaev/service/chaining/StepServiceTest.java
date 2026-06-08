@@ -278,7 +278,7 @@ class StepServiceTest {
 
       when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
-      when(actionStep.create(ExecState.of("tenant"), any(), eq(workflow)))
+      when(actionStep.create(eq(ExecState.of("tenant")), any(), eq(workflow)))
           .thenReturn(Optional.ofNullable(step));
 
       assertNotNull(step);
@@ -835,7 +835,7 @@ class StepServiceTest {
 
     doReturn(actionStep).when(stepService).factoryAction(any(), any());
 
-    when(actionStep.create(ExecState.of("tenant"), any(), eq(localWorkflow)))
+    when(actionStep.create(eq(ExecState.of("tenant")), any(), eq(localWorkflow)))
         .thenReturn(Optional.of(step));
 
     when(stepRepository.save(step)).thenReturn(step);
@@ -862,7 +862,7 @@ class StepServiceTest {
 
     when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
-    when(actionStep.create(ExecState.of("tenant"), any(), eq(workflow)))
+    when(actionStep.create(eq(ExecState.of("tenant")), any(), eq(workflow)))
         .thenReturn(Optional.ofNullable(step));
 
     assertNotNull(step);
@@ -952,7 +952,9 @@ class StepServiceTest {
           .when(stepService)
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
       when(actionStep.create(
-              ExecState.of("tenant"), any(StepsCreateInput.StepInput.class), eq(existingWorkflow)))
+              eq(ExecState.of("tenant")),
+              any(StepsCreateInput.StepInput.class),
+              eq(existingWorkflow)))
           .thenReturn(Optional.of(candidate));
       when(stepRepository.save(existing)).thenReturn(existing);
 
