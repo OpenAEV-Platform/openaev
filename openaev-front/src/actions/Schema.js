@@ -444,6 +444,8 @@ export const storeHelper = state => ({
   getExistingExecutors: () => entities('executors', state).filter(c => c.get('existing_executor') === true),
   getExecutorsIncludingPending: () => entities('executors', state),
   getExecutorsMap: () => maps('executors', state),
+  // secrets providers
+  getSecretsProvider: id => entity(id, 'secrets_providers', state),
   // channels
   getChannels: () => entities('channels', state),
   getChannel: id => entity(id, 'channels', state),

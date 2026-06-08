@@ -54,7 +54,10 @@ public class Manager {
    */
   public <T> T request(ComponentRequest request, Class<T> requestedType)
       throws IllegalStateException, NoSuchElementException {
-    // only consider integrations that are running
+    return requestMany(request, requestedType).getFirst();
+  }
+
+  public <T> List<T> requestMany(ComponentRequest request, Class<T> requestedType) {
     List<T> candidates = new ArrayList<>();
     for (Map.Entry<ConnectorInstance, Integration> si : spawnedIntegrations.entrySet()) {
       if (CURRENT_STATUS_TYPE.started.equals(si.getValue().getCurrentStatus())) {
@@ -62,14 +65,14 @@ public class Manager {
       }
     }
 
-    if (candidates.isEmpty()) {
-      throw new NoSuchElementException(
-          String.format(
-              "No candidate found for requestId=%s, requestedType=%s",
-              request.identifier(), requestedType.getCanonicalName()));
-    }
+//    if (candidates.isEmpty()) {
+//      throw new NoSuchElementException(
+//          String.format(
+//              "No candidate found for requestId=%s, requestedType=%s",
+//              request.identifier(), requestedType.getCanonicalName()));
+//    }
 
-    return candidates.getFirst();
+    return candidates;
   }
 
   /**

@@ -6,7 +6,7 @@ import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.injectors.openaev.OpenAEVImplantExecutor;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.IntegrationInMemory;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;

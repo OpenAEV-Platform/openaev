@@ -20,7 +20,7 @@ import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService
 import io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;

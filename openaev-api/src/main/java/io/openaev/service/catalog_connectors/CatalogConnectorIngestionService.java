@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogConnectorIngestionService {
   public static final Set<String> PROTECTED_KEYS =
-      Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID");
+      Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID", "SECRETS_PROVIDER_ID");
   public static final String OPENAEV_KEY_URL = "OPENAEV_URL";
   public static final String OPENAEV_KEY_TOKEN = "OPENAEV_TOKEN";
   public static final String OPENAEV_KEY_TENANT_ID = "OPENAEV_TENANT_ID";

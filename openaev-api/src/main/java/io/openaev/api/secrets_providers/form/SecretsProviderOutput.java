@@ -9,16 +9,16 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @Schema(description = "Secrets provider output")
 public class SecretsProviderOutput extends ConnectorOutput {
-    @Schema(description = "Secrets provider id")
-    @JsonProperty("secrets_provider_id")
-    @NotBlank
-    private String id;
+  @Schema(description = "Secrets provider id")
+  @JsonProperty("secrets_provider_id")
+  @NotBlank
+  private String id;
 
-    @JsonProperty("secrets_provider_name")
-    @NotBlank
-    private String name;
+  @JsonProperty("secrets_provider_name")
+  @NotBlank
+  private String name;
 
-    @JsonProperty("secrets_provider_type")
-    @NotBlank
-    private String type;
+  @JsonProperty("secrets_provider_type")
+  @NotBlank
+  private String type;
 }
