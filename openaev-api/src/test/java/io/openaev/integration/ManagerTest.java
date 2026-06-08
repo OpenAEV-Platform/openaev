@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
@@ -92,7 +93,7 @@ public class ManagerTest {
       throws Exception {
     Manager manager =
         new Manager(
-            "test-tenant", List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+                Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
 
     assertThatNoException().isThrownBy(manager::monitorIntegrations);
 
@@ -132,7 +133,7 @@ public class ManagerTest {
       throws Exception {
     Manager manager =
         new Manager(
-            "test-tenant", List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
+                Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory(), getFactoryWithThrowingIntegration()));
     // prepopulate integrations
     ConnectorInstance throwingInstance = getThrowingInstance();
     manager
@@ -179,7 +180,7 @@ public class ManagerTest {
   public void whenInstantiatingManager_factoriesAreInitialised() throws Exception {
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
-    new Manager("test-tenant", List.of(getRegularFactory()));
+    new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -194,7 +195,7 @@ public class ManagerTest {
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
     assertThatThrownBy(
-            () -> new Manager("test-tenant", List.of(getRegularFactory(), getFactoryInitThrows())))
+            () -> new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory(), getFactoryInitThrows())))
         .isInstanceOf(RuntimeException.class)
         .hasMessageContaining("deliberate throw");
   }
@@ -212,7 +213,7 @@ public class ManagerTest {
 
     // ACT: instantiate the manager
     // this will trigger factories to register their catalog item where applicable
-    new Manager("test-tenant", List.of(getRegularFactory()));
+    new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -224,7 +225,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When the Manager is instantiated, configured factories run their own migrations")
   public void whenInstantiatingManager_migrationsAreRun() throws Exception {
-    new Manager("test-tenant", List.of(getRegularFactory()));
+    new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
 
@@ -249,8 +250,7 @@ public class ManagerTest {
   @DisplayName(
       "When requested state of instance changes state, manager changes state of integration")
   public void whenRequestedStateOfInstanceSetToStopping_managerStopsIntegration() throws Exception {
-    Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
-
+    Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
     // START integrations
     manager.monitorIntegrations();
 
@@ -303,7 +303,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When instance is deleted, manager stops integration and deletes")
   public void whenInstanceIsDeleted_managerStopsIntegrationAndDeletes() throws Exception {
-    Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+    Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     // START integrations
     manager.monitorIntegrations();
@@ -336,7 +336,7 @@ public class ManagerTest {
   @DisplayName(
       "When component request matches component in started integration, return typed component")
   public void whenComponentRequestMatchesComponent_returnTypedComponent() throws Exception {
-    Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+    Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     manager.monitorIntegrations();
 
@@ -350,7 +350,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When component exist in stopped integration, request throws exception")
   public void whenComponentExistsInStoppedIntegration_requestThrowsException() throws Exception {
-    Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+    Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     // setup to stop instance
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
@@ -373,7 +373,7 @@ public class ManagerTest {
   @Test
   @DisplayName("When component does not exist in any integration, request throws exception")
   public void whenComponentDoesNotExistInAnyIntegration_requestThrowsException() throws Exception {
-    Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+    Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
     // kick off integrations
     manager.monitorIntegrations();
@@ -395,7 +395,7 @@ public class ManagerTest {
     public void given_startedInstanceWithMatchingComponent_should_returnTypedComponent()
         throws Exception {
       // Arrange
-      Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+      Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
       manager.monitorIntegrations();
 
       List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
@@ -415,7 +415,7 @@ public class ManagerTest {
     @DisplayName("When instance is not found in spawned integrations, throw NoSuchElementException")
     public void given_unknownInstance_should_throwNoSuchElementException() throws Exception {
       // Arrange
-      Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+      Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
       manager.monitorIntegrations();
 
       ConnectorInstance unknownInstance = new ConnectorInstancePersisted();
@@ -432,7 +432,7 @@ public class ManagerTest {
     @DisplayName("When instance exists but is stopped, throw NoSuchElementException")
     public void given_stoppedInstance_should_throwNoSuchElementException() throws Exception {
       // Arrange
-      Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+      Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
       List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
       List<ConnectorInstancePersisted> instances =
@@ -456,7 +456,7 @@ public class ManagerTest {
     public void given_startedInstanceWithNoMatchingComponent_should_throwNoSuchElementException()
         throws Exception {
       // Arrange
-      Manager manager = new Manager("test-tenant", List.of(getRegularFactory()));
+      Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
       manager.monitorIntegrations();
 
       List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
