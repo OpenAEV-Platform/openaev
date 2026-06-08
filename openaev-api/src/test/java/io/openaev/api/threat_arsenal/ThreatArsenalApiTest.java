@@ -88,10 +88,12 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @BeforeAll
   void beforeAll() {
     collectorComposer.reset();
+    Document executableFile = PayloadInputFixture.createDefaultExecutableFile();
+    executableFile.setTenant(new Tenant(io.openaev.context.TenantContext.getCurrentTenant()));
     EXECUTABLE_FILE =
         documentRepository
             .forOp(ExecState.of(io.openaev.context.TenantContext.getCurrentTenant()))
-            .save(PayloadInputFixture.createDefaultExecutableFile());
+            .save(executableFile);
   }
 
   @AfterAll

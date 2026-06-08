@@ -325,7 +325,9 @@ public class InjectImportServiceTest {
   @Nested
   class ImportConvenience {
 
-    @Mock private ScenarioRepository scenarioRepository;
+    @Mock(answer = org.mockito.Answers.RETURNS_DEEP_STUBS)
+    private ScenarioRepository scenarioRepository;
+
     @Mock private ExerciseRepository exerciseRepository;
     @Mock private ImportService importService;
 

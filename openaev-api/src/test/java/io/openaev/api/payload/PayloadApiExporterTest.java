@@ -1,6 +1,5 @@
 package io.openaev.api.payload;
 
-import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.fixtures.PayloadFixture.COMMAND_PAYLOAD_NAME;
 import static io.openaev.utils.fixtures.PayloadFixture.createDefaultCommand;
 import static io.openaev.utilstest.ZipUtils.convertToJson;
@@ -44,7 +43,10 @@ class PayloadApiExporterTest extends IntegrationTest {
     // -- EXECUTE --
     byte[] response =
         mockMvc
-            .perform(get(PAYLOAD_URI + "/" + wrapper.get().getId() + "/export").with(csrf()))
+            .perform(
+                get(tenantUri(
+                        "/api/tenants/{tenantId}/payloads/" + wrapper.get().getId() + "/export"))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

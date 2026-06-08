@@ -62,6 +62,15 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Resource protected ObjectMapper mapper;
 
+  @Autowired
+  private io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory
+      openaevInjectorIntegrationFactory;
+
+  @org.junit.jupiter.api.BeforeEach
+  void beforeEach() throws Exception {
+    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+  }
+
   private static final String CROWDSTRIKE_FRONTEND_NAME = "openaev_crowdstrike";
   private static final String SPLUNK_FRONTEND_NAME = "openaev_splunk_es";
 

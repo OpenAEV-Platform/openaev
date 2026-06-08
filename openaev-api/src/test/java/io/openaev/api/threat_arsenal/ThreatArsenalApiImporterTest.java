@@ -2,7 +2,6 @@ package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
-import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
@@ -193,7 +192,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String createResponse =
           mockMvc
               .perform(
-                  post(THREAT_ARSENAL_URL)
+                  post(tenantUri("/api/tenants/{tenantId}/threat-arsenal"))
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput))
                       .with(csrf()))
@@ -208,7 +207,10 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
       byte[] exportedZip =
           mockMvc
-              .perform(get(PAYLOAD_URI + "/" + originalPayloadId + "/export"))
+              .perform(
+                  get(
+                      tenantUri(
+                          "/api/tenants/{tenantId}/payloads/" + originalPayloadId + "/export")))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()
@@ -220,7 +222,10 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // Act
       String importResponse =
           mockMvc
-              .perform(multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf()))
+              .perform(
+                  multipart(tenantUri("/api/tenants/{tenantId}/threat-arsenal/import"))
+                      .file(zipFile)
+                      .with(csrf()))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
               .getResponse()

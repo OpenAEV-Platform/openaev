@@ -2,7 +2,6 @@ package io.openaev.api.custom_dashboard;
 
 import static io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType.simulation;
 import static io.openaev.engine.api.WidgetType.VERTICAL_BAR_CHART;
-import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOARDS_URI;
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CustomDashboardFixture.NAME;
@@ -78,7 +77,11 @@ class CustomDashboardApiExporterTest extends IntegrationTest {
     byte[] response =
         mockMvc
             .perform(
-                get(CUSTOM_DASHBOARDS_URI + "/" + wrapper.get().getId() + "/export").with(csrf()))
+                get(tenantUri(
+                        "/api/tenants/{tenantId}/custom-dashboards/"
+                            + wrapper.get().getId()
+                            + "/export"))
+                    .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()

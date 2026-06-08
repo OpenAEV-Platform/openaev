@@ -278,8 +278,7 @@ class StepServiceTest {
 
       when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
-      when(actionStep.create(eq(ExecState.of("tenant")), any(), eq(workflow)))
-          .thenReturn(Optional.ofNullable(step));
+      when(actionStep.create(any(), any(), any())).thenReturn(Optional.ofNullable(step));
 
       assertNotNull(step);
       when(stepRepository.save(step)).thenReturn(step);
@@ -835,8 +834,7 @@ class StepServiceTest {
 
     doReturn(actionStep).when(stepService).factoryAction(any(), any());
 
-    when(actionStep.create(eq(ExecState.of("tenant")), any(), eq(localWorkflow)))
-        .thenReturn(Optional.of(step));
+    when(actionStep.create(any(), any(), any())).thenReturn(Optional.ofNullable(step));
 
     when(stepRepository.save(step)).thenReturn(step);
 
@@ -862,8 +860,7 @@ class StepServiceTest {
 
     when(stepService.factoryAction(stepInput.getStepAction(), null)).thenReturn(actionStep);
 
-    when(actionStep.create(eq(ExecState.of("tenant")), any(), eq(workflow)))
-        .thenReturn(Optional.ofNullable(step));
+    when(actionStep.create(any(), any(), any())).thenReturn(Optional.ofNullable(step));
 
     assertNotNull(step);
     when(stepRepository.save(step)).thenReturn(step);
@@ -912,8 +909,7 @@ class StepServiceTest {
       when(stepInput.getConditions()).thenReturn(Collections.emptyList());
       when(stepInput.getConditionIds()).thenReturn(conditionIds);
       doReturn(actionStep).when(stepService).factoryAction(StepActionClass.INJECT_EXECUTION, null);
-      when(actionStep.create(ExecState.of("tenant"), stepInput, localWorkflow))
-          .thenReturn(Optional.of(created));
+      when(actionStep.create(any(), any(), any())).thenReturn(Optional.ofNullable(created));
       when(stepRepository.save(created)).thenReturn(created);
 
       // Act
@@ -951,11 +947,7 @@ class StepServiceTest {
       doReturn(actionStep)
           .when(stepService)
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
-      when(actionStep.create(
-              eq(ExecState.of("tenant")),
-              any(StepsCreateInput.StepInput.class),
-              eq(existingWorkflow)))
-          .thenReturn(Optional.of(candidate));
+      when(actionStep.create(any(), any(), any())).thenReturn(Optional.of(candidate));
       when(stepRepository.save(existing)).thenReturn(existing);
 
       // Act

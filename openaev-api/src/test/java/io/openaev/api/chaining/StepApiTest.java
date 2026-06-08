@@ -41,7 +41,7 @@ class StepApiTest {
 
     Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");
     when(stepService.createStepTemplate(
-            ExecState.of("tenant"), eq(workflow), any(StepsCreateInput.StepInput.class)))
+            eq(ExecState.of("tenant")), eq(workflow), any(StepsCreateInput.StepInput.class)))
         .thenReturn(created);
 
     // Act
@@ -54,7 +54,7 @@ class StepApiTest {
     assertEquals("{\"a\":1}", result.getData().toString());
     verify(stepService)
         .createStepTemplate(
-            ExecState.of("tenant"), eq(workflow), any(StepsCreateInput.StepInput.class));
+            eq(ExecState.of("tenant")), eq(workflow), any(StepsCreateInput.StepInput.class));
   }
 
   @Test
