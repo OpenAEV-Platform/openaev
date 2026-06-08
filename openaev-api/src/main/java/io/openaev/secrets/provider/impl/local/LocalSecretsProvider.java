@@ -6,7 +6,7 @@ import io.openaev.secrets.provider.SecretsProviderType;
 import java.util.List;
 
 public class LocalSecretsProvider extends SecretsProvider {
-  protected LocalSecretsProvider(String id, String name) {
+  public LocalSecretsProvider(String id, String name) {
     super(id, name);
   }
 
