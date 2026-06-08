@@ -115,7 +115,6 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     updatedAt: data?.executor_updated_at,
     isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
-    isExternal: data?.executor_external,
     isExisting: data?.existing_executor,
   }),
 };
