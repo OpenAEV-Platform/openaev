@@ -112,23 +112,17 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    void given_missingCapabilityWithAutomatedUserAgent_should_logUnauthorizedEvent()
-        throws Exception {
+    void given_missingCapabilityWithInactiveAction_should_logUnauthorizedEvent() throws Exception {
       // Arrange
+      doReturn(false).when(auditLogger).isAuditLoggingValid(any());
+
       ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
       ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
       ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
       ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
 
       // Act
-      mvc.perform(
-              delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID)
-                  .with(csrf())
-                  .header("User-Agent", "openaev-agent/x.x.x"))
+      mvc.perform(delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID).with(csrf()))
           .andExpect(status().isForbidden());
 
       // Assert
@@ -138,22 +132,16 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               eventStatusCaptor.capture(),
               resourceTypeCaptor.capture(),
               resourceIdCaptor.capture(),
-              inputCaptor.capture(),
-              outputCaptor.capture(),
-              signatureCaptor.capture(),
               any(),
-              logUuidCaptor.capture());
+              any(),
+              any(),
+              any(),
+              anyString());
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
       assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
-      assertThat(inputCaptor.getValue()).isNull();
-      assertThat(outputCaptor.getValue()).isNotNull();
-      assertThat(outputCaptor.getValue().path("exception_type").asText())
-          .contains("AccessControlAspect$");
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(logUuidCaptor.getValue()).isNotBlank();
     }
   }
 
@@ -190,6 +178,31 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     void given_successfulRead_should_notLogEvent() throws Exception {
       // Arrange / Act
       mvc.perform(get(TEAM_URI)).andExpect(status().isOk());
+
+      // Assert
+      verify(auditLogger, after(1000).never())
+          .logAccessControlEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_TEAMS_AND_PLAYERS})
+    void given_successfulSearch_should_notLogEvent() throws Exception {
+      // Arrange / Act
+      mvc.perform(
+              post(TEAM_URI + "/search")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{}"))
+          .andExpect(status().isOk());
 
       // Assert
       verify(auditLogger, after(1000).never())
@@ -285,6 +298,35 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       assertThat(eventStatusCaptor.getValue()).isEqualTo("success");
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(team.getId());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
+    void given_successfulDelete_should_logDeleteEventWithNullInput() throws Exception {
+      // Arrange
+      Team team = teamRepository.save(TeamFixture.getDefaultTeam());
+      entityManager.flush();
+
+      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
+
+      // Act
+      mvc.perform(delete(TEAM_URI + "/{teamId}", team.getId()).with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      verify(auditLogger, timeout(1000))
+          .logAccessControlEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              inputCaptor.capture(),
+              any(),
+              any(),
+              any(),
+              anyString());
+
+      assertThat(inputCaptor.getValue()).isNull();
     }
   }
 

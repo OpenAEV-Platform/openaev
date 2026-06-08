@@ -167,4 +167,110 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().isOk());
   }
+
+  @Test
+  @DisplayName("given no credentials and no csrf, should return HTTP 403")
+  void given_noCredentialsAndNoCsrf_should_returnForbidden() throws Exception {
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI).contentType(MediaType.APPLICATION_JSON).content(SEARCH_BODY))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("given invalid auth cookie and valid csrf, should return HTTP 401")
+  void given_invalidAuthCookieAndValidCsrf_should_returnUnauthorized() throws Exception {
+    Cookie authCookie = new Cookie(AUTH_COOKIE_NAME, "invalid-token");
+    Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .cookie(authCookie, csrfCookie)
+                .header(CSRF_HEADER_NAME, "test-csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY)
+                .with(csrf()))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("given valid auth cookie and missing csrf header, should return HTTP 403")
+  void given_validAuthCookieAndMissingCsrfHeader_should_returnForbidden() throws Exception {
+    Cookie authCookie = new Cookie(AUTH_COOKIE_NAME, adminToken);
+    Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .cookie(authCookie, csrfCookie)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("given valid auth cookie and missing csrf cookie, should return HTTP 403")
+  void given_validAuthCookieAndMissingCsrfCookie_should_returnForbidden() throws Exception {
+    Cookie authCookie = new Cookie(AUTH_COOKIE_NAME, adminToken);
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .cookie(authCookie)
+                .header(CSRF_HEADER_NAME, "test-csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("given valid bearer and invalid auth cookie, should return HTTP 200")
+  void given_validBearerAndInvalidAuthCookie_should_returnOk() throws Exception {
+    Cookie authCookie = new Cookie(AUTH_COOKIE_NAME, "invalid-token");
+    Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .cookie(authCookie, csrfCookie)
+                .header(CSRF_HEADER_NAME, "test-csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY)
+                .with(csrf()))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  @DisplayName("given valid jsessionid and missing csrf header, should return HTTP 403")
+  void given_validJsessionIdAndMissingCsrfHeader_should_returnForbidden() throws Exception {
+    MockHttpSession session = new MockHttpSession();
+    Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .session(session)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .cookie(csrfCookie)
+                .header(CSRF_HEADER_NAME, "test-csrf-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY)
+                .with(csrf()))
+        .andExpect(status().isOk());
+
+    String sessionId = Objects.requireNonNull(session.getId());
+    Cookie jsessionCookie = new Cookie("JSESSIONID", sessionId);
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .session(session)
+                .cookie(jsessionCookie)
+                .cookie(new Cookie(CSRF_COOKIE_NAME, "test-csrf-token"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY))
+        .andExpect(status().isForbidden());
+  }
 }

@@ -263,6 +263,192 @@ class LogServiceTest {
         assertNull(event.getUserMetadata().getSessionId());
       }
     }
+
+    @Test
+    @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
+    void given_auditDisabled_should_returnTrueWithoutDispatching() {
+      // -- PREPARE --
+      when(auditLogProperties.isEnabled()).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result = logService.logAuthEvent("login", "success", "local", null, null, null);
+
+      // -- VERIFY --
+      assertTrue(result);
+      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_previewFeatureDisabled_should_returnTrueWithoutDispatching")
+    void given_previewFeatureDisabled_should_returnTrueWithoutDispatching() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result = logService.logAuthEvent("login", "success", "local", null, null, null);
+
+      // -- VERIFY --
+      assertTrue(result);
+      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_dispatchException_should_returnFalse")
+    void given_dispatchException_should_returnFalse() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any()))
+          .thenThrow(new RuntimeException("dispatch failed"));
+
+      // -- EXECUTE --
+      boolean result =
+          assertDoesNotThrow(
+              () -> logService.logAuthEvent("login", "success", "local", null, null, null));
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
+    }
+  }
+
+  @Nested
+  @DisplayName("logRequestEvent")
+  class LogRequestEvent {
+
+    @Test
+    @DisplayName("given_auditDisabled_should_returnTrueWithoutDispatching")
+    void given_auditDisabled_should_returnTrueWithoutDispatching() {
+      // -- PREPARE --
+      when(auditLogProperties.isEnabled()).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result =
+          logService.logRequestEvent(
+              "update",
+              "success",
+              ResourceType.USER_GROUP,
+              "group-id",
+              null,
+              null,
+              null,
+              objectMapper.createObjectNode(),
+              Level.WARNING,
+              "uuid-9");
+
+      // -- VERIFY --
+      assertTrue(result);
+      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_previewFeatureDisabled_should_returnTrueWithoutDispatching")
+    void given_previewFeatureDisabled_should_returnTrueWithoutDispatching() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result =
+          logService.logRequestEvent(
+              "update",
+              "success",
+              ResourceType.USER_GROUP,
+              "group-id",
+              null,
+              null,
+              null,
+              objectMapper.createObjectNode(),
+              Level.WARNING,
+              "uuid-10");
+
+      // -- VERIFY --
+      assertTrue(result);
+      verify(auditLogTransportDispatcherUtils, never()).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_dispatchReturnsFalse_should_returnFalse")
+    void given_dispatchReturnsFalse_should_returnFalse() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result =
+          logService.logRequestEvent(
+              "update",
+              "success",
+              ResourceType.USER_GROUP,
+              "group-id",
+              null,
+              null,
+              null,
+              objectMapper.createObjectNode(),
+              Level.WARNING,
+              "uuid-11");
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_dispatchException_should_returnFalse")
+    void given_dispatchException_should_returnFalse() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any()))
+          .thenThrow(new RuntimeException("dispatch failed"));
+
+      // -- EXECUTE --
+      boolean result =
+          assertDoesNotThrow(
+              () ->
+                  logService.logRequestEvent(
+                      "update",
+                      "success",
+                      ResourceType.USER_GROUP,
+                      "group-id",
+                      null,
+                      null,
+                      null,
+                      objectMapper.createObjectNode(),
+                      Level.WARNING,
+                      "uuid-12"));
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
+    }
+
+    @Test
+    @DisplayName("given_nullEntityDiffs_should_dispatchWithoutDiffContext")
+    void given_nullEntityDiffs_should_dispatchWithoutDiffContext() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      // -- EXECUTE --
+      boolean result =
+          logService.logRequestEvent(
+              "update",
+              "success",
+              ResourceType.USER_GROUP,
+              "group-id",
+              null,
+              null,
+              null,
+              null,
+              Level.WARNING,
+              "uuid-13");
+
+      // -- VERIFY --
+      assertTrue(result);
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      assertNotNull(event.getContextData());
+      assertFalse(event.getContextData().containsKey("entity_diffs"));
+    }
   }
 
   @Test
@@ -699,6 +885,75 @@ class LogServiceTest {
 
     private JsonNode captureSignature() {
       return captureEvent().getRequestMetadata().getSignature();
+    }
+  }
+
+  @Nested
+  @DisplayName("isEnabled")
+  class IsEnabled {
+
+    @Test
+    @DisplayName("given_auditDisabled_should_returnFalseWithoutLicenseCheck")
+    void given_auditDisabled_should_returnFalseWithoutLicenseCheck() {
+      // -- PREPARE --
+      when(auditLogProperties.isEnabled()).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result = logService.isEnabled();
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(enterpriseEditionService, never()).isLicenseActive(any());
+    }
+
+    @Test
+    @DisplayName("given_previewFeatureDisabled_should_returnFalseWithoutLicenseCheck")
+    void given_previewFeatureDisabled_should_returnFalseWithoutLicenseCheck() {
+      // -- PREPARE --
+      when(auditLogProperties.isEnabled()).thenReturn(true);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result = logService.isEnabled();
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(enterpriseEditionService, never()).isLicenseActive(any());
+    }
+
+    @Test
+    @DisplayName("given_licenseInactive_should_returnFalse")
+    void given_licenseInactive_should_returnFalse() {
+      // -- PREPARE --
+      when(auditLogProperties.isEnabled()).thenReturn(true);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+
+      // -- EXECUTE --
+      boolean result = logService.isEnabled();
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(licenseCacheManager).getEnterpriseEditionInfo();
+      verify(enterpriseEditionService).isLicenseActive(any());
+    }
+
+    @Test
+    @DisplayName("given_licenseCheckThrows_should_returnFalse")
+    void given_licenseCheckThrows_should_returnFalse() {
+      // -- PREPARE --
+      when(auditLogProperties.isEnabled()).thenReturn(true);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+      when(enterpriseEditionService.isLicenseActive(any()))
+          .thenThrow(new RuntimeException("license check failed"));
+
+      // -- EXECUTE --
+      boolean result = assertDoesNotThrow(() -> logService.isEnabled());
+
+      // -- VERIFY --
+      assertFalse(result);
+      verify(licenseCacheManager).getEnterpriseEditionInfo();
+      verify(enterpriseEditionService).isLicenseActive(any());
     }
   }
 }
