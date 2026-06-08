@@ -5,6 +5,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
+import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -48,6 +49,10 @@ public class SecretsProviderService
    */
   public Iterable<SecretsProviderOutput> secretsProviderOutput(boolean isIncludeNext) {
     return getConnectorsOutput(isIncludeNext);
+  }
+
+  public ConnectorIds getSecretsProviderRelationsId(String executorId) {
+    return getConnectorRelationsId(executorId);
   }
 
   @Override

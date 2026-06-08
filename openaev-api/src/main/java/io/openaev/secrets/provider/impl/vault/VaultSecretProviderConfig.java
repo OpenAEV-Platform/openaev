@@ -4,24 +4,24 @@ import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-
-import java.util.UUID;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class VaultSecretProviderConfig extends BaseIntegrationConfiguration {
   @IntegrationConfigKey(
-          key = "SECRETS_PROVIDER_ID",
-          description =
+      key = "SECRETS_PROVIDER_ID",
+      description =
           """
           Name of the builtin Vault secrets provider
           """,
-          isRequired = true)
+      isRequired = true)
   @NotBlank
   private String id = UUID.randomUUID().toString();
+
   @IntegrationConfigKey(
       key = "SECRETS_PROVIDER_NAME",
       description =
