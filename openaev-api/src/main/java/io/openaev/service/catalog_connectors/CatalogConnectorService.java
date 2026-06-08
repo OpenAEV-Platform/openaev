@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 public class CatalogConnectorService {
   private final String EXCLUDED_CONFIG_KEY = "OPENAEV_TOKEN";
   private static final Set<String> EXCLUDED_CONFIG_KEYS =
-      Set.of("EXECUTOR_ID", "INJECTOR_ID", "COLLECTOR_ID");
+      Set.of("EXECUTOR_ID", "INJECTOR_ID", "COLLECTOR_ID", "SECRETS_PROVIDER_ID");
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final CatalogConnectorMapper catalogConnectorMapper;
   private final ConnectorInstanceService connectorInstanceService;

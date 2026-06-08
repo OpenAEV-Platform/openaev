@@ -6,7 +6,7 @@ import io.openaev.injectors.manual.ManualContract;
 import io.openaev.injectors.manual.ManualExecutor;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.IntegrationInMemory;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;

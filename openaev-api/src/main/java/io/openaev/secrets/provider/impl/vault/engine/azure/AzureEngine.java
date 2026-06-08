@@ -2,7 +2,6 @@ package io.openaev.secrets.provider.impl.vault.engine.azure;
 
 import io.openaev.secrets.model.Credential;
 import io.openaev.secrets.provider.impl.vault.engine.Engine;
-
 import java.util.List;
 
 public class AzureEngine implements Engine {

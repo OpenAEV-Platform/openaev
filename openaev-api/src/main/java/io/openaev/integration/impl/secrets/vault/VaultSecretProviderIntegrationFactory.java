@@ -6,17 +6,11 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorService;
-import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.migration.CrowdStrikeExecutorConfigurationMigration;
 import io.openaev.secrets.provider.impl.vault.VaultSecretProviderConfig;
-import io.openaev.service.AgentService;
-import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -30,49 +24,34 @@ import org.springframework.stereotype.Service;
 @Profile("!test")
 @Slf4j
 public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
-  private final EndpointService endpointService;
-  private final AgentService agentService;
-  private final AssetGroupService assetGroupService;
-  private final ExecutorService executorService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ComponentRequestEngine componentRequestEngine;
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public VaultSecretProviderIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
-      EndpointService endpointService,
-      AgentService agentService,
-      AssetGroupService assetGroupService,
-      ExecutorService executorService,
       EnterpriseEditionService enterpriseEditionService,
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
-      CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
-    this.endpointService = endpointService;
-    this.agentService = agentService;
-    this.assetGroupService = assetGroupService;
-    this.executorService = executorService;
     this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
     this.componentRequestEngine = componentRequestEngine;
     this.taskScheduler = taskScheduler;
     this.catalogConnectorService = catalogConnectorService;
     this.connectorInstanceService = connectorInstanceService;
-    this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
-    this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.fileService = fileService;
   }
 
   @Override
@@ -82,7 +61,7 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void runMigrations() throws Exception {
-    crowdStrikeExecutorConfigurationMigration.migrate();
+    // noop
   }
 
   @Override
@@ -111,14 +90,10 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public Integration spawn(ConnectorInstance instance) {
+  public Integration spawn(ConnectorInstance instance) throws Exception {
     return new VaultSecretProviderIntegration(
         instance,
         connectorInstanceService,
-        endpointService,
-        agentService,
-        assetGroupService,
-        executorService,
         enterpriseEditionService,
         licenseCacheManager,
         componentRequestEngine,

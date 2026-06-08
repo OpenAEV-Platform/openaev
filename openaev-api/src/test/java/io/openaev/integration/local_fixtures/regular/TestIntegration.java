@@ -3,7 +3,7 @@ package io.openaev.integration.local_fixtures.regular;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionService;
 

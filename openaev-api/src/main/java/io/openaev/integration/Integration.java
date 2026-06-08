@@ -3,6 +3,7 @@ package io.openaev.integration;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.helper.ConnectorInstanceHashHelper;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;

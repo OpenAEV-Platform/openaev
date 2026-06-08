@@ -3,10 +3,13 @@ package io.openaev.secrets.provider.impl.local;
 import io.openaev.secrets.model.Credential;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
-
 import java.util.List;
 
 public class LocalSecretsProvider extends SecretsProvider {
+  protected LocalSecretsProvider(String id, String name) {
+    super(id, name);
+  }
+
   @Override
   public SecretsProviderType getProviderType() {
     return SecretsProviderType.LOCAL;

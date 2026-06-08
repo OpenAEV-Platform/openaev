@@ -1,5 +1,6 @@
 package io.openaev.integration;
 
+import io.openaev.integration.annotation.QualifiedComponent;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
