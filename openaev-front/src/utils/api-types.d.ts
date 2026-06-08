@@ -2966,6 +2966,7 @@ export interface Executor {
   /** @format date-time */
   executor_created_at: string;
   executor_doc?: string;
+  executor_external?: boolean;
   /** @minLength 1 */
   executor_id: string;
   /** @minLength 1 */
@@ -2975,7 +2976,6 @@ export interface Executor {
   executor_type: string;
   /** @format date-time */
   executor_updated_at: string;
-  external?: boolean;
   listened?: boolean;
 }
 
@@ -3009,6 +3009,7 @@ export interface ExecutorOutput {
   /** @format date-time */
   executor_updated_at?: string;
   existing_executor?: boolean;
+  executor_external?: boolean;
   is_verified?: boolean;
 }
 
