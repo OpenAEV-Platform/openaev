@@ -11,7 +11,7 @@ public abstract class SecretsProvider extends BaseConnectorEntity {
 
   @Getter @Setter private String name;
 
-  protected SecretsProvider() { }
+  protected SecretsProvider() {}
 
   protected SecretsProvider(String id, String name) {
     this.id = id;
@@ -29,7 +29,7 @@ public abstract class SecretsProvider extends BaseConnectorEntity {
 
   public static class Placeholder extends SecretsProvider {
     public Placeholder() {
-        super();
+      super();
     }
 
     @Override
