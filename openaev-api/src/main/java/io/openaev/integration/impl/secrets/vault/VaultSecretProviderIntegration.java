@@ -26,7 +26,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 public class VaultSecretProviderIntegration extends Integration {
 
   @QualifiedComponent(identifier = "secrets-provider")
-  @QualifiedComponent(identifier = "hashicorp_vault_secrets_provider")
+  // @QualifiedComponent(identifier = "hashicorp_vault_secrets_provider")
   private VaultSecretsProvider vaultSecretsProvider;
 
   private VaultSecretsSyncJob vaultSecretsSyncJob;
