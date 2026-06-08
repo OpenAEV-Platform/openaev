@@ -2821,6 +2821,11 @@ export interface EventOutput {
   event_workflow_id: string;
 }
 
+export interface ExecState {
+  accessibleTenantIds?: string[];
+  currentTenantId?: string;
+}
+
 export interface Executable {
   executable_file: string;
   listened?: boolean;
