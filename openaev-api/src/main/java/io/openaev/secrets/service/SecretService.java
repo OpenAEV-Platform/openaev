@@ -17,7 +17,7 @@ public class SecretService {
     this.providers =
         managerFactory
             .getManager()
-            .requestMany(new ComponentRequest("secrets-provider"), SecretsProvider.class);
+            .requestManyAllStates(new ComponentRequest("secrets-provider"), SecretsProvider.class);
     return providers.stream().toList();
   }
 }
