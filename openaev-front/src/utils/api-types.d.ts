@@ -3009,7 +3009,6 @@ export interface ExecutorOutput {
   /** @format date-time */
   executor_updated_at?: string;
   existing_executor?: boolean;
-  executor_external?: boolean;
   is_verified?: boolean;
 }
 
