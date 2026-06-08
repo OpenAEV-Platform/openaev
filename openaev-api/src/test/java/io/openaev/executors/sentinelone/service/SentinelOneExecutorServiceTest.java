@@ -66,7 +66,9 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    verify(agentService)
+        .getAgentsByExecutorIdAndTenantId(
+            executorIdCaptor.capture(), eq(TenantContext.getCurrentTenant()));
     assertEquals(sentinelOneExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);

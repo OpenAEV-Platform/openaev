@@ -4,6 +4,7 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +71,9 @@ public class PaloAltoCortexExecutorServiceTest {
     paloAltoCortexExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
+    verify(agentService)
+        .getAgentsByExecutorIdAndTenantId(
+            executorIdCaptor.capture(), eq(TenantContext.getCurrentTenant()));
     assertEquals(paloAltoCortexExecutor.getId(), executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
