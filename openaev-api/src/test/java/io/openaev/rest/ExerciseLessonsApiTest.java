@@ -20,6 +20,8 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.context.TenantContext;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.lessons.form.LessonsSendInput;
@@ -57,10 +59,16 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
+
+  @BeforeEach
+  void beforeEach() throws Exception {
+    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
+  }
 
   @BeforeAll
-  void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+  void beforeAll() {
     LESSONCATEGORY = getLessonCategory();
   }
 
