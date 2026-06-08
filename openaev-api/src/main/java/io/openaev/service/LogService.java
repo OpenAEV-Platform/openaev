@@ -4,11 +4,11 @@ import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
-import io.openaev.config.audit_log.AuditLogProperties;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.EventType;
@@ -137,6 +137,7 @@ public class LogService {
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
+      JsonNode entityDiffsNode,
       Object logLevel,
       String logUUID) {
     try {
@@ -173,6 +174,11 @@ public class LogService {
         output = objectNormalizationUtils.normalize(output);
         output = ObjectRedactionUtils.redact(output, resourceType);
         ctx.put("output", toContextValue(output));
+      }
+
+      // Enrich with entity-level diffs captured by @AuditDiffTracked listeners.
+      if (entityDiffsNode != null && !entityDiffsNode.isEmpty()) {
+        ctx.put("entity_diffs", toContextValue(entityDiffsNode));
       }
 
       doc.getRequestMetadata().setSignature(signatureNode);
@@ -242,11 +248,7 @@ public class LogService {
       ctx.put("session_active_duration_seconds", sessionDurationSeconds);
       ctx.put("expiry_reason", expiryReason);
       ctx.put(
-          "message",
-          "Session expired: active for "
-              + sessionDurationSeconds
-              + "s, then expired due to "
-              + expiryReason.replace("_", " "));
+          "message", LogUtils.buildSessionExpiredLogMessage(sessionDurationSeconds, expiryReason));
       doc.setContextData(ctx);
 
       return emit(doc, java.util.logging.Level.INFO);
@@ -356,13 +358,13 @@ public class LogService {
     // HTTP request headers
     HttpServletRequest request = HttpReqRespUtils.getCurrentRequest();
 
-    // Session ID for correlation
-    if (request != null) {
-      var session = request.getSession(false);
-      if (session != null) {
-        meta.setSessionId(session.getId());
-        hasData = true;
-      }
+    // Session ID for correlation — always comes from RequestContextData captured on servlet thread,
+    // since populateUserMetadata runs on the async taskLoggerExecutor thread.
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    if (rcd != null && rcd.sessionId() != null) {
+      meta.setSessionId(rcd.sessionId());
+      hasData = true;
     }
 
     Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);

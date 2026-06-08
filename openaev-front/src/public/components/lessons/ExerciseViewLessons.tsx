@@ -51,10 +51,7 @@ const ExerciseViewLessons = () => {
       source: processToGenericSource(exerciseData),
       lessonsCategories: helper.getExerciseLessonsCategories(exerciseId),
       lessonsQuestions: helper.getExerciseLessonsQuestions(exerciseId),
-      lessonsAnswers: helper.getExerciseUserLessonsAnswers(
-        exerciseId,
-        userId && userId !== 'null' ? userId : currentUser?.user_id,
-      ),
+      lessonsAnswers: helper.getExerciseUserLessonsAnswers(exerciseId),
     };
   });
 
@@ -73,7 +70,7 @@ const ExerciseViewLessons = () => {
       dispatch(fetchPlayerLessonsQuestions(exerciseId, finalUserId));
       dispatch(fetchPlayerLessonsAnswers(exerciseId, finalUserId));
     }
-  }, [dispatch, exerciseId, userId, finalUserId]);
+  }, [dispatch, exerciseId, userId, finalUserId, isPreview]);
 
   // Pass the full exercise because the exercise is never loaded in the store at this point
   const permissions = useSimulationPermissions(exerciseId, exercise);

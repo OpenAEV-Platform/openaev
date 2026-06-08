@@ -1,6 +1,7 @@
 package io.openaev.scheduler;
 
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
+import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
 
@@ -111,6 +112,14 @@ public class PlatformJobDefinitions {
   public JobDetail workflowTimeoutJobDetail() {
     return JobBuilder.newJob(WorkflowTimeoutJob.class)
         .withIdentity("WorkflowTimeoutJob")
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail urlAccessTokenPurgeJobDetail() {
+    return JobBuilder.newJob(UrlAccessTokenPurgeJob.class)
+        .withIdentity(URL_ACCESS_TOKEN_PURGE_JOB)
         .storeDurably()
         .build();
   }
