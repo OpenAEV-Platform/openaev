@@ -27,6 +27,7 @@ import ConnectorCard from '../common/ConnectorCard';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import { ConnectorContext, type ConnectorOutput } from './ConnectorContext';
 import { type ConnectorContextLayoutType } from './ConnectorLayout';
+import {SecretsProviderHelper} from "../../../../actions/secrets_providers/secrets-provider-helper";
 
 const ConnectorList = () => {
   // Standard hooks
@@ -53,6 +54,7 @@ const ConnectorList = () => {
   const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
   const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
   const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
+  const { secretsProviders } = useHelper((helper: SecretsProviderHelper) => ({ secretsProviders: helper.getSecretsProvidersIncludingPending() }));
   const { catalogConnectors } = useHelper((helper: CatalogConnectorsHelper) => ({ catalogConnectors: helper.getCatalogConnectors() }));
 
   const [selectedCatalogConnector, setSelectedCatalogConnector] = useState<CatalogConnectorOutput>();
@@ -60,7 +62,7 @@ const ConnectorList = () => {
   const createInstanceDrawer = useDialog();
 
   // Select the appropriate connectors based on connector type
-  const getRawConnectors = (): (CollectorOutput | ExecutorOutput | InjectorOutput)[] => {
+  const getRawConnectors = (): (CollectorOutput | ExecutorOutput | InjectorOutput | SecretsProviderOutput)[] => {
     switch (connectorType) {
       case 'executor':
         return executors;
@@ -68,6 +70,8 @@ const ConnectorList = () => {
         return injectors;
       case 'collector':
         return collectors;
+      case 'secrets_provider':
+        return secretsProviders;
       default:
         return [];
     }
