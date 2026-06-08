@@ -12,8 +12,8 @@ public class VaultSecretsProvider extends SecretsProvider {
   private List<Engine> engines;
 
   public VaultSecretsProvider(VaultClient client, VaultSecretProviderConfig config) {
-      super(config.getId(), config.getName());
-      this.client = client;
+    super(config.getId(), config.getName());
+    this.client = client;
   }
 
   @Override
