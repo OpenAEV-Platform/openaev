@@ -158,8 +158,8 @@ export const secretsProviderConfig: ConnectorContextType<SecretsProviderOutput> 
     getRelatedIds: (id: string) => fetchSecretsProviderRelatedIds(id),
   },
   routes: {
-    list: '/admin/integrations/secrets_providers',
-    detail: (id: string) => `/admin/integrations/secrets_providers/${id}`,
+    list: '/admin/integrations/secrets-providers',
+    detail: (id: string) => `/admin/integrations/secrets-providers/${id}`,
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/images/secrets_providers/icons/${type}`),
   normalizeSingle: data => ({
