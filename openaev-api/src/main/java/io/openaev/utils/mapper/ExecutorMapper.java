@@ -32,7 +32,6 @@ public class ExecutorMapper {
         .doc(executor.getDoc())
         .backgroundColor(executor.getBackgroundColor())
         .existing(existingExecutor)
-        .external(executor.isExternal())
         .connectorInstance(
             connectorInstance != null
                 ? connectorInstanceMapper.toConnectorInstanceOutput(connectorInstance)
