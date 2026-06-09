@@ -47,6 +47,7 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.EvaluationException;
@@ -64,7 +65,9 @@ import org.springframework.stereotype.Component;
 public class InjectsExecutionJob implements Job {
 
   public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
-  private static final long delayForSimulationCompletedEvent = 3600L;
+
+  @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
+  private long delayForSimulationCompletedEvent;
 
   private final Environment env;
   private int injectExecutionThreshold;

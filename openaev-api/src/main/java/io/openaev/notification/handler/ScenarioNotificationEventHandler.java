@@ -9,6 +9,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
 import io.openaev.service.NotificationRuleService;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -16,17 +17,23 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Session;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
 public class ScenarioNotificationEventHandler implements NotificationEventHandler {
+  private final EntityManager entityManager;
   private final OpenAEVConfig openAEVConfig;
   private final ExerciseService exerciseService;
   private final NotificationRuleService notificationRuleService;
 
   @Override
+  @Transactional(rollbackFor = Exception.class)
   public void handle(NotificationEvent event) {
+    // Disable tenant filter — this handler runs cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     if (NotificationEventType.SIMULATION_COMPLETED.equals(event.getEventType())) {
       // get the last 2 simulations
       Exercise lastSimulation =
@@ -52,7 +59,6 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
 
       if (exerciseService.isThereAScoreDegradation(
           lastSimulationResultsMap, secondLastSimulationResultsMap)) {
-
         // notify
         notificationRuleService.activateNotificationRules(
             lastSimulation.getScenario().getId(),
@@ -81,17 +87,13 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     String scenarioId = scenario.getId();
     String url = openAEVConfig.getBaseUrl();
     float lastSimulationPrevScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            lastSimulationResultsMap.get(ExpectationType.PREVENTION));
+        getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.PREVENTION));
     float lastSimulationDetectScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            lastSimulationResultsMap.get(ExpectationType.DETECTION));
+        getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.DETECTION));
     float secondLastSimulationPrevScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            secondLastSimulationResultsMap.get(ExpectationType.PREVENTION));
+        getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.PREVENTION));
     float secondLastSimulationDetectScore =
-        ScenarioStatisticService.getRoundedPercentage(
-            secondLastSimulationResultsMap.get(ExpectationType.DETECTION));
+        getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.DETECTION));
     float decreasePrev = secondLastSimulationPrevScore - lastSimulationPrevScore;
     float decreaseDetect = secondLastSimulationDetectScore - lastSimulationDetectScore;
 
@@ -109,5 +111,16 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
     data.put("instanceLink", url);
     data.put("scenario_name", scenario.getName());
     return data;
+  }
+
+  /**
+   * Returns 0 if the expectation type has no results (null), avoiding NPE in getRoundedPercentage.
+   */
+  private static float getRoundedPercentageSafe(
+      final ExpectationResultsByType expectationResultsByType) {
+    if (expectationResultsByType == null) {
+      return 0f;
+    }
+    return ScenarioStatisticService.getRoundedPercentage(expectationResultsByType);
   }
 }
