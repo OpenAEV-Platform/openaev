@@ -10,6 +10,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UpdateConnectorInstanceDrawer from '../connector_instance/UpdateConnectorInstanceDrawer';
+import { ConnectorContext } from './ConnectorContext';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 
 type ConnectorPopoverProps = {
@@ -28,6 +29,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
   const { instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
+  const { apiRequest } = useContext(ConnectorContext);
 
   const [openDialogDelete, setOpenDialogDelete] = useState(false);
 
@@ -37,6 +39,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
 
   const submitDeleteConnectorInstance = async () => {
     await dispatch(deleteConnectorInstance(connectorInstanceId));
+    await dispatch(apiRequest.fetchAll());
     setOpenDialogDelete(false);
     navigate('..');
   };

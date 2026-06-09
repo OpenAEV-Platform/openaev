@@ -5,6 +5,7 @@ import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.exception.ComponentNotFoundException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,7 +15,8 @@ public class Manager {
 
   @Getter private final String tenantId;
 
-  @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
+  @Getter
+  private final Map<ConnectorInstance, Integration> spawnedIntegrations = new ConcurrentHashMap<>();
 
   public Manager(String tenantId, List<IntegrationFactory> factories) throws Exception {
     this.tenantId = tenantId;
