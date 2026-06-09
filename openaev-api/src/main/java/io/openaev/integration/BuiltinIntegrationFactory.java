@@ -24,8 +24,8 @@ public abstract class BuiltinIntegrationFactory extends IntegrationFactory
   }
 
   /**
-   * Registers the built-in connector (injector / executor) for the given tenant.
-   * Must be idempotent — safe to call even if the connector already exists (upsert semantics).
+   * Registers the built-in connector (injector / executor) for the given tenant. Must be idempotent
+   * — safe to call even if the connector already exists (upsert semantics).
    */
   public abstract void registerConnectorForTenant(String tenantId) throws Exception;
 
