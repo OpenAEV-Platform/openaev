@@ -16,7 +16,6 @@ import lombok.NoArgsConstructor;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class OpenaevImplantCommandBuilder {
-
   /**
    * Record to group all command variables.
    *
@@ -34,9 +33,7 @@ final class OpenaevImplantCommandBuilder {
       String withProxyVar) {
     CommandVars(OpenAEVConfig cfg) {
       this(
-          "token=\""
-              + cfg.getAdminToken()
-              + "\"", // todo remove : 2/2 Workaround to remove after all executor tested
+          "token=\"#{token}\"",
           "server=\"" + cfg.getBaseUrlForAgent() + "\"",
           "max_size=\"" + cfg.getLogsMaxSize() + "\"",
           "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"",

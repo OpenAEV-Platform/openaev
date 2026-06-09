@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>2.260601.0</version>
+        <version>2.260604.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -21,8 +21,8 @@
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
-        <opentelemetry.version>1.62.0</opentelemetry.version>
-        <elasticsearch.version>8.19.15</elasticsearch.version>
+        <opentelemetry.version>1.63.0</opentelemetry.version>
+        <elasticsearch.version>8.19.16</elasticsearch.version>
         <opentelemetry-semconv.version>1.41.1</opentelemetry-semconv.version>
     </properties>
 
@@ -48,7 +48,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>2.260601.0</version>
+            <version>2.260604.0</version>
         </dependency>
         <dependency>
             <groupId>co.elastic.clients</groupId>
@@ -250,12 +250,12 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.32</version>
+            <version>1.5.34</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <version>1.5.32</version>
+            <version>1.5.34</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback.contrib</groupId>
@@ -270,7 +270,7 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <version>5.1.1</version>
+            <version>5.1.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>

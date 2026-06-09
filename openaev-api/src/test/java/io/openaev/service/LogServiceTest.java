@@ -1,16 +1,23 @@
 package io.openaev.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.config.audit_log.AuditLogProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.AuditLogProperties;
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.model.ResourceType;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,17 +38,22 @@ class LogServiceTest {
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
 
+  private final ObjectMapper objectMapper = new ObjectMapper();
+
   private LogService logService;
 
   @BeforeEach
   void setUp() {
+    io.openaev.engine.EngineService engineService = mock(io.openaev.engine.EngineService.class);
+    lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
+
     logService =
         new LogService(
             auditLogProperties,
             previewFeatureService,
             auditLogTransportDispatcherUtils,
             mock(io.openaev.utils.object.ObjectNormalizationUtils.class),
-            mock(io.openaev.engine.EngineService.class),
+            engineService,
             mock(UserService.class),
             enterpriseEditionService,
             licenseCacheManager);
@@ -190,5 +202,94 @@ class LogServiceTest {
       assertFalse(result);
       verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
     }
+  }
+
+  @Nested
+  @DisplayName("logAuthEvent")
+  class LogAuthEvent {
+
+    @Test
+    @DisplayName("given_loginRequestContext_should_populateSessionIdInUserMetadata")
+    void given_loginRequestContext_should_populateSessionIdInUserMetadata() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(
+          new ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData(
+              null, null, "POST", "/api/login", "session-xyz", null));
+
+      // -- EXECUTE --
+      boolean result;
+      try {
+        result = logService.logAuthEvent("login", "success", "local", null, null, null);
+      } finally {
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.clear();
+      }
+
+      // -- VERIFY --
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      assertNotNull(event.getUserMetadata());
+      assertEquals("session-xyz", event.getUserMetadata().getSessionId());
+    }
+
+    @Test
+    @DisplayName("given_noActiveSession_should_notSetSessionIdInUserMetadata")
+    void given_noActiveSession_should_notSetSessionIdInUserMetadata() {
+      // -- PREPARE --
+      when(previewFeatureService.isFeatureEnabled(any())).thenReturn(true);
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+      // No ThreadRequestContextHolder set — simulates no active HTTP session
+
+      // -- EXECUTE --
+      boolean result = logService.logAuthEvent("logout", "success", "local", null, null, null);
+
+      // -- VERIFY --
+      assertTrue(result);
+
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      LogEvent event = captor.getValue();
+      // UserMetadata may be null or sessionId must be null — no session to correlate
+      if (event.getUserMetadata() != null) {
+        assertNull(event.getUserMetadata().getSessionId());
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Given event with entity diffs, should include diffs in context")
+  void given_eventWithEntityDiffs_should_includeDiffs() {
+    // Arrange
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.AUDIT_LOG)).thenReturn(true);
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+    when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+
+    ObjectNode entityDiffs = objectMapper.createObjectNode();
+    entityDiffs.put("entity_type", "Group");
+    entityDiffs.put("operation", "update");
+
+    // Act
+    boolean result =
+        logService.logRequestEvent(
+            "update",
+            "success",
+            ResourceType.USER_GROUP,
+            "group-id",
+            null,
+            null,
+            null,
+            entityDiffs,
+            Level.WARNING,
+            "uuid-8");
+
+    // Assert
+    assertThat(result).isTrue();
+    verify(auditLogTransportDispatcherUtils).dispatch(any(LogEvent.class), any());
   }
 }

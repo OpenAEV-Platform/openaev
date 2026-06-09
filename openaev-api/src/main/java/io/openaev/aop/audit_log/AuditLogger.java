@@ -1,13 +1,17 @@
 package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
-import io.openaev.config.audit_log.AuditLogProperties;
+import io.openaev.database.audit.EntityDiffContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
+import io.openaev.utils.ObjectDiffUtils;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -35,9 +39,9 @@ import org.springframework.stereotype.Component;
 public class AuditLogger {
 
   private final ApplicationContext context;
-  private final AuditRequestValidator auditRequestValidator;
   private final AuditLogProperties auditLogProperties;
   private final LogService logService;
+  private final ObjectMapper objectMapper;
   private final AtomicBoolean shutdownTriggered = new AtomicBoolean(false);
 
   public boolean isAuditLoggingEnabled() {
@@ -45,11 +49,7 @@ public class AuditLogger {
   }
 
   public boolean isAuditLoggingValid(Action action) {
-    return auditRequestValidator.valid(action);
-  }
-
-  public boolean isAuditUnauthorizedLoggingValid() {
-    return auditRequestValidator.validUnauthorized();
+    return !shouldSkip(action);
   }
 
   public void prepareLogFailure() {
@@ -127,8 +127,9 @@ public class AuditLogger {
   }
 
   /**
-   * Log Mutation events Wraps the audit service call in try/catch — non-blocking by default, but
-   * may terminate the process when stop-the-world audit failure handling is enabled.
+   * Log Mutation events. Computes field-level diffs from raw snapshots asynchronously. Wraps the
+   * audit service call in try/catch — non-blocking by default, but may terminate the process when
+   * stop-the-world audit failure handling is enabled.
    */
   @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAccessControlEvent(
@@ -139,12 +140,15 @@ public class AuditLogger {
       JsonNode input,
       JsonNode output,
       JsonNode signatureNode,
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots,
       String logUUID) {
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 
     boolean status = false;
 
     try {
+      JsonNode entityDiffsNode = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
+
       status =
           logService.logRequestEvent(
               eventScope,
@@ -154,6 +158,7 @@ public class AuditLogger {
               input,
               output,
               signatureNode,
+              entityDiffsNode,
               Level.WARNING,
               logUUID);
 
@@ -168,5 +173,15 @@ public class AuditLogger {
     }
 
     return CompletableFuture.completedFuture(status);
+  }
+
+  private boolean shouldSkip(Action action) {
+    return switch (action) {
+      case CREATE, WRITE, DELETE, LAUNCH, DUPLICATE -> false;
+      // READ/SEARCH are never audited on success — only unauthorized attempts are logged
+      // (captured separately via logAuthEvent when RBAC denies access).
+      case READ, SEARCH -> true;
+      default -> true; // SKIP_RBAC, PROCESS
+    };
   }
 }

@@ -153,7 +153,9 @@ public class OpenSearchDriver {
             config.getEngineAwsHost(),
             config.getEngineAwsMode(),
             Region.of(config.getEngineAwsRegion()),
-            AwsSdk2TransportOptions.builder().build()));
+            AwsSdk2TransportOptions.builder()
+                .setMapper(new JacksonJsonpMapper(engineObjectMapper))
+                .build()));
   }
 
   /**

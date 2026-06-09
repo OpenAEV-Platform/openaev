@@ -42,13 +42,14 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent) {
+      @NotNull final Agent agent,
+      @NotNull final String token) {
     // launchBatchExecutorSubprocess is used here for better performances
   }
 
   @Override
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token) {
 
     enterpriseEditionService.throwEEExecutorService(
         licenseCacheManager.getEnterpriseEditionInfo(), SERVICE_NAME, injectStatus);
@@ -82,7 +83,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
                       getAgentsFromOSAndArch(taniumAgents, platform, arch),
                       injector,
                       inject,
-                      arch));
+                      arch,
+                      token));
           case Linux, MacOS ->
               actions.addAll(
                   getUnixActions(
@@ -90,7 +92,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
                       injector,
                       inject,
                       platform,
-                      arch));
+                      arch,
+                      token));
           default -> { // No need, only Mac, Windows and Linux for now
           }
         }
@@ -126,7 +129,11 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   }
 
   private List<TaniumAction> getWindowsActions(
-      List<Agent> agents, Injector injector, Inject inject, Endpoint.PLATFORM_ARCH arch) {
+      List<Agent> agents,
+      Injector injector,
+      Inject inject,
+      Endpoint.PLATFORM_ARCH arch,
+      String token) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionWindows = new TaniumAction();
@@ -145,7 +152,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               command,
               inject.getId(),
               agent.getId(),
-              inject.getTenant().getId());
+              inject.getTenant().getId(),
+              token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -162,7 +170,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       Injector injector,
       Inject inject,
       Endpoint.PLATFORM_TYPE platform,
-      Endpoint.PLATFORM_ARCH arch) {
+      Endpoint.PLATFORM_ARCH arch,
+      String token) {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionUnix = new TaniumAction();
@@ -176,7 +185,8 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       String executorCommandKey = platform.name() + "." + arch.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
       command =
-          replaceArgs(platform, command, inject.getId(), agent.getId(), inject.getTenant().getId());
+          replaceArgs(
+              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

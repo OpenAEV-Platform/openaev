@@ -19,10 +19,12 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -102,6 +104,9 @@ public class EndpointService {
   @Value("${executor.openaev.agent.max-simultaneous-jobs:5}")
   private int maxSimultaneousJobs;
 
+  @Value("${executor.openaev.agent.auto-update-enabled:true}")
+  private boolean agentAutoUpdateEnabled;
+
   private final EndpointRepository endpointRepository;
   private final ExecutorRepository executorRepository;
   private final AssetGroupRepository assetGroupRepository;
@@ -109,6 +114,8 @@ public class EndpointService {
   private final TagRepository tagRepository;
   private final AgentService agentService;
   private final AssetService assetService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -466,34 +473,44 @@ public class EndpointService {
       }
     }
     // If agent is not temporary and not the same version as the platform => Create an upgrade task
-    // for the agent
+    // for the agent if auto update is enabled (enabled by default)
     Endpoint endpoint = (Endpoint) agent.getAsset();
     if (agent.getParent() == null && !agent.getVersion().equals(version)) {
-      if (assetAgentJobRepository
-          .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
-          .isEmpty()) {
-        AssetAgentJob assetAgentJob = new AssetAgentJob();
-        assetAgentJob.setCommand(
-            generateUpgradeCommand(
-                endpoint.getPlatform().name(),
-                input.getInstallationMode(),
-                input.getInstallationDirectory(),
-                input.getServiceName(),
-                agent.getTenant().getId()));
-        assetAgentJob.setAgent(agent);
-        assetAgentJob.setTenant(agent.getTenant());
-        assetAgentJob.setCreatedAt(now());
-
-        try {
-          assetAgentJobRepository.save(assetAgentJob);
-        } catch (DataIntegrityViolationException e) {
-          // Concurrent registration already created the upgrade job — safe to ignore
-          log.warn("Upgrade job already exists for agent {} (concurrent insert)", agent.getId(), e);
-        }
+      if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())
+          && !agentAutoUpdateEnabled) {
+        log.warn(
+            String.format(
+                "A new version for the agent %s is available, his current version is %s and the new version is %s",
+                agent.getAsset().getName(), agent.getVersion(), version));
       } else {
-        log.warn("Upgrade job already exists");
+        if (assetAgentJobRepository
+            .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
+            .isEmpty()) {
+          AssetAgentJob assetAgentJob = new AssetAgentJob();
+          assetAgentJob.setCommand(
+              generateUpgradeCommand(
+                  endpoint.getPlatform().name(),
+                  input.getInstallationMode(),
+                  input.getInstallationDirectory(),
+                  input.getServiceName(),
+                  agent.getTenant().getId()));
+          assetAgentJob.setAgent(agent);
+          assetAgentJob.setTenant(agent.getTenant());
+          assetAgentJob.setCreatedAt(now());
+
+          try {
+            assetAgentJobRepository.save(assetAgentJob);
+          } catch (DataIntegrityViolationException e) {
+            // Concurrent registration already created the upgrade job — safe to ignore
+            log.warn(
+                "Upgrade job already exists for agent {} (concurrent insert)", agent.getId(), e);
+          }
+        } else {
+          log.warn("Upgrade job already exists");
+        }
       }
     }
+
     return endpoint;
   }
 

@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.injectors.channel;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.executors.InjectorContext;
@@ -11,6 +12,7 @@ import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.QualifiedComponent;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class ChannelInjectorIntegration extends IntegrationInMemory {
@@ -24,6 +26,8 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
   private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
   private final ArticleRepository articleRepository;
+  private final UrlAccessTokenService urlAccessTokenService;
+  private final PreviewFeatureService previewFeatureService;
 
   @QualifiedComponent(identifier = {ChannelContract.TYPE, CHANNEL_INJECTOR_ID})
   private ChannelExecutor channelExecutor;
@@ -37,7 +41,9 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
       EmailService emailService,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
-      ArticleRepository articleRepository) {
+      ArticleRepository articleRepository,
+      UrlAccessTokenService urlAccessTokenService,
+      PreviewFeatureService previewFeatureService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.channelContract = channelContract;
     this.injectorContext = injectorContext;
@@ -45,6 +51,8 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
     this.injectorService = injectorService;
     this.injectExpectationService = injectExpectationService;
     this.articleRepository = articleRepository;
+    this.urlAccessTokenService = urlAccessTokenService;
+    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -54,7 +62,9 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
             injectorContext,
             this.articleRepository,
             this.emailService,
-            this.injectExpectationService);
+            this.injectExpectationService,
+            this.urlAccessTokenService,
+            this.previewFeatureService);
   }
 
   @Override

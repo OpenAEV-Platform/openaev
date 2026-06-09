@@ -35,7 +35,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
 
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
   useDataLoader(() => {
     if (hasPlatformSettingsCapabilities) {
       setLoading(true);

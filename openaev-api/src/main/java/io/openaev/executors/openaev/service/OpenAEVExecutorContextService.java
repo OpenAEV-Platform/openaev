@@ -28,7 +28,8 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
       @NotNull final Inject inject,
       String agentId,
       Endpoint.PLATFORM_TYPE platform,
-      Endpoint.PLATFORM_ARCH arch) {
+      Endpoint.PLATFORM_ARCH arch,
+      String token) {
     Injector injector = inject.getInjector();
     if (injector == null) {
       // Fallback for legacy injects without inject_injector populated
@@ -39,9 +40,6 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
               .orElseThrow(
                   () -> new UnsupportedOperationException("Inject does not have a contract"));
     }
-    String token =
-        serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
-            inject.getTenant().getId());
 
     return switch (platform) {
       case Windows, Linux, MacOS -> {
@@ -57,14 +55,15 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent) {
+      @NotNull final Agent agent,
+      @NotNull final String token) {
     Endpoint.PLATFORM_TYPE platform = assetEndpoint.getPlatform();
     Endpoint.PLATFORM_ARCH arch = assetEndpoint.getArch();
     if (platform == null) {
       throw new RuntimeException("Unsupported null platform");
     }
     AssetAgentJob assetAgentJob = new AssetAgentJob();
-    assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch));
+    assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch, token));
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);
     assetAgentJob.setTenant(inject.getTenant());
@@ -73,7 +72,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
   }
 
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token) {
     return new ArrayList<>();
   }
 }

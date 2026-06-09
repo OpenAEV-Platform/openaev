@@ -117,7 +117,7 @@ public class SentinelOneExecutorServiceTest {
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
     sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
-        inject, new HashSet<>(agents), injectStatus);
+        inject, new HashSet<>(agents), injectStatus, "token");
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts

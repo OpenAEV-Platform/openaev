@@ -5,10 +5,12 @@ import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.challenge.model.ChallengeContent;
@@ -18,7 +20,9 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChallengeExpectation;
 import io.openaev.model.expectation.ManualExpectation;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.PreviewFeatureService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,32 +34,42 @@ public class ChallengeExecutor extends Injector {
   private final ChallengeRepository challengeRepository;
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
+  private final UrlAccessTokenService urlAccessTokenService;
+  private final PreviewFeatureService previewFeatureService;
 
   public ChallengeExecutor(
       InjectorContext context,
       ChallengeRepository challengeRepository,
       EmailService emailService,
-      InjectExpectationService injectExpectationService) {
+      InjectExpectationService injectExpectationService,
+      UrlAccessTokenService urlAccessTokenService,
+      PreviewFeatureService previewFeatureService) {
     super(context);
     this.challengeRepository = challengeRepository;
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
+    this.urlAccessTokenService = urlAccessTokenService;
+    this.previewFeatureService = previewFeatureService;
   }
 
   private String buildChallengeUri(
       ExecutionContext executionContext, Exercise exercise, Challenge challenge) {
-    String userId = executionContext.getUser().getId();
+    ProtectUser user = executionContext.getUser();
     String challengeId = challenge.getId();
-    String exerciseId = exercise.getId();
-    return this.context.getOpenAEVConfig().getBaseUrl()
-        + "/"
-        + exercise.getTenant().getId()
-        + "/challenges/"
-        + exerciseId
-        + "?user="
-        + userId
-        + "&challenge="
-        + challengeId;
+    String url =
+        this.context.getOpenAEVConfig().getBaseUrl()
+            + "/"
+            + exercise.getTenant().getId()
+            + "/challenges/"
+            + exercise.getId()
+            + "?challenge="
+            + challengeId;
+
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
+      url = url + "&user=" + user.getId();
+      return url;
+    }
+    return urlAccessTokenService.generateTokenUrl(exercise, user, url);
   }
 
   @Override

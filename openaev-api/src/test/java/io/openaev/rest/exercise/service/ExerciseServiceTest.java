@@ -3,6 +3,7 @@ package io.openaev.rest.exercise.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Exercise;
@@ -85,6 +86,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
   @Mock private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
+  @Mock private UrlAccessTokenService urlAccessTokenService;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
 
@@ -126,6 +128,7 @@ class ExerciseServiceTest extends IntegrationTest {
             lessonsAnswerRepository,
             lessonsCategoryRepository,
             lessonsService,
+            urlAccessTokenService,
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,

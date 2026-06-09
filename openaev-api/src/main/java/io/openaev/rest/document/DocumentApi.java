@@ -10,6 +10,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -406,7 +407,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String collectorId) throws IOException {
     Collector collector =
         this.collectorRepository
-            .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
+            .findById(collectorId)
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
         fileService.getCollectorImage(collector.getType(), collector.isExternal());
@@ -544,6 +545,7 @@ public class DocumentApi extends RestBehavior {
   // -- EXERCISE & SENARIO--
   @GetMapping({PLAYER_DOCUMENTS_API, TENANT_PLAYER_DOCUMENTS_API})
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
@@ -580,6 +582,7 @@ public class DocumentApi extends RestBehavior {
     TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(userId = "#userId")
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
