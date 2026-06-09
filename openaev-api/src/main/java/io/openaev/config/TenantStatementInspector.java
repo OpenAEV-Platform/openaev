@@ -14,6 +14,7 @@ import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.Function;
 import net.sf.jsqlparser.expression.StringValue;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
@@ -222,21 +223,29 @@ public class TenantStatementInspector implements StatementInspector {
   // ---------------------------------------------------------------------------
 
   /**
-   * Builds a tenant filter expression:
+   * Builds a tenant filter expression using PostgreSQL session variables:
    *
    * <ul>
-   *   <li>Single tenant → {@code alias.tenant_id = 'xxx'} (EqualsTo, more efficient)
-   *   <li>Multiple tenants → {@code alias.tenant_id IN ('xxx', 'yyy')} (grants scenario)
+   *   <li>Single tenant → {@code alias.tenant_id = current_setting('app.current_tenant')}
+   *   <li>Multiple tenants → {@code alias.tenant_id = ANY(string_to_array(current_setting('app.current_tenants'), ','))}
    * </ul>
    */
   private Expression buildTenantFilter(String tableOrAlias, List<String> tenantIds) {
     Column col = new Column(tableOrAlias + ".tenant_id");
-    if (tenantIds.size() == 1) {
-      return new EqualsTo(col, new StringValue(tenantIds.get(0)));
-    }
-    ParenthesedExpressionList<StringValue> values =
-        new ParenthesedExpressionList<>(tenantIds.stream().map(StringValue::new).toList());
-    return new InExpression(col, values);
+
+    Function currentSetting = new Function();
+    currentSetting.setName("current_setting");
+    currentSetting.setParameters(new net.sf.jsqlparser.expression.operators.relational.ExpressionList(new StringValue("app.current_tenants")));
+
+    Function stringToArray = new Function();
+    stringToArray.setName("string_to_array");
+    stringToArray.setParameters(new net.sf.jsqlparser.expression.operators.relational.ExpressionList(currentSetting, new StringValue(",")));
+
+    Function anyFunc = new Function();
+    anyFunc.setName("ANY");
+    anyFunc.setParameters(new net.sf.jsqlparser.expression.operators.relational.ExpressionList(stringToArray));
+
+    return new EqualsTo(col, anyFunc);
   }
 
   /** Combines two expressions with AND, returning {@code extra} when {@code base} is null. */

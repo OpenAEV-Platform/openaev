@@ -359,11 +359,11 @@ public class InjectImportServiceTest {
 
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.forOp(ExecState.noTenant()).findByIdAndTenantId("sc-1", "tenant-1"))
+        ExecState state = ExecState.of("tenant-1");
+        when(scenarioRepository.forOp(state).findByIdAndTenantId("sc-1", "tenant-1"))
             .thenReturn(Optional.of(scenario));
 
         // -------- Act --------
-        ExecState state = ExecState.of("tenant-1");
         injectImportService.importInjectsForScenario(state, file, "sc-1");
 
         // -------- Assert --------
@@ -408,10 +408,6 @@ public class InjectImportServiceTest {
 
       try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository
-                .forOp(ExecState.noTenant())
-                .findByIdAndTenantId("missing", "tenant-1"))
-            .thenReturn(Optional.empty());
 
         // -------- Act / Assert --------
         ExecState state = ExecState.of("tenant-1");

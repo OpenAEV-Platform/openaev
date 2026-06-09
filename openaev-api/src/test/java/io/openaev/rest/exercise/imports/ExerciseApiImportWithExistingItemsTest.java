@@ -1,6 +1,6 @@
 package io.openaev.rest.exercise.imports;
 
-import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -187,7 +187,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -219,7 +219,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -253,7 +253,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -292,7 +292,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -342,7 +342,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -375,7 +375,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -412,7 +412,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -445,7 +445,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -494,7 +494,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -528,7 +528,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -578,7 +578,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -611,7 +611,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -642,7 +642,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -694,7 +694,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -725,7 +725,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -774,7 +774,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))
@@ -807,7 +807,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
     MockMultipartFile mmf = new MockMultipartFile("file", zipBytes);
 
     mvc.perform(
-            multipart(EXERCISE_URI + "/import")
+            multipart(tenantUri(TENANT_EXERCISE_URI + "/import"))
                 .file(mmf)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .with(csrf()))

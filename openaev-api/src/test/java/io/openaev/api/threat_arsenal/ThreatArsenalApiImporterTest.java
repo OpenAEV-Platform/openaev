@@ -1,7 +1,6 @@
 package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
-import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.constants.Constants.IMPORTED_OBJECT_NAME_SUFFIX;
 import static java.util.Collections.emptyList;
@@ -90,7 +89,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String createResponse =
           mockMvc
               .perform(
-                  post(tenantUri(THREAT_ARSENAL_URL))
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URL))
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput))
                       .with(csrf()))
@@ -192,7 +191,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String createResponse =
           mockMvc
               .perform(
-                  post(tenantUri("/api/tenants/{tenantId}/threat-arsenal"))
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URL))
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput))
                       .with(csrf()))
@@ -223,7 +222,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String importResponse =
           mockMvc
               .perform(
-                  multipart(tenantUri("/api/tenants/{tenantId}/threat-arsenal/import"))
+                  multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
                       .file(zipFile)
                       .with(csrf()))
               .andExpect(status().is2xxSuccessful())
@@ -345,7 +344,9 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
           ServletException.class,
           () ->
               mockMvc.perform(
-                  multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
+                  multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                      .file(zipFile)
+                      .with(csrf())));
     }
 
     @Test
@@ -506,7 +507,9 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
           ServletException.class,
           () ->
               mockMvc.perform(
-                  multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
+                  multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                      .file(zipFile)
+                      .with(csrf())));
     }
   }
 }

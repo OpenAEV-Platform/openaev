@@ -107,6 +107,11 @@ class ChainingIntegrationTest extends IntegrationTest {
     doAnswer(
             invocation -> {
               Inject inject = invocation.getArgument(0);
+              if (inject.getTenant() == null) {
+                Tenant tenant = new Tenant();
+                tenant.setId(Tenant.DEFAULT_TENANT_UUID);
+                inject.setTenant(tenant);
+              }
               return injectRepository.save(inject);
             })
         .when(injectService)

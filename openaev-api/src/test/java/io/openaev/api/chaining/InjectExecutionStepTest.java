@@ -87,6 +87,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doAnswer(
             invocation -> {
               Inject inject = invocation.getArgument(0);
+              inject.setTenant(new Tenant("tenant"));
               return injectRepository.save(inject);
             })
         .when(injectService)
@@ -95,6 +96,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // UPDATE STEP:
     Inject injectExecuted = new Inject();
     injectExecuted.setId("INJECT-ID");
+    injectExecuted.setTenant(new Tenant("tenant"));
 
     ExecutionTrace executionTrace = new ExecutionTrace();
     executionTrace.setStatus(ExecutionTraceStatus.EXECUTED);

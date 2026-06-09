@@ -124,7 +124,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
@@ -159,7 +159,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
@@ -214,7 +214,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               List.of(domain.getId()));
 
       mvc.perform(
-              post(THREAT_ARSENAL_URI)
+              post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
@@ -251,7 +251,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               List.of(domain.getId()));
 
       mvc.perform(
-              post(THREAT_ARSENAL_URI)
+              post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(input)))
@@ -268,7 +268,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
                       .with(csrf()))
@@ -316,7 +316,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
@@ -374,7 +374,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
                       .with(csrf()))
@@ -408,7 +408,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               List.of(domain.getId()), cleanupExecutor, cleanupCommand);
 
       mvc.perform(
-              post(THREAT_ARSENAL_URI)
+              post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                   .contentType(MediaType.APPLICATION_JSON)
                   .with(csrf())
                   .content(asJsonString(input)))
@@ -485,7 +485,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       // Act
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI + "/search")
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI + "/search"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
@@ -523,7 +523,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       // Act
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI + "/domain-counts")
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI + "/domain-counts"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input)))
@@ -645,7 +645,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI + "/search")
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI + "/search"))
                       .with(authentication(auth))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
@@ -683,7 +683,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String createResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput)))
@@ -719,7 +719,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       // Act
       String updateResponse =
           mvc.perform(
-                  put(THREAT_ARSENAL_URI + "/" + actionId)
+                  put(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + actionId))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(updateInput)))
@@ -788,7 +788,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(
-              put(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId())
+              put(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId()))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
@@ -822,7 +822,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String createResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput)))
@@ -857,7 +857,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(
-              put(THREAT_ARSENAL_URI + "/" + actionId)
+              put(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + actionId))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
@@ -880,7 +880,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String createResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput)))
@@ -899,7 +899,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       // Act
       String duplicateResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI + "/" + originalActionId + "/duplicate")
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + originalActionId + "/duplicate"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -941,7 +941,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       // Act & Assert
       mvc.perform(
-              post(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/duplicate")
+              post(tenantUri(
+                      TENANT_THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/duplicate"))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().isNotFound());
@@ -958,7 +959,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String createResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI)
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput)))
@@ -975,7 +976,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String duplicateResponse =
           mvc.perform(
-                  post(THREAT_ARSENAL_URI + "/" + originalActionId + "/duplicate")
+                  post(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + originalActionId + "/duplicate"))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -1013,7 +1014,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               List.of(newDomain.getId()));
 
       mvc.perform(
-              put(THREAT_ARSENAL_URI + "/" + originalActionId)
+              put(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + originalActionId))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(updateInput)))
