@@ -2,24 +2,37 @@ import { type PlatformSettings } from '../../../utils/api-types';
 import { isDemoInstance } from '../../../utils/Environment';
 import { isNotEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
 import { LICENSE_OPTION_TRIAL } from '../trialbanners/LicenseBanner';
+import { TOP_BANNER_HEIGHT } from '../trialbanners/TopBanner';
 
 const SYSTEM_BANNER_HEIGHT_PER_MESSAGE = 18;
+// Extra breathing space kept below the system banner messages.
+const SYSTEM_BANNER_VERTICAL_PADDING = 16;
 export type BannerMessage = Record<'debug' | 'info' | 'warn' | 'error' | 'fatal', string[]>;
 // eslint-disable-next-line import/prefer-default-export
 export const computeBannerSettings = (settings: PlatformSettings) => {
   const bannerByLevel = settings.platform_banner_by_level;
-  const isBannerActivated = (bannerByLevel !== undefined
-    && isNotEmptyField(recordKeys(bannerByLevel)))
-  || settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
-  || isDemoInstance(settings);
+  const isSystemBannerActivated = bannerByLevel !== undefined
+    && isNotEmptyField(recordKeys(bannerByLevel));
+  // Trial / demo / license banner displayed at the very top of the platform.
+  const isTopBannerActivated = settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
+    || isDemoInstance(settings);
+
   let numberOfElements = 0;
-  if (settings.platform_banner_by_level !== undefined) {
-    for (const bannerLevel of recordEntries(settings.platform_banner_by_level)) {
+  if (bannerByLevel !== undefined) {
+    for (const bannerLevel of recordEntries(bannerByLevel)) {
       numberOfElements += bannerLevel[1].length;
     }
   }
-  const bannerHeight = isBannerActivated ? `${(SYSTEM_BANNER_HEIGHT_PER_MESSAGE * numberOfElements) + 16}px` : '0';
-  const bannerHeightNumber = isBannerActivated ? (SYSTEM_BANNER_HEIGHT_PER_MESSAGE * numberOfElements) + 16 : 0;
+
+  // Reserve the actual height of each displayed banner so the top bar (logo,
+  // search) is never glued to / hidden behind them. The top banner has a fixed
+  // height (TOP_BANNER_HEIGHT), the system banner grows with its messages.
+  const systemBannerHeight = isSystemBannerActivated
+    ? (SYSTEM_BANNER_HEIGHT_PER_MESSAGE * numberOfElements) + SYSTEM_BANNER_VERTICAL_PADDING
+    : 0;
+  const topBannerHeight = isTopBannerActivated ? TOP_BANNER_HEIGHT : 0;
+  const bannerHeightNumber = systemBannerHeight + topBannerHeight;
+  const bannerHeight = `${bannerHeightNumber}px`;
   return {
     bannerByLevel,
     bannerHeight,
