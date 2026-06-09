@@ -1,8 +1,7 @@
 import { type PlatformSettings } from '../../../utils/api-types';
 import { isDemoInstance } from '../../../utils/Environment';
-import { isNotEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
-import { LICENSE_OPTION_TRIAL } from '../trialbanners/LicenseBanner';
-import { TOP_BANNER_HEIGHT } from '../trialbanners/TopBanner';
+import { recordEntries } from '../../../utils/utils';
+import { LICENSE_OPTION_TRIAL, TOP_BANNER_HEIGHT } from '../trialbanners/constants';
 
 const SYSTEM_BANNER_HEIGHT_PER_MESSAGE = 18;
 // Extra breathing space kept below the system banner messages.
@@ -11,11 +10,6 @@ export type BannerMessage = Record<'debug' | 'info' | 'warn' | 'error' | 'fatal'
 // eslint-disable-next-line import/prefer-default-export
 export const computeBannerSettings = (settings: PlatformSettings) => {
   const bannerByLevel = settings.platform_banner_by_level;
-  const isSystemBannerActivated = bannerByLevel !== undefined
-    && isNotEmptyField(recordKeys(bannerByLevel));
-  // Trial / demo / license banner displayed at the very top of the platform.
-  const isTopBannerActivated = settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
-    || isDemoInstance(settings);
 
   let numberOfElements = 0;
   if (bannerByLevel !== undefined) {
@@ -23,6 +17,14 @@ export const computeBannerSettings = (settings: PlatformSettings) => {
       numberOfElements += bannerLevel[1].length;
     }
   }
+
+  // The system banner is only rendered when it actually has messages (see
+  // SystemBanners), so reserve its height only then to avoid an unexplained
+  // offset when banner levels exist but carry no messages.
+  const isSystemBannerActivated = numberOfElements > 0;
+  // Trial / demo / license banner displayed at the very top of the platform.
+  const isTopBannerActivated = settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
+    || isDemoInstance(settings);
 
   // Reserve the actual height of each displayed banner so the top bar (logo,
   // search) is never glued to / hidden behind them. The top banner has a fixed
