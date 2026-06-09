@@ -1,14 +1,14 @@
-package io.openaev.secrets.provider.impl.vault.engine.azure;
+package io.openaev.secrets.provider.impl.vault.engine.gcp;
 
 import io.openaev.secrets.model.Credential;
 import io.openaev.secrets.provider.impl.vault.EngineType;
 import io.openaev.secrets.provider.impl.vault.engine.Engine;
 import java.util.List;
 
-public class AzureEngine extends Engine {
+public class GcpEngine extends Engine {
   @Override
   public EngineType getType() {
-    return EngineType.AZURE;
+    return EngineType.GCP;
   }
 
   @Override

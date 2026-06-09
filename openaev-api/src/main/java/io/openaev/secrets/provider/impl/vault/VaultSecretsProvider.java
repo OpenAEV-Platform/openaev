@@ -3,8 +3,9 @@ package io.openaev.secrets.provider.impl.vault;
 import io.openaev.secrets.model.Credential;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.SecretsProviderType;
-import io.openaev.secrets.provider.impl.vault.api.VaultClient;
+import io.openaev.secrets.provider.impl.vault.client.VaultClient;
 import io.openaev.secrets.provider.impl.vault.engine.Engine;
+import java.io.IOException;
 import java.util.List;
 
 public class VaultSecretsProvider extends SecretsProvider {
@@ -22,11 +23,12 @@ public class VaultSecretsProvider extends SecretsProvider {
   }
 
   @Override
-  public List<Credential> getSecrets() {
+  public List<Credential> getSecrets() throws IOException {
+    populateEngineList();
     return List.of();
   }
 
-  private void populateEngineList() {
-    // call vault list
+  private void populateEngineList() throws IOException {
+    client.enabledEngines();
   }
 }
