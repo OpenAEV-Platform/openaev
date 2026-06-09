@@ -62,6 +62,10 @@ class ObjectDiffUtilsTest {
       assertThat(entry.get("operation").asText()).isEqualTo("UPDATE");
       assertThat(entry.get("changes").isArray()).isTrue();
       assertThat(entry.get("changes").size()).isEqualTo(1);
+
+      JsonNode firstChange = entry.get("changes").get(0);
+      assertThat(firstChange.get("old_value").asText()).isEqualTo("Alice");
+      assertThat(firstChange.get("new_value").asText()).isEqualTo("Bob");
     }
 
     @Test

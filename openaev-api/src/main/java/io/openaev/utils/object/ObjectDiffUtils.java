@@ -96,15 +96,5 @@ public class ObjectDiffUtils {
   public record FieldChange(
       String field,
       @JsonProperty("old_value") Object oldValue,
-      @JsonProperty("new_value") Object newValue) {
-
-    /**
-     * Returns a human-readable summary of the change, e.g. {@code "old value Alice -> new value
-     * Bob"}.
-     */
-    @JsonProperty("change")
-    public String change() {
-      return "old value " + oldValue + " -> new value " + newValue;
-    }
-  }
+      @JsonProperty("new_value") Object newValue) {}
 }
