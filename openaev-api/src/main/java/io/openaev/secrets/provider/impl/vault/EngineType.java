@@ -1,6 +1,6 @@
 package io.openaev.secrets.provider.impl.vault;
 
-public enum SupportedEngines {
+public enum EngineType {
   AWS,
   GCP,
   AZURE,
