@@ -65,6 +65,21 @@ public class ManagerFactory implements DependenciesManager {
       log.info("==> Monitoring tenant " + tenant.getName());
       TenantContext.setCurrentTenant(tenant.getId());
       try {
+        // Ensure all built-in connectors are registered for pre-existing tenants (e.g. the default
+        // tenant seeded by the data pack). New tenants go through createDependencyForTenant() which
+        // handles this; existing tenants on restart must be covered here.
+        for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
+          try {
+            registrable.registerForTenant(tenant.getId());
+          } catch (Exception e) {
+            log.error(
+                "==> monitorAllTenants: failed to register built-in connector {} for tenant '{}': {}",
+                registrable.getClass().getSimpleName(),
+                tenant.getName(),
+                e.getMessage(),
+                e);
+          }
+        }
         getManager(tenant.getId()).monitorIntegrations();
       } catch (Exception e) {
         log.error(
@@ -120,7 +135,7 @@ public class ManagerFactory implements DependenciesManager {
     // TenantContext is already set by TenantService.create() at this point.
     for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
       try {
-        registrable.registerForTenant();
+        registrable.registerForTenant(tenant.getId());
       } catch (Exception e) {
         throw new DependenciesManagerException(
             "Failed to register built-in connector for tenant " + tenant.getName(), e);

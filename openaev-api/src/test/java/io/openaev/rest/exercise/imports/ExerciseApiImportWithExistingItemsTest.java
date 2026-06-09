@@ -1,5 +1,6 @@
 package io.openaev.rest.exercise.imports;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -76,8 +77,8 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   @BeforeEach
   void before() throws Exception {
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
 
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();

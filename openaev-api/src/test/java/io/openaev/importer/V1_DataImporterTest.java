@@ -110,7 +110,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   void testScenario_with_attackpattern() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -145,7 +145,7 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.deleteAll();
     entityManager.flush();
     entityManager.clear();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
 
     this.importer.importData(
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);

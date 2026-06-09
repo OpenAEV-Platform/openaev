@@ -1,5 +1,6 @@
 package io.openaev.rest.exercise.imports;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -87,7 +88,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     documentComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
   }
 
   // this is part of the "Arrange" part of the AAA pattern for the following tests
