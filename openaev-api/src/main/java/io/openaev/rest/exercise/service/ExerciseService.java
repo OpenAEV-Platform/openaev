@@ -1172,16 +1172,10 @@ public class ExerciseService {
           ScenarioStatisticService.getRoundedPercentage(lastSimulationResultsByType);
       float secondLastSimulationScore =
           ScenarioStatisticService.getRoundedPercentage(secondLastSimulationResultsByType);
-      log.debug(
-          "lastSimulationScore {} secondLastSimulationScore {} for type {}",
-          lastSimulationScore,
-          secondLastSimulationScore,
-          type);
       if (lastSimulationScore < secondLastSimulationScore) {
         return true;
       }
     }
-    log.debug("Exerciseervice.isThereAScoreDegradation has no diff");
     return false;
   }
 

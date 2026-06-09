@@ -129,9 +129,6 @@ public class InjectsExecutionJob implements Job {
   public void handleAutoClosingSimulations() {
     // Change status of finished simulations.
     List<Exercise> mustBeFinishedSimulations = exerciseRepository.thatMustBeFinished();
-    log.debug(
-        "handleAutoClosingSimulations: {} simulation(s) must be finished",
-        mustBeFinishedSimulations.size());
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       // Filter out the simulations using the new chaining engine
       mustBeFinishedSimulations =
@@ -155,28 +152,21 @@ public class InjectsExecutionJob implements Job {
         exercisesFinished);
 
     // send notification
-    exercisesFinished.forEach(
-        ex -> {
-          if (ex.getScenario() == null) {
-            log.debug(
-                "handleAutoClosingSimulations: simulation={} has no linked scenario — skipping notification",
-                ex.getId());
-          } else {
-            log.debug(
-                "handleAutoClosingSimulations: scheduling SIMULATION_COMPLETED notification for scenarioId={} simulationId={} with delay={}s",
-                ex.getScenario().getId(),
-                ex.getId(),
-                delayForSimulationCompletedEvent);
-            notificationEventService.sendNotificationEventWithDelay(
-                NotificationEvent.builder()
-                    .eventType(NotificationEventType.SIMULATION_COMPLETED)
-                    .resourceType(NotificationRuleResourceType.SCENARIO)
-                    .resourceId(ex.getScenario().getId())
-                    .timestamp(Instant.now())
-                    .build(),
-                delayForSimulationCompletedEvent);
-          }
-        });
+    exercisesFinished.stream()
+        .filter(
+            ex ->
+                ex.getScenario()
+                    != null) // only send notification for exercise associated to a scenario
+        .forEach(
+            ex ->
+                notificationEventService.sendNotificationEventWithDelay(
+                    NotificationEvent.builder()
+                        .eventType(NotificationEventType.SIMULATION_COMPLETED)
+                        .resourceType(NotificationRuleResourceType.SCENARIO)
+                        .resourceId(ex.getScenario().getId())
+                        .timestamp(Instant.now())
+                        .build(),
+                    delayForSimulationCompletedEvent));
   }
 
   public void handlePendingInject() {
