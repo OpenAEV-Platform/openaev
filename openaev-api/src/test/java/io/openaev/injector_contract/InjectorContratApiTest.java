@@ -1,6 +1,5 @@
 package io.openaev.injector_contract;
 
-import io.openaev.context.TenantContext;
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Filters.FilterOperator.eq;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -11,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -39,7 +39,8 @@ class InjectorContratApiTest extends IntegrationTest {
   @BeforeEach
   public void before() throws Exception {
     emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
     channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
   }

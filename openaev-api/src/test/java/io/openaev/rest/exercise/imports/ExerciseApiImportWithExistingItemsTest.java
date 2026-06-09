@@ -1,6 +1,5 @@
 package io.openaev.rest.exercise.imports;
 
-import io.openaev.context.TenantContext;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -9,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -78,7 +78,8 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
   @BeforeEach
   void before() throws Exception {
     channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
 
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();

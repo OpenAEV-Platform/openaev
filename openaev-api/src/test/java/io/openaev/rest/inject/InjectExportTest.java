@@ -1,6 +1,5 @@
 package io.openaev.rest.inject;
 
-import io.openaev.context.TenantContext;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
@@ -15,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.export.Mixins;
@@ -100,7 +100,8 @@ public class InjectExportTest extends IntegrationTest {
     payloadComposer.reset();
 
     channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {

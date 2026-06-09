@@ -1,6 +1,5 @@
 package io.openaev.rest;
 
-import io.openaev.context.TenantContext;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.fixtures.ChallengeFixture.createDefaultChallenge;
@@ -15,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -48,7 +48,8 @@ class ChallengeApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
   }
 
   // -- SCENARIOS --
