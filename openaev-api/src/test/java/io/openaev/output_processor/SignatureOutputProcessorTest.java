@@ -16,15 +16,14 @@ import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.SecurityCoverageSendJobService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +38,7 @@ class SignatureOutputProcessorTest {
   private final CollectorService collectorService = mock(CollectorService.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
+
   @SuppressWarnings("unchecked")
   private final ObjectProvider<InjectExpectationService> selfProvider = mock(ObjectProvider.class);
 
@@ -189,10 +189,8 @@ class SignatureOutputProcessorTest {
         executionProcessingContext, contractOutputContext, objectMapper.readTree(secondPayload));
 
     verify(injectExpectationRepository, times(1)).clearSignaturesAndMarkInitialized("exp-1");
-    verify(injectExpectationRepository)
-        .appendSignature("exp-1", "rule_name", "Sigma rule");
-    verify(injectExpectationRepository)
-        .appendSignature("exp-1", "rule_name", "Second Sigma rule");
+    verify(injectExpectationRepository).appendSignature("exp-1", "rule_name", "Sigma rule");
+    verify(injectExpectationRepository).appendSignature("exp-1", "rule_name", "Second Sigma rule");
   }
 
   @Test
