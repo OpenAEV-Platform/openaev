@@ -97,6 +97,7 @@ public class SimulationChallengeApi extends RestBehavior {
   })
   @UrlAccessControl(userId = "#userId")
   @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
@@ -124,6 +125,7 @@ public class SimulationChallengeApi extends RestBehavior {
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(readOnly = true)
   public SimulationChallengesReader observerChallenges(@PathVariable String simulationId) {
     Exercise exercise =
         exerciseRepository
@@ -145,6 +147,7 @@ public class SimulationChallengeApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
+  @Transactional(readOnly = true)
   public SimulationChallengesReader playerChallenges(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     final User user = impersonateUser(userRepository, userId);

@@ -67,6 +67,7 @@ public class AssetGroupApi extends RestBehavior {
 
   @GetMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET_GROUP)
+  @Transactional(readOnly = true)
   public List<AssetGroup> assetGroups() {
     return this.assetGroupService.assetGroups();
   }
@@ -124,6 +125,7 @@ public class AssetGroupApi extends RestBehavior {
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
+  @Transactional(readOnly = true)
   public AssetGroup assetGroup(@PathVariable @NotBlank final String assetGroupId) {
     return this.assetGroupService.assetGroup(assetGroupId);
   }
@@ -178,6 +180,7 @@ public class AssetGroupApi extends RestBehavior {
 
   @GetMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
@@ -236,6 +239,7 @@ public class AssetGroupApi extends RestBehavior {
   @LogExecutionTime
   @GetMapping({ASSET_GROUP_URI + "/findings/options", TENANT_ASSET_GROUP_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {

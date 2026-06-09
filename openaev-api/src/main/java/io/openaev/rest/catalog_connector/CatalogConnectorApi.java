@@ -21,6 +21,7 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -40,6 +41,7 @@ public class CatalogConnectorApi extends RestBehavior {
 
   @GetMapping({CATALOG_CONNECTOR_URI, TENANT_CATALOG_CONNECTOR_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @Transactional(readOnly = true)
   public List<CatalogConnectorOutput> getCatalogConnectors() {
     return this.catalogConnectorService.getCatalogConnectors();
   }
@@ -52,6 +54,7 @@ public class CatalogConnectorApi extends RestBehavior {
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
+  @Transactional(readOnly = true)
   public CatalogConnectorOutput getConnector(@PathVariable String catalogConnectorId) {
     return this.catalogConnectorService.catalogConnectorOutput(catalogConnectorId);
   }
@@ -60,6 +63,7 @@ public class CatalogConnectorApi extends RestBehavior {
       value = {CATALOG_CONNECTOR_LOGO_URI, TENANT_CATALOG_CONNECTOR_LOGO_URI},
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
   public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
     Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName, false);
 
@@ -79,6 +83,7 @@ public class CatalogConnectorApi extends RestBehavior {
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
+  @Transactional(readOnly = true)
   public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
       @PathVariable String catalogConnectorId) {
     return catalogConnectorService.getCatalogConnectorConfigurations(catalogConnectorId);

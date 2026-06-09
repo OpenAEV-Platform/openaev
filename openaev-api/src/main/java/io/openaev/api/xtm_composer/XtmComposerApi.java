@@ -60,6 +60,7 @@ public class XtmComposerApi extends RestBehavior {
       summary = "Check if XtmComposer is reachable and registered in OpenAEV",
       description = "Returns true if XtmComposer is reachable, false otherwise")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  @Transactional(readOnly = true)
   public boolean isXtmComposerReachable() {
     try {
       this.xtmComposerService.throwIfXtmComposerNotReachable();
@@ -75,6 +76,7 @@ public class XtmComposerApi extends RestBehavior {
       description = "Retrieve all connector instances managed by xtm-composer")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
+  @Transactional(readOnly = true)
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
       @PathVariable @NotBlank final String xtmComposerId) {
     return orchestrationService.findConnectorInstancesManagedByComposer(xtmComposerId);

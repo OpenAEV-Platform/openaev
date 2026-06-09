@@ -46,6 +46,7 @@ public class SecurityPlatformApi {
 
   @GetMapping({SECURITY_PLATFORM_URI, TENANT_SECURITY_PLATFORM_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
+  @Transactional(readOnly = true)
   public Iterable<SecurityPlatform> securityPlatforms() {
     return securityPlatformRepository.findAll();
   }
@@ -127,6 +128,7 @@ public class SecurityPlatformApi {
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECURITY_PLATFORM)
+  @Transactional(readOnly = true)
   public SecurityPlatform securityPlatform(
       @PathVariable @NotBlank final String securityPlatformId) {
     return this.securityPlatformRepository
@@ -199,12 +201,14 @@ public class SecurityPlatformApi {
             responseCode = "200",
             description = "The list of Documents used in the security platform")
       })
+  @Transactional(readOnly = true)
   public List<RawDocument> documentsFromSecurityPlatform(@PathVariable String securityPlatformId) {
     return documentService.documentsForSecurityPlatform(securityPlatformId);
   }
 
   @GetMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return securityPlatformRepository.findAllByName(StringUtils.trimToNull(searchText)).stream()

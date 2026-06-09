@@ -57,6 +57,7 @@ public class ChannelApi extends RestBehavior {
 
   @GetMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
+  @Transactional(rollbackOn = Exception.class)
   public Iterable<Channel> channels() {
     return channelRepository.findAll();
   }
@@ -66,6 +67,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#channelId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
+  @Transactional(rollbackOn = Exception.class)
   public Channel channel(@PathVariable String channelId) {
     return channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
   }
@@ -132,6 +134,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackOn = Exception.class)
   public ChannelReader observerArticles(
       @PathVariable String exerciseId, @PathVariable String channelId) {
     ChannelReader channelReader;
@@ -166,6 +169,7 @@ public class ChannelApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
+  @Transactional(rollbackOn = Exception.class)
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,
@@ -411,6 +415,7 @@ public class ChannelApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Channel")
       })
+  @Transactional(rollbackOn = Exception.class)
   public List<RawDocument> documentsFromChannel(@PathVariable String channelId) {
     return documentService.documentsForChannel(channelId);
   }

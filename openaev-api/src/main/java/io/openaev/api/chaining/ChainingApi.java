@@ -72,6 +72,7 @@ public class ChainingApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping
+  @Transactional(readOnly = true)
   public ChainingOutput findAll() {
     List<EventOutput> conditions =
         conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();

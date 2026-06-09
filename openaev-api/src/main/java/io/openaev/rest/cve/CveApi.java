@@ -49,6 +49,7 @@ public class CveApi extends RestBehavior {
       resourceId = "#cveId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.VULNERABILITY)
+  @Transactional(rollbackOn = Exception.class)
   public CveOutput getCve(@PathVariable String cveId) {
     return cveMapper.toCveOutput(vulnerabilityService.findById(cveId));
   }
@@ -61,6 +62,7 @@ public class CveApi extends RestBehavior {
       resourceId = "#externalId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.VULNERABILITY)
+  @Transactional(rollbackOn = Exception.class)
   public CveOutput getCvebyExternalId(@PathVariable String externalId) {
     return cveMapper.toCveOutput(vulnerabilityService.findByExternalId(externalId));
   }

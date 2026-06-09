@@ -124,6 +124,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
   public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String exerciseId) {
     return exerciseService.runChecks(exerciseId);
   }
@@ -136,6 +137,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<Log> logs(@PathVariable String exercise) {
     return exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
   }

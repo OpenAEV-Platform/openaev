@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -57,6 +58,7 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER_GROUP)
+  @Transactional(readOnly = true)
   public Group group(@PathVariable String groupId) {
     return tenantGroupService.findByIdInTenant(groupId);
   }

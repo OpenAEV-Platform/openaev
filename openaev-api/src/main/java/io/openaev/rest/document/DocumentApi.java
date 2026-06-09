@@ -162,14 +162,16 @@ public class DocumentApi extends RestBehavior {
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public List<RawDocument> documents() {
     return documentRepository.rawAllDocuments();
   }
 
   @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public Page<RawPaginationDocument> searchDocuments(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+          @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     return buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
@@ -190,6 +192,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public Document document(@PathVariable String documentId) {
     return documentRepository
         .findById(documentId)
@@ -201,6 +204,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public Set<Tag> documentTags(@PathVariable String documentId) {
     Document document =
         documentRepository
@@ -292,6 +296,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public void downloadDocument(@PathVariable String documentId, HttpServletResponse response)
       throws IOException {
     Document document = documentService.document(documentId);
@@ -316,6 +321,7 @@ public class DocumentApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
     Injector injector =
@@ -339,6 +345,7 @@ public class DocumentApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImageFromId(
       @PathVariable String injectorId) throws IOException {
     Injector injector =
@@ -362,6 +369,7 @@ public class DocumentApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
       throws IOException {
     Collector collector =
@@ -403,6 +411,7 @@ public class DocumentApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImageFromId(
       @PathVariable String collectorId) throws IOException {
     Collector collector =
@@ -425,6 +434,7 @@ public class DocumentApi extends RestBehavior {
         TENANT_SECURITY_PLATFORM_IMAGES_API + "/id/{assetId}/{theme}"
       })
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public void getSecurityPlatformImageFromId(
       @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
       throws IOException {
@@ -456,6 +466,7 @@ public class DocumentApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Channel image"),
         @ApiResponse(responseCode = "404", description = "Channel not found")
       })
+  @Transactional(rollbackOn = Exception.class)
   public void getChannelImageFromId(
       @PathVariable String channelId, @PathVariable String theme, HttpServletResponse response)
       throws IOException {
@@ -477,6 +488,7 @@ public class DocumentApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId, false);
@@ -495,6 +507,7 @@ public class DocumentApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
       @PathVariable String executorId) throws IOException {
     Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId, false);
@@ -528,16 +541,17 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public DocumentRelationsOutput getDocumentRelations(@PathVariable String documentId) {
     return toDocumentRelationsOutput(documentService.document(documentId));
   }
 
-  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
+  @Transactional(rollbackOn = Exception.class)
   public void deleteDocument(@PathVariable String documentId) {
     documentService.deleteDocument(documentId);
   }
@@ -546,6 +560,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping({PLAYER_DOCUMENTS_API, TENANT_PLAYER_DOCUMENTS_API})
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
+  @Transactional(rollbackOn = Exception.class)
   public List<Document> playerDocuments(
       @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
@@ -583,6 +598,7 @@ public class DocumentApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
+  @Transactional(rollbackOn = Exception.class)
   public void downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,

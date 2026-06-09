@@ -17,6 +17,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.resource.EncodedResourceResolver;
 import org.springframework.web.servlet.resource.PathResourceResolver;
 
@@ -28,6 +29,12 @@ public class MvcConfig implements WebMvcConfigurer {
 
   @Resource private ObjectMapper objectMapper;
   @Resource private TenantInterceptor tenantInterceptor;
+  @Resource private OperationStateArgumentResolver operationStateArgumentResolver;
+
+  @Override
+  public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+    resolvers.add(operationStateArgumentResolver);
+  }
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {

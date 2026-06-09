@@ -24,6 +24,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -72,6 +73,7 @@ public class StepApi {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping("/{stepId}")
+  @Transactional(readOnly = true)
   public StepOutput findById(@PathVariable String stepId) {
     return toOutput(stepService.findStepTemplateById(stepId));
   }
@@ -80,6 +82,7 @@ public class StepApi {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Step templates retrieved")})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping(params = "workflow_id")
+  @Transactional(readOnly = true)
   public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
         .map(StepMapper::toOutput)

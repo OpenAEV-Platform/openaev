@@ -85,6 +85,7 @@ public class ExecutorApi extends RestBehavior {
           @Content(
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = ExecutorOutput.class))))
+  @Transactional(rollbackOn = Exception.class)
   public Iterable<ExecutorOutput> executors(
       @Parameter(
               name = "includeNext",
@@ -100,6 +101,7 @@ public class ExecutorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
+  @Transactional(rollbackOn = Exception.class)
   public Executor getExecutor(@PathVariable String executorId) {
     try {
       return executorService.executor(executorId);
@@ -121,6 +123,7 @@ public class ExecutorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Operation(summary = "Retrieve executor related ids")
+  @Transactional(rollbackOn = Exception.class)
   public ConnectorIds getExecutorRelatedIds(@PathVariable String executorId) {
     return executorService.getExecutorRelationsId(executorId);
   }
@@ -222,6 +225,7 @@ public class ExecutorApi extends RestBehavior {
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentExecutable(
       @Parameter(
               description =
@@ -288,6 +292,7 @@ public class ExecutorApi extends RestBehavior {
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentPackage(
       @Parameter(
               description =
@@ -369,6 +374,7 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}"
       })
   @AccessControl(skipRBAC = true)
+  @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       @Parameter(
               description =

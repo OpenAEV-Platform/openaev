@@ -18,6 +18,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -52,6 +53,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}")
+  @Transactional(readOnly = true)
   public PlatformGroupOutput findById(@PathVariable String platformGroupId) {
     return toOutput(platformGroupService.findById(platformGroupId));
   }
@@ -74,6 +76,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}/users")
+  @Transactional(readOnly = true)
   public List<String> findUsers(@PathVariable String platformGroupId) {
     return platformGroupService.findUserIds(platformGroupId);
   }
@@ -85,6 +88,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}/platform-roles")
+  @Transactional(readOnly = true)
   public Set<String> findPlatformRoles(@PathVariable String platformGroupId) {
     return platformGroupService.findRoleIds(platformGroupId);
   }

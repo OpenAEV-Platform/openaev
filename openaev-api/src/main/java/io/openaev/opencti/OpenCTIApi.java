@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,6 +46,7 @@ public class OpenCTIApi {
       resourceId = "#externalReferenceId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(readOnly = true)
   public ExerciseSimple latestExerciseByExternalReference(
       @PathVariable @NotBlank final String externalReferenceId) {
     return scenarioService.latestExerciseByExternalReference(externalReferenceId);

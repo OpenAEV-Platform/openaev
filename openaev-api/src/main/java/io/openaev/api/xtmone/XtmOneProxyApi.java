@@ -19,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,6 +56,7 @@ public class XtmOneProxyApi extends RestBehavior {
       summary = "List XTM One agents for an intent",
       description =
           "Returns the agents enabled for the given intent in the discovered XTM One catalog.")
+  @Transactional(readOnly = true)
   public ResponseEntity<List<ChatbotAgentOutput>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
     if (!config.isConfigured()) {

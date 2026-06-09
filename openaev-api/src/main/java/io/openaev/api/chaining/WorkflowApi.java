@@ -23,6 +23,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -53,6 +54,7 @@ public class WorkflowApi extends RestBehavior {
   @GetMapping("/{workflowId}/configuration")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
   @LogExecutionTime
+  @Transactional(readOnly = true)
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
@@ -72,6 +74,7 @@ public class WorkflowApi extends RestBehavior {
   @GetMapping("/{workflowId}/valid-assets")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
   @LogExecutionTime
+  @Transactional(readOnly = true)
   public List<ScopeAssetOutput> getValidAssets(@PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
     return scopeService.getValidAssets(workflowId).stream()

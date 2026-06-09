@@ -22,6 +22,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -48,6 +49,7 @@ public class DetectionRemediationApi {
   @GetMapping({DETECTION_REMEDIATION_URI + "/health", TENANT_DETECTION_REMEDIATION_URI + "/health"})
   @LogExecutionTime
   @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
   public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
     return ResponseEntity.ok(detectionRemediationService.checkHealthWebservice());
   }

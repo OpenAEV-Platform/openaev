@@ -25,6 +25,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -42,6 +43,7 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(readOnly = true)
   public ThreatArsenalActionFullOutput threatArsenal(@PathVariable String actionId) {
     return threatArsenalService.findById(actionId);
   }
@@ -117,6 +119,7 @@ public class ThreatArsenalApi {
             responseCode = "200",
             description = "The list of Collectors used in a action remediation")
       })
+  @Transactional(readOnly = true)
   public List<Collector> collectorsFromAction(@PathVariable String actionId) {
     return threatArsenalService.getCollectorsForActionRemediation(actionId);
   }

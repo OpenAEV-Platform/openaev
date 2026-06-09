@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -43,6 +44,7 @@ public class ExerciseDashboardApi {
         @ApiResponse(responseCode = "200", description = "The dashboard"),
         @ApiResponse(responseCode = "404", description = "The Simulation doesn't exist")
       })
+  @Transactional(rollbackFor = Exception.class)
   public ResponseEntity<CustomDashboard> dashboard(@PathVariable final String simulationId) {
     return ResponseEntity.ok(
         this.customDashboardService.findCustomDashboardByResourceId(simulationId));

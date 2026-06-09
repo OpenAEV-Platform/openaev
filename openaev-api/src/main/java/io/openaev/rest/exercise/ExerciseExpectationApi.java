@@ -12,6 +12,7 @@ import io.openaev.service.ExerciseExpectationService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +32,7 @@ public class ExerciseExpectationApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
   public List<InjectExpectation> exerciseInjectExpectations(
       @PathVariable @NotBlank final String exerciseId) {
     return this.exerciseExpectationService.injectExpectations(exerciseId);

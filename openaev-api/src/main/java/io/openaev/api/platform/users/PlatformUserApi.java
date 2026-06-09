@@ -17,6 +17,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -48,6 +49,7 @@ public class PlatformUserApi {
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
   @GetMapping("/{userId}")
+  @Transactional(readOnly = true)
   public UserOutput findById(@PathVariable String userId) {
     return toPlatformOutput(userService.user(userId));
   }

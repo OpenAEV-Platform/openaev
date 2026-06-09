@@ -52,6 +52,7 @@ public class AttackPatternApi extends RestBehavior {
 
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
+  @Transactional(rollbackOn = Exception.class)
   public List<RawAttackPatternIndexing> attackPatterns() {
     return attackPatternRepository.rawAll();
   }
@@ -85,6 +86,7 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
+  @Transactional(rollbackOn = Exception.class)
   public AttackPattern attackPattern(@PathVariable String attackPatternId) {
     return attackPatternService.findById(attackPatternId);
   }
@@ -107,6 +109,7 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
+  @Transactional(rollbackOn = Exception.class)
   public Iterable<InjectorContract> injectorContracts(@PathVariable String attackPatternId) {
     attackPatternRepository.findById(attackPatternId).orElseThrow(ElementNotFoundException::new);
     return injectorContractRepository.findAll(
@@ -167,6 +170,7 @@ public class AttackPatternApi extends RestBehavior {
 
   @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
+  @Transactional(rollbackOn = Exception.class)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return fromIterable(

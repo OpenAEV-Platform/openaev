@@ -13,6 +13,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,6 +47,7 @@ public class HomeApi {
       },
       produces = MediaType.TEXT_HTML_VALUE)
   @AccessControl(skipRBAC = true) // No RBAC check for home endpoint
+  @Transactional(readOnly = true)
   public ResponseEntity<String> home() {
     ClassPathResource classPathResource = new ClassPathResource("/build/index.html");
     String index = readResourceAsString(classPathResource);

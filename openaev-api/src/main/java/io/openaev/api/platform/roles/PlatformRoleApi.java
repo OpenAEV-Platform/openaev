@@ -15,6 +15,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -49,6 +50,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}")
+  @Transactional(readOnly = true)
   public PlatformRoleOutput findById(@PathVariable String platformRoleId) {
     return toOutput(platformRoleService.findById(platformRoleId));
   }
@@ -60,6 +62,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}/capabilities")
+  @Transactional(readOnly = true)
   public Set<Capability> findCapabilities(@PathVariable String platformRoleId) {
     return platformRoleService.findById(platformRoleId).getCapabilities();
   }

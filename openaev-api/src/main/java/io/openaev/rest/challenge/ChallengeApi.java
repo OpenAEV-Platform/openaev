@@ -46,6 +46,7 @@ public class ChallengeApi extends RestBehavior {
 
   @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
+  @Transactional(rollbackOn = Exception.class)
   public Iterable<Challenge> challenges() {
     return fromIterable(challengeRepository.findAll()).stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
@@ -154,6 +155,7 @@ public class ChallengeApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Challenge")
       })
+  @Transactional(rollbackOn = Exception.class)
   public List<RawDocument> documentsFromChallenge(@PathVariable String challengeId) {
     return documentService.documentsForChallenge(challengeId);
   }

@@ -61,6 +61,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
+  @Transactional(readOnly = true)
   public InjectResultOverviewOutput findAtomicTesting(@PathVariable String injectId) {
     return atomicTestingService.findById(injectId);
   }
@@ -71,6 +72,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
+  @Transactional(readOnly = true)
   public StatusPayloadOutput findAtomicTestingPayload(@PathVariable String injectId) {
     return atomicTestingService.findPayloadOutputByInjectId(injectId);
   }
@@ -139,6 +141,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
+  @Transactional(readOnly = true)
   public List<InjectExpectation> findTargetResult(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -161,6 +164,7 @@ public class AtomicTestingApi extends RestBehavior {
             responseCode = "200",
             description = "The list of the agents injects expectations")
       })
+  @Transactional(readOnly = true)
   public List<InjectExpectationAgentOutput> findTargetResultAssetWithAgents(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -192,6 +196,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
+  @Transactional(readOnly = true)
   public List<InjectExpectation> findTargetResultMerged(
       @PathVariable String injectId,
       @PathVariable String targetId,
@@ -227,6 +232,7 @@ public class AtomicTestingApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Collectors used in an atomic testing remediation")
       })
+  @Transactional(readOnly = true)
   public List<Collector> collectorsFromAtomicTesting(@PathVariable String injectId) {
     return collectorsService.collectorsForAtomicTesting(injectId);
   }

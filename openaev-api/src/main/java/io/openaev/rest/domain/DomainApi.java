@@ -34,6 +34,7 @@ public class DomainApi extends RestBehavior {
   @Operation(summary = "Search Domains")
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
+  @Transactional(rollbackOn = Exception.class)
   public List<Domain> domains() {
     return domainService.searchDomains();
   }
@@ -44,15 +45,16 @@ public class DomainApi extends RestBehavior {
       resourceId = "#domainId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOMAIN)
+  @Transactional(rollbackOn = Exception.class)
   public Domain getDomain(@PathVariable String domainId) {
     return domainService.findById(domainId);
   }
 
   @PostMapping("/{domainId}/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOMAIN)
-  @Transactional(rollbackOn = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
+  @Transactional(rollbackOn = Exception.class)
   public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
     return domainService.upsert(input);
   }
@@ -61,6 +63,7 @@ public class DomainApi extends RestBehavior {
 
   @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
+  @Transactional(rollbackOn = Exception.class)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
       @RequestParam(required = false) final String searchText) {
     return domainService.findAllAsOptionsByName(searchText);
@@ -68,6 +71,7 @@ public class DomainApi extends RestBehavior {
 
   @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
+  @Transactional(rollbackOn = Exception.class)
   public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
     return domainService.findAllAsOptionsById(ids);
   }

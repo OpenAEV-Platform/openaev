@@ -22,6 +22,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -73,6 +74,7 @@ public class ConnectorInstanceApi extends RestBehavior {
             responseCode = "200",
             description = "Successfully retrieved connector instance")
       })
+  @Transactional(readOnly = true)
   public ConnectorInstanceOutput getConnectorInstance(
       @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceService.connectorInstanceOutputById(connectorInstanceId);
@@ -93,6 +95,7 @@ public class ConnectorInstanceApi extends RestBehavior {
               array =
                   @ArraySchema(
                       schema = @Schema(implementation = ConnectorInstanceConfiguration.class))))
+  @Transactional(readOnly = true)
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfiguration(
       @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceService.getConnectorInstanceConfigurationsNoSecrets(
@@ -142,6 +145,7 @@ public class ConnectorInstanceApi extends RestBehavior {
           @Content(
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = ConnectorInstanceLog.class))))
+  @Transactional(readOnly = true)
   public List<ConnectorInstanceLog> retrieveConnectorInstanceLogs(
       @PathVariable @NotBlank final String connectorInstanceId) {
     return connectorInstanceLogService.findLogsByConnectorInstanceId(connectorInstanceId);

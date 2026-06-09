@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,6 +51,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @GetMapping("/{tenantId}")
+  @Transactional(readOnly = true)
   public TenantOutput getById(@PathVariable String tenantId) {
     return toOutput(tenantService.findById(tenantId));
   }

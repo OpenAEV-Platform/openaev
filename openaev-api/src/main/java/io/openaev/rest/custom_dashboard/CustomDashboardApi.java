@@ -22,6 +22,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -49,6 +50,7 @@ public class CustomDashboardApi extends RestBehavior {
 
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
+  @Transactional(readOnly = true)
   public ResponseEntity<List<CustomDashboardOutput>> customDashboards() {
     return ResponseEntity.ok(this.customDashboardService.customDashboards());
   }
@@ -65,6 +67,7 @@ public class CustomDashboardApi extends RestBehavior {
       resourceId = "#customDashboardId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
+  @Transactional(readOnly = true)
   public ResponseEntity<CustomDashboard> customDashboard(
       @PathVariable @NotBlank final String customDashboardId) {
     return ResponseEntity.ok(this.customDashboardService.customDashboard(customDashboardId));
@@ -101,6 +104,7 @@ public class CustomDashboardApi extends RestBehavior {
 
   @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return this.customDashboardService.findAllAsOptions(searchText);
@@ -120,6 +124,7 @@ public class CustomDashboardApi extends RestBehavior {
   @Operation(summary = "Get the dashboard used in a resource")
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "Dashboard used in the resource")})
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByResourceId(
       @PathVariable @NotBlank final String resourceId) {
     return this.customDashboardService.findAllByResourceIdAsOptions(resourceId);

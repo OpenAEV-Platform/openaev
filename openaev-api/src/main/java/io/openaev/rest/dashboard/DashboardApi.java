@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -100,6 +101,7 @@ public class DashboardApi extends RestBehavior {
 
   @GetMapping("/search/{search}")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
+  @Transactional(readOnly = true)
   public List<EsSearch> search(@PathVariable final String search) {
     return this.dashboardService.search(search);
   }

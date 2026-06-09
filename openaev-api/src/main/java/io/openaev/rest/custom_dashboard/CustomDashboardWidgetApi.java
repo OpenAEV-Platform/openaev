@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -49,6 +50,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
+  @Transactional(readOnly = true)
   public ResponseEntity<List<Widget>> widgets(@PathVariable @NotBlank final String id) {
     return ResponseEntity.ok(this.widgetService.widgets(id));
   }
@@ -58,6 +60,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
+  @Transactional(readOnly = true)
   public ResponseEntity<Widget> widget(
       @PathVariable @NotBlank final String id, @PathVariable @NotBlank final String widgetId) {
     return ResponseEntity.ok(this.widgetService.widget(id, widgetId));

@@ -53,6 +53,7 @@ public class CollectorApi extends RestBehavior {
           @Content(
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))))
+  @Transactional(rollbackOn = Exception.class)
   public Iterable<CollectorOutput> collectors(
       @Parameter(
               name = "includeNext",
@@ -88,6 +89,7 @@ public class CollectorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
+  @Transactional(rollbackOn = Exception.class)
   public Collector getCollector(@PathVariable String collectorId) {
     return collectorService.collector(collectorId);
   }
@@ -101,6 +103,7 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
+  @Transactional(rollbackOn = Exception.class)
   public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
   }

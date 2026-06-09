@@ -128,6 +128,7 @@ public class EndpointApi extends RestBehavior {
   @LogExecutionTime
   @GetMapping({ENDPOINT_URI, TENANT_ENDPOINT_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @Transactional(readOnly = true)
   public List<Endpoint> endpoints() {
     return this.endpointService.endpoints(
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints());
@@ -139,6 +140,7 @@ public class EndpointApi extends RestBehavior {
       resourceId = "#endpointId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
+  @Transactional(readOnly = true)
   public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
     return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(endpointId));
   }
@@ -204,6 +206,7 @@ public class EndpointApi extends RestBehavior {
 
   @GetMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
@@ -260,6 +263,7 @@ public class EndpointApi extends RestBehavior {
   @LogExecutionTime
   @GetMapping({ENDPOINT_URI + "/findings/options", TENANT_ENDPOINT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {

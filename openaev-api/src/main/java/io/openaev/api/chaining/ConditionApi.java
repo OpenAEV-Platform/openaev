@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -63,6 +64,7 @@ public class ConditionApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping("/{conditionId}")
+  @Transactional(readOnly = true)
   public EventOutput findById(@PathVariable String conditionId) {
     return toOutput(conditionService.findConditionRootById(conditionId));
   }
@@ -73,6 +75,7 @@ public class ConditionApi extends RestBehavior {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Condition trees retrieved")})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @GetMapping(params = "workflow_id")
+  @Transactional(readOnly = true)
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
     return conditionService.findNonMapperConditionsByWorkflowId(workflowId).stream()
         .map(ConditionMapper::toOutput)
