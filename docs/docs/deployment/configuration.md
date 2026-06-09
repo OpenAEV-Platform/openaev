@@ -189,12 +189,12 @@ reindex.
 To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
 be in charge of executing implants as detached processes. Implants will then execute threat arsenal actions.
 
-| Parameter                                    | Environment variable                         | Default value | Description                                                                         |
-|:---------------------------------------------|:---------------------------------------------|:--------------|:------------------------------------------------------------------------------------|
-| executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Simultaneous jobs execution limitation for agents, to avoid overloading the system. |
-
+| Parameter                                    | Environment variable                         | Default value | Description                                                                              |
+|:---------------------------------------------|:---------------------------------------------|:--------------|:-----------------------------------------------------------------------------------------|
+| executor.openaev.agent.max-simultaneous-jobs | EXECUTOR_OPENAEV_AGENT_MAX-SIMULTANEOUS-JOBS | 5             | Simultaneous jobs execution limitation for agents, to avoid overloading the system.      |
+| openaev.agent.queue-threshold              | OPENAEV_AGENT_QUEUE-THRESHOLD               | 0            | Max number of pending jobs per agent before marking it overloaded. 0 disables the check. |
 ##### OpenAEV Agent
-
+s
 The OpenAEV agent is enabled by default and cannot be disabled. It is available for:
 
 - Windows (`x86_64` / `arm64`)
