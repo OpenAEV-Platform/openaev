@@ -3,21 +3,17 @@ package io.openaev.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.TenantRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ManagerFactory unit tests")
 class ManagerFactoryTest {
-
-  @Mock private TenantRepository tenantRepository;
 
   private ManagerFactory managerFactory;
 
@@ -30,7 +26,7 @@ class ManagerFactoryTest {
 
   @BeforeEach
   void setUp() {
-    managerFactory = new ManagerFactory(List.of(), List.of(), tenantRepository);
+    managerFactory = new ManagerFactory(List.of(), List.of());
   }
 
   @Nested
