@@ -48,6 +48,9 @@ public interface TenantRepository
   @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NOT NULL AND t.deletedAt < :cutoffDate")
   List<Tenant> findAllExpiredSoftDeleted(@Param("cutoffDate") Instant cutoffDate);
 
+  /** Returns all active (non-soft-deleted) tenants. */
+  List<Tenant> findAllByDeletedAtIsNull();
+
   @Query("SELECT t.id FROM Tenant t WHERE t.deletedAt IS NULL")
   List<String> findAllIdsByDeletedAtIsNull();
 
