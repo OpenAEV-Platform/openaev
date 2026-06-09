@@ -92,7 +92,7 @@ class AuditLoggerDocumentTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS})
-    void given_newDocumentUpload_should_logUpdateScopeForCurrentContract() throws Exception {
+    void given_newDocumentUpload_should_logUpdateScope() throws Exception {
       // Arrange
       String fileName = "audit-create-" + UUID.randomUUID() + ".txt";
       String content = "create-content-" + UUID.randomUUID();
@@ -114,7 +114,7 @@ class AuditLoggerDocumentTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS})
-    void given_documentMetadataUpdate_should_logChangedInputField() throws Exception {
+    void given_documentMetadataUpdate_should_notLogChangedInputField() throws Exception {
       // Arrange
       String fileName = "audit-update-" + UUID.randomUUID() + ".txt";
       String oldDescription = "Initial description";
@@ -147,15 +147,15 @@ class AuditLoggerDocumentTest extends IntegrationTest {
               "\"url\" : \"http://localhost/api/documents/" + documentId + "\"",
               "\"input\" : {",
               "\"document_description\" : \"" + newDescription + "\"");
-      assertThat(newContent).doesNotContain("\"old_value\"");
-      assertThat(newContent).doesNotContain("\"new_value\"");
-      assertThat(newContent).contains("\"message\" : \"updates Document `" + documentId + "`\"");
+      assertThat(newContent)
+          .doesNotContain("\"old_value\"")
+          .doesNotContain("\"new_value\"")
+          .contains("\"message\" : \"updates Document `" + documentId + "`\"");
     }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS, Capability.DELETE_DOCUMENTS})
-    void given_documentDeletion_should_logEntityTypeAndDocumentIdInMessageForCurrentContract()
-        throws Exception {
+    void given_documentDeletion_should_logEntityTypeAndDocumentIdInMessage() throws Exception {
       // Arrange
       String fileName = "audit-delete-" + UUID.randomUUID() + ".txt";
       String uploadResponse =
@@ -179,7 +179,7 @@ class AuditLoggerDocumentTest extends IntegrationTest {
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_DOCUMENTS})
-    void given_noOpDocumentUpdate_should_stillLogUpdateEventForCurrentContract() throws Exception {
+    void given_noOpDocumentUpdate_should_stillLogUpdateEvent() throws Exception {
       // Arrange
       String fileName = "audit-noop-" + UUID.randomUUID() + ".txt";
       String description = "No-op description";
