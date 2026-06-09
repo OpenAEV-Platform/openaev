@@ -21,6 +21,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.*;
 import java.time.Instant;
@@ -49,6 +50,7 @@ public class ExecutionExecutorServiceTest {
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
 
   @InjectMocks private ExecutionExecutorService executorService;
+  @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -302,8 +304,10 @@ public class ExecutionExecutorServiceTest {
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
-      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any()))
+      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
+      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn("token");
 
       // Act
       executorService.launchExecutorContext(inject);
@@ -312,8 +316,10 @@ public class ExecutionExecutorServiceTest {
       verify(connectorInstanceConfigurationRepository)
           .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
       verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
-      verify(mockContextService).launchBatchExecutorSubprocess(eq(inject), any(), any());
-      verify(mockContextService).launchExecutorSubprocess(eq(inject), any(Endpoint.class), any());
+      verify(mockContextService)
+          .launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());
+      verify(mockContextService)
+          .launchExecutorSubprocess(eq(inject), any(Endpoint.class), any(), anyString());
     }
 
     @Test
@@ -339,8 +345,10 @@ public class ExecutionExecutorServiceTest {
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
-      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any()))
+      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenThrow(new RuntimeException("CrowdStrike API timeout"));
+      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn("token");
 
       // Act & Assert
       assertThatThrownBy(() -> executorService.launchExecutorContext(inject))
@@ -416,8 +424,12 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockCtx1);
       when(manager.requestForInstance(eq(instance2), eq(ExecutorContextService.class)))
           .thenReturn(mockCtx2);
-      when(mockCtx1.launchBatchExecutorSubprocess(any(), any(), any())).thenReturn(List.of());
-      when(mockCtx2.launchBatchExecutorSubprocess(any(), any(), any())).thenReturn(List.of());
+      when(mockCtx1.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
+          .thenReturn(List.of());
+      when(mockCtx2.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
+          .thenReturn(List.of());
+      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn("token");
 
       // Act
       executorService.launchExecutorContext(inject);
@@ -425,10 +437,12 @@ public class ExecutionExecutorServiceTest {
       // Assert
       verify(manager).requestForInstance(eq(instance1), eq(ExecutorContextService.class));
       verify(manager).requestForInstance(eq(instance2), eq(ExecutorContextService.class));
-      verify(mockCtx1).launchBatchExecutorSubprocess(eq(inject), any(), any());
-      verify(mockCtx2).launchBatchExecutorSubprocess(eq(inject), any(), any());
-      verify(mockCtx1).launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent1));
-      verify(mockCtx2).launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent2));
+      verify(mockCtx1).launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());
+      verify(mockCtx2).launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());
+      verify(mockCtx1)
+          .launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent1), anyString());
+      verify(mockCtx2)
+          .launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent2), anyString());
     }
   }
 }

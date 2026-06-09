@@ -88,6 +88,23 @@ public class ThreatArsenalApi {
     return this.threatArsenalService.searchInjectorContracts(outputMode, input);
   }
 
+  @Operation(
+      summary =
+          "Search non-tabletop threat arsenal actions (excludes email, SMS, challenges, media pressure)")
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/search/non-tabletop",
+    TENANT_THREAT_ARSENAL_URL + "/search/non-tabletop"
+  })
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  public Page<? extends InjectorContractBaseOutput> threatArsenalsNonTabletop(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    InjectorContractService.OutputMode outputMode =
+        input.isIncludeContentDetails()
+            ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
+            : InjectorContractService.OutputMode.THREAT_ARSENAL;
+    return this.threatArsenalService.searchNonTabletopInjectorContracts(outputMode, input);
+  }
+
   @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/collectors")
   @AccessControl(
       resourceId = "#actionId",

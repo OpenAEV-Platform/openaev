@@ -63,7 +63,8 @@ public class CalderaExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent)
+      @NotNull final Agent agent,
+      @NotNull final String token)
       throws AgentException {
 
     if (!this.calderaExecutorConfig.isEnable()) {
@@ -84,7 +85,8 @@ public class CalderaExecutorContextService extends ExecutorContextService {
           List.of(
               Map.of("trait", "inject", "value", inject.getId()),
               Map.of("trait", "agent", "value", agent.getId()),
-              Map.of("trait", "tenant", "value", inject.getTenant().getId()));
+              Map.of("trait", "tenant", "value", inject.getTenant().getId()),
+              Map.of("trait", "token", "value", token));
       calderaExecutorClient.exploit(
           "base64",
           agent.getExternalReference(),
@@ -94,7 +96,7 @@ public class CalderaExecutorContextService extends ExecutorContextService {
   }
 
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token) {
     return new ArrayList<>();
   }
 

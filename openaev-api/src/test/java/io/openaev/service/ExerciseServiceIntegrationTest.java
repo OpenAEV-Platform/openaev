@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -84,6 +85,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private LessonsService lessonsService;
   @Autowired private FileService fileService;
   @Autowired private PauseExerciseService pauseExerciseService;
+  @Autowired private UrlAccessTokenService urlAccessTokenService;
 
   @Autowired private WorkflowService workflowService;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
@@ -129,6 +131,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             lessonsAnswerRepository,
             lessonsCategoryRepository,
             lessonsService,
+            urlAccessTokenService,
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,

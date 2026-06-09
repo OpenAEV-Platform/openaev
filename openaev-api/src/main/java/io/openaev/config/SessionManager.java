@@ -3,15 +3,20 @@ package io.openaev.config;
 import static org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
 
 import io.openaev.database.model.User;
+import io.openaev.service.LogService;
+import io.openaev.utils.HttpReqRespUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpSessionEvent;
 import jakarta.servlet.http.HttpSessionListener;
+import java.io.Serializable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -21,7 +26,29 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
 @Configuration
 public class SessionManager {
 
+  /**
+   * Session attribute marker set by the logout handler to distinguish explicit logout from timeout.
+   */
+  public static final String EXPLICIT_LOGOUT = "EXPLICIT_LOGOUT";
+
+  /**
+   * Session attribute storing authentication context captured at login and reused at session expiry
+   * time.
+   */
+  public static final String AUTH_SESSION_CONTEXT = "AUTH_SESSION_CONTEXT";
+
   private static final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
+
+  private final LogService logService;
+
+  public SessionManager(@Lazy LogService logService) {
+    this.logService = logService;
+  }
+
+  public static void markAuthenticatedSession(HttpServletRequest request) {
+    AuthSessionContext context = AuthSessionContext.fromRequest(request);
+    request.getSession().setAttribute(AUTH_SESSION_CONTEXT, context);
+  }
 
   @Bean
   public HttpSessionListener httpSessionListener() {
@@ -33,9 +60,82 @@ public class SessionManager {
 
       @Override
       public void sessionDestroyed(HttpSessionEvent hse) {
-        sessions.remove(hse.getSession().getId());
+        HttpSession session = hse.getSession();
+        try {
+          emitSessionExpiredEvent(session);
+        } finally {
+          sessions.remove(session.getId());
+        }
       }
     };
+  }
+
+  private void emitSessionExpiredEvent(HttpSession session) {
+    // Only emit for sessions that went through real authentication.
+    Object authContextAttr;
+    try {
+      authContextAttr = session.getAttribute(AUTH_SESSION_CONTEXT);
+    } catch (IllegalStateException e) {
+      return;
+    }
+
+    if (!(authContextAttr instanceof AuthSessionContext authContext)) {
+      return;
+    }
+
+    // Do not emit if the session was explicitly invalidated via logout
+    Object logoutMarker;
+    try {
+      logoutMarker = session.getAttribute(EXPLICIT_LOGOUT);
+    } catch (IllegalStateException e) {
+      return;
+    }
+    if (Boolean.TRUE.equals(logoutMarker)) {
+      return;
+    }
+
+    // Extract user ID from the session's security context
+    String userId = null;
+    try {
+      Object ctx = session.getAttribute(SPRING_SECURITY_CONTEXT_KEY);
+      if (ctx instanceof SecurityContext secCtx) {
+        Authentication auth = secCtx.getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof OpenAEVPrincipal principal) {
+          userId = principal.getId();
+        }
+      }
+    } catch (IllegalStateException e) {
+      return;
+    }
+
+    if (userId == null || "anonymous".equals(userId)) {
+      return;
+    }
+
+    long creationTime = session.getCreationTime();
+    long lastAccessed = session.getLastAccessedTime();
+    long activeDurationSeconds = (lastAccessed - creationTime) / 1000;
+
+    logService.logSessionExpiredEvent(
+        userId,
+        session.getId(),
+        activeDurationSeconds,
+        "inactivity_timeout",
+        authContext.clientIp(),
+        authContext.userAgent());
+  }
+
+  public record AuthSessionContext(String clientIp, String userAgent) implements Serializable {
+
+    public static AuthSessionContext fromRequest(HttpServletRequest request) {
+      Map<String, String> headers = HttpReqRespUtils.extractHeaders(request);
+      String userAgent = HttpReqRespUtils.extractHeader(headers, "User-Agent");
+      String clientIp = HttpReqRespUtils.getClientIpAddressFromHeaders(headers);
+      if (clientIp == null && request != null) {
+        clientIp = request.getRemoteAddr();
+      }
+      return new AuthSessionContext(clientIp, userAgent);
+    }
   }
 
   private Optional<SecurityContext> extractSecurityContext(HttpSession httpSession) {

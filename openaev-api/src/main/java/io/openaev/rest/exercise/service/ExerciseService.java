@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
@@ -129,6 +130,7 @@ public class ExerciseService {
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
@@ -620,6 +622,7 @@ public class ExerciseService {
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
+      urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
