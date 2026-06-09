@@ -480,5 +480,4 @@ public class InjectsExecutionJob implements Job {
     }
     injectService.saveAll(fulfilled);
   }
-
 }

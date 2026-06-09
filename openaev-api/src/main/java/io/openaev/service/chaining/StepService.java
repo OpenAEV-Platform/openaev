@@ -444,6 +444,7 @@ public class StepService {
    *
    * @return list of all step templates
    */
+  @Transactional(readOnly = true)
   public List<Step> findAllStepTemplates() {
     return this.stepRepository.findAllByStepTemplateIdIsNull();
   }
