@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -54,11 +54,14 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   const location = useLocation();
   const { classes } = useStyles();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const permissionsContext: PermissionsContextType = {
-    permissions: useSimulationPermissions(exercise.exercise_id, exercise),
+  const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
+  // Stable context identities: these providers wrap the whole simulation subtree and a
+  // new value each render forces every consumer (incl. the injects list) to re-render.
+  const permissionsContext: PermissionsContextType = useMemo(() => ({
+    permissions,
     inherited_context: INHERITED_CONTEXT.SIMULATION,
-  };
-  const documentContext: DocumentContextType = {
+  }), [permissions]);
+  const documentContext: DocumentContextType = useMemo(() => ({
     onInitDocument: () => ({
       document_tags: [],
       document_scenarios: [],
@@ -69,7 +72,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
           }]
         : [],
     }),
-  };
+  }), [exercise?.exercise_id, exercise?.exercise_name]);
 
   let tabValue = location.pathname;
   if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/definition`)) {

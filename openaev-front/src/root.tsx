@@ -1,6 +1,6 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
@@ -69,6 +69,19 @@ const Root = () => {
   }, [logged, me]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
+
+  // Stable context identity: without this, every Root render produced a new object and
+  // re-rendered every useAuth() consumer in the app.
+  const userContextValue = useMemo(() => ({
+    me,
+    settings,
+    isXTMHubAccessible: isReachable,
+    userTenants,
+    currentUserTenant,
+    switchUserTenant,
+    reloadUserTenants,
+  }), [me, settings, isReachable, userTenants, currentUserTenant, switchUserTenant, reloadUserTenants]);
+
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;
   }
@@ -115,17 +128,7 @@ const Root = () => {
 
   return (
     <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
-      <UserContext.Provider
-        value={{
-          me,
-          settings,
-          isXTMHubAccessible: isReachable,
-          userTenants,
-          currentUserTenant,
-          switchUserTenant,
-          reloadUserTenants,
-        }}
-      >
+      <UserContext.Provider value={userContextValue}>
         <StyledEngineProvider injectFirst>
           <ConnectedIntlProvider>
             <ConnectedThemeProvider>

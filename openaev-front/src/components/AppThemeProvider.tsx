@@ -1,6 +1,6 @@
 import { enUS, esES, frFR, type Localization, zhCN } from '@mui/material/locale';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { type LoggedHelper } from '../actions/helper';
 import { useHelper } from '../store';
@@ -46,42 +46,46 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
     setMuiLocale(localeMap[locale as keyof typeof localeMap]);
   }, [locale]);
 
-  const dark = tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
-  let muiTheme = createTheme(
-    {
-      spacing: scaleFactor,
-      ...themeDark(
-        dark?.logo_url,
-        dark?.logo_url_collapsed,
-        dark?.background_color,
-        dark?.paper_color,
-        dark?.navigation_color,
-        dark?.primary_color,
-        dark?.secondary_color,
-        dark?.accent_color,
-      ),
-    },
-    muiLocale,
-  );
-  if (theme === 'light') {
-    const light = tenantSettings?.platform_light_theme ?? settings.platform_light_theme;
-    muiTheme = createTheme(
+  // createTheme is expensive and a new theme object invalidates the style cache of the
+  // whole subtree: only build the variant in use, and only when its inputs change.
+  const muiTheme = useMemo(() => {
+    if (theme === 'light') {
+      const light = tenantSettings?.platform_light_theme ?? settings.platform_light_theme;
+      return createTheme(
+        {
+          spacing: scaleFactor,
+          ...themeLight(
+            light?.logo_url,
+            light?.logo_url_collapsed,
+            light?.background_color,
+            light?.paper_color,
+            light?.navigation_color,
+            light?.primary_color,
+            light?.secondary_color,
+            light?.accent_color,
+          ),
+        },
+        muiLocale,
+      );
+    }
+    const dark = tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
+    return createTheme(
       {
         spacing: scaleFactor,
-        ...themeLight(
-          light?.logo_url,
-          light?.logo_url_collapsed,
-          light?.background_color,
-          light?.paper_color,
-          light?.navigation_color,
-          light?.primary_color,
-          light?.secondary_color,
-          light?.accent_color,
+        ...themeDark(
+          dark?.logo_url,
+          dark?.logo_url_collapsed,
+          dark?.background_color,
+          dark?.paper_color,
+          dark?.navigation_color,
+          dark?.primary_color,
+          dark?.secondary_color,
+          dark?.accent_color,
         ),
       },
       muiLocale,
     );
-  }
+  }, [theme, muiLocale, settings, tenantSettings]);
   return <ThemeProvider theme={muiTheme}>{children}</ThemeProvider>;
 };
 

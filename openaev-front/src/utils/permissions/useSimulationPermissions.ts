@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 
 import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
@@ -18,34 +18,38 @@ const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationD
     };
   });
 
-  if ((!fullExercise && !exercise) || !me) {
+  // Memoized: this result feeds context providers, so it must keep a stable identity
+  // when nothing permission-related changed.
+  return useMemo(() => {
+    if ((!fullExercise && !exercise) || !me) {
+      return {
+        canAccess: false,
+        canManage: false,
+        canLaunch: false,
+        canDelete: false,
+        readOnly: true,
+        isLoggedIn: Boolean(logged),
+        isRunning: false,
+      };
+    }
+
+    const canAccess = ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT);
+    const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+    const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
+    const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.DELETE, SUBJECTS.ASSESSMENT);
+    const isRunning = (exercise || fullExercise).exercise_status === 'RUNNING';
+    const readOnly = !canManage;
+
     return {
-      canAccess: false,
-      canManage: false,
-      canLaunch: false,
-      canDelete: false,
-      readOnly: true,
+      canAccess,
+      canManage,
+      canLaunch,
+      canDelete,
+      readOnly,
       isLoggedIn: Boolean(logged),
-      isRunning: false,
+      isRunning,
     };
-  }
-
-  const canAccess = ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT);
-  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
-  const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
-  const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.DELETE, SUBJECTS.ASSESSMENT);
-  const isRunning = (exercise || fullExercise).exercise_status === 'RUNNING';
-  const readOnly = !canManage;
-
-  return {
-    canAccess,
-    canManage,
-    canLaunch,
-    canDelete,
-    readOnly,
-    isLoggedIn: Boolean(logged),
-    isRunning,
-  };
+  }, [ability, exerciseId, exercise, fullExercise, me, logged]);
 };
 
 export default useSimulationPermissions;
