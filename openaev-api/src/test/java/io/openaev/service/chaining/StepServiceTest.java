@@ -1015,7 +1015,7 @@ class StepServiceTest {
     }
 
     @Test
-    void given_mixedSteps_should_findAllStepTemplates_onlyTemplateRows() {
+    void given_templateSteps_should_findAllStepTemplates_returnTemplateRowsFromRepository() {
       // Arrange
       Step templateA = new Step();
       Step templateB = new Step();

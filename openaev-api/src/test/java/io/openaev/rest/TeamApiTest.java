@@ -805,7 +805,8 @@ class TeamApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert — the tenant X team must not leak into tenant Y options
-      assertFalse(crossTenantResponse.contains(teamId));
+      List<String> crossTenantIds = JsonPath.read(crossTenantResponse, "$[*].id");
+      assertFalse(crossTenantIds.contains(teamId));
 
       // Positive control — the team is returned for its own tenant
       String sameTenantResponse =
@@ -819,7 +820,8 @@ class TeamApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      assertTrue(sameTenantResponse.contains(teamId));
+      List<String> sameTenantIds = JsonPath.read(sameTenantResponse, "$[*].id");
+      assertTrue(sameTenantIds.contains(teamId));
     }
   }
 }
