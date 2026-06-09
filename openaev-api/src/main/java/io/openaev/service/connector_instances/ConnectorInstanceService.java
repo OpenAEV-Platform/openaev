@@ -561,7 +561,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
@@ -570,7 +571,7 @@ public class ConnectorInstanceService {
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
-    configurations.add(createTenantIdConfiguration(newInstance, TenantContext.getCurrentTenant()));
+    configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
         .noneMatch(
