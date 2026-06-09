@@ -1,5 +1,6 @@
 package io.openaev.rest.inject;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
@@ -98,8 +99,8 @@ public class InjectExportTest extends IntegrationTest {
     scenarioComposer.reset();
     payloadComposer.reset();
 
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {

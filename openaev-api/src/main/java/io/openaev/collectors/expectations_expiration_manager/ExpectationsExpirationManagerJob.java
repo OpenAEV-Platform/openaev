@@ -29,7 +29,7 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
   }
 
   @Override
-  public void registerForTenant() throws Exception {
+  public void registerForTenant(String tenantId) throws Exception {
     try {
       collectorService.collector(config.getId());
     } catch (ElementNotFoundException e) {

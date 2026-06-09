@@ -75,7 +75,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
     try {
       executorService.executor(OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID);
     } catch (ElementNotFoundException e) {
