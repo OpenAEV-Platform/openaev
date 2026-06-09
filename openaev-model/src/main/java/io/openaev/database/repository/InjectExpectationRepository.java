@@ -303,6 +303,35 @@ public interface InjectExpectationRepository
       @Param("injectId") String injectId,
       @Param("agentId") String agentId);
 
+  // -- SIGNATURE PROCESSING --
+
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE injects_expectations
+          SET inject_expectation_signatures = '[]'::jsonb,
+              inject_expectation_signatures_initialized = true
+          WHERE inject_expectation_id = :id
+          """,
+      nativeQuery = true)
+  void clearSignaturesAndMarkInitialized(@Param("id") String id);
+
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE injects_expectations
+          SET inject_expectation_signatures =
+              COALESCE(inject_expectation_signatures, '[]'::jsonb) ||
+              jsonb_build_array(jsonb_build_object('type', :sigType, 'value', :sigValue)),
+              inject_expectation_signatures_initialized = true
+          WHERE inject_expectation_id = :id
+          """,
+      nativeQuery = true)
+  void appendSignature(
+      @Param("id") String id, @Param("sigType") String sigType, @Param("sigValue") String sigValue);
+
   // -- INDEXING --
 
   @Query(
