@@ -254,7 +254,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
-        deleteDummyInjectorIfItExists(TenantContext.getCurrentTenant(), input.getType(), savedInjector);
+        deleteDummyInjectorIfItExists(
+            TenantContext.getCurrentTenant(), input.getType(), savedInjector);
       }
       return new InjectorRegistration(rabbitmqService.getConnectionInfo(), queueName);
     } catch (Exception e) {
@@ -388,8 +389,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
 
     // Find existing injector or create new
-    Injector existingInjector =
-        injectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    Injector existingInjector = injectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     if (existingInjector != null) {
       updateExistingBuiltinInjector(

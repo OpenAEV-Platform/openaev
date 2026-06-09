@@ -1,6 +1,5 @@
 package io.openaev.rest;
 
-import io.openaev.context.TenantContext;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALLENGE;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
@@ -23,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -848,8 +848,10 @@ class ExpectationApiTest extends IntegrationTest {
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
       emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      challengeInjectorIntegrationFactory.registerConnectorForTenant(
+          TenantContext.getCurrentTenant());
+      openaevInjectorIntegrationFactory.registerConnectorForTenant(
+          TenantContext.getCurrentTenant());
 
       // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
       // and link it to the implant injector (same pattern as the original @BeforeAll setup)

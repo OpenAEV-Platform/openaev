@@ -227,7 +227,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return collectorRepository.save(collector);
   }
 
-
   public List<Collector> collectorsForPayload(String payloadId) {
     return collectorRepository.findByPayloadId(payloadId);
   }
