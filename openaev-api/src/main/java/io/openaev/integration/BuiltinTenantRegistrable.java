@@ -10,6 +10,6 @@ package io.openaev.integration;
  */
 public interface BuiltinTenantRegistrable {
 
-  /** Registers this built-in component in the <b>current</b> tenant context. */
-  void registerForTenant() throws Exception;
+  /** Registers this built-in component for the given tenant. */
+  void registerForTenant(String tenantId) throws Exception;
 }

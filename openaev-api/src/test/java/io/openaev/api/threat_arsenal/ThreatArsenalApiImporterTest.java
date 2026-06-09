@@ -1,5 +1,6 @@
 package io.openaev.api.threat_arsenal;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
@@ -69,7 +70,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     domainComposer.reset();
     injectorContractComposer.reset();
   }

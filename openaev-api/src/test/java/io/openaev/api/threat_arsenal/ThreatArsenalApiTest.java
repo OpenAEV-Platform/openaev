@@ -1,5 +1,6 @@
 package io.openaev.api.threat_arsenal;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.StringUtils.DUPLICATE_SUFFIX;
@@ -75,7 +76,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tagComposer.reset();

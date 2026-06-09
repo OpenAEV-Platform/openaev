@@ -13,7 +13,6 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PreviewFeatureService;
@@ -111,20 +110,17 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
-    try {
-      injectorService.injector(ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
-    } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
-          challengeContract,
-          false,
-          "capture-the-flag",
-          null,
-          null,
-          false,
-          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
-    }
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    injectorService.registerBuiltinInjector(
+        tenantId,
+        ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
+        ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
+        challengeContract,
+        false,
+        "capture-the-flag",
+        null,
+        null,
+        false,
+        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
   }
 }

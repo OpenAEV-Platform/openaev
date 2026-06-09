@@ -1,5 +1,6 @@
 package io.openaev.rest;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.fixtures.ChallengeFixture.createDefaultChallenge;
@@ -47,7 +48,7 @@ class ChallengeApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
   }
 
   // -- SCENARIOS --

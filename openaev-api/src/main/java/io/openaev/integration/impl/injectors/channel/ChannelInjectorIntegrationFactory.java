@@ -13,7 +13,6 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.PreviewFeatureService;
@@ -109,20 +108,17 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
-    try {
-      injectorService.injector(ChannelInjectorIntegration.CHANNEL_INJECTOR_ID);
-    } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
-          ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
-          ChannelInjectorIntegration.CHANNEL_INJECTOR_NAME,
-          channelContract,
-          false,
-          "media-pressure",
-          null,
-          null,
-          false,
-          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
-    }
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    injectorService.registerBuiltinInjector(
+        tenantId,
+        ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
+        ChannelInjectorIntegration.CHANNEL_INJECTOR_NAME,
+        channelContract,
+        false,
+        "media-pressure",
+        null,
+        null,
+        false,
+        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
   }
 }

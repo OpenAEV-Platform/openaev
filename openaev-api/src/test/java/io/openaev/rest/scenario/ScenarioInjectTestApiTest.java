@@ -64,7 +64,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
   @BeforeEach
   public void setup() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
     Mockito.reset(mailSender);
   }

@@ -48,7 +48,7 @@ public class InjectorFixture {
   private Injector initializeBuiltInInjector(
       BuiltinIntegrationFactory factory, String injectorType) {
     try {
-      factory.registerConnectorForTenant();
+      factory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize injector: " + injectorType, e);
     }

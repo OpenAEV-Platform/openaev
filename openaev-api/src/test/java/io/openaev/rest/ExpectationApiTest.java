@@ -1,5 +1,6 @@
 package io.openaev.rest;
 
+import io.openaev.context.TenantContext;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALLENGE;
 import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
@@ -846,9 +847,9 @@ class ExpectationApiTest extends IntegrationTest {
     @Test
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
-      challengeInjectorIntegrationFactory.registerConnectorForTenant();
-      openaevInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      challengeInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
 
       // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
       // and link it to the implant injector (same pattern as the original @BeforeAll setup)

@@ -161,7 +161,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @param injectorType to find dummy one
    */
   public void deleteDummyInjectorIfItExists(@NotBlank final String injectorType) {
-    deleteDummyInjectorIfItExists(injectorType, null);
+    deleteDummyInjectorIfItExists(TenantContext.getCurrentTenant(), injectorType, null);
   }
 
   public List<Injector> findAll() {
@@ -254,7 +254,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
-        deleteDummyInjectorIfItExists(input.getType(), savedInjector);
+        deleteDummyInjectorIfItExists(TenantContext.getCurrentTenant(), input.getType(), savedInjector);
       }
       return new InjectorRegistration(rabbitmqService.getConnectionInfo(), queueName);
     } catch (Exception e) {
@@ -363,6 +363,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    */
   @Transactional(rollbackFor = Exception.class)
   public void registerBuiltinInjector(
+      String tenantId,
       String id,
       String name,
       Contractor contractor,
@@ -388,23 +389,22 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
     // Find existing injector or create new
     Injector existingInjector =
-        injectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+        injectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     if (existingInjector != null) {
       updateExistingBuiltinInjector(
           existingInjector,
+          tenantId,
           name,
           contractor,
           isCustomizable,
           category,
-          executorCommands,
-          executorClearCommands,
           isPayloads,
-          dependencies,
           staticContracts);
     } else {
       Injector createdInjector =
           createNewBuiltinInjector(
+              tenantId,
               id,
               name,
               contractor,
@@ -417,7 +417,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
               staticContracts);
 
       // delete the dummy injector if it was created when importing the starter pack
-      deleteDummyInjectorIfItExists(contractor.getType(), createdInjector);
+      deleteDummyInjectorIfItExists(tenantId, contractor.getType(), createdInjector);
     }
 
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
@@ -434,9 +434,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   //  }
 
   private void deleteDummyInjectorIfItExists(
-      @NotBlank final String injectorType, final Injector newInjector) {
+      @NotBlank final String tenantId,
+      @NotBlank final String injectorType,
+      final Injector newInjector) {
     injectorRepository
-        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, tenantId)
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
@@ -449,8 +451,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                     });
                 injectorContractRepository.saveAll(injectorContracts);
               }
-              injectorRepository.deleteByIdAndTenantId(
-                  dummyInjector.getId(), TenantContext.getCurrentTenant());
+              injectorRepository.deleteByIdAndTenantId(dummyInjector.getId(), tenantId);
             });
   }
 
@@ -469,35 +470,42 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private void updateExistingBuiltinInjector(
       Injector injector,
+      String tenantId,
       String name,
       Contractor contractor,
       Boolean isCustomizable,
       String category,
-      Map<String, String> executorCommands,
-      Map<String, String> executorClearCommands,
       Boolean isPayloads,
-      List<ExternalServiceDependency> dependencies,
       List<Contract> staticContracts) {
 
-    // Update injector properties
-    injector.setExternal(false);
-    applyBuiltinInjectorProperties(
-        injector,
+    // Update scalar injector properties via tenant-scoped native UPDATE.
+    // Cannot use injectorRepository.save(injector) here: Injector has a single @Id
+    // (injector_id) but the DB has a composite PK (injector_id, tenant_id), so Hibernate
+    // generates UPDATE ... WHERE injector_id = ? which matches all tenants and causes
+    // BatchedTooManyRowsAffectedException.
+    injectorRepository.updateBuiltinScalarProperties(
+        injector.getId(),
+        tenantId,
         name,
-        isCustomizable,
-        contractor,
+        contractor.getType(),
         category,
-        executorCommands,
-        executorClearCommands,
-        isPayloads,
-        dependencies);
+        Boolean.TRUE.equals(isCustomizable),
+        Boolean.TRUE.equals(isPayloads));
+
+    // Filter to this tenant's contracts only — the join table is keyed only on injector_id
+    // (not on injector_id+tenant_id), so injector.getContracts() loads contracts from all
+    // tenants when multiple tenants share the same injector_id.
+    List<InjectorContract> tenantContracts =
+        injector.getContracts().stream()
+            .filter(c -> tenantId.equals(c.getCompositeId().getTenantId()))
+            .toList();
 
     // Synchronize contracts
     List<String> existingIds = new ArrayList<>();
     List<InjectorContract> toUpdate = new ArrayList<>();
     List<String> toDelete = new ArrayList<>();
 
-    for (InjectorContract contractDB : injector.getContracts()) {
+    for (InjectorContract contractDB : tenantContracts) {
       Optional<Contract> matchingContract =
           staticContracts.stream()
               .filter(contract -> contract.getId().equals(contractDB.getId()))
@@ -526,13 +534,15 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Persist changes
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDelete.toArray(new String[0]), injector.getTenant().getId());
-    // Remove deleted contracts from the owning-side collection to keep it in sync
-    injector.getContracts().removeIf(c -> toDelete.contains(c.getId()));
     toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
     injectorContractRepository.saveAll(toUpdate);
-    // Link managed instances returned by saveAll() — originals are detached after merge()
-    injector.getContracts().addAll(toCreate);
-    injectorRepository.save(injector);
+
+    // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).
+    // Cannot use injectorRepository.save(injector) to sync the join table: it would issue
+    // UPDATE injectors SET ... WHERE injector_id = ? (no tenant_id) hitting all tenants.
+    for (InjectorContract contract : toCreate) {
+      injectorRepository.linkContract(injector.getId(), contract.getId(), tenantId);
+    }
   }
 
   private boolean shouldDeleteContract(InjectorContract contractDB, Injector injector) {
@@ -540,6 +550,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   private Injector createNewBuiltinInjector(
+      String tenantId,
       String id,
       String name,
       Contractor contractor,
@@ -564,7 +575,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         isPayloads,
         dependencies);
 
-    newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newInjector.setTenant(new Tenant(tenantId));
     Injector savedInjector = injectorRepository.save(newInjector);
 
     List<InjectorContract> injectorContracts =
