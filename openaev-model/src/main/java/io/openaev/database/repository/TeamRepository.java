@@ -90,7 +90,7 @@ public interface TeamRepository
 
   @Query(
       value =
-          "SELECT DISTINCT t.team_id, t.team_name, t.team_description, t.team_created_at, t.team_updated_at, t.team_organization, t.team_contextual "
+          "SELECT DISTINCT t.team_id, t.team_name, t.team_description, t.team_created_at, t.team_updated_at, t.team_organization, t.team_contextual, t.tenant_id "
               + "FROM teams t "
               + "WHERE (EXISTS (SELECT 1 FROM injects_teams it WHERE it.team_id = t.team_id) "
               + "OR EXISTS (SELECT 1 FROM exercises_teams et WHERE et.team_id = t.team_id) "
