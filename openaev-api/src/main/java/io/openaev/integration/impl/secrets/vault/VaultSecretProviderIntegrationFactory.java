@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.secrets.vault;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
@@ -32,6 +33,7 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
   private final ConnectorInstanceService connectorInstanceService;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final ObjectMapper mapper;
 
   public VaultSecretProviderIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -42,7 +44,8 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      ObjectMapper mapper) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.enterpriseEditionService = enterpriseEditionService;
     this.licenseCacheManager = licenseCacheManager;
@@ -52,6 +55,7 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
     this.connectorInstanceService = connectorInstanceService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.fileService = fileService;
+    this.mapper = mapper;
   }
 
   @Override
@@ -94,11 +98,10 @@ public class VaultSecretProviderIntegrationFactory extends IntegrationFactory {
     return new VaultSecretProviderIntegration(
         instance,
         connectorInstanceService,
-        enterpriseEditionService,
-        licenseCacheManager,
         componentRequestEngine,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        mapper);
   }
 }
