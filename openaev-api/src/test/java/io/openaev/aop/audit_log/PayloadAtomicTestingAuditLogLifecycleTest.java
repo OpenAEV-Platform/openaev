@@ -263,6 +263,20 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
           .extracting(LogEvent::getEventScope)
           .containsExactly("create", "create", "update", "update", "status_change");
 
+      // Extra guard: verify ordering in dispatcher invocation order (not only by timestamp
+      // sorting).
+      int payloadCreateIndex = events.indexOf(payloadCreateEvent);
+      int atomicCreateIndex = events.indexOf(atomicCreateEvent);
+      int addAssetIndex = events.indexOf(addAssetEvent);
+      int removeAssetIndex = events.indexOf(removeAssetEvent);
+      int launchIndex = events.indexOf(launchEvent);
+
+      assertThat(payloadCreateIndex).isGreaterThanOrEqualTo(0);
+      assertThat(atomicCreateIndex).isGreaterThan(payloadCreateIndex);
+      assertThat(addAssetIndex).isGreaterThan(atomicCreateIndex);
+      assertThat(removeAssetIndex).isGreaterThan(addAssetIndex);
+      assertThat(launchIndex).isGreaterThan(removeAssetIndex);
+
       // Child resource events (assets) should link to the atomic testing.
       assertThat(resolveParentLink(addAssetEvent)).isEqualTo(atomicTestingId);
       assertThat(resolveParentLink(removeAssetEvent)).isEqualTo(atomicTestingId);
@@ -295,14 +309,8 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   }
 
   @SuppressWarnings("unchecked")
-  // Resolves parent linkage for child-resource assertions.
-  // Prefer explicit parent_id; fallback to output.inject_id for backward-compatible payload shapes.
+  // Resolves the atomic testing id (inject_id) from context_data.output.
   private String resolveParentLink(LogEvent event) {
-    Object parentId = contextValue(event, "parent_id");
-    if (parentId != null) {
-      return parentId.toString();
-    }
-
     Object output = contextValue(event, "output");
     if (!(output instanceof Map<?, ?> outputMap)) {
       return null;
