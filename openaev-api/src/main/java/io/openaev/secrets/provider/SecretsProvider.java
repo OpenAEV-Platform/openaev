@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.secrets.model.Credential;
+import java.io.IOException;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,7 +30,7 @@ public abstract class SecretsProvider extends BaseConnectorEntity {
 
   public abstract SecretsProviderType getProviderType();
 
-  public abstract List<Credential> getSecrets();
+  public abstract List<Credential> getSecrets() throws IOException;
 
   public void storeSecret(Credential credential) {
     throw new UnsupportedOperationException(

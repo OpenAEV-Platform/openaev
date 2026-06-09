@@ -1,17 +1,16 @@
 package io.openaev.integration.impl.secrets.vault;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
-import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.secrets.provider.impl.vault.VaultSecretProviderConfig;
 import io.openaev.secrets.provider.impl.vault.VaultSecretsProvider;
-import io.openaev.secrets.provider.impl.vault.api.VaultClient;
+import io.openaev.secrets.provider.impl.vault.client.VaultClient;
 import io.openaev.secrets.provider.impl.vault.scheduler.VaultSecretsSyncJob;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -25,6 +24,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @Slf4j
 public class VaultSecretProviderIntegration extends Integration {
 
+  private final ObjectMapper mapper;
+
   @QualifiedComponent(identifier = "secrets-provider")
   // @QualifiedComponent(identifier = "hashicorp_vault_secrets_provider")
   private VaultSecretsProvider vaultSecretsProvider;
@@ -35,37 +36,31 @@ public class VaultSecretProviderIntegration extends Integration {
 
   private VaultClient client;
   private VaultSecretProviderConfig config;
-  private final EnterpriseEditionService enterpriseEditionService;
-  private final LicenseCacheManager licenseCacheManager;
   private final ThreadPoolTaskScheduler taskScheduler;
-  private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
   public VaultSecretProviderIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
-      EnterpriseEditionService enterpriseEditionService,
-      LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory)
+      HttpClientFactory httpClientFactory,
+      ObjectMapper mapper)
       throws Exception {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
-    this.enterpriseEditionService = enterpriseEditionService;
-    this.licenseCacheManager = licenseCacheManager;
-    this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.mapper = mapper;
 
     refresh();
   }
 
   @Override
   protected void innerStart() throws Exception {
-    client = new VaultClient(httpClientFactory, config);
+    client = new VaultClient(httpClientFactory, config, mapper);
     vaultSecretsProvider = new VaultSecretsProvider(client, config);
     vaultSecretsSyncJob = new VaultSecretsSyncJob(vaultSecretsProvider);
     timers.add(
