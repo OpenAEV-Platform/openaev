@@ -16,7 +16,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @ExtendWith(MockitoExtension.class)
-public class NotificationEvenServiceTest {
+public class NotificationEventServiceTest {
 
   @Mock private ApplicationEventPublisher appPublisher;
   @Mock private ScenarioNotificationEventHandler scenarioNotificationEventHandler;
