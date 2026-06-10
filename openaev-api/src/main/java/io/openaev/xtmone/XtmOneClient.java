@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -325,9 +326,9 @@ public class XtmOneClient {
   }
 
   /**
-   * Injects a mid-run steering message into the conversation's running agent loop. Upstream
-   * status codes are propagated as {@link ResponseStatusException} — the chatbot rolls back its
-   * optimistic bubble on any non-2xx (e.g. 409 when no response is currently being generated).
+   * Injects a mid-run steering message into the conversation's running agent loop. Upstream status
+   * codes are propagated as {@link ResponseStatusException} — the chatbot rolls back its optimistic
+   * bubble on any non-2xx (e.g. 409 when no response is currently being generated).
    */
   @SuppressWarnings("unchecked")
   public Map<String, Object> steerChatMessage(String content, String conversationId) {

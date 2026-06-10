@@ -93,8 +93,8 @@ public class XtmOneChatApi extends RestBehavior {
 
   /**
    * Mid-run steering: injects a user message into the running agent loop of the conversation.
-   * Upstream status codes propagate as-is (e.g. 409 when no response is currently being
-   * generated) — the chatbot rolls back its optimistic bubble on any non-2xx.
+   * Upstream status codes propagate as-is (e.g. 409 when no response is currently being generated)
+   * — the chatbot rolls back its optimistic bubble on any non-2xx.
    */
   @PostMapping(XTM_ONE_URI + "/chat/messages/steer")
   public ResponseEntity<Map<String, Object>> steerMessage(@RequestBody Map<String, Object> body) {
