@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
+import io.openaev.context.TenantContext;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -99,8 +100,8 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // Arrange
       // Register built-in injector under the active mock user context for deterministic tenant
       // scope.
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
-      openaevInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
 
       // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
