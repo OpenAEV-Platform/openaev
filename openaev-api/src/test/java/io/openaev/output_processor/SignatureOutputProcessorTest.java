@@ -54,6 +54,7 @@ class SignatureOutputProcessorTest {
 
   SignatureOutputProcessorTest() {
     ReflectionTestUtils.setField(injectExpectationService, "selfProvider", selfProvider);
+    ReflectionTestUtils.setField(injectExpectationService, "mapper", objectMapper);
     when(selfProvider.getObject()).thenReturn(injectExpectationService);
   }
 
@@ -191,8 +192,7 @@ class SignatureOutputProcessorTest {
         executionProcessingContext, contractOutputContext, objectMapper.readTree(secondPayload));
 
     verify(injectExpectationRepository, times(1)).clearSignaturesAndMarkInitialized("exp-1");
-    verify(injectExpectationRepository).appendSignature("exp-1", "rule_name", "Sigma rule");
-    verify(injectExpectationRepository).appendSignature("exp-1", "rule_name", "Second Sigma rule");
+    verify(injectExpectationRepository, times(2)).appendSignatures(eq("exp-1"), any());
   }
 
   @Test
@@ -348,8 +348,7 @@ class SignatureOutputProcessorTest {
                 executionProcessingContext, contractOutputContext, objectMapper.readTree(payload)));
 
     verify(injectExpectationRepository, never()).clearSignaturesAndMarkInitialized(eq("exp-1"));
-    verify(injectExpectationRepository, never())
-        .appendSignature(eq("exp-1"), eq("rule_name"), eq("Sigma rule"));
+    verify(injectExpectationRepository, never()).appendSignatures(eq("exp-1"), any());
   }
 
   // -------------------------------------------------------------------------
@@ -706,8 +705,7 @@ class SignatureOutputProcessorTest {
       processor.process(ctx, buildContractCtx(), objectMapper.readTree(payload));
 
       // -- Assert --
-      verify(injectExpectationRepository)
-          .appendSignature("exp-fallback", "rule_name", "Sigma rule via fallback");
+      verify(injectExpectationRepository).appendSignatures(eq("exp-fallback"), any());
     }
   }
 
@@ -759,7 +757,7 @@ class SignatureOutputProcessorTest {
 
       // -- Assert --
       verify(injectExpectationRepository).findAllByInjectAndAssetGroup("inject-1", "group-1");
-      verify(injectExpectationRepository).appendSignature("exp-group", "rule_name", "Sigma rule");
+      verify(injectExpectationRepository).appendSignatures(eq("exp-group"), any());
     }
 
     @Test

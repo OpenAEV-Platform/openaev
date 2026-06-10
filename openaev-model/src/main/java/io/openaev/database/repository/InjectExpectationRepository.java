@@ -309,10 +309,13 @@ public interface InjectExpectationRepository
   @Query(
       value =
           """
-          UPDATE injects_expectations
+          UPDATE injects_expectations ie
           SET inject_expectation_signatures = '[]'::jsonb,
               inject_expectation_signatures_initialized = true
-          WHERE inject_expectation_id = :id
+          FROM injects i
+          WHERE ie.inject_expectation_id = :id
+            AND i.inject_id = ie.inject_id
+            AND i.tenant_id = :#{#tenantContext.currentTenant}
           """,
       nativeQuery = true)
   void clearSignaturesAndMarkInitialized(@Param("id") String id);
@@ -321,16 +324,17 @@ public interface InjectExpectationRepository
   @Query(
       value =
           """
-          UPDATE injects_expectations
+          UPDATE injects_expectations ie
           SET inject_expectation_signatures =
-              COALESCE(inject_expectation_signatures, '[]'::jsonb) ||
-              jsonb_build_array(jsonb_build_object('type', :sigType, 'value', :sigValue)),
+              COALESCE(ie.inject_expectation_signatures, '[]'::jsonb) || CAST(:signaturesJson AS jsonb),
               inject_expectation_signatures_initialized = true
-          WHERE inject_expectation_id = :id
+          FROM injects i
+          WHERE ie.inject_expectation_id = :id
+            AND i.inject_id = ie.inject_id
+            AND i.tenant_id = :#{#tenantContext.currentTenant}
           """,
       nativeQuery = true)
-  void appendSignature(
-      @Param("id") String id, @Param("sigType") String sigType, @Param("sigValue") String sigValue);
+  void appendSignatures(@Param("id") String id, @Param("signaturesJson") String signaturesJson);
 
   // -- INDEXING --
 

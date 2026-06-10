@@ -65,6 +65,7 @@ class InjectExpectationServiceTest {
     agent = AgentFixture.createDefaultAgentService();
     inject = InjectFixture.getDefaultInject();
     inject.setExpectations(List.of(createVulnerabilityInjectExpectation(inject, agent)));
+    injectExpectationService.mapper = mapper;
   }
 
   private void mockExpectation(InjectExpectation expectation) {
@@ -820,6 +821,58 @@ class InjectExpectationServiceTest {
                   signatures));
 
       verifyNoInteractions(injectExpectationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("applySignaturesForExpectationWithLock()")
+  class ApplySignaturesForExpectationWithLockTests {
+
+    @Test
+    @DisplayName("Appends all valid signatures in a single repository update")
+    void shouldAppendAllValidSignaturesInSingleRepositoryUpdate() {
+      InjectExpectation expectation = new InjectExpectation();
+      expectation.setId("expectation-id");
+      expectation.setSignaturesInitialized(false);
+      when(injectExpectationRepository.findById("expectation-id")).thenReturn(Optional.of(expectation));
+
+      List<InjectExpectationSignature> signatures =
+          Arrays.asList(
+              new InjectExpectationSignature("sig-type-1", "sig-value-1"),
+              null,
+              new InjectExpectationSignature(null, "ignored"),
+              new InjectExpectationSignature("sig-type-2", "sig-value-2"));
+
+      injectExpectationService.applySignaturesForExpectationWithLock("expectation-id", signatures);
+
+      verify(injectExpectationRepository, times(1)).clearSignaturesAndMarkInitialized("expectation-id");
+      ArgumentCaptor<String> signaturesJsonCaptor = ArgumentCaptor.forClass(String.class);
+      verify(injectExpectationRepository, times(1))
+          .appendSignatures(eq("expectation-id"), signaturesJsonCaptor.capture());
+
+      String payload = signaturesJsonCaptor.getValue();
+      assertTrue(payload.contains("sig-type-1"));
+      assertTrue(payload.contains("sig-value-1"));
+      assertTrue(payload.contains("sig-type-2"));
+      assertTrue(payload.contains("sig-value-2"));
+      assertTrue(!payload.contains("ignored"));
+    }
+
+    @Test
+    @DisplayName("Skips append update when no valid signature remains after filtering")
+    void shouldSkipAppendUpdateWhenNoValidSignatureRemainsAfterFiltering() {
+      InjectExpectation expectation = new InjectExpectation();
+      expectation.setId("expectation-id");
+      expectation.setSignaturesInitialized(true);
+      when(injectExpectationRepository.findById("expectation-id")).thenReturn(Optional.of(expectation));
+
+      List<InjectExpectationSignature> signatures =
+          List.of(new InjectExpectationSignature(null, "value"), new InjectExpectationSignature("type", null));
+
+      injectExpectationService.applySignaturesForExpectationWithLock("expectation-id", signatures);
+
+      verify(injectExpectationRepository, never()).clearSignaturesAndMarkInitialized(any());
+      verify(injectExpectationRepository, never()).appendSignatures(any(), any());
     }
   }
 }

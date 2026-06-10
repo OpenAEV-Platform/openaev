@@ -1036,13 +1036,21 @@ public class InjectExpectationService {
       injectExpectationRepository.clearSignaturesAndMarkInitialized(expectation.getId());
     }
 
-    signatures.stream()
-        .filter(Objects::nonNull)
-        .filter(signature -> signature.getType() != null && signature.getValue() != null)
-        .forEach(
-            signature ->
-                injectExpectationRepository.appendSignature(
-                    expectation.getId(), signature.getType(), signature.getValue()));
+    List<InjectExpectationSignature> validSignatures =
+        signatures.stream()
+            .filter(Objects::nonNull)
+            .filter(signature -> signature.getType() != null && signature.getValue() != null)
+            .toList();
+    if (validSignatures.isEmpty()) {
+      return;
+    }
+
+    try {
+      String signaturesJson = mapper.writeValueAsString(validSignatures);
+      injectExpectationRepository.appendSignatures(expectation.getId(), signaturesJson);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize expectation signatures", e);
+    }
   }
 
   private List<InjectExpectation> findTechnicalExpectationsForTarget(
