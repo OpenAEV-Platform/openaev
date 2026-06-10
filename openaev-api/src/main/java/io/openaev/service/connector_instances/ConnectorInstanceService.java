@@ -3,6 +3,8 @@ package io.openaev.service.connector_instances;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TENANT_ID;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -534,7 +536,10 @@ public class ConnectorInstanceService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
     return createConfiguration(
-        "OPENAEV_TOKEN", objectMapper.getNodeFactory().textNode(token.getValue()), false, instance);
+        OPENAEV_KEY_TOKEN,
+        objectMapper.getNodeFactory().textNode(token.getValue()),
+        false,
+        instance);
   }
 
   private ConnectorInstanceConfiguration createContainerIdConfiguration(
@@ -549,7 +554,7 @@ public class ConnectorInstanceService {
   private ConnectorInstanceConfiguration createTenantIdConfiguration(
       ConnectorInstancePersisted instance, String tenantId) {
     return createConfiguration(
-        "OPENAEV_TENANT_ID", objectMapper.getNodeFactory().textNode(tenantId), false, instance);
+        OPENAEV_KEY_TENANT_ID, objectMapper.getNodeFactory().textNode(tenantId), false, instance);
   }
 
   /**
