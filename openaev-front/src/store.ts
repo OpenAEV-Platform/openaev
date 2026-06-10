@@ -58,8 +58,12 @@ const getJS = (selectorValue: any) => {
   return result;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type UseHelperCache = { state: any, selector: any, result: any };
+type UseHelperCache = {
+  state: unknown;
+  selector: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: any;
+};
 
 // TODO type selector object
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
