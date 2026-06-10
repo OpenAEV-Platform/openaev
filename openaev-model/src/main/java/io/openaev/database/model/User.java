@@ -266,6 +266,8 @@ public class User implements Base {
   @Transient
   private final ResourceType resourceType = ResourceType.USER;
 
+
+
   @Setter
   @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
   @JsonIgnore
@@ -335,7 +337,7 @@ public class User implements Base {
     return !isAdmin() && !isManager();
   }
 
-  @JsonProperty("user_is_admin_or_bypass")
+  @JsonIgnore
   @Schema(description = "True if the user is admin or has bypass capa")
   public boolean isAdminOrBypass(String tenantId) {
     return isAdmin() || getCapabilities(tenantId).contains(Capability.BYPASS);
@@ -383,7 +385,7 @@ public class User implements Base {
         .toList();
   }
 
-  @JsonProperty("user_capabilities")
+  @JsonIgnore
   @Enumerated(EnumType.STRING)
   public Set<Capability> getCapabilities(String tenantId) {
     Set<Capability> capabilities = new HashSet<>();
@@ -404,7 +406,7 @@ public class User implements Base {
     return capabilities;
   }
 
-  @JsonProperty("user_grants")
+  @JsonIgnore
   public Map<String, String> getGrants(String tenantId) {
     return scopedGroups(tenantId).stream()
         .flatMap(group -> group.getGrants().stream())

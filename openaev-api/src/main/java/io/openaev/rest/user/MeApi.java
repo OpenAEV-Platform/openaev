@@ -6,6 +6,7 @@ import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
@@ -17,6 +18,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.me.MeOutput;
 import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
@@ -62,10 +64,12 @@ public class MeApi extends RestBehavior {
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({ME_URI, TENANT_ME_URI})
   @AccessControl(skipRBAC = true)
-  public User me() {
-    return userRepository
-        .findById(currentUser().getId())
-        .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+  public MeOutput me(TxCtx ctx) {
+    User user =
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return MeOutput.from(user, ctx.tenantIdFromUri());
   }
 
   @Transactional(rollbackOn = Exception.class)
