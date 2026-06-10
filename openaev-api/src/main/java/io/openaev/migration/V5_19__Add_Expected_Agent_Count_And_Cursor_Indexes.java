@@ -47,6 +47,13 @@ public class V5_19__Add_Expected_Agent_Count_And_Cursor_Indexes extends BaseJava
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_execution_traces_created_at_brin "
               + "ON execution_traces USING brin (execution_created_at)");
+
+      // 4. Collector-polled "not filled" expectation queries
+      // (InjectExpectationRepository.find*ExpectationsNotFilled*): filter on type, order by
+      // creation date, LIMIT. The composite index serves both the filter and the sort.
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_injects_expectations_type_created_at "
+              + "ON injects_expectations (inject_expectation_type, inject_expectation_created_at)");
     }
   }
 }
