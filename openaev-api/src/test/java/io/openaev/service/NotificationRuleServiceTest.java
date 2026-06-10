@@ -73,7 +73,8 @@ public class NotificationRuleServiceTest {
     when(notificationRuleRepository.findNotificationRuleByResourceAndTrigger(
             rule.getResourceId(), rule.getTrigger()))
         .thenReturn(List.of(rule));
-    // Use doReturn() to stub unwrap() without invoking it during stubbing (safe if this ever becomes a spy).
+    // Use doReturn() to stub unwrap() without invoking it during stubbing (safe if this ever
+    // becomes a spy).
     doReturn(session).when(entityManager).unwrap(Session.class);
     when(tenantSettingsService.resolveSettingValue(eq("tenant-id"), any(TenantSettingKeys.class)))
         .thenReturn("dark");
