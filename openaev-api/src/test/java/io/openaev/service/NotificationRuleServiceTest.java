@@ -12,6 +12,7 @@ import io.openaev.database.model.NotificationRuleType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import jakarta.persistence.EntityManager;
 import java.util.HashMap;
@@ -42,6 +43,10 @@ public class NotificationRuleServiceTest {
   @Mock private Session session;
   @Mock private NotificationRuleRepository notificationRuleRepository;
 
+  @Mock private UserService userService;
+
+  @Mock private ScenarioService scenarioService;
+
   @Mock private EmailNotificationService emailNotificationService;
 
   @Mock private TenantSettingsService tenantSettingsService;
@@ -56,8 +61,8 @@ public class NotificationRuleServiceTest {
         new NotificationRuleService(
             entityManager,
             notificationRuleRepository,
-            null,
-            null,
+            userService,
+            scenarioService,
             emailNotificationService,
             platformSettingsService,
             tenantSettingsService);
