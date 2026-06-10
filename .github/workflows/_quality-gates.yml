@@ -298,7 +298,7 @@ jobs:
       # ── Upload to Codecov ──────────────────────────────────────────
       - name: Upload backend coverage to Codecov
         if: ${{ inputs.upload-codecov && steps.check.outputs.has_backend == 'true' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: openaev-api/target/site/jacoco/jacoco.xml
@@ -308,7 +308,7 @@ jobs:
 
       - name: Upload frontend coverage to Codecov
         if: ${{ inputs.upload-codecov && steps.check.outputs.has_frontend == 'true' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/frontend/lcov.info
@@ -318,7 +318,7 @@ jobs:
 
       - name: Upload E2E coverage to Codecov
         if: ${{ inputs.upload-codecov && steps.check.outputs.has_e2e == 'true' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/e2e/lcov.info
