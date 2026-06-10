@@ -121,8 +121,10 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
                 new InjectExpectationSignature(
                     readText(valueNode, SIGNATURE_TYPE, "type"),
                     readText(valueNode, SIGNATURE_VALUE, "value")))
-        .filter(signature -> StringUtils.hasText(signature.getType()))
-        .filter(signature -> StringUtils.hasText(signature.getValue()))
+        .filter(
+            signature ->
+                StringUtils.hasText(signature.getType())
+                    && StringUtils.hasText(signature.getValue()))
         .toList();
   }
 

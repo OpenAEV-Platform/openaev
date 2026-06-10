@@ -40,6 +40,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
