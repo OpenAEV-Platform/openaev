@@ -1,6 +1,7 @@
 import { composeWithDevTools } from '@redux-devtools/extension';
 import { fromJS, isImmutable } from 'immutable';
 import * as R from 'ramda';
+import { useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { applyMiddleware, createStore } from 'redux';
 import { thunk } from 'redux-thunk';
@@ -57,12 +58,32 @@ const getJS = (selectorValue: any) => {
   return result;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UseHelperCache = { state: any, result: any };
+
 // TODO type selector object
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useHelper = (selector: any) => {
+  // Memoization keyed on the Immutable store identity: selectors run on every dispatch for every
+  // subscriber, and getJS (Immutable.toJS) is expensive. When the state reference is unchanged we
+  // return the cached value; when it changed but the converted output is deep-equal we keep the
+  // previous identity so useSelector's reference equality can skip the re-render.
+  const cacheRef = useRef<UseHelperCache | null>(null);
   return useSelector(
-    state => getJS(selector(storeHelper(state))),
-    R.equals, // deep-equality to avoid re-renders when structurally equal
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (state: any) => {
+      const cache = cacheRef.current;
+      if (cache && cache.state === state) {
+        return cache.result;
+      }
+      const computed = getJS(selector(storeHelper(state)));
+      const result = cache && R.equals(computed, cache.result) ? cache.result : computed;
+      cacheRef.current = {
+        state,
+        result,
+      };
+      return result;
+    },
   );
 };
 

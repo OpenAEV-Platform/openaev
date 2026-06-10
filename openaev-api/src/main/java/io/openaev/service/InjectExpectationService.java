@@ -26,7 +26,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
-import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -57,6 +56,13 @@ public class InjectExpectationService {
   public static final String SUCCESS = "Success";
   public static final String PENDING = "Pending";
   public static final String COLLECTOR = "collector";
+
+  /**
+   * Upper bound for the collector-polled "not filled" queries. Collectors poll periodically (oldest
+   * first), so anything beyond the bound is returned on a subsequent poll.
+   */
+  private static final int NOT_FILLED_FETCH_LIMIT = 10_000;
+
   private final InjectExpectationRepository injectExpectationRepository;
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
@@ -396,8 +402,11 @@ public class InjectExpectationService {
 
     List<InjectExpectation> injectExpectations =
         fromIterable(this.injectExpectationRepository.findAllById(inputs.keySet()));
-    Map<String, InjectExpectation> expectationsToUpdate =
-        injectExpectations.stream().collect(Collectors.toMap(InjectExpectation::getId, e -> e));
+    Set<String> foundIds =
+        injectExpectations.stream().map(InjectExpectation::getId).collect(Collectors.toSet());
+    inputs.keySet().stream()
+        .filter(id -> !foundIds.contains(id))
+        .forEach(id -> log.error("Inject expectation not found for ID: {}", id));
 
     Collector collector =
         this.collectorService.collector(
@@ -406,18 +415,7 @@ public class InjectExpectationService {
                 .orElseThrow(ElementNotFoundException::new)
                 .getCollectorId());
 
-    // Update inject expectation at agent level
-    for (Map.Entry<String, InjectExpectationUpdateInput> entry : inputs.entrySet()) {
-      String injectExpectationId = entry.getKey();
-      InjectExpectationUpdateInput input = entry.getValue();
-
-      InjectExpectation injectExpectation = expectationsToUpdate.get(injectExpectationId);
-      if (injectExpectation == null) {
-        log.error("Inject expectation not found for ID: {}", injectExpectationId);
-        continue;
-      }
-      computeTechnicalExpectation(injectExpectation, collector, input, false);
-    }
+    bulkComputeTechnicalExpectations(injectExpectations, inputs, collector, false);
   }
 
   /**
@@ -443,6 +441,99 @@ public class InjectExpectationService {
         shouldPropagateLastInjectExpectationResult
             ? score -> updated.getResults().getLast()
             : null);
+  }
+
+  /**
+   * Batched variant of {@link #computeTechnicalExpectation}: applies all agent-level updates and
+   * saves them in a single batch, then runs the parent propagation once per distinct (inject, type,
+   * asset) and (inject, type, asset group) tuple instead of once per item, and creates the security
+   * coverage job once per distinct simulation.
+   *
+   * <p>When {@code shouldPropagateLastInjectExpectationResult} is true, the result copied to a
+   * completed parent is the one of the group's representative expectation (all items of a group
+   * carry equivalent results in this code path, e.g. expiration results).
+   *
+   * @param expectations the agent-level expectations to update
+   * @param inputsById the update inputs keyed by expectation ID
+   * @param collector the collector submitting the results
+   * @param shouldPropagateLastInjectExpectationResult whether to copy the triggering result to
+   *     parents when their score completes
+   */
+  public void bulkComputeTechnicalExpectations(
+      @NotNull final List<InjectExpectation> expectations,
+      @NotNull final Map<String, InjectExpectationUpdateInput> inputsById,
+      @NotNull final Collector collector,
+      final boolean shouldPropagateLastInjectExpectationResult) {
+    // 1) Agent-level updates, one batched save
+    List<InjectExpectation> updatedExpectations = new ArrayList<>(expectations.size());
+    for (InjectExpectation expectation : expectations) {
+      InjectExpectationUpdateInput input = inputsById.get(expectation.getId());
+      if (input == null) {
+        continue;
+      }
+      updatedExpectations.add(
+          computeInjectExpectationForAgentOrAssetAgentless(expectation, input, collector));
+    }
+    if (updatedExpectations.isEmpty()) {
+      return;
+    }
+    List<InjectExpectation> saved =
+        fromIterable(this.injectExpectationRepository.saveAll(updatedExpectations));
+
+    // 2) Propagation deduplicated per parent: recomputing an asset (or asset group) score reads
+    // all its children, so one pass per distinct parent is equivalent to one pass per item
+    Map<String, InjectExpectation> assetPropagations = new LinkedHashMap<>();
+    Map<String, InjectExpectation> assetGroupPropagations = new LinkedHashMap<>();
+    for (InjectExpectation updated : saved) {
+      if (updated.getAsset() != null) {
+        assetPropagations.putIfAbsent(
+            updated.getInject().getId()
+                + "|"
+                + updated.getType()
+                + "|"
+                + updated.getAsset().getId(),
+            updated);
+      }
+      if (updated.getAssetGroup() != null) {
+        assetGroupPropagations.putIfAbsent(
+            updated.getInject().getId()
+                + "|"
+                + updated.getType()
+                + "|"
+                + updated.getAssetGroup().getId(),
+            updated);
+      }
+    }
+    List<InjectExpectation> parents = new ArrayList<>();
+    // Asset scores first: asset group propagation reads the recomputed asset expectations
+    for (InjectExpectation reference : assetPropagations.values()) {
+      parents.addAll(
+          propagateToAsset(
+              reference,
+              shouldPropagateLastInjectExpectationResult
+                  ? score -> reference.getResults().getLast()
+                  : null));
+    }
+    for (InjectExpectation reference : assetGroupPropagations.values()) {
+      parents.addAll(
+          propagateToAssetGroup(
+              reference,
+              shouldPropagateLastInjectExpectationResult
+                  ? score -> reference.getResults().getLast()
+                  : null));
+    }
+    this.injectExpectationRepository.saveAll(parents);
+
+    // 3) Security coverage job once per distinct simulation
+    List<Exercise> exercises =
+        saved.stream()
+            .map(expectation -> expectation.getInject().getExercise())
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    if (!exercises.isEmpty()) {
+      securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
+    }
   }
 
   // -- COMPUTE RESULTS FROM INJECT EXPECTATIONS --
@@ -516,17 +607,8 @@ public class InjectExpectationService {
 
     Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
 
-    return injectExpectationRepository
-        .findAll(
-            Specification.where(
-                InjectExpectationSpecification.type(type)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(InjectExpectationSpecification.from(expirationThreshold))))
-        .stream()
-        .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> hasNoResult(e.getResults(), sourceId))
-        .toList();
+    return injectExpectationRepository.findAgentExpectationsNotFilledForSourceCreatedAfter(
+        type.name(), sourceId, expirationThreshold, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -541,17 +623,8 @@ public class InjectExpectationService {
 
     Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
 
-    return injectExpectationRepository
-        .findAll(
-            Specification.where(
-                InjectExpectationSpecification.type(type)
-                    .and(InjectExpectationSpecification.agentNotNull())
-                    .and(InjectExpectationSpecification.assetNotNull())
-                    .and(InjectExpectationSpecification.from(expirationThreshold))))
-        .stream()
-        .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> hasNoResults(e.getResults()))
-        .toList();
+    return injectExpectationRepository.findAgentExpectationsNotFilledCreatedAfter(
+        type.name(), expirationThreshold, NOT_FILLED_FETCH_LIMIT);
   }
 
   // -- PREVENTION --
@@ -581,14 +654,8 @@ public class InjectExpectationService {
    * @return a list of prevention expectations without results from the source
    */
   public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String sourceId) {
-    return this.injectExpectationRepository
-        .findAll(
-            Specification.<InjectExpectation>unrestricted()
-                .and(InjectExpectationSpecification.type(PREVENTION)))
-        .stream()
-        .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> hasNoResult(e.getResults(), sourceId))
-        .toList();
+    return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
+        PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -597,14 +664,8 @@ public class InjectExpectationService {
    * @return a list of prevention expectations without results
    */
   public List<InjectExpectation> preventionExpectationsNotFill() {
-    return this.injectExpectationRepository
-        .findAll(
-            Specification.<InjectExpectation>unrestricted()
-                .and(InjectExpectationSpecification.type(PREVENTION)))
-        .stream()
-        .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> hasNoResults(e.getResults()))
-        .toList();
+    return this.injectExpectationRepository.findAgentExpectationsNotFilled(
+        PREVENTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -657,14 +718,8 @@ public class InjectExpectationService {
    * @return a list of detection expectations without results from the source
    */
   public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String sourceId) {
-    return this.injectExpectationRepository
-        .findAll(
-            Specification.<InjectExpectation>unrestricted()
-                .and(InjectExpectationSpecification.type(DETECTION)))
-        .stream()
-        .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> hasNoResult(e.getResults(), sourceId))
-        .toList();
+    return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
+        DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -673,14 +728,8 @@ public class InjectExpectationService {
    * @return a list of detection expectations without results
    */
   public List<InjectExpectation> detectionExpectationsNotFill() {
-    return this.injectExpectationRepository
-        .findAll(
-            Specification.<InjectExpectation>unrestricted()
-                .and(InjectExpectationSpecification.type(DETECTION)))
-        .stream()
-        .filter(ExpectationUtils::isAgentExpectation)
-        .filter(e -> hasNoResults(e.getResults()))
-        .toList();
+    return this.injectExpectationRepository.findAgentExpectationsNotFilled(
+        DETECTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -734,13 +783,8 @@ public class InjectExpectationService {
    * @return a list of manual expectations without results from the source
    */
   public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String sourceId) {
-    return this.injectExpectationRepository
-        .findAll(
-            Specification.<InjectExpectation>unrestricted()
-                .and(InjectExpectationSpecification.type(MANUAL)))
-        .stream()
-        .filter(e -> hasNoResult(e.getResults(), sourceId))
-        .toList();
+    return this.injectExpectationRepository.findExpectationsNotFilledForSource(
+        MANUAL.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -749,13 +793,8 @@ public class InjectExpectationService {
    * @return a list of manual expectations without results
    */
   public List<InjectExpectation> manualExpectationsNotFill() {
-    return this.injectExpectationRepository
-        .findAll(
-            Specification.<InjectExpectation>unrestricted()
-                .and(InjectExpectationSpecification.type(MANUAL)))
-        .stream()
-        .filter(e -> hasNoResults(e.getResults()))
-        .toList();
+    return this.injectExpectationRepository.findExpectationsNotFilled(
+        MANUAL.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**

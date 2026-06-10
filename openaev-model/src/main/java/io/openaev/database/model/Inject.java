@@ -149,6 +149,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       mappedBy = "compositeId.injectChildren",
       fetch = FetchType.EAGER,
       cascade = {CascadeType.MERGE, CascadeType.PERSIST})
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_depends_on")
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<InjectDependency> dependsOn = new ArrayList<>();
@@ -248,6 +249,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       name = "injects_teams",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "team_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_teams")
@@ -267,6 +269,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       name = "injects_assets",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_assets")
@@ -286,6 +289,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       name = "injects_asset_groups",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_group_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_asset_groups")
@@ -306,6 +310,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_documents")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -319,6 +324,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_communications")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
@@ -332,6 +338,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)

@@ -1,28 +1,38 @@
 import { de, enUS, es, fr, it, ja, ko, ru, zhCN } from 'date-fns/locale';
 
-import deOpenAEV from './lang/de.json';
 import enOpenAEV from './lang/en.json';
-import esOpenAEV from './lang/es.json';
-import frOpenAEV from './lang/fr.json';
-import itOpenAEV from './lang/it.json';
-import jaOpenAEV from './lang/ja.json';
-import koOpenAEV from './lang/ko.json';
-import ruOpenAEV from './lang/ru.json';
-import zhOpenAEV from './lang/zh.json';
 
 export type LanguageCode = 'de' | 'en' | 'es' | 'fr' | 'it' | 'ja' | 'ko' | 'ru' | 'zh';
 
-// OAEV Supported Local Language
-export const oaevLocaleMap: Record<LanguageCode, Record<string, string>> = {
-  de: deOpenAEV,
-  en: enOpenAEV,
-  es: esOpenAEV,
-  fr: frOpenAEV,
-  it: itOpenAEV,
-  ja: jaOpenAEV,
-  ko: koOpenAEV,
-  ru: ruOpenAEV,
-  zh: zhOpenAEV,
+// OAEV translation catalogs. Only the default locale (en) is bundled eagerly; the other locales
+// are code-split and loaded on demand via loadLocaleMessages, then cached in this map so
+// synchronous consumers (utils/Action.ts) can read the active catalog.
+export const oaevLocaleMap: Partial<Record<LanguageCode, Record<string, string>>> & { en: Record<string, string> } = { en: enOpenAEV };
+
+const localeLoaders: Record<LanguageCode, () => Promise<{ default: Record<string, string> }>> = {
+  de: () => import('./lang/de.json'),
+  en: () => Promise.resolve({ default: enOpenAEV }),
+  es: () => import('./lang/es.json'),
+  fr: () => import('./lang/fr.json'),
+  it: () => import('./lang/it.json'),
+  ja: () => import('./lang/ja.json'),
+  ko: () => import('./lang/ko.json'),
+  ru: () => import('./lang/ru.json'),
+  zh: () => import('./lang/zh.json'),
+};
+
+export const loadLocaleMessages = async (lang: LanguageCode): Promise<Record<string, string>> => {
+  const cached = oaevLocaleMap[lang];
+  if (cached) {
+    return cached;
+  }
+  const loader = localeLoaders[lang];
+  if (!loader) {
+    return oaevLocaleMap.en;
+  }
+  const messages = (await loader()).default;
+  oaevLocaleMap[lang] = messages;
+  return messages;
 };
 
 // Date-fns locale map

@@ -1,10 +1,10 @@
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
-import Chart from 'react-apexcharts';
 
 import { type OrganizationHelper, type UserHelper } from '../../../../../actions/helper';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
+import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';

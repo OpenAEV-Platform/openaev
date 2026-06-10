@@ -1,4 +1,5 @@
 ﻿import { Chip, Tooltip } from '@mui/material';
+import { isImmutable } from 'immutable';
 import * as PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -48,12 +49,15 @@ const ItemTags = (props) => {
     truncateLimit = 6;
   }
 
-  const { allTags } = useHelper(helper => ({ allTags: helper.getTags() }));
-
-  const resolvedTags = useMemo(
-    () => allTags.filter(tag => (tags ?? []).includes(tag.tag_id)),
-    [allTags, tags],
-  );
+  // Resolve only this row's tags instead of subscribing to (and converting) the entire tags
+  // collection per rendered row: in a 50-row list that used to mean 50 full toJS conversions of
+  // the tags store on every dispatch
+  const { resolvedTags } = useHelper(helper => ({
+    resolvedTags: (tags ?? [])
+      .map(tagId => helper.getTag(tagId))
+      .filter(tag => !!tag)
+      .map(tag => (isImmutable(tag) ? tag.toJS() : tag)),
+  }));
 
   // 🔥 Remplacement de Ramda.sortWith / ascend / prop
   const orderedTags = useMemo(

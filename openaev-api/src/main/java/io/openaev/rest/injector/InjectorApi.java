@@ -38,8 +38,8 @@ import java.io.InputStream;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -183,7 +183,7 @@ public class InjectorApi extends RestBehavior {
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getOpenAevImplant(
+  public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevImplant(
       @PathVariable String platform,
       @PathVariable String architecture,
       @RequestParam(required = false) final String injectId,
@@ -219,10 +219,12 @@ public class InjectorApi extends RestBehavior {
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+      // Stream the binary instead of buffering it fully in heap: thousands of concurrent implant
+      // downloads with byte[] buffering caused GC churn / OOM risk
       return ResponseEntity.ok()
           .headers(headers)
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
-          .body(IOUtils.toByteArray(in));
+          .body(new InputStreamResource(in));
     }
     throw new UnsupportedOperationException(
         "Implant " + resolvedPlatform + " executable not supported");
