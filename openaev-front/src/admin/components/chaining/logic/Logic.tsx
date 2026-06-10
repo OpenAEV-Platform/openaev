@@ -114,13 +114,22 @@ const Logic = ({ workflowId, context }: LogicProps) => {
       });
     });
 
-    await Promise.all(promises);
-    MESSAGING$.notifySuccess(
-      t('{count} action(s) added successfully.').replace('{count}', String(selectedActions.length)),
-    );
-    setDrawerView('closed');
-    setHasExistingData(true);
-    setRefreshKey(k => k + 1);
+    try {
+      const results = await Promise.allSettled(promises);
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      if (successCount > 0) {
+        // Pass count as an i18n interpolation value — calling t(key).replace('{count}', n)
+        // triggers a react-intl MISSING_VALUE error (re-thrown by AppIntlProvider's onError)
+        // before the notification can fire.
+        MESSAGING$.notifySuccess(
+          t('{count} action(s) added successfully.', { count: String(successCount) }),
+        );
+      }
+    } finally {
+      setDrawerView('closed');
+      setHasExistingData(true);
+      setRefreshKey(k => k + 1);
+    }
   };
 
   const handleSelectAction = (action: ThreatArsenalAction) => {
