@@ -101,7 +101,8 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
       // Register built-in injector under the active mock user context for deterministic tenant
       // scope.
       emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      openaevInjectorIntegrationFactory.registerConnectorForTenant(
+          TenantContext.getCurrentTenant());
 
       // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
