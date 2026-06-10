@@ -41,9 +41,8 @@ public class NotificationRuleServiceTest {
   @Mock private TenantSettingsService tenantSettingsService;
   @Mock private PlatformSettingsService platformSettingsService;
 
-  // Explicit construction ensures the exact mock instances are injected into the final fields,
-  // avoiding the JIT-caching issue that occurs when Mockito falls back to reflection-based
-  // field injection on private-final fields (Lombok @RequiredArgsConstructor) in Java 21.
+  // Construct explicitly to ensure deterministic mock injection (and avoid relying on @InjectMocks
+  // behaviour when the test is not running in a Spring context).
   private NotificationRuleService notificationRuleService;
 
   @BeforeEach
@@ -74,8 +73,7 @@ public class NotificationRuleServiceTest {
     when(notificationRuleRepository.findNotificationRuleByResourceAndTrigger(
             rule.getResourceId(), rule.getTrigger()))
         .thenReturn(List.of(rule));
-    // doReturn avoids calling the generic unwrap() method on the mock before the stub is
-    // registered, which prevents a null-return when Mockito cannot infer the generic type <T>.
+    // Use doReturn() to stub unwrap() without invoking it during stubbing (safe if this ever becomes a spy).
     doReturn(session).when(entityManager).unwrap(Session.class);
     when(tenantSettingsService.resolveSettingValue(eq("tenant-id"), any(TenantSettingKeys.class)))
         .thenReturn("dark");
