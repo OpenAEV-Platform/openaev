@@ -749,5 +749,79 @@ class TeamApiTest extends IntegrationTest {
       // Assert
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
+
+    @Test
+    @DisplayName("Teams options with ALL_INJECTS should NOT leak teams from another tenant")
+    void given_injectTeamInTenantX_should_notAppearInTenantYAllInjectsOptions() throws Exception {
+      // Arrange — regression test for the OR-precedence bug in
+      // findAllTeamsForAtomicTestingsSimulationsAndScenarios: the EXISTS(injects_teams)
+      // clause used to escape the tenant predicate and leak teams across tenants.
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      TeamCreateInput input = createTeam();
+      input.setName("CrossTenantOptionsTeam");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/teams")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(createResponse, "$.team_id");
+
+      // Reference the team from an inject (in tenant X) so it matches the EXISTS clause
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      Team team = teamRepository.findById(teamId).orElseThrow();
+      Inject inject =
+          getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+      inject.setTeams(new ArrayList<>(List.of(team)));
+      injectRepository.save(inject);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — fetch options with ALL_INJECTS from tenant Y
+      String crossTenantResponse =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/teams/options")
+                      .queryParam("inputFilterOption", "ALL_INJECTS")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — the tenant X team must not leak into tenant Y options
+      List<String> crossTenantIds = JsonPath.read(crossTenantResponse, "$[*].id");
+      assertFalse(crossTenantIds.contains(teamId));
+
+      // Positive control — the team is returned for its own tenant
+      String sameTenantResponse =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/teams/options")
+                      .queryParam("inputFilterOption", "ALL_INJECTS")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      List<String> sameTenantIds = JsonPath.read(sameTenantResponse, "$[*].id");
+      assertTrue(sameTenantIds.contains(teamId));
+    }
   }
 }

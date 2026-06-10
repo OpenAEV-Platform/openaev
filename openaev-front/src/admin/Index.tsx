@@ -29,9 +29,10 @@ import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config'
 import LeftBar from './components/nav/LeftBar';
 import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
-import InjectIndex from './components/simulations/simulation/injects/InjectIndex';
 
 const Home = lazy(() => import('./components/Home'));
+// Lazy like every other route: keeps the inject detail tree (incl. charts) out of the main admin chunk
+const InjectIndex = lazy(() => import('./components/simulations/simulation/injects/InjectIndex'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
