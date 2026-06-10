@@ -304,8 +304,10 @@ public class XtmOneClient {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
+      String encodedConversationId = URLEncoder.encode(conversationId, StandardCharsets.UTF_8);
       HttpDelete httpDelete =
-          new HttpDelete(config.getUrl() + "/api/v1/platform/chat/sessions/" + conversationId);
+          new HttpDelete(
+              config.getUrl() + "/api/v1/platform/chat/sessions/" + encodedConversationId);
       addChatHeaders(httpDelete, jwt);
       httpDelete.setConfig(
           RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
@@ -352,7 +354,9 @@ public class XtmOneClient {
             if (response.getCode() == 200) {
               return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
             }
-            throw mapUpstreamError(response);
+            // Preserve the upstream status code (the chatbot distinguishes 409 "no run
+            // active" from other failures) — mapUpstreamError would collapse it to 503.
+            throw mapUpstreamErrorPreservingStatus(response);
           });
     } catch (ResponseStatusException e) {
       throw e;
@@ -634,6 +638,23 @@ public class XtmOneClient {
     int code = response.getCode();
     String detail = readUpstreamDetail(response);
     HttpStatus status = code == 429 ? HttpStatus.TOO_MANY_REQUESTS : HttpStatus.SERVICE_UNAVAILABLE;
+    String reason = detail.isBlank() ? "[XTM One] HTTP " + code : detail;
+    return new ResponseStatusException(status, reason);
+  }
+
+  /**
+   * Maps an upstream non-200 HTTP response to a {@link ResponseStatusException} carrying the
+   * upstream status code as-is (unknown codes fall back to {@code BAD_GATEWAY}). Used where the
+   * caller semantically relies on the exact code — e.g. mid-run steering, where 409 means "no
+   * response is currently being generated" and triggers the chatbot's optimistic-bubble rollback.
+   */
+  private ResponseStatusException mapUpstreamErrorPreservingStatus(ClassicHttpResponse response) {
+    int code = response.getCode();
+    String detail = readUpstreamDetail(response);
+    HttpStatus status = HttpStatus.resolve(code);
+    if (status == null) {
+      status = HttpStatus.BAD_GATEWAY;
+    }
     String reason = detail.isBlank() ? "[XTM One] HTTP " + code : detail;
     return new ResponseStatusException(status, reason);
   }

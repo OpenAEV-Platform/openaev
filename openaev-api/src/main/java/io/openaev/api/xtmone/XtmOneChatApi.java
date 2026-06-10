@@ -1,5 +1,6 @@
-package io.openaev.rest.xtmone;
+package io.openaev.api.xtmone;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
@@ -64,6 +65,10 @@ public class XtmOneChatApi extends RestBehavior {
 
   /** Lists past conversations for the chatbot history menu. */
   @GetMapping(XTM_ONE_URI + "/chat/sessions")
+  // skipRBAC: chat data lives in XTM One and is scoped there to the per-user JWT minted by
+  // XtmOneClient — there is no OpenAEV resource to check grants against. The EE gate matches the
+  // Ariane feature gating (see AskArianeButton) and XtmOneProxyApi.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> listSessions() {
     if (!config.isConfigured()) {
       return ResponseEntity.ok(Map.of("conversations", List.of()));
@@ -78,6 +83,8 @@ public class XtmOneChatApi extends RestBehavior {
 
   /** Removes a conversation from the chatbot history menu (archived upstream). */
   @DeleteMapping(XTM_ONE_URI + "/chat/sessions/{conversationId}")
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Void> deleteSession(@PathVariable String conversationId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
@@ -97,6 +104,8 @@ public class XtmOneChatApi extends RestBehavior {
    * — the chatbot rolls back its optimistic bubble on any non-2xx.
    */
   @PostMapping(XTM_ONE_URI + "/chat/messages/steer")
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> steerMessage(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
@@ -104,7 +113,9 @@ public class XtmOneChatApi extends RestBehavior {
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
-    if (content.isBlank() || conversationId == null || conversationId.isBlank()) {
+    if (content.isBlank()
+        || conversationId == null
+        || !CONVERSATION_ID_PATTERN.matcher(conversationId).matches()) {
       return ResponseEntity.badRequest().build();
     }
     return ResponseEntity.ok(client.steerChatMessage(content, conversationId));

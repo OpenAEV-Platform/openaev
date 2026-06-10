@@ -30,9 +30,9 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 /**
  * Proxy endpoints for programmatic XTM One agent calls from the OpenAEV frontend. These complement
- * the chatbot panel endpoints in {@link io.openaev.rest.xtmone.XtmOneChatApi} by providing
- * intent-based agent resolution, plus non-streaming and streaming agent calls (used by
- * TextFieldAskAI and generic chatbot interactions).
+ * the chatbot panel endpoints in {@link XtmOneChatApi} by providing intent-based agent resolution,
+ * plus non-streaming and streaming agent calls (used by TextFieldAskAI and generic chatbot
+ * interactions).
  */
 @Slf4j
 @RestController
