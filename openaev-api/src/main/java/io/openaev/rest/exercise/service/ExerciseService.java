@@ -1149,18 +1149,23 @@ public class ExerciseService {
 
       // we ignore manual expectation
       if (ExpectationType.HUMAN_RESPONSE.equals(type)) {
-        break;
+        continue;
       }
 
       ExpectationResultsByType secondLastSimulationResultsByType =
           secondLastSimulationResultsMap.get(type);
+
+      // if the second simulation has no result for this type, skip
+      if (secondLastSimulationResultsByType == null) {
+        continue;
+      }
 
       // we ignore if one of the 2 expectation is still PENDING
       if (InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               lastSimulationResultsByType.avgResult())
           || InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               secondLastSimulationResultsByType.avgResult())) {
-        break;
+        continue;
       }
 
       float lastSimulationScore =

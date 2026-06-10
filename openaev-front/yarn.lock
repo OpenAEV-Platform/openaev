@@ -1668,15 +1668,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/chatbot@npm:3.3.5":
-  version: 3.3.5
-  resolution: "@filigran/chatbot@npm:3.3.5"
+"@filigran/chatbot@npm:3.5.2":
+  version: 3.5.2
+  resolution: "@filigran/chatbot@npm:3.5.2"
   peerDependencies:
     react: ">=18"
     react-dom: ">=18"
     react-markdown: ">=10"
     remark-gfm: ">=4"
-  checksum: 10c0/d11a09a7037311708025bc92282ffbf603008f906cc02e1467ef4c542db811e89c7381eba7b0d9105c1c2c320bd95711668a427617cfdb676379e498c6dadfdc
+  checksum: 10c0/54eb2d82a33c3e93bb697dbe26b7550fc65a0322aa624cc467c35935062f186bd1534648602466ebc82002487a94f65c3160e08ab0b488302c924bcb8fdf0acb
   languageName: node
   linkType: hard
 
@@ -2297,13 +2297,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mui/x-date-pickers@npm:8.28.7":
-  version: 8.28.7
-  resolution: "@mui/x-date-pickers@npm:8.28.7"
+"@mui/x-date-pickers@npm:8.29.0":
+  version: 8.29.0
+  resolution: "@mui/x-date-pickers@npm:8.29.0"
   dependencies:
     "@babel/runtime": "npm:^7.28.4"
     "@mui/utils": "npm:^7.3.5"
-    "@mui/x-internals": "npm:8.26.0"
+    "@mui/x-internals": "npm:8.29.0"
     "@types/react-transition-group": "npm:^4.4.12"
     clsx: "npm:^2.1.1"
     prop-types: "npm:^15.8.1"
@@ -2341,13 +2341,13 @@ __metadata:
       optional: true
     moment-jalaali:
       optional: true
-  checksum: 10c0/b0d9cb2013c62fde772df5c3069c06499c837275d987723086ec31f641ac30ddd43cceef7bb12d7b604894e522c05b5744283664f9cbf30bcc2e2b84cadfdc0c
+  checksum: 10c0/23854a3a666fc8fac84c036c27123c9a06d6fb6fef96dfd52caf8391e96bd391fea38602fa3c8d9baff19fcfb2a6163b0a98358f31115e9b19ad452ca993e265
   languageName: node
   linkType: hard
 
-"@mui/x-internals@npm:8.26.0":
-  version: 8.26.0
-  resolution: "@mui/x-internals@npm:8.26.0"
+"@mui/x-internals@npm:8.29.0":
+  version: 8.29.0
+  resolution: "@mui/x-internals@npm:8.29.0"
   dependencies:
     "@babel/runtime": "npm:^7.28.4"
     "@mui/utils": "npm:^7.3.5"
@@ -2355,7 +2355,7 @@ __metadata:
     use-sync-external-store: "npm:^1.6.0"
   peerDependencies:
     react: ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/819564e1b1c7626f5e237edd81f716a3871df1479f2e2e9fbef45a5963df21c510eca4931f6af726fdcd9dc643a019e44c5d61657865b389ef0a2ab5abb10d6c
+  checksum: 10c0/7dd84c45084404426ec46dd20976ba81cceeb84011be900c07c1f02131fa8fb26049b5974577457552c78c24153b57e0b79c85f8eddca8c3a550ea837529eb74
   languageName: node
   linkType: hard
 
@@ -7454,9 +7454,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"http-proxy-middleware@npm:3.0.5":
-  version: 3.0.5
-  resolution: "http-proxy-middleware@npm:3.0.5"
+"http-proxy-middleware@npm:3.0.6":
+  version: 3.0.6
+  resolution: "http-proxy-middleware@npm:3.0.6"
   dependencies:
     "@types/http-proxy": "npm:^1.17.15"
     debug: "npm:^4.3.6"
@@ -7464,7 +7464,7 @@ __metadata:
     is-glob: "npm:^4.0.3"
     is-plain-object: "npm:^5.0.0"
     micromatch: "npm:^4.0.8"
-  checksum: 10c0/89ff3c8fe65b22b8042a6173ae1b8f77c5171f7eecf3c8b5d6dcffe3c9d688acae7bcf498cc08d1525f566dc0781efaec4e2ddc49224b1f16f020de7987a446b
+  checksum: 10c0/50c76da35e0695dba3e6110d5ca21e65718a1f7478f5c35cf2e9aa13b2d5f9b163f15312ce7f15a0d3d706ed40c9e6037a6fbba33ec44431698578b1d4875e41
   languageName: node
   linkType: hard
 
@@ -9851,7 +9851,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.4"
     "@faker-js/faker": "npm:10.4.0"
-    "@filigran/chatbot": "npm:3.3.5"
+    "@filigran/chatbot": "npm:3.5.2"
     "@fontsource/geologica": "npm:5.2.8"
     "@fontsource/ibm-plex-sans": "npm:5.2.8"
     "@hello-pangea/dnd": "npm:18.0.1"
@@ -9861,7 +9861,7 @@ __metadata:
     "@mui/lab": "npm:7.0.0-beta.17"
     "@mui/material": "npm:7.3.11"
     "@mui/system": "npm:7.3.11"
-    "@mui/x-date-pickers": "npm:8.28.7"
+    "@mui/x-date-pickers": "npm:8.29.0"
     "@playwright/test": "npm:1.60.0"
     "@redux-devtools/extension": "npm:4.0.0"
     "@stylistic/eslint-plugin": "npm:5.10.0"
@@ -9911,7 +9911,7 @@ __metadata:
     happy-dom: "npm:^20.8.9"
     html-react-parser: "npm:6.1.3"
     html-to-image: "npm:1.11.13"
-    http-proxy-middleware: "npm:3.0.5"
+    http-proxy-middleware: "npm:3.0.6"
     i18n-auto-translation: "npm:2.2.3"
     immutable: "npm:5.1.6"
     ipaddr.js: "npm:^2.2.0"
@@ -9936,7 +9936,7 @@ __metadata:
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.3"
     react-hook-form: "npm:7.77.0"
-    react-intl: "npm:10.1.12"
+    react-intl: "npm:10.1.13"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.3.0"
     react-router: "npm:7.17.0"
@@ -10577,9 +10577,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-intl@npm:10.1.12":
-  version: 10.1.12
-  resolution: "react-intl@npm:10.1.12"
+"react-intl@npm:10.1.13":
+  version: 10.1.13
+  resolution: "react-intl@npm:10.1.13"
   dependencies:
     "@formatjs/icu-messageformat-parser": "npm:3.5.11"
     "@formatjs/intl": "npm:4.1.13"
@@ -10587,7 +10587,7 @@ __metadata:
   peerDependencies:
     "@types/react": 19
     react: 19
-  checksum: 10c0/f65704217047b9563ff58f56281157d17d3943de1dc91c24c59a51d1dae68220d9a0bea3787c207c48098ccfb792496a28ad46ed48ebd16794d93cce9e413104
+  checksum: 10c0/bff9029c05793f323c7f7a8940e6fed5f7e9ee41bfc0bcced723013a3494f7dd3b3ad04647896112290fa270bf8027a9e96190adc9ef89dd124284b8d09d79d4
   languageName: node
   linkType: hard
 
