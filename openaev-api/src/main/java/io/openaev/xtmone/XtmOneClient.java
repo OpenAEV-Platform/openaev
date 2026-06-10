@@ -263,6 +263,110 @@ public class XtmOneClient {
     return null;
   }
 
+  /**
+   * Lists the current user's platform-chat conversations (chatbot history menu). Returns the raw
+   * upstream payload ({@code {"conversations": [...]}}) or null on failure — the chatbot history
+   * menu degrades to an empty state.
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> listChatSessions() {
+    if (!config.isConfigured()) {
+      return null;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/sessions", jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            log.warn("[XTM One] List sessions failed: HTTP {}", response.getCode());
+            return null;
+          });
+    } catch (Exception e) {
+      log.warn("[XTM One] List sessions error: ", e);
+    }
+    return null;
+  }
+
+  /**
+   * Removes a conversation from the chatbot history (archived upstream). Returns true when the
+   * upstream accepted the deletion.
+   */
+  public boolean deleteChatSession(String conversationId) {
+    if (!config.isConfigured()) {
+      return false;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpDelete httpDelete =
+          new HttpDelete(config.getUrl() + "/api/v1/platform/chat/sessions/" + conversationId);
+      addChatHeaders(httpDelete, jwt);
+      httpDelete.setConfig(
+          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpDelete,
+          response -> {
+            if (response.getCode() == 204 || response.getCode() == 200) {
+              return true;
+            }
+            log.warn("[XTM One] Delete session failed: HTTP {}", response.getCode());
+            return false;
+          });
+    } catch (Exception e) {
+      log.warn("[XTM One] Delete session error: ", e);
+    }
+    return false;
+  }
+
+  /**
+   * Injects a mid-run steering message into the conversation's running agent loop. Upstream
+   * status codes are propagated as {@link ResponseStatusException} — the chatbot rolls back its
+   * optimistic bubble on any non-2xx (e.g. 409 when no response is currently being generated).
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> steerChatMessage(String content, String conversationId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      body.put("content", content);
+      body.put("conversation_id", conversationId);
+      String json = objectMapper.writeValueAsString(body);
+
+      HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages/steer", jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            throw mapUpstreamError(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      // httpClient.execute wraps the handler's RuntimeException — unwrap a
+      // propagated upstream error before falling back to a generic 500.
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Steer message error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while steering", e);
+    }
+  }
+
   @SuppressWarnings("unchecked")
   public String uploadChatFile(String conversationId, MultipartFile file) {
     if (!config.isConfigured()) {
