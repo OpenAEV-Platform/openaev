@@ -59,6 +59,12 @@ public class V5_20__Add_Trigram_Indexes_When_Available extends BaseJavaMigration
     }
   }
 
+  /**
+   * Checks for pg_trgm and tries to create it when missing. The creation attempt is wrapped in a
+   * savepoint: a failed statement marks the surrounding Flyway transaction as aborted, so rolling
+   * back to the savepoint is required for the migration to keep running (and commit) after a
+   * permission failure on managed databases.
+   */
   private boolean isTrigramExtensionAvailable(Statement statement) {
     try {
       try (ResultSet rs =
@@ -67,10 +73,18 @@ public class V5_20__Add_Trigram_Indexes_When_Available extends BaseJavaMigration
           return true;
         }
       }
-      statement.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm");
-      return true;
+      statement.execute("SAVEPOINT before_trgm_extension");
+      try {
+        statement.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm");
+        statement.execute("RELEASE SAVEPOINT before_trgm_extension");
+        return true;
+      } catch (SQLException e) {
+        statement.execute("ROLLBACK TO SAVEPOINT before_trgm_extension");
+        log.warn("Unable to create pg_trgm extension: {}", e.getMessage());
+        return false;
+      }
     } catch (SQLException e) {
-      log.warn("Unable to create pg_trgm extension: {}", e.getMessage());
+      log.warn("Unable to check pg_trgm extension availability: {}", e.getMessage());
       return false;
     }
   }

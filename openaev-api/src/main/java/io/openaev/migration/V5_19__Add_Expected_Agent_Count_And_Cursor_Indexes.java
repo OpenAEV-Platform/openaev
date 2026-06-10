@@ -40,6 +40,13 @@ public class V5_19__Add_Expected_Agent_Count_And_Cursor_Indexes extends BaseJava
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_injects_injector_contract "
               + "ON injects (inject_injector_contract) WHERE inject_injector_contract IS NOT NULL");
+
+      // 3. Retention purge support: execution_traces is purged by creation-time range
+      // (ExecutionTraceRetentionJob). BRIN suits this append-only timestamp column: a few KB of
+      // index for millions of rows, negligible write overhead, efficient range scans.
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_execution_traces_created_at_brin "
+              + "ON execution_traces USING brin (execution_created_at)");
     }
   }
 }

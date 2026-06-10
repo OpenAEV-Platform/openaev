@@ -30,9 +30,16 @@ export const loadLocaleMessages = async (lang: LanguageCode): Promise<Record<str
   if (!loader) {
     return oaevLocaleMap.en;
   }
-  const messages = (await loader()).default;
-  oaevLocaleMap[lang] = messages;
-  return messages;
+  try {
+    const messages = (await loader()).default;
+    oaevLocaleMap[lang] = messages;
+    return messages;
+  }
+  catch {
+    // Locale chunk failed to load (network error, missing asset, ...): degrade to the
+    // always-bundled english catalog instead of leaving the UI without translations
+    return oaevLocaleMap.en;
+  }
 };
 
 // Date-fns locale map

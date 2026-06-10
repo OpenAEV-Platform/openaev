@@ -59,27 +59,29 @@ const getJS = (selectorValue: any) => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type UseHelperCache = { state: any, result: any };
+type UseHelperCache = { state: any, selector: any, result: any };
 
 // TODO type selector object
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useHelper = (selector: any) => {
-  // Memoization keyed on the Immutable store identity: selectors run on every dispatch for every
-  // subscriber, and getJS (Immutable.toJS) is expensive. When the state reference is unchanged we
-  // return the cached value; when it changed but the converted output is deep-equal we keep the
-  // previous identity so useSelector's reference equality can skip the re-render.
+  // Memoization keyed on BOTH the Immutable store identity and the selector identity: selectors
+  // run on every dispatch for every subscriber, and getJS (Immutable.toJS) is expensive. The
+  // fast-path only applies when neither changed (inline selector closures capturing fresh props
+  // always recompute). When the output is deep-equal to the previous one we keep the previous
+  // identity so useSelector's reference equality can skip the re-render.
   const cacheRef = useRef<UseHelperCache | null>(null);
   return useSelector(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (state: any) => {
       const cache = cacheRef.current;
-      if (cache && cache.state === state) {
+      if (cache && cache.state === state && cache.selector === selector) {
         return cache.result;
       }
       const computed = getJS(selector(storeHelper(state)));
       const result = cache && R.equals(computed, cache.result) ? cache.result : computed;
       cacheRef.current = {
         state,
+        selector,
         result,
       };
       return result;

@@ -31,8 +31,6 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -154,6 +152,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  // NOTE: do NOT add @Fetch(FetchMode.SUBSELECT) to the collections of this entity. Contracts are
+  // loaded through Inject's EAGER @JoinColumnsOrFormulas association; subselect-fetching their
+  // collections re-renders the loading query's SQL AST and triggers an infinite recursion
+  // (StackOverflowError) in Hibernate's AbstractSqlAstWalker on paginated inject searches.
+  // hibernate.default_batch_fetch_size keeps these collections batched instead.
   @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
@@ -164,7 +167,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
-  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("injector_contract_tags")
@@ -197,7 +199,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   private Instant updatedAt = now();
 
   @ManyToMany(mappedBy = "contracts", fetch = FetchType.EAGER)
-  @Fetch(FetchMode.SUBSELECT)
   @JsonIgnore
   private List<Injector> injectors = new ArrayList<>();
 
@@ -257,7 +258,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = @JoinColumn(name = "attack_pattern_id"))
-  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("injector_contract_attack_patterns")
@@ -279,7 +279,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = @JoinColumn(name = "domain_id"))
-  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("injector_contract_domains")
   @Queryable(filterable = true, dynamicValues = true, paths = "domains.id")
   @JsonSerialize(using = MultiIdSetSerializer.class)
@@ -295,7 +294,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       },
       inverseJoinColumns = @JoinColumn(name = "vulnerability_id"))
-  @Fetch(FetchMode.SUBSELECT)
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("injector_contract_vulnerabilities")
