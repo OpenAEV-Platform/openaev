@@ -304,7 +304,10 @@ public class XtmOneClient {
     }
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
       String jwt = issueJwtForCurrentUser();
-      String encodedConversationId = URLEncoder.encode(conversationId, StandardCharsets.UTF_8);
+      // URLEncoder targets query strings ('+' for spaces) — normalize to %20 for a path segment
+      // (same approach as DocumentService.encodeFileName).
+      String encodedConversationId =
+          URLEncoder.encode(conversationId, StandardCharsets.UTF_8).replace("+", "%20");
       HttpDelete httpDelete =
           new HttpDelete(
               config.getUrl() + "/api/v1/platform/chat/sessions/" + encodedConversationId);

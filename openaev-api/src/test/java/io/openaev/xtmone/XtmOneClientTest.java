@@ -421,13 +421,13 @@ class XtmOneClientTest {
       ArgumentCaptor<Object> requestCaptor = mockExchange(204);
 
       // -- ACT --
-      xtmOneClient.deleteChatSession("abc/../def");
+      xtmOneClient.deleteChatSession("abc/.. def");
 
       // -- ASSERT --
       org.apache.hc.core5.http.ClassicHttpRequest request =
           (org.apache.hc.core5.http.ClassicHttpRequest) requestCaptor.getValue();
       assertTrue(
-          request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/abc%2F..%2Fdef"));
+          request.getUri().toString().endsWith("/api/v1/platform/chat/sessions/abc%2F..%20def"));
     }
   }
 
