@@ -10,7 +10,7 @@ const { mockDispatch, mockCannot } = vi.hoisted(() => ({
   mockCannot: vi.fn(() => false),
 }));
 
-let currentInject: any;
+let currentInject: Record<string, unknown> | undefined;
 
 vi.mock('../../../../../actions/Inject', () => ({ fetchInject: vi.fn(() => ({ type: 'FETCH_INJECT' })) }));
 
@@ -32,9 +32,9 @@ vi.mock('../../../../../utils/hooks/useDataLoader', async () => {
 });
 
 vi.mock('../../../../../components/i18n', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../../../../components/i18n')>();
+  const original = await importOriginal();
   return {
-    ...original,
+    ...(original as Record<string, unknown>),
     useFormatter: () => ({ t: (value: string) => value }),
   };
 });
