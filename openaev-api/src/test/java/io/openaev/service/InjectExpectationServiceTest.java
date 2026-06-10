@@ -834,7 +834,8 @@ class InjectExpectationServiceTest {
       InjectExpectation expectation = new InjectExpectation();
       expectation.setId("expectation-id");
       expectation.setSignaturesInitialized(false);
-      when(injectExpectationRepository.findById("expectation-id")).thenReturn(Optional.of(expectation));
+      when(injectExpectationRepository.findById("expectation-id"))
+          .thenReturn(Optional.of(expectation));
 
       List<InjectExpectationSignature> signatures =
           Arrays.asList(
@@ -845,7 +846,8 @@ class InjectExpectationServiceTest {
 
       injectExpectationService.applySignaturesForExpectationWithLock("expectation-id", signatures);
 
-      verify(injectExpectationRepository, times(1)).clearSignaturesAndMarkInitialized("expectation-id");
+      verify(injectExpectationRepository, times(1))
+          .clearSignaturesAndMarkInitialized("expectation-id");
       ArgumentCaptor<String> signaturesJsonCaptor = ArgumentCaptor.forClass(String.class);
       verify(injectExpectationRepository, times(1))
           .appendSignatures(eq("expectation-id"), signaturesJsonCaptor.capture());
@@ -864,10 +866,13 @@ class InjectExpectationServiceTest {
       InjectExpectation expectation = new InjectExpectation();
       expectation.setId("expectation-id");
       expectation.setSignaturesInitialized(true);
-      when(injectExpectationRepository.findById("expectation-id")).thenReturn(Optional.of(expectation));
+      when(injectExpectationRepository.findById("expectation-id"))
+          .thenReturn(Optional.of(expectation));
 
       List<InjectExpectationSignature> signatures =
-          List.of(new InjectExpectationSignature(null, "value"), new InjectExpectationSignature("type", null));
+          List.of(
+              new InjectExpectationSignature(null, "value"),
+              new InjectExpectationSignature("type", null));
 
       injectExpectationService.applySignaturesForExpectationWithLock("expectation-id", signatures);
 
