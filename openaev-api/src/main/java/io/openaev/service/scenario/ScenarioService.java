@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -95,7 +95,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 @RequiredArgsConstructor
@@ -147,12 +146,10 @@ public class ScenarioService {
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
 
-  @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
     return computeAndCreateScenario(scenario);
   }
 
-  @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {
     workflowService.isPreviewFeatureChainingEnable();
@@ -165,26 +162,25 @@ public class ScenarioService {
     return savedScenario;
   }
 
-  @Transactional
   public Scenario createScenarioWithInjectorContracts(
-      @NotBlank final String tenantId,
+          TxCtx ctx,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
+    Scenario preparedScenario = prepareScenarioFromScenarioInput(ctx.tenantIdFromUri(), scenarioInput);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
-    this.injectService.createInjectsFromInjectorContractInput(
+    this.injectService.createInjectsFromInjectorContractInput(ctx,
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
     return scenario;
   }
 
-  @Transactional
   public List<Scenario> updateScenariosWithInjectorContracts(
+          TxCtx ctx,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
-    this.injectService.createInjectsFromInjectorContractInput(
+    this.injectService.createInjectsFromInjectorContractInput(ctx,
         null, scenarios, injectorContractSearchPaginationInput, locale);
     return scenarios;
   }
@@ -204,11 +200,11 @@ public class ScenarioService {
     }
   }
 
-  public List<ScenarioSimple> scenarios() {
+  public List<ScenarioSimple> scenarios(String tenantId) {
     List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
+    if (currentUser.isAdminOrBypass(tenantId)
+        || currentUser.getCapabilities(tenantId).contains(Capability.ACCESS_ASSESSMENT)) {
       scenarios = fromIterable(this.scenarioRepository.rawAll());
     } else {
       scenarios = this.scenarioRepository.rawAllGranted(currentUser().getId());
@@ -216,11 +212,11 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
 
-  public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
+  public List<ScenarioSimple> scenarios(String tenantId, final List<String> scenarioIds) {
     List<RawScenarioSimpleIndexing> scenarios;
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
+    if (currentUser.isAdminOrBypass(tenantId)
+        || currentUser.getCapabilities(tenantId).contains(Capability.ACCESS_ASSESSMENT)) {
       scenarios = fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds));
     } else {
       scenarios =
@@ -229,7 +225,7 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
 
-  public Page<RawPaginationScenario> scenarios(
+  public Page<RawPaginationScenario> scenarios(String tenantId,
       @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
@@ -240,7 +236,7 @@ public class ScenarioService {
     // Compute find all method
     TriFunction<
             Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
-        findAll = getFindAllFunction(deepFilterSpecification, joinMap);
+        findAll = getFindAllFunction(tenantId, deepFilterSpecification, joinMap);
 
     // Compute pagination from find all
     return buildPaginationCriteriaBuilder(findAll, searchPaginationInput, Scenario.class, joinMap);
@@ -249,11 +245,12 @@ public class ScenarioService {
   private TriFunction<
           Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
       getFindAllFunction(
+              String tenantId,
           UnaryOperator<Specification<Scenario>> deepFilterSpecification,
           Map<String, Join<Base, Base>> joinMap) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
+    if (currentUser.isAdminOrBypass(tenantId)
+        || currentUser.getCapabilities(tenantId).contains(Capability.ACCESS_ASSESSMENT)) {
       return (specification, specificationCount, pageable) ->
           this.findAllWithCriteriaBuilder(
               deepFilterSpecification.apply(specification),
@@ -393,7 +390,7 @@ public class ScenarioService {
 
   public Scenario scenario(@NotBlank final String scenarioId) {
     return this.scenarioRepository
-        .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+        .findById(scenarioId)
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
@@ -433,7 +430,6 @@ public class ScenarioService {
                 new ElementNotFoundException("Scenario not found for simulation: " + simulationId));
   }
 
-  @Transactional(readOnly = true)
   public ExerciseSimple latestExerciseByExternalReference(
       @NotBlank final String scenarioExternalReference) {
     Optional<RawExerciseSimple> latestEndedExercise =
@@ -457,7 +453,6 @@ public class ScenarioService {
    * @param currentTags list of the tags before the update
    * @return
    */
-  @Transactional
   public Scenario updateScenario(
       @NotNull final Scenario scenario, Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
@@ -488,13 +483,11 @@ public class ScenarioService {
 
   /** Validates that the scenario exists for the current tenant. Throws if not found. */
   public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
-    if (!this.scenarioRepository.existsByIdAndTenantId(
-        scenarioId, TenantContext.getCurrentTenant())) {
+    if (!this.scenarioRepository.existsById(scenarioId)) {
       throw new ElementNotFoundException("Scenario not found");
     }
   }
 
-  @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotBlank final String scenarioId) {
     existsByIdAndTenantId(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
@@ -502,8 +495,8 @@ public class ScenarioService {
 
   // -- EXPORT --
 
-  @Transactional
   public void exportScenario(
+          String tenantId,
       @NotBlank final String scenarioId,
       final boolean isWithTeams,
       final boolean isWithPlayers,
@@ -693,7 +686,7 @@ public class ScenarioService {
         .forEach(
             docId -> {
               Document doc = this.documentRepository.findById(docId).orElseThrow();
-              Optional<InputStream> docStream = this.fileService.getFile(doc);
+              Optional<InputStream> docStream = this.fileService.getFile(tenantId, doc);
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());
@@ -713,7 +706,6 @@ public class ScenarioService {
 
   // -- TEAMS --
 
-  @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
     // Remove teams from scenario
@@ -727,7 +719,6 @@ public class ScenarioService {
     return teamService.find(fromIds(teamIds));
   }
 
-  @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
       @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
     Scenario scenario = this.scenario(scenarioId);
@@ -775,7 +766,7 @@ public class ScenarioService {
       @NotNull final List<String> playerIds) {
     Team team =
         teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .findById(teamId)
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
@@ -789,7 +780,7 @@ public class ScenarioService {
       @NotNull final List<String> playerIds) {
     Team team =
         teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .findById(teamId)
             .orElseThrow(ElementNotFoundException::new);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
@@ -831,12 +822,11 @@ public class ScenarioService {
     return this.scenario(scenarioId);
   }
 
-  @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
       Scenario scenarioOrigin =
           scenarioRepository
-              .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+              .findById(scenarioId)
               .orElseThrow();
       Scenario scenario = copyScenario(scenarioOrigin);
       Scenario scenarioDuplicate = scenarioRepository.save(scenario);
@@ -1062,7 +1052,6 @@ public class ScenarioService {
    * @param scenarioId to verify
    * @return founded healthcheck list
    */
-  @Transactional(readOnly = true)
   public List<HealthCheck> runChecks(String scenarioId) {
     if (scenarioId == null) {
       return null;

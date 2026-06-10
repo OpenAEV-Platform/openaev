@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.helper.MultiModelSerializer;
@@ -20,7 +19,6 @@ import java.util.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -28,8 +26,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "challenges")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class Challenge implements TenantBase {
 
   @Id

@@ -7,7 +7,6 @@ import io.openaev.integration.exception.ComponentNotFoundException;
 import java.util.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public class Manager {
@@ -115,7 +114,6 @@ public class Manager {
   }
 
   /** Not thread-safe */
-  @Transactional
   public void monitorIntegrations() {
     for (IntegrationFactory factory : factories) {
       List<ConnectorInstance> newInstances =

@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -36,7 +35,6 @@ public class UserEventService {
 
   /** Creates a {@link UserEventType#LOGIN_SUCCESS} event for the given user. */
   @Async
-  @Transactional
   public CompletableFuture<Void> createLoginSuccessEvent(User user) {
     return createEvent(LOGIN_SUCCESS, user, null);
   }
@@ -48,7 +46,6 @@ public class UserEventService {
    * cannot be resolved (e.g. OAuth2 / SAML failures).
    */
   @Async
-  @Transactional
   public CompletableFuture<Void> createLoginFailedEvent(String provider, String reason) {
     JsonNode payload =
         mapper.createObjectNode().put(PAYLOAD_PROVIDER, provider).put(PAYLOAD_REASON, reason);
@@ -58,7 +55,6 @@ public class UserEventService {
 
   /** Creates a {@link UserEventType#USER_CREATED} event for the given user. */
   @Async
-  @Transactional
   public CompletableFuture<Void> createUserCreatedEvent(User user, String provider) {
     JsonNode payload = mapper.createObjectNode().put(PAYLOAD_PROVIDER, provider);
     return createEvent(USER_CREATED, user, payload);

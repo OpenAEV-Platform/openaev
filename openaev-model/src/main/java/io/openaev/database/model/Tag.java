@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -19,7 +18,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -39,8 +37,7 @@ import org.hibernate.annotations.UuidGenerator;
  */
 @Entity
 @Table(name = "tags")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class Tag implements TenantBase {
 
   public static final String OPENCTI_TAG_NAME = "opencti";

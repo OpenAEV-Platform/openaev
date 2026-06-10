@@ -16,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -171,7 +170,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     settingRepository.save(
         settingRepository
-            .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), TenantContext.getCurrentTenant())
+            .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), "tenant")
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
@@ -181,7 +180,7 @@ public class ScenarioApiTest extends IntegrationTest {
                 () -> {
                   Setting s =
                       new Setting(TENANT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId());
-                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  s.setTenant(new Tenant("tenant"));
                   return s;
                 }));
 
@@ -490,7 +489,6 @@ public class ScenarioApiTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing scenario teams")
   @WithMockUser(isAdmin = true)
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {

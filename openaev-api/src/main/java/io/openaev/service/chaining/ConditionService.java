@@ -23,12 +23,10 @@ import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @AllArgsConstructor
 @Slf4j
-@Transactional(rollbackFor = Exception.class)
 public class ConditionService {
 
   private final WorkflowStateService workflowStateService;
@@ -229,7 +227,6 @@ public class ConditionService {
    * @param input the updated condition-tree payload
    * @return the updated root {@link Condition}
    */
-  @Transactional(rollbackFor = Exception.class)
   public Condition updateConditionTree(String conditionRootId, EventInput input) {
     if (input == null) {
       throw new BadRequestException("Input must not be null");
@@ -282,7 +279,6 @@ public class ConditionService {
    * @param conditionRootId the root condition ID
    * @return the root {@link Condition}
    */
-  @Transactional(readOnly = true)
   public Condition findConditionRootById(String conditionRootId) {
     Condition condition =
         conditionRepository
@@ -301,7 +297,6 @@ public class ConditionService {
    * @param workflowId the workflow identifier
    * @return list of root event conditions for that workflow
    */
-  @Transactional(readOnly = true)
   public List<Condition> findEventRootsByWorkflowId(String workflowId) {
     return conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId).stream()
         .filter(c -> !conditionUtils.isMapperCondition(c))
@@ -314,7 +309,6 @@ public class ConditionService {
    * @param workflowId the workflow identifier
    * @return list of root conditions for that workflow
    */
-  @Transactional(readOnly = true)
   public List<Condition> findNonMapperConditionsByWorkflowId(String workflowId) {
     return conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
         workflowId, ConditionType.MAPPER);
@@ -325,7 +319,6 @@ public class ConditionService {
    *
    * @return list of all conditions
    */
-  @Transactional(readOnly = true)
   public List<Condition> findAll() {
     return conditionRepository.findAll();
   }
@@ -422,7 +415,6 @@ public class ConditionService {
    * @param stepId step identifier
    * @return list of conditions linked to the step
    */
-  @Transactional(readOnly = true)
   public List<Condition> findAllConditionsByStepId(String stepId) {
     return conditionRepository.findAllLinkedToStepId(stepId);
   }

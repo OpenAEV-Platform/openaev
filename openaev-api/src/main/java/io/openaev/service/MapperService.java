@@ -22,7 +22,6 @@ import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
@@ -62,7 +61,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @RequiredArgsConstructor
@@ -86,19 +84,19 @@ public class MapperService {
    * @param importMapperAddInput The input from the call
    * @return The created ImportMapper
    */
-  public ImportMapper createAndSaveImportMapper(ImportMapperAddInput importMapperAddInput) {
-    ImportMapper importMapper = createImportMapper(importMapperAddInput);
+  public ImportMapper createAndSaveImportMapper(String tenantId, ImportMapperAddInput importMapperAddInput) {
+    ImportMapper importMapper = createImportMapper(tenantId, importMapperAddInput);
 
     return importMapperRepository.save(importMapper);
   }
 
-  public ImportMapper createImportMapper(ImportMapperAddInput importMapperAddInput) {
+  public ImportMapper createImportMapper(String tenantId, ImportMapperAddInput importMapperAddInput) {
     ImportMapper importMapper = new ImportMapper();
     importMapper.setUpdateAttributes(importMapperAddInput);
     importMapper.setInjectImporters(new ArrayList<>());
 
     Map<String, InjectorContract> mapInjectorContracts =
-        getMapOfInjectorContracts(
+        getMapOfInjectorContracts(tenantId,
             importMapperAddInput.getImporters().stream()
                 .map(InjectImporterAddInput::getInjectorContractId)
                 .toList());
@@ -135,7 +133,6 @@ public class MapperService {
    * @param importMapperId id of the mapper that need to be duplicated
    * @return The duplicated ImportMapper
    */
-  @Transactional
   public ImportMapper getDuplicateImportMapper(@NotBlank String importMapperId) {
     if (StringUtils.isNotBlank(importMapperId)) {
       ImportMapper importMapperOrigin =
@@ -172,7 +169,7 @@ public class MapperService {
    * @param importMapperUpdateInput The input from the call
    * @return The updated ImportMapper
    */
-  public ImportMapper updateImportMapper(
+  public ImportMapper updateImportMapper(String tenantId,
       String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
     ImportMapper importMapper =
         importMapperRepository
@@ -182,7 +179,7 @@ public class MapperService {
     importMapper.setUpdateDate(Instant.now());
 
     Map<String, InjectorContract> mapInjectorContracts =
-        getMapOfInjectorContracts(
+        getMapOfInjectorContracts(tenantId,
             importMapperUpdateInput.getImporters().stream()
                 .map(InjectImporterUpdateInput::getInjectorContractId)
                 .toList());
@@ -201,12 +198,12 @@ public class MapperService {
    * @param ids The ids of the injector contracts we want
    * @return The map of injector contracts by ids
    */
-  private Map<String, InjectorContract> getMapOfInjectorContracts(List<String> ids) {
+  private Map<String, InjectorContract> getMapOfInjectorContracts(String tenantId, List<String> ids) {
     return stream(
             injectorContractRepository
                 .findAllById(
                     ids.stream()
-                        .map(s -> new InjectorContractId(s, TenantContext.getCurrentTenant()))
+                        .map(s -> new InjectorContractId(s, tenantId))
                         .toList())
                 .spliterator(),
             false)
@@ -334,7 +331,7 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
-   * @param CsvType used to know which entity list we want to export
+   * @param csvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
@@ -537,7 +534,6 @@ public class MapperService {
    * Import CSV with options
    *
    * @param file file to import
-   * @param targetType entity to know which columns format we use for the import
    * @throws Exception exception if problem during the import
    */
   public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {
@@ -636,10 +632,10 @@ public class MapperService {
     return strategy;
   }
 
-  public void importMappers(List<ImportMapperAddInput> mappers) {
+  public void importMappers(String tenantId, List<ImportMapperAddInput> mappers) {
     importMapperRepository.saveAll(
         mappers.stream()
-            .map(this::createImportMapper)
+                .map(input -> createImportMapper(tenantId, input))
             .peek(
                 (m) ->
                     m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)))

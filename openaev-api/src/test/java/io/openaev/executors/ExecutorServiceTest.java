@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ExecutorRepository;
 import java.util.Optional;
@@ -20,16 +20,6 @@ class ExecutorServiceTest {
 
   @Mock private ExecutorRepository executorRepository;
   @InjectMocks private ExecutorService executorService;
-
-  @BeforeEach
-  void setUp() {
-    TenantContext.setCurrentTenant("tenant-001");
-  }
-
-  @AfterEach
-  void tearDown() {
-    TenantContext.clearCurrentTenant();
-  }
 
   @Nested
   @DisplayName("register - Composite join fix (executor_id + tenant_id)")
@@ -47,7 +37,7 @@ class ExecutorServiceTest {
 
       // -------- Act --------
       Executor result =
-          executorService.register(
+          executorService.register(TxCtx.of("tenant"),
               "exec-new",
               "openaev_paloaltocortex_executor",
               "PaloAltoCortex",
@@ -88,7 +78,7 @@ class ExecutorServiceTest {
 
       // -------- Act --------
       Executor result =
-          executorService.register(
+          executorService.register(TxCtx.of("tenant"),
               "exec-existing",
               "openaev_crowdstrike_executor",
               "NewName",
@@ -116,7 +106,7 @@ class ExecutorServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
-      executorService.register(
+      executorService.register(TxCtx.of("tenant"),
           "exec-cap",
           "openaev_test_executor",
           "TestExecutor",

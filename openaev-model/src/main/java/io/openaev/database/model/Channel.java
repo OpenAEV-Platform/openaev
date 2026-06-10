@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -18,15 +17,13 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "channels")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class Channel implements TenantBase {
 
   @Id

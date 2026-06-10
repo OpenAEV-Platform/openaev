@@ -7,7 +7,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.AgentHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,7 +18,6 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.JoinColumnOrFormula;
 import org.hibernate.annotations.JoinColumnsOrFormulas;
 import org.hibernate.annotations.JoinFormula;
@@ -28,8 +26,7 @@ import org.hibernate.annotations.JoinFormula;
 @Setter
 @Entity
 @Table(name = "agents")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class Agent implements TenantBase {
 
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";

@@ -31,7 +31,7 @@ public class HealthCheckService {
   public void runHealthCheck() throws HealthCheckFailureException {
     runDatabaseCheck();
     runRabbitMQCheck();
-    runFileStorageCheck();
+    runFileStorageCheck(null); // TODO JRI What?
   }
 
   @VisibleForTesting
@@ -49,13 +49,13 @@ public class HealthCheckService {
   }
 
   @VisibleForTesting
-  protected void runFileStorageCheck() throws HealthCheckFailureException {
+  protected void runFileStorageCheck(String tenantId) throws HealthCheckFailureException {
 
     // we get a new client instance to avoid to update the client injected by Spring
     MinioClient minioClient = minioDriver.getMinioClient();
     minioClient.setTimeout(2000L, 2000L, 2000L);
     try {
-      minioService.isTenantPathExists();
+      minioService.isTenantPathExists(tenantId);
     } catch (Exception e) {
       throw new HealthCheckFailureException("FileStorage check failure", e);
     }

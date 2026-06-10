@@ -8,7 +8,7 @@ import static org.mockito.Mockito.doThrow;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -75,6 +75,8 @@ public class StarterPackTest extends IntegrationTest {
 
   @Autowired private DataPackService dataPackService;
 
+  private static final String TENANT_TEST_ID = "tenant";
+  
   @Test
   @DisplayName("Should not init StarterPack for disabled feature")
   public void shouldNotInitStarterPackForDisabledFeature() {
@@ -93,7 +95,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", false);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -112,7 +114,7 @@ public class StarterPackTest extends IntegrationTest {
         dataPackService
             .findByIdAndTenant(
                 V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
+                new Tenant(TENANT_TEST_ID))
             .isPresent());
   }
 
@@ -133,11 +135,11 @@ public class StarterPackTest extends IntegrationTest {
             resolver);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     long assetsCount = assetRepository.count();
@@ -156,7 +158,7 @@ public class StarterPackTest extends IntegrationTest {
         dataPackService
             .findByIdAndTenant(
                 V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
+                new Tenant(TENANT_TEST_ID))
             .isPresent());
   }
 
@@ -176,10 +178,10 @@ public class StarterPackTest extends IntegrationTest {
             zipJsonService,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
-    doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
+    doThrow(new Exception()).when(mockImportService).handleFileImport(any(), any(), isNull(), isNull());
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -212,10 +214,10 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
     doThrow(new IOException())
         .when(mockZipJsonService)
-        .handleImport(any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""));
+        .handleImport(any(), any(), eq("custom_dashboard_name"), isNull(), isNull(), eq(""));
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -251,7 +253,7 @@ public class StarterPackTest extends IntegrationTest {
         .getResources(eq("classpath:starterpack/dashboards/*"));
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -282,7 +284,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -318,7 +320,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -367,7 +369,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -427,7 +429,7 @@ public class StarterPackTest extends IntegrationTest {
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
 
     // EXECUTE
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(TxCtx.of(TENANT_TEST_ID));
 
     // VERIFY
     this.verifyTagsExist();
@@ -493,7 +495,7 @@ public class StarterPackTest extends IntegrationTest {
   private void verifyEndpointExist() {
     List<Asset> assets =
         StreamSupport.stream(
-                assetRepository.findByTenantId(TenantContext.getCurrentTenant()).spliterator(),
+                assetRepository.findByTenantId(TENANT_TEST_ID).spliterator(),
                 false)
             .toList();
     assertEquals(1, assets.size());
@@ -503,7 +505,7 @@ public class StarterPackTest extends IntegrationTest {
 
     List<Endpoint> endpoints =
         endpointRepository.findByHostnameAndAtleastOneIp(
-            "honey.scanme.sh", new String[] {"67.205.158.113"}, TenantContext.getCurrentTenant());
+            "honey.scanme.sh", new String[] {"67.205.158.113"});
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
 
@@ -561,7 +563,7 @@ public class StarterPackTest extends IntegrationTest {
         dataPackService
             .findByIdAndTenant(
                 V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
+                new Tenant(TENANT_TEST_ID))
             .isPresent());
   }
 
@@ -571,7 +573,7 @@ public class StarterPackTest extends IntegrationTest {
 
     Optional<Setting> staticsParameters =
         settingRepository.findByKeyAndTenantId(
-            "platform_home_dashboard", TenantContext.getCurrentTenant());
+            "platform_home_dashboard", TENANT_TEST_ID);
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
@@ -582,7 +584,7 @@ public class StarterPackTest extends IntegrationTest {
 
     Optional<Setting> staticsParameters =
         settingRepository.findByKeyAndTenantId(
-            "platform_scenario_dashboard", TenantContext.getCurrentTenant());
+            "platform_scenario_dashboard", TENANT_TEST_ID);
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
@@ -593,7 +595,7 @@ public class StarterPackTest extends IntegrationTest {
 
     Optional<Setting> staticsParameters =
         settingRepository.findByKeyAndTenantId(
-            "platform_simulation_dashboard", TenantContext.getCurrentTenant());
+            "platform_simulation_dashboard", TENANT_TEST_ID);
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }

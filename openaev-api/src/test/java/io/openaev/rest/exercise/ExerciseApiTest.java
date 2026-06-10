@@ -20,7 +20,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -107,7 +106,7 @@ public class ExerciseApiTest extends IntegrationTest {
     settingRepository.save(
         settingRepository
             .findByKeyAndTenantId(
-                TENANT_SIMULATION_DASHBOARD.key(), TenantContext.getCurrentTenant())
+                TENANT_SIMULATION_DASHBOARD.key(), "tenant")
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
@@ -117,7 +116,7 @@ public class ExerciseApiTest extends IntegrationTest {
                 () -> {
                   Setting s =
                       new Setting(TENANT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId());
-                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  s.setTenant(new Tenant("tenant"));
                   return s;
                 }));
 

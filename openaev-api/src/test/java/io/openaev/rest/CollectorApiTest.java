@@ -16,7 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.rest.collector.form.CollectorCreateInput;
@@ -280,7 +279,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("collector_period").isEqualTo(input.getPeriod());
 
       Optional<Collector> persisted =
-          collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findByIdAndTenantId(input.getId(), "tenant");
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getPeriod()).isEqualTo(input.getPeriod());
@@ -314,7 +313,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("collector_security_platform.asset_id").isEqualTo(sp.getId());
 
       Optional<Collector> persisted =
-          collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findByIdAndTenantId(input.getId(), "tenant");
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNotNull();
       assertThat(persisted.get().getSecurityPlatform().getId()).isEqualTo(sp.getId());
@@ -358,7 +357,7 @@ public class CollectorApiTest extends IntegrationTest {
       Collector existing = getCollector("reregister-type");
       Collector persisted =
           collectorRepository
-              .findByIdAndTenantId(existing.getId(), TenantContext.getCurrentTenant())
+              .findByIdAndTenantId(existing.getId(), "tenant")
               .orElseThrow();
       java.time.Instant originalUpdatedAt = persisted.getUpdatedAt();
 
@@ -378,7 +377,7 @@ public class CollectorApiTest extends IntegrationTest {
 
       Collector updated =
           collectorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .findByIdAndTenantId(input.getId(), "tenant")
               .orElseThrow();
       assertThat(updated.isExternal()).isTrue();
       assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(originalUpdatedAt);
@@ -410,7 +409,7 @@ public class CollectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("collector_security_platform").isEqualTo(null);
 
       Optional<Collector> persisted =
-          collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
+          collectorRepository.findByIdAndTenantId(input.getId(), "tenant");
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNull();
     }

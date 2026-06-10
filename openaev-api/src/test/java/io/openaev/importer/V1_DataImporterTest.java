@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -76,10 +76,9 @@ class V1_DataImporterTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   void testImportData() {
     // -- EXECUTE --
-    this.importer.importData(
+    this.importer.importData(TxCtx.of("tenant"),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
@@ -108,9 +107,8 @@ class V1_DataImporterTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   void testScenario_with_attackpattern() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     MockitoAnnotations.openMocks(this);
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -119,7 +117,7 @@ class V1_DataImporterTest extends IntegrationTest {
                 Paths.get(
                     "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
     this.importNode = mapper.readTree(jsonContent);
-    this.importer.importData(
+    this.importer.importData(TxCtx.of("tenant"),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
@@ -145,9 +143,9 @@ class V1_DataImporterTest extends IntegrationTest {
     payloadRepository.deleteAll();
     entityManager.flush();
     entityManager.clear();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
-    this.importer.importData(
+    this.importer.importData(TxCtx.of("tenant"),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
     InjectorContract injectorContract2 =
@@ -161,7 +159,6 @@ class V1_DataImporterTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   void
       testScenario_given_injects_nuclei_without_nuclei_injector_registered_when_starterpack_then_should_create_dummy_injector()
           throws IOException {
@@ -174,13 +171,13 @@ class V1_DataImporterTest extends IntegrationTest {
                 Paths.get(
                     "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
     this.importNode = mapper.readTree(jsonContent);
-    this.importer.importData(
+    this.importer.importData(TxCtx.of("tenant"),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // dummy injector should be created with 1 associated injector contract
     Injector dummyInjector =
         this.injectorRepository
-            .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findByTypeAndTenantId(NMAP_DUMMY_INJECTOR_TYPE, "tenant")
             .orElseThrow();
     List<InjectorContract> injectorContracts =
         injectorContractRepository.findByInjectorsContaining(dummyInjector);
@@ -188,7 +185,6 @@ class V1_DataImporterTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   void testImportXTMHubScenarios() throws IOException {
     MockitoAnnotations.openMocks(this);
 
@@ -204,13 +200,12 @@ class V1_DataImporterTest extends IntegrationTest {
     for (Path xtmScenariosFilePath : xtmScenariosFilesPath) {
       String jsonContent = Files.readString(xtmScenariosFilePath);
       JsonNode importNode = mapper.readTree(jsonContent);
-      this.importer.importData(
+      this.importer.importData(TxCtx.of("tenant"),
           importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     }
   }
 
   @Test
-  @Transactional
   void test_empty() throws IOException {
     ObjectMapper mapper = new ObjectMapper();
     String jsonContent =
@@ -224,14 +219,13 @@ class V1_DataImporterTest extends IntegrationTest {
         domainRepository.findByName(PresetDomain.getToClassify().getName()).orElseThrow();
 
     Set<Domain> importDomain =
-        this.importer.mergeDomains(new HashMap<>(), this.importNode, "payload_", null, null);
+        this.importer.mergeDomains(null, new HashMap<>(), this.importNode, "payload_", null, null);
 
     assertEquals(1, importDomain.size());
     assertEquals(domainToClassify.getId(), importDomain.stream().findFirst().get().getId());
   }
 
   @Test
-  @Transactional
   void testImportScenario_givenPayloadWithMissingArrayFields_shouldImportWithoutError()
       throws IOException {
     // -- PREPARE --
@@ -246,7 +240,7 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importNode = mapper.readTree(jsonContent);
 
     // -- EXECUTE --
-    this.importer.importData(
+    this.importer.importData(TxCtx.of("tenant"),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
@@ -267,7 +261,6 @@ class V1_DataImporterTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   void testImportScenario_givenPayloadWithExplicitNullArrayFields_shouldImportWithoutError()
       throws IOException {
     // -- PREPARE --
@@ -283,7 +276,7 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importNode = mapper.readTree(jsonContent);
 
     // -- EXECUTE --
-    this.importer.importData(
+    this.importer.importData(TxCtx.of("tenant"),
         this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --

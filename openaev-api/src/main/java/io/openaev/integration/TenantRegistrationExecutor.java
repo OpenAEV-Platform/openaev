@@ -1,6 +1,5 @@
 package io.openaev.integration;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManagerException;
 import jakarta.persistence.EntityManager;
@@ -9,13 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Executes built-in tenant registration. Provides two entry points:
  *
  * <ul>
- *   <li>{@link #registerForTenantIsolated(Tenant)} — startup path: switches tenant context,
+ *   <li>{@link #registerForTenant(Tenant)} — startup path: switches tenant context,
  *       registers, then flushes/clears/restores.
  *   <li>{@link #registerForTenant(Tenant)} — tenant creation path: just registers (caller manages
  *       context).
@@ -27,34 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class TenantRegistrationExecutor {
 
   private final List<BuiltinTenantRegistrable> builtinRegistrables;
-  private final EntityManager entityManager;
 
-  /**
-   * Registers built-in connectors for a single tenant within the caller's transaction. Wraps {@link
-   * #registerForTenant(Tenant)} with tenant context switch, flush/clear, and restore.
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void registerForTenantIsolated(Tenant tenant) throws DependenciesManagerException {
-    String previousTenant = TenantContext.getCurrentTenant();
-    try {
-      switchTenantContext(tenant.getId());
-      registerForTenant(tenant);
-      entityManager.flush();
-      entityManager.clear();
-    } finally {
-      switchTenantContext(previousTenant);
-    }
-  }
-
-  /**
-   * Registers built-in connectors in the CURRENT transaction. Assumes the caller has already set up
-   * TenantContext, Hibernate filter
-   */
-  @Transactional(rollbackFor = Exception.class)
   public void registerForTenant(Tenant tenant) throws DependenciesManagerException {
     for (BuiltinTenantRegistrable registrable : builtinRegistrables) {
       try {
-        registrable.registerForTenant();
+        registrable.registerForTenant(tenant.getId());
       } catch (Exception e) {
         throw new DependenciesManagerException(
             "Failed to register built-in connector %s for tenant %s"
@@ -66,15 +41,5 @@ public class TenantRegistrationExecutor {
         "Successfully registered {} built-in connector(s) for tenant '{}'",
         builtinRegistrables.size(),
         tenant.getName());
-  }
-
-  /** Sets ThreadLocal + Hibernate filter in one call. No-op if tenantId is null. */
-  private void switchTenantContext(String tenantId) {
-    TenantContext.setCurrentTenant(tenantId);
-    if (tenantId == null) {
-      return;
-    }
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
 }

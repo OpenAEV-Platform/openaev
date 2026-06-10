@@ -20,6 +20,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class FindingSearchApi extends RestBehavior {
   private final FindingMapper findingMapper;
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({FINDING_URI + "/search", TENANT_FINDING_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
   @ApiResponse(
@@ -64,6 +66,7 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     FINDING_URI + "/injects/{injectId}/search",
     TENANT_FINDING_URI + "/injects/{injectId}/search"
@@ -99,6 +102,7 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     FINDING_URI + "/exercises/{simulationId}/search",
     TENANT_FINDING_URI + "/exercises/{simulationId}/search"
@@ -134,6 +138,7 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     FINDING_URI + "/scenarios/{scenarioId}/search",
     TENANT_FINDING_URI + "/scenarios/{scenarioId}/search"
@@ -171,6 +176,7 @@ public class FindingSearchApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     FINDING_URI + "/endpoints/{endpointId}/search",
     TENANT_FINDING_URI + "/endpoints/{endpointId}/search"

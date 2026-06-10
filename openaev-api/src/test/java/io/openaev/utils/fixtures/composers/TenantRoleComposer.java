@@ -25,7 +25,7 @@ public class TenantRoleComposer extends ComposerBase<Role> {
     public TenantRoleComposer.Composer persist() {
       role.setTenant(
           entityManager.getReference(
-              Tenant.class, io.openaev.context.TenantContext.getCurrentTenant()));
+              Tenant.class, "tenant"));
       roleRepository.save(this.role);
       return this;
     }

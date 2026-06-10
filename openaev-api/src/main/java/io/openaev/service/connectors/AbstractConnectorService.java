@@ -1,5 +1,6 @@
 package io.openaev.service.connectors;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;

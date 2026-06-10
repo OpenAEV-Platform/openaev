@@ -4,6 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -79,7 +80,8 @@ public class MailingService {
                   managerFactory
                       .getManager()
                       .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
-              executor.executeInjection(injection);
+              TxCtx ctx = TxCtx.noTenant();
+              executor.executeInjection(ctx, injection);
             });
   }
 

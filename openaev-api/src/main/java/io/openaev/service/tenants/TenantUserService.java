@@ -2,7 +2,6 @@ package io.openaev.service.tenants;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.UserSpecification.fromIds;
-import static io.openaev.database.specification.UserSpecification.inTenant;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -10,7 +9,7 @@ import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -35,11 +34,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
 public class TenantUserService implements DependenciesManager {
 
   private final UserService userService;
@@ -54,8 +51,8 @@ public class TenantUserService implements DependenciesManager {
   /**
    * Creates a user and attaches it to the current tenant, or silently attaches an existing user.
    */
-  public UserOutput createOrAttach(UserInput input) {
-    String tenantId = tenantId();
+  public UserOutput createOrAttach(TxCtx ctx, UserInput input) {
+    String tenantId = ctx.tenantIdFromUri();
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -82,45 +79,39 @@ public class TenantUserService implements DependenciesManager {
   // -- READ --
 
   /** Returns a user by ID within the current tenant scope. */
-  @Transactional(readOnly = true)
   public UserOutput user(@NotBlank final String userId) {
     return userRepository
-        .findOne(inTenant(tenantId()).and(UserSpecification.byId(userId)))
+        .findOne(UserSpecification.byId(userId))
         .map(UserMapper::toOutput)
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
   /** Finds users by IDs within the current tenant scope. */
-  @Transactional(readOnly = true)
   public List<UserOutput> find(@NotNull final List<String> userIds) {
     if (userIds.isEmpty()) {
       return List.of();
     }
-    return userRepository.findAll(inTenant(tenantId()).and(fromIds(userIds))).stream()
+    return userRepository.findAll(fromIds(userIds)).stream()
         .map(UserMapper::toOutput)
         .toList();
   }
 
   /** Returns all users belonging to the current tenant. */
-  @Transactional(readOnly = true)
-  public List<RawUser> users() {
-    return userRepository.rawAllInTenant(tenantId());
+  public List<RawUser> users(TxCtx ctx) {
+    return userRepository.rawAllInTenant(ctx.tenantIdFromUri());
   }
 
   // -- SEARCH --
 
-  /** Searches users belonging to the current tenant (from {@link TenantContext}). */
-  @Transactional(readOnly = true)
   public Page<UserOutput> search(SearchPaginationInput searchPaginationInput) {
-    Specification<User> tenantSpec = inTenant(tenantId());
     var cb = entityManager.getCriteriaBuilder();
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             paginate(
                 entityManager,
                 User.class,
-                tenantSpec.and(spec),
-                tenantSpec.and(specCount),
+                spec,
+                specCount,
                 pageable,
                 (cq, root) -> UserQueryHelper.select(cb, cq, root),
                 UserQueryHelper::execution),
@@ -136,7 +127,7 @@ public class TenantUserService implements DependenciesManager {
    */
   public UserOutput update(@NotBlank String userId, UserInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
-    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
+    Specification<User> spec = UserSpecification.byId(userId);
     User existing =
         userRepository
             .findOne(spec)
@@ -156,11 +147,11 @@ public class TenantUserService implements DependenciesManager {
   // -- DELETE --
 
   /** Detaches a user from the current tenant without deleting the user. */
-  public void detach(String userId) {
+  public void detach(TxCtx ctx, String userId) {
     User user = userService.user(userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
-    tenantRepository.removeUserFromTenant(userId, tenantId());
-    tenantMembershipCacheManager.evict(userId, tenantId());
+    tenantRepository.removeUserFromTenant(userId, ctx.tenantIdFromUri());
+    tenantMembershipCacheManager.evict(userId, ctx.tenantIdFromUri());
   }
 
   // -- DEPENDENCIES MANAGER --
@@ -176,15 +167,6 @@ public class TenantUserService implements DependenciesManager {
   }
 
   // -- INTERNAL --
-
-  /** Resolves the current tenant ID from the thread-local context. */
-  private String tenantId() {
-    String tenantId = TenantContext.getCurrentTenant();
-    if (tenantId == null || tenantId.isBlank()) {
-      throw new IllegalStateException("TenantUserService requires a tenant context");
-    }
-    return tenantId;
-  }
 
   private void assignDefaultTenantGroups(String userId, String tenantId) {
     List<Group> defaultGroups =

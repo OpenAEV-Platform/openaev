@@ -1,7 +1,6 @@
 package io.openaev;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
@@ -60,7 +59,7 @@ public abstract class IntegrationTest {
             .filter(java.util.Objects::nonNull)
             .map(Tenant::getId)
             .findFirst()
-            .orElse(TenantContext.getCurrentTenant());
+            .orElse("tenant");
 
     // Keep test user/tenant membership in sync with TenantInterceptor checks.
     tenantRepository.addUserToTenant(user.getId(), tenantId);

@@ -6,7 +6,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
@@ -47,6 +47,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsCategory> exerciseLessonsCategories(@PathVariable String exerciseId) {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
   }
@@ -64,7 +65,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
@@ -109,7 +110,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
@@ -241,6 +242,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsQuestion> exerciseLessonsQuestions(@PathVariable String exerciseId) {
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -261,12 +263,14 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsQuestion> exerciseLessonsCategoryQuestions(
       @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
     return lessonsQuestionRepository.findAll(
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
@@ -289,6 +293,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     return lessonsQuestionRepository.save(lessonsQuestion);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URL
         + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",
@@ -337,11 +342,10 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackOn = Exception.class)
-  public void sendExerciseLessons(
-      @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
+  public void sendExerciseLessons(@PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
@@ -366,6 +370,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<LessonsAnswer> exerciseLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     return lessonsCategoryRepository
@@ -392,6 +397,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -415,6 +421,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<LessonsQuestion> playerLessonsQuestions(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -435,6 +442,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<LessonsAnswer> playerLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -459,6 +467,7 @@ public class ExerciseLessonsApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     "/api/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers",
     TENANT_PREFIX

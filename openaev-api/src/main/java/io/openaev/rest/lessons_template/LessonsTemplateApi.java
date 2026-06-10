@@ -48,10 +48,12 @@ public class LessonsTemplateApi extends RestBehavior {
 
   @GetMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.LESSON_LEARNED)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsTemplate> lessonsTemplates() {
     return fromIterable(lessonsTemplateRepository.findAll()).stream().toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({LESSON_TEMPLATE_URI + "/search", TENANT_LESSON_TEMPLATE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.LESSON_LEARNED)
   public Page<LessonsTemplate> lessonsTemplates(
@@ -60,6 +62,7 @@ public class LessonsTemplateApi extends RestBehavior {
         this.lessonsTemplateRepository::findAll, searchPaginationInput, LessonsTemplate.class);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
@@ -79,6 +82,7 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateRepository.save(lessonsTemplate);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
@@ -122,6 +126,7 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsTemplateCategory> lessonsTemplateCategories(
       @PathVariable String lessonsTemplateId) {
     return lessonsTemplateCategoryRepository.findAll(
@@ -150,6 +155,7 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateCategoryRepository.save(lessonsTemplateCategory);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}",
     TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}"
@@ -173,6 +179,7 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsTemplateQuestion> lessonsTemplateQuestions(
       @PathVariable String lessonsTemplateId) {
     return lessonsTemplateCategoryRepository
@@ -193,6 +200,7 @@ public class LessonsTemplateApi extends RestBehavior {
   private static final String TENANT_LESSON_QUESTION_URI =
       TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}/lessons_template_questions";
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
   @AccessControl(
       resourceId = "#lessonsTemplateId",
@@ -217,12 +225,14 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.LESSON_LEARNED)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<LessonsTemplateQuestion> lessonsTemplateCategoryQuestions(
       @PathVariable String lessonsTemplateId, @PathVariable String lessonsTemplateCategoryId) {
     return lessonsTemplateQuestionRepository.findAll(
         LessonsTemplateQuestionSpecification.fromCategory(lessonsTemplateCategoryId));
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
     TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
@@ -245,6 +255,7 @@ public class LessonsTemplateApi extends RestBehavior {
     return lessonsTemplateQuestionRepository.save(lessonsTemplateQuestion);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
     TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"

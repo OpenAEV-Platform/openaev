@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import io.openaev.database.repository.*;
@@ -348,13 +348,15 @@ public class PayloadService {
   }
 
   public void deprecateNonProcessedPayloadsByCollector(
-      String collectorId, List<String> processedPayloadExternalIds) {
+      TxCtx context, String collectorId, List<String> processedPayloadExternalIds) {
     List<String> payloadExternalIds =
         payloadRepository.findAllExternalIdsByCollectorId(collectorId);
     List<String> payloadExternalIdsToDeprecate =
         getExternalIdsToDeprecate(payloadExternalIds, processedPayloadExternalIds);
     payloadRepository.setPayloadStatusByExternalIds(
-        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED), payloadExternalIdsToDeprecate);
+        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED),
+        payloadExternalIdsToDeprecate,
+        context.tenantIdFromUri());
     log.info("Number of deprecated Payloads: {}", payloadExternalIdsToDeprecate.size());
   }
 
@@ -373,15 +375,15 @@ public class PayloadService {
    * @param searchPaginationInput the input containing pagination and search criteria
    * @return a paginated list of Payloads
    */
-  public Page<Payload> searchPayloads(@NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<Payload> searchPayloads(TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
     return buildPaginationJPA(
         SpecificationUtils.withGrantFilter(
             this.payloadRepository,
             Grant.GRANT_TYPE.OBSERVER,
             currentUser.getId(),
-            currentUser.isAdminOrBypass(),
-            currentUser.getCapabilities().contains(Capability.ACCESS_PAYLOADS)),
+            currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
+            currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_PAYLOADS)),
         handleArchitectureFilter(searchPaginationInput),
         Payload.class);
   }
@@ -394,11 +396,11 @@ public class PayloadService {
    * @param scenario to add to document if file drop is created
    * @return retrieved or created FileDrop
    */
-  public FileDrop getFileDropPayloadByDocument(String documentId, Scenario scenario) {
+  public FileDrop getFileDropPayloadByDocument( String documentId, Scenario scenario) {
     FileDrop fileDrop =
         payloadRepository
             .findByDocumentId(documentId)
-            .orElseGet(() -> this.createFileDropPayload(documentId));
+            .orElseGet(() -> this.createFileDropPayload(scenario.getTenant().getId(), documentId));
     fileDrop.getFileDropFile().getScenarios().add(scenario);
     this.documentService.save(fileDrop.getFileDropFile());
     return fileDrop;
@@ -410,7 +412,7 @@ public class PayloadService {
    * @param documentId to link to FileDrop Payload
    * @return created file drop payload
    */
-  public FileDrop createFileDropPayload(String documentId) {
+  public FileDrop createFileDropPayload(String tenantId, String documentId) {
     Document document = this.documentService.document(documentId);
 
     FileDrop fileDrop = new FileDrop();
@@ -435,7 +437,7 @@ public class PayloadService {
         List.of(),
         domainService.upserts(
             Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
-            TenantContext.getCurrentTenant()),
+            tenantId),
         tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
@@ -446,11 +448,10 @@ public class PayloadService {
    *
    * @return the Dynamic DNS Resolution payload
    */
-  public DnsResolution getDynamicDnsResolutionPayload() {
+  public DnsResolution getDynamicDnsResolutionPayload(String tenantId) {
     return payloadRepository
         .findById(DYNAMIC_DNS_RESOLUTION_UUID)
-        .map(DnsResolution.class::cast)
-        .orElseGet(this::createDynamicDnsResolutionPayload);
+        .map(DnsResolution.class::cast).orElseGet(() -> createDynamicDnsResolutionPayload(tenantId));
   }
 
   /**
@@ -460,7 +461,7 @@ public class PayloadService {
    * @return the created Dynamic DNS Resolution payload
    */
   @Lock(type = LockResourceType.PAYLOAD, key = DYNAMIC_DNS_RESOLUTION_UUID)
-  private DnsResolution createDynamicDnsResolutionPayload() {
+  private DnsResolution createDynamicDnsResolutionPayload(String tenantId) {
     DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
     dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
     dynamicDnsResolutionPayload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
@@ -493,7 +494,7 @@ public class PayloadService {
                 PresetDomain.getEndpoint(),
                 PresetDomain.getNetwork(),
                 PresetDomain.getUrlFiltering()),
-            TenantContext.getCurrentTenant()),
+            tenantId),
         tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }

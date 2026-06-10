@@ -3,7 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -17,7 +17,6 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
-import jakarta.transaction.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -45,8 +44,7 @@ public class PayloadUpsertService {
   private final DocumentService documentService;
   private final DomainService domainService;
 
-  @Transactional(rollbackOn = Exception.class)
-  public Payload upsertPayload(PayloadUpsertInput input) {
+  public Payload upsertPayload(TxCtx ctx, PayloadUpsertInput input) {
     Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
@@ -66,15 +64,15 @@ public class PayloadUpsertService {
     }
     List<AttackPattern> attackPatterns =
         attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-            input.getAttackPatternsExternalIds(), TenantContext.getCurrentTenant());
+            input.getAttackPatternsExternalIds(), ctx.tenantIdFromUri());
     if (payload.isPresent()) {
-      return updatePayloadFromUpsert(input, payload.get(), attackPatterns, collectorType);
+      return updatePayloadFromUpsert(ctx, input, payload.get(), attackPatterns, collectorType);
     } else {
-      return createPayloadFromUpsert(input, attackPatterns, collectorType);
+      return createPayloadFromUpsert(ctx, input, attackPatterns, collectorType);
     }
   }
 
-  private Payload createPayloadFromUpsert(
+  private Payload createPayloadFromUpsert(TxCtx ctx,
       PayloadUpsertInput input, List<AttackPattern> attackPatterns, CollectorType collectorType) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
@@ -97,20 +95,21 @@ public class PayloadUpsertService {
         saved,
         attackPatterns,
         input.getDomains() != null
-            ? domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
+            ? domainService.upserts(input.getDomains(), ctx.tenantIdFromUri())
             : new HashSet<>(
                 Set.of(
                     domainService.upsert(
                         Domain.builder()
                             .name(PresetDomain.getToClassify().getName())
                             .color(PresetDomain.getToClassify().getColor())
-                            .tenant(new Tenant(TenantContext.getCurrentTenant()))
+                            .tenant(new Tenant(ctx.tenantIdFromUri()))
                             .build()))),
         this.tagService.tagSet((input.getTagIds())));
     return saved;
   }
 
   public Payload updatePayloadFromUpsert(
+          TxCtx ctx,
       PayloadUpsertInput input,
       Payload existingPayload,
       List<AttackPattern> attackPatterns,
@@ -130,10 +129,10 @@ public class PayloadUpsertService {
     final Set<Domain> existingDomains =
         existingInjectorContracts.isPresent()
             ? this.domainService.upsertDomainEntities(
-                existingInjectorContracts.get().getDomains(), TenantContext.getCurrentTenant())
+                existingInjectorContracts.get().getDomains(), ctx.tenantIdFromUri())
             : Set.of();
     final Set<Domain> domainsToAdd =
-        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant());
+        this.domainService.upserts(input.getDomains(), ctx.tenantIdFromUri());
 
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
@@ -146,7 +145,7 @@ public class PayloadUpsertService {
         saved,
         attackPatterns,
         this.domainService.mergeDomains(
-            existingDomains, domainsToAdd, new Tenant(TenantContext.getCurrentTenant())),
+            existingDomains, domainsToAdd, new Tenant(ctx.tenantIdFromUri())),
         this.tagService.tagSet((input.getTagIds())));
     return saved;
   }

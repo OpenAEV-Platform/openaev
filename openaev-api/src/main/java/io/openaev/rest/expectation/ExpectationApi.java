@@ -57,6 +57,7 @@ public class ExpectationApi extends RestBehavior {
     return injectExpectationService.deleteInjectExpectationResult(expectationId, sourceId);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @Operation(
       summary = "Get Inject Expectations",
       description =
@@ -82,6 +83,7 @@ public class ExpectationApi extends RestBehavior {
         .toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @Operation(
       summary = "Get Inject Expectations for a Specific Source",
       description =
@@ -101,6 +103,7 @@ public class ExpectationApi extends RestBehavior {
         .toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @Operation(
       summary = "Get Inject Expectations for a Specific Source",
       description =
@@ -129,6 +132,7 @@ public class ExpectationApi extends RestBehavior {
         .toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/prevention",
     TENANT_INJECTS_EXPECTATIONS_URI + "/prevention"
@@ -138,6 +142,7 @@ public class ExpectationApi extends RestBehavior {
     return injectExpectationService.preventionExpectationsNotFill().stream().toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @Operation(
       summary = "Get Inject Expectations for a Specific Source and type Prevention",
       description =
@@ -152,6 +157,7 @@ public class ExpectationApi extends RestBehavior {
     return injectExpectationService.preventionExpectationsNotFill(sourceId).stream().toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/detection",
     TENANT_INJECTS_EXPECTATIONS_URI + "/detection"
@@ -161,6 +167,7 @@ public class ExpectationApi extends RestBehavior {
     return injectExpectationService.detectionExpectationsNotFill().stream().toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @Operation(
       summary = "Get Inject Expectations for a Specific Source and type Detection",
       description =
@@ -201,6 +208,7 @@ public class ExpectationApi extends RestBehavior {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @Operation(summary = "Get available expectations for an inject by injector contract id")
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/available",

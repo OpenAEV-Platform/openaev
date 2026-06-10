@@ -83,12 +83,12 @@ class ExerciseApiExportTest extends IntegrationTest {
     tagComposer.reset();
     exerciseComposer.reset();
     payloadComposer.reset();
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {
-      fileService.deleteFile(fileName);
+      fileService.deleteFile("tenant", fileName);
     }
   }
 
@@ -144,7 +144,7 @@ class ExerciseApiExportTest extends IntegrationTest {
                     injectorContractComposer
                         .forInjectorContract(
                             InjectorContractFixture.createDefaultInjectorContract())
-                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                         .withDomain(
                             domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
                         .withPayload(

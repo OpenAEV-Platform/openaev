@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectExpectation;
@@ -60,7 +61,7 @@ public class ManualExecutorTest extends IntegrationTest {
     when(mapper.treeToValue(content, ManualContent.class)).thenReturn(manualContent);
 
     ManualExecutor executor = new ManualExecutor(injectorContext, injectExpectationService);
-    executor.process(execution, executableInject);
+    executor.process(TxCtx.of("tenant"), execution, executableInject);
 
     // verify that the expectations are saved
     verify(injectExpectationService)

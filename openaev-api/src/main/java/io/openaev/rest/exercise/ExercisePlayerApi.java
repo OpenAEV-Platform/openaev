@@ -4,7 +4,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
@@ -13,6 +12,7 @@ import io.openaev.rest.exercise.response.PublicExercise;
 import io.openaev.rest.helper.RestBehavior;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,12 +31,13 @@ public class ExercisePlayerApi extends RestBehavior {
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
+  @Transactional(readOnly = true)
   public PublicExercise playerExercise(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);
     Exercise exercise =
         this.exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     return new PublicExercise(exercise);
   }

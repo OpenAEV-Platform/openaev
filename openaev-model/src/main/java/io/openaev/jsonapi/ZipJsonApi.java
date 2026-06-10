@@ -59,12 +59,14 @@ public class ZipJsonApi<T extends Base> {
 
   // -- IMPORT --
   public ZipJsonService.ImportOutput<T> handleImport(
+      String tenantId,
       MultipartFile file,
       String nameAttributeKey,
       IncludeOptions includeOptions,
       Function<T, T> sanityCheck)
       throws IOException {
     return this.zipJsonService.handleImport(
+        tenantId,
         file.getBytes(),
         nameAttributeKey,
         includeOptions,

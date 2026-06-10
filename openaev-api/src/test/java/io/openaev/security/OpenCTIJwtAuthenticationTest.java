@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
@@ -57,7 +56,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   void setUp() throws Exception {
     userComposer.reset();
     tokenComposer.reset();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    manualInjectorIntegrationFactory.registerConnectorForTenant("tenantId");
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {
@@ -86,11 +85,11 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
     if (jwks != null) {
       SecurityCoverageConnector c = new SecurityCoverageConnector();
       c.setJwks(jwks);
-      c.setOpenCTIConfig(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()));
-      c.setTenantId(TenantContext.getCurrentTenant());
+      c.setOpenCTIConfig(openCTIConfig.getOpencti().get("tenantId"));
+      c.setTenantId("tenantId");
       Mockito.doReturn(Optional.of(c))
           .when(openCTIConnectorService)
-          .getConnectorBase(TenantContext.getCurrentTenant());
+          .getConnectorBase("tenantId");
       Mockito.doReturn(List.of(c)).when(openCTIConnectorService).getRegisterConnectors();
     }
 

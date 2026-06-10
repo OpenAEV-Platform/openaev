@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -154,7 +155,8 @@ public class InjectTestStatusService {
             inject.getAssets(),
             inject.getAssetGroups(),
             List.of(userInjectContext));
-    Execution execution = executor.executeInjection(injection);
+    TxCtx ctx = TxCtx.of(null, List.of(inject.getTenant().getId()));
+    Execution execution = executor.executeInjection(ctx, injection);
 
     InjectTestStatus injectTestStatus =
         this.injectTestStatusRepository

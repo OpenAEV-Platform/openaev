@@ -23,11 +23,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class, noRollbackFor = AccessDeniedException.class)
 public class UrlAccessTokenService {
 
   public static final String INVALID_TOKEN_MESSAGE = "Invalid URL access token";
@@ -105,7 +103,6 @@ public class UrlAccessTokenService {
    * @param exerciseId optional exercise ID scope check
    * @return the matching persisted token when valid
    */
-  @Transactional(readOnly = true)
   public UrlAccessToken validateToken(@NotBlank final String rawToken, final String exerciseId) {
     return validateTokenInternal(rawToken, exerciseId);
   }
@@ -145,7 +142,6 @@ public class UrlAccessTokenService {
    * @param rawToken raw token value received from cookie
    * @return user identifier linked to the token
    */
-  @Transactional(readOnly = true)
   public String validateTokenAndFindUserId(@NotBlank final String rawToken) {
     return validateTokenInternal(rawToken, null).getUser().getId();
   }

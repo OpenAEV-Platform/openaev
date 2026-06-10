@@ -94,8 +94,7 @@ public interface AssetGroupRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " ) AND (:name IS NULL OR lower(ag.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<AssetGroup> findAllBySimulationOrScenarioIdAndName(
       String simulationOrScenarioId, String name);
 
@@ -103,8 +102,7 @@ public interface AssetGroupRepository
       value =
           "SELECT ag.* "
               + "FROM asset_groups ag "
-              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id "
-              + "WHERE ag.tenant_id = :#{#tenantContext.currentTenant}",
+              + "INNER JOIN injects_asset_groups iag ON ag.asset_group_id = iag.asset_group_id ",
       nativeQuery = true)
   List<AssetGroup> findAllAssetGroupsForAtomicTestingsSimulationsAndScenarios();
 
@@ -118,8 +116,7 @@ public interface AssetGroupRepository
         FROM injects i
         INNER JOIN findings f ON f.finding_inject_id = i.inject_id
         INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
-    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-    AND ag.tenant_id = :#{#tenantContext.currentTenant};
+    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
@@ -137,8 +134,7 @@ public interface AssetGroupRepository
         LEFT JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
         WHERE i.inject_id = :sourceId OR i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId
-    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-      AND ag.tenant_id = :#{#tenantContext.currentTenant};
+    ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
     """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(

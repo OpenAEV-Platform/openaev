@@ -121,7 +121,7 @@ class BatchingInjectStatusServiceTest {
       InjectExecutionCallback middle =
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 2000L);
 
-      service.handleInjectExecutionCallback(List.of(late, early, middle));
+      service.handleInjectExecutionCallback(any(), List.of(late, early, middle));
 
       // Verify processInjectExecutionWithAgent was called 3 times in chronological order
       InOrder inOrder = inOrder(injectExecutionService);
@@ -159,7 +159,7 @@ class BatchingInjectStatusServiceTest {
               "non-existent-inject", AGENT_ID, InjectExecutionAction.command_execution, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // Should be in success list because ElementNotFoundException is caught and handled
       assertEquals(1, result.size());
@@ -180,7 +180,7 @@ class BatchingInjectStatusServiceTest {
               INJECT_ID, "non-existent-agent", InjectExecutionAction.command_execution, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // Missing agent throws ElementNotFoundException → caught → added to success
       assertEquals(1, result.size());
@@ -212,7 +212,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // General exception → NOT added to success list
       assertTrue(result.isEmpty());
@@ -240,7 +240,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // The callback is queued for retry → NOT added to the successfully-processed list,
       // and no execution processing happened.
@@ -264,7 +264,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       assertEquals(1, result.size());
       verify(injectExecutionService)
@@ -286,7 +286,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       assertEquals(1, result.size());
       verify(injectExecutionService)
@@ -319,7 +319,7 @@ class BatchingInjectStatusServiceTest {
       InjectExecutionCallback callback2 =
           createCallback("inject-2", "agent-2", InjectExecutionAction.command_execution, 2000L);
 
-      service.handleInjectExecutionCallback(List.of(callback1, callback2));
+      service.handleInjectExecutionCallback(any(), List.of(callback1, callback2));
 
       // Verify bulk loads are called exactly once each
       verify(injectRepository, times(1)).findAllByIdWithExpectations(anyList());
@@ -347,7 +347,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       assertEquals(1, result.size());
       assertSame(callback, result.getFirst());
@@ -368,7 +368,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, null, InjectExecutionAction.command_execution, 1000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       assertEquals(1, result.size());
       verify(injectExecutionService)
@@ -389,7 +389,8 @@ class BatchingInjectStatusServiceTest {
       when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of());
       when(agentRepository.findAllById(anyList())).thenReturn(List.of());
 
-      List<InjectExecutionCallback> result = service.handleInjectExecutionCallback(List.of());
+      List<InjectExecutionCallback> result =
+          service.handleInjectExecutionCallback(any(), List.of());
 
       assertTrue(result.isEmpty());
       verify(injectExecutionService, never()).processInjectExecutionWithAgent(any(), any(), any());
@@ -414,7 +415,7 @@ class BatchingInjectStatusServiceTest {
       InjectExecutionCallback callback =
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, originalEmissionDate);
       long beforeHandle = Instant.now().toEpochMilli();
-      service.handleInjectExecutionCallback(List.of(callback));
+      service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // Drain
       service.requeueCallbacks();
@@ -454,7 +455,7 @@ class BatchingInjectStatusServiceTest {
           createCallback("inject-2", "agent-2", InjectExecutionAction.complete, 2000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(retryCallback, normalCallback));
+          service.handleInjectExecutionCallback(any(), List.of(retryCallback, normalCallback));
 
       // Only the normal callback is in the success list; the retry callback is queued instead.
       assertEquals(1, result.size());
@@ -487,7 +488,7 @@ class BatchingInjectStatusServiceTest {
       callback.setRetryCount(MAX_RETRIES);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // Max retries reached → fall through to persist the trace as a last-ditch effort,
       // not re-incremented, not re-queued.
@@ -516,7 +517,7 @@ class BatchingInjectStatusServiceTest {
       callback.setRetryCount(MAX_RETRIES);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback));
+          service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // Max retries reached with no agent → fall through to the injector branch of
       // saveExecutionTrace and still persist the trace.
@@ -543,7 +544,7 @@ class BatchingInjectStatusServiceTest {
 
       InjectExecutionCallback callback =
           createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.complete, 1000L);
-      service.handleInjectExecutionCallback(List.of(callback));
+      service.handleInjectExecutionCallback(any(), List.of(callback));
 
       // Must not NPE even though the in-memory requeue queue is non-empty.
       assertDoesNotThrow(() -> service.requeueCallbacks());
@@ -566,7 +567,7 @@ class BatchingInjectStatusServiceTest {
           createCallback(INJECT_ID, "agent-2", InjectExecutionAction.command_execution, 2000L);
 
       List<InjectExecutionCallback> result =
-          service.handleInjectExecutionCallback(List.of(callback1, callback2));
+          service.handleInjectExecutionCallback(any(), List.of(callback1, callback2));
 
       assertEquals(2, result.size());
       // Both callbacks should reference the same Inject entity from the bulk load

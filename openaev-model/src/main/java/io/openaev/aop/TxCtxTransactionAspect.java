@@ -67,6 +67,21 @@ public class TxCtxTransactionAspect {
 
     List<String> tenants = resolveTenants(pjp);
     if (!tenants.isEmpty()) {
+      // Check if already set in this PostgreSQL transaction
+      String existing =
+          (String)
+              entityManager
+                  .createNativeQuery("SELECT current_setting('app.current_tenants', true)")
+                  .getSingleResult();
+      if (existing != null && !existing.isEmpty()) {
+        throw new IllegalStateException(
+            "@Transactional nesting detected: tenant context is already '%s' "
+                + "for this transaction. Method '%s' attempted to set '%s'. "
+                + "Remove @Transactional from the inner method."
+                    .formatted(
+                        existing, pjp.getSignature().toShortString(), String.join(",", tenants)));
+      }
+      // Setup the current_tenants config
       String joinedTenants = String.join(",", tenants);
       entityManager
           .createNativeQuery("SELECT set_config('app.current_tenants', :tenantIds, true)")
@@ -147,8 +162,7 @@ public class TxCtxTransactionAspect {
   @SuppressWarnings("unchecked")
   private String getPathVariable(HttpServletRequest request) {
     Map<String, String> pathVars =
-        (Map<String, String>)
-            request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
     return pathVars != null ? pathVars.get(TENANT_ID_PATH_VARIABLE) : null;
   }
 

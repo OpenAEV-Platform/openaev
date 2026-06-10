@@ -221,7 +221,7 @@ class InjectServiceTest {
 
     // Act
     Specification<Inject> specification =
-        injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
+        injectService.getInjectSpecification("tenant", input, Grant.GRANT_TYPE.OBSERVER);
 
     // Assert
     assertNotNull(specification);
@@ -238,7 +238,7 @@ class InjectServiceTest {
 
     // Act
     Specification<Inject> specification =
-        injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
+        injectService.getInjectSpecification("tenant", input, Grant.GRANT_TYPE.OBSERVER);
 
     // Assert
     assertNotNull(specification);
@@ -256,7 +256,7 @@ class InjectServiceTest {
 
     // Act
     Specification<Inject> specification =
-        injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
+        injectService.getInjectSpecification("tenant", input, Grant.GRANT_TYPE.OBSERVER);
 
     // Assert
     assertNotNull(specification);
@@ -272,7 +272,7 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER));
+            () -> injectService.getInjectSpecification("tenant", input, Grant.GRANT_TYPE.OBSERVER));
 
     // Assert
     assertEquals(
@@ -429,7 +429,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission("tenant", input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -452,7 +452,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission("tenant", input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -476,7 +476,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission("tenant", input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -493,7 +493,7 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER));
+            () -> injectService.getInjectsAndCheckPermission("tenant", input, Grant.GRANT_TYPE.PLANNER));
 
     // Assert
     assertEquals(

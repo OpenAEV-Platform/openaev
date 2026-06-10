@@ -3,6 +3,7 @@ package io.openaev.injectors.opencti;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.injectors.opencti.OpenCTIContract.OPENCTI_CREATE_CASE;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
@@ -58,7 +59,7 @@ public class OpenCTIExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(
+  public ExecutionProcess process(TxCtx ctx,
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
@@ -68,7 +69,7 @@ public class OpenCTIExecutor extends Injector {
             .filter(InjectDocument::isAttached)
             .map(InjectDocument::getDocument)
             .toList();
-    List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
+    List<DataAttachment> attachments = resolveAttachments(ctx, execution, injection, documents);
     String name = content.getName();
     String description = content.getDescription();
 

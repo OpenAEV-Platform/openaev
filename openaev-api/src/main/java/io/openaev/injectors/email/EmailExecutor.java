@@ -3,6 +3,7 @@ package io.openaev.injectors.email;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
@@ -83,8 +84,8 @@ public class EmailExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+  public ExecutionProcess process(TxCtx ctx,
+                                  @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     EmailContent content = contentConvert(injection, EmailContent.class);
@@ -93,7 +94,7 @@ public class EmailExecutor extends Injector {
             .filter(InjectDocument::isAttached)
             .map(InjectDocument::getDocument)
             .toList();
-    List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
+    List<DataAttachment> attachments = resolveAttachments(ctx, execution, injection, documents);
     String inReplyTo = content.getInReplyTo();
     String subject = content.getSubject();
     String message = content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());

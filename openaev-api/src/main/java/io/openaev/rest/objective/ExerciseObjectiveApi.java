@@ -6,7 +6,6 @@ import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -44,6 +43,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<Objective> getMainObjectives(@PathVariable String exerciseId) {
     return objectiveRepository.findAll(ObjectiveSpecification.fromExercise(exerciseId));
   }
@@ -61,7 +61,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
@@ -69,6 +69,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     return objectiveRepository.save(objective);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}"
@@ -87,6 +88,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     return objectiveRepository.save(objective);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}"
@@ -110,6 +112,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Evaluation getEvaluation(
       @PathVariable String exerciseId, @PathVariable String evaluationId) {
     return evaluationRepository.findById(evaluationId).orElseThrow(ElementNotFoundException::new);
@@ -123,6 +126,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<Evaluation> getEvaluations(
       @PathVariable String exerciseId, @PathVariable String objectiveId) {
     return evaluationRepository.findAll(EvaluationSpecification.fromObjective(objectiveId));
@@ -154,13 +158,14 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objectiveRepository.save(objective);
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
@@ -184,13 +189,14 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objectiveRepository.save(objective);
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"

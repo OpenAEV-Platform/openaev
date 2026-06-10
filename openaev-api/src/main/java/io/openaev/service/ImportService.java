@@ -5,6 +5,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
@@ -14,7 +15,6 @@ import io.openaev.importer.Importer;
 import io.openaev.importer.V1_DataImporter;
 import io.openaev.utils.constants.Constants;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -49,6 +49,7 @@ public class ImportService {
   }
 
   private void handleDataImport(
+          String tenantId,
       InputStream inputStream,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
@@ -61,7 +62,7 @@ public class ImportService {
       int importVersion = importNode.get("export_version").asInt();
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
-        importer.importData(
+        importer.importData(TxCtx.of(tenantId),
             importNode, docReferences, exercise, scenario, asset, assetGroup, suffix);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
@@ -71,10 +72,9 @@ public class ImportService {
     }
   }
 
-  @Transactional(rollbackOn = Exception.class)
-  public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
+  public void handleFileImport(String tenantId, MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
-    handleInputStreamImport(
+    handleInputStreamImport(tenantId,
         file.getInputStream(),
         exercise,
         scenario,
@@ -83,8 +83,8 @@ public class ImportService {
         Constants.IMPORTED_OBJECT_NAME_SUFFIX);
   }
 
-  @Transactional(rollbackOn = Exception.class)
   public void handleInputStreamFileImport(
+          String tenantId,
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -92,10 +92,11 @@ public class ImportService {
       AssetGroup assetGroup,
       String suffix)
       throws Exception {
-    handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix);
+    handleInputStreamImport(tenantId, is, exercise, scenario, asset, assetGroup, suffix);
   }
 
   private void handleInputStreamImport(
+          String tenantId,
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -247,7 +248,7 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
+        handleDataImport(tenantId, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
       }
     } finally {
       tempFile.delete();

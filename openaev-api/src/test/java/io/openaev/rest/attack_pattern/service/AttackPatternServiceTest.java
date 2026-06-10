@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -70,7 +71,7 @@ class AttackPatternServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            attackPatternService.searchAttackPatternWithTTPAIWebservice(
+            attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
                 new ArrayList<>(files), "  "));
   }
 
@@ -90,7 +91,7 @@ class AttackPatternServiceTest {
     // Act / Assert
     assertThrows(
         IllegalArgumentException.class,
-        () -> attackPatternService.searchAttackPatternWithTTPAIWebservice(files, "valid text"));
+        () -> attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(), files, "valid text"));
   }
 
   @DisplayName("given_missingEnterpriseLicense_should_throwIllegalStateException")
@@ -105,7 +106,7 @@ class AttackPatternServiceTest {
     assertThrows(
         IllegalStateException.class,
         () ->
-            attackPatternService.searchAttackPatternWithTTPAIWebservice(List.of(), "extract this"));
+            attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(), List.of(), "extract this"));
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
 
@@ -135,7 +136,7 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(List.of(), "extract this");
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(), List.of(), "extract this");
 
     // Assert
     assertEquals(2, ids.size());
@@ -165,7 +166,7 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
             List.of(), "Analyze this attack", "filigran-ttp-extractor");
 
     // Assert
@@ -196,7 +197,7 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
             List.of(), "context", "cti-ttp-harvester-filigran-ia");
 
     // Assert
@@ -219,7 +220,7 @@ class AttackPatternServiceTest {
         assertThrows(
             org.springframework.web.server.ResponseStatusException.class,
             () ->
-                attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
                     List.of(), "context", "cti-ttp-harvester-filigran-ia"));
     assertEquals(503, ex.getStatusCode().value());
     assertTrue(ex.getReason() == null || !ex.getReason().contains("@"));
@@ -238,7 +239,7 @@ class AttackPatternServiceTest {
         assertThrows(
             org.springframework.web.server.ResponseStatusException.class,
             () ->
-                attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
                     List.of(huge), "context", null));
     assertEquals(413, ex.getStatusCode().value());
     // No XTM One / legacy call should happen if validation rejects the upload
@@ -259,7 +260,7 @@ class AttackPatternServiceTest {
     assertThrows(
         ElementNotFoundException.class,
         () ->
-            attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(
+            attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(TxCtx.noTenant(),
                 Set.of("T1003", "T1059")));
   }
 
@@ -295,7 +296,7 @@ class AttackPatternServiceTest {
         .thenReturn(List.of(existing));
 
     // Act
-    AttackPattern result = attackPatternService.findOrCreate(input);
+    AttackPattern result = attackPatternService.findOrCreate(TxCtx.noTenant(), input);
 
     // Assert
     assertSame(existing, result);
@@ -322,7 +323,7 @@ class AttackPatternServiceTest {
     when(attackPatternRepository.save(any(AttackPattern.class))).thenReturn(saved);
 
     // Act
-    AttackPattern result = attackPatternService.findOrCreate(input);
+    AttackPattern result = attackPatternService.findOrCreate(TxCtx.noTenant(), input);
 
     // Assert
     ArgumentCaptor<AttackPattern> captor = ArgumentCaptor.forClass(AttackPattern.class);

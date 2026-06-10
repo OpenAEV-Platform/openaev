@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @Slf4j
@@ -76,7 +75,6 @@ public class WorkflowService {
    * @return the template workflow with scope rules initialized
    * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
    */
-  @Transactional(readOnly = true)
   public Workflow getWorkflowConfiguration(@NotBlank String workflowId) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
     Hibernate.initialize(workflow.getWorkflowScopeRules());
@@ -137,7 +135,6 @@ public class WorkflowService {
    * @return the (possibly updated) workflow
    * @throws ElementNotFoundException if no TEMPLATE workflow is found with the given ID
    */
-  @Transactional(rollbackFor = Exception.class)
   public Workflow updateWorkflowConfiguration(
       @NotBlank String workflowId, WorkflowConfigurationInput input) {
     Workflow workflow = getWorkflowByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
@@ -715,7 +712,6 @@ public class WorkflowService {
    *
    * @param simulationId id of the simulation to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflowBySimulationId(String simulationId) throws ChainingException {
     Workflow workflowTemplate =
         findWorkflowTemplateBySimulationId(simulationId)
@@ -732,7 +728,6 @@ public class WorkflowService {
    *
    * @param scenarioId id of the scenario to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
       throws ChainingException {
     Workflow workflowTemplateScenario =
@@ -755,7 +750,6 @@ public class WorkflowService {
    *
    * @param workflowRun the workflow run to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
 
     Map<String, ContractOutputType> fieldTypeMap =
@@ -790,7 +784,6 @@ public class WorkflowService {
    * @param workflowId the workflow ID to check
    * @return true if the workflow status is END, false otherwise or if not found
    */
-  @Transactional(readOnly = true)
   public boolean isWorkflowEnded(String workflowId) {
     return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.END);
   }
@@ -821,7 +814,6 @@ public class WorkflowService {
    * @param workflowRun the running workflow to evaluate
    * @return the updated workflow (may have status END)
    */
-  @Transactional(rollbackFor = Exception.class)
   public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
     String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
 

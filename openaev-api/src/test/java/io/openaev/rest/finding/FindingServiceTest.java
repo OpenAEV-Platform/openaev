@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -230,7 +229,6 @@ class FindingServiceTest extends IntegrationTest {
     private void switchToTenant(String tenantId) {
       entityManager.flush();
       entityManager.clear();
-      TenantContext.setCurrentTenant(tenantId);
       entityManager
           .unwrap(org.hibernate.Session.class)
           .enableFilter("tenantFilter")
@@ -238,7 +236,7 @@ class FindingServiceTest extends IntegrationTest {
     }
 
     private Finding createFindingInTenant(String tenantId) {
-      String previousTenant = TenantContext.getCurrentTenant();
+      String previousTenant = "tenant";
       try {
         switchToTenant(tenantId);
 
@@ -262,7 +260,7 @@ class FindingServiceTest extends IntegrationTest {
     @DisplayName("Finding created in tenant X should NOT be readable from tenant Y")
     void given_findingInTenantX_should_notBeReadableFromTenantY() {
       // -------- Arrange --------
-      String tenantX = TenantContext.getCurrentTenant();
+      String tenantX = "tenant";
       String tenantY = UUID.randomUUID().toString();
 
       Finding finding = createFindingInTenant(tenantX);
@@ -276,7 +274,7 @@ class FindingServiceTest extends IntegrationTest {
     @DisplayName("Finding created in tenant X should be readable from tenant X")
     void given_findingInTenantX_should_beReadableFromTenantX() {
       // -------- Arrange --------
-      String tenantX = TenantContext.getCurrentTenant();
+      String tenantX = "tenant";
       Finding finding = createFindingInTenant(tenantX);
 
       switchToTenant(tenantX);
@@ -292,7 +290,7 @@ class FindingServiceTest extends IntegrationTest {
     @DisplayName("Finding list in tenant Y should NOT return findings from tenant X")
     void given_findingInTenantX_should_notAppearInTenantYList() {
       // -------- Arrange --------
-      String tenantX = TenantContext.getCurrentTenant();
+      String tenantX = "tenant";
       String tenantY = UUID.randomUUID().toString();
 
       Finding findingInTenantX = createFindingInTenant(tenantX);
@@ -311,7 +309,7 @@ class FindingServiceTest extends IntegrationTest {
     @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
     void given_findingInTenantX_should_notBeDeletableFromTenantY() {
       // -------- Arrange --------
-      String tenantX = TenantContext.getCurrentTenant();
+      String tenantX = "tenant";
       String tenantY = UUID.randomUUID().toString();
 
       Finding finding = createFindingInTenant(tenantX);

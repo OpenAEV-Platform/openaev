@@ -6,6 +6,7 @@ import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
@@ -34,7 +35,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -121,10 +121,10 @@ public class ThreatArsenalService {
    * @param input the search and pagination parameters (only filters are used)
    * @return a list of domain counts
    */
-  public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
+  public List<InjectorContractDomainCountOutput> getDomainCounts(TxCtx ctx, SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getDomainCounts(filtered);
+    return injectorContractService.getDomainCounts(ctx, filtered);
   }
 
   /**
@@ -197,7 +197,6 @@ public class ThreatArsenalService {
    * @param actionInput the creation input containing the new action values
    * @return the created threat arsenal action
    */
-  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(ThreatArsenalActionCreateInput actionInput) {
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
@@ -217,7 +216,6 @@ public class ThreatArsenalService {
    * @param actionInput the update input containing the new action values
    * @return the updated threat arsenal action
    */
-  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
@@ -277,7 +275,6 @@ public class ThreatArsenalService {
    * @param actionId the ID of the action to duplicate
    * @return the newly created threat arsenal action copy
    */
-  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction duplicate(String actionId) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
@@ -299,11 +296,12 @@ public class ThreatArsenalService {
    * @param input to filter
    * @return the injector contracts search results
    */
-  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(
+  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(TxCtx ctx,
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
+                    ctx,
                 spec,
                 specCount,
                 pageable,
@@ -323,7 +321,7 @@ public class ThreatArsenalService {
    * @param input to filter
    * @return the injector contracts search results excluding tabletop types
    */
-  public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(
+  public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(TxCtx ctx,
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     Specification<InjectorContract> excludeTabletop =
         (root, query, cb) -> {
@@ -334,6 +332,7 @@ public class ThreatArsenalService {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
+                    ctx,
                 spec.and(excludeTabletop),
                 specCount.and(excludeTabletop),
                 pageable,
@@ -354,11 +353,10 @@ public class ThreatArsenalService {
    * @param actionId the ID of the action to delete — equals the injector contract ID
    * @throws ElementNotFoundException if the injector contract is not payload-based
    */
-  @Transactional(rollbackFor = Exception.class)
-  public void delete(String actionId) {
+  public void delete(TxCtx ctx, String actionId) {
     if (!injectorContractService.isPayloadBased(actionId)) {
       throw new ElementNotFoundException("Only payload-based actions can be deleted.");
     }
-    this.injectorContractService.deleteInjectorContractById(actionId);
+    this.injectorContractService.deleteInjectorContractById(ctx, actionId);
   }
 }

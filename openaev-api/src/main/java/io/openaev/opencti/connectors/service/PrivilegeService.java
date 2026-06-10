@@ -2,6 +2,7 @@ package io.openaev.opencti.connectors.service;
 
 import static io.openaev.opencti.connectors.Constants.*;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -18,10 +19,8 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(rollbackFor = Exception.class)
 @Slf4j
 public class PrivilegeService extends AbstractPrivilegeService {
 
@@ -84,11 +83,11 @@ public class PrivilegeService extends AbstractPrivilegeService {
     String email = CONNECTOR_EMAIL_PATTERN.formatted(connector.getId());
 
     // TODO: remove once all deployments have been migrated to multi-tenant
-    legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(email);
+    legacyOpenCTIConnectorMigration.deleteLegacyConnectorIfExists(connector.getTenantId(), email);
 
     Group group =
-        createWellKnownGroupWithRole(
-            createWellKnownRole(connector.getTenantId()), connector.getTenantId());
+        createWellKnownGroupWithRole(connector.getTenantId(),
+            createWellKnownRole(connector.getTenantId()));
     Optional<User> connectorUser =
         userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);

@@ -33,6 +33,7 @@ public class PlatformRoleApi {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input) {
@@ -72,6 +73,7 @@ public class PlatformRoleApi {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   public Page<PlatformRoleOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -83,6 +85,7 @@ public class PlatformRoleApi {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/find")
   public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids) {
     return platformRoleService.findByIds(ids).stream().map(PlatformRoleMapper::toOutput).toList();
@@ -96,6 +99,7 @@ public class PlatformRoleApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{platformRoleId}")
   public PlatformRoleOutput update(
       @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input) {
@@ -112,6 +116,7 @@ public class PlatformRoleApi {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String platformRoleId) {

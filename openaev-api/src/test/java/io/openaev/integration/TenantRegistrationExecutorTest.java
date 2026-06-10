@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManagerException;
 import jakarta.persistence.EntityManager;
@@ -34,7 +33,7 @@ class TenantRegistrationExecutorTest {
 
   @BeforeEach
   void setUp() {
-    executor = new TenantRegistrationExecutor(List.of(registrable1, registrable2), entityManager);
+    executor = new TenantRegistrationExecutor(List.of(registrable1, registrable2));
   }
 
   private Tenant createTenant(String id, String name) {
@@ -51,76 +50,6 @@ class TenantRegistrationExecutorTest {
   }
 
   @Nested
-  @DisplayName("Isolated registration")
-  class IsolatedRegistration {
-
-    @BeforeEach
-    void setUp() {
-      stubSessionMocks();
-    }
-
-    @Test
-    @DisplayName("given_validTenant_should_registerAllBuiltins")
-    void given_validTenant_should_registerAllBuiltins() throws Exception {
-      // Arrange
-      Tenant tenant = createTenant("tenant-1", "Tenant One");
-
-      // Act
-      executor.registerForTenantIsolated(tenant);
-
-      // Assert
-      verify(registrable1).registerForTenant();
-      verify(registrable2).registerForTenant();
-    }
-
-    @Test
-    @DisplayName("given_validTenant_should_setTenantContextAndFilter")
-    void given_validTenant_should_setTenantContextAndFilter() throws Exception {
-      // Arrange
-      Tenant tenant = createTenant("tenant-1", "Tenant One");
-
-      // Act
-      executor.registerForTenantIsolated(tenant);
-
-      // Assert — enableFilter called twice: once to set tenant-1, once to restore previous
-      verify(session, times(2)).enableFilter("tenantFilter");
-      verify(filter).setParameter("tenantId", "tenant-1");
-    }
-
-    @Test
-    @DisplayName("given_validTenant_should_restorePreviousTenantContext")
-    void given_validTenant_should_restorePreviousTenantContext() throws Exception {
-      // Arrange
-      Tenant tenant = createTenant("tenant-1", "Tenant One");
-      TenantContext.setCurrentTenant("previous-tenant");
-
-      // Act
-      executor.registerForTenantIsolated(tenant);
-
-      // Assert
-      assertThat(TenantContext.getCurrentTenant()).isEqualTo("previous-tenant");
-    }
-
-    @Test
-    @DisplayName("given_failingRegistrable_should_restoreTenantContext")
-    void given_failingRegistrable_should_restoreTenantContext() throws Exception {
-      // Arrange
-      Tenant tenant = createTenant("tenant-1", "Tenant One");
-      TenantContext.setCurrentTenant("original");
-      doThrow(new RuntimeException("boom")).when(registrable1).registerForTenant();
-
-      // Act
-      try {
-        executor.registerForTenantIsolated(tenant);
-      } catch (DependenciesManagerException ignored) {
-      }
-
-      // Assert
-      assertThat(TenantContext.getCurrentTenant()).isEqualTo("original");
-    }
-  }
-
-  @Nested
   @DisplayName("Join-transaction registration (tenant creation path)")
   class JoinTransactionRegistration {
 
@@ -134,8 +63,8 @@ class TenantRegistrationExecutorTest {
       executor.registerForTenant(tenant);
 
       // Assert
-      verify(registrable1).registerForTenant();
-      verify(registrable2).registerForTenant();
+      verify(registrable1).registerForTenant(tenant.getId());
+      verify(registrable2).registerForTenant(tenant.getId());
     }
 
     @Test
@@ -156,7 +85,7 @@ class TenantRegistrationExecutorTest {
     void given_failingRegistrable_should_throwDependenciesManagerException() throws Exception {
       // Arrange
       Tenant tenant = createTenant("tenant-1", "Tenant One");
-      doThrow(new RuntimeException("boom")).when(registrable1).registerForTenant();
+      doThrow(new RuntimeException("boom")).when(registrable1).registerForTenant(tenant.getId());
 
       // Act & Assert
       assertThatThrownBy(() -> executor.registerForTenant(tenant))
@@ -169,7 +98,7 @@ class TenantRegistrationExecutorTest {
     void given_failingRegistrable_should_notCallSubsequentRegistrables() throws Exception {
       // Arrange
       Tenant tenant = createTenant("tenant-1", "Tenant One");
-      doThrow(new RuntimeException("boom")).when(registrable1).registerForTenant();
+      doThrow(new RuntimeException("boom")).when(registrable1).registerForTenant(tenant.getId());
 
       // Act
       try {
@@ -178,7 +107,7 @@ class TenantRegistrationExecutorTest {
       }
 
       // Assert
-      verify(registrable2, never()).registerForTenant();
+      verify(registrable2, never()).registerForTenant(tenant.getId());
     }
   }
 }

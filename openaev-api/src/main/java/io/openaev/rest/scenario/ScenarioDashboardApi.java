@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,6 +37,7 @@ public class ScenarioDashboardApi {
         @ApiResponse(responseCode = "200", description = "The dashboard"),
         @ApiResponse(responseCode = "404", description = "The Scenario doesn't exist")
       })
+  @Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard"
@@ -48,6 +51,7 @@ public class ScenarioDashboardApi {
         this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}"
@@ -57,12 +61,14 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsCountInterval dashboardCount(
+          TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(ctx, scenarioId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}"
@@ -72,13 +78,15 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsAvgs dashboardAverage(
+          TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardAverageOnResourceId(
+    return this.customDashboardService.dashboardAverageOnResourceId(ctx,
         scenarioId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}"
@@ -88,13 +96,15 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<EsSeries> dashboardSeries(
+          TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardSeriesOnResourceId(
+    return this.customDashboardService.dashboardSeriesOnResourceId(ctx,
         scenarioId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}"
@@ -104,12 +114,14 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsEntities dashboardEntities(
+          TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(scenarioId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(ctx, scenarioId, widgetId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}"
@@ -119,13 +131,15 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+          TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
-    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
+    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(ctx,
         scenarioId, widgetId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}"
@@ -136,11 +150,12 @@ public class ScenarioDashboardApi {
       resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Search TagRules")
   public List<EsAttackPath> dashboardAttackPaths(
+          TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.customDashboardService.dashboardAttackPathsOnResourceId(
+    return this.customDashboardService.dashboardAttackPathsOnResourceId(ctx,
         scenarioId, widgetId, parameters);
   }
 }

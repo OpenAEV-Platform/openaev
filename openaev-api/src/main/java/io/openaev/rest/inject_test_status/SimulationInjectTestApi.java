@@ -7,6 +7,7 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
@@ -40,6 +41,7 @@ public class SimulationInjectTestApi extends RestBehavior {
    * @deprecated since 1.16.0, forRemoval = true
    * @see #findExercisePageInjectTests
    */
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     "/api/exercise/{simulationId}/injects/test",
     TENANT_PREFIX + "/exercise/{simulationId}/injects/test"
@@ -55,6 +57,7 @@ public class SimulationInjectTestApi extends RestBehavior {
         simulationId, searchPaginationInput);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/injects/test/search",
     TENANT_EXERCISE_URI + "/{simulationId}/injects/test/search"
@@ -126,6 +129,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
+          TxCtx ctx,
       @PathVariable @NotBlank String simulationId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
 
@@ -142,7 +146,7 @@ public class SimulationInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER).and(testable());
+        this.injectService.getInjectSpecification(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER).and(testable());
 
     // Services calls
     // Bulk test

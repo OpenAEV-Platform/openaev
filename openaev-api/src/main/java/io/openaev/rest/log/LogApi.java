@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.logging.Level;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class LogApi extends RestBehavior {
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/api/logs")
   @Operation(
       hidden = true,

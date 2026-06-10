@@ -8,7 +8,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.ResourceType;
@@ -70,6 +70,7 @@ public class InjectorApi extends RestBehavior {
       "${executor.openaev-implant.binaries.version:${executor.openaev.binaries.version:${info.app.version:unknown}}}")
   private String implantBinaryVersion;
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({INJECT0R_URI, TENANT_INJECTOR_URI})
   @Operation(
       summary = "Retrieve injectors",
@@ -91,6 +92,7 @@ public class InjectorApi extends RestBehavior {
     return injectorService.injectorsOutput(includeNext);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     INJECT0R_URI + "/{injectorId}/injector_contracts",
     TENANT_INJECTOR_URI + "/{injectorId}/injector_contracts"
@@ -102,7 +104,7 @@ public class InjectorApi extends RestBehavior {
   public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
     Injector injector =
         injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+            .findById(injectorId)
             .orElseThrow(ElementNotFoundException::new);
     return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
@@ -116,6 +118,7 @@ public class InjectorApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
   @AccessControl(
       resourceId = "#injectorId",
@@ -125,7 +128,7 @@ public class InjectorApi extends RestBehavior {
       @PathVariable String injectorId, @Valid @RequestBody InjectorUpdateInput input) {
     Injector injector =
         injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+            .findById(injectorId)
             .orElseThrow(ElementNotFoundException::new);
     return injectorService.updateExistingExternalInjector(
         injector,
@@ -139,6 +142,7 @@ public class InjectorApi extends RestBehavior {
         input.getPayloads());
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
   @AccessControl(
       resourceId = "#injectorId",
@@ -146,10 +150,11 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   public Injector injector(@PathVariable String injectorId) {
     return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+        .findById(injectorId)
         .orElseThrow(ElementNotFoundException::new);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     INJECT0R_URI + "/{injectorId}/related-ids",
     TENANT_INJECTOR_URI + "/{injectorId}/related-ids"
@@ -169,13 +174,14 @@ public class InjectorApi extends RestBehavior {
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
   @Transactional(rollbackOn = Exception.class)
-  public InjectorRegistration registerInjector(
+  public InjectorRegistration registerInjector(TxCtx ctx,
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
-    return injectorService.registerExternalInjector(input, file);
+    return injectorService.registerExternalInjector(ctx, input, file);
   }
 
   // Public API
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping(
       value = {
         "/api/implant/openaev/{platform}/{architecture}",
@@ -230,6 +236,7 @@ public class InjectorApi extends RestBehavior {
 
   // -- OPTION --
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsByName(
@@ -243,6 +250,7 @@ public class InjectorApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(

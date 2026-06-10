@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.ExecutionProcess;
@@ -24,15 +25,14 @@ public abstract class Injector {
     this.context = context;
   }
 
-  public abstract ExecutionProcess process(Execution execution, ExecutableInject injection)
+  public abstract ExecutionProcess process(TxCtx ctx, Execution execution, ExecutableInject injection)
       throws Exception;
 
   public StatusPayload getPayloadOutput(String externalId) {
     return null;
   }
 
-  @Transactional
-  public Execution execute(ExecutableInject executableInject) {
+  public Execution execute(TxCtx ctx, ExecutableInject executableInject) {
     Execution execution = new Execution(executableInject.isRuntime());
     try {
       boolean isScheduledInject = !executableInject.isDirect();
@@ -51,7 +51,7 @@ public abstract class Injector {
                 + Instant.now());
       }
       // Process the execution
-      ExecutionProcess executionProcess = process(execution, executableInject);
+      ExecutionProcess executionProcess = process(ctx, execution, executableInject);
       execution.setAsync(executionProcess.isAsync());
     } catch (Exception e) {
       execution.addTrace(getNewErrorTrace(e.getMessage(), ExecutionTraceAction.COMPLETE));
@@ -61,8 +61,9 @@ public abstract class Injector {
     return execution;
   }
 
-  public Execution executeInjection(ExecutableInject executableInject) {
-    return execute(executableInject);
+  @Transactional(rollbackFor = Exception.class)
+  public Execution executeInjection(TxCtx ctx, ExecutableInject executableInject) {
+    return execute(ctx, executableInject);
   }
 
   // region utils
@@ -75,8 +76,8 @@ public abstract class Injector {
     return this.context.getMapper().treeToValue(content, converter);
   }
 
-  public List<DataAttachment> resolveAttachments(
-      Execution execution, ExecutableInject injection, List<Document> documents) {
+  public List<DataAttachment> resolveAttachments(TxCtx ctx,
+                                                 Execution execution, ExecutableInject injection, List<Document> documents) {
     List<DataAttachment> resolved = new ArrayList<>();
     // Add attachments from direct configuration
     injection
@@ -101,7 +102,7 @@ public abstract class Injector {
               this.context.getDocumentRepository().findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
-            InputStream fileInputStream = this.context.getFileService().getFile(doc).orElseThrow();
+            InputStream fileInputStream = this.context.getFileService().getFile(ctx.tenantIdFromUri(), doc).orElseThrow();
             byte[] content = IOUtils.toByteArray(fileInputStream);
             resolved.add(new DataAttachment(documentId, doc.getName(), content, doc.getType()));
           } catch (Exception e) {

@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
@@ -36,19 +37,21 @@ public class TenantGroupApi extends RestBehavior {
   // -- CREATE --
 
   @Operation(summary = "Create a tenant group")
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
-  public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input) {
-    return tenantGroupService.createGroup(input);
+  public Group createGroup(TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
+    return tenantGroupService.createGroup(ctx.tenantIdFromUri(), input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/{groupId}/grants")
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group groupGrant(@PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
-    return tenantGroupService.addGrant(groupId, input);
+  public Group groupGrant(TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
+    return tenantGroupService.addGrant(ctx.tenantIdFromUri(), groupId, input);
   }
 
   // -- READ --
@@ -64,6 +67,7 @@ public class TenantGroupApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
   public Page<Group> groups(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -73,17 +77,19 @@ public class TenantGroupApi extends RestBehavior {
   // -- UPDATE --
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{groupId}/users")
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group updateGroupUsers(
+  public Group updateGroupUsers(TxCtx ctx,
       @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
-    return tenantGroupService.updateUsers(groupId, input);
+    return tenantGroupService.updateUsers(ctx.tenantIdFromUri(), groupId, input);
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{groupId}/roles")
   @AccessControl(
       resourceId = "#groupId",
@@ -97,40 +103,43 @@ public class TenantGroupApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Group updated"),
         @ApiResponse(responseCode = "404", description = "Role or Group not found")
       })
-  public Group updateGroupRoles(
+  public Group updateGroupRoles(TxCtx ctx,
       @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
-    return tenantGroupService.updateGroupRoles(groupId, input);
+    return tenantGroupService.updateGroupRoles(ctx.tenantIdFromUri(), groupId, input);
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{groupId}/information")
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group updateGroupInformation(
+  public Group updateGroupInformation(TxCtx ctx,
       @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
-    return tenantGroupService.updateGroup(groupId, input);
+    return tenantGroupService.updateGroup(ctx.tenantIdFromUri(), groupId, input);
   }
 
   // -- DELETE --
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{groupId}/grants/{grantId}")
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group deleteGrant(@PathVariable String groupId, @PathVariable String grantId) {
-    return tenantGroupService.removeGrant(groupId, grantId);
+  public Group deleteGrant(TxCtx ctx, @PathVariable String groupId, @PathVariable String grantId) {
+    return tenantGroupService.removeGrant(ctx.tenantIdFromUri(), groupId, grantId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{groupId}")
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER_GROUP)
-  public void delete(@PathVariable String groupId) {
-    tenantGroupService.delete(groupId);
+  public void delete(TxCtx ctx, @PathVariable String groupId) {
+    tenantGroupService.delete(ctx.tenantIdFromUri(), groupId);
   }
 }

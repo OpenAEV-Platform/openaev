@@ -15,7 +15,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
@@ -66,9 +66,8 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ACT --
     Tenant created = tenantService.create(tenant);
-    TenantContext.setCurrentTenant(tenant.getId());
     // Simulate for tenant creation because Dataprocessor has @Profile("!test")
-    datapack.process(created);
+    datapack.process(TxCtx.of(tenant.getId()));
 
     // Upload a file to verify MinIO path-based isolation works
     byte[] content = "tenant-test-content".getBytes(StandardCharsets.UTF_8);
@@ -212,7 +211,6 @@ class TenantServiceTest extends IntegrationTest {
     tenantExpired.setDeletedAt(
         Instant.now().minus(SOFT_DELETE_RETENTION_DAYS + 1, ChronoUnit.DAYS));
     tenantRepository.save(tenantExpired);
-    TenantContext.setCurrentTenant(tenantExpired.getId());
 
     Tenant tenantRecent = getTenant("Tenant Recent");
     tenantComposer.forTenant(tenantRecent).persist();

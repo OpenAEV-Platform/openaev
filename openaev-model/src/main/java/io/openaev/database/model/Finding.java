@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -27,8 +26,7 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "findings")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class Finding implements TenantBase {
 
   @Id

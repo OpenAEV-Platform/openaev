@@ -47,7 +47,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -927,7 +926,6 @@ public class InjectExpectationService {
    * @param agentId the agentId for which to add the start date signature
    * @param date the date to set as the start date signature
    */
-  @Transactional
   public void addStartDateSignatureToInjectExpectationsByAgent(
       @NotBlank final String injectId,
       @NotBlank final String agentId,
@@ -1005,7 +1003,6 @@ public class InjectExpectationService {
    * @param executableInject the inject to create expectations for
    * @param expectations the list of expectation definitions
    */
-  @Transactional
   public void buildAndSaveInjectExpectations(
       ExecutableInject executableInject, List<Expectation> expectations) {
     if (expectations == null || expectations.isEmpty()) {

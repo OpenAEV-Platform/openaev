@@ -3,6 +3,7 @@ package io.openaev.rest.connector_instance;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
 import io.openaev.rest.helper.RestBehavior;
@@ -37,6 +38,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   private final ConnectorInstanceLogService connectorInstanceLogService;
   private final ConnectorOrchestrationService orchestrationService;
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
   @Operation(
       summary = "Create a new connector instance",
@@ -46,8 +48,8 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully created connector instance")
       })
-  public ConnectorInstancePersisted createConnectorInstance(
-      @Valid @RequestBody CreateConnectorInstanceInput input) {
+  public ConnectorInstancePersisted createConnectorInstance(TxCtx ctx,
+                                                            @Valid @RequestBody CreateConnectorInstanceInput input) {
     // --- /!\ --- SECURITY START : Encrypt sensitive values before any LOGGING or processing
     ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap =
         this.orchestrationService.getCatalogConnectorWithConfigurationsMap(
@@ -58,7 +60,7 @@ public class ConnectorInstanceApi extends RestBehavior {
     // --- /!\ --- SECURITY END
 
     // only instance managed by XTM Composer can be created through this API
-    return orchestrationService.createConnectorInstance(catalogConnectorWithConfigMap, safeInput);
+    return orchestrationService.createConnectorInstance(ctx, catalogConnectorWithConfigMap, safeInput);
   }
 
   @GetMapping(
@@ -102,6 +104,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         connectorInstanceId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping(
       value = {
         CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations",
@@ -151,6 +154,7 @@ public class ConnectorInstanceApi extends RestBehavior {
     return connectorInstanceLogService.findLogsByConnectorInstanceId(connectorInstanceId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping(
       value = {
         CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status",
@@ -171,6 +175,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         connectorInstanceId, input.getRequestedStatus());
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping(
       value = {
         CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}",

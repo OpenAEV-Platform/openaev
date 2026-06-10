@@ -13,11 +13,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class CatalogConnectorIngestionService {
   private static final Set<String> PROTECTED_KEYS =
@@ -29,7 +27,7 @@ public class CatalogConnectorIngestionService {
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
 
-  public List<CatalogConnector> extractCatalog(JsonNode rootNode) {
+  public List<CatalogConnector> extractCatalog(String tenantId, JsonNode rootNode) {
     JsonNode contracts = rootNode.get("contracts");
     if (contracts == null) {
       throw new IllegalArgumentException("contracts is null");
@@ -38,7 +36,7 @@ public class CatalogConnectorIngestionService {
     List<CatalogConnector> catalogConnectorList = new ArrayList<>();
 
     for (JsonNode contract : contracts) {
-      CatalogConnector catalogConnector = buildCatalogConnector(contract);
+      CatalogConnector catalogConnector = buildCatalogConnector(tenantId, contract);
       catalogConnectorList.add(catalogConnector);
     }
 
@@ -51,7 +49,7 @@ public class CatalogConnectorIngestionService {
     return saved;
   }
 
-  public CatalogConnector buildCatalogConnector(JsonNode contract) {
+  public CatalogConnector buildCatalogConnector(String tenantId, JsonNode contract) {
     CatalogConnector connector =
         catalogConnectorService
             .findBySlug(contract.path("slug").asText())
@@ -72,7 +70,7 @@ public class CatalogConnectorIngestionService {
     connector.setShortDescription(contract.path("short_description").asText());
     String base64Logo = contract.path("logo").asText(null);
     if (base64Logo != null && !base64Logo.isBlank()) {
-      String logoPath = uploadBase64Image(base64Logo, contract.path("slug").asText());
+      String logoPath = uploadBase64Image(tenantId, base64Logo, contract.path("slug").asText());
       connector.setLogoUrl(logoPath);
     }
 
@@ -280,7 +278,7 @@ public class CatalogConnectorIngestionService {
     return configs;
   }
 
-  private String uploadBase64Image(String base64Image, String connectorSlug) {
+  private String uploadBase64Image(String tenantId, String base64Image, String connectorSlug) {
     try {
       String base64Data = base64Image;
 
@@ -296,7 +294,7 @@ public class CatalogConnectorIngestionService {
 
       String fileName = connectorSlug + "-logo.png";
 
-      fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
+      fileService.uploadStream(tenantId, FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
 
       return fileName;
     } catch (Exception e) {

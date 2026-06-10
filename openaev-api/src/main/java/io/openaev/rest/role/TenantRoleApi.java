@@ -4,7 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -49,9 +49,9 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role created"),
         @ApiResponse(responseCode = "409", description = "Role already exists")
       })
-  public RoleOutput createRole(@Valid @RequestBody final RoleInput input) {
+  public RoleOutput createRole(TxCtx ctx, @Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
-        roleService.createRole(input.getName(), input.getDescription(), input.getCapabilities()));
+        roleService.createRole(ctx.tenantIdFromUri(), input.getName(), input.getDescription(), input.getCapabilities()));
   }
 
   // -- READ --
@@ -68,9 +68,10 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role found"),
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
-  public RoleOutput findRole(
-      @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    return roleMapper.toRoleOutput(roleService.findByIdInTenant(roleId));
+  @Transactional(readOnly = true)
+  public RoleOutput findRole(TxCtx ctx,
+                             @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
+    return roleMapper.toRoleOutput(roleService.findByIdInTenant(ctx, roleId));
   }
 
   @LogExecutionTime
@@ -78,13 +79,15 @@ public class TenantRoleApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.GROUP_ROLE)
   @Operation(description = "Get All Roles", summary = "Get Roles")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
-  public List<RoleOutput> roles() {
-    return roleService.findAll(TenantContext.getCurrentTenant()).stream()
+  @Transactional(readOnly = true)
+  public List<RoleOutput> roles(TxCtx ctx) {
+    return roleService.findAll(ctx.tenantIdFromUri()).stream()
         .map(roleMapper::toRoleOutput)
         .toList();
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({ROLE_URI + "/search", TENANT_ROLE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.GROUP_ROLE)
   @Operation(
@@ -96,10 +99,10 @@ public class TenantRoleApi extends RestBehavior {
             responseCode = "200",
             description = "The list of all Roles corresponding to the search criteria")
       })
-  public Page<RoleOutput> searchRoles(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+  public Page<RoleOutput> searchRoles(TxCtx ctx,
+                                      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return roleService
-        .searchRole(searchPaginationInput, TenantContext.getCurrentTenant())
+        .searchRole(searchPaginationInput, ctx.tenantIdFromUri())
         .map(roleMapper::toRoleOutput);
   }
 
@@ -118,11 +121,11 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role updated"),
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
-  public RoleOutput updateRole(
-      @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
+  public RoleOutput updateRole(TxCtx ctx,
+                               @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
-        roleService.updateRole(
+        roleService.updateRole(ctx.tenantIdFromUri(),
             roleId, input.getName(), input.getDescription(), input.getCapabilities()));
   }
 
@@ -141,8 +144,8 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role deleted"),
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
-  public void deleteRole(
-      @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    roleService.deleteRole(roleId);
+  public void deleteRole(TxCtx ctx,
+                         @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
+    roleService.deleteRole(ctx.tenantIdFromUri(), roleId);
   }
 }

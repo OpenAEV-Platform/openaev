@@ -8,7 +8,6 @@ import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecu
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ExecutorRepository;
 import java.util.Optional;
@@ -40,7 +39,7 @@ public class ExecutorFixture {
   public Executor getDefaultExecutor() {
     Optional<Executor> executorOptional =
         executorRepository.findByTypeAndTenantId(
-            OPENAEV_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+            OPENAEV_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));
   }
 
@@ -71,21 +70,21 @@ public class ExecutorFixture {
   public Executor getCrowdstrikeExecutor() {
     Optional<Executor> executorOptional =
         executorRepository.findByTypeAndTenantId(
-            CROWDSTRIKE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+            CROWDSTRIKE_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createCrowdstrikeExecutor()));
   }
 
   public Executor getTaniumExecutor() {
     Optional<Executor> executorOptional =
         executorRepository.findByTypeAndTenantId(
-            TANIUM_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+            TANIUM_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createTaniumExecutor()));
   }
 
   public Executor getSentineloneExecutor() {
     Optional<Executor> executorOptional =
         executorRepository.findByTypeAndTenantId(
-            SENTINELONE_EXECUTOR_TYPE, TenantContext.getCurrentTenant());
+            SENTINELONE_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createSentineloneExecutor()));
   }
 }

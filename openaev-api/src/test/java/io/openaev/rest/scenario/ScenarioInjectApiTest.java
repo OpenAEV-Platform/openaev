@@ -78,8 +78,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    manualInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
@@ -253,7 +253,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .forInjectorContract(
                   InjectorContractFixture.createInjectorContractWithPlatforms(platforms))
               .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
-              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
               .withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern))
               .withPayload(
                   payloadComposer.forPayload(
@@ -510,7 +510,6 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     @DisplayName("Retrieve injects simple list for scenario with asset")
     @Test
-    @Transactional
     @WithMockUser(isAdmin = true)
     void retrieveInjectSimpleForScenarioTestWithAsset() throws Exception {
       // -- PREPARE --
@@ -547,7 +546,6 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
     @DisplayName("Retrieve injects simple list for scenario with asset group")
     @Test
-    @Transactional
     @WithMockUser(isAdmin = true)
     @Order(value = 13)
     void retrieveInjectSimpleForScenarioTestWithAssetGroup() throws Exception {

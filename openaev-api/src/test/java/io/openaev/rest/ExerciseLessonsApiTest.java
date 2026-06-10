@@ -60,7 +60,7 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     LESSONCATEGORY = getLessonCategory();
   }
 

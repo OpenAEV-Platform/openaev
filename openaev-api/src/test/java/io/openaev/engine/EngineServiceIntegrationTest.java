@@ -3,6 +3,7 @@ package io.openaev.engine;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.api.ListConfiguration;
@@ -79,7 +80,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));
-    return engineService.entities(ADMIN_USER, runtime);
+    return engineService.entities(TxCtx.of("tenant"), ADMIN_USER, runtime);
   }
 
   private void indexAndWait() throws InterruptedException {

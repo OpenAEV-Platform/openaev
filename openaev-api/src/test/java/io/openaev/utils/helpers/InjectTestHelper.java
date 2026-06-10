@@ -25,7 +25,6 @@ public class InjectTestHelper {
   private final DomainRepository domainRepository;
   private final InjectorRepository injectorRepository;
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject getPendingInjectWithAssets(
       InjectComposer injectComposer,
       InjectorContractComposer injectorContractComposer,
@@ -49,52 +48,42 @@ public class InjectTestHelper {
         .get();
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public InjectExpectation forceSaveInjectExpectation(InjectExpectation expectation) {
     return injectExpectationRepository.save(expectation);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Domain forceSaveDomain(Domain domain) {
     return domainRepository.save(domain);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Payload forceSavePayload(Payload payload) {
     return payloadRepository.save(payload);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public InjectorContract forceSaveInjectorContract(InjectorContract injectorContract) {
     return injectorContractRepository.save(injectorContract);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Inject forceSaveInject(Inject inject) {
     return injectRepository.save(inject);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Agent forceSaveAgent(Agent agent) {
     return agentRepository.save(agent);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Injector forceSaveInjector(Injector injector) {
     return injectorRepository.save(injector);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Endpoint forceSaveEndpoint(Endpoint endpoint) {
     return endpointRepository.save(endpoint);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Finding forceSaveFinding(Finding finding) {
     return findingRepository.save(finding);
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Asset forceSaveAsset(Asset asset) {
     return assetRepository.save(asset);
   }
@@ -104,7 +93,6 @@ public class InjectTestHelper {
    * committed by async processing threads are visible even when called from within an outer
    * {@code @Transactional} test method.
    */
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public List<Finding> findFindingsByInjectId(String injectId) {
     return findingRepository.findAllByInjectId(injectId);
   }

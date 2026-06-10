@@ -3,6 +3,7 @@ package io.openaev.integration.impl.injectors.challenge;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ChallengeRepository;
@@ -111,11 +112,12 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    TxCtx ctx = TxCtx.of(tenantId);
     try {
-      injectorService.injector(ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
+      injectorService.injector(ctx, ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
+      injectorService.registerBuiltinInjector(ctx,
           ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
           ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
           challengeContract,

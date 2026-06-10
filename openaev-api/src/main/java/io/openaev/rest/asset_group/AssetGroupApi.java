@@ -73,6 +73,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({ASSET_GROUP_URI + "/search", TENANT_ASSET_GROUP_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public Page<AssetGroupOutput> assetGroups(
@@ -80,6 +81,7 @@ public class AssetGroupApi extends RestBehavior {
     return this.assetGroupCriteriaBuilderService.assetGroupPagination(searchPaginationInput);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     ASSET_GROUP_URI + "/{assetGroupId}/assets/search",
     TENANT_ASSET_GROUP_URI + "/{assetGroupId}/assets/search"
@@ -248,6 +250,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

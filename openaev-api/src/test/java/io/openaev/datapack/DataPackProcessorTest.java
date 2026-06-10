@@ -3,7 +3,6 @@ package io.openaev.datapack;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TenantRepository;
@@ -34,7 +33,7 @@ public class DataPackProcessorTest extends IntegrationTest {
     assertThat(
             dataPackService.findByIdAndTenant(
                 TestDataPack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant())))
+                new Tenant("tenant")))
         .isPresent();
     assertThat(tagRepository.findByName(testDataPack.tagName)).isPresent();
   }
@@ -45,7 +44,7 @@ public class DataPackProcessorTest extends IntegrationTest {
     DataPackProcessor processor = new DataPackProcessor(List.of(testDataPack), tenantRepository);
     // fake registering the data pack
     dataPackService.registerDataPack(
-        testDataPack.getPackId(), new Tenant(TenantContext.getCurrentTenant()));
+        testDataPack.getPackId(), new Tenant("tenant"));
 
     // act
     processor.process();
@@ -54,7 +53,7 @@ public class DataPackProcessorTest extends IntegrationTest {
     assertThat(
             dataPackService.findByIdAndTenant(
                 TestDataPack.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant())))
+                new Tenant("tenant")))
         .isPresent();
     // not that we prevented the pack from processing so we shouldn't find the contents in db
     assertThat(tagRepository.findByName(testDataPack.tagName)).isEmpty();

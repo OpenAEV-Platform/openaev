@@ -10,7 +10,6 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -23,15 +22,13 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
 @Table(name = "asset_groups")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "AssetGroup.tags-assets",

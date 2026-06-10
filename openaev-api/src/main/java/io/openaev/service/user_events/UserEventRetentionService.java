@@ -7,7 +7,6 @@ import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +17,6 @@ public class UserEventRetentionService {
   private final UserEventRetentionConfig settingsService;
 
   /** Applies retention rules to user events. */
-  @Transactional
   public void deleteOldEvents() {
     if (!settingsService.isEnabled()) {
       log.debug("UserEvent retention disabled");

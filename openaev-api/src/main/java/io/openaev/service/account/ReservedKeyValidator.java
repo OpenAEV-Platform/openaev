@@ -5,7 +5,7 @@ import static io.openaev.opencti.connectors.service.PrivilegeService.CONNECTOR_E
 import static io.openaev.service.account.Constants.*;
 import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.AbstractPrivilegeService;
 import java.util.List;
@@ -39,12 +39,12 @@ public final class ReservedKeyValidator {
   }
 
   /** Throws BadRequestException if the group id is reserved for system use. */
-  public static void validateGroupId(String uuid) {
+  public static void validateGroupId(String tenantId, String uuid) {
     List<String> idsReserved =
         RESERVED_GROUP_ID.stream()
             .map(
                 id ->
-                    AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant()))
+                    AbstractPrivilegeService.getUUIDFromName(id, tenantId))
             .toList();
 
     if (uuid != null && idsReserved.contains(uuid)) {
@@ -53,12 +53,12 @@ public final class ReservedKeyValidator {
   }
 
   /** Throws BadRequestException if the group id is reserved for system use. */
-  public static void validateRoleId(String uuid) {
+  public static void validateRoleId(String tenantId, String uuid) {
     List<String> idsReserved =
         RESERVED_ROLE_ID.stream()
             .map(
                 id ->
-                    AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant()))
+                    AbstractPrivilegeService.getUUIDFromName(id, tenantId))
             .toList();
 
     if (uuid != null && idsReserved.contains(uuid)) {

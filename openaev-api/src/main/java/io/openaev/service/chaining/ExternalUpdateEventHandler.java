@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import io.openaev.context.TxCtx;
+
 /** Handler interface for processing external update events in a workflow. */
 public interface ExternalUpdateEventHandler {
 
@@ -8,5 +10,5 @@ public interface ExternalUpdateEventHandler {
    *
    * @param externalUpdateEvent the external update event to handle
    */
-  void handleExternalUpdateEvent(ExternalUpdateEvent externalUpdateEvent);
+  void handleExternalUpdateEvent(TxCtx ctx, ExternalUpdateEvent externalUpdateEvent);
 }

@@ -3,6 +3,7 @@ package io.openaev.service.organization;
 import static io.openaev.database.specification.OrganizationSpecification.findGrantedFor;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
@@ -24,11 +25,11 @@ public class OrganizationService {
 
   private final UserService userService;
 
-  public Page<Organization> organizationPagination(
-      @NotNull SearchPaginationInput searchPaginationInput) {
+  public Page<Organization> organizationPagination(TxCtx ctx,
+                                                   @NotNull SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
+    if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
+        || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
       return buildPaginationJPA(
           this.organizationRepository::findAll, searchPaginationInput, Organization.class);
     } else {

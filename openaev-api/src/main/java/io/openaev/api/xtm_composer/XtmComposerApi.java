@@ -82,6 +82,7 @@ public class XtmComposerApi extends RestBehavior {
     return orchestrationService.findConnectorInstancesManagedByComposer(xtmComposerId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping(
       value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/status")
   @Operation(
@@ -97,6 +98,7 @@ public class XtmComposerApi extends RestBehavior {
         xtmComposerId, connectorInstanceId, input.getCurrentStatus());
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(
       value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/logs")
   @Operation(
@@ -112,6 +114,7 @@ public class XtmComposerApi extends RestBehavior {
         xtmComposerId, connectorInstanceId, input.getLogs());
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping(
       value =
           XTMCOMPOSER_URI

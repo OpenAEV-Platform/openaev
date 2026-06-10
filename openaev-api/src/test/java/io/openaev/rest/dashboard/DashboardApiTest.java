@@ -1325,7 +1325,6 @@ class DashboardApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // Create a widget via composers in tenant X context
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       Widget widget =
           widgetComposer
               .forWidget(WidgetFixture.createNumberWidgetWithEntity("endpoint"))

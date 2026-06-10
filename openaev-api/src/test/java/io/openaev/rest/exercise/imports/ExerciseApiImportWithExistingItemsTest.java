@@ -76,8 +76,8 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   @BeforeEach
   void before() throws Exception {
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();

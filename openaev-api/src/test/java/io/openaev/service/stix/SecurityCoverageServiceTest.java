@@ -110,7 +110,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     injectorContractComposer
                         .forInjectorContract(
                             InjectorContractFixture.createDefaultInjectorContract())
-                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                         .withAttackPattern(apw.getKey()))
                 .withExpectation(
                     injectExpectationComposer
@@ -141,7 +141,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     injectorContractComposer
                         .forInjectorContract(
                             InjectorContractFixture.createDefaultInjectorContract())
-                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                         .withVulnerability(vulnw.getKey()))
                 .withExpectation(
                     injectExpectationComposer

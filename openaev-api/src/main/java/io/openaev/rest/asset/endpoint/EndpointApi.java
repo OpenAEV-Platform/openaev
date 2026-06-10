@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
@@ -70,10 +71,10 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
+  public Endpoint upsertEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
-    return this.endpointService.register(input);
+    return this.endpointService.register(ctx, input);
   }
 
   @LogExecutionTime
@@ -141,11 +142,12 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
-  public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
-    return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(endpointId));
+  public EndpointOverviewOutput endpoint(TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
+    return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(ctx, endpointId));
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({ENDPOINT_URI + "/search", TENANT_ENDPOINT_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointOutput> endpoints(
@@ -159,6 +161,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointTargetOutput> targetEndpoints(
@@ -186,10 +189,11 @@ public class EndpointApi extends RestBehavior {
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public EndpointOverviewOutput updateEndpoint(
+          TxCtx ctx,
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
     return endpointMapper.toEndpointOverviewOutput(
-        this.endpointService.updateEndpoint(endpointId, input));
+        this.endpointService.updateEndpoint(ctx, endpointId, input));
   }
 
   @DeleteMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
@@ -271,6 +275,7 @@ public class EndpointApi extends RestBehavior {
         searchText, sourceId, PageRequest.of(0, 50));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

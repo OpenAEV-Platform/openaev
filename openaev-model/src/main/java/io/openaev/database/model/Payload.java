@@ -12,7 +12,6 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
@@ -37,8 +36,7 @@ import org.hibernate.annotations.*;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @Schema(
     discriminatorProperty = "payload_type",
     oneOf = {

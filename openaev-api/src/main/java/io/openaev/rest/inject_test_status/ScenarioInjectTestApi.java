@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
@@ -35,6 +36,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
   private final InjectTestStatusService injectTestStatusService;
   private final InjectService injectService;
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/injects/test/search",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/test/search"
@@ -103,6 +105,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
+          TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
 
@@ -118,7 +121,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER).and(testable());
+        this.injectService.getInjectSpecification(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER).and(testable());
 
     // Services calls
     // Bulk test

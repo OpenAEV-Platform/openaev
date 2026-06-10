@@ -10,7 +10,6 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
@@ -290,7 +289,8 @@ public class LogService {
     doc.setRequestMetadata(meta);
 
     // Tenant context
-    doc.setTenantId(TenantContext.getCurrentTenant());
+    // TODO JRI WHAT?
+    // doc.setTenantId(TenantContext.getCurrentTenant());
 
     // User context
     doc.setUserId(resolveUserId());

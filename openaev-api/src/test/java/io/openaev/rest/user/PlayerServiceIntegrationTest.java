@@ -1,7 +1,6 @@
 package io.openaev.rest.user;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
@@ -49,12 +48,12 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     user.setOrganization(organization);
     user.setTags(Set.of(tag1, tag2));
     User savedUser = userRepository.save(user);
-    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(savedUser.getId(), "tenant");
 
     User userWithoutOrg = UserFixture.getUser("Jane", "Doe", "noorg@test.com");
     userWithoutOrg.setTags(Set.of(tag1));
     User savedUserWithoutOrg = userRepository.save(userWithoutOrg);
-    tenantRepository.addUserToTenant(savedUserWithoutOrg.getId(), TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(savedUserWithoutOrg.getId(), "tenant");
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setPage(0);
@@ -96,7 +95,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     user.setLastname("Player");
     user.setTags(Set.of(tag));
     User savedUser = userRepository.save(user);
-    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(savedUser.getId(), "tenant");
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setPage(0);

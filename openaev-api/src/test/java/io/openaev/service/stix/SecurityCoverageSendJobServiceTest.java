@@ -61,7 +61,7 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
                         injectorContractComposer
                             .forInjectorContract(
                                 InjectorContractFixture.createDefaultInjectorContract())
-                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector()))
+                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant")))
                     .withExpectation(
                         injectExpectationComposer
                             .forExpectation(

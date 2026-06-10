@@ -90,8 +90,8 @@ class InjectImportTest extends IntegrationTest {
 
   @BeforeEach
   void before() throws Exception {
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
     teamComposer.reset();
     userComposer.reset();
@@ -113,7 +113,7 @@ class InjectImportTest extends IntegrationTest {
     staticArticleWrappers.clear();
 
     for (String filename : FileFixture.WELL_KNOWN_FILES.keySet()) {
-      fileService.deleteFile(filename);
+      fileService.deleteFile("tenant", filename);
     }
 
     clearEntityManager();
@@ -189,7 +189,7 @@ class InjectImportTest extends IntegrationTest {
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                     .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withTag(tagComposer.forTag(TagFixture.getTagWithText("secret payload tag")))
                     .withPayload(
@@ -209,7 +209,7 @@ class InjectImportTest extends IntegrationTest {
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                     .withTag(tagComposer.forTag(TagFixture.getTagWithText("secret file drop tag")))
                     .withPayload(
                         payloadComposer
@@ -230,7 +230,7 @@ class InjectImportTest extends IntegrationTest {
                     .withTag(
                         tagComposer.forTag(
                             TagFixture.getTagWithText("secret executable payload tag")))
-                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                     .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                     .withPayload(
                         payloadComposer
@@ -283,7 +283,7 @@ class InjectImportTest extends IntegrationTest {
       throws IOException {
     List<Inject> injects = wrappers.stream().map(InjectComposer.Composer::get).toList();
     byte[] data =
-        exportService.exportInjectsToZip(
+        exportService.exportInjectsToZip("tenant",
             injects, ExportOptions.mask(withPlayers, withTeams, withVariableValues));
     clearEntityManager();
     return data;

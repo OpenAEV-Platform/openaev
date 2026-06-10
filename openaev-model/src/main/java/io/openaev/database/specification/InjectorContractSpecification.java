@@ -1,5 +1,6 @@
 package io.openaev.database.specification;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -42,11 +43,11 @@ public class InjectorContractSpecification {
    * @param currentUser current user performing the search
    * @return Specification for filtering InjectorContracts based on user grants
    */
-  public static Specification<InjectorContract> hasAccessToInjectorContract(
-      final User currentUser) {
+  public static Specification<InjectorContract> hasAccessToInjectorContract(TxCtx ctx,
+                                                                            final User currentUser) {
     return (root, query, cb) -> {
-      if (currentUser.isAdminOrBypass()
-          || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
+      if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
+          || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_THREAT_ARSENALS)) {
         return cb.conjunction();
       }
 

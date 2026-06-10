@@ -5,6 +5,7 @@ import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUT
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -65,7 +66,7 @@ public class SecurityCoverageInjectService {
    * @param securityCoverage the related security coverage providing AttackPattern references
    * @return list injects related to this scenario
    */
-  public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
+  public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(TxCtx ctx,
       Scenario scenario, SecurityCoverage securityCoverage) {
 
     // 1. Remove all inject placeholders
@@ -91,6 +92,7 @@ public class SecurityCoverageInjectService {
 
     // 6. Build injects from Attack Patterns
     createInjectsByAttackPatterns(
+            ctx,
         scenario,
         securityCoverage.getAttackPatternRefs(),
         requiredAssetGroupMap,
@@ -341,7 +343,7 @@ public class SecurityCoverageInjectService {
 
           // 5. Fetch Dynamic DNS Resolution Payload
           DnsResolution dynamicDnsResolutionPayload =
-              payloadService.getDynamicDnsResolutionPayload();
+              payloadService.getDynamicDnsResolutionPayload(scenario.getTenant().getId());
 
           // 6. Create an inject, linked to the scenario for each contract
           createInjectsByInjectorContracts(
@@ -495,6 +497,7 @@ public class SecurityCoverageInjectService {
    * @param attackPatternRefs the related security coverage providing AttackPattern references
    */
   private void createInjectsByAttackPatterns(
+          TxCtx ctx,
       Scenario scenario,
       Set<StixRefToExternalRef> attackPatternRefs,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -508,7 +511,7 @@ public class SecurityCoverageInjectService {
 
     // 2. Fetch internal Ids for AttackPatterns
     Map<String, AttackPattern> attackPatterns =
-        attackPatternService.fetchInternalAttackPatternIds(attackPatternRefs);
+        attackPatternService.fetchInternalAttackPatternIds(ctx, attackPatternRefs);
 
     // 3. Create placeholders for missing patterns
     List<String> foundAttackPatterns =

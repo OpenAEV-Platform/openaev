@@ -2,6 +2,7 @@ package io.openaev.service.connectors;
 
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -25,12 +26,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class ConnectorOrchestrationService {
   private final ConnectorInstanceService connectorInstanceService;
   private final XtmComposerService xtmComposerService;
@@ -114,8 +113,8 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void throwIfConnectorIdDoesNotExist(
-      CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
+  private void throwIfConnectorIdDoesNotExist(TxCtx ctx,
+                                              CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
       throws DataIntegrityViolationException {
     String connectorId =
         collectorInput.getConfigurations().stream()
@@ -131,9 +130,9 @@ public class ConnectorOrchestrationService {
       if (catalogConnector.getContainerType().equals(ConnectorType.COLLECTOR)) {
         collectorService.collector(connectorId);
       } else if (catalogConnector.getContainerType().equals(ConnectorType.INJECTOR)) {
-        injectorService.injector(connectorId);
+        injectorService.injector(ctx, connectorId);
       } else {
-        executorService.executor(connectorId);
+        executorService.executor(ctx, connectorId);
       }
     } catch (ElementNotFoundException e) {
       log.warn(e.getMessage());
@@ -142,10 +141,10 @@ public class ConnectorOrchestrationService {
     }
   }
 
-  private void cleanDummyInjectorsIfItExists(
-      String catalogConnectorSlug, ConnectorType catalogConnectorType) {
+  private void cleanDummyInjectorsIfItExists(TxCtx ctx,
+                                             String catalogConnectorSlug, ConnectorType catalogConnectorType) {
     if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
-      injectorService.deleteDummyInjectorIfItExists(catalogConnectorSlug);
+      injectorService.deleteDummyInjectorIfItExists(ctx, catalogConnectorSlug);
     }
   }
 
@@ -194,7 +193,8 @@ public class ConnectorOrchestrationService {
    * @return Created ConnectorInstance
    */
   public ConnectorInstancePersisted createConnectorInstance(
-      CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
+          TxCtx ctx,
+          CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
     throwIfEnterpriseLicenseNotActive();
 
@@ -210,13 +210,13 @@ public class ConnectorOrchestrationService {
                         catalogConnectorWithConfigMap.catalogConnector.getContainerType()
                             + "_ID"))) {
       // If we have an ID in the input, we check if the connector already exists
-      throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
+      throwIfConnectorIdDoesNotExist(ctx, input, catalogConnectorWithConfigMap.catalogConnector);
     }
 
     ConnectorInstancePersisted connectorInstance =
         connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
 
-    cleanDummyInjectorsIfItExists(
+    cleanDummyInjectorsIfItExists(ctx,
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),
         catalogConnectorWithConfigMap.catalogConnector.getContainerType());
 

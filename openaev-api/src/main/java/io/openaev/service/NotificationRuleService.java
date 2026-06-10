@@ -10,7 +10,6 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.ImageUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
@@ -101,7 +100,6 @@ public class NotificationRuleService {
         notificationRuleRepository::findAll, searchPaginationInput, NotificationRule.class);
   }
 
-  @Transactional
   public void activateNotificationRules(
       @NotNull final String resourceId,
       @NotNull final NotificationRuleTrigger trigger,

@@ -30,7 +30,7 @@ public class CatalogConnectorIngestionRunner implements CommandLineRunner {
 
       JsonNode rootNode = mapper.readTree(is);
 
-      catalogConnectorIngestionService.extractCatalog(rootNode);
+      catalogConnectorIngestionService.extractCatalog("tenant", rootNode);
 
     } catch (IOException e) {
       log.error("Error while reading file : {}", e.getMessage());

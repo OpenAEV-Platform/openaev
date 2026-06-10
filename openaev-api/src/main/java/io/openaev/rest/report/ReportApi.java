@@ -37,6 +37,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#reportId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Report report(@PathVariable String reportId) {
     return this.reportService.report(UUID.fromString(reportId));
   }
@@ -57,6 +58,7 @@ public class ReportApi extends RestBehavior {
             responseCode = "404",
             description = "Report doesn't exist or not linked to the simulation")
       })
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Report reportFromSimulationExercise(
       @PathVariable String simulationId, @PathVariable String reportId) {
     return this.reportService.reportFromSimulation(simulationId, UUID.fromString(reportId));
@@ -70,6 +72,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<Report> exerciseReports(@PathVariable String exerciseId) {
     return this.reportService.reportsFromExercise(exerciseId);
   }

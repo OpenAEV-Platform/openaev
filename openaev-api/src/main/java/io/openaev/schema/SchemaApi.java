@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -23,6 +24,7 @@ public class SchemaApi extends RestBehavior {
 
   @PostMapping("/api/schemas/{className}")
   @AccessControl(skipRBAC = true)
+  @Transactional
   public List<PropertySchemaDTO> schemas(
       @PathVariable @NotNull final String className,
       @RequestParam final boolean filterableOnly,
@@ -47,6 +49,7 @@ public class SchemaApi extends RestBehavior {
 
   @GetMapping("/api/engine/schemas")
   @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
   public Set<PropertySchemaDTO> engineSchemas(
       @RequestParam(name = "classNames", required = false) List<String> classNames) {
     return engineContext.getModels().stream()

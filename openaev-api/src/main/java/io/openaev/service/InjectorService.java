@@ -3,7 +3,7 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -37,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -100,7 +99,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   @Override
   protected Injector getConnectorById(String injectorId) {
     return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+        .findById(injectorId)
         .orElse(null);
   }
 
@@ -131,27 +130,26 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @param injectorName human-readable name
    * @return the dummy injector for the current tenant
    */
-  public Injector createOrGetDummyInjector(
-      @NotBlank final String injectorType, @NotBlank final String injectorName) {
-    String currentTenant = TenantContext.getCurrentTenant();
+  public Injector createOrGetDummyInjector(TxCtx ctx,
+                                           @NotBlank final String injectorType, @NotBlank final String injectorName) {
     return injectorRepository
-        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, currentTenant)
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, ctx.tenantIdFromUri())
         .orElseGet(
             () -> {
               Injector injector = new Injector();
               injector.setName("Dummy " + injectorName);
               injector.setType(injectorType + DUMMY_SUFFIX);
               // Include tenant in the ID so each tenant gets its own dummy row.
-              injector.setId(injectorType + DUMMY_SUFFIX + "_" + currentTenant);
-              injector.setTenant(new Tenant(currentTenant));
+              injector.setId(injectorType + DUMMY_SUFFIX + "_" + ctx.tenantIdFromUri());
+              injector.setTenant(new Tenant(ctx.tenantIdFromUri()));
               injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
               return injectorRepository.save(injector);
             });
   }
 
-  public Injector injector(String id) {
+  public Injector injector(TxCtx ctx, String id) {
     return injectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(id, ctx.tenantIdFromUri())
         .orElseThrow(() -> new ElementNotFoundException("Injector not found with id: " + id));
   }
 
@@ -160,8 +158,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    *
    * @param injectorType to find dummy one
    */
-  public void deleteDummyInjectorIfItExists(@NotBlank final String injectorType) {
-    deleteDummyInjectorIfItExists(injectorType, null);
+  public void deleteDummyInjectorIfItExists(TxCtx ctx, @NotBlank final String injectorType) {
+    deleteDummyInjectorIfItExists(ctx, injectorType, null);
   }
 
   public List<Injector> findAll() {
@@ -189,8 +187,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @param injectorType injector type to search for
    * @return an Optional containing the injector if found, empty otherwise
    */
-  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
+  public Optional<Injector> injectorByType(TxCtx ctx, @NotBlank final String injectorType) {
+    return injectorRepository.findByTypeAndTenantId(injectorType, ctx.tenantIdFromUri());
   }
 
   /**
@@ -203,19 +201,19 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     return getConnectorRelationsId(injectorId);
   }
 
-  public InjectorRegistration registerExternalInjector(
-      InjectorCreateInput input, Optional<MultipartFile> file) {
+  public InjectorRegistration registerExternalInjector(TxCtx ctx,
+                                                       InjectorCreateInput input, Optional<MultipartFile> file) {
     try {
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
-        fileService.uploadFile(
+        fileService.uploadFile(ctx.tenantIdFromUri(),
             FileService.INJECTORS_IMAGES_BASE_PATH + input.getType() + ".png", file.get());
       }
       String queueName = this.rabbitmqService.registerQueue(input.getId());
       // We need to support upsert for registration
       Injector injector =
           injectorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .findByIdAndTenantId(input.getId(), ctx.tenantIdFromUri())
               .orElse(null);
       if (injector != null) {
         updateExistingExternalInjector(
@@ -240,7 +238,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
-        newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+        newInjector.setTenant(new Tenant(ctx.tenantIdFromUri()));
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts
         List<InjectorContract> injectorContracts =
@@ -254,7 +252,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
-        deleteDummyInjectorIfItExists(input.getType(), savedInjector);
+        deleteDummyInjectorIfItExists(ctx, input.getType(), savedInjector);
       }
       return new InjectorRegistration(rabbitmqService.getConnectionInfo(), queueName);
     } catch (Exception e) {
@@ -360,9 +358,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    * @param dependencies external service dependencies
    * @throws InjectorRegistrationException if registration fails due to conflicts or errors
    */
-  @Transactional(rollbackFor = Exception.class)
   public void registerBuiltinInjector(
-      String id,
+          TxCtx ctx,
+          String id,
       String name,
       Contractor contractor,
       Boolean isCustomizable,
@@ -374,7 +372,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       throws InjectorRegistrationException {
 
     // Upload icon if available
-    uploadInjectorIcon(contractor);
+    uploadInjectorIcon(ctx, contractor);
 
     // Get contracts from contractor
     List<Contract> staticContracts;
@@ -387,7 +385,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
     // Find existing injector or create new
     Injector existingInjector =
-        injectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+        injectorRepository.findByIdAndTenantId(id, ctx.tenantIdFromUri()).orElse(null);
 
     if (existingInjector != null) {
       updateExistingBuiltinInjector(
@@ -404,6 +402,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     } else {
       Injector createdInjector =
           createNewBuiltinInjector(
+                  ctx,
               id,
               name,
               contractor,
@@ -416,7 +415,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
               staticContracts);
 
       // delete the dummy injector if it was created when importing the starter pack
-      deleteDummyInjectorIfItExists(contractor.getType(), createdInjector);
+      deleteDummyInjectorIfItExists(ctx, contractor.getType(), createdInjector);
     }
 
     log.info("Successfully registered injector '{}' (type: {})", name, contractor.getType());
@@ -432,10 +431,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   //    return this.injectorRepository.findByType(type);
   //  }
 
-  private void deleteDummyInjectorIfItExists(
-      @NotBlank final String injectorType, final Injector newInjector) {
+  private void deleteDummyInjectorIfItExists(TxCtx ctx,
+                                             @NotBlank final String injectorType, final Injector newInjector) {
     injectorRepository
-        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, TenantContext.getCurrentTenant())
+        .findByTypeAndTenantId(injectorType + DUMMY_SUFFIX, ctx.tenantIdFromUri())
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
@@ -449,15 +448,15 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 injectorContractRepository.saveAll(injectorContracts);
               }
               injectorRepository.deleteByIdAndTenantId(
-                  dummyInjector.getId(), TenantContext.getCurrentTenant());
+                  dummyInjector.getId(), ctx.tenantIdFromUri());
             });
   }
 
-  private void uploadInjectorIcon(Contractor contractor) {
+  private void uploadInjectorIcon(TxCtx ctx, Contractor contractor) {
     if (contractor.getIcon() != null) {
       try {
         InputStream iconData = contractor.getIcon().getData();
-        fileService.uploadStream(
+        fileService.uploadStream(ctx.tenantIdFromUri(),
             INJECTORS_IMAGES_BASE_PATH, contractor.getType() + ".png", iconData);
       } catch (Exception e) {
         log.warn(
@@ -538,7 +537,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   private Injector createNewBuiltinInjector(
-      String id,
+          TxCtx ctx,
+          String id,
       String name,
       Contractor contractor,
       Boolean isCustomizable,
@@ -562,7 +562,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         isPayloads,
         dependencies);
 
-    newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newInjector.setTenant(new Tenant(ctx.tenantIdFromUri()));
     Injector savedInjector = injectorRepository.save(newInjector);
 
     List<InjectorContract> injectorContracts =

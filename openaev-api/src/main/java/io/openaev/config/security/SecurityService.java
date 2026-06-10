@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -42,7 +41,6 @@ public class SecurityService {
   private final UserEventService userEventService;
   private final TenantRepository tenantRepository;
 
-  @Transactional(rollbackFor = Exception.class)
   public User userManagement(
       String emailAttribute,
       String registrationId,

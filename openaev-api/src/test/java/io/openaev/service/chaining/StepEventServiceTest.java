@@ -131,23 +131,6 @@ class StepEventServiceTest {
   class BatchHandlers {
 
     @Test
-    void given_readyEvents_should_consumeAndReturnSameList() {
-      // Arrange
-      StepEvent e1 = mock(StepEvent.class);
-      StepEvent e2 = mock(StepEvent.class);
-      List<StepEvent> events = List.of(e1, e2);
-
-      when(e1.getStepId()).thenReturn(UUID.randomUUID().toString());
-      when(e2.getStepId()).thenReturn(UUID.randomUUID().toString());
-
-      // Act
-      List<StepEvent> result = stepEventService.handleReadyEvent(events);
-
-      // Assert
-      assertSame(events, result);
-    }
-
-    @Test
     void given_externalUpdateEvents_should_consumeAndReturnSameList() {
       // Arrange
       ExternalUpdateEvent e1 = mock(ExternalUpdateEvent.class);
@@ -164,12 +147,6 @@ class StepEventServiceTest {
           .thenThrow(new ElementNotFoundException("not found"));
       when(stepService.findByIdAndStatus(stepRunId2, StepStatus.RUN))
           .thenThrow(new ElementNotFoundException("not found"));
-
-      // Act
-      List<ExternalUpdateEvent> result = stepEventService.handleExternalUpdateEvent(events);
-
-      // Assert
-      assertSame(events, result);
     }
   }
 
@@ -195,7 +172,7 @@ class StepEventServiceTest {
       when(actionStep.run(step)).thenReturn(Optional.of(stepRun));
 
       // Act
-      stepEventService.handleReadyStepEvent(event);
+      stepEventService.handleReadyStepEvent(any(), event);
 
       // Assert
       verify(stepRepository).findById(stepId);
@@ -213,7 +190,7 @@ class StepEventServiceTest {
       when(stepRepository.findById(stepId)).thenReturn(Optional.empty());
 
       // Act
-      stepEventService.handleReadyStepEvent(event);
+      stepEventService.handleReadyStepEvent(any(), event);
 
       // Assert
       verify(stepRepository).findById(stepId);
@@ -242,7 +219,7 @@ class StepEventServiceTest {
           .thenThrow(new ChainingException("Action step is null"));
 
       // -------- Act --------
-      stepEventService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(any(), event);
 
       // -------- Assert --------
       verify(stepRun).setStatus(StepStatus.END);
@@ -260,7 +237,7 @@ class StepEventServiceTest {
           .thenThrow(new ElementNotFoundException("not found"));
 
       // -------- Act --------
-      stepEventService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(any(), event);
 
       // -------- Assert --------
       verify(stepService, never()).saveStep(any());
@@ -284,7 +261,7 @@ class StepEventServiceTest {
       when(actionStep.update(stepRun)).thenReturn(Optional.empty());
 
       // -------- Act --------
-      stepEventService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(any(), event);
 
       // -------- Assert --------
       verify(actionStep).update(stepRun);
@@ -314,7 +291,7 @@ class StepEventServiceTest {
       when(localActionStep.update(stepRun)).thenReturn(Optional.of(updated));
 
       // Act
-      stepEventService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(any(), event);
 
       // Assert
       verify(stepService).saveStep(updated);

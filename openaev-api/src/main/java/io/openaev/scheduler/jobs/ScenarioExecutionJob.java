@@ -3,14 +3,13 @@ package io.openaev.scheduler.jobs;
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -19,11 +18,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,14 +36,18 @@ public class ScenarioExecutionJob implements Job {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
-  private final EntityManager entityManager;
+
+  @Lazy @Autowired private ScenarioExecutionJob proxySelf;
 
   @Override
-  @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
-  public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-    // Disable tenant filter — this job runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+  public void execute(JobExecutionContext context) throws JobExecutionException {
+    TxCtx ctx = TxCtx.noTenant();
+    proxySelf.txExecute(ctx);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public void txExecute(@SuppressWarnings("unused") TxCtx _ctx) {
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
   }
@@ -83,15 +87,12 @@ public class ScenarioExecutionJob implements Job {
         // Create simulation with start date provided by cron
         .forEach(
             scenario -> {
-              try {
-                TenantContext.setCurrentTenant(scenario.getTenant().getId());
+
                 this.scenarioToExerciseService.toExercise(
                     scenario,
                     scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
                     false);
-              } finally {
-                TenantContext.clearCurrentTenant();
-              }
+
             });
   }
 

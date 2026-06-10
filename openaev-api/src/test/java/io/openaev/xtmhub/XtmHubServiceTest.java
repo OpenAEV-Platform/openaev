@@ -13,7 +13,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
@@ -25,7 +24,6 @@ import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
-import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,7 +41,7 @@ import org.mockserver.socket.PortFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-@ExtendWith({MockitoExtension.class, DefaultTenantExtension.class})
+@ExtendWith({MockitoExtension.class})
 class XtmHubServiceTest {
 
   private static final String GRAPHQL_PATH = "/graphql-api";
@@ -219,7 +217,7 @@ class XtmHubServiceTest {
     registration.setRegistrationUserId("user-123");
     registration.setRegistrationUserName("John Doe");
     registration.setLastConnectivityCheck(lastCheck);
-    Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+    Tenant tenant = new Tenant("tenant");
     tenant.setName("Default Tenant");
     registration.setTenant(tenant);
     return registration;
@@ -272,7 +270,7 @@ class XtmHubServiceTest {
       whenHubReturnsConnectivityStatus("active");
 
       // When
-      xtmHubService.refreshConnectivity();
+      xtmHubService.refreshConnectivity("tenant");
 
       // Then
       verifyRefreshConnectivityRequest(platformId, platformVersion, token, platformBaseUrl);
@@ -284,7 +282,7 @@ class XtmHubServiceTest {
       // Given — repository returns empty by default (setUp)
 
       // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity("tenant");
 
       // Then
       assertNull(result);
@@ -313,7 +311,7 @@ class XtmHubServiceTest {
       whenHubReturnsConnectivityStatus("not_found");
 
       // When
-      xtmHubService.refreshConnectivity();
+      xtmHubService.refreshConnectivity("tenant");
 
       // Then
       verify(tenantXtmHubRegistrationRepository).deleteByTenantId(any());
@@ -340,7 +338,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity("tenant");
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -374,7 +372,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity("tenant");
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -406,7 +404,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity();
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity("tenant");
 
       // Then
       assertNotNull(result);
@@ -447,9 +445,7 @@ class XtmHubServiceTest {
     @DisplayName("Should save active tenants as REGISTERED and delete NOT_FOUND tenants")
     void whenMixedStatuses_ShouldSaveActiveAndDeleteNotFound() {
       // Given
-      TenantContext.setCurrentTenant("tenant-active");
       TenantXtmHubRegistration activeReg = buildRegistration("token-1", now.minusHours(1));
-      TenantContext.setCurrentTenant("tenant-not-found");
       TenantXtmHubRegistration notFoundReg = buildRegistration("token-2", now.minusHours(1));
       String activeTenantId = activeReg.getTenant().getId();
       String notFoundTenantId = notFoundReg.getTenant().getId();
@@ -489,7 +485,6 @@ class XtmHubServiceTest {
         "Should send email and update flag when tenant lost connectivity for more than 24h")
     void whenTenantLostConnectivityMoreThan24h_ShouldSendEmail() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
       LocalDateTime lastCheck = now.minusHours(25);
       TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
       String tenantId = reg.getTenant().getId();
@@ -528,7 +523,6 @@ class XtmHubServiceTest {
     @DisplayName("Should not send email when tenant lost connectivity for less than 24h")
     void whenTenantLostConnectivityLessThan24h_ShouldNotSendEmail() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
       LocalDateTime lastCheck = now.minusHours(12);
       TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
       String tenantId = reg.getTenant().getId();
@@ -563,7 +557,6 @@ class XtmHubServiceTest {
         "Should not send global email when global flag is disabled, but still notify tenant admin")
     void whenEmailSendingIsDisabled_ShouldNotSendEmail() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
       LocalDateTime lastCheck = now.minusHours(25);
       TenantXtmHubRegistration reg = buildRegistration("token-1", lastCheck);
       String tenantId = reg.getTenant().getId();
@@ -593,7 +586,6 @@ class XtmHubServiceTest {
     @DisplayName("Should default to INACTIVE when hub does not return a status for a tenant")
     void whenHubMissesTenant_ShouldDefaultToInactive() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(1));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()).thenReturn(List.of(reg));
@@ -624,9 +616,9 @@ class XtmHubServiceTest {
         "Should send a single email when ALL tenants have lost connectivity for more than 24h")
     void whenAllTenantsLostConnectivityMoreThan24h_ShouldSendEmailOnce() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
+      
       TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(25));
-      TenantContext.setCurrentTenant("tenant-2");
+      
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(30));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -659,9 +651,9 @@ class XtmHubServiceTest {
         "Should not send global email when only some tenants have lost connectivity, but notify the affected tenant admin")
     void whenOnlySomeTenantsLostConnectivity_ShouldNotSendEmail() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
+      
       TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(25));
-      TenantContext.setCurrentTenant("tenant-2");
+      
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -692,7 +684,7 @@ class XtmHubServiceTest {
         "Should not send email again and not reset flag when all tenants are still lost and email was already sent")
     void whenAllTenantsStillLostAndEmailAlreadySent_ShouldNotSendEmailAgain() {
       // Given — both flags disabled to simulate emails were already sent on a previous run
-      TenantContext.setCurrentTenant("tenant-1");
+      
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       reg.setConnectivityEmailEligible(false); // per-tenant email already sent
       String tenantId = reg.getTenant().getId();
@@ -720,7 +712,7 @@ class XtmHubServiceTest {
     @DisplayName("Should reset the email flag when connectivity is restored after having been lost")
     void whenConnectivityRestoredAfterLoss_ShouldResetEmailFlag() {
       // Given — both flags disabled to simulate emails were sent on a previous run
-      TenantContext.setCurrentTenant("tenant-1");
+      
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       reg.setConnectivityEmailEligible(false); // per-tenant email was sent
       String tenantId = reg.getTenant().getId();
@@ -754,7 +746,7 @@ class XtmHubServiceTest {
     @DisplayName("Should send email when no registrations exist after filtering NOT_FOUND")
     void whenAllRegistrationsAreNotFound_ShouldNotSendEmail() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
+      
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       String tenantId = reg.getTenant().getId();
 
@@ -781,9 +773,9 @@ class XtmHubServiceTest {
     @DisplayName("Should send correct url per tenant in the GraphQL request body")
     void whenRegistrationsExist_ShouldSendCorrectUrlPerTenant() {
       // Given
-      TenantContext.setCurrentTenant("tenant-1");
+      
       TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(1));
-      TenantContext.setCurrentTenant("tenant-2");
+      
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -824,7 +816,7 @@ class XtmHubServiceTest {
     void whenTenantIsSoftDeleted_ShouldNotBeIncludedInRefresh() {
       // Given — the repository already excludes soft-deleted tenants,
       // so only the non-deleted registration is returned.
-      TenantContext.setCurrentTenant("tenant-active");
+
       TenantXtmHubRegistration activeReg = buildRegistration("token-active", now.minusHours(1));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -875,7 +867,7 @@ class XtmHubServiceTest {
       whenHubAutoRegisters(true);
 
       // When
-      xtmHubService.autoRegister(token);
+      xtmHubService.autoRegister("tenant", token);
 
       // Then
       JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
@@ -897,7 +889,7 @@ class XtmHubServiceTest {
       whenHubAutoRegisters(true);
 
       // When
-      xtmHubService.autoRegister(token);
+      xtmHubService.autoRegister("tenant", token);
 
       // Then
       JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
@@ -920,7 +912,7 @@ class XtmHubServiceTest {
       whenHubAutoRegisters(true);
 
       // When
-      xtmHubService.autoRegister(token);
+      xtmHubService.autoRegister("tenant", token);
 
       // Then
       JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
@@ -945,7 +937,7 @@ class XtmHubServiceTest {
       whenHubAutoRegisters(true);
 
       // When
-      xtmHubService.autoRegister(token);
+      xtmHubService.autoRegister("tenant", token);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -980,7 +972,7 @@ class XtmHubServiceTest {
       whenHubAutoRegisters(true);
 
       // When
-      xtmHubService.autoRegister(token);
+      xtmHubService.autoRegister("tenant", token);
 
       // Then
       JsonObject input = verifyAutoRegisterRequest(token, "platform-123");
@@ -1013,7 +1005,7 @@ class XtmHubServiceTest {
 
       // When
       ResponseStatusException exception =
-          assertThrows(ResponseStatusException.class, () -> xtmHubService.autoRegister(token));
+          assertThrows(ResponseStatusException.class, () -> xtmHubService.autoRegister("tenant", token));
 
       // Then
       assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatusCode());
@@ -1043,7 +1035,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      xtmHubService.register(token);
+      xtmHubService.register("tenant", token);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -1067,7 +1059,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      xtmHubService.register(token);
+      xtmHubService.register("tenant", token);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -1091,7 +1083,7 @@ class XtmHubServiceTest {
       when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // When
-      xtmHubService.register(token);
+      xtmHubService.register("tenant", token);
 
       // Then
       ArgumentCaptor<TenantXtmHubRegistration> captor =
@@ -1109,7 +1101,7 @@ class XtmHubServiceTest {
     @DisplayName("Should delete tenant registration")
     void shouldDeleteTenantRegistration() {
       // When
-      xtmHubService.unregister();
+      xtmHubService.unregister("tenant");
 
       // Then
       verify(tenantXtmHubRegistrationRepository).deleteByTenantId(Tenant.DEFAULT_TENANT_UUID);

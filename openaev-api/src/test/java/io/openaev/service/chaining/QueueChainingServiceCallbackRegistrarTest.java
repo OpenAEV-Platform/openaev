@@ -115,7 +115,9 @@ class QueueChainingServiceCallbackRegistrarTest {
       callback.perform(events);
 
       // Assert
-      verify(stepEventService).handleReadyEvent(events);
+      for (StepEvent event : events) {
+        verify(stepEventService).handleReadyStepEvent(any(), event);
+      }
     }
 
     @Test
@@ -135,7 +137,9 @@ class QueueChainingServiceCallbackRegistrarTest {
       callback.perform(events);
 
       // Assert
-      verify(stepEventService).handleExternalUpdateEvent(events);
+      for (ExternalUpdateEvent event : events) {
+        verify(stepEventService).handleExternalUpdateEvent(any(), event);
+      }
     }
   }
 }

@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.openaev;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -75,11 +76,13 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    TxCtx ctx = TxCtx.of(tenantId);
     try {
-      executorService.executor(OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID);
+      executorService.executor(ctx, OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID);
     } catch (ElementNotFoundException e) {
       executorService.register(
+              ctx,
           OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
           OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
           OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,

@@ -6,7 +6,6 @@ import static io.openaev.utils.time.TimeUtils.toInstant;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -88,11 +87,11 @@ public class CalderaExecutorServiceTest {
     calderaExecutor = new Executor();
     calderaExecutor.setName(CALDERA_EXECUTOR_NAME);
     calderaExecutor.setType(CALDERA_EXECUTOR_TYPE);
-    calderaExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    calderaExecutor.setTenant(new Tenant("tenant"));
     randomExecutor = new Executor();
     randomExecutor.setName("NAME");
     randomExecutor.setType("TYPE");
-    randomExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    randomExecutor.setTenant(new Tenant("tenant"));
     calderaExecutorService.setExecutor(calderaExecutor);
 
     calderaAgent =

@@ -9,7 +9,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -134,6 +133,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(readOnly = true)
   public Iterable<Inject> exerciseInjects(@PathVariable @NotBlank final String exerciseId) {
     return injectRepository.findByExerciseId(exerciseId).stream()
         .sorted(Inject.executionComparator)
@@ -178,6 +178,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
+  @Transactional(readOnly = true)
   public InjectOutput exerciseInject(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     Inject inject = simulationInjectService.findInjectForSimulation(exerciseId, injectId);
@@ -192,6 +193,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
+  @Transactional(readOnly = true)
   public Iterable<Team> exerciseInjectTeams(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findInjectTeamsForSimulation(exerciseId, injectId);
@@ -205,6 +207,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
+  @Transactional(readOnly = true)
   public Iterable<Communication> exerciseInjectCommunications(
       @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findAndAckCommunicationsForSimulation(exerciseId, injectId);
@@ -225,7 +228,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
@@ -244,11 +247,12 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     return this.injectService.createAndSaveInjectList(exercise, null, inputs);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"
@@ -321,6 +325,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   // -- UPDATE --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation"
@@ -336,6 +341,7 @@ public class SimulationInjectApi extends RestBehavior {
     return simulationInjectService.updateInjectActivationForSimulation(exerciseId, injectId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger"
@@ -365,6 +371,7 @@ public class SimulationInjectApi extends RestBehavior {
     return simulationInjectService.setInjectStatusForSimulation(exerciseId, injectId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"

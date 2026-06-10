@@ -6,27 +6,24 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "domains")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({ModelBaseListener.class})
 @Builder
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Domain implements TenantBase {
 
   @Id

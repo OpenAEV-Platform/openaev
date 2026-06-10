@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
@@ -46,7 +46,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Implementation of {@link ActionStep} for executing Inject steps.
@@ -169,12 +168,10 @@ public class InjectExecutionStep implements ActionStep {
    * @return the updated step with execution info, or null if execution fails
    */
   @Override
-  @Transactional(rollbackFor = Exception.class)
   public Optional<Step> run(Step readyStep) throws ChainingException {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
     // CREATE & SAVE INJECT
-
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
     prepareGetStatusPayloadFromInject(inject.getInjectorContract().get());
@@ -597,7 +594,7 @@ public class InjectExecutionStep implements ActionStep {
                           "Injector contract not found for step (READY) ID: " + step.getId()));
 
       injectorContract.setCompositeId(
-          new InjectorContractId(injectorContract.getId(), TenantContext.getCurrentTenant()));
+          new InjectorContractId(injectorContract.getId(), injectorContract.getTenant().getId() ));
       inject.setInjectorContract(injectorContract);
 
       // GET INJECTOR

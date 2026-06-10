@@ -3,6 +3,7 @@ package io.openaev.rest.catalog_connector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.database.model.ResourceType;
@@ -64,8 +65,8 @@ public class CatalogConnectorApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Transactional(readOnly = true)
-  public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
-    Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName, false);
+  public ResponseEntity<byte[]> getCatalogLogo(TxCtx ctx, @PathVariable String fileName) throws IOException {
+    Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(ctx.tenantIdFromUri(), fileName);
 
     if (fileStream.isPresent()) {
       byte[] bytes = IOUtils.toByteArray(fileStream.get());

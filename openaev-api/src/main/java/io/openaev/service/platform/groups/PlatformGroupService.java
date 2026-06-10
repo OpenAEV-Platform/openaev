@@ -20,11 +20,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
 public class PlatformGroupService {
 
   private final GroupRepository groupRepository;
@@ -45,14 +43,12 @@ public class PlatformGroupService {
 
   // -- READ --
 
-  @Transactional(readOnly = true)
   public Group findById(@NotBlank final String id) {
     return groupRepository
         .findById(id)
         .orElseThrow(() -> new EntityNotFoundException("Platform group not found: " + id));
   }
 
-  @Transactional(readOnly = true)
   public Page<Group> search(@NotNull SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         (Specification<Group> spec, org.springframework.data.domain.Pageable pageable) ->
@@ -61,12 +57,10 @@ public class PlatformGroupService {
         Group.class);
   }
 
-  @Transactional(readOnly = true)
   public List<String> findUserIds(@NotBlank final String groupId) {
     return groupRepository.findUserIdsByGroupId(groupId);
   }
 
-  @Transactional(readOnly = true)
   public Set<String> findRoleIds(@NotBlank final String groupId) {
     return groupRepository.findRoleIdsByGroupId(groupId);
   }

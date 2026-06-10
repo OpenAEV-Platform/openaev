@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.injectors.email.EmailContract;
@@ -45,42 +44,40 @@ public class InjectorFixture {
         UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
   }
 
-  private Injector initializeBuiltInInjector(
+  private Injector initializeBuiltInInjector(String tenantId,
       BuiltinIntegrationFactory factory, String injectorType) {
     try {
-      factory.registerConnectorForTenant();
+      factory.registerConnectorForTenant(tenantId);
     } catch (Exception e) {
       throw new RuntimeException("Failed to initialize injector: " + injectorType, e);
     }
 
     return injectorRepository
-        .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+        .findByTypeAndTenantId(injectorType, tenantId)
         .orElseThrow(
             () ->
                 new IllegalStateException(
                     "Injector not found after initialization: " + injectorType));
   }
 
-  private Injector getWellKnownInjector(
+  private Injector getWellKnownInjector(String tenantId,
       String injectorType, BuiltinIntegrationFactory factory, boolean isPayload) {
     Injector injector =
         injectorRepository
-            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
-            .orElseGet(() -> initializeBuiltInInjector(factory, injectorType));
+            .findByTypeAndTenantId(injectorType, tenantId)
+            .orElseGet(() -> initializeBuiltInInjector(tenantId, factory, injectorType));
     // ensure the injector is marked for payloads
     // some tests not running in a transaction may flip this
     injector.setPayloads(isPayload);
     return injectorRepository.save(injector);
   }
 
-  @org.springframework.transaction.annotation.Transactional
-  public Injector getWellKnownOaevImplantInjector() {
-    return getWellKnownInjector(
+  public Injector getWellKnownOaevImplantInjector(String tenantId) {
+    return getWellKnownInjector(tenantId,
         OpenAEVImplantContract.TYPE, openaevInjectorIntegrationFactory, true);
   }
 
-  @org.springframework.transaction.annotation.Transactional
-  public Injector getWellKnownEmailInjector(boolean isPayload) {
-    return getWellKnownInjector(EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
+  public Injector getWellKnownEmailInjector(String tenantId, boolean isPayload) {
+    return getWellKnownInjector(tenantId, EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
   }
 }

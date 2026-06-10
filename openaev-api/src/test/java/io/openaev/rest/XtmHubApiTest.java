@@ -21,7 +21,6 @@ import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.XtmHubClient;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @AutoConfigureMockMvc
-@ExtendWith({MockitoExtension.class, DefaultTenantExtension.class})
+@ExtendWith({MockitoExtension.class})
 @DisplayName("XTM Hub API tests")
 public class XtmHubApiTest extends IntegrationTest {
 
@@ -171,7 +170,6 @@ public class XtmHubApiTest extends IntegrationTest {
       throws Exception {
     // Setup: create a second tenant and switch context to it
     Tenant customTenant = tenantIsolationTestHelper.createTenantWithCurrentUser("Custom Tenant");
-    tenantIsolationTestHelper.switchToTenant(customTenant.getId(), entityManager);
 
     XtmHubRegisterInput input = new XtmHubRegisterInput();
     input.setToken("custom-tenant-token");

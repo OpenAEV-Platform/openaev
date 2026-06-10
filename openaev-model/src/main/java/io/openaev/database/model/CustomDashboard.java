@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.CustomDashboardParameters.CustomDashboardParameterType;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -31,8 +29,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Setter
 @Entity
 @Table(name = "custom_dashboards")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 public class CustomDashboard implements TenantBase {
 
   @Id

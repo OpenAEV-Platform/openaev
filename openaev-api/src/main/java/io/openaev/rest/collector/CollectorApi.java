@@ -3,6 +3,7 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -133,6 +134,7 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackOn = Exception.class)
   public Collector registerCollector(
+          TxCtx ctx,
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
@@ -140,7 +142,7 @@ public class CollectorApi extends RestBehavior {
           file.isPresent() && "image/png".equals(file.get().getContentType())
               ? file.get().getInputStream()
               : null;
-      return collectorService.register(
+      return collectorService.register(ctx.tenantIdFromUri(),
           input.getId(),
           input.getType(),
           input.getName(),

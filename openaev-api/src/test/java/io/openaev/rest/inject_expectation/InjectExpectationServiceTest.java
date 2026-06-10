@@ -55,7 +55,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     InjectorContract injectorContract =
         InjectorContractFixture.createInjectorContract(Map.of("en", INJECTION_NAME));
 
-    savedInjector = injectorFixture.getWellKnownOaevImplantInjector();
+    savedInjector = injectorFixture.getWellKnownOaevImplantInjector("tenant");
     injectorContract.addInjector(savedInjector);
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);

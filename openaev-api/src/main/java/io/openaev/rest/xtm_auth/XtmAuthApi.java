@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,6 +27,7 @@ public class XtmAuthApi extends RestBehavior {
 
   private final XtmAuthKeyService keyService;
 
+  @Transactional(readOnly = true)
   @GetMapping(value = XTM_AUTH_JWKS_URI, produces = MediaType.APPLICATION_JSON_VALUE)
   @Operation(
       summary = "Get JWKS",

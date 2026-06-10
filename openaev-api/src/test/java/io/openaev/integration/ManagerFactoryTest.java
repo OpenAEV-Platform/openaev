@@ -42,8 +42,8 @@ class ManagerFactoryTest {
   class StartupPath {
 
     @Test
-    @DisplayName("given_multipleTenants_should_callRegisterForTenantIsolatedForEach")
-    void given_multipleTenants_should_callRegisterForTenantIsolatedForEach() throws Exception {
+    @DisplayName("given_multipleTenants_should_callregisterForTenantForEach")
+    void given_multipleTenants_should_callregisterForTenantForEach() throws Exception {
       // Arrange
       Tenant tenantA = createTenant("tenant-a", "Tenant A");
       Tenant tenantB = createTenant("tenant-b", "Tenant B");
@@ -53,8 +53,8 @@ class ManagerFactoryTest {
       managerFactory.getManager();
 
       // Assert — each tenant gets its own isolated registration
-      verify(tenantRegistrationExecutor).registerForTenantIsolated(tenantA);
-      verify(tenantRegistrationExecutor).registerForTenantIsolated(tenantB);
+      verify(tenantRegistrationExecutor).registerForTenant(tenantA);
+      verify(tenantRegistrationExecutor).registerForTenant(tenantB);
       // registerForTenant (join-transaction) should NOT be called in startup path
       verify(tenantRegistrationExecutor, never()).registerForTenant(any());
     }
@@ -68,13 +68,13 @@ class ManagerFactoryTest {
       when(tenantRepository.findAll()).thenReturn(List.of(tenantA, tenantB));
       doThrow(new DependenciesManagerException("boom", new RuntimeException()))
           .when(tenantRegistrationExecutor)
-          .registerForTenantIsolated(tenantA);
+          .registerForTenant(tenantA);
 
       // Act — should not throw, errors are logged per tenant
       assertThatNoException().isThrownBy(() -> managerFactory.getManager());
 
       // Assert — tenant B still gets registered despite tenant A failure
-      verify(tenantRegistrationExecutor).registerForTenantIsolated(tenantB);
+      verify(tenantRegistrationExecutor).registerForTenant(tenantB);
     }
 
     @Test
@@ -106,7 +106,7 @@ class ManagerFactoryTest {
 
       // Assert — uses join-transaction variant, not isolated
       verify(tenantRegistrationExecutor).registerForTenant(tenant);
-      verify(tenantRegistrationExecutor, never()).registerForTenantIsolated(any());
+      verify(tenantRegistrationExecutor, never()).registerForTenant(any());
     }
   }
 }

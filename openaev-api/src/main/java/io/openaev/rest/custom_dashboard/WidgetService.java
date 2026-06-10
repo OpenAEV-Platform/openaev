@@ -2,7 +2,6 @@ package io.openaev.rest.custom_dashboard;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectExpectation;
@@ -21,7 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +31,6 @@ public class WidgetService {
 
   // -- CRUD --
 
-  @Transactional
   public Widget createWidget(
       @NotBlank final String customDashboardId, @NotNull final Widget widget) {
     // FIXME: needs some refactoring
@@ -41,7 +38,7 @@ public class WidgetService {
     // causing circular dependency
     CustomDashboard customDashboard =
         customDashboardRepository
-            .findByIdAndTenantId(customDashboardId, TenantContext.getCurrentTenant())
+            .findById(customDashboardId)
             .orElseThrow(
                 () ->
                     new EntityNotFoundException(
@@ -51,31 +48,26 @@ public class WidgetService {
     return this.widgetRepository.save(widget);
   }
 
-  @Transactional(readOnly = true)
   public List<Widget> widgets(@NotBlank final String customDashboardId) {
     return fromIterable(this.widgetRepository.findAllByCustomDashboardId(customDashboardId));
   }
 
-  @Transactional(readOnly = true)
   public Widget widget(@NotBlank final String customDashboardId, @NotBlank final String widgetId) {
     return this.widgetRepository
         .findByCustomDashboardIdAndId(customDashboardId, widgetId)
         .orElseThrow(() -> new EntityNotFoundException("Widget with id: " + widgetId));
   }
 
-  @Transactional(readOnly = true)
   public Widget widget(@NotBlank final String widgetId) {
     return this.widgetRepository
-        .findByIdAndTenantId(widgetId, TenantContext.getCurrentTenant())
+        .findById(widgetId)
         .orElseThrow(() -> new EntityNotFoundException("Widget with id: " + widgetId));
   }
 
-  @Transactional
   public Widget updateWidget(@NotNull final Widget widget) {
     return this.widgetRepository.save(widget);
   }
 
-  @Transactional
   public void deleteWidget(
       @NotBlank final String customDashboardId, @NotBlank final String widgetId) {
     Optional<Widget> widget =

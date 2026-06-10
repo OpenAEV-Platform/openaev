@@ -47,7 +47,7 @@ class ChallengeApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
   }
 
   // -- SCENARIOS --

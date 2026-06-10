@@ -24,6 +24,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,6 +33,7 @@ public class ScenarioSimulationApi {
 
   private final ExerciseService exerciseService;
 
+  @Transactional(readOnly = true)
   @LogExecutionTime
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/exercises",
@@ -47,6 +49,7 @@ public class ScenarioSimulationApi {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/exercises/search",
     TENANT_SCENARIO_URI + "/{scenarioId}/exercises/search"
@@ -75,6 +78,7 @@ public class ScenarioSimulationApi {
 
   // -- OPTION --
 
+  @Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/simulations/options",
     TENANT_SCENARIO_URI + "/{scenarioId}/simulations/options"

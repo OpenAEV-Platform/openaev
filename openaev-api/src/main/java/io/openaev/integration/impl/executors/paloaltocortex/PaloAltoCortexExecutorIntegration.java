@@ -5,6 +5,7 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -114,8 +115,10 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
                         "EXECUTOR_NAME configuration is required for the Executor",
                         getConnectorInstance().getId()));
 
+    TxCtx ctx = TxCtx.noTenant();
     Executor executor =
         executorService.register(
+                ctx,
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
             executorName,

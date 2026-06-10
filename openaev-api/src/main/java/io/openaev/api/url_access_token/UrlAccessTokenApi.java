@@ -71,6 +71,7 @@ public class UrlAccessTokenApi {
     }
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping({URL_ACCESS_URI + "/{tokenId}", TENANT_URL_ACCESS_URI + "/{tokenId}"})
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
@@ -81,6 +82,7 @@ public class UrlAccessTokenApi {
     return ResponseEntity.noContent().build();
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     URL_ACCESS_URI + "/exercise/{exerciseId}",
     TENANT_URL_ACCESS_URI + "/exercise/{exerciseId}"

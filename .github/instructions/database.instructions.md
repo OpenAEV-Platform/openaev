@@ -39,7 +39,6 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 ## Multi-tenancy
 
 - `TenantContext.getCurrentTenant()` — ThreadLocal
-- `@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")` on all `TenantBase` entities
 - Activated automatically by `HibernateFilterTransactionAspect` on every `@Transactional`
 - `TenantBaseListener`: auto-sets tenant on `@PrePersist`, asserts immutability on `@PreUpdate`
 - Native `@Query` bypasses the filter — always add `WHERE tenant_id = :tenantId`

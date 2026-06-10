@@ -119,7 +119,7 @@ class InjectCallbackContractTest {
               .injectExecutionInput(input)
               .emissionDate(System.currentTimeMillis())
               .build();
-      batchingService.handleInjectExecutionCallback(List.of(callback));
+      batchingService.handleInjectExecutionCallback(any(), List.of(callback));
     };
   }
 

@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -49,6 +50,7 @@ public class ThreatArsenalApi {
   }
 
   @Operation(summary = "Get filterable property schemas for threat arsenal")
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({THREAT_ARSENAL_URL + "/schemas", TENANT_THREAT_ARSENAL_URL + "/schemas"})
   @AccessControl(skipRBAC = true)
   public List<PropertySchemaDTO> schemas(
@@ -58,14 +60,15 @@ public class ThreatArsenalApi {
     return threatArsenalService.getSchemas(filterableOnly, filterNames);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     THREAT_ARSENAL_URL + "/domain-counts",
     TENANT_THREAT_ARSENAL_URL + "/domain-counts"
   })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<InjectorContractDomainCountOutput> getDomainCounts(
-      @RequestBody @Valid final SearchPaginationInput input) {
-    return threatArsenalService.getDomainCounts(input);
+  public List<InjectorContractDomainCountOutput> getDomainCounts(TxCtx ctx,
+                                                                 @RequestBody @Valid final SearchPaginationInput input) {
+    return threatArsenalService.getDomainCounts(ctx, input);
   }
 
   @Operation(summary = "Search threat arsenal")
@@ -79,32 +82,34 @@ public class ThreatArsenalApi {
                         ThreatArsenalAction.class,
                         ThreatArsenalActionWithContentOutput.class,
                       })))
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({THREAT_ARSENAL_URL + "/search", TENANT_THREAT_ARSENAL_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public Page<? extends InjectorContractBaseOutput> threatArsenals(
+  public Page<? extends InjectorContractBaseOutput> threatArsenals(TxCtx ctx,
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     InjectorContractService.OutputMode outputMode =
         input.isIncludeContentDetails()
             ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
             : InjectorContractService.OutputMode.THREAT_ARSENAL;
-    return this.threatArsenalService.searchInjectorContracts(outputMode, input);
+    return this.threatArsenalService.searchInjectorContracts(ctx, outputMode, input);
   }
 
   @Operation(
       summary =
           "Search non-tabletop threat arsenal actions (excludes email, SMS, challenges, media pressure)")
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     THREAT_ARSENAL_URL + "/search/non-tabletop",
     TENANT_THREAT_ARSENAL_URL + "/search/non-tabletop"
   })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public Page<? extends InjectorContractBaseOutput> threatArsenalsNonTabletop(
+  public Page<? extends InjectorContractBaseOutput> threatArsenalsNonTabletop(TxCtx ctx,
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     InjectorContractService.OutputMode outputMode =
         input.isIncludeContentDetails()
             ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
             : InjectorContractService.OutputMode.THREAT_ARSENAL;
-    return this.threatArsenalService.searchNonTabletopInjectorContracts(outputMode, input);
+    return this.threatArsenalService.searchNonTabletopInjectorContracts(ctx, outputMode, input);
   }
 
   @GetMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}/collectors")
@@ -126,6 +131,7 @@ public class ThreatArsenalApi {
 
   // -- CREATE --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({THREAT_ARSENAL_URL, TENANT_THREAT_ARSENAL_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction createAction(
@@ -133,6 +139,7 @@ public class ThreatArsenalApi {
     return threatArsenalService.create(input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @AccessControl(
       resourceId = "#actionId",
@@ -144,6 +151,7 @@ public class ThreatArsenalApi {
     return threatArsenalService.update(actionId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     THREAT_ARSENAL_URL + "/{actionId}/duplicate",
     TENANT_THREAT_ARSENAL_URL + "/{actionId}/duplicate"
@@ -156,12 +164,13 @@ public class ThreatArsenalApi {
     return threatArsenalService.duplicate(actionId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping(TENANT_THREAT_ARSENAL_URL + "/{actionId}")
   @AccessControl(
       resourceId = "#actionId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public void deleteAction(@PathVariable String actionId) {
-    threatArsenalService.delete(actionId);
+  public void deleteAction(TxCtx ctx, @PathVariable String actionId) {
+    threatArsenalService.delete(ctx, actionId);
   }
 }

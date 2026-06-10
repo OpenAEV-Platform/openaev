@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -42,6 +44,7 @@ public class TenantSettingsApi extends RestBehavior {
 
   // -- READ --
 
+  @Transactional(readOnly = true)
   @GetMapping
   @AccessControl(skipRBAC = true)
   @LogExecutionTime
@@ -55,6 +58,7 @@ public class TenantSettingsApi extends RestBehavior {
 
   // -- UPDATE --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
@@ -69,6 +73,7 @@ public class TenantSettingsApi extends RestBehavior {
 
   // -- THEME --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/theme/light")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(
@@ -81,6 +86,7 @@ public class TenantSettingsApi extends RestBehavior {
     return tenantSettingsService.findSettings(tenantId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/theme/dark")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(
@@ -95,6 +101,7 @@ public class TenantSettingsApi extends RestBehavior {
 
   // -- HOME DASHBOARD --
 
+  @Transactional(readOnly = true)
   @GetMapping("/home-dashboard")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(
@@ -105,70 +112,76 @@ public class TenantSettingsApi extends RestBehavior {
         customDashboardTenantService.findTenantHomeDashboard(tenantId).orElse(null));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/home-dashboard/count/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget count")
-  public EsCountInterval homeDashboardCount(
+  public EsCountInterval homeDashboardCount(TxCtx ctx,
       @PathVariable String tenantId,
-      @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardCount(tenantId, widgetId, parameters);
+                                            @PathVariable final String widgetId,
+                                            @RequestBody(required = false) Map<String, String> parameters) {
+    return customDashboardTenantService.homeDashboardCount(ctx, tenantId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/home-dashboard/average/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget average")
   public EsAvgs homeDashboardAverage(
-      @PathVariable String tenantId,
+          TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardAverage(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardAverage(ctx, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/home-dashboard/series/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget series")
   public List<EsSeries> homeDashboardSeries(
-      @PathVariable String tenantId,
+          TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return customDashboardTenantService.homeDashboardSeries(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardSeries(ctx, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/home-dashboard/entities/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities")
   public EsEntities homeDashboardEntities(
-      @PathVariable String tenantId,
+          TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
-    return customDashboardTenantService.homeDashboardEntities(tenantId, widgetId, input);
+    return customDashboardTenantService.homeDashboardEntities(ctx, widgetId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities runtime")
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
-      @PathVariable String tenantId,
+          TxCtx ctx,
       @PathVariable final String widgetId,
       @Valid @RequestBody WidgetToEntitiesInput input) {
-    return customDashboardTenantService.homeDashboardEntitiesRuntime(tenantId, widgetId, input);
+    return customDashboardTenantService.homeDashboardEntitiesRuntime(ctx, widgetId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/home-dashboard/attack-paths/{widgetId}")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget attack paths")
   public List<EsAttackPath> homeDashboardAttackPaths(
-      @PathVariable String tenantId,
+          TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return customDashboardTenantService.homeDashboardAttackPaths(tenantId, widgetId, parameters);
+    return customDashboardTenantService.homeDashboardAttackPaths(ctx, widgetId, parameters);
   }
 }

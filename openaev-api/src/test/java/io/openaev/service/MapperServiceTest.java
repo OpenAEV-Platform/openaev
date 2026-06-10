@@ -122,7 +122,7 @@ public class MapperServiceTest extends IntegrationTest {
             .toList());
     when(importMapperRepository.save(any())).thenReturn(importMapper);
     // -- EXECUTE --
-    ImportMapper importMapperResponse = mapperService.createAndSaveImportMapper(importMapperInput);
+    ImportMapper importMapperResponse = mapperService.createAndSaveImportMapper("tenant", importMapperInput);
 
     // -- ASSERT --
     assertNotNull(importMapperResponse);
@@ -215,7 +215,7 @@ public class MapperServiceTest extends IntegrationTest {
 
     // -- EXECUTE --
     ImportMapper response =
-        mapperService.updateImportMapper(importMapper.getId(), importMapperInput);
+        mapperService.updateImportMapper("tenant", importMapper.getId(), importMapperInput);
 
     // -- ASSERT --
     assertNotNull(response);
@@ -270,7 +270,7 @@ public class MapperServiceTest extends IntegrationTest {
 
     // -- EXECUTE --
     ImportMapper response =
-        mapperService.updateImportMapper(importMapper.getId(), importMapperInput);
+        mapperService.updateImportMapper("tenant", importMapper.getId(), importMapperInput);
 
     // -- ASSERT --
     assertNotNull(response);
@@ -326,7 +326,7 @@ public class MapperServiceTest extends IntegrationTest {
 
     // -- EXECUTE --
     ImportMapper response =
-        mapperService.updateImportMapper(importMapper.getId(), importMapperInput);
+        mapperService.updateImportMapper("tenant", importMapper.getId(), importMapperInput);
 
     // -- ASSERT --
     assertNotNull(response);
@@ -383,7 +383,7 @@ public class MapperServiceTest extends IntegrationTest {
     input.setImporters(List.of());
 
     // Act
-    mapperService.importMappers(List.of(input));
+    mapperService.importMappers("tenant", List.of(input));
 
     // Assert
     ArgumentCaptor<List<ImportMapper>> captor = ArgumentCaptor.forClass(List.class);

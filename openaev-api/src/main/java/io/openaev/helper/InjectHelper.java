@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
@@ -156,7 +155,6 @@ public class InjectHelper {
    *
    * @return list of executable injects ready to run, sorted by execution order
    */
-  @Transactional
   public List<ExecutableInject> getInjectsToRun() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");

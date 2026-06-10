@@ -5,7 +5,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
@@ -18,6 +17,7 @@ import io.openaev.service.ChallengeService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -39,13 +39,14 @@ public class ScenarioChallengesApi extends RestBehavior {
     return documentService.getPlayerDocuments(articles, injects);
   }
 
+  @Transactional(readOnly = true)
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
       @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
     Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
+        this.scenarioRepository.findById(scenarioId);
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
@@ -61,6 +62,7 @@ public class ScenarioChallengesApi extends RestBehavior {
     }
   }
 
+  @Transactional(readOnly = true)
   @GetMapping("/api/observer/scenarios/{scenarioId}/challenges")
   @AccessControl(
       resourceId = "#scenarioId",
@@ -69,7 +71,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   public ScenarioChallengesReader observerChallenges(@PathVariable String scenarioId) {
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     ScenarioChallengesReader scenarioChallengesReader = new ScenarioChallengesReader(scenario);
     Iterable<Challenge> challenges = challengeService.getScenarioChallenges(scenario);

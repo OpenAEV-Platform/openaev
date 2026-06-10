@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
@@ -143,15 +142,10 @@ public class CatalogConnectorApiTest extends IntegrationTest {
       throws Exception {
     // Arrange
     String fileName = "tenant-fallback-logo.png";
-    TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
-    try {
-      fileService.uploadStream(
+      fileService.uploadStream("tenant",
           FileService.CONNECTORS_LOGO_PATH,
           fileName,
           new ByteArrayInputStream(new byte[] {1, 2, 3}));
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
     Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("logo-fallback");
 
     // Act / Assert

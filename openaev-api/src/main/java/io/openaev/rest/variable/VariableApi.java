@@ -6,7 +6,6 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -17,6 +16,7 @@ import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -29,6 +29,7 @@ public class VariableApi extends RestBehavior {
 
   // -- EXERCISES --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{exerciseId}/variables",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables"
@@ -44,12 +45,13 @@ public class VariableApi extends RestBehavior {
     variable.setUpdateAttributes(input);
     Exercise exercise =
         this.exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     variable.setExercise(exercise);
     return this.variableService.createVariable(variable);
   }
 
+  @Transactional(readOnly = true)
   @GetMapping({
     EXERCISE_URI + "/{exerciseId}/variables",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables"
@@ -62,6 +64,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.variablesFromExercise(exerciseId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
@@ -80,6 +83,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.updateVariable(variable);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
@@ -98,6 +102,7 @@ public class VariableApi extends RestBehavior {
 
   // -- SCENARIOS --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/variables",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables"
@@ -116,6 +121,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.createVariable(variable);
   }
 
+  @Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/variables",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables"
@@ -128,6 +134,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.variablesFromScenario(scenarioId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
@@ -146,6 +153,7 @@ public class VariableApi extends RestBehavior {
     return this.variableService.updateVariable(variable);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"

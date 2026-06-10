@@ -42,7 +42,7 @@ public class TenantGroupComposer extends ComposerBase<Group> {
     public TenantGroupComposer.Composer persist() {
       group.setTenant(
           entityManager.getReference(
-              Tenant.class, io.openaev.context.TenantContext.getCurrentTenant()));
+              Tenant.class, "tenant"));
       roleComposers.forEach(TenantRoleComposer.Composer::persist);
       groupRepository.save(group);
       grantComposers.forEach(GrantComposer.Composer::persist);

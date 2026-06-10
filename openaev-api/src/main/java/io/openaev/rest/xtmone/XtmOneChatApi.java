@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ public class XtmOneChatApi extends RestBehavior {
   private final XtmOneClient client;
   private final XtmOneConfig config;
 
+  @Transactional(readOnly = true)
   @GetMapping(XTM_ONE_URI + "/chat/agents")
   public ResponseEntity<List<ChatbotAgentOutput>> listAgents() {
     if (!config.isConfigured()) {
@@ -45,6 +47,7 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(client.listChatAgents("global.assistant"));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
   public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
@@ -60,6 +63,7 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(result);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   public ResponseEntity<StreamingResponseBody> sendMessage(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
@@ -123,6 +127,7 @@ public class XtmOneChatApi extends RestBehavior {
         .body(responseBody);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(path = XTM_ONE_URI + "/chat/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<Map<String, Object>> uploadFiles(
       @RequestParam("conversation_id") String conversationId, MultipartHttpServletRequest request) {
@@ -163,6 +168,7 @@ public class XtmOneChatApi extends RestBehavior {
    * authenticates to XTM One directly — the embedded chatbot points its download URL at this proxy
    * (relative to its {@code apiBaseUrl} of {@code /api/xtmone/chat}).
    */
+  @Transactional(readOnly = true)
   @GetMapping(XTM_ONE_URI + "/chat/files/{fileId}/download")
   public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
     if (!config.isConfigured()) {

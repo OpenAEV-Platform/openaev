@@ -6,7 +6,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsCategorySpecification;
@@ -32,6 +31,7 @@ public class ScenarioLessonsApi extends RestBehavior {
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final UserRepository userRepository;
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/lessons_categories",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
@@ -57,7 +57,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
@@ -102,7 +102,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       @PathVariable String scenarioId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
@@ -192,6 +192,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsCategoryRepository.save(lessonsCategory);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_questions"
@@ -212,6 +213,7 @@ public class ScenarioLessonsApi extends RestBehavior {
         .toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
@@ -226,6 +228,7 @@ public class ScenarioLessonsApi extends RestBehavior {
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
@@ -248,6 +251,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     return lessonsQuestionRepository.save(lessonsQuestion);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI
         + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}",

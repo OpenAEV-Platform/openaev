@@ -34,6 +34,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
 
   // -- CRUD --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @AccessControl(
       resourceId = "#id",
@@ -66,6 +67,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
     return ResponseEntity.ok(this.widgetService.widget(id, widgetId));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{widgetId}")
   @AccessControl(
       resourceId = "#id",
@@ -80,6 +82,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
     return ResponseEntity.ok(this.widgetService.updateWidget(updatedWidget));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{widgetId}/layout")
   @AccessControl(
       resourceId = "#id",
@@ -94,6 +97,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
     return ResponseEntity.ok(this.widgetService.updateWidget(existingWidget));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{widgetId}")
   @AccessControl(
       resourceId = "#id",

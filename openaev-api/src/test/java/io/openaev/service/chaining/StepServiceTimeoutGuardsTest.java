@@ -47,7 +47,7 @@ class StepServiceTimeoutGuardsTest {
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
-      stepEventService.handleReadyStepEvent(event);
+      stepEventService.handleReadyStepEvent(any(), event);
 
       // Assert
       verify(stepService, never()).factoryAction(any(), any());
@@ -70,7 +70,7 @@ class StepServiceTimeoutGuardsTest {
       when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
 
       // Act
-      stepEventService.handleReadyStepEvent(event);
+      stepEventService.handleReadyStepEvent(any(), event);
 
       // Assert
       verify(actionStep).run(stepReady);
@@ -169,7 +169,7 @@ class StepServiceTimeoutGuardsTest {
       when(workflowService.isWorkflowEnded(endedWorkflow.getId())).thenReturn(true);
 
       // Act
-      stepEventService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(any(), event);
 
       // Assert — no update attempted, no next steps triggered
       verify(stepService, never()).factoryAction(any(), any());
@@ -196,7 +196,7 @@ class StepServiceTimeoutGuardsTest {
       when(actionStep.update(stepRun)).thenReturn(Optional.empty());
 
       // Act
-      stepEventService.handleExternalUpdateEvent(event);
+      stepEventService.handleExternalUpdateEvent(any(), event);
 
       // Assert — update was attempted (guard passed)
       verify(actionStep).update(stepRun);

@@ -4,7 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.transaction.Transactional;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class StixApi extends RestBehavior {
   private final StixService stixService;
   private final OpenCTIConnectorService openCTIService;
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(
       value = "/process-bundle",
       consumes = MediaType.APPLICATION_JSON_VALUE,
@@ -60,14 +62,14 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
+  public ResponseEntity<?> processBundle(TxCtx ctx, @RequestBody @Validated CTIEvent ctiEvent)
       throws ParsingException, ConnectorError, IOException {
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = ctx.tenantIdFromUri();
     try {
       openCTIService.acknowledgeReceivedOfCoverage(
           ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId);
+      Scenario scenario = stixService.processBundle(ctx, ctiEvent.getEvent().getStixObjects());
 
       openCTIService.acknowledgeProcessedOfCoverage(
           ctiEvent.getInternal().getWorkId(),

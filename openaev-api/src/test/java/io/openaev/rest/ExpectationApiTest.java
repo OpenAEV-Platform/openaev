@@ -846,16 +846,16 @@ class ExpectationApiTest extends IntegrationTest {
     @Test
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
-      challengeInjectorIntegrationFactory.registerConnectorForTenant();
-      openaevInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+      challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+      openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
       // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
       // and link it to the implant injector (same pattern as the original @BeforeAll setup)
       Injector implantInjector =
           injectorRepository
               .findByTypeAndTenantId(
-                  OpenAEVImplantContract.TYPE, io.openaev.context.TenantContext.getCurrentTenant())
+                  OpenAEVImplantContract.TYPE, "tenant")
               .orElseThrow(() -> new AssertionError("Implant injector not registered"));
       InjectorContract implantContract =
           InjectorContractFixture.createInjectorContract(Map.of("en", "Implant Test Contract"));

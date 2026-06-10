@@ -8,6 +8,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
@@ -53,6 +54,7 @@ public class PlayerApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({PLAYER_URI + "/search", TENANT_PLAYER_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
@@ -63,17 +65,18 @@ public class PlayerApi extends RestBehavior {
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
-  public User createPlayer(@Valid @RequestBody PlayerInput input) {
-    return playerService.createPlayer(input);
+  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
+    return playerService.createPlayer(ctx, input);
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
-    return playerService.upsertPlayer(input);
+  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
+    return playerService.upsertPlayer(ctx, input);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
   @AccessControl(
       resourceId = "#userId",
@@ -89,6 +92,7 @@ public class PlayerApi extends RestBehavior {
     return userRepository.save(user);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
   @AccessControl(
       resourceId = "#userId",

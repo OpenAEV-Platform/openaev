@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -33,7 +32,6 @@ public class ExpectationsExpirationManagerService {
 
   public static final String EXPIRED = "Expired";
 
-  @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
     // Get all the expectations we will update (max of 10k)

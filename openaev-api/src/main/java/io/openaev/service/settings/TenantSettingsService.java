@@ -25,12 +25,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
 public class TenantSettingsService {
 
   public static final String THEME_TYPE_LIGHT = "light";
@@ -48,7 +46,6 @@ public class TenantSettingsService {
   // -- READ --
 
   /** Return all tenant-scoped settings for the given tenant, with platform fallback. */
-  @Transactional(readOnly = true)
   public TenantSettingsOutput findSettings(@NotBlank String tenantId) {
     Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
     return buildTenantSettings(tenantSettings, tenantId);
@@ -63,7 +60,6 @@ public class TenantSettingsService {
    * Resolves the effective value for a tenant setting key (tenant override → platform fallback →
    * default).
    */
-  @Transactional(readOnly = true)
   public String resolveSettingValue(@NotBlank String tenantId, TenantSettingKeys key) {
     Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
     return resolveValue(tenantSettings, key);
@@ -73,7 +69,6 @@ public class TenantSettingsService {
    * Resolves the home dashboard ID for the given tenant. Returns empty when no dashboard is
    * configured (neither at tenant nor at platform level).
    */
-  @Transactional(readOnly = true)
   public Optional<String> findHomeDashboardId(@NotBlank String tenantId) {
     Map<String, Setting> tenantSettings = loadTenantSettings(tenantId);
     String value = resolveValue(tenantSettings, TENANT_HOME_DASHBOARD);

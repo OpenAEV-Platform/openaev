@@ -4,7 +4,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_BASE_PATH;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
@@ -28,7 +27,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
 
   private SecurityCoverageConnector getConnector() {
     Optional<ConnectorBase> connector =
-        openCTIConnectorService.getConnectorBase(TenantContext.getCurrentTenant());
+        openCTIConnectorService.getConnectorBase("tenant");
     assertThat(connector).isPresent();
     return (SecurityCoverageConnector) connector.get();
   }

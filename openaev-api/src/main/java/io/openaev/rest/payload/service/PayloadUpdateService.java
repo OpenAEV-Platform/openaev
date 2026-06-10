@@ -15,7 +15,6 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
-import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,7 +38,6 @@ public class PayloadUpdateService {
   private final PayloadRepository payloadRepository;
   private final DocumentService documentService;
 
-  @Transactional(rollbackOn = Exception.class)
   public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
       String payloadId, PayloadUpdateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(

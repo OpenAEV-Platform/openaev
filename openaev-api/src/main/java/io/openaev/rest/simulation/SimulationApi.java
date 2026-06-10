@@ -9,6 +9,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.FilterUtilsJpa.Option;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping({SimulationApi.SIMULATION_URI, SimulationApi.TENANT_SIMULATION_URI})
@@ -23,12 +24,14 @@ public class SimulationApi extends RestBehavior {
 
   // -- OPTION --
 
+  @Transactional(readOnly = true)
   @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<Option> optionsByName(@RequestParam(required = false) final String searchText) {
     return this.simulationService.findAllAsOptions(searchText);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<Option> optionsById(@RequestBody final List<String> ids) {

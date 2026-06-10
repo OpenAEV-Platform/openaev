@@ -46,6 +46,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(readOnly = true)
   @GetMapping({TagRuleApi.TAG_RULE_URI + "/{tagRuleId}", TENANT_TAG_RULE_URI + "/{tagRuleId}"})
   @AccessControl(
       resourceId = "#tagRuleId",
@@ -59,6 +60,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(readOnly = true)
   @GetMapping({TagRuleApi.TAG_RULE_URI, TENANT_TAG_RULE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get All TagRules", summary = "Get TagRules")
@@ -122,6 +124,7 @@ public class TagRuleApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({TagRuleApi.TAG_RULE_URI + "/search", TENANT_TAG_RULE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG_RULE)
   @Operation(

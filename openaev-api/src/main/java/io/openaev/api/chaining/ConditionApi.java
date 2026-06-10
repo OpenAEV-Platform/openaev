@@ -48,6 +48,7 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public EventOutput create(@Valid @RequestBody EventInput input) {
@@ -93,6 +94,7 @@ public class ConditionApi extends RestBehavior {
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{conditionId}")
   public EventOutput update(
       @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
@@ -111,6 +113,7 @@ public class ConditionApi extends RestBehavior {
   @AccessControl(
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String conditionId) {

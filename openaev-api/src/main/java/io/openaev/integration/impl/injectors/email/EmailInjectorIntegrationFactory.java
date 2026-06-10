@@ -2,6 +2,7 @@ package io.openaev.integration.impl.injectors.email;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
@@ -95,11 +96,13 @@ public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    TxCtx ctx = TxCtx.of(tenantId);
     try {
-      injectorService.injector(EmailInjectorIntegration.EMAIL_INJECTOR_ID);
+      injectorService.injector(ctx, EmailInjectorIntegration.EMAIL_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
       injectorService.registerBuiltinInjector(
+              ctx,
           EmailInjectorIntegration.EMAIL_INJECTOR_ID,
           EmailInjectorIntegration.EMAIL_INJECTOR_NAME,
           emailContract,

@@ -7,7 +7,9 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;

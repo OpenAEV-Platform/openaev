@@ -6,6 +6,7 @@ import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -65,6 +66,7 @@ public class DocumentService {
    * @throws Exception when an upload issue occur
    */
   public Document upsert(
+          TxCtx ctx,
       String fileName,
       InputStream fileIS,
       long fileSize,
@@ -105,7 +107,7 @@ public class DocumentService {
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc
-        fileService.uploadFile(
+        fileService.uploadFile(ctx.tenantIdFromUri(),
             fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         document.setDescription(input.getDescription());
 
@@ -132,7 +134,7 @@ public class DocumentService {
         document.setTags(tags);
         return save(document);
       } else {
-        fileService.uploadFile(
+        fileService.uploadFile(ctx.tenantIdFromUri(),
             fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
         document.setTarget(fileTarget);
@@ -187,7 +189,7 @@ public class DocumentService {
         .toList();
   }
 
-  public void deleteDocument(String documentId) {
+  public void deleteDocument(TxCtx ctx, String documentId) {
     Document document = document(documentId); // fetch or throw if not found
 
     boolean isUsedInFileDrop =
@@ -207,7 +209,7 @@ public class DocumentService {
     documents.forEach(
         documentToRemove -> {
           try {
-            fileService.deleteFile(documentToRemove.getTarget());
+            fileService.deleteFile(ctx.tenantIdFromUri(), documentToRemove.getTarget());
           } catch (Exception e) {
             log.warn(
                 "File already removed or not found in minio: {}", documentToRemove.getTarget(), e);

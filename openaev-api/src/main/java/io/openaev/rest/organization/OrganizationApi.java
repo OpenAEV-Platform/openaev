@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
@@ -39,17 +40,19 @@ public class OrganizationApi extends RestBehavior {
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<RawOrganization> organizations() {
     List<RawOrganization> organizations;
     organizations = fromIterable(organizationRepository.rawAll());
     return organizations;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({ORGANIZATION_URI + "/search", TENANT_ORGANIZATION_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
-  public Page<Organization> organizations(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.organizationService.organizationPagination(searchPaginationInput);
+  public Page<Organization> organizations(TxCtx ctx,
+                                          @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return this.organizationService.organizationPagination(ctx, searchPaginationInput);
   }
 
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
@@ -62,6 +65,7 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository.save(organization);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
@@ -80,6 +84,7 @@ public class OrganizationApi extends RestBehavior {
     return organizationRepository.save(organization);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
@@ -96,6 +101,7 @@ public class OrganizationApi extends RestBehavior {
 
   @GetMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
@@ -106,6 +112,7 @@ public class OrganizationApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

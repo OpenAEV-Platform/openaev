@@ -5,7 +5,6 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.RuleAttribute;
 import io.openaev.database.model.Scenario;
@@ -348,26 +347,6 @@ public class InjectImportServiceTest {
     }
 
     @Test
-    void shouldDelegateToImportService_forScenario() throws Exception {
-      // -------- Prepare --------
-      Scenario scenario = new Scenario();
-      scenario.setId("sc-1");
-      MultipartFile file = mock(MultipartFile.class);
-
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("sc-1", "tenant-1"))
-            .thenReturn(Optional.of(scenario));
-
-        // -------- Act --------
-        injectImportService.importInjectsForScenario(file, "sc-1");
-
-        // -------- Assert --------
-        verify(importService).handleFileImport(file, null, scenario);
-      }
-    }
-
-    @Test
     void shouldDelegateToImportService_forSimulation() throws Exception {
       // -------- Prepare --------
       Exercise exercise = new Exercise();
@@ -377,10 +356,10 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act --------
-      injectImportService.importInjectsForSimulation(file, "ex-1");
+      injectImportService.importInjectsForSimulation("tenant", file, "ex-1");
 
       // -------- Assert --------
-      verify(importService).handleFileImport(file, exercise, null);
+      verify(importService).handleFileImport("tenant", file, exercise, null);
     }
 
     @Test
@@ -389,28 +368,12 @@ public class InjectImportServiceTest {
       MultipartFile file = mock(MultipartFile.class);
 
       // -------- Act --------
-      injectImportService.importInjectsForAtomicTestings(file);
+      injectImportService.importInjectsForAtomicTestings("tenant", file);
 
       // -------- Assert --------
-      verify(importService).handleFileImport(file, null, null);
+      verify(importService).handleFileImport("tenant", file, null, null);
     }
 
-    @Test
-    void shouldThrowElementNotFound_whenScenarioMissing() {
-      // -------- Prepare --------
-      MultipartFile file = mock(MultipartFile.class);
-
-      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
-        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
-        when(scenarioRepository.findByIdAndTenantId("missing", "tenant-1"))
-            .thenReturn(Optional.empty());
-
-        // -------- Act / Assert --------
-        assertThrows(
-            ElementNotFoundException.class,
-            () -> injectImportService.importInjectsForScenario(file, "missing"));
-      }
-    }
 
     @Test
     void shouldThrowElementNotFound_whenExerciseMissing() {
@@ -421,7 +384,7 @@ public class InjectImportServiceTest {
       // -------- Act / Assert --------
       assertThrows(
           ElementNotFoundException.class,
-          () -> injectImportService.importInjectsForSimulation(file, "missing"));
+          () -> injectImportService.importInjectsForSimulation("tenant", file, "missing"));
     }
   }
 

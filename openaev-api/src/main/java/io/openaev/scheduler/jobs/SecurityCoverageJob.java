@@ -3,7 +3,7 @@ package io.openaev.scheduler.jobs;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.database.model.Tenant;
@@ -19,8 +19,9 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
@@ -32,10 +33,17 @@ public class SecurityCoverageJob implements Job {
   private final SecurityCoverageService securityCoverageService;
   private final OpenCTIConnectorService openCTIConnectorService;
 
+  @Lazy @Autowired private SecurityCoverageJob proxySelf;
+
   @Override
-  @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+    TxCtx ctx = TxCtx.noTenant();
+    proxySelf.txExecute(ctx);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public void txExecute(@SuppressWarnings("unused") TxCtx _ctx) {
     List<SecurityCoverageSendJob> jobs =
         securityCoverageSendJobService.getPendingSecurityCoverageSendJobs();
     List<SecurityCoverageSendJob> successfulJobs = new ArrayList<>();
@@ -46,8 +54,6 @@ public class SecurityCoverageJob implements Job {
                 .map(Exercise::getTenant)
                 .map(Tenant::getId)
                 .orElseThrow(() -> new IllegalStateException("Simulation or tenant not found"));
-        // Set tenant context for downstream Hibernate filters and audit
-        TenantContext.setCurrentTenant(tenantId);
         // send bundle
         Bundle resultBundle =
             securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
@@ -59,8 +65,6 @@ public class SecurityCoverageJob implements Job {
             "Could not create the STIX bundle for coverage of simulation {}",
             securityCoverageSendJob.getSimulation().getId(),
             e);
-      } finally {
-        TenantContext.clearCurrentTenant();
       }
     }
     if (!successfulJobs.isEmpty()) {

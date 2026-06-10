@@ -1,13 +1,13 @@
 package io.openaev.service.chaining;
 
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,18 +28,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   private final StepRepository stepRepository;
 
   // -- READY EVENTS --
-
-  /**
-   * Consume ready events from queue.
-   *
-   * @param events list of events
-   * @return consumed list of events
-   */
-  public List<StepEvent> handleReadyEvent(List<StepEvent> events) {
-    events.forEach(this::handleReadyStepEvent);
-    return events;
-  }
-
   /**
    * Handle ready event and run the corresponding step.
    *
@@ -47,7 +35,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    */
   @Override
   @Transactional(rollbackFor = Exception.class)
-  public void handleReadyStepEvent(StepEvent stepEvent) {
+  public void handleReadyStepEvent(TxCtx ctx, StepEvent stepEvent) {
     stepRepository
         .findById(stepEvent.getStepId())
         .ifPresentOrElse(
@@ -109,24 +97,13 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   // -- EXTERNAL UPDATE EVENTS --
 
   /**
-   * Consume update events from queue.
-   *
-   * @param events list of events
-   * @return consumed list of events
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public List<ExternalUpdateEvent> handleExternalUpdateEvent(List<ExternalUpdateEvent> events) {
-    events.forEach(this::handleExternalUpdateEvent);
-    return events;
-  }
-
-  /**
    * Handle external update event and create next ready step.
    *
    * @param stepEvent event to handle
    */
   @Override
-  public void handleExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
+  @Transactional(rollbackFor = Exception.class)
+  public void handleExternalUpdateEvent(TxCtx ctx, ExternalUpdateEvent stepEvent) {
     Step stepRun;
     try {
       stepRun = stepService.findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);

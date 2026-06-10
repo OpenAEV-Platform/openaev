@@ -129,6 +129,7 @@ public class ZipJsonService<T extends Base> {
    * @throws IOException if reading the archive fails
    */
   public ImportOutput<T> handleImport(
+      String tenantId,
       byte[] fileBytes,
       String nameAttributeKey,
       IncludeOptions includeOptions,
@@ -145,7 +146,7 @@ public class ZipJsonService<T extends Base> {
       }
     }
 
-    importer.handleImportDocument(doc, parsed.extras);
+    importer.handleImportDocument(tenantId, doc, parsed.extras);
     T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck);
 
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
@@ -155,7 +156,7 @@ public class ZipJsonService<T extends Base> {
     Document resolved =
         documentRepository.findById(doc.getId()).orElseThrow(IllegalArgumentException::new);
 
-    Optional<InputStream> docStream = fileService.getFile(resolved);
+    Optional<InputStream> docStream = fileService.getFile(doc.getTenant().getId(), resolved);
     if (docStream.isPresent()) {
       try {
         byte[] bytes = docStream.get().readAllBytes();

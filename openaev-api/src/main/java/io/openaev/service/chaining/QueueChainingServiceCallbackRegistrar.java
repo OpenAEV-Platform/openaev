@@ -1,5 +1,6 @@
 package io.openaev.service.chaining;
 
+import io.openaev.context.TxCtx;
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -26,9 +27,17 @@ public class QueueChainingServiceCallbackRegistrar {
    */
   @PostConstruct
   public void registerCallbacks() {
+    TxCtx ctx = TxCtx.noTenant();
     // This stepEventService is the proxied bean, so @Transactional works
-    queueChainingService.setCallbackForReadyQueue(stepEventService::handleReadyEvent);
+    queueChainingService.setCallbackForReadyQueue(
+        events -> {
+          events.forEach(event -> stepEventService.handleReadyStepEvent(ctx, event));
+          return events;
+        });
     queueChainingService.setCallbackForExternalUpdateQueue(
-        stepEventService::handleExternalUpdateEvent);
+        events -> {
+          events.forEach(event -> stepEventService.handleExternalUpdateEvent(ctx, event));
+          return events;
+        });
   }
 }

@@ -48,6 +48,7 @@ public class MeApi extends RestBehavior {
   private final UserService userService;
   private final TenantService tenantService;
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping("/api/logout")
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Object> logout(HttpServletRequest request) {
@@ -58,6 +59,7 @@ public class MeApi extends RestBehavior {
     return ResponseEntity.ok().build();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({ME_URI, TENANT_ME_URI})
   @AccessControl(skipRBAC = true)
   public User me() {
@@ -66,6 +68,7 @@ public class MeApi extends RestBehavior {
         .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping(ME_URI + "/profile")
   @AccessControl(skipRBAC = true)
   public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
@@ -81,6 +84,7 @@ public class MeApi extends RestBehavior {
     return savedUser;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping(ME_URI + "/information")
   @AccessControl(skipRBAC = true)
   public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
@@ -94,6 +98,7 @@ public class MeApi extends RestBehavior {
     return savedUser;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping(ME_URI + "/password")
   @AccessControl(skipRBAC = true)
   public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
@@ -127,6 +132,7 @@ public class MeApi extends RestBehavior {
     return tokenRepository.save(token);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping(ME_URI + "/tenants")
   @AccessControl(skipRBAC = true)
   public List<TenantOutput> myTenants() {
@@ -135,6 +141,7 @@ public class MeApi extends RestBehavior {
         .toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping(ME_URI + "/tokens")
   @AccessControl(skipRBAC = true)
   public List<Token> tokens() {

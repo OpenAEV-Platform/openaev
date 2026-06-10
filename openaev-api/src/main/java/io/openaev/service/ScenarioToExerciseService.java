@@ -4,7 +4,6 @@ import static io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.channel.ChannelContract;
@@ -22,7 +21,6 @@ import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.beanutils.BeanUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +43,6 @@ public class ScenarioToExerciseService {
   private final CustomDashboardService customDashboardService;
   @Resource protected ObjectMapper mapper;
 
-  @Transactional(rollbackFor = Exception.class)
   public Exercise toExercise(
       @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
     Exercise exercise = new Exercise();
@@ -61,6 +58,7 @@ public class ScenarioToExerciseService {
     exercise.setFrom(scenario.getFrom());
     exercise.setFromName(scenario.getFromName());
     exercise.addReplyTos(scenario.getReplyTos());
+    exercise.setTenant(scenario.getTenant());
     exercise.setStart(start);
     exercise.setSecurityCoverage(scenario.getSecurityCoverage());
     if (isRunning) {
@@ -74,7 +72,7 @@ public class ScenarioToExerciseService {
     exercise.setCustomDashboard(
         this.tenantSettingsService
             .findSetting(
-                TenantContext.getCurrentTenant(),
+                scenario.getTenant().getId(),
                 TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
             .map(Setting::getValue)
             .filter(v -> !v.isEmpty())

@@ -322,6 +322,13 @@
                             <version>${lombok.version}</version>
                         </path>
                     </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Atenant.rule.endpoint.transactional=true</arg>
+                        <arg>-Atenant.rule.transactional.txctx=true</arg>
+                        <arg>-Atenant.rule.no.spel.tenant=true</arg>
+                    </compilerArgs>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
             <plugin>

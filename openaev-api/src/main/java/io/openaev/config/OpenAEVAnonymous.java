@@ -3,6 +3,7 @@ package io.openaev.config;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
 
 public class OpenAEVAnonymous implements OpenAEVPrincipal, Serializable {
@@ -25,6 +26,11 @@ public class OpenAEVAnonymous implements OpenAEVPrincipal, Serializable {
   @Override
   public String getLang() {
     return LANG_AUTO;
+  }
+
+  @Override
+  public List<String> tenantIds() {
+    return List.of();
   }
 
   @Override

@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -104,6 +105,7 @@ public class ScenarioImportApi extends RestBehavior {
     return importTestSummary;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(
       path = {
         SCENARIO_URI + "/{scenarioId}/injects/import",
@@ -115,13 +117,13 @@ public class ScenarioImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public void injectsImport(
+          TxCtx ctx,
       @RequestPart("file") MultipartFile file,
-      @PathVariable @NotBlank final String scenarioId,
-      HttpServletResponse response)
+      @PathVariable @NotBlank final String scenarioId)
       throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
-    this.injectImportService.importInjectsForScenario(file, scenarioId);
+    this.injectImportService.importInjectsForScenario(ctx.tenantIdFromUri(), file, scenarioId);
   }
 }

@@ -6,7 +6,7 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.executors.ExecutorService;
@@ -102,9 +102,9 @@ public class ExecutorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackOn = Exception.class)
-  public Executor getExecutor(@PathVariable String executorId) {
+  public Executor getExecutor(TxCtx ctx, @PathVariable String executorId) {
     try {
-      return executorService.executor(executorId);
+      return executorService.executor(ctx, executorId);
     } catch (ElementNotFoundException e) {
       log.warn(
           "Executor with id {} not found - This may be because the executor has never been started yet",
@@ -136,16 +136,17 @@ public class ExecutorApi extends RestBehavior {
     return executorRepository.save(executor);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
   public Executor updateExecutor(
-      @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) {
+      @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) { // TODO JRI What?? input not used?
     Executor executor =
         executorRepository
-            .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+            .findById(executorId)
             .orElseThrow(ElementNotFoundException::new);
     return updateExecutor(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
@@ -158,30 +159,31 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackOn = Exception.class)
   public Executor registerExecutor(
+          TxCtx ctx,
       @Valid @RequestPart("input") ExecutorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> icon,
       @RequestPart("banner") Optional<MultipartFile> banner) {
     try {
       // Upload icon
       if (icon.isPresent() && "image/png".equals(icon.get().getContentType())) {
-        fileService.uploadFile(
+        fileService.uploadFile(ctx.tenantIdFromUri(),
             FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png", icon.get());
       }
       // Upload icon
       if (banner.isPresent() && "image/png".equals(banner.get().getContentType())) {
-        fileService.uploadFile(
+        fileService.uploadFile(ctx.tenantIdFromUri(),
             FileService.EXECUTORS_IMAGES_BANNERS_BASE_PATH + input.getType() + ".png",
             banner.get());
       }
       // We need to support upsert for registration
       Executor executor =
           executorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .findById(input.getId())
               .orElse(null);
       if (executor == null) {
         Executor executorChecking =
             executorRepository
-                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
+                .findByTypeAndTenantId(input.getType(), ctx.tenantIdFromUri())
                 .orElse(null);
         if (executorChecking != null) {
           throw new Exception(
@@ -376,6 +378,7 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
+          TxCtx ctx,
       @Parameter(
               description =
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
@@ -397,7 +400,7 @@ public class ExecutorApi extends RestBehavior {
 
     // FIND TOKEN BY TENANT
     String token =
-        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+        privilegeService.getTokenUserServiceAccountByTenant(ctx.tenantIdFromUri());
 
     String installCommand =
         this.endpointService.generateInstallCommand(
@@ -406,7 +409,7 @@ public class ExecutorApi extends RestBehavior {
             resolvedInstallationMode,
             installationDir,
             serviceName,
-            TenantContext.getCurrentTenant());
+            ctx.tenantIdFromUri());
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
 }

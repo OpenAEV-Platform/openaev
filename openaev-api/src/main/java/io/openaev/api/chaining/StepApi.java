@@ -48,6 +48,7 @@ public class StepApi {
   @AccessControl(
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
@@ -98,6 +99,7 @@ public class StepApi {
     @ApiResponse(responseCode = "404", description = "Step template not found")
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{stepId}")
   public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
@@ -114,6 +116,7 @@ public class StepApi {
   @AccessControl(
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteStep(@PathVariable String stepId) {

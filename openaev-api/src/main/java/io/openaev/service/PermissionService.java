@@ -1,12 +1,13 @@
 package io.openaev.service;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -53,14 +54,26 @@ public class PermissionService {
           ResourceType.EVALUATION);
 
   private final GrantService grantService;
+  private final UserService userService;
   private final InjectService injectService;
   private final NotificationRuleService notificationRuleService;
-  private final InjectorContractService injectorContractService;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
 
-  @Transactional
+  @Transactional(readOnly = true)
+  public boolean hasEventPermission(TxCtx tx, String principalId, @NotNull final BaseEvent event) {
+    User user = userService.user(principalId);
+    return hasPermission(
+            tx.tenantIdFromUri(),
+        user,
+        Optional.empty(),
+        event.getInstance().getId(),
+        event.getInstance().getResourceType(),
+        Action.READ);
+  }
+
   public boolean hasPermission(
+          String tenantId,
       @NotNull final User user,
       Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
       String resourceId,
@@ -75,7 +88,7 @@ public class PermissionService {
     // BYPASS scope must match the scope of the requested resource:
     //  - platform BYPASS  +  platform-scoped resource  → OK
     //  - tenant   BYPASS  +  tenant-scoped   resource  → OK
-    if (isBypassGranted(user, resourceType, action)) {
+    if (isBypassGranted(tenantId, user, resourceType, action)) {
       return true;
     }
 
@@ -105,7 +118,7 @@ public class PermissionService {
     }
 
     // check if the user has the capa first
-    boolean hasPermission = hasCapaPermission(user, resourceType, action);
+    boolean hasPermission = hasCapaPermission(tenantId, user, resourceType, action);
 
     // check if the user
     if (hasPermission) {
@@ -158,6 +171,7 @@ public class PermissionService {
   }
 
   boolean hasCapaPermission(
+          String tenantId,
       @NotNull final User user,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
@@ -166,18 +180,18 @@ public class PermissionService {
       return true;
     }
 
-    if (isBypassGranted(user, resourceType, action)) {
+    if (isBypassGranted(tenantId, user, resourceType, action)) {
       return true;
     }
 
     Capability requiredCapability = Capability.of(resourceType, action).orElse(Capability.BYPASS);
-    return user.getCapabilities().contains(requiredCapability);
+    return user.getCapabilities(tenantId).contains(requiredCapability);
   }
 
   /** Checks whether the user's BYPASS capability covers the requested resource scope. */
-  private static boolean isBypassGranted(User user, ResourceType resourceType, Action action) {
+  private boolean isBypassGranted(String tenantId, User user, ResourceType resourceType, Action action) {
     boolean hasPlatformBypass = user.hasPlatformBypass();
-    boolean hasTenantBypass = user.hasTenantBypass();
+    boolean hasTenantBypass = user.hasTenantBypass(tenantId);
     if (!hasPlatformBypass && !hasTenantBypass) {
       return false;
     }

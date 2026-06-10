@@ -87,7 +87,6 @@ public interface ExerciseRepository
               + "FROM exercises ex "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
-              + "WHERE ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAll();
@@ -114,7 +113,6 @@ public interface ExerciseRepository
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "WHERE ex.exercise_id IN (:exerciseIds) "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawByExerciseIds(List<String> exerciseIds);
@@ -145,7 +143,6 @@ public interface ExerciseRepository
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllGranted(@Param("userId") String userId);
@@ -178,7 +175,6 @@ public interface ExerciseRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND ex.exercise_id IN (:exerciseIds) "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawGrantedByExerciseIds(
@@ -217,7 +213,6 @@ public interface ExerciseRepository
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
               + "LEFT JOIN workflows w ON w.workflow_simulation_id = ex.exercise_id AND w.workflow_status = 'TEMPLATE' "
               + "WHERE ex.exercise_id = :exerciseId "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   RawSimulationIndexing rawDetailsById(@Param("exerciseId") String exerciseId);
@@ -249,7 +244,6 @@ public interface ExerciseRepository
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
               + "WHERE s.scenario_id IN (:scenarioIds) "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
@@ -275,7 +269,6 @@ public interface ExerciseRepository
               + "WHERE s.scenario_id = :scenarioId "
               + "AND ex.exercise_status = 'FINISHED' "
               + "AND ex.exercise_end_date IS NOT NULL "
-              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY ex.exercise_id, ex.exercise_end_date "
               + "ORDER BY ex.exercise_end_date DESC "
               + "LIMIT 10 ;",
@@ -291,7 +284,6 @@ public interface ExerciseRepository
                 INNER JOIN findings f ON f.finding_inject_id = i.inject_id
                 INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
                 WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)
@@ -308,7 +300,6 @@ public interface ExerciseRepository
                 LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
                 WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
                 AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)

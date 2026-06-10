@@ -4,7 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
@@ -163,12 +163,12 @@ public class AttackPatternService {
     return externalAttackPatternIds;
   }
 
-  public List<AttackPattern> getAttackPatternsByExternalIds(Set<String> ids) {
+  public List<AttackPattern> getAttackPatternsByExternalIds(TxCtx ctx, Set<String> ids) {
     if (ids.isEmpty()) {
       return Collections.emptyList();
     }
     return this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-        new ArrayList<>(ids), TenantContext.getCurrentTenant());
+        new ArrayList<>(ids), ctx.tenantIdFromUri());
   }
 
   private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids) {
@@ -185,17 +185,17 @@ public class AttackPatternService {
    *     IDs.
    * @return List of attack pattern IDs corresponding to the external IDs.
    */
-  private List<String> getAttackPatternInternalIdsFromExternalIds(
+  private List<String> getAttackPatternInternalIdsFromExternalIds(TxCtx ctx,
       Set<String> externalAttackPatternIds) {
-    return this.getAttackPatternsByExternalIds(externalAttackPatternIds).stream()
+    return this.getAttackPatternsByExternalIds(ctx, externalAttackPatternIds).stream()
         .map(AttackPattern::getId)
         .toList();
   }
 
-  public List<AttackPattern> getAttackPatternsByExternalIdsThrowIfMissing(
+  public List<AttackPattern> getAttackPatternsByExternalIdsThrowIfMissing(TxCtx ctx,
       Set<String> externalAttackPatternIds) {
     List<AttackPattern> attackPatterns =
-        this.getAttackPatternsByExternalIds(externalAttackPatternIds);
+        this.getAttackPatternsByExternalIds(ctx, externalAttackPatternIds);
     List<String> missingIds =
         externalAttackPatternIds.stream()
             .filter(
@@ -259,7 +259,7 @@ public class AttackPatternService {
    * @param agentSlug XTM One agent slug to use when XTM One is configured.
    * @return List of attack pattern IDs found in the analysis.
    */
-  public List<String> searchAttackPatternWithTTPAIWebservice(
+  public List<String> searchAttackPatternWithTTPAIWebservice(TxCtx ctx,
       List<MultipartFile> files, String text, String agentSlug) {
     validateInputs(files, text);
     try {
@@ -271,7 +271,7 @@ public class AttackPatternService {
       }
       Set<String> attackPatternExternalIds =
           extractExternalAttackPatternIdsFromResponse(responseBody);
-      return getAttackPatternInternalIdsFromExternalIds(attackPatternExternalIds);
+      return getAttackPatternInternalIdsFromExternalIds(ctx, attackPatternExternalIds);
 
     } catch (IOException | RestClientException e) {
       // Catch both IOException (XTM One branch) and RestClientException (legacy webservice via
@@ -283,9 +283,9 @@ public class AttackPatternService {
   }
 
   /** Backwards-compatible overload — uses the default TTP extractor agent. */
-  public List<String> searchAttackPatternWithTTPAIWebservice(
+  public List<String> searchAttackPatternWithTTPAIWebservice(TxCtx ctx,
       List<MultipartFile> files, String text) {
-    return searchAttackPatternWithTTPAIWebservice(files, text, null);
+    return searchAttackPatternWithTTPAIWebservice(ctx, files, text, null);
   }
 
   /**
@@ -330,9 +330,9 @@ public class AttackPatternService {
    * @param stixRefs list of tuples linking an atatck pattern ext ID with a stix ID
    * @return list of resolved internal AttackPattern entities
    */
-  public Map<String, AttackPattern> fetchInternalAttackPatternIds(
+  public Map<String, AttackPattern> fetchInternalAttackPatternIds(TxCtx ctx,
       Set<StixRefToExternalRef> stixRefs) {
-    return getAttackPatternsByExternalIds(securityCoverageUtils.getExternalIds(stixRefs)).stream()
+    return getAttackPatternsByExternalIds(ctx, securityCoverageUtils.getExternalIds(stixRefs)).stream()
         .collect(Collectors.toMap(attack -> attack.getId(), Function.identity()));
   }
 
@@ -340,7 +340,7 @@ public class AttackPatternService {
     return attackPatternRepository.findAllByIdIn(idsAttackPattern);
   }
 
-  private AttackPattern createAttackPatternFromAttackPatternCreateInput(
+  private AttackPattern createAttackPatternFromAttackPatternCreateInput(TxCtx ctx,
       AttackPatternCreateInput input) {
     AttackPattern newAttackPattern = new AttackPattern();
     newAttackPattern.setName(input.getName());
@@ -349,7 +349,7 @@ public class AttackPatternService {
     newAttackPattern.setExternalId(input.getExternalId());
     newAttackPattern.setPlatforms(input.getPlatforms());
     newAttackPattern.setPermissionsRequired(input.getPermissionsRequired());
-    newAttackPattern.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newAttackPattern.setTenant(new Tenant(ctx.tenantIdFromUri()));
     return newAttackPattern;
   }
 
@@ -362,18 +362,17 @@ public class AttackPatternService {
    * @param input the attack pattern data used for lookup (by external ID) and creation
    * @return the existing or newly created attack pattern
    */
-  public AttackPattern findOrCreate(AttackPatternCreateInput input) {
-    String tenant = TenantContext.getCurrentTenant();
+  public AttackPattern findOrCreate(TxCtx ctx, AttackPatternCreateInput input) {
     Optional<AttackPattern> attackPattern =
         attackPatternRepository
-            .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(input.getExternalId()), tenant)
+            .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(input.getExternalId()), ctx.tenantIdFromUri())
             .stream()
             .findFirst();
     return attackPattern.orElseGet(
-        () -> attackPatternRepository.save(createAttackPatternFromAttackPatternCreateInput(input)));
+        () -> attackPatternRepository.save(createAttackPatternFromAttackPatternCreateInput(ctx, input)));
   }
 
-  public List<AttackPattern> internalUpsertAttackPatterns(
+  public List<AttackPattern> internalUpsertAttackPatterns(TxCtx ctx,
       List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
     List<AttackPattern> upserted = new ArrayList<>();
     attackPatterns.forEach(
@@ -397,7 +396,7 @@ public class AttackPatternService {
           if (optionalAttackPattern.isEmpty()) {
             attackPatternInput.setExternalId(attackPatternExternalId);
             AttackPattern newAttackPattern =
-                createAttackPatternFromAttackPatternCreateInput(attackPatternInput);
+                createAttackPatternFromAttackPatternCreateInput(ctx, attackPatternInput);
             newAttackPattern.setKillChainPhases(killChainPhases);
             newAttackPattern.setExternalId(attackPatternExternalId);
             upserted.add(newAttackPattern);

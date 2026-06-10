@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -58,7 +57,7 @@ public class TaniumExecutorServiceTest {
     taniumExecutor = new Executor();
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
-    taniumExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    taniumExecutor.setTenant(new Tenant("tenantId"));
   }
 
   @Test

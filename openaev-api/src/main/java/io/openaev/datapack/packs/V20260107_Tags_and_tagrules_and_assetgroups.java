@@ -1,5 +1,6 @@
 package io.openaev.datapack.packs;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
@@ -49,7 +50,7 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  public boolean doProcess(TxCtx ctx) {
     try {
       tagService.ensureWellKnownTags();
       Set<TagRule> presetRules = tagRuleService.ensurePresetRules();

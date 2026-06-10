@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawUser;
@@ -25,6 +26,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -48,10 +50,11 @@ public class TenantUserApi extends RestBehavior {
 
   @Operation(summary = "Create or attach a user to the current tenant")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public UserOutput create(@Valid @RequestBody UserInput input) {
-    return tenantUserService.createOrAttach(input);
+  public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
+    return tenantUserService.createOrAttach(ctx, input);
   }
 
   // -- READ --
@@ -61,6 +64,7 @@ public class TenantUserApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER)
+  @Transactional(readOnly = true)
   @GetMapping("/{userId}")
   public UserOutput findById(@PathVariable String userId) {
     return tenantUserService.user(userId);
@@ -68,6 +72,7 @@ public class TenantUserApi extends RestBehavior {
 
   @Operation(summary = "Find users by IDs")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/find")
   public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
     return tenantUserService.find(userIds);
@@ -75,16 +80,18 @@ public class TenantUserApi extends RestBehavior {
 
   @Operation(summary = "List users")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
+  @Transactional(readOnly = true)
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
-  public List<RawUser> users() {
-    return tenantUserService.users();
+  public List<RawUser> users(TxCtx ctx) {
+    return tenantUserService.users(ctx);
   }
 
   // -- SEARCH --
 
   @Operation(summary = "Search tenant users")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   public Page<UserOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -98,6 +105,7 @@ public class TenantUserApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{userId}")
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
@@ -110,9 +118,10 @@ public class TenantUserApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void delete(@PathVariable String userId) {
-    tenantUserService.detach(userId);
+  public void delete(TxCtx ctx, @PathVariable String userId) {
+    tenantUserService.detach(ctx, userId);
   }
 }

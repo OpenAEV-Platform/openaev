@@ -33,6 +33,7 @@ public class ThreatArsenalApiExporter {
   private final InjectorContractService injectorContractService;
 
   @Operation(summary = "Export threat arsenal actions as CSV")
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/export/csv")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
   public void exportCsv(

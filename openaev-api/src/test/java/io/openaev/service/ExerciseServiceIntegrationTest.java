@@ -151,7 +151,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
   @DisplayName("Should create new contextual teams while exercise duplication")
   @Test
-  @Transactional(rollbackFor = Exception.class)
   void createNewContextualTeamsWhileExerciseDuplication() {
     // -- PREPARE --
     List<Team> exerciseTeams = new ArrayList<>();

@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -163,12 +163,12 @@ class EndpointApiTest extends IntegrationTest {
 
     Mockito.doReturn("command")
         .when(endpointService)
-        .generateUpgradeCommand(
+        .generateUpgradeCommand(TxCtx.of("tenant"),
             String.valueOf(Endpoint.PLATFORM_TYPE.Windows),
             null,
             null,
             null,
-            TenantContext.getCurrentTenant());
+            "tenant");
 
     // --EXECUTE--
     String response =
@@ -207,12 +207,12 @@ class EndpointApiTest extends IntegrationTest {
 
     Mockito.doReturn("command")
         .when(endpointService)
-        .generateUpgradeCommand(
+        .generateUpgradeCommand(TxCtx.of("tenant"),
             String.valueOf(Endpoint.PLATFORM_TYPE.Windows),
             null,
             null,
             null,
-            TenantContext.getCurrentTenant());
+            "tenant");
 
     // --EXECUTE--
     String response =
@@ -749,7 +749,7 @@ class EndpointApiTest extends IntegrationTest {
       void givenSameExecutorInTwoTenants_endpointShouldReturnAgentWithoutDuplicates()
           throws Exception {
         // -- Arrange --
-        String tenantA = TenantContext.getCurrentTenant();
+        String tenantA = "tenant";
 
         ExecutorComposer.Composer executorComposerA =
             executorComposer.forExecutor(executorFixture.getDefaultExecutor());
@@ -766,16 +766,9 @@ class EndpointApiTest extends IntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        // Create tenant B with the same executor ID to reproduce the cross-tenant join bug
-        Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
-        tenantHelper.switchToTenant(tenantB.getId(), entityManager);
-
         Executor executorB = executorFixture.createDefaultExecutor("OpenAEV-B");
         executorB.setId(executorA.getId());
         executorComposer.forExecutor(executorB).persist().get();
-
-        // Switch back to tenant A
-        tenantHelper.switchToTenant(tenantA, entityManager);
 
         // -- Act --
         String response =

@@ -5,6 +5,7 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
@@ -26,6 +27,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -37,10 +39,11 @@ public class InjectorContractApi extends RestBehavior {
 
   private final InjectorContractService injectorContractService;
 
+  @Transactional(readOnly = true)
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-  public Iterable<RawInjectorsContracts> injectContracts() {
-    return injectorContractService.getAllRawInjectContracts();
+  public Iterable<RawInjectorsContracts> injectContracts(TxCtx ctx) {
+    return injectorContractService.getAllRawInjectContracts(ctx);
   }
 
   /**
@@ -64,13 +67,15 @@ public class InjectorContractApi extends RestBehavior {
                         InjectorContractBaseOutput.class,
                         InjectorContractFullOutput.class,
                       })))
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-  public Page<? extends InjectorContractBaseOutput> injectorContracts(
+  public Page<? extends InjectorContractBaseOutput> injectorContracts(TxCtx ctx,
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
+                    ctx,
                 spec,
                 specCount,
                 pageable,
@@ -83,15 +88,17 @@ public class InjectorContractApi extends RestBehavior {
         InjectorContract.class);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     INJECTOR_CONTRACT_URL + "/domain-counts",
     TENANT_INJECTOR_CONTRACT_URL + "/domain-counts"
   })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
+          TxCtx ctx,
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getDomainCounts(filtered);
+    return injectorContractService.getDomainCounts(ctx, filtered);
   }
 
   /**
@@ -100,6 +107,7 @@ public class InjectorContractApi extends RestBehavior {
    * @param injectorContractId the contract ID or external ID
    * @return the injector contract
    */
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECTOR_CONTRACT_URL + "/{injectorContractId}",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
@@ -118,11 +126,12 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the creation input with contract details
    * @return the created injector contract
    */
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
-  public InjectorContract createInjectorContract(
-      @Valid @RequestBody InjectorContractAddInput input) {
-    return injectorContractService.createNewInjectorContract(input);
+  public InjectorContract createInjectorContract(TxCtx ctx,
+                                                 @Valid @RequestBody InjectorContractAddInput input) {
+    return injectorContractService.createNewInjectorContract(ctx, input);
   }
 
   /**
@@ -132,6 +141,7 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the update data
    * @return the updated injector contract
    */
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     INJECTOR_CONTRACT_URL + "/{injectorContractId}",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
@@ -141,9 +151,10 @@ public class InjectorContractApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract updateInjectorContract(
+          TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
-    return injectorContractService.updateInjectorContract(injectorContractId, input);
+    return injectorContractService.updateInjectorContract(ctx, injectorContractId, input);
   }
 
   /**
@@ -153,6 +164,7 @@ public class InjectorContractApi extends RestBehavior {
    * @param input the mapping update data
    * @return the updated injector contract
    */
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping"
@@ -175,6 +187,7 @@ public class InjectorContractApi extends RestBehavior {
    *
    * @param injectorContractId the contract ID to delete
    */
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     INJECTOR_CONTRACT_URL + "/{injectorContractId}",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"

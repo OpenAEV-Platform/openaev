@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.utils.CollectorsUtils;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
@@ -97,7 +98,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
                 .forInjectorContract(
                     InjectorContractFixture.createDefaultInjectorContractWithExternalId(
                         "external-id"))
-                .withInjector(injectorFixture.getWellKnownOaevImplantInjector()))
+                .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant")))
         .persist()
         .get();
   }
@@ -127,7 +128,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     io.openaev.executors.Injector openAEVImplantExecutor =
         new OpenAEVImplantExecutor(
             injectorContext, assetGroupService, injectExpectationService, injectService);
@@ -147,7 +148,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    openAEVImplantExecutor.process(execution, executableInject);
+    openAEVImplantExecutor.process(TxCtx.of("tenant"), execution, executableInject);
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for asset group - 1 for the endpoint - 1 per agent

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.domain.DomainService;
@@ -30,7 +29,7 @@ public class DomainServiceTest extends IntegrationTest {
   @Test
   @DisplayName("Upsert DTOs with null parameter should not fail")
   void upsertWithNullShouldNotFail() {
-    Set<Domain> domains = this.domainService.upserts(null, TenantContext.getCurrentTenant());
+    Set<Domain> domains = this.domainService.upserts(null, "tenantId");
     assertTrue(domains.isEmpty());
   }
 
@@ -38,7 +37,7 @@ public class DomainServiceTest extends IntegrationTest {
   @DisplayName("Upsert entities with null parameter should not fail")
   void upsertEntitiesWithNullShouldNotFail() {
     Set<Domain> domains =
-        this.domainService.upsertDomainEntities(null, TenantContext.getCurrentTenant());
+        this.domainService.upsertDomainEntities(null, "tenantId");
     assertTrue(domains.isEmpty());
   }
 
@@ -55,7 +54,7 @@ public class DomainServiceTest extends IntegrationTest {
     }
 
     Set<Domain> upserted =
-        this.domainService.upsertDomainEntities(domains, TenantContext.getCurrentTenant());
+        this.domainService.upsertDomainEntities(domains, "tenantId");
 
     assertThat(upserted).hasSameElementsAs(domains);
   }
@@ -78,7 +77,7 @@ public class DomainServiceTest extends IntegrationTest {
             .collect(Collectors.toSet());
 
     Set<Domain> upserted =
-        this.domainService.upsertDomainEntities(modified, TenantContext.getCurrentTenant());
+        this.domainService.upsertDomainEntities(modified, "tenantId");
 
     assertThat(upserted)
         .hasSameElementsAs(domains.values())
@@ -98,7 +97,7 @@ public class DomainServiceTest extends IntegrationTest {
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
-            domainsA, domainsB, new Tenant(TenantContext.getCurrentTenant()));
+            domainsA, domainsB, new Tenant("tenantId"));
 
     assertThat(domains)
         .containsExactlyInAnyOrder(PresetDomain.getEndpoint(), PresetDomain.getCloud());
@@ -111,7 +110,7 @@ public class DomainServiceTest extends IntegrationTest {
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
-            null, domainsB, new Tenant(TenantContext.getCurrentTenant()));
+            null, domainsB, new Tenant("tenantId"));
 
     assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
@@ -123,7 +122,7 @@ public class DomainServiceTest extends IntegrationTest {
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
-            Set.of(), domainsB, new Tenant(TenantContext.getCurrentTenant()));
+            Set.of(), domainsB, new Tenant("tenantId"));
 
     assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }
@@ -136,7 +135,7 @@ public class DomainServiceTest extends IntegrationTest {
 
     Set<Domain> domains =
         this.domainService.mergeDomains(
-            domainsA, domainsB, new Tenant(TenantContext.getCurrentTenant()));
+            domainsA, domainsB, new Tenant("tenantId"));
 
     assertThat(domains).containsExactly(PresetDomain.getEndpoint());
   }

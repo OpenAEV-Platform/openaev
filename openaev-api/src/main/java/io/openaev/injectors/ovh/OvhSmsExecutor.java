@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
@@ -41,7 +42,7 @@ public class OvhSmsExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(
+  public ExecutionProcess process(TxCtx ctx,
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();

@@ -22,16 +22,15 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
+          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[])",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
-      @NotNull final @Param("ips") String[] ips,
-      @NotNull final @Param("tenantId") String tenantId);
+      @NotNull final @Param("ips") String[] ips);
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :#{#tenantContext.currentTenant} "
+          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) "
               + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
@@ -40,14 +39,14 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
       @NotNull final @Param("macAddresses") String[] macAddresses);
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.asset_external_reference = :externalReference order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
       @NotNull final @Param("externalReference") String externalReference);
@@ -59,16 +58,14 @@ public interface EndpointRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<Endpoint> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
 
   @Query(
       value =
           "SELECT DISTINCT e.* "
               + "FROM assets e "
-              + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id "
-              + "WHERE e.tenant_id = :#{#tenantContext.currentTenant}",
+              + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id",
       nativeQuery = true)
   List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios();
 
@@ -81,8 +78,7 @@ public interface EndpointRepository
                   SELECT DISTINCT fa.asset_id
                   FROM findings f
                   LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
-              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND a.tenant_id = :#{#tenantContext.currentTenant};
+              ) AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindings(@Param("name") String name, Pageable pageable);
@@ -107,8 +103,7 @@ public interface EndpointRepository
                   )
                   AND fa2.asset_id != :sourceId
               )
-              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-              AND a.tenant_id = :#{#tenantContext.currentTenant};
+              AND (:name IS NULL OR LOWER(a.asset_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')));
               """,
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
@@ -162,10 +157,7 @@ public interface EndpointRepository
   // Native query does the same as Hibernate query here because all "cascade" and other relations
   // are properly set in the database
   @Modifying
-  @Query(
-      value =
-          "DELETE FROM assets WHERE asset_id = :assetId AND tenant_id = :#{#tenantContext.currentTenant}",
-      nativeQuery = true)
+  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
   void deleteById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);

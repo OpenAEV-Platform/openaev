@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionStatus.EXECUTING;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -19,6 +20,7 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,8 +71,8 @@ public class Executor {
     Inject inject = executableInject.getInjection().getInject();
     io.openaev.executors.Injector executor =
         managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
-
-    Execution execution = executor.executeInjection(executableInject);
+    TxCtx ctx = TxCtx.of(null, List.of(inject.getTenant().getId()));
+    Execution execution = executor.executeInjection(ctx, executableInject);
     // After execution, expectations are already created
     // Injection status is filled after complete execution
     // Report inject execution

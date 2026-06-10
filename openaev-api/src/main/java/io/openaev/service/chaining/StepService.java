@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -43,7 +42,6 @@ public class StepService {
    * @param stepInput input to create the step template
    * @return created step template
    */
-  @Transactional(rollbackFor = Exception.class)
   public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
@@ -64,7 +62,6 @@ public class StepService {
    * @param workflow workflow linked to the step templates
    * @param steps list of input to create step templates
    */
-  @Transactional(rollbackFor = Exception.class)
   public void createStepTemplates(Workflow workflow, List<StepsCreateInput.StepInput> steps)
       throws ChainingException {
     for (StepsCreateInput.StepInput stepInput : steps) {
@@ -78,7 +75,6 @@ public class StepService {
    * @param workflowTemplateFrom source workflow
    * @param workflowTemplateTo target workflow
    */
-  @Transactional(rollbackFor = Exception.class)
   public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
 
@@ -288,7 +284,6 @@ public class StepService {
    * @param workflowTo target workflow
    * @return list of copied step templates
    */
-  @Transactional(rollbackFor = Exception.class)
   List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
     List<Step> stepsCopied = new ArrayList<>();
     for (Step step : stepsFrom) {
@@ -322,7 +317,6 @@ public class StepService {
    * @param step source step with conditions
    * @param stepCopied target step to attach copied conditions to
    */
-  @Transactional(rollbackFor = Exception.class)
   void copyStepConditionTemplate(Step step, Step stepCopied) {
     List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
     if (conditions == null || conditions.isEmpty()) {
@@ -457,7 +451,6 @@ public class StepService {
    * @param stepInput updated step payload
    * @return updated step template
    */
-  @Transactional(rollbackFor = Exception.class)
   public Step updateStepTemplate(String stepId, StepInput stepInput) throws ChainingException {
     // Retrieve the existing step template from a database
     Step existing = findStepTemplateById(stepId);
@@ -511,7 +504,6 @@ public class StepService {
    *
    * @param stepId step template id
    */
-  @Transactional(rollbackFor = Exception.class)
   public void deleteStepTemplate(String stepId) {
     Step step = findStepTemplateById(stepId);
     conditionService.deleteAllConditionsByStepId(stepId);

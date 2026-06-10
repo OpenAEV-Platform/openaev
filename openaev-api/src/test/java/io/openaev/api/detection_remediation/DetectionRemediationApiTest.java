@@ -1277,7 +1277,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         injectorContractComposer
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
-                    injectorFixture.getWellKnownOaevImplantInjector(),
+                    injectorFixture.getWellKnownOaevImplantInjector("tenant"),
                     payloadCommand,
                     new HashSet<>()))
             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist());
@@ -1394,7 +1394,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         injectorContractComposer
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
-                    injectorFixture.getWellKnownOaevImplantInjector(), payload, new HashSet<>()))
+                    injectorFixture.getWellKnownOaevImplantInjector("tenant"), payload, new HashSet<>()))
             .withAttackPattern(attackPatternComposer.forAttackPattern(attackPatterns.get(0)))
             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
             .persist()
@@ -1428,7 +1428,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         injectorContractComposer
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
-                    injectorFixture.getWellKnownOaevImplantInjector(), payload, new HashSet<>()))
+                    injectorFixture.getWellKnownOaevImplantInjector("tenant"), payload, new HashSet<>()))
             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
             .persist()
             .get();
@@ -1460,7 +1460,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         injectorContractComposer
             .forInjectorContract(
                 InjectorContractFixture.createPayloadInjectorContract(
-                    injectorFixture.getWellKnownOaevImplantInjector(), payload, new HashSet<>()))
+                    injectorFixture.getWellKnownOaevImplantInjector("tenant"), payload, new HashSet<>()))
             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
             .persist()
             .get();

@@ -11,7 +11,7 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -83,9 +83,10 @@ public class ScenarioApi extends RestBehavior {
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenario(@Valid @RequestBody final ScenarioInput input) {
+  public Scenario createScenario(TxCtx ctx, @Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
@@ -99,7 +100,7 @@ public class ScenarioApi extends RestBehavior {
       scenario.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(
-                  TenantContext.getCurrentTenant(),
+                  ctx.tenantIdFromUri(),
                   TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
@@ -118,33 +119,36 @@ public class ScenarioApi extends RestBehavior {
     return savedScenario;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenarioWithInjectorContracts(
-      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+  public Scenario createScenarioWithInjectorContracts(TxCtx ctx,
+                                                      @Valid@RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     return this.scenarioService.createScenarioWithInjectorContracts(
-        TenantContext.getCurrentTenant(),
+            ctx,
         inputs.getScenarioInput(),
         inputs.getInjectorContractSearchPaginationInput(),
         inputs.getLocale());
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public List<Scenario> updateScenariosWithInjectorContracts(
+  public List<Scenario> updateScenariosWithInjectorContracts(TxCtx ctx,
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return this.scenarioService.updateScenariosWithInjectorContracts(
+    return this.scenarioService.updateScenariosWithInjectorContracts(ctx,
         inputs.getScenarioIds(),
         inputs.getInjectorContractSearchPaginationInput(),
         inputs.getLocale());
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
   @AccessControl(
       resourceId = "#scenarioId",
@@ -154,31 +158,35 @@ public class ScenarioApi extends RestBehavior {
     return scenarioService.getDuplicateScenario(scenarioId);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<ScenarioSimple> scenarios() {
-    return this.scenarioService.scenarios();
+  public List<ScenarioSimple> scenarios(TxCtx ctx) {
+    return this.scenarioService.scenarios(ctx.tenantIdFromUri());
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/search", TENANT_SCENARIO_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public Page<RawPaginationScenario> scenarios(
+  public Page<RawPaginationScenario> scenarios(TxCtx ctx,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.scenarioService.scenarios(searchPaginationInput);
+    return this.scenarioService.scenarios(ctx.tenantIdFromUri(), searchPaginationInput);
   }
 
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/search-by-id", TENANT_SCENARIO_URI + "/search-by-id"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get scenarios by their id",
       description = "Get the scenarios with the specified ids if you have the right to see them")
-  public List<ScenarioSimple> scenariosById(
+  public List<ScenarioSimple> scenariosById(TxCtx ctx,
       @RequestBody final GetScenariosInput getScenariosInput) {
-    return this.scenarioService.scenarios(getScenariosInput.getScenarioIds());
+    return this.scenarioService.scenarios(ctx.tenantIdFromUri(), getScenariosInput.getScenarioIds());
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
   @AccessControl(
       resourceId = "#scenarioId",
@@ -188,6 +196,7 @@ public class ScenarioApi extends RestBehavior {
     return scenarioService.getScenarioById(scenarioId);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
@@ -200,6 +209,7 @@ public class ScenarioApi extends RestBehavior {
     return scenarioService.runChecks(scenarioId);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
   @AccessControl(
       resourceId = "#scenarioId",
@@ -221,6 +231,7 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule());
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
   @AccessControl(
       resourceId = "#scenarioId",
@@ -232,6 +243,7 @@ public class ScenarioApi extends RestBehavior {
 
   // -- TAGS --
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({SCENARIO_URI + "/{scenarioId}/tags", TENANT_SCENARIO_URI + "/{scenarioId}/tags"})
   @AccessControl(
       resourceId = "#scenarioId",
@@ -248,31 +260,35 @@ public class ScenarioApi extends RestBehavior {
 
   // -- EXPORT --
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({SCENARIO_URI + "/{scenarioId}/export", TENANT_SCENARIO_URI + "/{scenarioId}/export"})
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.SCENARIO)
   public void exportScenario(
+          TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
       @RequestParam(required = false) final boolean isWithVariableValues,
       HttpServletResponse response)
       throws IOException {
-    this.scenarioService.exportScenario(
+    this.scenarioService.exportScenario(ctx.tenantIdFromUri(),
         scenarioId, isWithTeams, isWithPlayers, isWithVariableValues, response);
   }
 
   // -- IMPORT --
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
-    this.importService.handleFileImport(file, null, null);
+  public void importScenario(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
+    this.importService.handleFileImport(ctx.tenantIdFromUri(), file, null, null);
   }
 
   // -- TEAMS --
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @LogExecutionTime
   @GetMapping({SCENARIO_URI + "/{scenarioId}/teams", TENANT_SCENARIO_URI + "/{scenarioId}/teams"})
   @AccessControl(
@@ -313,6 +329,7 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.replaceTeams(scenarioId, input.getTeamIds());
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/players",
     TENANT_SCENARIO_URI + "/{scenarioId}/players"
@@ -384,12 +401,13 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario removeScenarioTeamPlayers(
+          TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
     Team team =
         teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(teamId,ctx.tenantIdFromUri())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
@@ -399,6 +417,7 @@ public class ScenarioApi extends RestBehavior {
 
   // -- RECURRENCE --
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/recurrence",
     TENANT_SCENARIO_URI + "/{scenarioId}/recurrence"
@@ -420,6 +439,7 @@ public class ScenarioApi extends RestBehavior {
 
   // -- OPTION --
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
@@ -432,6 +452,7 @@ public class ScenarioApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
@@ -440,6 +461,7 @@ public class ScenarioApi extends RestBehavior {
         .toList();
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({SCENARIO_URI + "/category/options", TENANT_SCENARIO_URI + "/category/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> categoryOptionsByName(
@@ -468,6 +490,7 @@ public class ScenarioApi extends RestBehavior {
     return scenarioRepository.save(scenario);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/exercise/running",
     TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
@@ -498,6 +521,7 @@ public class ScenarioApi extends RestBehavior {
     return simulation;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/check-rules",
     TENANT_SCENARIO_URI + "/{scenarioId}/check-rules"
@@ -521,6 +545,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   // region asset groups, endpoints, documents and channels
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/asset-groups",
     TENANT_SCENARIO_URI + "/{scenarioId}/asset-groups"
@@ -537,6 +562,7 @@ public class ScenarioApi extends RestBehavior {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/asset-groups/find",
     TENANT_SCENARIO_URI + "/{scenarioId}/asset-groups/find"
@@ -555,6 +581,7 @@ public class ScenarioApi extends RestBehavior {
     return this.assetGroupService.assetGroupsByIdsForScenario(scenarioId, assetGroupIds);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/channels",
     TENANT_SCENARIO_URI + "/{scenarioId}/channels"
@@ -570,6 +597,7 @@ public class ScenarioApi extends RestBehavior {
     return this.channelService.channelsForScenario(scenarioId);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/endpoints",
     TENANT_SCENARIO_URI + "/{scenarioId}/endpoints"
@@ -585,6 +613,7 @@ public class ScenarioApi extends RestBehavior {
     return this.endpointService.endpointsForScenario(scenarioId);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/endpoints/find",
     TENANT_SCENARIO_URI + "/{scenarioId}/endpoints/find"
@@ -603,6 +632,7 @@ public class ScenarioApi extends RestBehavior {
     return this.endpointService.endpointsByIdsForScenario(scenarioId, endpointIds);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/documents",
     TENANT_SCENARIO_URI + "/{scenarioId}/documents"

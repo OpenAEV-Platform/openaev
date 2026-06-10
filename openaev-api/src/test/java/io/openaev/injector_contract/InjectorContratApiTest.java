@@ -37,10 +37,10 @@ class InjectorContratApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    channelInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    manualInjectorIntegrationFactory.registerConnectorForTenant("tenant");
   }
 
   @Nested

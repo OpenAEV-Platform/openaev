@@ -1,6 +1,6 @@
 package io.openaev.datapack.packs;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.datapack.DataPack;
@@ -87,7 +87,7 @@ public class V20260101_Starter_pack extends DataPack {
   private final ResourcePatternResolver resolver;
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(TxCtx ctx) {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
@@ -126,8 +126,8 @@ public class V20260101_Starter_pack extends DataPack {
           openCTITagRule.getTag().getName(),
           new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
 
-      this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
-      this.importDashboardsFromResources();
+      this.importScenariosFromResources(ctx, honeyScanMeEndpoint, allEndpointAssetGroup);
+      this.importDashboardsFromResources(ctx.tenantIdFromUri());
       return true;
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20260101 initialization.", e);
@@ -165,12 +165,12 @@ public class V20260101_Starter_pack extends DataPack {
     return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
   }
 
-  private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {
+  private void importScenariosFromResources(TxCtx ctx, Asset asset, AssetGroup assetGroup) {
     listFilesInResourceFolder(Config.SCENARIOS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
               try {
-                this.importService.handleInputStreamFileImport(
+                this.importService.handleInputStreamFileImport(ctx.tenantIdFromUri(),
                     resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
@@ -183,7 +183,7 @@ public class V20260101_Starter_pack extends DataPack {
             });
   }
 
-  private void importDashboardsFromResources() {
+  private void importDashboardsFromResources(String tenantId) {
     listFilesInResourceFolder(Config.DASHBOARDS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
@@ -191,13 +191,15 @@ public class V20260101_Starter_pack extends DataPack {
                 JsonApiDocument<ResourceObject> dashboard =
                     this.zipJsonService
                         .handleImport(
+                            tenantId,
                             resourceToAdd.getContentAsByteArray(),
                             "custom_dashboard_name",
                             null,
                             CustomDashboardService::sanityCheck,
                             "")
                         .jsonApiDocument();
-                this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
+                this.setDefaultDashboard(
+                    tenantId, resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
@@ -226,7 +228,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private void setDefaultDashboard(String filename, String dashboardId) {
+  private void setDefaultDashboard(String tenantId, String filename, String dashboardId) {
     String settingKey =
         DASHBOARD_PREFIX_TO_SETTING_KEY.entrySet().stream()
             .filter(entry -> filename.startsWith(entry.getKey()))
@@ -235,7 +237,6 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
-      String tenantId = TenantContext.getCurrentTenant();
       Tenant tenant = new Tenant(tenantId);
       Setting defaultDashboardSetting =
           settingRepository

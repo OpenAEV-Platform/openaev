@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/settings")
@@ -39,6 +40,7 @@ public class PlatformSettingsApi extends RestBehavior {
 
   // -- READ --
 
+  @Transactional(readOnly = true)
   @GetMapping("/public")
   @AccessControl(skipRBAC = true)
   @ApiResponses(
@@ -55,6 +57,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.findPublicSettings();
   }
 
+  @Transactional(readOnly = true)
   @GetMapping()
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of settings")})
@@ -65,6 +68,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.findSettings();
   }
 
+  @Transactional(readOnly = true)
   @GetMapping("/caldera")
   @ApiResponses(
       value = {
@@ -78,6 +82,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return calderaSettingsService.getCalderaSettings();
   }
 
+  @Transactional(readOnly = true)
   @GetMapping("/version")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
@@ -86,6 +91,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.getPlatformVersion();
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/enterprise-edition")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
@@ -99,6 +105,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsEnterpriseEdition(input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/platform_whitemark")
   @AccessControl(
       actionPerformed = Action.WRITE,
@@ -111,6 +118,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsPlatformWhitemark(input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/theme/light")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
@@ -121,6 +129,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateThemeLight(input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/theme/dark")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
@@ -129,6 +138,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateThemeDark(input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/policies")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
@@ -137,6 +147,7 @@ public class PlatformSettingsApi extends RestBehavior {
     return platformSettingsService.updateSettingsPolicies(input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/chatbot-ai-cgu")
   @AccessControl(
       actionPerformed = Action.WRITE,

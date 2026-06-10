@@ -3,6 +3,7 @@ package io.openaev.rest.inject.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.WorkflowUpdateEvent;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
@@ -32,7 +33,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-@Transactional
 public class BatchingInjectStatusService {
 
   private static final int MAX_RETRIES = 5;
@@ -59,9 +59,10 @@ public class BatchingInjectStatusService {
    * @param injectExecutionCallbacks the inject execution callbacks
    */
   @LogExecutionTime
-  @Transactional(Transactional.TxType.REQUIRES_NEW)
+  @Transactional(rollbackOn = Exception.class)
   @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
+      @SuppressWarnings("unused") TxCtx _ctx,
       List<InjectExecutionCallback> injectExecutionCallbacks) {
     // Disable tenant filter — because cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");

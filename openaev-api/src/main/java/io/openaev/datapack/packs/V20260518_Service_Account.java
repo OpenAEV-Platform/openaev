@@ -1,6 +1,6 @@
 package io.openaev.datapack.packs;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.datapack.DataPack;
 import io.openaev.service.DataPackService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
@@ -19,9 +19,9 @@ public class V20260518_Service_Account extends DataPack {
   }
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(TxCtx ctx) {
     try {
-      privilegeService.ensurePrivilegedUserExists(TenantContext.getCurrentTenant());
+      privilegeService.ensurePrivilegedUserExists(ctx.tenantIdFromUri());
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20260518 initialization.", e);
       return false;

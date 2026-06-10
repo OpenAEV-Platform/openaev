@@ -14,7 +14,6 @@ public class LoadService {
 
   private final ExerciseRepository exerciseRepository;
 
-  @Transactional
   public Exercise exercise(@NotBlank final String exerciseId) {
     Exercise exercise = this.exerciseRepository.findById(exerciseId).orElseThrow();
     Hibernate.initialize(exercise.getTeams());

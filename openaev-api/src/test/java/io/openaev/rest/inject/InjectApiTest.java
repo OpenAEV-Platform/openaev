@@ -137,8 +137,8 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -3882,7 +3882,7 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE --
       List<InjectExecutionCallback> processed =
-          batchingInjectStatusService.handleInjectExecutionCallback(List.of(callback));
+          batchingInjectStatusService.handleInjectExecutionCallback(any(), List.of(callback));
 
       // -- ASSERT --
       // Callback is not in the successfully-processed list: it was queued for retry.
@@ -3920,7 +3920,7 @@ class InjectApiTest extends IntegrationTest {
 
       // First attempt: inject still EXECUTING → callback is queued for retry.
       List<InjectExecutionCallback> firstPass =
-          batchingInjectStatusService.handleInjectExecutionCallback(List.of(callback));
+          batchingInjectStatusService.handleInjectExecutionCallback(any(), List.of(callback));
       assertTrue(firstPass.isEmpty());
       assertEquals(1, callback.getRetryCount());
 
@@ -3931,7 +3931,7 @@ class InjectApiTest extends IntegrationTest {
       // Second attempt: equivalent to the Quartz requeue job republishing the callback
       // and the consumer calling handleInjectExecutionCallback again.
       List<InjectExecutionCallback> secondPass =
-          batchingInjectStatusService.handleInjectExecutionCallback(List.of(callback));
+          batchingInjectStatusService.handleInjectExecutionCallback(any(), List.of(callback));
 
       // -- ASSERT --
       assertEquals(1, secondPass.size());
@@ -3962,7 +3962,7 @@ class InjectApiTest extends IntegrationTest {
 
       // -- EXECUTE --
       List<InjectExecutionCallback> processed =
-          batchingInjectStatusService.handleInjectExecutionCallback(List.of(callback));
+          batchingInjectStatusService.handleInjectExecutionCallback(any(), List.of(callback));
       batchingInjectStatusService.requeueCallbacks();
 
       // -- ASSERT --
@@ -3998,7 +3998,7 @@ class InjectApiTest extends IntegrationTest {
 
       // First handle the callback so it lands in the in-memory requeue queue,
       // then remove the queue service to simulate the legacy / unconfigured path.
-      batchingInjectStatusService.handleInjectExecutionCallback(List.of(callback));
+      batchingInjectStatusService.handleInjectExecutionCallback(any(), List.of(callback));
       batchingInjectStatusService.setInjectTraceQueueService(null);
 
       // -- EXECUTE + ASSERT --

@@ -30,7 +30,7 @@ public interface TeamRepository
   List<Team> findAllByNameIgnoreCase(@NotNull final String name);
 
   @Query(
-      "SELECT team FROM Team team where lower(team.name) = lower(:name) and team.contextual = false and team.tenant.id = :#{#tenantContext.currentTenant}")
+      "SELECT team FROM Team team where lower(team.name) = lower(:name) and team.contextual = false")
   List<Team> findByNameIgnoreCaseAndNotContextual(@NotNull final String name);
 
   @Query(
@@ -50,7 +50,6 @@ public interface TeamRepository
               + "FROM teams "
               + "LEFT JOIN teams_tags ON teams_tags.team_id = teams.team_id "
               + "LEFT JOIN users_teams ON users_teams.team_id = teams.team_id "
-              + "WHERE teams.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY teams.team_id ;",
       nativeQuery = true)
   List<RawTeamIndexing> rawTeams();
@@ -84,8 +83,7 @@ public interface TeamRepository
           + "   :simulationOrScenarioId is NULL AND i.exercise.id is NULL AND i.scenario.id IS NULL"
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
-          + " ) AND (:name IS NULL OR lower(t.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " ) AND (:name IS NULL OR lower(t.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<Team> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
 
   @Query(
@@ -94,8 +92,7 @@ public interface TeamRepository
               + "FROM teams t "
               + "WHERE EXISTS (SELECT 1 FROM injects_teams it WHERE it.team_id = t.team_id) "
               + "OR EXISTS (SELECT 1 FROM exercises_teams et WHERE et.team_id = t.team_id) "
-              + "OR EXISTS (SELECT 1 FROM scenarios_teams st WHERE st.team_id = t.team_id) "
-              + "AND t.tenant_id = :#{#tenantContext.currentTenant};",
+              + "OR EXISTS (SELECT 1 FROM scenarios_teams st WHERE st.team_id = t.team_id);",
       nativeQuery = true)
   List<Team> findAllTeamsForAtomicTestingsSimulationsAndScenarios();
 

@@ -27,8 +27,7 @@ public interface CustomDashboardRepository
       value =
           " SELECT cd.custom_dashboard_id, "
               + "cd.custom_dashboard_name "
-              + "FROM custom_dashboards cd "
-              + "WHERE cd.tenant_id = :#{#tenantContext.currentTenant};",
+              + "FROM custom_dashboards cd;",
       nativeQuery = true)
   List<RawCustomDashboard> rawAll();
 
@@ -38,12 +37,10 @@ public interface CustomDashboardRepository
       select cd.* from custom_dashboards cd
       join scenarios s on s.scenario_custom_dashboard = cd.custom_dashboard_id
       where s.scenario_id = :resourceId
-      and s.tenant_id = :#{#tenantContext.currentTenant}
       union
       select cd.* from custom_dashboards cd
       join exercises e on e.exercise_custom_dashboard = cd.custom_dashboard_id
       where e.exercise_id = :resourceId
-      and e.tenant_id = :#{#tenantContext.currentTenant}
       """,
       nativeQuery = true)
   Optional<CustomDashboard> findByResourceId(String resourceId);

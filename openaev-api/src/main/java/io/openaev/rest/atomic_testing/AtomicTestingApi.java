@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectation;
@@ -48,9 +49,9 @@ public class AtomicTestingApi extends RestBehavior {
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
-  public Page<InjectResultOutput> findAllAtomicTestings(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
+  public Page<InjectResultOutput> findAllAtomicTestings(TxCtx ctx,
+                                                        @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return atomicTestingService.searchAtomicTestingsForCurrentUser(ctx, searchPaginationInput);
   }
 
   // some api use inject as resource type because they are actually used to retrieve inject data for
@@ -97,6 +98,7 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.createOrUpdate(input, injectId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{injectId}")
   @AccessControl(
       resourceId = "#injectId",
@@ -106,6 +108,7 @@ public class AtomicTestingApi extends RestBehavior {
     atomicTestingService.deleteAtomicTesting(injectId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/{atomicTestingId}/duplicate")
   @AccessControl(
       resourceId = "#atomicTestingId",
@@ -116,6 +119,7 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.duplicate(atomicTestingId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/{atomicTestingId}/launch")
   @AccessControl(
       resourceId = "#atomicTestingId",
@@ -126,6 +130,7 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.launch(atomicTestingId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/{atomicTestingId}/relaunch")
   @AccessControl(
       resourceId = "#atomicTestingId",
@@ -237,16 +242,17 @@ public class AtomicTestingApi extends RestBehavior {
     return collectorsService.collectorsForAtomicTesting(injectId);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(
       path = "/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
-  public void atomicTestingImport(
+  public void atomicTestingImport(TxCtx ctx,
       @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    this.injectImportService.importInjectsForAtomicTestings(file);
+    this.injectImportService.importInjectsForAtomicTestings(ctx.tenantIdFromUri(), file);
   }
 }

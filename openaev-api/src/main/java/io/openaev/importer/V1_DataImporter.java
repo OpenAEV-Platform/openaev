@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.repository.*;
@@ -51,7 +51,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
@@ -152,9 +151,9 @@ public class V1_DataImporter implements Importer {
   }
 
   @Override
-  @Transactional
   public void importData(
-      JsonNode importNode,
+          TxCtx ctx,
+          JsonNode importNode,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,
@@ -181,7 +180,7 @@ public class V1_DataImporter implements Importer {
 
     // Should be done after tags & documents
     if (prefix.equals("payload_")) {
-      importPayloadAsMain(importNode, baseIds);
+      importPayloadAsMain(ctx, importNode, baseIds);
     }
 
     importOrganizations(importNode, prefix, baseIds);
@@ -192,7 +191,7 @@ public class V1_DataImporter implements Importer {
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
     importObjectives(importNode, prefix, savedExercise, savedScenario, baseIds);
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
-    importInjects(importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
+    importInjects(ctx, importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
     importVariables(importNode, savedExercise, savedScenario, baseIds);
   }
 
@@ -237,7 +236,7 @@ public class V1_DataImporter implements Importer {
    */
   @VisibleForTesting
   private List<Domain> importDomains(
-      JsonNode importNode, String prefix, Map<String, Base> baseIds) {
+          TxCtx ctx, JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     List<Domain> domains = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
@@ -262,7 +261,7 @@ public class V1_DataImporter implements Importer {
                     this.domainService.upsert(
                         nodeDomain.get("domain_name").textValue(),
                         nodeDomain.get("domain_color").textValue(),
-                        new Tenant(TenantContext.getCurrentTenant()));
+                        new Tenant(ctx.tenantIdFromUri()));
                 baseIds.put(createdDomain.getId(), createdDomain);
                 domains.add(createdDomain);
               }
@@ -272,7 +271,7 @@ public class V1_DataImporter implements Importer {
   }
 
   // -- ATTACK PATTERN --
-  private List<AttackPattern> importAttackPattern(
+  private List<AttackPattern> importAttackPattern(TxCtx ctx,
       JsonNode importNode, String prefix, Map<String, Base> baseIds) {
     ArrayList<AttackPattern> attackPatterns = new ArrayList<>();
     resolveJsonElements(importNode, prefix + "attack_patterns")
@@ -292,7 +291,7 @@ public class V1_DataImporter implements Importer {
 
               List<AttackPattern> existingAttackPattern =
                   this.attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                      List.of(name), TenantContext.getCurrentTenant());
+                      List.of(name), ctx.tenantIdFromUri());
               if (!existingAttackPattern.isEmpty()) {
                 baseIds.put(id, existingAttackPattern.getFirst());
                 attackPatterns.add(existingAttackPattern.getFirst());
@@ -355,14 +354,15 @@ public class V1_DataImporter implements Importer {
    * @return a deduplicated set of resolved domains, never empty
    */
   protected Set<Domain> mergeDomains(
-      Map<String, Base> baseIds,
+          TxCtx ctx,
+          Map<String, Base> baseIds,
       JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
       @Nullable String prefix2) {
-    Set<Domain> domains = new LinkedHashSet<>(importDomains(node1, prefix1, baseIds));
+    Set<Domain> domains = new LinkedHashSet<>(importDomains(ctx, node1, prefix1, baseIds));
     if (node2 != null) {
-      domains.addAll(importDomains(node2, prefix2, baseIds));
+      domains.addAll(importDomains(ctx, node2, prefix2, baseIds));
     }
     if (domains.isEmpty()) {
       domains.add(
@@ -382,14 +382,15 @@ public class V1_DataImporter implements Importer {
    * @return a deduplicated set of resolved attack patterns
    */
   private Set<AttackPattern> mergeAttackPatterns(
-      Map<String, Base> baseIds,
+          TxCtx ctx,
+          Map<String, Base> baseIds,
       JsonNode node1,
       String prefix1,
       @Nullable JsonNode node2,
       @Nullable String prefix2) {
-    Set<AttackPattern> patterns = new LinkedHashSet<>(importAttackPattern(node1, prefix1, baseIds));
+    Set<AttackPattern> patterns = new LinkedHashSet<>(importAttackPattern(ctx, node1, prefix1, baseIds));
     if (node2 != null) {
-      patterns.addAll(importAttackPattern(node2, prefix2, baseIds));
+      patterns.addAll(importAttackPattern(ctx, node2, prefix2, baseIds));
     }
     return patterns;
   }
@@ -624,7 +625,11 @@ public class V1_DataImporter implements Importer {
       Map<String, Base> baseIds) {
     try {
       this.documentService.uploadFile(
-          target, entry.getData(), entry.getContentLength(), contentType);
+          savedExercise.getTenant().getId(),
+          target,
+          entry.getData(),
+          entry.getContentLength(),
+          contentType);
     } catch (Exception e) {
       throw new ImportException(e);
     }
@@ -1075,6 +1080,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importInjects(
+          TxCtx ctx,
       JsonNode importNode,
       String prefix,
       Exercise savedExercise,
@@ -1120,6 +1126,7 @@ public class V1_DataImporter implements Importer {
             .filter(jsonNode -> !children.contains(jsonNode.get("inject_id").asText()));
 
     importInjects(
+            ctx,
         baseIds,
         savedExercise,
         savedScenario,
@@ -1130,6 +1137,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importInjects(
+          TxCtx ctx,
       Map<String, Base> baseIds,
       Exercise exercise,
       Scenario scenario,
@@ -1180,13 +1188,13 @@ public class V1_DataImporter implements Importer {
                   log.info(
                       "Inject comes from a collector not set up in your environment, a new payload has been created.");
                   injectorContract =
-                      Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
+                      Optional.of(importPayload(ctx, payloadNode, injectContractNode, baseIds));
                   injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
                 }
                 // Create new payload
               } else {
                 injectorContract =
-                    Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
+                    Optional.of(importPayload(ctx, payloadNode, injectContractNode, baseIds));
                 injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
               }
             }
@@ -1205,7 +1213,7 @@ public class V1_DataImporter implements Importer {
               // provided by the injector
               Payload createdPayload = injectorContract.map(ic -> ic.getPayload()).orElse(null);
               injectorContractId =
-                  importInjectorContractFromStarterPack(injectContractNode, createdPayload, baseIds)
+                  importInjectorContractFromStarterPack(ctx, injectContractNode, createdPayload, baseIds)
                       .getId();
             } else {
               log.warn(
@@ -1229,7 +1237,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 exercise.getId(),
                 dependsDuration,
-                content);
+                content,
+                exercise.getTenant().getId());
           } else if (scenario != null) {
             injectRepository.importSaveForScenario(
                 injectId,
@@ -1242,7 +1251,8 @@ public class V1_DataImporter implements Importer {
                 enabled,
                 scenario.getId(),
                 dependsDuration,
-                content);
+                content,
+                scenario.getTenant().getId());
           } else {
             injectRepository.importSaveStandAlone(
                 injectId,
@@ -1254,7 +1264,8 @@ public class V1_DataImporter implements Importer {
                 allTeams,
                 enabled,
                 dependsDuration,
-                content);
+                content,
+                ctx.tenantIdFromUri());
           }
           baseIds.put(id, new BaseHolder(injectId));
           originalIds.add(id);
@@ -1360,7 +1371,7 @@ public class V1_DataImporter implements Importer {
                 })
             .toList();
     if (!childInjects.isEmpty()) {
-      importInjects(baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects);
+      importInjects(ctx, baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects);
     }
   }
 
@@ -1371,8 +1382,8 @@ public class V1_DataImporter implements Importer {
    * @param importNode contract node
    * @return the dummy injector
    */
-  private Injector createOrGetDummyInjector(JsonNode importNode) {
-    return injectorService.createOrGetDummyInjector(
+  private Injector createOrGetDummyInjector(TxCtx ctx, JsonNode importNode) {
+    return injectorService.createOrGetDummyInjector(ctx,
         importNode.get("injector_contract_injector_type").asText(),
         importNode.get("injector_contract_injector_type_name").asText());
   }
@@ -1385,14 +1396,14 @@ public class V1_DataImporter implements Importer {
    * @param payload to set on contract
    * @return
    */
-  private InjectorContract importInjectorContractFromStarterPack(
+  private InjectorContract importInjectorContractFromStarterPack(TxCtx ctx,
       JsonNode importNode, Payload payload, Map<String, Base> baseIds) {
     InjectorContract injectorContract = new InjectorContract();
 
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    Injector dummyInjector = createOrGetDummyInjector(importNode);
+    Injector dummyInjector = createOrGetDummyInjector(ctx, importNode);
     injectorContract.addInjector(dummyInjector);
     injectorContract.setTenant(dummyInjector.getTenant());
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
@@ -1410,6 +1421,7 @@ public class V1_DataImporter implements Importer {
     // Domains
     injectorContract.setDomains(
         mergeDomains(
+                ctx,
             baseIds,
             importNode,
             "injector_contract_",
@@ -1420,6 +1432,7 @@ public class V1_DataImporter implements Importer {
     injectorContract.setAttackPatterns(
         new ArrayList<>(
             mergeAttackPatterns(
+                    ctx,
                 baseIds,
                 importNode,
                 "injector_contract_",
@@ -1504,8 +1517,8 @@ public class V1_DataImporter implements Importer {
     return outputParserInputs;
   }
 
-  private PayloadCreateInput buildPayloadCreateInput(
-      Map<String, Base> baseIds, JsonNode payloadNode, @Nullable JsonNode injectorContractNode) {
+  private PayloadCreateInput buildPayloadCreateInput(TxCtx ctx,
+                                                     Map<String, Base> baseIds, JsonNode payloadNode, @Nullable JsonNode injectorContractNode) {
     PayloadCreateInput payloadCreateInput = buildPayload(payloadNode);
     payloadCreateInput.setOutputParsers(
         buildOutputParsersFromPayloadJsonNode(payloadNode, baseIds));
@@ -1519,13 +1532,13 @@ public class V1_DataImporter implements Importer {
 
     // Domains — merge from payload and injector contract nodes, fallback to ToClassify
     Set<Domain> domains =
-        mergeDomains(baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
+        mergeDomains(ctx, baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
     payloadCreateInput.setDomainIds(
         domains.stream().map(Domain::getId).collect(Collectors.toList()));
 
     // Attack patterns — merge from payload and injector contract nodes
     Set<AttackPattern> attackPatterns =
-        mergeAttackPatterns(
+        mergeAttackPatterns(ctx,
             baseIds, payloadNode, "payload_", injectorContractNode, "injector_contract_");
     payloadCreateInput.setAttackPatternsIds(
         attackPatterns.stream().map(AttackPattern::getId).collect(Collectors.toList()));
@@ -1533,8 +1546,8 @@ public class V1_DataImporter implements Importer {
     return payloadCreateInput;
   }
 
-  private String importPayloadAsMain(
-      @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
+  private String importPayloadAsMain(TxCtx ctx,
+                                     @NotNull final JsonNode importNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = importNode.get("payload_information");
     if (payloadNode == null) {
       return null;
@@ -1565,7 +1578,7 @@ public class V1_DataImporter implements Importer {
         }
       }
     }
-    PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(baseIds, payloadNode, null);
+    PayloadCreateInput payloadCreateInput = buildPayloadCreateInput(ctx, baseIds, payloadNode, null);
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
@@ -1578,6 +1591,7 @@ public class V1_DataImporter implements Importer {
   }
 
   private InjectorContract importPayload(
+          TxCtx ctx,
       @NotNull final JsonNode payloadNode,
       @NotNull final JsonNode injectContractNode,
       Map<String, Base> baseIds) {
@@ -1595,7 +1609,7 @@ public class V1_DataImporter implements Importer {
     }
 
     PayloadCreateInput payloadCreateInput =
-        buildPayloadCreateInput(baseIds, payloadNode, injectContractNode);
+        buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(payloadCreateInput);
 

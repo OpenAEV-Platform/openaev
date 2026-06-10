@@ -3,12 +3,13 @@ package io.openaev.datapack.packs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.DataPackService;
 import io.openaev.service.UserService;
@@ -38,16 +39,16 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
     // Arrange
     V20260518_Service_Account datapack =
         new V20260518_Service_Account(dataPackService, privilegeService);
-
+    TxCtx ctx = TxCtx.of("tenant-1");
     // Act
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(ctx);
 
     // Flush and clear persistence context to force reload from DB
     entityManager.flush();
     entityManager.clear();
 
     // Assert — service account token should be retrievable
-    var user = privilegeService.getUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+    var user = privilegeService.getUserServiceAccountByTenant(ctx.tenantIdFromUri());
 
     assertThat(user).isPresent();
     assertThat(user.get().getTokens()).hasSize(1);
@@ -57,7 +58,7 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
         dataPackService
             .findByIdAndTenant(
                 V20260518_Service_Account.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
+                new Tenant(ctx.tenantIdFromUri()))
             .isPresent());
   }
 
@@ -67,10 +68,10 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
     // Arrange
     V20260518_Service_Account datapack =
         new V20260518_Service_Account(dataPackService, privilegeService);
-
+    TxCtx ctx = TxCtx.of("tenant-1");
     // Act — process twice
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(ctx);
+    datapack.process(ctx);
 
     // Flush and clear to force reload
     entityManager.flush();
@@ -78,8 +79,7 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
 
     // Assert — still only one user with one token
     String expectedEmail =
-        ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN.formatted(
-            TenantContext.getCurrentTenant());
+        ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN.formatted(ctx.tenantIdFromUri());
     var user = userService.findByEmailIgnoreCase(expectedEmail);
     assertThat(user).isPresent();
     assertThat(user.get().getTokens()).hasSize(1);
@@ -90,23 +90,24 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
   void given_privilegeServiceFailure_should_returnFalse() {
     // Arrange — local mock; we don't need to replace the Spring bean since the datapack
     // takes the privilege service as a constructor argument.
+    TxCtx ctx = TxCtx.of("tenant-1");
     ServiceAccountPrivilegeService mockPrivilegeService =
         mock(ServiceAccountPrivilegeService.class);
     doThrow(new RuntimeException("DB error"))
         .when(mockPrivilegeService)
-        .ensurePrivilegedUserExists(anyString());
+        .ensurePrivilegedUserExists("tenantId");
     V20260518_Service_Account datapack =
         new V20260518_Service_Account(dataPackService, mockPrivilegeService);
 
     // Act
-    datapack.process(new Tenant(TenantContext.getCurrentTenant()));
+    datapack.process(ctx);
 
     // Assert — datapack should NOT be marked as processed
     assertFalse(
         dataPackService
             .findByIdAndTenant(
                 V20260518_Service_Account.class.getCanonicalName(),
-                new Tenant(TenantContext.getCurrentTenant()))
+                new Tenant(ctx.tenantIdFromUri()))
             .isPresent());
   }
 }

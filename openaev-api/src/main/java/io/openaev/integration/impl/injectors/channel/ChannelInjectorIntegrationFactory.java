@@ -3,6 +3,7 @@ package io.openaev.integration.impl.injectors.channel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.ArticleRepository;
@@ -109,11 +110,13 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    TxCtx ctx = TxCtx.of(tenantId);
     try {
-      injectorService.injector(ChannelInjectorIntegration.CHANNEL_INJECTOR_ID);
+      injectorService.injector(ctx, ChannelInjectorIntegration.CHANNEL_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
       injectorService.registerBuiltinInjector(
+              ctx,
           ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
           ChannelInjectorIntegration.CHANNEL_INJECTOR_NAME,
           channelContract,

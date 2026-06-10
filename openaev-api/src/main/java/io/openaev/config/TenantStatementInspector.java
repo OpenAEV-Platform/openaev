@@ -1,10 +1,7 @@
 package io.openaev.config;
 
 import jakarta.annotation.PostConstruct;
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 import javax.sql.DataSource;

@@ -3,7 +3,6 @@ package io.openaev.rest.security;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseRepository;
@@ -79,7 +78,7 @@ public class SecurityExpression extends SecurityExpressionRoot
     }
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
+            .findById(simulationId)
             .orElseThrow();
     List<User> planners = exercise.getPlanners();
     Optional<User> planner =
@@ -104,7 +103,7 @@ public class SecurityExpression extends SecurityExpressionRoot
     }
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
+            .findById(simulationId)
             .orElseThrow();
     List<User> observers = exercise.getObservers();
     Optional<User> observer =
@@ -118,7 +117,7 @@ public class SecurityExpression extends SecurityExpressionRoot
     }
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow();
     List<User> players = exercise.getUsers();
     Optional<User> player =

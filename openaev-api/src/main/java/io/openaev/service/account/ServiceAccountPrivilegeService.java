@@ -2,6 +2,7 @@ package io.openaev.service.account;
 
 import static io.openaev.service.account.Constants.*;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
@@ -14,7 +15,6 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -66,9 +66,8 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
     return SERVICE_GROUP_DESCRIPTION;
   }
 
-  @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
-    Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
+    Group group = createWellKnownGroupWithRole(tenantId, createWellKnownRole(tenantId));
     // UNIQUE by tenant
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
@@ -101,14 +100,12 @@ public class ServiceAccountPrivilegeService extends AbstractPrivilegeService {
     }
   }
 
-  @Transactional(readOnly = true)
   public Optional<User> getUserServiceAccountByTenant(String tenantId) {
     String email = SERVICE_EMAIL_PATTERN.formatted(tenantId);
 
     return userService.findByEmailIgnoreCase(email).stream().findFirst();
   }
 
-  @Transactional(readOnly = true)
   public String getTokenUserServiceAccountByTenant(String tenantId) {
 
     return getUserServiceAccountByTenant(tenantId)

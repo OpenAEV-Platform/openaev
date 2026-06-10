@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -126,7 +125,6 @@ public class ConnectorInstanceService {
    * @return {@code false} only if a connector instance is explicitly found with a non-started
    *     status; {@code true} otherwise
    */
-  @Transactional(readOnly = true)
   public boolean hasStartedConnectorInstanceForInjector(final String injectorId) {
     try {
       return this.connectorInstanceConfigurationRepository
@@ -155,7 +153,6 @@ public class ConnectorInstanceService {
    * @return the owning connector instance
    * @throws EntityNotFoundException if no connector instance is found for the executor ID
    */
-  @Transactional(readOnly = true)
   public ConnectorInstancePersisted findByExecutorId(String executorId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase persistedId =
         this.connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
@@ -289,7 +286,6 @@ public class ConnectorInstanceService {
    *
    * @param id the connector instance ID to delete
    */
-  @Transactional(rollbackFor = Exception.class)
   public void deleteById(String id) throws ConnectorStatusException {
     ConnectorInstancePersisted connectorInstance =
         connectorInstanceRepository

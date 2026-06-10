@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injector_contract.Contract;
@@ -60,7 +59,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
       return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -73,7 +72,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
       return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -87,7 +86,7 @@ public class InjectorContractFixture {
   }
 
   private static void setDefaultTenant(InjectorContract injectorContract) {
-    injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    injectorContract.setTenant(new Tenant("tenant"));
   }
 
   public static InjectorContract createPayloadInjectorContractWithFieldsContent(
@@ -402,7 +401,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      manualInjectorIntegrationFactory.registerConnectorForTenant();
+      manualInjectorIntegrationFactory.registerConnectorForTenant("tenant");
       return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);

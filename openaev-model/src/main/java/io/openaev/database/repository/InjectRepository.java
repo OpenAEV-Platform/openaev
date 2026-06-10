@@ -121,8 +121,7 @@ public interface InjectRepository
   @Query(
       value =
           "select i.*, i.tenant_id as tenantId from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
-              + " and i.inject_content like :challengeId"
-              + " and i.tenant_id = :#{#tenantContext.currentTenant}",
+              + " and i.inject_content like :challengeId",
       nativeQuery = true)
   List<Inject> findAllForChallengeId(@Param("challengeId") String challengeId);
 
@@ -150,7 +149,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_exercise, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :exercise, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForExercise(
       @Param("id") String id,
@@ -163,7 +162,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("exercise") String exerciseId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -171,7 +171,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, inject_scenario, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :scenario, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveForScenario(
       @Param("id") String id,
@@ -184,7 +184,8 @@ public interface InjectRepository
       @Param("enabled") boolean enabled,
       @Param("scenario") String scenarioId,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
@@ -192,7 +193,7 @@ public interface InjectRepository
           "insert into injects (inject_id, inject_title, inject_description, inject_country, inject_city,"
               + "inject_injector_contract, inject_all_teams, inject_enabled, "
               + "inject_depends_duration, inject_content, tenant_id) "
-              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :#{#tenantContext.currentTenant})",
+              + "values (:id, :title, :description, :country, :city, :contract, :allTeams, :enabled, :dependsDuration, :content, :tenantId)",
       nativeQuery = true)
   void importSaveStandAlone(
       @Param("id") String id,
@@ -204,7 +205,9 @@ public interface InjectRepository
       @Param("allTeams") boolean allTeams,
       @Param("enabled") boolean enabled,
       @Param("dependsDuration") Long dependsDuration,
-      @Param("content") String content);
+      @Param("content") String content,
+      @Param("tenantId") String tenantId);
+  ;
 
   @Modifying
   @Query(
@@ -355,7 +358,6 @@ public interface InjectRepository
     FROM injects i
     INNER JOIN findings f ON f.finding_inject_id = i.inject_id
     WHERE (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)
@@ -371,7 +373,6 @@ public interface InjectRepository
     LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
     WHERE (i.inject_exercise = :sourceId OR se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
       AND (:title IS NULL OR LOWER(i.inject_title) LIKE LOWER(CONCAT('%', COALESCE(:title, ''), '%')))
-      AND i.tenant_id = :#{#tenantContext.currentTenant}
       ORDER BY i.inject_created_at DESC;
     """,
       nativeQuery = true)

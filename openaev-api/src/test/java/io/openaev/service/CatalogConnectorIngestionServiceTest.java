@@ -69,7 +69,7 @@ public class CatalogConnectorIngestionServiceTest {
 
     JsonNode root = mapper.readTree(mockJson);
 
-    List<CatalogConnector> result = catalogConnectorIngestionService.extractCatalog(root);
+    List<CatalogConnector> result = catalogConnectorIngestionService.extractCatalog("tenant", root);
 
     assertThat(result).isNotEmpty();
     assertThat(result).hasSize(1);
@@ -98,7 +98,7 @@ public class CatalogConnectorIngestionServiceTest {
             connectorInstanceService,
             connectorInstanceConfigurationRepository);
 
-    CatalogConnector connector = ingestion.buildCatalogConnector(contract);
+    CatalogConnector connector = ingestion.buildCatalogConnector("tenant", contract);
 
     assertThat(connector.getLogoUrl()).isEqualTo("connector-validBase64-logo.png");
   }
@@ -126,7 +126,7 @@ public class CatalogConnectorIngestionServiceTest {
             connectorInstanceService,
             connectorInstanceConfigurationRepository);
 
-    CatalogConnector connector = ingestion.buildCatalogConnector(contract);
+    CatalogConnector connector = ingestion.buildCatalogConnector("tenant", contract);
 
     assertThat(connector.getLogoUrl()).isEqualTo("img/icon-connector-default.png");
   }
@@ -165,7 +165,7 @@ public class CatalogConnectorIngestionServiceTest {
             connectorInstanceService,
             connectorInstanceConfigurationRepository);
 
-    CatalogConnector connector = ingestion.buildCatalogConnector(contract);
+    CatalogConnector connector = ingestion.buildCatalogConnector("tenant", contract);
 
     assertThat(connector.getTitle()).isEqualTo("connector");
     assertThat(connector.getSlug()).isEqualTo("connector-slug");
@@ -199,7 +199,7 @@ public class CatalogConnectorIngestionServiceTest {
             connectorInstanceService,
             connectorInstanceConfigurationRepository);
 
-    CatalogConnector connector = ingestion.buildCatalogConnector(contract);
+    CatalogConnector connector = ingestion.buildCatalogConnector("tenant", contract);
 
     assertThat(connector.getUseCases()).isEmpty();
   }
@@ -225,7 +225,7 @@ public class CatalogConnectorIngestionServiceTest {
             connectorInstanceService,
             connectorInstanceConfigurationRepository);
 
-    CatalogConnector connector = ingestion.buildCatalogConnector(contract);
+    CatalogConnector connector = ingestion.buildCatalogConnector("tenant", contract);
 
     assertThat(connector.getContainerType()).isNull();
   }

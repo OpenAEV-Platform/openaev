@@ -3,6 +3,7 @@ package io.openaev.config;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
@@ -62,6 +63,11 @@ public class OpenAEVOidcUser implements OpenAEVPrincipal, OidcUser, Serializable
     attributes.put("name", user.getFirstname() + " " + user.getLastname());
     attributes.put("email", user.getEmail());
     return attributes;
+  }
+
+  @Override
+  public List<String> tenantIds() {
+    return this.user.getTenants().stream().map(Tenant::getId).toList();
   }
 
   @Override

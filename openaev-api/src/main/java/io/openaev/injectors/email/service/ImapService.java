@@ -203,7 +203,7 @@ public class ImapService extends ExternalServiceBase {
     return null;
   }
 
-  private void parseMessages(Message[] messages, Boolean isSent) throws Exception {
+  private void parseMessages(String tenantId, Message[] messages, Boolean isSent) throws Exception {
     for (Message message : messages) {
       MimeMessage mimeMessage = (MimeMessage) message;
       String messageID = mimeMessage.getMessageID();
@@ -254,7 +254,7 @@ public class ImapService extends ExternalServiceBase {
                       ? "/" + exerciseId + "/communications/" + comm.getId()
                       : "/communications/" + comm.getId();
               String uploadName =
-                  fileService.uploadStream(path, fileName, dataSource.getInputStream());
+                  fileService.uploadStream(tenantId, path, fileName, dataSource.getInputStream());
               uploads.add(uploadName);
             }
             // Add attachment in the communication
@@ -268,7 +268,7 @@ public class ImapService extends ExternalServiceBase {
     }
   }
 
-  private void synchronizeBox(Folder inbox, Boolean isSent) throws Exception {
+  private void synchronizeBox(String tenantId, Folder inbox, Boolean isSent) throws Exception {
     String inboxKey = username + "-imap-" + inbox.getName();
     Optional<Setting> state = this.getSettingRepository().findByKeyAndTenantIsNull(inboxKey);
     Setting currentState = state.orElse(null);
@@ -283,39 +283,39 @@ public class ImapService extends ExternalServiceBase {
       int start = startMessageNumber + 1;
       Message[] messages = inbox.getMessages(start, messageCount);
       if (messages.length > 0) {
-        parseMessages(messages, isSent);
+        parseMessages(tenantId, messages, isSent);
       }
     }
     currentState.setValue(String.valueOf(messageCount));
     this.getSettingRepository().save(currentState);
   }
 
-  private void tryToSynchronizeFolderFromBox(String folderName, Boolean isSent) throws Exception {
+  private void tryToSynchronizeFolderFromBox(String tenantId, String folderName, Boolean isSent) throws Exception {
     try (Folder folderBox = imapStore.getFolder(folderName)) {
       folderBox.open(Folder.READ_ONLY);
-      synchronizeBox(folderBox, isSent);
+      synchronizeBox(tenantId, folderBox, isSent);
     }
   }
 
-  private void syncFolders() throws Exception {
+  private void syncFolders(String tenantId) throws Exception {
     try {
       // Sync sent
-      tryToSynchronizeFolderFromBox(sentFolder, true);
+      tryToSynchronizeFolderFromBox(tenantId, sentFolder, true);
       // Sync received
       for (String listeningFolder : inboxFolders) {
-        tryToSynchronizeFolderFromBox(listeningFolder, false);
+        tryToSynchronizeFolderFromBox(tenantId, listeningFolder, false);
       }
     } catch (MessagingException e) {
       log.warn(String.format("Connection failure: %s", e.getMessage()), e);
       // Retry logic or rethrow the exception
-      retrySyncFolders();
+      retrySyncFolders(tenantId);
     }
   }
 
-  private void retrySyncFolders() throws Exception {
+  private void retrySyncFolders(String tenantId) throws Exception {
     for (int i = 0; i < 3; i++) {
       try {
-        syncFolders();
+        syncFolders(tenantId);
         break;
       } catch (MessagingException e) {
         log.warn(String.format("Retrying connection... %s", e.getMessage()), e);
@@ -341,7 +341,8 @@ public class ImapService extends ExternalServiceBase {
           return;
         }
       }
-      syncFolders();
+      // TODO JRI What?
+      syncFolders(null);
     }
   }
 

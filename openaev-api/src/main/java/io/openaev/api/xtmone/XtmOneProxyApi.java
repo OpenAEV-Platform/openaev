@@ -67,6 +67,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
   // -- AGENT CALLS --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/agent")
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
@@ -89,6 +90,7 @@ public class XtmOneProxyApi extends RestBehavior {
     return ResponseEntity.ok(AgentCallOutput.success(result));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(value = "/agent/stream", produces = "text/event-stream")
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)

@@ -4,6 +4,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -50,6 +51,7 @@ public class ExerciseDashboardApi {
         this.customDashboardService.findCustomDashboardByResourceId(simulationId));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}"
@@ -59,13 +61,15 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public EsCountInterval dashboardCount(
+          TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(
+    return this.customDashboardService.dashboardCountOnResourceId(ctx,
         simulationId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}"
@@ -75,13 +79,15 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public EsAvgs dashboardAverage(
+          TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardAverageOnResourceId(
+    return this.customDashboardService.dashboardAverageOnResourceId(ctx,
         simulationId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}"
@@ -91,13 +97,15 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<EsSeries> dashboardSeries(
+          TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardSeriesOnResourceId(
+    return this.customDashboardService.dashboardSeriesOnResourceId(ctx,
         simulationId, widgetId, parameters);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}"
@@ -107,12 +115,14 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public EsEntities dashboardEntities(
+          TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(simulationId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(ctx, simulationId, widgetId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}"
@@ -122,13 +132,15 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+          TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
-    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
+    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(ctx,
         simulationId, widgetId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}"
@@ -138,11 +150,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<EsAttackPath> dashboardAttackPaths(
+          TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.customDashboardService.dashboardAttackPathsOnResourceId(
+    return this.customDashboardService.dashboardAttackPathsOnResourceId(ctx,
         simulationId, widgetId, parameters);
   }
 }

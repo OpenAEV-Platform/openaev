@@ -22,7 +22,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -123,7 +122,6 @@ public class AssetGroupService {
 
   // -- ASSET --
 
-  @Transactional(readOnly = true)
   public List<Asset> assetsFromAssetGroup(@NotBlank final String assetGroupId) {
     AssetGroup assetGroup = this.assetGroup(assetGroupId);
     List<Asset> assets = new ArrayList<>();

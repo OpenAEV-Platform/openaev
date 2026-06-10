@@ -12,12 +12,12 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.resource.EncodedResourceResolver;
 import org.springframework.web.servlet.resource.PathResourceResolver;
 
@@ -28,17 +28,11 @@ public class MvcConfig implements WebMvcConfigurer {
   private static final int CACHE_PERIOD = 3600;
 
   @Resource private ObjectMapper objectMapper;
-  @Resource private TenantInterceptor tenantInterceptor;
   @Resource private OperationStateArgumentResolver operationStateArgumentResolver;
 
   @Override
   public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
     resolvers.add(operationStateArgumentResolver);
-  }
-
-  @Override
-  public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(tenantInterceptor).addPathPatterns("/api/tenants/**");
   }
 
   @Bean

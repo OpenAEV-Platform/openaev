@@ -4,7 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -20,7 +20,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
@@ -70,7 +69,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   @Override
   protected Executor getConnectorById(String executorId) {
     return executorRepository
-        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+        .findById(executorId)
         .orElse(null);
   }
 
@@ -105,9 +104,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @return the executor matching the given id
    * @throws ElementNotFoundException if no collector is found with the given type
    */
-  public Executor executor(String id) throws ElementNotFoundException {
+  public Executor executor(TxCtx ctx, String id) throws ElementNotFoundException {
     return executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(id, ctx.tenantIdFromUri())
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -136,13 +135,13 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @param type the executor type to search for
    * @return an Optional containing the executor if found, empty otherwise
    */
-  public Optional<Executor> executorByType(String type) {
-    return this.executorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
+  public Optional<Executor> executorByType(TxCtx ctx, String type) {
+    return this.executorRepository.findByTypeAndTenantId(type, ctx.tenantIdFromUri());
   }
 
-  @Transactional
   public Executor register(
-      String id,
+          TxCtx ctx,
+          String id,
       String type,
       String name,
       String documentationUrl,
@@ -158,16 +157,16 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
     // Save imgs
     if (iconData != null) {
-      fileService.uploadStream(EXECUTORS_IMAGES_ICONS_BASE_PATH, type + EXT_PNG, iconData);
+      fileService.uploadStream(ctx.tenantIdFromUri(), EXECUTORS_IMAGES_ICONS_BASE_PATH, type + EXT_PNG, iconData);
     }
     if (bannerData != null) {
-      fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
+      fileService.uploadStream(ctx.tenantIdFromUri(), EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
     Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+        executorRepository.findByIdAndTenantId(id, ctx.tenantIdFromUri()).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+      Tenant tenant = new Tenant(ctx.tenantIdFromUri());
       executor = new Executor();
       executor.setId(id);
       executor.setTenant(tenant);
@@ -183,10 +182,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     return executorRepository.save(executor);
   }
 
-  @Transactional
-  public void remove(String id) {
+  public void remove(TxCtx ctx, String id) {
     executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(id, ctx.tenantIdFromUri())
         .ifPresent(executor -> executorRepository.delete(executor));
   }
 

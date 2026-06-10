@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.jsonapi.*;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
@@ -16,10 +17,10 @@ import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.ZipJsonService;
 import jakarta.annotation.Resource;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -28,7 +29,6 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
 public class PayloadImportService {
 
   private final ZipJsonApi<Payload> zipJsonApi;
@@ -61,17 +61,17 @@ public class PayloadImportService {
    * @return the import result containing the persisted payload and the synchronised injector
    *     contract
    */
-  public PayloadImportResult importPayload(MultipartFile file) throws Exception {
+  public PayloadImportResult importPayload(TxCtx ctx,  MultipartFile file) throws Exception {
     ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
+        zipJsonApi.handleImport(ctx.tenantIdFromUri(), file, "payload_name", IMPORT_OPTIONS, null);
 
     List<AttackPattern> attackPatterns =
-        extractRelationshipObjects(
+        extractRelationshipObjects(ctx,
             "attack_patterns", this::handleAttackPatternImport, response.sourceDocument());
     List<Domain> domains =
-        extractRelationshipObjects("domains", this::handleDomainImport, response.sourceDocument());
+        extractRelationshipObjects(ctx,"domains", this::handleDomainImport, response.sourceDocument());
     List<Tag> tags =
-        extractRelationshipObjects("tags", this::handleTagImport, response.sourceDocument());
+        extractRelationshipObjects(ctx,"tags", this::handleTagImport, response.sourceDocument());
 
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
@@ -92,7 +92,7 @@ public class PayloadImportService {
   public record PayloadImportResult(
       ZipJsonService.ImportOutput<Payload> payloadOutput, InjectorContract injectorContract) {}
 
-  private AttackPattern handleAttackPatternImport(ResourceObject object) {
+  private AttackPattern handleAttackPatternImport(TxCtx ctx, ResourceObject object) {
     AttackPatternCreateInput input = new AttackPatternCreateInput();
     input.setName(object.attributes().get("attack_pattern_name").toString());
     input.setDescription(object.attributes().get("attack_pattern_description").toString());
@@ -101,17 +101,17 @@ public class PayloadImportService {
     input.setPlatforms(asStringArray(object.attributes().get("attack_pattern_platforms")));
     input.setPermissionsRequired(
         asStringArray(object.attributes().get("attack_pattern_permissions_required")));
-    return attackPatternService.findOrCreate(input);
+    return attackPatternService.findOrCreate(ctx, input);
   }
 
-  private Domain handleDomainImport(ResourceObject object) {
+  private Domain handleDomainImport(TxCtx ctx, ResourceObject object) {
     DomainBaseInput input = new DomainBaseInput();
     input.setName(object.attributes().get("domain_name").toString());
     input.setColor(object.attributes().get("domain_color").toString());
-    return domainService.upsert(input);
+    return domainService.upsert(ctx, input);
   }
 
-  private Tag handleTagImport(ResourceObject object) {
+  private Tag handleTagImport(TxCtx ctx, ResourceObject object) {
     TagCreateInput input = new TagCreateInput();
     input.setName(object.attributes().get("tag_name").toString());
     input.setColor(object.attributes().get("tag_color").toString());
@@ -119,8 +119,9 @@ public class PayloadImportService {
   }
 
   private <T> List<T> extractRelationshipObjects(
+          TxCtx ctx,
       String relName,
-      Function<ResourceObject, T> valueExtractor,
+      BiFunction<TxCtx, ResourceObject, T> valueExtractor,
       JsonApiDocument<ResourceObject> resourceDocument) {
     Relationship relationship = getPayloadRelationship(resourceDocument, relName);
     if (relationship == null || relationship.asMany() == null || relationship.asMany().isEmpty()) {
@@ -136,7 +137,7 @@ public class PayloadImportService {
     return relationship.asMany().stream()
         .map(ref -> includedById.get(ref.id()))
         .filter(Objects::nonNull)
-        .map(valueExtractor)
+            .map(resourceObject -> valueExtractor.apply(ctx, resourceObject))
         .filter(Objects::nonNull)
         .toList();
   }

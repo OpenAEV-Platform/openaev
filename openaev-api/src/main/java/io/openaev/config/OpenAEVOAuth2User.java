@@ -3,6 +3,7 @@ package io.openaev.config;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
@@ -55,6 +56,11 @@ public class OpenAEVOAuth2User implements OpenAEVPrincipal, OAuth2User, Serializ
   @Override
   public String getLang() {
     return this.user.getLang();
+  }
+
+  @Override
+  public List<String> tenantIds() {
+    return this.user.getTenants().stream().map(Tenant::getId).toList();
   }
 
   @Override

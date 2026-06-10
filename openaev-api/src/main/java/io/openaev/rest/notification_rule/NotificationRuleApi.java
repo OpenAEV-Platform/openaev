@@ -62,6 +62,7 @@ public class NotificationRuleApi {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(description = "Get NotificationRule by Id", summary = "Get NotificationRule")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The NotificationRule")})
+  @Transactional(readOnly = true)
   public NotificationRuleOutput findNotificationRule(
       @PathVariable @NotBlank @Schema(description = "ID of the notification rule")
           final String notificationRuleId) {
@@ -81,6 +82,7 @@ public class NotificationRuleApi {
       description = "Get NotificationRule by resource id for the current user",
       summary = "Get NotificationRule by resource id")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The NotificationRule")})
+  @Transactional(readOnly = true)
   public List<NotificationRuleOutput> findNotificationRuleByResource(
       @PathVariable
           @NotBlank
@@ -101,6 +103,7 @@ public class NotificationRuleApi {
       value = {
         @ApiResponse(responseCode = "200", description = "The list of all NotificationRules")
       })
+  @Transactional(readOnly = true)
   public List<NotificationRuleOutput> notificationRules() {
     return notificationRuleService.findAll().stream()
         .map(notificationRuleMapper::toNotificationRuleOutput)
@@ -171,6 +174,7 @@ public class NotificationRuleApi {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({NOTIFICATION_RULE_URI + "/search", TENANT_NOTIFICATION_RULE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.NOTIFICATION_RULE)
   @Operation(

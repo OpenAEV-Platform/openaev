@@ -221,7 +221,7 @@ class StixApiTest extends IntegrationTest {
     injectorContractComposer
         .forInjectorContract(
             InjectorContractFixture.createInjectorContract(createContentWithFieldAsset()))
-        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+        .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
         .withVulnerability(
             vulnerabilityComposer.forVulnerability(
                 VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56785")))
@@ -230,7 +230,7 @@ class StixApiTest extends IntegrationTest {
     injectorContractComposer
         .forInjectorContract(
             InjectorContractFixture.createInjectorContract(createContentWithFieldAssetGroup()))
-        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+        .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
         .withVulnerability(
             vulnerabilityComposer.forVulnerability(
                 VulnerabilityFixture.createVulnerabilityInput("CVE-2025-56786")))

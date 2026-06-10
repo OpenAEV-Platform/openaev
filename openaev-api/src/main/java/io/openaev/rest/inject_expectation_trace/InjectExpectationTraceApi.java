@@ -4,7 +4,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -25,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -54,6 +54,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
           "Create inject expectation trace for collector. Deprecated since 1.16.0. Replaced by "
               + INJECT_EXPECTATION_TRACES_URI
               + "/bulk")
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping()
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
@@ -66,7 +67,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
 
     Collector collector =
         collectorRepository
-            .findByIdAndTenantId(input.getSourceId(), TenantContext.getCurrentTenant())
+            .findById(input.getSourceId())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
 
     return this.injectExpectationTraceRepository
@@ -90,6 +91,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
             description = "Inject expectation traces inserted successfully")
       })
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/bulk")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
@@ -101,6 +103,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
         inputs.getExpectationTraces());
   }
 
+  @Transactional(readOnly = true)
   @Operation(summary = "Get inject expectation traces from collector")
   @GetMapping()
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
@@ -109,7 +112,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
     try {
       Collector collector =
           collectorRepository
-              .findByIdAndTenantId(sourceId, TenantContext.getCurrentTenant())
+              .findById(sourceId)
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());
@@ -118,6 +121,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
     }
   }
 
+  @Transactional(readOnly = true)
   @Operation(summary = "Get inject expectation traces' count")
   @GetMapping("/count")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)

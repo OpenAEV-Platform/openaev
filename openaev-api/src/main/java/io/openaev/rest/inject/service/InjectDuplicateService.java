@@ -2,7 +2,6 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.utils.StringUtils.duplicateString;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
@@ -12,7 +11,6 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.InjectUtils;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -27,18 +25,16 @@ public class InjectDuplicateService {
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
 
-  @Transactional
   public Inject duplicateInjectForScenario(Scenario scenario, Inject inject) {
     Inject duplicatedInject = getDuplicatedInjectWithScenario(scenario, inject);
     return saveInject(inject, duplicatedInject);
   }
 
-  @Transactional
   public Inject duplicateInjectForScenarioWithDuplicateWordInTitle(
       final String scenarioId, final String injectId) {
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithScenario(scenario, inject);
@@ -46,18 +42,16 @@ public class InjectDuplicateService {
     return saveInject(inject, duplicatedInject);
   }
 
-  @Transactional
   public Inject duplicateInjectForExercise(Exercise exercise, Inject inject) {
     Inject duplicatedInject = getDuplicatedInjectWithExercise(exercise, inject);
     return saveInject(inject, duplicatedInject);
   }
 
-  @Transactional
   public Inject duplicateInjectForExerciseWithDuplicateWordInTitle(
       final String exerciseId, final String injectId) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithExercise(exercise, inject);

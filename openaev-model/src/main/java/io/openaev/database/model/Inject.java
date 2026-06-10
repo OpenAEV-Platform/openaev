@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.helper.*;
 import io.openaev.helper.InjectModelHelper;
@@ -38,8 +37,7 @@ import org.hibernate.annotations.*;
 @Setter
 @Entity
 @Table(name = "injects")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @Slf4j
 @Grantable(Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING)
 public class Inject implements GrantableBase, Injection, TenantBase {

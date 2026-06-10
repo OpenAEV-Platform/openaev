@@ -1,7 +1,6 @@
 package io.openaev.utils;
 
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -61,7 +60,6 @@ public class TenantIsolationTestHelper {
    * @param name the tenant name
    * @return the persisted {@link Tenant}
    */
-  @Transactional
   public Tenant createTenantWithCurrentUser(String name) throws DependenciesManagerException {
     Tenant tenant = createTenant(name);
     String userId = testUserHolder.get().getId();
@@ -80,7 +78,6 @@ public class TenantIsolationTestHelper {
    * @param capabilities the capabilities to grant to the current user in this tenant
    * @return the persisted {@link Tenant}
    */
-  @Transactional
   public Tenant createTenantWithCapabilities(String name, Set<Capability> capabilities)
       throws DependenciesManagerException {
     Tenant tenant = createTenantWithCurrentUser(name);
@@ -116,19 +113,5 @@ public class TenantIsolationTestHelper {
     Tenant tenant =
         TenantFixture.getTenant(name + "-" + UUID.randomUUID().toString().substring(0, 8));
     return tenantService.create(tenant);
-  }
-
-  /**
-   * Switches the current tenant context and enables the Hibernate tenant filter.
-   *
-   * @param tenantId the tenant ID to switch to
-   * @param entityManager the current {@link EntityManager}
-   */
-  public void switchToTenant(String tenantId, EntityManager entityManager) {
-    entityManager.flush();
-    entityManager.clear();
-    TenantContext.setCurrentTenant(tenantId);
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
   }
 }

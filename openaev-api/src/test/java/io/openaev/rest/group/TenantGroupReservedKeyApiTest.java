@@ -14,7 +14,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -61,13 +60,13 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
   /** Computes the tenant-scoped reserved id used by the service-account group in this tenant. */
   private String reservedServiceGroupId() {
     return AbstractPrivilegeService.getUUIDFromName(
-        SERVICE_GROUP_ID, TenantContext.getCurrentTenant());
+        SERVICE_GROUP_ID, "tenant");
   }
 
   /** Computes the tenant-scoped reserved id used by the STIX-processor group in this tenant. */
   private String reservedStixGroupId() {
     return AbstractPrivilegeService.getUUIDFromName(
-        PROCESS_STIX_GROUP_ID, TenantContext.getCurrentTenant());
+        PROCESS_STIX_GROUP_ID, "tenant");
   }
 
   /** Persists a group with an explicitly assigned (reserved) id. */
@@ -234,7 +233,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
           UserFixture.getUser(
               "Service", "Account", SERVICE_EMAIL_PATTERN.formatted(UUID.randomUUID().toString()));
       reservedUser = userRepository.save(reservedUser);
-      tenantRepository.addUserToTenant(reservedUser.getId(), TenantContext.getCurrentTenant());
+      tenantRepository.addUserToTenant(reservedUser.getId(), "tenant");
       entityManager.flush();
 
       GroupUpdateUsersInput input = new GroupUpdateUsersInput();
@@ -272,7 +271,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
       roleWithReservedId.setId(
           AbstractPrivilegeService.getUUIDFromName(
               io.openaev.service.account.Constants.SERVICE_ROLE_ID,
-              TenantContext.getCurrentTenant()));
+                  "tenant"));
       Role reservedRole = tenantRoleComposer.forRole(roleWithReservedId).persist().get();
       GroupUpdateRolesInput input =
           GroupUpdateRolesInput.builder().roleIds(List.of(reservedRole.getId())).build();

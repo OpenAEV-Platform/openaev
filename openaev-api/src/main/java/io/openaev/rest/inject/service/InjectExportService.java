@@ -52,7 +52,7 @@ public class InjectExportService {
     return ("injects_" + now().toString()) + "_" + infos + ".zip";
   }
 
-  public byte[] exportInjectsToZip(List<Inject> injects, int exportOptionsMask) throws IOException {
+  public byte[] exportInjectsToZip(String tenantId, List<Inject> injects, int exportOptionsMask) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
     InjectsFileExport importExport =
@@ -78,7 +78,7 @@ public class InjectExportService {
             docId -> {
               Document doc =
                   documentRepository.findById(docId).orElseThrow(ElementNotFoundException::new);
-              Optional<InputStream> docStream = fileService.getFile(doc);
+              Optional<InputStream> docStream = fileService.getFile(tenantId, doc);
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());

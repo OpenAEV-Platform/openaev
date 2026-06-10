@@ -14,7 +14,6 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +38,6 @@ public class PayloadCreationService {
   public record PayloadInjectorContractCreationResult(
       Payload payload, InjectorContract injectorContract) {}
 
-  @Transactional(rollbackOn = Exception.class)
   public PayloadInjectorContractCreationResult createPayload(PayloadCreateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {

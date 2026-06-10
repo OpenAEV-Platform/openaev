@@ -54,7 +54,6 @@ public interface InjectorContractRepository
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
@@ -79,8 +78,7 @@ public interface InjectorContractRepository
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
-              + "AND EXISTS ( "
+              + "WHERE EXISTS ( "
               + "  SELECT 1 FROM users u "
               + "  INNER JOIN users_groups ug ON u.user_id = ug.user_id "
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
@@ -166,7 +164,6 @@ public interface InjectorContractRepository
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
-              AND ic.tenant_id = :#{#tenantContext.currentTenant}
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,

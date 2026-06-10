@@ -104,7 +104,7 @@ public class GenericJsonApiImporter<T extends Base> {
   }
 
   public void handleImportDocument(
-      JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras) {
+      String tenantId, JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
         if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
@@ -115,7 +115,11 @@ public class GenericJsonApiImporter<T extends Base> {
             if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
                 fileService.uploadFile(
-                    target, in, fileBytes.length, Files.probeContentType(Path.of(target)));
+                    tenantId,
+                    target,
+                    in,
+                    fileBytes.length,
+                    Files.probeContentType(Path.of(target)));
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }

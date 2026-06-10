@@ -12,7 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
@@ -28,7 +28,6 @@ import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
@@ -68,20 +67,11 @@ public class AtomicTestingService {
   // -- CRUD --
 
   private Inject findInject(String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    return (tenantId != null)
-        ? injectRepository
-            .findByIdAndTenantId(injectId, tenantId)
-            .orElseThrow(ElementNotFoundException::new)
-        : injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
   public InjectResultOverviewOutput findById(String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    Optional<Inject> injectOpt =
-        (tenantId != null)
-            ? injectRepository.findByIdAndTenantId(injectId, tenantId)
-            : injectRepository.findWithStatusById(injectId);
+    Optional<Inject> injectOpt = injectRepository.findWithStatusById(injectId);
 
     if (injectOpt.isPresent()) {
       Inject inject = injectOpt.get();
@@ -96,15 +86,10 @@ public class AtomicTestingService {
   }
 
   public StatusPayloadOutput findPayloadOutputByInjectId(String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    Optional<Inject> inject =
-        (tenantId != null)
-            ? injectRepository.findByIdAndTenantId(injectId, tenantId)
-            : injectRepository.findById(injectId);
+    Optional<Inject> inject = injectRepository.findById(injectId);
     return payloadMapper.getStatusPayloadOutputFromInject(inject);
   }
 
-  @Transactional
   public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
     if (injectId != null) {
@@ -220,7 +205,6 @@ public class AtomicTestingService {
     return finalContent;
   }
 
-  @Transactional
   public InjectResultOverviewOutput updateAtomicTestingTags(
       String injectId, AtomicTestingUpdateTagsInput input) {
 
@@ -250,7 +234,6 @@ public class AtomicTestingService {
     return injectService.launch(id);
   }
 
-  @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
@@ -272,8 +255,8 @@ public class AtomicTestingService {
    * @param searchPaginationInput Pagination and filtering parameters
    * @return A paginated list of atomic testing results
    */
-  public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(TxCtx ctx,
+                                                                     @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Atomic testings are injects where scenario and exercise are null. They are also subject to
@@ -286,8 +269,8 @@ public class AtomicTestingService {
             .and(
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
+                    currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
+                    currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT),
                     Grant.GRANT_TYPE.OBSERVER));
 
     return buildPaginationCriteriaBuilder(

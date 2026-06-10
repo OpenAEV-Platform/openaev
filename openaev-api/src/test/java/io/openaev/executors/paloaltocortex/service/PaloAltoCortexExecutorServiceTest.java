@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Executor;
@@ -56,7 +55,7 @@ public class PaloAltoCortexExecutorServiceTest {
     paloAltoCortexExecutor = new Executor();
     paloAltoCortexExecutor.setName(PALOALTOCORTEX_EXECUTOR_NAME);
     paloAltoCortexExecutor.setType(PALOALTOCORTEX_EXECUTOR_TYPE);
-    paloAltoCortexExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    paloAltoCortexExecutor.setTenant(new Tenant("tenant"));
   }
 
   @Test

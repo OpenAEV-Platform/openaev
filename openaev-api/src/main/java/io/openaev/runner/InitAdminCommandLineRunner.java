@@ -22,7 +22,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
@@ -51,7 +50,6 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   }
 
   @Override
-  @Transactional
   public void run(String... args) {
     // Handle admin user
     Optional<User> adminUserOptional = this.userRepository.findById(ADMIN_UUID);

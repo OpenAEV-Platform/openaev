@@ -73,7 +73,7 @@ public class ScenarioExportTest extends IntegrationTest {
                         injectorContractComposer
                             .forInjectorContract(
                                 InjectorContractFixture.createDefaultInjectorContract())
-                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"))
                             .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                             .withTag(
                                 tagComposer.forTag(

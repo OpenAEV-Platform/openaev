@@ -916,7 +916,6 @@ public class AtomicTestingApiTest extends IntegrationTest {
     @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
     private Inject createInjectInTenant(Tenant tenant) {
-      tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
       Inject inject = InjectFixture.getDefaultInject();
       inject.setTenant(tenant);
       Inject persisted = injectComposer.forInject(inject).persist().get();

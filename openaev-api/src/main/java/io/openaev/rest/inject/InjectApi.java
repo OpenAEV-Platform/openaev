@@ -12,7 +12,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
@@ -130,6 +130,7 @@ public class InjectApi extends RestBehavior {
 
   // -- INJECTS --
 
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/{injectId}", TENANT_INJECT_URI + "/{injectId}"})
   @AccessControl(
       resourceId = "#injectId",
@@ -140,21 +141,23 @@ public class InjectApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECT_URI + "/search/export", TENANT_INJECT_URI + "/search/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
+          TxCtx ctx,
       @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
       throws IOException {
 
     // Control and format inputs
     List<Inject> injects =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.OBSERVER);
+        getInjectsAndCheckInputForBulkProcessing(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.OBSERVER);
 
     if (injects.isEmpty()) {
       throw new ElementNotFoundException("No injects to export");
     }
 
-    runInjectExport(
+    runInjectExport(ctx.tenantIdFromUri(),
         injects,
         ExportOptions.mask(
             input.getExportOptions().isWithPlayers(),
@@ -163,9 +166,11 @@ public class InjectApi extends RestBehavior {
         response);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECT_URI + "/export", TENANT_INJECT_URI + "/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
+          TxCtx ctx,
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
       HttpServletResponse response)
       throws IOException {
@@ -178,8 +183,8 @@ public class InjectApi extends RestBehavior {
                 .and(
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),
-                        currentUser.isAdminOrBypass(),
-                        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
+                        currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT),
                         Grant.GRANT_TYPE.OBSERVER)));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =
@@ -194,7 +199,7 @@ public class InjectApi extends RestBehavior {
             injectExportRequestInput.getExportOptions().isWithPlayers(),
             injectExportRequestInput.getExportOptions().isWithTeams(),
             injectExportRequestInput.getExportOptions().isWithVariableValues());
-    runInjectExport(injects, exportOptionsMask, response);
+    runInjectExport(ctx.tenantIdFromUri(), injects, exportOptionsMask, response);
   }
 
   @Operation(summary = "Export an inject")
@@ -203,6 +208,7 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Inject exported successfully"),
         @ApiResponse(responseCode = "404", description = "The inject was not found")
       })
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     INJECT_URI + "/{injectId}/inject_export",
     TENANT_INJECT_URI + "/{injectId}/inject_export"
@@ -212,6 +218,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
+          TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
           final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
@@ -224,13 +231,13 @@ public class InjectApi extends RestBehavior {
             injectIndividualExportRequestInput.getExportOptions().isWithPlayers(),
             injectIndividualExportRequestInput.getExportOptions().isWithTeams(),
             injectIndividualExportRequestInput.getExportOptions().isWithVariableValues());
-    runInjectExport(List.of(inject), exportOptionsMask, response);
+    runInjectExport(ctx.tenantIdFromUri(), List.of(inject), exportOptionsMask, response);
   }
 
-  private void runInjectExport(
+  private void runInjectExport(String tenantId,
       List<Inject> injects, int exportOptionsMask, HttpServletResponse response)
       throws IOException {
-    byte[] zippedExport = injectExportService.exportInjectsToZip(injects, exportOptionsMask);
+    byte[] zippedExport = injectExportService.exportInjectsToZip(tenantId, injects, exportOptionsMask);
     String zipName = injectExportService.getZipFileName(exportOptionsMask);
 
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
@@ -258,6 +265,7 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(
       path = {
         INJECT_URI + "/{injectId}/targets/{targetType}/search",
@@ -300,6 +308,7 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "The inject ID was not found"),
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
+  @Transactional(readOnly = true)
   @LogExecutionTime
   @GetMapping(
       path = {
@@ -343,6 +352,7 @@ public class InjectApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "An invalid target type was specified")
       })
   @LogExecutionTime
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(
       path = {
         INJECT_URI + "/targets/{targetType}/options",
@@ -361,6 +371,7 @@ public class InjectApi extends RestBehavior {
     return targetService.getTargetOptionsByIds(injectTargetTypeEnum, ids);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     INJECT_URI + "/execution/reception/{injectId}",
     TENANT_INJECT_URI + "/execution/reception/{injectId}"
@@ -377,6 +388,7 @@ public class InjectApi extends RestBehavior {
     return injectRepository.save(inject);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     INJECT_URI + "/execution/callback/{injectId}",
     TENANT_INJECT_URI + "/execution/callback/{injectId}"
@@ -391,6 +403,7 @@ public class InjectApi extends RestBehavior {
     injectExecutionCallback(null, injectId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     INJECT_URI + "/execution/{agentId}/callback/{injectId}",
     TENANT_INJECT_URI + "/execution/{agentId}/callback/{injectId}"
@@ -440,6 +453,7 @@ public class InjectApi extends RestBehavior {
     }
   }
 
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECT_URI + "/{injectId}/{agentId}/executable-payload",
     TENANT_INJECT_URI + "/{injectId}/{agentId}/executable-payload"
@@ -477,12 +491,13 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
+          TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(exerciseId, ctx.tenantIdFromUri())
             .orElseThrow(ElementNotFoundException::new);
     Inject inject = injectService.updateInject(injectId, input);
 
@@ -506,6 +521,7 @@ public class InjectApi extends RestBehavior {
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/next", TENANT_INJECT_URI + "/next"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
@@ -536,11 +552,11 @@ public class InjectApi extends RestBehavior {
   @PutMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
+  public List<Inject> bulkUpdateInject(TxCtx ctx, @RequestBody @Valid final InjectBulkUpdateInputs input) {
 
     // Control and format inputs
     List<Inject> injectsToUpdate =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
+        getInjectsAndCheckInputForBulkProcessing(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Bulk update
     return this.injectService.bulkUpdateInject(injectsToUpdate, input.getUpdateOperations());
@@ -553,11 +569,11 @@ public class InjectApi extends RestBehavior {
   @DeleteMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public List<Inject> bulkDelete(@RequestBody @Valid final InjectBulkProcessingInput input) {
+  public List<Inject> bulkDelete(TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
 
     // Control and format inputs
     List<Inject> injectsToDelete =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
+        getInjectsAndCheckInputForBulkProcessing(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Bulk delete
     this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
@@ -566,6 +582,7 @@ public class InjectApi extends RestBehavior {
 
   // -- OPTION --
 
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/findings/options", TENANT_INJECT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
@@ -575,6 +592,7 @@ public class InjectApi extends RestBehavior {
         searchText, sourceId, PageRequest.of(0, 50));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECT_URI + "/options", TENANT_INJECT_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
@@ -591,7 +609,7 @@ public class InjectApi extends RestBehavior {
    * @return The list of injects to process
    * @throws BadRequestException If the input is not correctly formatted
    */
-  private List<Inject> getInjectsAndCheckInputForBulkProcessing(
+  private List<Inject> getInjectsAndCheckInputForBulkProcessing(String tenantId,
       InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
@@ -604,13 +622,14 @@ public class InjectApi extends RestBehavior {
 
     // Retrieve injects that match the search input and check that the user is allowed to bulk
     // process them
-    return this.injectService.getInjectsAndCheckPermission(input, requested_grant_level);
+    return this.injectService.getInjectsAndCheckPermission(tenantId, input, requested_grant_level);
   }
 
   // -- Execution Traces
   @Operation(
       description =
           "Get ExecutionTraces from a specific inject and target (asset, agent, team, player)")
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/execution-traces", TENANT_INJECT_URI + "/execution-traces"})
   @AccessControl(
       resourceId = "#injectId",
@@ -626,6 +645,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get InjectStatus with global execution traces")
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/status", TENANT_INJECT_URI + "/status"})
   @AccessControl(
       resourceId = "#injectId",
@@ -638,6 +658,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get detection remediation by inject based on the payload definition")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECT_URI + "/detection-remediations/{injectId}",
     TENANT_INJECT_URI + "/detection-remediations/{injectId}"
@@ -653,6 +674,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get documents by inject and payload id")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECT_URI + "/{injectId}/payload/{payloadId}/documents",
     TENANT_INJECT_URI + "/{injectId}/payload/{payloadId}/documents"

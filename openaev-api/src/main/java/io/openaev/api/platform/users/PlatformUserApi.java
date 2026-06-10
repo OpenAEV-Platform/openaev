@@ -34,6 +34,7 @@ public class PlatformUserApi {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public UserOutput create(@Valid @RequestBody UserInput input) {
@@ -61,6 +62,7 @@ public class PlatformUserApi {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   public Page<UserOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -72,6 +74,7 @@ public class PlatformUserApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/find")
   public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
     return userService.find(userIds).stream().map(UserMapper::toPlatformOutput).toList();
@@ -85,6 +88,7 @@ public class PlatformUserApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{userId}")
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.updateUser(userId, input));
@@ -98,6 +102,7 @@ public class PlatformUserApi {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String userId) {

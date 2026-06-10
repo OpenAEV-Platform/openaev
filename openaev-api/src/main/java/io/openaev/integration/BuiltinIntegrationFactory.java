@@ -1,6 +1,7 @@
 package io.openaev.integration;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TxCtx;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
@@ -27,10 +28,10 @@ public abstract class BuiltinIntegrationFactory extends IntegrationFactory
    * Registers the built-in connector (injector / executor) in the <b>current</b> tenant context.
    * Must be idempotent — safe to call even if the connector already exists (upsert semantics).
    */
-  public abstract void registerConnectorForTenant() throws Exception;
+  public abstract void registerConnectorForTenant(String tenantId) throws Exception;
 
   @Override
-  public void registerForTenant() throws Exception {
-    registerConnectorForTenant();
+  public void registerForTenant(String tenantId) throws Exception {
+    registerConnectorForTenant(tenantId);
   }
 }

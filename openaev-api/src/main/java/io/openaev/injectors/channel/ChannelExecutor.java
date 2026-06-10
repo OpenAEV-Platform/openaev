@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.execution.ExecutableInject;
@@ -84,8 +85,8 @@ public class ChannelExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
+  public ExecutionProcess process(TxCtx ctx,
+                                  @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
       ChannelContent content = contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
@@ -120,7 +121,7 @@ public class ChannelExecutor extends Injector {
                   .filter(InjectDocument::isAttached)
                   .map(InjectDocument::getDocument)
                   .toList();
-          List<DataAttachment> attachments = resolveAttachments(execution, injection, documents);
+          List<DataAttachment> attachments = resolveAttachments(ctx, execution, injection, documents);
           String message =
               content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
           boolean encrypted = content.isEncrypted();

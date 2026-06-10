@@ -76,6 +76,7 @@ public class DetectionRemediationApi {
             responseCode = "501",
             description = "AI Webservice for collector type microsoft sentinel not implemented")
       })
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     DETECTION_REMEDIATION_URI + "/rules/{collectorType}",
     TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
@@ -149,6 +150,7 @@ public class DetectionRemediationApi {
       })
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
     TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"

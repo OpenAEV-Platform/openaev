@@ -7,7 +7,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -34,6 +33,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   private final UserRepository userRepository;
 
   // region objectives
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/objectives",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives"
@@ -59,7 +59,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
@@ -67,6 +67,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     return objectiveRepository.save(objective);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
@@ -85,6 +86,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     return objectiveRepository.save(objective);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
@@ -100,6 +102,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   // endregion
 
   // region evaluations
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
@@ -113,6 +116,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     return evaluationRepository.findById(evaluationId).orElseThrow(ElementNotFoundException::new);
   }
 
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations"
@@ -152,13 +156,14 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objectiveRepository.save(objective);
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
@@ -182,13 +187,14 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objectiveRepository.save(objective);
     Scenario scenario =
         scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .findById(scenarioId)
             .orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"

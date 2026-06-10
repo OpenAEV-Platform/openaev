@@ -80,7 +80,7 @@ public class DocumentComposer extends ComposerBase<Document> {
         try (ByteArrayInputStream bais =
             new ByteArrayInputStream(companionFile.getContentBytes())) {
           MultipartFile mmf = new MockMultipartFile(document.getTarget(), bais.readAllBytes());
-          fileService.uploadFile(
+          fileService.uploadFile("tenant",
               document.getTarget(), mmf.getInputStream(), mmf.getSize(), document.getType());
         }
       }

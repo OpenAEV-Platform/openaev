@@ -2,7 +2,7 @@ package io.openaev.datapack.packs;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.GroupRepository;
@@ -46,9 +46,9 @@ public class V20260330_Default_tenant_data extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  public boolean doProcess(TxCtx ctx) {
     try {
-      if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
+      if (!Tenant.DEFAULT_TENANT_UUID.equals(ctx.tenantIdFromUri())) {
         // Init vulnerabilities
         PresetTenantData.createDefaultVulnerabilityCwes()
             .forEach(
@@ -62,13 +62,13 @@ public class V20260330_Default_tenant_data extends DataPack {
         // tenant created
         PresetTenantData.DEFAULT_ROLES.forEach(
             (roleName, capabilities) -> {
-              Role role = roleService.createRole(roleName, roleName, capabilities);
+              Role role = roleService.createRole(ctx.tenantIdFromUri(), roleName, roleName, capabilities);
               Group group = new Group();
               group.setName(roleName);
               group.setDescription(roleName);
               group.setDefaultUserAssignation(false);
               group.setTenant(
-                  entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+                  entityManager.getReference(Tenant.class, ctx.tenantIdFromUri()));
               group.setRoles(List.of(role));
               if (PresetTenantData.ADMIN.equals(roleName)) {
                 userRepository

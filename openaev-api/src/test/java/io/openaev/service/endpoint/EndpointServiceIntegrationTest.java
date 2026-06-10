@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
@@ -46,7 +45,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   void setUp() {
     executorComposer.reset();
     tenantComposer.reset();
-    ensureServiceAccount(TenantContext.getCurrentTenant());
+    ensureServiceAccount("tenant");
   }
 
   /**
@@ -141,7 +140,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
                   .forTenant(
                       tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_1"))
                   .persist();
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
           // executor in default tenant
           executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
           entityManager.flush();
@@ -152,7 +150,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
                   .forTenant(
                       tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_2"))
                   .persist();
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
           // executor in other tenant
           executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
           entityManager.flush();
@@ -185,7 +182,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
           entityManager.flush();
           entityManager.clear();
 
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
           List<AssetAgentJob> jobTenant1 = fromIterable(assetAgentJobRepository.findAll());
 
           assertThat(jobTenant1)
@@ -194,7 +190,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
                   job ->
                       assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper.get().getId()));
 
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
           List<AssetAgentJob> jobTenant2 = fromIterable(assetAgentJobRepository.findAll());
 
           assertThat(jobTenant2)

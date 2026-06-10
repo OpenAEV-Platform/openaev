@@ -142,7 +142,6 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @DisplayName("Should delete injects at the same time as the scenario itself")
   @Test
-  @Transactional
   public void shouldDeleteInjectsAtTheSameTImeAsTheScenarioItself() {
     InjectComposer.Composer injectWrapper =
         injectComposer.forInject(InjectFixture.getDefaultInject());
@@ -169,7 +168,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @DisplayName(
       "given scenario with cross inject dependencies should delete without exception and clear dependency rows")
   @Test
-  @Transactional
   @WithMockUser
   void
       given_scenarioWithCrossInjectDependencies_should_deleteScenarioWithoutException_and_clearDependencies() {
@@ -228,7 +226,6 @@ class ScenarioServiceTest extends IntegrationTest {
   @DisplayName(
       "Should null references from Security Coverage and Simulations when scenario deleted")
   @Test
-  @Transactional
   public void shouldNullReferencesFromSecurityCoverageAndSimulationsWhenScenarioDeleted() {
     ExerciseComposer.Composer simulationWrapper =
         exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise());
@@ -266,7 +263,6 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @DisplayName("Should create new contextual teams during scenario duplication")
   @Test
-  @Transactional(rollbackFor = Exception.class)
   void createNewContextualTeamsDuringScenarioDuplication() {
     // -- PREPARE --
     List<Team> scenarioTeams = new ArrayList<>();
@@ -366,7 +362,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void testRunChecksForSmtpIssue() {
     // PREPARE
     Inject inject = new Inject();
@@ -401,7 +396,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void testRunChecksForImapIssue() {
     // PREPARE
     Inject inject = new Inject();
@@ -436,7 +430,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void testRunChecksForExecutorIssue() {
     // PREPARE
     Inject inject = new Inject();
@@ -470,7 +463,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void testRunChecksForCollectorIssue() {
     // PREPARE
     Inject inject = new Inject();
@@ -504,7 +496,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void testRunChecksForMissingContentIssue() {
     // PREPARE
     Inject inject = new Inject();
@@ -538,7 +529,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void given_disabledInject_should_notReturnMissingContent() {
     // Arrange
     Inject inject = new Inject();
@@ -562,7 +552,6 @@ class ScenarioServiceTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();

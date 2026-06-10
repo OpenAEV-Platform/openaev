@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.Constants;
@@ -47,7 +46,7 @@ public class UserMappingServiceTest extends IntegrationTest {
 
   private String tenantScopedId(String id) {
     return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + TenantContext.getCurrentTenant()).getBytes())
+            (UUID.fromString(id) + ":" + "tenantId").getBytes())
         .toString();
   }
 

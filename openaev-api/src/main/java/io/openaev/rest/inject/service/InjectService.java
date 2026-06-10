@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -66,7 +67,6 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -311,7 +311,6 @@ public class InjectService {
         true);
   }
 
-  @Transactional(rollbackOn = Exception.class)
   public void deleteAllByIds(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
@@ -323,7 +322,6 @@ public class InjectService {
    *
    * @param injects the injects to delete
    */
-  @Transactional(rollbackOn = Exception.class)
   public void deleteAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
       injectRepository.deleteAll(injects);
@@ -345,7 +343,6 @@ public class InjectService {
    *
    * @param injects the injects to save
    */
-  @Transactional(rollbackOn = Exception.class)
   public List<Inject> saveAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
       return injectRepository.saveAll(injects);
@@ -440,7 +437,6 @@ public class InjectService {
     injectDocumentRepository.deleteAll(updatedInjects);
   }
 
-  @Transactional
   public InjectResultOverviewOutput duplicate(String id) {
     Inject duplicatedInject = findAndDuplicateInject(id);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));
@@ -461,7 +457,6 @@ public class InjectService {
     }
   }
 
-  @Transactional
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     this.throwIfInjectNotLaunchable(inject);
@@ -471,7 +466,6 @@ public class InjectService {
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
-  @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
     Inject duplicatedInject = findAndDuplicateInject(id);
     this.throwIfInjectNotLaunchable(duplicatedInject);
@@ -480,12 +474,10 @@ public class InjectService {
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
-  @Transactional
   public void delete(String id) {
     injectRepository.deleteById(id);
   }
 
-  @Transactional
   public void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
     injectRepository.deleteByIdNative(oldId);
@@ -498,7 +490,6 @@ public class InjectService {
    * @param defaultAssetGroupsToAdd
    * @return
    */
-  @Transactional
   public Inject applyDefaultAssetGroupsToInject(
       final String injectId, final List<AssetGroup> defaultAssetGroupsToAdd) {
 
@@ -577,7 +568,7 @@ public class InjectService {
    * @throws BadRequestException if neither of the searchPaginationInput or injectIDsToSearch is
    *     provided
    */
-  public Specification<Inject> getInjectSpecification(
+  public Specification<Inject> getInjectSpecification(String tenantId,
       final InjectBulkProcessingInput input, Grant.GRANT_TYPE requestedGrantLevel) {
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
@@ -607,7 +598,7 @@ public class InjectService {
     }
     // Filter out any injects not related to resources where the user is granted with the
     // appropriate level
-    filterSpecifications = filterSpecifications.and(hasGrantAccessForInject(requestedGrantLevel));
+    filterSpecifications = filterSpecifications.and(hasGrantAccessForInject(tenantId, requestedGrantLevel));
     return filterSpecifications;
   }
 
@@ -668,12 +659,12 @@ public class InjectService {
    * @return the injects to update/delete
    * @throws AccessDeniedException if the user is not allowed to update/delete the injects
    */
-  public List<Inject> getInjectsAndCheckPermission(
+  public List<Inject> getInjectsAndCheckPermission(String tenantId,
       InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
-        getInjectSpecification(input, requested_grant_level);
+        getInjectSpecification(tenantId, input, requested_grant_level);
 
     // Services calls
     // Bulk select, only on injects granted through scenario or simulation (or without grant for
@@ -1173,12 +1164,12 @@ public class InjectService {
    * @param grantType the grant type to check
    * @return a Specification that checks if the user has access to the inject
    */
-  public Specification<Inject> hasGrantAccessForInject(Grant.GRANT_TYPE grantType) {
+  public Specification<Inject> hasGrantAccessForInject(String tenantId, Grant.GRANT_TYPE grantType) {
 
     User currentUser = userService.currentUser();
     boolean hasCapabilityAccessAssessment =
-        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            || currentUser.getCapabilities().contains(Capability.BYPASS);
+        currentUser.getCapabilities(tenantId).contains(Capability.ACCESS_ASSESSMENT)
+            || currentUser.getCapabilities(tenantId).contains(Capability.BYPASS);
 
     return (root, query, cb) -> {
       if (currentUser.isAdmin() || hasCapabilityAccessAssessment) {
@@ -1437,6 +1428,7 @@ public class InjectService {
    * @param locale to set default inject label
    */
   public void createInjectsFromInjectorContractInput(
+          TxCtx ctx,
       Exercise exercise,
       List<Scenario> scenarios,
       InjectorContractSearchPaginationInput input,
@@ -1451,7 +1443,7 @@ public class InjectService {
     Page<? extends InjectorContractBaseOutput> page;
 
     do {
-      page = fetchInjectorContractsPage(input, pageNumber);
+      page = fetchInjectorContractsPage(ctx, input, pageNumber);
       List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
       if (!injectInputs.isEmpty()) {
         scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
@@ -1460,10 +1452,10 @@ public class InjectService {
     } while (page.hasNext());
   }
 
-  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
-      InjectorContractSearchPaginationInput input, int pageNumber) {
+  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(TxCtx ctx,
+                                                                                InjectorContractSearchPaginationInput input, int pageNumber) {
     input.setPage(pageNumber);
-    return threatArsenalService.searchInjectorContracts(
+    return threatArsenalService.searchInjectorContracts(ctx,
         InjectorContractService.OutputMode.FULL, input);
   }
 

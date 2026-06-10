@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawAttackPatternIndexing;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -57,6 +58,7 @@ public class AttackPatternApi extends RestBehavior {
     return attackPatternRepository.rawAll();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public Page<AttackPattern> attackPatterns(
@@ -68,16 +70,18 @@ public class AttackPatternApi extends RestBehavior {
         AttackPattern.class);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/search-with-ai")
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
       summary = "Extract Attack Patterns from text or files using AI",
       description = "Get attack patterns ids extracted from a text or files using AI")
   public List<String> searchAttackPatternWithTTPAIWebservice(
+          TxCtx ctx,
       @RequestPart(value = "files", required = false) @Nullable List<MultipartFile> files,
       @RequestPart(value = "text", required = false) @Nullable final String text,
       @RequestPart(value = "agent_slug", required = false) @Nullable final String agentSlug) {
-    return attackPatternService.searchAttackPatternWithTTPAIWebservice(
+    return attackPatternService.searchAttackPatternWithTTPAIWebservice(ctx,
         files == null ? new ArrayList<>() : files, text == null ? "" : text, agentSlug);
   }
 
@@ -139,8 +143,8 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackOn = Exception.class)
-  public Iterable<AttackPattern> upsertAttackPatterns(
-      @Valid @RequestBody AttackPatternUpsertInput input) {
+  public Iterable<AttackPattern> upsertAttackPatterns(TxCtx ctx,
+                                                      @Valid @RequestBody AttackPatternUpsertInput input) {
     List<AttackPattern> upserted = new ArrayList<>();
     List<AttackPatternCreateInput> attackPatterns = input.getAttackPatterns();
     List<AttackPatternCreateInput> patternsWithoutParent =
@@ -148,10 +152,10 @@ public class AttackPatternApi extends RestBehavior {
     List<AttackPatternCreateInput> patternsWithParent =
         attackPatterns.stream().filter(a -> a.getParentId() != null).toList();
     upserted.addAll(
-        attackPatternService.internalUpsertAttackPatterns(
+        attackPatternService.internalUpsertAttackPatterns(ctx,
             patternsWithoutParent, input.getIgnoreDependencies()));
     upserted.addAll(
-        attackPatternService.internalUpsertAttackPatterns(
+        attackPatternService.internalUpsertAttackPatterns(ctx,
             patternsWithParent, input.getIgnoreDependencies()));
     return upserted;
   }
@@ -181,6 +185,7 @@ public class AttackPatternApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

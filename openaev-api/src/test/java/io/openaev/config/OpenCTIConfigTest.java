@@ -3,7 +3,6 @@ package io.openaev.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.opencti.config.XtmConfig;
 import io.openaev.utils.mockConfig.WithMockOpenCTIConfig;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -30,9 +29,9 @@ public class OpenCTIConfigTest extends IntegrationTest {
     @Test
     @DisplayName("returns a variant of the public URL for the API URL")
     void shouldReturnVariantOfPublicUrlForApiUrl() {
-      assertThat(xtmConfig.getOpencti().get(TenantContext.getCurrentTenant()).getApiUrl())
+      assertThat(xtmConfig.getOpencti().get("tenant").getApiUrl())
           .isEqualTo("public_url/graphql");
-      assertThat(xtmConfig.getOpencti().get(TenantContext.getCurrentTenant()).getUrl())
+      assertThat(xtmConfig.getOpencti().get("tenant").getUrl())
           .isEqualTo("public_url");
     }
   }
@@ -46,9 +45,9 @@ public class OpenCTIConfigTest extends IntegrationTest {
     @Test
     @DisplayName("returns different URLs for API URL and URL")
     void shouldReturnDifferentValuesForPublicAndApiUrl() {
-      assertThat(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()).getApiUrl())
+      assertThat(openCTIConfig.getOpencti().get("tenant").getApiUrl())
           .isEqualTo("api_url");
-      assertThat(openCTIConfig.getOpencti().get(TenantContext.getCurrentTenant()).getUrl())
+      assertThat(openCTIConfig.getOpencti().get("tenant").getUrl())
           .isEqualTo("public_url");
     }
   }

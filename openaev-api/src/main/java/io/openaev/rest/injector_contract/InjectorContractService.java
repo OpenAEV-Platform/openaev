@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -52,7 +52,6 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -143,6 +142,7 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   private QuerySetup setupQuery(
+          TxCtx ctx,
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
@@ -156,7 +156,7 @@ public class InjectorContractService implements DependenciesManager {
 
     // Always apply access spec
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+        InjectorContractSpecification.hasAccessToInjectorContract(ctx, userService.currentUser());
 
     Specification<InjectorContract> combinedSpec =
         (specification == null ? accessSpec : specification.and(accessSpec));
@@ -191,11 +191,10 @@ public class InjectorContractService implements DependenciesManager {
     return qs;
   }
 
-  public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
+  public Iterable<RawInjectorsContracts> getAllRawInjectContracts(TxCtx ctx) {
     User currentUser = userService.currentUser();
-    String tenantId = TenantContext.getCurrentTenant();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
+    if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
+        || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_THREAT_ARSENALS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
     return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
@@ -210,15 +209,14 @@ public class InjectorContractService implements DependenciesManager {
    * @param input the creation input
    * @return the created injector contract
    */
-  @Transactional(rollbackOn = Exception.class)
-  public InjectorContract createNewInjectorContract(InjectorContractAddInput input) {
+  public InjectorContract createNewInjectorContract(TxCtx ctx, InjectorContractAddInput input) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
     injectorContract.setUpdateAttributes(input);
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
       aps =
-          attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(
+          attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(ctx,
               new HashSet<>(input.getAttackPatternsExternalIds()));
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
@@ -230,7 +228,7 @@ public class InjectorContractService implements DependenciesManager {
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
 
     // Resolve the injector specified in the input
-    Injector injector = injectorService.injector(input.getInjectorId());
+    Injector injector = injectorService.injector(ctx, input.getInjectorId());
 
     // Link the contract to the specified injector only.
     // Custom contracts are user-defined for a specific instance —
@@ -240,7 +238,7 @@ public class InjectorContractService implements DependenciesManager {
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
-            ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
+            ? this.domainService.upserts(input.getDomains(), ctx.tenantIdFromUri())
             : new HashSet<>());
     InjectorContract saved = injectorContractRepository.save(injectorContract);
     // Link on the owning side now that the contract is persisted
@@ -333,6 +331,7 @@ public class InjectorContractService implements DependenciesManager {
    * @throws ElementNotFoundException if not found
    */
   public InjectorContract updateInjectorContract(
+          TxCtx ctx,
       String injectorContractId, InjectorContractUpdateInput input) {
     InjectorContract injectorContract =
         injectorContractRepository
@@ -345,7 +344,7 @@ public class InjectorContractService implements DependenciesManager {
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
     injectorContract.setDomains(
-        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
+        this.domainService.upserts(input.getDomains(), ctx.tenantIdFromUri()));
 
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
@@ -438,9 +437,9 @@ public class InjectorContractService implements DependenciesManager {
    *
    * @param injectorContractId the contract ID to delete
    */
-  public void deleteInjectorContractById(String injectorContractId) {
+  public void deleteInjectorContractById(TxCtx ctx, String injectorContractId) {
     this.injectorContractRepository.deleteById(
-        new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()));
+        new InjectorContractId(injectorContractId, ctx.tenantIdFromUri()));
   }
 
   /**
@@ -509,6 +508,7 @@ public class InjectorContractService implements DependenciesManager {
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
+          TxCtx ctx,
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
@@ -536,7 +536,7 @@ public class InjectorContractService implements DependenciesManager {
                       .in(idsToProcess));
     }
 
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
+    QuerySetup qs = setupQuery(ctx, specification, specificationCount, pageable, config.selector());
 
     List<? extends InjectorContractBaseOutput> results =
         qs.query.getResultList().stream().map(config.mapper()).toList();
@@ -784,7 +784,6 @@ public class InjectorContractService implements DependenciesManager {
    * @param injector the parent injector
    * @return the created injector contract (not yet persisted)
    */
-  // TODO JRI => REFACTOR TO RELY ON INJECTOR SERVICE
   public InjectorContract convertInjectorFromInput(InjectorContractInput in, Injector injector) {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId(in.getId());
@@ -817,13 +816,13 @@ public class InjectorContractService implements DependenciesManager {
    * @param input the search and filtering criteria
    * @return the list of domain counts derived from effective contract associations
    */
-  public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
+  public List<InjectorContractDomainCountOutput> getDomainCounts(TxCtx ctx, SearchPaginationInput input) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+        InjectorContractSpecification.hasAccessToInjectorContract(ctx, userService.currentUser());
 
     Specification<InjectorContract> baseSpec =
         Specification.<InjectorContract>unrestricted()

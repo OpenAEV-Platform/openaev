@@ -1,7 +1,6 @@
 package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.database.specification.UserSpecification.inTenant;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -11,7 +10,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -58,13 +57,10 @@ public class PlayerService {
   private final UserService userService;
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
-    Specification<User> tenantSpec = inTenant(TenantContext.getCurrentTenant());
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
     playersFunction =
-        (specification, specificationCount, pageable) ->
-            this.paginate(
-                tenantSpec.and(specification), tenantSpec.and(specificationCount), pageable);
+            this::paginate;
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 
@@ -108,12 +104,12 @@ public class PlayerService {
     return new PageImpl<>(players, pageable, total);
   }
 
-  public User createPlayer(@Valid @RequestBody PlayerInput input) {
+  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
-      tenantUserService.attachToTenant(userId, TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(userId, ctx.tenantIdFromUri());
       // Reload user after @Modifying queries cleared the persistence context
       return userRepository.findById(userId).orElseThrow();
     }
@@ -124,11 +120,11 @@ public class PlayerService {
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
     userService.createUserToken(savedUser);
-    tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantUserService.attachToTenant(savedUser.getId(), ctx.tenantIdFromUri());
     return savedUser;
   }
 
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
+  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
@@ -157,7 +153,7 @@ public class PlayerService {
             updateRelation(
                 input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
       }
-      tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(existingUser.getId(), ctx.tenantIdFromUri());
       return userRepository.save(existingUser);
     } else {
       User newUser = new User();
@@ -169,7 +165,7 @@ public class PlayerService {
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
       userService.createUserToken(savedUser);
-      tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(savedUser.getId(), ctx.tenantIdFromUri());
       return savedUser;
     }
   }

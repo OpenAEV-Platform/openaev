@@ -3,7 +3,7 @@ package io.openaev.service;
 import static io.openaev.database.specification.RoleSpecification.tenantScope;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -23,11 +23,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class RoleService {
 
   private final RoleRepository roleRepository;
@@ -36,21 +34,20 @@ public class RoleService {
 
   // -- CREATE --
 
-  public Role createRole(
+  public Role createRole(String tenantId,
+                         @NotBlank final String roleName,
+      @NotBlank final String roleDescription,
+      @NotNull final Set<Capability> capabilities) {
+    return createRole(tenantId, UUID.randomUUID().toString(), roleName, roleDescription, capabilities);
+  }
+
+  public Role createRole(String tenantId,
+                         @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
-    return createRole(UUID.randomUUID().toString(), roleName, roleDescription, capabilities, null);
-  }
-
-  public Role createRole(
-      @NotBlank final String id,
-      @NotBlank final String roleName,
-      @NotBlank final String roleDescription,
-      @NotNull final Set<Capability> capabilities,
-      String tenantId) {
-    ReservedKeyValidator.validateRoleId(id);
-    return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
+    ReservedKeyValidator.validateRoleId(tenantId, id);
+    return createRoleInternal(tenantId, id, roleName, roleDescription, capabilities);
   }
 
   /**
@@ -58,11 +55,11 @@ public class RoleService {
    * validation.
    */
   public Role createRoleInternal(
-      @NotBlank final String id,
+          String tenantId,
+          @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
-      @NotNull final Set<Capability> capabilities,
-      String tenantId) {
+      @NotNull final Set<Capability> capabilities) {
     Capability.validateForTenantRole(capabilities);
 
     Role role = new Role();
@@ -70,35 +67,26 @@ public class RoleService {
     role.setName(roleName);
     role.setDescription(roleDescription);
     role.setCapabilities(Capability.resolveWithParents(capabilities));
-    if (tenantId != null) {
-      role.setTenant(new Tenant(tenantId));
-    } else {
-      role.setTenant(entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
-    }
+    role.setTenant(new Tenant(tenantId));
     return roleRepository.save(role);
   }
 
   // -- READ --
 
-  @Transactional(readOnly = true)
   public Optional<Role> findById(String id) {
     return roleRepository.findById(id);
   }
 
-  @Transactional(readOnly = true)
-  public Role findByIdInTenant(@NotBlank final String roleId) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public Role findByIdInTenant(TxCtx ctx, @NotBlank final String roleId) {
     return roleRepository
-        .findByIdAndTenantId(roleId, tenantId)
+        .findByIdAndTenantId(roleId, ctx.tenantIdFromUri())
         .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
   }
 
-  @Transactional(readOnly = true)
   public List<Role> findAll(@NotBlank final String tenantId) {
     return roleRepository.findAllByTenantId(tenantId);
   }
 
-  @Transactional(readOnly = true)
   public Page<Role> searchRole(
       SearchPaginationInput searchPaginationInput, @NotBlank final String tenantId) {
     return buildPaginationJPA(
@@ -110,27 +98,26 @@ public class RoleService {
 
   // -- UPDATE --
 
-  public Role updateRole(
-      @NotBlank final String roleId,
+  public Role updateRole(String tenantId,
+                         @NotBlank final String roleId,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
 
-    ReservedKeyValidator.validateRoleId(roleId);
+    ReservedKeyValidator.validateRoleId(tenantId, roleId);
     return updateRoleInternal(roleId, roleName, roleDescription, capabilities);
   }
 
   /** Internal method for system-managed roles. Bypasses reserved name validation. */
   public Role updateRoleInternal(
-      @NotBlank final String roleId,
+          @NotBlank final String roleId,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
     Capability.validateForTenantRole(capabilities);
-    String tenantId = TenantContext.getCurrentTenant();
     Role role =
         roleRepository
-            .findByIdAndTenantId(roleId, tenantId)
+            .findById(roleId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
     role.setUpdatedAt(Instant.now());
     role.setName(roleName);
@@ -141,13 +128,12 @@ public class RoleService {
 
   // -- DELETE --
 
-  public void deleteRole(@NotBlank final String roleId) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public void deleteRole(String tenantId, @NotBlank final String roleId) {
     Role role =
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
-    ReservedKeyValidator.validateRoleId(role.getId());
+    ReservedKeyValidator.validateRoleId(tenantId, role.getId());
     List<Group> groups = groupRepository.findAllByRoles(role);
     for (Group g : groups) {
       g.getRoles().remove(role);

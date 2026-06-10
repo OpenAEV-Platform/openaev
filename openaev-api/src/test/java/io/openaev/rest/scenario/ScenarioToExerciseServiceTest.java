@@ -13,7 +13,6 @@ import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.service.LoadService;
@@ -212,7 +211,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     settingRepository.save(
         settingRepository
             .findByKeyAndTenantId(
-                TENANT_SIMULATION_DASHBOARD.key(), TenantContext.getCurrentTenant())
+                TENANT_SIMULATION_DASHBOARD.key(), "tenant")
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
@@ -222,7 +221,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
                 () -> {
                   Setting s =
                       new Setting(TENANT_SIMULATION_DASHBOARD.key(), customDashboardSaved.getId());
-                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  s.setTenant(new Tenant("tenant"));
                   return s;
                 }));
     // -- EXECUTE --

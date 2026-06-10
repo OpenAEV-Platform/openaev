@@ -5,7 +5,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
@@ -22,13 +21,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ClassUtils;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(rollbackFor = Exception.class)
 public class TenantService {
 
   public static final int SOFT_DELETE_RETENTION_DAYS = 30;
@@ -45,11 +42,6 @@ public class TenantService {
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
     Tenant createdTenant = tenantRepository.save(tenant);
-
-    // Switch context to the new tenant so that subsequent dependency creation
-    // (domains, roles, etc.) is scoped to the new tenant via Hibernate filter.
-    String newTenantId = createdTenant.getId();
-    TenantContext.setCurrentTenant(newTenantId);
 
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);
@@ -91,7 +83,6 @@ public class TenantService {
   // -- READ --
 
   /** Finds a tenant by ID. Returns the tenant regardless of soft-delete status. */
-  @Transactional(readOnly = true)
   public Tenant findById(String tenantId) {
     return tenantRepository
         .findById(tenantId)
@@ -99,7 +90,6 @@ public class TenantService {
   }
 
   /** Searches tenants with pagination and filtering. */
-  @Transactional(readOnly = true)
   public Page<TenantOutput> search(@NotNull SearchPaginationInput searchPaginationInput) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
@@ -116,13 +106,11 @@ public class TenantService {
   }
 
   /** Returns all tenants accessible by a given user. */
-  @Transactional(readOnly = true)
   public List<Tenant> findTenantsByUserId(@NotNull String userId) {
     return tenantRepository.findTenantsByUserId(userId);
   }
 
   /** Counts the number of active (non-soft-deleted) tenants. */
-  @Transactional(readOnly = true)
   public long countActiveTenants() {
     return tenantRepository.countByDeletedAtIsNull();
   }

@@ -11,7 +11,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -95,6 +95,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Document uploadDocument(
+      TxCtx context,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
@@ -126,7 +127,7 @@ public class DocumentApi extends RestBehavior {
       document.setTags(tags);
       return documentService.save(document);
     } else {
-      fileService.uploadFile(fileTarget, file);
+      fileService.uploadFile(context.tenantIdFromUri(), fileTarget, file);
       Document document = new Document();
       document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
@@ -148,11 +149,11 @@ public class DocumentApi extends RestBehavior {
   @PostMapping({DOCUMENT_API + "/upsert", TENANT_DOCUMENT_API + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
-  public Document upsertDocument(
+  public Document upsertDocument(TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
-    return documentService.upsert(
+    return documentService.upsert(ctx,
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
@@ -171,7 +172,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
   public Page<RawPaginationDocument> searchDocuments(
-          @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     return buildPaginationJPA(
             (Specification<Document> specification, Pageable pageable) ->
@@ -213,6 +214,7 @@ public class DocumentApi extends RestBehavior {
     return document.getTags();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
   @AccessControl(
       resourceId = "#documentId",
@@ -297,7 +299,8 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
-  public void downloadDocument(@PathVariable String documentId, HttpServletResponse response)
+  public void downloadDocument(
+      TxCtx context, @PathVariable String documentId, HttpServletResponse response)
       throws IOException {
     Document document = documentService.document(documentId);
 
@@ -308,7 +311,7 @@ public class DocumentApi extends RestBehavior {
     response.setStatus(HttpServletResponse.SC_OK);
     try (InputStream fileStream =
         fileService
-            .getFile(document)
+            .getFile(context.tenantIdFromUri(), document)
             .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
       fileStream.transferTo(response.getOutputStream());
     }
@@ -322,14 +325,14 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
-  public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
-      throws IOException {
+  public @ResponseBody ResponseEntity<byte[]> getInjectorImage(
+      TxCtx context, @PathVariable String injectorType) throws IOException {
     Injector injector =
         this.injectorRepository
-            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+            .findByTypeAndTenantId(injectorType, context.tenantIdFromUri())
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
     Optional<InputStream> fileStream =
-        fileService.getInjectorImage(injector.getType(), injector.isExternal());
+        fileService.getInjectorImage(context.tenantIdFromUri(), injector.getType());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -347,13 +350,13 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImageFromId(
-      @PathVariable String injectorId) throws IOException {
+      TxCtx context, @PathVariable String injectorId) throws IOException {
     Injector injector =
         this.injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(injectorId, context.tenantIdFromUri())
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
     Optional<InputStream> fileStream =
-        fileService.getInjectorImage(injector.getType(), injector.isExternal());
+        fileService.getInjectorImage(context.tenantIdFromUri(), injector.getType());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -370,14 +373,14 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
-  public @ResponseBody ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
-      throws IOException {
+  public @ResponseBody ResponseEntity<byte[]> getCollectorImage(
+      TxCtx context, @PathVariable String collectorType) throws IOException {
     Collector collector =
         this.collectorRepository
-            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .findByTypeAndTenantId(collectorType, context.tenantIdFromUri())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
-        fileService.getCollectorImage(collector.getType(), collector.isExternal());
+        fileService.getCollectorImage(context.tenantIdFromUri(), collector.getType());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -387,18 +390,19 @@ public class DocumentApi extends RestBehavior {
   }
 
   public void downloadCollectorImage(
-      @PathVariable String collectorType, HttpServletResponse response) throws IOException {
+      TxCtx context, @PathVariable String collectorType, HttpServletResponse response)
+      throws IOException {
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png");
     response.addHeader(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE);
     response.setStatus(HttpServletResponse.SC_OK);
     Collector collector =
         this.collectorRepository
-            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
+            .findByTypeAndTenantId(collectorType, context.tenantIdFromUri())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     try (InputStream fileStream =
         fileService
-            .getCollectorImage(collectorType, collector.isExternal())
+            .getCollectorImage(context.tenantIdFromUri(), collectorType)
             .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
       fileStream.transferTo(response.getOutputStream());
     }
@@ -413,13 +417,13 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImageFromId(
-      @PathVariable String collectorId) throws IOException {
+      TxCtx context, @PathVariable String collectorId) throws IOException {
     Collector collector =
         this.collectorRepository
             .findById(collectorId)
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
-        fileService.getCollectorImage(collector.getType(), collector.isExternal());
+        fileService.getCollectorImage(context.tenantIdFromUri(), collector.getType());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -436,18 +440,21 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public void getSecurityPlatformImageFromId(
-      @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
+      TxCtx context,
+      @PathVariable String assetId,
+      @PathVariable String theme,
+      HttpServletResponse response)
       throws IOException {
     SecurityPlatform securityPlatform =
         this.securityPlatformRepository
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      downloadDocument(securityPlatform.getLogoDark().getId(), response);
+      downloadDocument(context, securityPlatform.getLogoDark().getId(), response);
     } else if (securityPlatform.getLogoLight() != null) {
-      downloadDocument(securityPlatform.getLogoLight().getId(), response);
+      downloadDocument(context, securityPlatform.getLogoLight().getId(), response);
     } else {
-      downloadCollectorImage("openaev_fake_detector", response);
+      downloadCollectorImage(context, "openaev_fake_detector", response);
     }
   }
 
@@ -468,16 +475,19 @@ public class DocumentApi extends RestBehavior {
       })
   @Transactional(rollbackOn = Exception.class)
   public void getChannelImageFromId(
-      @PathVariable String channelId, @PathVariable String theme, HttpServletResponse response)
+      TxCtx context,
+      @PathVariable String channelId,
+      @PathVariable String theme,
+      HttpServletResponse response)
       throws IOException {
     Channel channel = channelService.channel(channelId);
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      downloadDocument(channel.getLogoDark().getId(), response);
+      downloadDocument(context, channel.getLogoDark().getId(), response);
     } else if (channel.getLogoLight() != null) {
-      downloadDocument(channel.getLogoLight().getId(), response);
+      downloadDocument(context, channel.getLogoLight().getId(), response);
     } else {
-      downloadCollectorImage("openaev_fake_detector", response);
+      downloadCollectorImage(context, "openaev_fake_detector", response);
     }
   }
 
@@ -489,9 +499,10 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
-  public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId, false);
+  public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(
+      TxCtx context, @PathVariable String executorId) throws IOException {
+    Optional<InputStream> fileStream =
+        fileService.getExecutorIconImage(context.tenantIdFromUri(), executorId);
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -509,8 +520,9 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
-      @PathVariable String executorId) throws IOException {
-    Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId, false);
+      TxCtx context, @PathVariable String executorId) throws IOException {
+    Optional<InputStream> fileStream =
+        fileService.getExecutorBannerImage(context.tenantIdFromUri(), executorId);
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
@@ -552,8 +564,8 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
-  public void deleteDocument(@PathVariable String documentId) {
-    documentService.deleteDocument(documentId);
+  public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
+    documentService.deleteDocument(ctx, documentId);
   }
 
   // -- EXERCISE & SENARIO--
@@ -562,13 +574,15 @@ public class DocumentApi extends RestBehavior {
   @UrlAccessControl(userId = "#userId")
   @Transactional(rollbackOn = Exception.class)
   public List<Document> playerDocuments(
-      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
+      TxCtx context,
+      @PathVariable String exerciseOrScenarioId,
+      @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+            exerciseOrScenarioId, context.tenantIdFromUri());
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+            exerciseOrScenarioId, context.tenantIdFromUri());
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
@@ -600,6 +614,7 @@ public class DocumentApi extends RestBehavior {
   @UrlAccessControl(userId = "#userId")
   @Transactional(rollbackOn = Exception.class)
   public void downloadPlayerDocument(
+      TxCtx context,
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
       @RequestParam Optional<String> userId,
@@ -607,10 +622,10 @@ public class DocumentApi extends RestBehavior {
       throws IOException {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+            exerciseOrScenarioId, context.tenantIdFromUri());
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+            exerciseOrScenarioId, context.tenantIdFromUri());
 
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
@@ -647,7 +662,7 @@ public class DocumentApi extends RestBehavior {
       response.setStatus(HttpServletResponse.SC_OK);
       try (InputStream fileStream =
           fileService
-              .getFile(document)
+              .getFile(context.tenantIdFromUri(), document)
               .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
         fileStream.transferTo(response.getOutputStream());
       }

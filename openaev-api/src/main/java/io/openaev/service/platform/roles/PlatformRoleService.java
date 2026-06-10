@@ -16,11 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
-@Transactional(rollbackFor = Exception.class)
 public class PlatformRoleService {
 
   private final RoleRepository roleRepository;
@@ -41,19 +39,16 @@ public class PlatformRoleService {
 
   // -- READ --
 
-  @Transactional(readOnly = true)
   public Role findById(String id) {
     return roleRepository
         .findById(id)
         .orElseThrow(() -> new EntityNotFoundException("Platform role not found: " + id));
   }
 
-  @Transactional(readOnly = true)
   public List<Role> findByIds(List<String> ids) {
     return roleRepository.findAllById(ids);
   }
 
-  @Transactional(readOnly = true)
   public Page<Role> search(@NotNull SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         (Specification<Role> spec, org.springframework.data.domain.Pageable pageable) ->

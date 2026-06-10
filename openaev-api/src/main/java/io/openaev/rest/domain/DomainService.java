@@ -8,7 +8,7 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
@@ -19,7 +19,6 @@ import io.openaev.rest.domain.form.DomainBaseInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.utils.FilterUtilsJpa;
-import jakarta.transaction.Transactional;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -71,13 +70,11 @@ public class DomainService implements DependenciesManager {
     return domainRepository.findAllById(domainIds);
   }
 
-  @Transactional
-  public Domain upsert(final DomainBaseInput input) {
+  public Domain upsert(TxCtx ctx, final DomainBaseInput input) {
     return this.upsert(
-        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
+        input.getName(), input.getColor(), new Tenant(ctx.tenantIdFromUri()));
   }
 
-  @Transactional
   public Domain upsert(final Domain domainToUpsert) {
     return this.upsert(
         domainToUpsert.getName(), domainToUpsert.getColor(), domainToUpsert.getTenant());
@@ -91,7 +88,6 @@ public class DomainService implements DependenciesManager {
    * @param domains set of domain entities to save or retrieve.
    * @return set of saved or retrieved domains
    */
-  @Transactional
   public Set<Domain> upsertDomainEntities(Set<Domain> domains, String tenantId) {
     return this.upserts(
         Optional.ofNullable(domains)
@@ -110,7 +106,6 @@ public class DomainService implements DependenciesManager {
    * @param domains set of domain DTOs to save or retrieve.
    * @return set of saved or retrieved domains
    */
-  @Transactional
   public Set<Domain> upserts(Set<InjectorContractDomainDTO> domains, String tenantId) {
     if (domains == null || domains.isEmpty()) {
       return new HashSet<>();
@@ -139,7 +134,6 @@ public class DomainService implements DependenciesManager {
         () -> domainRepository.save(buildSanityDomain(name, color, tenant)));
   }
 
-  @Transactional
   public Set<Domain> mergeDomains(
       final Set<Domain> existingDomains, final Set<Domain> addedDomains, final Tenant tenant) {
     final boolean isExistingDomainsEmptyOrToClassify = isEmptyOrToClassify(existingDomains);

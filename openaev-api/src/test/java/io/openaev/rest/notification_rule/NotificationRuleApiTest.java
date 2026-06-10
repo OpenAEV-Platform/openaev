@@ -51,7 +51,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void createNotificationRule() throws Exception {
     User testUser = testUserHolder.get();
 
@@ -112,7 +111,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void updateNotificationRule() throws Exception {
     NotificationRule notificationRule =
         createNotificationRuleInDb("resourceid", testUserHolder.get());
@@ -136,7 +134,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void updateNotificationRule_WITH_unexisting_id() throws Exception {
 
     String updatedSubject = "updated Subject";
@@ -156,7 +153,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void deleteNotificationRule() throws Exception {
     String uuid = createNotificationRuleInDb("resourceid", testUserHolder.get()).getId();
 
@@ -174,7 +170,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void deleteNotificationRule_WITH_unexisting_id() throws Exception {
     mvc.perform(
             delete(NOTIFICATION_RULE_URI + "/radomid")
@@ -189,7 +184,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void findNotificationRule() throws Exception {
     NotificationRule notificationRule =
         createNotificationRuleInDb("resourceid", testUserHolder.get());
@@ -220,7 +214,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void findNotificationRuleByResource() throws Exception {
 
     NotificationRule notificationRule =
@@ -253,7 +246,6 @@ public class NotificationRuleApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true)
-  @Transactional
   void searchTagRule() throws Exception {
     createNotificationRuleInDb("notificationRule1", testUserHolder.get());
     createNotificationRuleInDb("notificationRule2", testUserHolder.get());

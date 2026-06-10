@@ -1,6 +1,5 @@
 package io.openaev.utils.fixtures;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Executor;
@@ -37,7 +36,7 @@ public class AgentFixture {
     Agent agent = createDefaultAgentService();
     agent.setAsset(asset);
     agent.setExternalReference(externalReference);
-    agent.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    agent.setTenant(new Tenant("tenant"));
     return agent;
   }
 }

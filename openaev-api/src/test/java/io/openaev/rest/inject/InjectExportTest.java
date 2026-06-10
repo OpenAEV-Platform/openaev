@@ -98,12 +98,12 @@ public class InjectExportTest extends IntegrationTest {
     scenarioComposer.reset();
     payloadComposer.reset();
 
-    channelInjectorIntegrationFactory.registerConnectorForTenant();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    channelInjectorIntegrationFactory.registerConnectorForTenant("tenant");
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
     // delete the test files from the minio service
     for (String fileName : WELL_KNOWN_FILES.keySet()) {
-      fileService.deleteFile(fileName);
+      fileService.deleteFile("tenant", fileName);
     }
 
     knownArticlesToExport.clear();

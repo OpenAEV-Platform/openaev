@@ -87,7 +87,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     documentComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    challengeInjectorIntegrationFactory.registerConnectorForTenant("tenant");
   }
 
   // this is part of the "Arrange" part of the AAA pattern for the following tests

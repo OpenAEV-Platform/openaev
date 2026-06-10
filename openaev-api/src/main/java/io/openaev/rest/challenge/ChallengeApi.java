@@ -128,6 +128,7 @@ public class ChallengeApi extends RestBehavior {
     challengeRepository.deleteById(challengeId);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})
   @AccessControl(
       resourceId = "#challengeId",

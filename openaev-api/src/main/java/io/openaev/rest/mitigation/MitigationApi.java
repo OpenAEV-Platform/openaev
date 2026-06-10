@@ -50,10 +50,12 @@ public class MitigationApi extends RestBehavior {
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<Mitigation> mitigations() {
     return mitigationRepository.findAll();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/api/mitigations/search")
   @AccessControl(
       skipRBAC =
@@ -73,6 +75,7 @@ public class MitigationApi extends RestBehavior {
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Mitigation mitigation(@PathVariable String mitigationId) {
     return mitigationRepository.findById(mitigationId).orElseThrow(ElementNotFoundException::new);
   }
@@ -96,12 +99,14 @@ public class MitigationApi extends RestBehavior {
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<AttackPattern> injectorContracts(@PathVariable String mitigationId) {
     mitigationRepository.findById(mitigationId).orElseThrow(ElementNotFoundException::new);
     return attackPatternRepository.findAll(
         AttackPatternSpecification.fromAttackPattern(mitigationId));
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping("/api/mitigations/{mitigationId}")
   @AccessControl(
       skipRBAC =
@@ -166,6 +171,7 @@ public class MitigationApi extends RestBehavior {
     return new ArrayList<>(upsertMitigations(mitigations));
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/api/mitigations/{mitigationId}")
   @AccessControl(
       skipRBAC =

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
@@ -79,7 +78,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
   private String tenantScopedId(String id) {
     return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + TenantContext.getCurrentTenant()).getBytes())
+            (UUID.fromString(id) + ":" + "tenantId").getBytes())
         .toString();
   }
 
@@ -489,7 +488,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         Optional<User> user =
             userService.findByTokenAndTenantId(
-                testConnector.getToken(), TenantContext.getCurrentTenant());
+                testConnector.getToken(), "tenantId");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -532,7 +531,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         Optional<User> user =
             userService.findByTokenAndTenantId(
-                testConnector.getToken(), TenantContext.getCurrentTenant());
+                testConnector.getToken(), "tenant");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -687,7 +686,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         Optional<User> user =
             userService.findByTokenAndTenantId(
-                testConnector.getToken(), TenantContext.getCurrentTenant());
+                testConnector.getToken(), "tenant");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -730,7 +729,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         Optional<User> user =
             userService.findByTokenAndTenantId(
-                testConnector.getToken(), TenantContext.getCurrentTenant());
+                testConnector.getToken(), "tenant");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())

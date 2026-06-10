@@ -3,6 +3,7 @@ package io.openaev.integration.impl.injectors.openaev;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
@@ -103,12 +104,14 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    TxCtx ctx = TxCtx.of(tenantId);
     Map<String, String> executorCommands =
         OpenaevImplantCommandBuilder.buildExecutorCommands(openAEVConfig);
     Map<String, String> executorClearCommands =
         OpenaevImplantCommandBuilder.buildExecutorClearCommands();
     injectorService.registerBuiltinInjector(
+            ctx,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME,
         openAEVImplantContract,

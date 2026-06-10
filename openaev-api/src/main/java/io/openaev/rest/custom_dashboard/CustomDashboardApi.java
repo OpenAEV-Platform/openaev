@@ -3,7 +3,7 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -39,6 +39,7 @@ public class CustomDashboardApi extends RestBehavior {
 
   // -- CRUD --
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
@@ -55,6 +56,7 @@ public class CustomDashboardApi extends RestBehavior {
     return ResponseEntity.ok(this.customDashboardService.customDashboards());
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Page<CustomDashboard>> customDashboards(
@@ -73,6 +75,7 @@ public class CustomDashboardApi extends RestBehavior {
     return ResponseEntity.ok(this.customDashboardService.customDashboard(customDashboardId));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{customDashboardId}")
   @AccessControl(
       resourceId = "#customDashboardId",
@@ -88,15 +91,15 @@ public class CustomDashboardApi extends RestBehavior {
         this.customDashboardService.updateCustomDashboard(updatedCustomDashboard));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{customDashboardId}")
   @AccessControl(
       resourceId = "#customDashboardId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DASHBOARD)
-  public ResponseEntity<Void> deleteCustomDashboard(
-      @PathVariable @NotBlank final String customDashboardId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    this.customDashboardService.deleteCustomDashboard(tenantId, customDashboardId);
+  public ResponseEntity<Void> deleteCustomDashboard(TxCtx ctx,
+                                                    @PathVariable @NotBlank final String customDashboardId) {
+    this.customDashboardService.deleteCustomDashboard(ctx.tenantIdFromUri(), customDashboardId);
     return ResponseEntity.noContent().build();
   }
 
@@ -110,6 +113,7 @@ public class CustomDashboardApi extends RestBehavior {
     return this.customDashboardService.findAllAsOptions(searchText);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

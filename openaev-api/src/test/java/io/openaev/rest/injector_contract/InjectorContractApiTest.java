@@ -117,7 +117,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       private void createStaticInjectorContract() {
         injectorContractComposer
             .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))
             .persist();
         em.flush();
         em.clear();
@@ -224,7 +224,7 @@ public class InjectorContractApiTest extends IntegrationTest {
           InjectorContract customContract =
               injectorContractComposer
                   .forInjectorContract(ic)
-                  .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                  .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))
                   .persist()
                   .get();
           em.flush();
@@ -355,7 +355,7 @@ public class InjectorContractApiTest extends IntegrationTest {
             domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().getSet();
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setDomains(
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
@@ -408,7 +408,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setAttackPatternsIds(List.of(UUID.randomUUID().toString()));
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setDomains(
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
@@ -431,7 +431,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         InjectorContractAddInput input = new InjectorContractAddInput();
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(List.of(UUID.randomUUID().toString()));
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setDomains(
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
@@ -463,7 +463,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setAttackPatternsIds(
             attackPatternComposer.generatedItems.stream().map(AttackPattern::getId).toList());
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setDomains(
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
@@ -532,7 +532,7 @@ public class InjectorContractApiTest extends IntegrationTest {
             attackPatternComposer.generatedItems.stream()
                 .map(ap -> ap.getExternalId().toLowerCase())
                 .toList());
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setContent("{\"fields\":[]}");
         input.setDomains(
             domains.stream()
@@ -601,7 +601,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         input.setId(injectorContractInternalId);
         input.setVulnerabilityIds(
             vulnerabilityComposer.generatedItems.stream().map(Vulnerability::getId).toList());
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setDomains(
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
@@ -673,7 +673,7 @@ public class InjectorContractApiTest extends IntegrationTest {
             vulnerabilityComposer.generatedItems.stream()
                 .map(vuln -> vuln.getExternalId().toLowerCase())
                 .toList());
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setDomains(
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
@@ -812,7 +812,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         injectorContractComposer
             .forInjectorContract(
                 InjectorContractFixture.createDefaultInjectorContractWithExternalId(externalId))
-            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+            .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))
             .persist();
         em.flush();
         em.clear();
@@ -917,7 +917,7 @@ public class InjectorContractApiTest extends IntegrationTest {
           InjectorContract customContract =
               injectorContractComposer
                   .forInjectorContract(ic)
-                  .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                  .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))
                   .persist()
                   .get();
           em.flush();
@@ -994,7 +994,7 @@ public class InjectorContractApiTest extends IntegrationTest {
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
                 .collect(Collectors.toSet()));
-        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector().getId());
+        input.setInjectorId(injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId());
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -1046,7 +1046,7 @@ public class InjectorContractApiTest extends IntegrationTest {
             domains.stream()
                 .map(InjectorContractDomainDTO::fromDomain)
                 .collect(Collectors.toSet()));
-        input.setInjectorId(injectorFixture.getWellKnownEmailInjector(false).getId());
+        input.setInjectorId(injectorFixture.getWellKnownEmailInjector("tenantId", false).getId());
         input.setContent("{\"fields\":[]}");
 
         String response =
@@ -1157,7 +1157,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     private void createStaticInjectorContract() {
       injectorContractComposer
           .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-          .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+          .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))
           .persist();
       em.flush();
       em.clear();
@@ -1176,7 +1176,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       SearchPaginationInput input =
           PaginationFixture.simpleSearchWithAndOperator(
               "injector_contract_injectors",
-              injectorFixture.getWellKnownOaevImplantInjector().getId(),
+              injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId(),
               Filters.FilterOperator.contains);
 
       String response =
@@ -1208,7 +1208,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       InjectorContractSearchPaginationInput input =
           PaginationFixture.optionedSearchWithAndOperator(
               "injector_contract_injectors",
-              injectorFixture.getWellKnownOaevImplantInjector().getId(),
+              injectorFixture.getWellKnownOaevImplantInjector("tenantId").getId(),
               Filters.FilterOperator.contains);
       input.setIncludeFullDetails(false);
 
@@ -1260,7 +1260,7 @@ public class InjectorContractApiTest extends IntegrationTest {
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
-              .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"));
       if (addPayload) {
         icComposer.withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()));
       }
@@ -1460,7 +1460,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       Set<Domain> cloudDomain =
           domainComposer.forDomain(PresetDomain.getCloud()).persist().getSet();
 
-      Injector validInjector = injectorFixture.getWellKnownOaevImplantInjector();
+      Injector validInjector = injectorFixture.getWellKnownOaevImplantInjector("tenantId");
 
       InjectorContract contract1 = InjectorContractFixture.createDefaultInjectorContract();
       contract1.setId(UUID.randomUUID().toString());
@@ -1548,7 +1548,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         "given source contract with attack pattern external IDs — should resolve and set attack patterns from DB")
     void givenSourceWithAttackPatterns_shouldResolveAndSetAttackPatterns() {
       // -- ARRANGE --
-      Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+      Injector injector = injectorFixture.getWellKnownOaevImplantInjector("tenantId");
 
       AttackPattern ap1 =
           attackPatternComposer
@@ -1582,7 +1582,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         "given ObjectMapper that fails to serialize — should throw IllegalStateException wrapping cause")
     void givenSerializationFailure_shouldThrowIllegalStateException() throws Exception {
       // -- ARRANGE --
-      Injector injector = injectorFixture.getWellKnownOaevImplantInjector();
+      Injector injector = injectorFixture.getWellKnownOaevImplantInjector("tenantId");
 
       String contractId = UUID.randomUUID().toString();
       Contract source = buildSourceContract(contractId, List.of());

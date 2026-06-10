@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -66,6 +67,7 @@ public class ServiceAccountPrivilegeServiceTest {
   @Test
   @DisplayName("Should create new user when no existing user found")
   void shouldCreateNewUserWhenNoExistingUserFound() {
+    TxCtx ctx = TxCtx.of(TENANT_ID);
     // prepare
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
@@ -91,7 +93,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldReuseExistingUserWhenUserExistsButHasNoToken() {
     // prepare
     mockUser.setTokens(null);
-
+    TxCtx ctx = TxCtx.of(TENANT_ID);
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
         .thenReturn(mockRole);
@@ -115,7 +117,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldDoNothingWhenExistingUserAlreadyHasToken() {
     // prepare
     mockUser.setTokens(new ArrayList<>(List.of(new Token())));
-
+    TxCtx ctx = TxCtx.of(TENANT_ID);
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
         .thenReturn(mockRole);
@@ -142,6 +144,7 @@ public class ServiceAccountPrivilegeServiceTest {
   @DisplayName("Should create new group when no existing group found")
   void shouldCreateNewGroupWhenNoExistingGroupFound() {
     // prepare
+    TxCtx ctx = TxCtx.of(TENANT_ID);
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
         .thenReturn(mockRole);
@@ -157,7 +160,7 @@ public class ServiceAccountPrivilegeServiceTest {
 
     // assert
     verify(tenantGroupService)
-        .createInternalGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
+        .createInternalGroupWithRole(any(), anyString(), any(), any());
     verify(tenantGroupService, never()).updateGroupInfoWithRoles(any(), any(), any());
   }
 
@@ -190,6 +193,7 @@ public class ServiceAccountPrivilegeServiceTest {
   @DisplayName("Should create new role when no existing role found")
   void shouldCreateNewRoleWhenNoExistingRoleFound() {
     // prepare
+    TxCtx ctx = TxCtx.of(TENANT_ID);
     when(roleService.findById(anyString())).thenReturn(Optional.empty());
     when(roleService.createRoleInternal(any(), any(), any(), any(), any())).thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
@@ -204,17 +208,18 @@ public class ServiceAccountPrivilegeServiceTest {
     // assert
     verify(roleService)
         .createRoleInternal(
+                eq(TENANT_ID),
             anyString(),
             eq(SERVICE_ROLE_NAME),
             eq(SERVICE_ROLE_DESCRIPTION),
-            eq(SERVICE_ROLE_CAPABILITIES),
-            eq(TENANT_ID));
+            eq(SERVICE_ROLE_CAPABILITIES));
     verify(roleService, never()).updateRoleInternal(any(), any(), any(), any());
   }
 
   @Test
   @DisplayName("Should reuse existing role when matching role found")
   void shouldReuseExistingRoleWhenMatchingRoleFound() {
+    TxCtx ctx = TxCtx.of(TENANT_ID);
     // prepare
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
     when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))

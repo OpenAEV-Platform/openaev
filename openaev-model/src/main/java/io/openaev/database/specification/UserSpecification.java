@@ -19,9 +19,4 @@ public class UserSpecification {
   public static Specification<User> fromIds(@NotNull final List<String> ids) {
     return (root, query, cb) -> root.get("id").in(ids);
   }
-
-  /** Filters users that belong to the given tenant via the {@code users_tenants} join table. */
-  public static Specification<User> inTenant(@NotBlank final String tenantId) {
-    return (root, query, cb) -> cb.equal(root.join("tenants").get("id"), tenantId);
-  }
 }

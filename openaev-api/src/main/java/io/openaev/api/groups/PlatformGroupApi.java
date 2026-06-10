@@ -36,6 +36,7 @@ public class PlatformGroupApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public PlatformGroupOutput create(@Valid @RequestBody PlatformGroupInput input) {
@@ -63,6 +64,7 @@ public class PlatformGroupApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   public Page<PlatformGroupOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -101,6 +103,7 @@ public class PlatformGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{platformGroupId}")
   public PlatformGroupOutput update(
       @PathVariable String platformGroupId, @Valid @RequestBody PlatformGroupInput input) {
@@ -115,6 +118,7 @@ public class PlatformGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{platformGroupId}/users")
   public List<String> updateUsers(
       @PathVariable String platformGroupId,
@@ -128,6 +132,7 @@ public class PlatformGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{platformGroupId}/platform-roles")
   public Set<String> updatePlatformRoles(
       @PathVariable String platformGroupId,
@@ -143,6 +148,7 @@ public class PlatformGroupApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{platformGroupId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String platformGroupId) {

@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 import org.springframework.security.core.GrantedAuthority;
 
 public interface OpenAEVPrincipal extends Serializable {
@@ -12,4 +13,6 @@ public interface OpenAEVPrincipal extends Serializable {
   boolean isAdmin();
 
   String getLang();
+
+  List<String> tenantIds();
 }

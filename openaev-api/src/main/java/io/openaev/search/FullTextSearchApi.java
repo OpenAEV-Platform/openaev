@@ -3,6 +3,7 @@ package io.openaev.search;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Base;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -12,6 +13,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,14 +30,16 @@ public class FullTextSearchApi extends RestBehavior {
 
   @PostMapping({GLOBAL_SEARCH_URI, TENANT_GLOBAL_SEARCH_URI})
   @AccessControl(skipRBAC = true)
+  @Transactional
   public Map<? extends Class<? extends Base>, FullTextSearchService.FullTextSearchCountResult>
-      fullTextSearch(@Valid @RequestBody final SearchTerm searchTerm) {
-    return this.fullTextSearchService.fullTextSearch(searchTerm.getSearchTerm());
+      fullTextSearch(TxCtx ctx, @Valid @RequestBody final SearchTerm searchTerm) {
+    return this.fullTextSearchService.fullTextSearch(ctx, searchTerm.getSearchTerm());
   }
 
   @PostMapping({GLOBAL_SEARCH_URI + "/{clazz}", TENANT_GLOBAL_SEARCH_URI + "/{clazz}"})
   @AccessControl(skipRBAC = true)
-  public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
+  @Transactional
+  public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(TxCtx ctx,
       @PathVariable @NotBlank final String clazz,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput)
       throws ClassNotFoundException {
@@ -43,7 +47,7 @@ public class FullTextSearchApi extends RestBehavior {
       throw new IllegalArgumentException("Class not allowed : " + clazz);
     }
 
-    return this.fullTextSearchService.fullTextSearch(Class.forName(clazz), searchPaginationInput);
+    return this.fullTextSearchService.fullTextSearch(ctx, Class.forName(clazz), searchPaginationInput);
   }
 
   @Data

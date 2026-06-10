@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import io.openaev.context.TxCtx;
+
 /** Handler interface for processing step events in a workflow. */
 public interface StepEventHandler {
 
@@ -8,5 +10,5 @@ public interface StepEventHandler {
    *
    * @param stepEvent the step event to handle
    */
-  void handleReadyStepEvent(StepEvent stepEvent);
+  void handleReadyStepEvent(TxCtx ctx, StepEvent stepEvent);
 }

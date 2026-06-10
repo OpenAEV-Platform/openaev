@@ -10,7 +10,7 @@ import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.TagRepository;
@@ -84,9 +84,10 @@ public class ChainingApi extends RestBehavior {
   }
 
   // CREATE SIMULATION
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(SIMULATION_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input)
+  public Exercise createSimulation(TxCtx ctx, @Valid @RequestBody CreateExerciseInput input)
       throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
@@ -106,7 +107,7 @@ public class ChainingApi extends RestBehavior {
       simulation.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(
-                  TenantContext.getCurrentTenant(),
+                  ctx.tenantIdFromUri(),
                   TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
@@ -172,9 +173,10 @@ public class ChainingApi extends RestBehavior {
   }
 
   // CREATE SCENARIO
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(SCENARIO_URI)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
+  public Scenario createScenarioChaining(TxCtx ctx, @Valid @RequestBody final ScenarioInput input)
       throws ChainingException {
 
     workflowService.isPreviewFeatureChainingEnable();
@@ -192,7 +194,7 @@ public class ChainingApi extends RestBehavior {
       scenario.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(
-                  TenantContext.getCurrentTenant(),
+                  ctx.tenantIdFromUri(),
                   TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
@@ -232,6 +234,7 @@ public class ChainingApi extends RestBehavior {
     }
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping(SCENARIO_URI + "/{scenarioId}")
   @AccessControl(
       resourceId = "#scenarioId",

@@ -32,11 +32,12 @@ public interface PayloadRepository
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :#{#tenantContext.currentTenant}",
+          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :tenantId",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
-      @Param("payloadExternalIds") List<String> payloadExternalIds);
+      @Param("payloadExternalIds") List<String> payloadExternalIds,
+      @Param("tenantId") String tenantId);
 
   @Query(
       """

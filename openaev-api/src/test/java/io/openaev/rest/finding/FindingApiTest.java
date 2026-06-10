@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
@@ -120,7 +119,7 @@ class FindingApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector())));
+                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))));
       injects.put(
           secondInjectName,
           injectComposer
@@ -128,7 +127,7 @@ class FindingApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector())));
+                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))));
       injects.put(
           thirdInjectName,
           injectComposer
@@ -136,7 +135,7 @@ class FindingApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector())));
+                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))));
       injects.put(
           fourthInjectName,
           injectComposer
@@ -144,7 +143,7 @@ class FindingApiTest extends IntegrationTest {
               .withInjectorContract(
                   injectorContractComposer
                       .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector())));
+                      .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenantId"))));
 
       ExerciseComposer.Composer simulationWrapper =
           simulationComposer.forExercise(simulationFixture);
@@ -667,9 +666,6 @@ class FindingApiTest extends IntegrationTest {
   class TenantIsolation {
 
     private Finding createFindingInTenant(String tenantId) {
-      String previousTenant = TenantContext.getCurrentTenant();
-      tenantIsolationHelper.switchToTenant(tenantId, entityManager);
-
       InjectComposer.Composer injectWrapper =
           injectComposer.forInject(InjectFixture.getDefaultInject()).persist();
       Finding finding =
@@ -678,8 +674,6 @@ class FindingApiTest extends IntegrationTest {
               .withInject(injectWrapper)
               .persist()
               .get();
-
-      tenantIsolationHelper.switchToTenant(previousTenant, entityManager);
       return finding;
     }
 

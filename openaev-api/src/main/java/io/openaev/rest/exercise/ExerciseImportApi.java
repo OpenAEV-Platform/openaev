@@ -4,6 +4,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ImportMapper;
@@ -104,6 +105,7 @@ public class ExerciseImportApi extends RestBehavior {
     return importTestSummary;
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(
       path = {
         EXERCISE_URI + "/{simulationId}/injects/import",
@@ -115,6 +117,7 @@ public class ExerciseImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void injectsImport(
+          TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String simulationId,
       HttpServletResponse response)
@@ -122,6 +125,6 @@ public class ExerciseImportApi extends RestBehavior {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
-    this.injectImportService.importInjectsForSimulation(file, simulationId);
+    this.injectImportService.importInjectsForSimulation(ctx.tenantIdFromUri(), file, simulationId);
   }
 }

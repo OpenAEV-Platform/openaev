@@ -5,18 +5,14 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
-import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
-import io.openaev.helper.CompositeIdResolvableI;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -31,7 +27,6 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -39,9 +34,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "injectors_contracts")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class InjectorContract implements TenantBase, CompositeIdResolvableI {
+@EntityListeners({ModelBaseListener.class})
+public class InjectorContract implements TenantBase {
 
   public static final String ID_FIELD_NAME = "id";
   public static final String COMPOSITE_ID_FIELD_NAME = "compositeId";
@@ -395,15 +389,6 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Override
   public int hashCode() {
     return Objects.hash(compositeId);
-  }
-
-  @Override
-  public Object resolveCompositeId(String rawId, DeserializationContext ctxt) {
-    String tenantId = TenantContext.getCurrentTenant();
-    InjectorContractId compositeId = new InjectorContractId();
-    compositeId.setId(rawId);
-    compositeId.setTenantId(tenantId);
-    return compositeId;
   }
 
   // -- INJECTOR CONTRACT CONTENT --

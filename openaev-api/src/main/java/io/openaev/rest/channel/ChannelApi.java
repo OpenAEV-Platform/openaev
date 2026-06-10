@@ -9,7 +9,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -72,6 +71,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
   @AccessControl(
       resourceId = "#channelId",
@@ -86,6 +86,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.save(channel);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({CHANNEL_URI + "/{channelId}/logos", TENANT_CHANNEL_URI + "/{channelId}/logos"})
   @AccessControl(
       resourceId = "#channelId",
@@ -117,6 +118,7 @@ public class ChannelApi extends RestBehavior {
     return channelRepository.save(channel);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
   @AccessControl(
       resourceId = "#channelId",
@@ -142,7 +144,7 @@ public class ChannelApi extends RestBehavior {
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
 
     Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant());
+        this.exerciseRepository.findById(exerciseId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
@@ -196,7 +198,7 @@ public class ChannelApi extends RestBehavior {
       @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     Article article = new Article();
     article.setUpdateAttributes(input);
@@ -225,6 +227,7 @@ public class ChannelApi extends RestBehavior {
     return enrichArticleWithVirtualPublication(exercise.getInjects(), savedArticle, this.mapper);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping({
     "/api/exercises/{exerciseId}/articles/{articleId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
@@ -239,7 +242,7 @@ public class ChannelApi extends RestBehavior {
       @Valid @RequestBody ArticleUpdateInput input) {
     Exercise exercise =
         exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .findById(exerciseId)
             .orElseThrow(ElementNotFoundException::new);
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);

@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ResourceType;
@@ -55,8 +56,8 @@ public class DomainApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   @Transactional(rollbackOn = Exception.class)
-  public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
-    return domainService.upsert(input);
+  public Domain upsertDomain(TxCtx ctx, @Valid @RequestBody DomainBaseInput input) {
+    return domainService.upsert(ctx, input);
   }
 
   // -- OPTION --

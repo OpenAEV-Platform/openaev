@@ -3,7 +3,6 @@ package io.openaev.service.connector_instances;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
-import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,7 +50,6 @@ public class ConnectorInstanceLogService {
    * @param rawLogs the log content to store
    * @throws IllegalArgumentException if rawLog is empty
    */
-  @Transactional
   public void pushLogByConnectorInstance(
       ConnectorInstancePersisted connectorInstance, Set<String> rawLogs)
       throws IllegalArgumentException {

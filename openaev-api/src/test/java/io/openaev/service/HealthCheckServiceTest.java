@@ -37,19 +37,19 @@ class HealthCheckServiceTest {
   @Test
   void test_runFileStorageCheck() throws Exception {
     when(minioDriver.getMinioClient()).thenReturn(minioClient);
-    healthCheckService.runFileStorageCheck();
-    verify(minioService).isTenantPathExists();
+    healthCheckService.runFileStorageCheck("tenant");
+    verify(minioService).isTenantPathExists("tenant");
   }
 
   @DisplayName("Test runFileStorageCheck when check fails ")
   @Test
   void test_runFileStorageCheck_WHEN_client_throws_exception() throws Exception {
     when(minioDriver.getMinioClient()).thenReturn(minioClient);
-    doThrow(new IOException("test")).when(minioService).isTenantPathExists();
+    doThrow(new IOException("test")).when(minioService).isTenantPathExists("tenant");
     assertThrows(
         HealthCheckFailureException.class,
         () -> {
-          healthCheckService.runFileStorageCheck();
+          healthCheckService.runFileStorageCheck("tenant");
         });
   }
 

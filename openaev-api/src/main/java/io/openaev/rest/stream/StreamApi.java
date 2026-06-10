@@ -10,25 +10,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.OpenAEVPrincipal;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
-import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
-import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -53,7 +49,6 @@ public class StreamApi extends RestBehavior {
   private final Map<String, StreamConsumer> consumers = new HashMap<>();
 
   private final PermissionService permissionService;
-  private final UserService userService;
 
   private Instant lastUpdate = Instant.now();
 
@@ -62,7 +57,6 @@ public class StreamApi extends RestBehavior {
 
   public StreamApi(PermissionService permissionService, UserService userService) {
     this.permissionService = permissionService;
-    this.userService = userService;
   }
 
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event) {
@@ -81,7 +75,6 @@ public class StreamApi extends RestBehavior {
           ResourceType.CONNECTOR_INSTANCE_LOG);
 
   @Async("streamExecutor")
-  @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
     if (RESOURCES_STREAM_EXCLUSION.contains(event.getInstance().getResourceType())
@@ -106,26 +99,11 @@ public class StreamApi extends RestBehavior {
             return;
           }
 
-          User user = userService.user(consumer.principal().getId());
-          // FIXME find a way to cache user
-          // -> close session when user se login
 
-          // Set the tenant context for permission checks on the async thread.
-          // Without this, TenantContext defaults to DEFAULT_TENANT_UUID, causing
-          // tenant-scoped capabilities to be invisible and incorrect DELETE events
-          // to be sent for entities on non-default tenants.
-          if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
-            TenantContext.setCurrentTenant(consumer.tenantId());
-          }
-
-          try {
             FluxSink<Object> fluxSink = consumer.fluxSink();
-            if (!permissionService.hasPermission(
-                user,
-                Optional.empty(),
-                event.getInstance().getId(),
-                event.getInstance().getResourceType(),
-                Action.READ)) {
+            OpenAEVPrincipal principal = consumer.principal();
+            TxCtx ctx = TxCtx.of(null, principal.tenantIds());
+            if (!permissionService.hasEventPermission(ctx, principal.getId(), event)) {
               try {
                 String propertyId =
                     event
@@ -148,12 +126,7 @@ public class StreamApi extends RestBehavior {
             } else {
               sendStreamEvent(fluxSink, event);
             }
-          } finally {
-            // Reset tenant context to avoid leaking into other consumers in the loop
-            if (consumer.tenantId() != null && !consumer.tenantId().isBlank()) {
-              TenantContext.clearCurrentTenant();
-            }
-          }
+
         });
   }
 
@@ -173,12 +146,13 @@ public class StreamApi extends RestBehavior {
   }
 
   /** Create a flux for current user & session */
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   @GetMapping(
       path = {"/api/stream", TENANT_PREFIX + "/stream"},
       produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(
       skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
-  public ResponseEntity<Flux<Object>> streamFlux() {
+  public ResponseEntity<Flux<Object>> streamFlux(TxCtx ctx) {
     String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
     // Build the database event flux.
     Flux<Object> dataFlux =
@@ -187,7 +161,7 @@ public class StreamApi extends RestBehavior {
                     consumers.put(
                         sessionId,
                         new StreamConsumer(
-                            currentUser(), TenantContext.getCurrentTenant(), fluxSinkConsumer)))
+                            currentUser(), ctx.tenantIdFromUri(), fluxSinkConsumer)))
             .doAfterTerminate(() -> consumers.remove(sessionId));
     // Build the health check flux.
     Flux<Object> ping =

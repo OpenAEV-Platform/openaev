@@ -20,7 +20,7 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -54,7 +54,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -132,26 +131,14 @@ public class EndpointService {
     return createEndpoint(endpoint);
   }
 
-  public Endpoint endpoint(@NotBlank final String endpointId) {
+  public Endpoint endpoint(TxCtx ctx, @NotBlank final String endpointId) {
     return this.endpointRepository
-        .findByIdAndTenantId(endpointId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(endpointId, ctx.tenantIdFromUri())
         .orElseThrow(() -> new ElementNotFoundException("Endpoint not found"));
   }
 
-  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
-      @NotBlank final String hostname,
-      @NotNull final String[] ips,
-      @NotNull final String tenantId) {
-    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
-  }
-
-  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
-      @NotBlank final String hostname, @NotNull final String[] ips) {
-    String tenantId = TenantContext.getCurrentTenant();
-    if (tenantId == null) {
-      return List.of();
-    }
-    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips, tenantId);
+  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(@NotBlank final String hostname, @NotNull final String[] ips) {
+    return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips);
   }
 
   public List<Endpoint> findEndpointByHostnameAndAtLeastOneMacAddress(
@@ -194,8 +181,8 @@ public class EndpointService {
     this.endpointRepository.deleteById(endpointId);
   }
 
-  public Endpoint getEndpoint(@NotBlank final String endpointId) {
-    return endpoint(endpointId);
+  public Endpoint getEndpoint(TxCtx ctx, @NotBlank final String endpointId) {
+    return endpoint(ctx, endpointId);
   }
 
   public Page<Endpoint> searchEndpoints(SearchPaginationInput searchPaginationInput) {
@@ -323,9 +310,9 @@ public class EndpointService {
     }
   }
 
-  public Endpoint updateEndpoint(
+  public Endpoint updateEndpoint(TxCtx ctx,
       @NotBlank final String endpointId, @NotNull final EndpointInput input) {
-    Endpoint toUpdate = this.endpoint(endpointId);
+    Endpoint toUpdate = this.endpoint(ctx, endpointId);
     toUpdate.setUpdateAttributes(input);
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -433,14 +420,13 @@ public class EndpointService {
     return agentService.saveAllAgents(agentsToSave);
   }
 
-  @Transactional
-  public Endpoint register(final EndpointRegisterInput input) throws IOException {
-    AgentRegisterInput agentInput = toAgentEndpoint(input);
+  public Endpoint register(TxCtx ctx, final EndpointRegisterInput input) throws IOException {
+    AgentRegisterInput agentInput = toAgentEndpoint(ctx, input);
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
         agentService.findByExternalReference(
-            agentInput.getExternalReference(), TenantContext.getCurrentTenant());
+            agentInput.getExternalReference(), ctx.tenantIdFromUri());
     if (!existingAgents.isEmpty()) {
       // Check if this specific agent exist
       Agent.DEPLOYMENT_MODE deploymentMode =
@@ -489,6 +475,7 @@ public class EndpointService {
           AssetAgentJob assetAgentJob = new AssetAgentJob();
           assetAgentJob.setCommand(
               generateUpgradeCommand(
+                      ctx,
                   endpoint.getPlatform().name(),
                   input.getInstallationMode(),
                   input.getInstallationDirectory(),
@@ -651,11 +638,11 @@ public class EndpointService {
     agent.setTenant(input.getExecutor().getTenant());
   }
 
-  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
+  private AgentRegisterInput toAgentEndpoint(TxCtx ctx, EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
     agentInput.setExecutor(
         executorRepository
-            .findByIdAndTenantId(OPENAEV_EXECUTOR_ID, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(OPENAEV_EXECUTOR_ID, ctx.tenantIdFromUri())
             .orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
@@ -806,6 +793,7 @@ public class EndpointService {
   }
 
   public String generateUpgradeCommand(
+          TxCtx ctx,
       String platform,
       String installationMode,
       String installationDir,
@@ -814,7 +802,7 @@ public class EndpointService {
       throws IOException {
     // FIND TOKEN BY TENANT
     String token =
-        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+        privilegeService.getTokenUserServiceAccountByTenant(ctx.tenantIdFromUri());
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
       upgradeName = upgradeName.concat("-").concat(installationMode);

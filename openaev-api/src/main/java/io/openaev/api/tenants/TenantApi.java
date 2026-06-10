@@ -33,6 +33,7 @@ public class TenantApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public TenantOutput create(@Valid @RequestBody TenantInput input)
@@ -65,6 +66,7 @@ public class TenantApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   public Page<TenantOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -79,6 +81,7 @@ public class TenantApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{tenantId}")
   public TenantOutput update(@PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
 
@@ -95,6 +98,7 @@ public class TenantApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/{tenantId}/reactivate")
   public TenantOutput reactivate(@PathVariable String tenantId) {
     return toOutput(tenantService.reactivate(tenantId));
@@ -113,6 +117,7 @@ public class TenantApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{tenantId}")
   public TenantOutput softDelete(@PathVariable String tenantId) {
     return toOutput(tenantService.softDelete(tenantId));

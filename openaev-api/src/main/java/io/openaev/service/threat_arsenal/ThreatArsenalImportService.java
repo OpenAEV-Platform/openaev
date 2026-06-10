@@ -3,6 +3,7 @@ package io.openaev.service.threat_arsenal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
@@ -31,17 +32,17 @@ public class ThreatArsenalImportService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final ObjectMapper objectMapper;
 
-  public ThreatArsenalAction importThreatArsenalAction(@NotNull MultipartFile file)
+  public ThreatArsenalAction importThreatArsenalAction(TxCtx ctx, @NotNull MultipartFile file)
       throws Exception {
     if (isInjectorContractExport(file)) {
-      return importFromInjectorContract(file);
+      return importFromInjectorContract(ctx, file);
     }
-    return importFromPayload(file);
+    return importFromPayload(ctx, file);
   }
 
-  private ThreatArsenalAction importFromInjectorContract(MultipartFile file) throws Exception {
+  private ThreatArsenalAction importFromInjectorContract(TxCtx ctx, MultipartFile file) throws Exception {
     ZipJsonService.ImportOutput<InjectorContract> response =
-        injectorContractZipJsonApi.handleImport(
+        injectorContractZipJsonApi.handleImport(ctx.tenantIdFromUri(),
             file,
             "injector_contract_labels",
             null,
@@ -64,11 +65,10 @@ public class ThreatArsenalImportService {
    * Imports a threat arsenal action from a legacy payload export file.
    *
    * <p><b>Legacy — kept for backward compatibility only.</b> New exports use the injector contract
-   * format handled by {@link #importFromInjectorContract(MultipartFile)}. This path will be removed
    * soon.
    */
-  private ThreatArsenalAction importFromPayload(MultipartFile file) throws Exception {
-    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(file);
+  private ThreatArsenalAction importFromPayload(TxCtx ctx, MultipartFile file) throws Exception {
+    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(ctx, file);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 

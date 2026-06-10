@@ -4,7 +4,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SortUtilsRuntime.toSortRuntime;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
@@ -118,8 +118,8 @@ public class FullTextSearchService<T extends Base> {
     return new PageImpl<>(Collections.emptyList(), pageable, 0);
   }
 
-  public Page<FullTextSearchResult> fullTextSearch(
-      @NotBlank final Class<?> clazz, @NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<FullTextSearchResult> fullTextSearch(TxCtx ctx,
+                                                   @NotBlank final Class<?> clazz, @NotNull final SearchPaginationInput searchPaginationInput) {
     if (!hasText(searchPaginationInput.getTextSearch())) {
       return generateEmptyResult(searchPaginationInput);
     }
@@ -136,11 +136,11 @@ public class FullTextSearchService<T extends Base> {
     Capability capaForClass = capaByClassMap.get(clazzT).orElse(Capability.BYPASS);
     boolean isGrantable = clazzT.getAnnotation(Grantable.class) != null;
 
-    if (!currentUser.isAdminOrBypass() && capaForClass != Capability.BYPASS && !isGrantable) {
+    if (!currentUser.isAdminOrBypass(ctx.tenantIdFromUri()) && capaForClass != Capability.BYPASS && !isGrantable) {
       // We can't really use the PermissionService.hasPermission method here because it would
       // require a mapping between classes and resourceType
-      if (!currentUser.getCapabilities().contains(Capability.BYPASS)
-          && !currentUser.getCapabilities().contains(capaForClass)) {
+      if (!currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.BYPASS)
+          && !currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(capaForClass)) {
         return generateEmptyResult(searchPaginationInput);
       }
     }
@@ -155,10 +155,10 @@ public class FullTextSearchService<T extends Base> {
             .and(
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(capaForClass),
+                    currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
+                    currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(capaForClass),
                     Grant.GRANT_TYPE.OBSERVER))
-            .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
+            .and(TenantSpecification.fromTenant(ctx.tenantIdFromUri()));
 
     return buildPaginationJPA(repository::findAll, searchPaginationInput, clazzT, specs)
         .map(this::transform);
@@ -241,7 +241,7 @@ public class FullTextSearchService<T extends Base> {
    * @return a map of class type to the count of results for that class
    */
   @SuppressWarnings("unchecked")
-  public Map<Class<T>, FullTextSearchCountResult> fullTextSearch(
+  public Map<Class<T>, FullTextSearchCountResult> fullTextSearch(TxCtx ctx,
       @Nullable final String searchTerm) {
     if (!hasText(searchTerm)) {
       return Map.of(
@@ -264,14 +264,14 @@ public class FullTextSearchService<T extends Base> {
     User currentUser = userService.currentUser();
     // Only search classes that the user has access to
     Set<Class<T>> classesToSearch;
-    if (currentUser.isAdminOrBypass()) {
+    if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())) {
       classesToSearch = new HashSet<>(repositoryMap.keySet());
     } else {
 
       classesToSearch = new HashSet<>();
       for (Map.Entry<Class<T>, Optional<Capability>> entry : capaByClassMap.entrySet()) {
         Capability capaForClass = entry.getValue().orElse(Capability.BYPASS);
-        if (currentUser.getCapabilities().contains(capaForClass)
+        if (currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(capaForClass)
             || Capability.BYPASS.equals(capaForClass)) {
           classesToSearch.add(entry.getKey());
         }
@@ -288,12 +288,12 @@ public class FullTextSearchService<T extends Base> {
                   .and(
                       SpecificationUtils.hasGrantAccess(
                           currentUser.getId(),
-                          currentUser.isAdminOrBypass(),
+                          currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
                           currentUser
-                              .getCapabilities()
+                              .getCapabilities(ctx.tenantIdFromUri())
                               .contains(capaByClassMap.get(tClass).orElse(Capability.BYPASS)),
                           Grant.GRANT_TYPE.OBSERVER))
-                  .and(TenantSpecification.fromTenant(TenantContext.getCurrentTenant()));
+                  .and(TenantSpecification.fromTenant(ctx.tenantIdFromUri()));
           long count = repository.count(specs);
           results.put(tClass, new FullTextSearchCountResult(tClass.getSimpleName(), count));
         });

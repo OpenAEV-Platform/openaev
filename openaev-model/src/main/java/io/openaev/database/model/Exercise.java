@@ -13,7 +13,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.helper.InjectStatisticsHelper;
@@ -40,8 +39,7 @@ import org.hibernate.annotations.*;
 @Setter
 @Entity
 @Table(name = "exercises")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SIMULATION)
 public class Exercise implements GrantableBase, TenantBase {
 

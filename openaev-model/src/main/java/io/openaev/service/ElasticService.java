@@ -15,7 +15,7 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.IndexingStatus;
@@ -254,6 +254,7 @@ public class ElasticService implements EngineService {
   }
 
   private Query buildQuery(
+      TxCtx ctx,
       RawUserAuth user,
       String search,
       Filters.FilterGroup groupFilter,
@@ -288,8 +289,7 @@ public class ElasticService implements EngineService {
     // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
     // or platform-level documents that have no tenant field at all.
     Query matchesTenant =
-        TermQuery.of(
-                t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
+        TermQuery.of(t -> t.field("base_tenant_side.keyword").value(ctx.tenantIdFromUri()))
             ._toQuery();
     Query noTenantField =
         BoolQuery.of(
@@ -302,7 +302,8 @@ public class ElasticService implements EngineService {
     return mainQuery.must(mainMust).build()._toQuery();
   }
 
-  private Map<String, String> resolveIdsRepresentative(RawUserAuth user, List<String> ids) {
+  private Map<String, String> resolveIdsRepresentative(
+      TxCtx ctx, RawUserAuth user, List<String> ids) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     Filters.Filter filter = new Filters.Filter();
     filter.setKey("base_id");
@@ -310,7 +311,7 @@ public class ElasticService implements EngineService {
     filter.setValues(ids);
     filter.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
-    Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
+    Query query = buildQuery(ctx, user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsBase> response =
           elasticClient.search(
@@ -459,12 +460,13 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region query
-  public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
+  public EsCountInterval count(TxCtx ctx, RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
 
     try {
       Query countQuery =
           buildQuery(
+              ctx,
               user,
               null,
               runtime
@@ -528,12 +530,13 @@ public class ElasticService implements EngineService {
     return new EsCountInterval(0L, 0L, 0L);
   }
 
-  public EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime) {
+  public EsAvgs average(TxCtx ctx, RawUserAuth user, AverageRuntime averageRuntime) {
     AverageConfiguration widgetConfig = averageRuntime.getConfig();
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
         buildQuery(
+            ctx,
             user,
             null,
             averageRuntime.getConfig().getSeries().getFirst().getFilter(),
@@ -596,7 +599,7 @@ public class ElasticService implements EngineService {
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();
 
-      return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
+      return averageSTerms(ctx, domainBuckets, user, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
       log.error(String.format("Elastic client failed to aggregate data: %s", e.getMessage()), e);
@@ -605,6 +608,7 @@ public class ElasticService implements EngineService {
   }
 
   private EsAvgs averageSTerms(
+      TxCtx ctx,
       @NotNull Buckets<StringTermsBucket> domainBuckets,
       @NotNull final RawUserAuth user,
       String typeAggregationKey,
@@ -615,7 +619,7 @@ public class ElasticService implements EngineService {
             .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
             .distinct()
             .toList();
-    resolutions.putAll(resolveIdsRepresentative(user, ids));
+    resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
 
     List<EsDomainsAvgData> data =
         domainBuckets.array().stream()
@@ -653,6 +657,7 @@ public class ElasticService implements EngineService {
   }
 
   public EsSeries termHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
       Series config,
@@ -661,7 +666,7 @@ public class ElasticService implements EngineService {
 
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
     Query filterQuery =
-        buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
     Query query;
     if (isAllTime(widgetConfig, parameters, definitionParameters)) {
       query = queryBuilder.must(filterQuery).build()._toQuery();
@@ -712,7 +717,7 @@ public class ElasticService implements EngineService {
           || propertyField.getType() == Boolean.class) {
         return termHistogramLTerms(config, aggregate);
       } else {
-        return termHistogramSTerms(user, config, aggregate, field);
+        return termHistogramSTerms(ctx, user, config, aggregate, field);
       }
     } catch (Exception e) {
       log.error(String.format("termHistogram exception: %s", e.getMessage()), e);
@@ -721,6 +726,7 @@ public class ElasticService implements EngineService {
   }
 
   private EsSeries termHistogramSTerms(
+      TxCtx ctx,
       @NotNull final RawUserAuth user,
       @NotNull final Series config,
       @NotNull final Aggregate aggregate,
@@ -734,7 +740,7 @@ public class ElasticService implements EngineService {
               .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
               .distinct()
               .toList();
-      resolutions.putAll(resolveIdsRepresentative(user, ids));
+      resolutions.putAll(resolveIdsRepresentative(ctx, user, ids));
     }
     List<EsSeriesData> data =
         buckets.array().stream()
@@ -777,15 +783,18 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName(), data);
   }
 
-  public List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime) {
+  public List<EsSeries> multiTermHistogram(
+      TxCtx ctx, RawUserAuth user, StructuralHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
+        .map(
+            c -> termHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
   public EsSeries dateHistogram(
+      TxCtx ctx,
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
       Series config,
@@ -794,7 +803,7 @@ public class ElasticService implements EngineService {
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
 
     Query filterQuery =
-        buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
+        buildQuery(ctx, user, null, config.getFilter(), parameters, definitionParameters);
 
     Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
     Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
@@ -852,15 +861,17 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName());
   }
 
-  public List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime) {
+  public List<EsSeries> multiDateHistogram(
+      TxCtx ctx, RawUserAuth user, DateHistogramRuntime runtime) {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .map(c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
+        .map(
+            c -> dateHistogram(ctx, user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
 
-  public EsEntities entities(RawUserAuth user, ListRuntime runtime) {
+  public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
     String entityName =
         searchFilters.getFilters().stream()
@@ -898,7 +909,12 @@ public class ElasticService implements EngineService {
     ListConfiguration widgetConfig = runtime.getWidget();
     Query listQuery =
         buildQuery(
-            user, "", searchFilters, runtime.getParameters(), runtime.getDefinitionParameters());
+            ctx,
+            user,
+            "",
+            searchFilters,
+            runtime.getParameters(),
+            runtime.getDefinitionParameters());
     try {
       Query query;
       if (isAllTime(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters())) {
@@ -982,8 +998,9 @@ public class ElasticService implements EngineService {
     return listConfiguration;
   }
 
-  public List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter) {
-    Query query = buildQuery(user, search, filter, new HashMap<>(), new HashMap<>());
+  public List<EsSearch> search(
+      TxCtx ctx, RawUserAuth user, String search, Filters.FilterGroup filter) {
+    Query query = buildQuery(ctx, user, search, filter, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsSearch> response =
           elasticClient.search(

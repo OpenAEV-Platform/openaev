@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.UserRepository;
@@ -109,10 +110,11 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    TxCtx ctx = TxCtx.of("tenant");
+    emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
-    emailExecutor.process(execution, executableInject);
+    emailExecutor.process(ctx, execution, executableInject);
 
     // -- ASSERT --
     // No injectExpectation should be created.
@@ -155,10 +157,11 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
-    emailExecutor.process(execution, executableInject);
+    TxCtx ctx = TxCtx.of("tenant");
+    emailExecutor.process(ctx, execution, executableInject);
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for team - 2 for the user (expectation A and

@@ -6,27 +6,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utilstest.DefaultTenantExtension;
 import io.openaev.xtmhub.TenantRegistrationDetails;
 import io.openaev.xtmhub.XtmHubClient;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -34,7 +30,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 /** Integration test for {@link XtmHubConnectivityCollectorService}. */
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser(isAdmin = true)
-@ExtendWith(DefaultTenantExtension.class)
 @DisplayName("XtmHubConnectivityCollectorService integration tests")
 class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
 
@@ -45,23 +40,12 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
   @MockitoBean private XtmHubClient xtmHubClient;
 
   // Tracks registrationId → tenantId so cleanup can switch to the right context per row.
-  private final Map<String, String> createdRegistrationIdToTenantId = new LinkedHashMap<>();
   private final List<String> createdTenantIds = new ArrayList<>();
 
   @AfterEach
   void cleanup() {
     // Delete each registration while the tenant context matches its tenant_id.
-    createdRegistrationIdToTenantId.forEach(
-        (registrationId, tenantId) -> {
-          TenantContext.setCurrentTenant(tenantId);
-          try {
-            tenantXtmHubRegistrationRepository.deleteById(registrationId);
-          } finally {
-            TenantContext.clearCurrentTenant();
-          }
-        });
     createdTenantIds.forEach(tenantRepository::deleteById);
-    createdRegistrationIdToTenantId.clear();
     createdTenantIds.clear();
   }
 
@@ -111,16 +95,12 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
   }
 
   private void saveRegistration(String token, Tenant tenant) {
-    TenantContext.setCurrentTenant(tenant.getId());
-    try {
+
       TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
       registration.setToken(token);
       registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
       registration.setConnectivityEmailEligible(true);
-      TenantXtmHubRegistration saved = tenantXtmHubRegistrationRepository.save(registration);
-      createdRegistrationIdToTenantId.put(saved.getId(), tenant.getId());
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+      tenantXtmHubRegistrationRepository.save(registration);
+
   }
 }

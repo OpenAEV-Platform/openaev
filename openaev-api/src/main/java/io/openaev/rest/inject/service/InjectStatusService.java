@@ -20,7 +20,6 @@ import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -52,7 +51,6 @@ public class InjectStatusService {
             () -> new ElementNotFoundException("Inject status not found for :" + injectId));
   }
 
-  @Transactional(rollbackOn = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow();
     // build status
@@ -275,7 +273,6 @@ public class InjectStatusService {
     return injectStatusRepository.save(injectStatus);
   }
 
-  @Transactional
   public InjectStatus initializeInjectStatus(
       @NotNull String injectId, @NotNull ExecutionStatus status) {
     Inject inject = this.injectRepository.findById(injectId).orElseThrow();

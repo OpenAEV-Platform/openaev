@@ -1,5 +1,6 @@
 package io.openaev.rest.helper.queue.executor;
 
+import io.openaev.context.TxCtx;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import java.util.List;
@@ -14,6 +15,7 @@ public class BatchExecutionTraceExecutor {
 
   public List<InjectExecutionCallback> handleInjectExecutionCallbackList(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
-    return batchingInjectStatusService.handleInjectExecutionCallback(injectExecutionCallbacks);
+    TxCtx ctx = TxCtx.noTenant();
+    return batchingInjectStatusService.handleInjectExecutionCallback(ctx, injectExecutionCallbacks);
   }
 }

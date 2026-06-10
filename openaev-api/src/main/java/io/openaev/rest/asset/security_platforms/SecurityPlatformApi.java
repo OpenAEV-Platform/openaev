@@ -136,6 +136,7 @@ public class SecurityPlatformApi {
         .orElseThrow(ElementNotFoundException::new);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({SECURITY_PLATFORM_URI + "/search", TENANT_SECURITY_PLATFORM_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public Page<SecurityPlatform> securityPlatforms(
@@ -216,6 +217,7 @@ public class SecurityPlatformApi {
         .toList();
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

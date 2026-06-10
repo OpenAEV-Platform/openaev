@@ -15,7 +15,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.User;
@@ -62,7 +61,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     injectorContractComposer.reset();
     domainComposer.reset();
   }
@@ -144,7 +143,7 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
       InjectorContract nonPayloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-              .withInjector(injectorFixture.getWellKnownEmailInjector(false))
+              .withInjector(injectorFixture.getWellKnownEmailInjector("tenant", false))
               .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
               .persist()
               .get();
@@ -187,10 +186,9 @@ class ThreatArsenalApiExporterTest extends IntegrationTest {
       User testUser = userTestHelper.createTestUser(userType, List.of()).persist().get();
       Authentication auth = buildAuthenticationToken(testUser);
 
-      String tenantId = TenantContext.getCurrentTenant();
-      tenantRepository.addUserToTenant(testUser.getId(), tenantId);
+      tenantRepository.addUserToTenant(testUser.getId(), "tenant");
 
-      String exportUrl = EXPORT_CSV_URL.replace("{tenantId}", tenantId);
+      String exportUrl = EXPORT_CSV_URL.replace("{tenantId}", "tenant");
       SearchPaginationInput input = new SearchPaginationInput();
 
       // Act

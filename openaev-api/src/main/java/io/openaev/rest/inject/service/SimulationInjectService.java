@@ -19,12 +19,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
 @Slf4j
-@Transactional(rollbackFor = Exception.class)
 public class SimulationInjectService {
 
   private final ExerciseService exerciseService;
@@ -48,7 +46,6 @@ public class SimulationInjectService {
   }
 
   /** Returns the teams assigned to an inject that belongs to the given simulation. */
-  @Transactional(readOnly = true)
   public List<Team> findInjectTeamsForSimulation(
       @NotBlank final String simulationId, @NotBlank final String injectId) {
     return findInjectForSimulation(simulationId, injectId).getTeams();

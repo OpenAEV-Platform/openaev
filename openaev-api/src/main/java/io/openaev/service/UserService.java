@@ -58,7 +58,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -119,7 +118,6 @@ public class UserService {
 
   // -- CREATE --
 
-  @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input) {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
@@ -144,7 +142,6 @@ public class UserService {
   }
 
   /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
-  @Transactional(rollbackFor = Exception.class)
   public User createInternalUser(
       String email, String firstname, String lastname, boolean isAdmin, String token) {
     if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
@@ -173,7 +170,6 @@ public class UserService {
   // -- READ --
 
   /** Returns a user by ID (platform scope, no tenant filtering). */
-  @Transactional(readOnly = true)
   public User user(@NotBlank final String userId) {
     return userRepository
         .findById(userId)
@@ -181,7 +177,6 @@ public class UserService {
   }
 
   /** Finds users by IDs (platform scope, no tenant filtering). */
-  @Transactional(readOnly = true)
   public List<User> find(@NotNull final List<String> userIds) {
     if (userIds.isEmpty()) {
       return List.of();
@@ -192,7 +187,6 @@ public class UserService {
   // -- SEARCH --
 
   /** Searches users with pagination (platform scope, no tenant filtering). */
-  @Transactional(readOnly = true)
   public Page<UserOutput> search(SearchPaginationInput searchPaginationInput) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
     return buildPaginationCriteriaBuilder(
@@ -211,7 +205,6 @@ public class UserService {
 
   // -- UPDATE --
 
-  @Transactional(rollbackFor = Exception.class)
   public User updateUser(String userId, UserInput input) {
     // Check if new email is reserved
     ReservedKeyValidator.validateUserEmailPattern(input.email());
@@ -248,7 +241,6 @@ public class UserService {
    * Saves a user entity directly. For internal/technical use only (SSO provisioning, connector
    * management, group mapping).
    */
-  @Transactional(rollbackFor = Exception.class)
   public User saveUser(User user) {
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
@@ -267,7 +259,6 @@ public class UserService {
 
   // -- DELETE --
 
-  @Transactional(rollbackFor = Exception.class)
   public void delete(String userId) {
     User existing = user(userId);
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
@@ -411,7 +402,6 @@ public class UserService {
   }
 
   /** Returns true if the given user has at least one API token. */
-  @Transactional(readOnly = true)
   public boolean userHasToken(String userId) {
     return tokenRepository.existsByUserId(userId);
   }
@@ -498,8 +488,9 @@ public class UserService {
       roles.add(new SimpleGrantedAuthority(ROLE_ADMIN));
     }
 
+    List<@NotBlank String> tenantIds = user.getTenants().stream().map(Tenant::getId).toList();
     OpenAEVPrincipal principal =
-        new DefaultOpenAEVPrincipal(user.getId(), roles, user.isAdmin(), user.getLang());
+        new DefaultOpenAEVPrincipal(user.getId(), roles, user.isAdmin(), user.getLang(), tenantIds);
 
     return new PreAuthenticatedAuthenticationToken(principal, "", roles);
   }

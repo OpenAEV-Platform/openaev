@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -84,7 +84,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
@@ -160,7 +159,6 @@ public class ExerciseService {
   // -- CRUD --
 
   // -- CREATION --
-  @Transactional(rollbackFor = Exception.class)
   public Exercise createExercise(@NotNull final Exercise exercise) {
     if (!StringUtils.hasText(exercise.getFrom())) {
       if (imapEnabled) {
@@ -184,7 +182,6 @@ public class ExerciseService {
    * @param simulation the simulation to create
    * @return the created simulation
    */
-  @Transactional(rollbackFor = Exception.class)
   public Exercise createSimulationChaining(@NotNull final Exercise simulation)
       throws ChainingException {
 
@@ -200,15 +197,15 @@ public class ExerciseService {
 
   /** Validates that the exercise exists for the current tenant. Throws if not found. */
   public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
-    if (!this.exerciseRepository.existsByIdAndTenantId(
-        exerciseId, TenantContext.getCurrentTenant())) {
+    if (!this.exerciseRepository.existsById(
+        exerciseId)) {
       throw new ElementNotFoundException("Exercise not found");
     }
   }
 
   public Exercise exercise(@NotBlank final String exerciseId) {
     return this.exerciseRepository
-        .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+        .findById(exerciseId)
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
   }
 
@@ -220,12 +217,12 @@ public class ExerciseService {
     return rawSimulation;
   }
 
-  public List<ExerciseSimple> exercises(final List<String> exerciseIds) {
+  public List<ExerciseSimple> exercises(TxCtx ctx, final List<String> exerciseIds) {
 
     User currentUser = userService.currentUser();
     List<RawExerciseSimple> exercises =
-        currentUser.isAdminOrBypass()
-                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+        currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
+                || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT)
             ? exerciseRepository.rawByExerciseIds(exerciseIds)
             : exerciseRepository.rawGrantedByExerciseIds(currentUser().getId(), exerciseIds);
     return exerciseMapper.getExerciseSimples(exercises);
@@ -238,7 +235,6 @@ public class ExerciseService {
   }
 
   // -- DUPLICATION --
-  @Transactional
   public Exercise getDuplicateExercise(@NotBlank String exerciseId) {
     Exercise exerciseOrigin = exercise(exerciseId);
     Exercise exercise = copyExercise(exerciseOrigin);
@@ -481,12 +477,12 @@ public class ExerciseService {
   }
 
   // -- EXERCISES --
-  public List<ExerciseSimple> exercises() {
+  public List<ExerciseSimple> exercises(TxCtx ctx) {
     // We get the exercises depending on whether or not we are granted or have the capa
     User currentUser = userService.currentUser();
     List<RawExerciseSimple> exercises =
-        currentUser.isAdminOrBypass()
-                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+        currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
+                || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT)
             ? exerciseRepository.rawAll()
             : exerciseRepository.rawAllGranted(currentUser().getId());
     return exerciseMapper.getExerciseSimples(exercises);
@@ -556,8 +552,7 @@ public class ExerciseService {
     exerciseRepository.deleteById(simulationId);
   }
 
-  @Transactional(rollbackFor = Exception.class)
-  public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
+  public Exercise changeExerciseStatus(TxCtx ctx, ExerciseStatus status, String exerciseId)
       throws ChainingException {
     Exercise exercise = this.exercise(exerciseId);
     // Check if next status is possible
@@ -615,7 +610,7 @@ public class ExerciseService {
       // Reload exercise after clearing entity manager to avoid detached entity issues
       exercise = this.exercise(exerciseId);
       // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exerciseId);
+      fileService.deleteDirectory(ctx.tenantIdFromUri(), exerciseId);
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE injects
@@ -687,7 +682,7 @@ public class ExerciseService {
     return exerciseRepository.save(exercise);
   }
 
-  private void resetExercise(Exercise exercise) {
+  private void resetExercise(TxCtx ctx, Exercise exercise) {
     // 1. DELETE PAUSES
     pauseExerciseService.deleteAllPauseByExerciseId(exercise.getId());
 
@@ -704,7 +699,7 @@ public class ExerciseService {
           @Override
           public void afterCommit() {
             try {
-              fileService.deleteDirectory(exercise.getId());
+              fileService.deleteDirectory(ctx.tenantIdFromUri(), exercise.getId());
             } catch (Exception e) {
               log.error("Failed to delete directory for exercise {}", exercise.getId(), e);
             }
@@ -1016,7 +1011,6 @@ public class ExerciseService {
   }
 
   // -- TEAMS --
-  @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     // Remove teams from exercise
@@ -1030,7 +1024,6 @@ public class ExerciseService {
     return teamService.find(fromIds(teamIds));
   }
 
-  @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
       @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
     Exercise exercise = this.exercise(exerciseId);
@@ -1101,7 +1094,6 @@ public class ExerciseService {
    * @param currentTags list of the tags before the update
    * @return updated simulation
    */
-  @Transactional
   public Exercise updateExercice(
       @NotNull final Exercise simulation, @NotNull final Set<Tag> currentTags, boolean applyRule) {
     if (applyRule) {
@@ -1192,7 +1184,6 @@ public class ExerciseService {
    * @param exerciseId to verify
    * @return founded healthcheck list
    */
-  @Transactional(readOnly = true)
   public List<HealthCheck> runChecks(String exerciseId) {
     if (exerciseId == null) {
       return null;

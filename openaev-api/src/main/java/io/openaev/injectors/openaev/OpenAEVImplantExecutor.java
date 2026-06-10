@@ -8,6 +8,7 @@ import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.ExpectationUtils.*;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
@@ -47,7 +48,7 @@ public class OpenAEVImplantExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(Execution execution, ExecutableInject injection)
+  public ExecutionProcess process(TxCtx ctx, Execution execution, ExecutableInject injection)
       throws Exception {
     Inject inject = this.injectService.inject(injection.getInjection().getInject().getId());
 

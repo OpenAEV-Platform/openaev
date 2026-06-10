@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -67,6 +68,7 @@ public class MapperApi extends RestBehavior {
   private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
   private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
   public Page<RawPaginationImportMapper> getImportMapper(
@@ -81,19 +83,22 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.MAPPER)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public ImportMapper getImportMapperById(@PathVariable String mapperId) {
     return importMapperRepository
         .findById(UUID.fromString(mapperId))
         .orElseThrow(ElementNotFoundException::new);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
-  public ImportMapper createImportMapper(
+  public ImportMapper createImportMapper(TxCtx ctx,
       @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
-    return mapperService.createAndSaveImportMapper(importMapperAddInput);
+    return mapperService.createAndSaveImportMapper(ctx.tenantIdFromUri(), importMapperAddInput);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(value = "/export")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   public void exportMappers(
@@ -123,6 +128,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @Operation(description = "Export all datas from a specific target (endpoint,...)")
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(value = "/export/csv")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
@@ -133,12 +139,13 @@ public class MapperApi extends RestBehavior {
     mapperService.exportMappersCsv(csvType, input, response);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/import")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
-  public void importMappers(@RequestPart("file") @NotNull MultipartFile file)
+  public void importMappers(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
     try {
-      mapperService.importMappers(
+      mapperService.importMappers(ctx.tenantIdFromUri(),
           mapper.readValue(file.getInputStream().readAllBytes(), new TypeReference<>() {}));
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -146,6 +153,7 @@ public class MapperApi extends RestBehavior {
     }
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/{mapperId}")
   @AccessControl(
       resourceId = "#mapperId",
@@ -156,17 +164,20 @@ public class MapperApi extends RestBehavior {
     return mapperService.getDuplicateImportMapper(mapperId);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PutMapping("/{mapperId}")
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
   public ImportMapper updateImportMapper(
+          TxCtx ctx,
       @PathVariable String mapperId,
       @Valid @RequestBody ImportMapperUpdateInput importMapperUpdateInput) {
-    return mapperService.updateImportMapper(mapperId, importMapperUpdateInput);
+    return mapperService.updateImportMapper(ctx.tenantIdFromUri(), mapperId, importMapperUpdateInput);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{mapperId}")
   @AccessControl(
       resourceId = "#mapperId",
@@ -193,9 +204,10 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
+          TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
-    ImportMapper importMapper = mapperService.createImportMapper(input.getImportMapper());
+    ImportMapper importMapper = mapperService.createImportMapper(ctx.tenantIdFromUri(), input.getImportMapper());
     importMapper
         .getInjectImporters()
         .forEach(

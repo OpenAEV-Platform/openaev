@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -25,7 +24,6 @@ public abstract class IntegrationFactory {
 
   protected abstract String getClassName();
 
-  @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
     String className = this.getClassName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
@@ -55,7 +53,6 @@ public abstract class IntegrationFactory {
     return list;
   }
 
-  @Transactional
   public List<ConnectorInstance> findRelatedInstances() {
     return connectorInstanceService.connectorInstances().stream()
         .filter(ci -> this.getClassName().equals(ci.getClassName()))

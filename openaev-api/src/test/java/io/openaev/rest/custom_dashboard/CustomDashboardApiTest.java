@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
@@ -140,16 +139,14 @@ class CustomDashboardApiTest extends IntegrationTest {
     @Test
     void given_default_home_dashboard_id_when_deleting_should_throw_error() throws Exception {
       CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
-
-      String tenantId = TenantContext.getCurrentTenant();
       Setting defaultDashboardSetting =
           settingRepository
-              .findByKeyAndTenantId(TENANT_HOME_DASHBOARD.key(), tenantId)
+              .findByKeyAndTenantId(TENANT_HOME_DASHBOARD.key(), "tenantId")
               .orElseGet(
                   () -> {
                     Setting setting = new Setting();
                     setting.setKey(TENANT_HOME_DASHBOARD.key());
-                    setting.setTenant(new Tenant(tenantId));
+                    setting.setTenant(new Tenant("tenantId"));
                     return setting;
                   });
       defaultDashboardSetting.setValue(wrapper.get().getId());
@@ -170,16 +167,14 @@ class CustomDashboardApiTest extends IntegrationTest {
     void given_default_scenario_dashboard_id_when_deleting_should_reset_settings()
         throws Exception {
       CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
-
-      String tenantId = TenantContext.getCurrentTenant();
       Setting defaultDashboardSetting =
           settingRepository
-              .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), tenantId)
+              .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), "tenantId")
               .orElseGet(
                   () -> {
                     Setting setting = new Setting();
                     setting.setKey(TENANT_SCENARIO_DASHBOARD.key());
-                    setting.setTenant(new Tenant(tenantId));
+                    setting.setTenant(new Tenant("tenantId"));
                     return setting;
                   });
 
@@ -190,7 +185,7 @@ class CustomDashboardApiTest extends IntegrationTest {
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultScenarioDashboardSetting =
           settingRepository
-              .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), tenantId)
+              .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), "tenantId")
               .orElseThrow();
       assertThat(defaultScenarioDashboardSetting.getValue()).isEmpty();
     }
@@ -199,16 +194,14 @@ class CustomDashboardApiTest extends IntegrationTest {
     void given_default_simulation_dashboard_id_when_deleting_should_reset_settings()
         throws Exception {
       CustomDashboardComposer.Composer wrapper = createCustomDashboardComposer();
-
-      String tenantId = TenantContext.getCurrentTenant();
       Setting defaultDashboardSetting =
           settingRepository
-              .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), tenantId)
+              .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), "tenantId")
               .orElseGet(
                   () -> {
                     Setting setting = new Setting();
                     setting.setKey(TENANT_SIMULATION_DASHBOARD.key());
-                    setting.setTenant(new Tenant(tenantId));
+                    setting.setTenant(new Tenant("tenantId"));
                     return setting;
                   });
 
@@ -219,7 +212,7 @@ class CustomDashboardApiTest extends IntegrationTest {
       assertThat(repository.existsById(wrapper.get().getId())).isFalse();
       Setting defaultSimulationDashboardSetting =
           settingRepository
-              .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), tenantId)
+              .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), "tenantId")
               .orElseThrow();
       assertThat(defaultSimulationDashboardSetting.getValue()).isEmpty();
     }

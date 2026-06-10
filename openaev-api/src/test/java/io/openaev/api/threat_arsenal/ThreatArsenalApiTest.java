@@ -75,7 +75,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tagComposer.reset();
@@ -432,7 +432,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       TagComposer.Composer tag2 = tagComposer.forTag(TagFixture.getTagWithText("tag2"));
       domain1 = domainComposer.forDomain(DomainFixture.getRandomDomain());
       domain2 = domainComposer.forDomain(DomainFixture.getRandomDomain());
-      Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
+      Injector emailInjector = injectorFixture.getWellKnownEmailInjector("tenant", false);
       emailInjectorId = emailInjector.getId();
       injectorContractComposer
           .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
@@ -570,7 +570,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
               .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
-              .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector("tenant"));
       return icComposer.persist().get();
     }
 
@@ -751,7 +751,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       InjectorContract nonPayloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-              .withInjector(injectorFixture.getWellKnownEmailInjector(false))
+              .withInjector(injectorFixture.getWellKnownEmailInjector("tenant", false))
               .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
               .persist()
               .get();
@@ -926,7 +926,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       InjectorContract nonPayloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-              .withInjector(injectorFixture.getWellKnownEmailInjector(false))
+              .withInjector(injectorFixture.getWellKnownEmailInjector("tenant", false))
               .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
               .persist()
               .get();
@@ -1027,7 +1027,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     @DisplayName("Deleting a non-payload-based action should fail with BAD REQUEST")
     void given_nonPayloadContract_should_returnFailed() throws Exception {
       // Arrange
-      Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
+      Injector emailInjector = injectorFixture.getWellKnownEmailInjector("tenant", false);
       InjectorContract nonPayloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
@@ -1088,7 +1088,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     @DisplayName("Getting collectors for a non-payload-based action should fail")
     void given_nonPayloadContract_should_returnFailed() throws Exception {
       // Arrange
-      Injector emailInjector = injectorFixture.getWellKnownEmailInjector(false);
+      Injector emailInjector = injectorFixture.getWellKnownEmailInjector("tenant", false);
       InjectorContract nonPayloadContract =
           injectorContractComposer
               .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
@@ -1116,7 +1116,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
         "Getting collectors for a payload-based action should return the associated collectors")
     void given_nonPayloadContract_should_returnCollectorsForActionRemediation() throws Exception {
       // Arrange — create and delete
-      Injector oaevImplantInjector = injectorFixture.getWellKnownOaevImplantInjector();
+      Injector oaevImplantInjector = injectorFixture.getWellKnownOaevImplantInjector("tenant");
       Collector crowdstrikeCollector =
           collectorComposer
               .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))

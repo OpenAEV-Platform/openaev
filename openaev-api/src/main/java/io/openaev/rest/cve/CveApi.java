@@ -2,6 +2,7 @@ package io.openaev.rest.cve;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.cve.form.*;
@@ -37,6 +38,7 @@ public class CveApi extends RestBehavior {
 
   @LogExecutionTime
   @Operation(summary = "Search CVEs")
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(CVE_API + "/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
   public Page<CveSimple> searchCves(@Valid @RequestBody SearchPaginationInput input) {
@@ -77,6 +79,7 @@ public class CveApi extends RestBehavior {
 
   @Operation(summary = "Bulk insert CVEs")
   @LogExecutionTime
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping(CVE_API + "/bulk")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
   public void bulkInsertCVEsForCollector(@Valid @RequestBody @NotNull CVEBulkInsertInput input) {

@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
@@ -22,6 +23,11 @@ public class OpenAEVSaml2User
       @NotNull final User user, @NotNull final List<SimpleGrantedAuthority> roles) {
     this.user = user;
     this.roles = roles;
+  }
+
+  @Override
+  public List<String> tenantIds() {
+    return this.user.getTenants().stream().map(Tenant::getId).toList();
   }
 
   @Override

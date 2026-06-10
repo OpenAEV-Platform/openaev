@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -48,7 +47,6 @@ public class AssetService {
     return this.assetRepository.findAllById(assetIds);
   }
 
-  @Transactional
   public void saveAllAssets(List<Asset> assets) {
     // Improve perfs for save all
     for (int i = 0; i < assets.size(); i++) {

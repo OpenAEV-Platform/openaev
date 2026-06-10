@@ -1,5 +1,6 @@
 package io.openaev.injectors.manual;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
@@ -26,8 +27,8 @@ public class ManualExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+  public ExecutionProcess process(TxCtx ctx,
+                                  @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
 
     ManualContent content = contentConvert(injection, ManualContent.class);

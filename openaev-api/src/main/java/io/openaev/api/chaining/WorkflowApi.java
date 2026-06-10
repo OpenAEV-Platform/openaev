@@ -92,6 +92,7 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping("/{workflowId}/configuration")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(

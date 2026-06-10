@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
 import java.io.InputStream;
@@ -58,9 +57,10 @@ public class FileService {
    * @param contentType the MIME type of the file
    * @throws Exception if the upload fails
    */
-  public void uploadFile(String name, InputStream data, long size, String contentType)
+  public void uploadFile(
+      String tenantId, String name, InputStream data, long size, String contentType)
       throws Exception {
-    minioService.uploadFileInTenantPath(name, data, size, contentType);
+    minioService.uploadFileInTenantPath(tenantId, name, data, size, contentType);
   }
 
   /**
@@ -72,9 +72,10 @@ public class FileService {
    * @return the full path of the uploaded file
    * @throws Exception if the upload fails
    */
-  public String uploadStream(String path, String name, InputStream data) throws Exception {
+  public String uploadStream(String tenantId, String path, String name, InputStream data)
+      throws Exception {
     String file = path.endsWith("/") ? path + name : path + "/" + name;
-    minioService.uploadStreamInTenantPath(file, name, data);
+    minioService.uploadStreamInTenantPath(tenantId, file, name, data);
     return file;
   }
 
@@ -84,8 +85,8 @@ public class FileService {
    * @param name the file path/name to delete
    * @throws Exception if the deletion fails
    */
-  public void deleteFile(String name) throws Exception {
-    minioService.deleteFileInTenantPath(name);
+  public void deleteFile(String tenantId, String name) throws Exception {
+    minioService.deleteFileInTenantPath(tenantId, name);
   }
 
   /**
@@ -96,8 +97,8 @@ public class FileService {
    *
    * @param directory the directory prefix to delete
    */
-  public void deleteDirectory(String directory) {
-    minioService.deleteDirectoryInTenantPath(directory);
+  public void deleteDirectory(String tenantId, String directory) {
+    minioService.deleteDirectoryInTenantPath(tenantId, directory);
   }
 
   /**
@@ -107,8 +108,8 @@ public class FileService {
    * @param file the multipart file from an HTTP request
    * @throws Exception if the upload fails
    */
-  public void uploadFile(String name, MultipartFile file) throws Exception {
-    uploadFile(name, file.getInputStream(), file.getSize(), file.getContentType());
+  public void uploadFile(String tenantId, String name, MultipartFile file) throws Exception {
+    uploadFile(tenantId, name, file.getInputStream(), file.getSize(), file.getContentType());
   }
 
   /**
@@ -118,8 +119,8 @@ public class FileService {
    * @return an Optional containing the input stream, or empty if the file doesn't exist or an error
    *     occurs
    */
-  private Optional<InputStream> getFilePath(String name) {
-    return minioService.getFilePathInTenant(name);
+  private Optional<InputStream> getFilePath(String tenantId, String name) {
+    return minioService.getFilePathInTenant(tenantId, name);
   }
 
   /**
@@ -128,86 +129,74 @@ public class FileService {
    * @param document the document entity containing the file target path
    * @return an Optional containing the file input stream, or empty if not found
    */
-  public Optional<InputStream> getFile(Document document) {
-    return getFilePath(document.getTarget());
+  public Optional<InputStream> getFile(String tenantId, Document document) {
+    return getFilePath(tenantId, document.getTarget());
   }
 
   /**
    * Retrieves an injector's image file.
    *
-   * @param injectType the injector type identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
+   * @param injectType the injector type identifier (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getInjectorImage(String injectType, boolean isExternal) {
-    return getPlatformImage(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG, isExternal);
+  public Optional<InputStream> getInjectorImage(String tenantId, String injectType) {
+    return getPlatformImage(tenantId, INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG);
   }
 
   /**
    * Retrieves a collector's image file.
    *
-   * @param collectorId the collector identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
+   * @param collectorId the collector identifier (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCollectorImage(String collectorId, boolean isExternal) {
-    return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG, isExternal);
+  public Optional<InputStream> getCollectorImage(String tenantId, String collectorId) {
+    return getPlatformImage(tenantId, COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
   }
 
   /**
    * Retrieves an executor's icon image file.
    *
-   * @param executorId the executor identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
+   * @param executorId the executor identifier (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorIconImage(String executorId, boolean isExternal) {
-    return getPlatformImage(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG, isExternal);
+  public Optional<InputStream> getExecutorIconImage(String tenantId, String executorId) {
+    return getPlatformImage(tenantId, EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
    * Retrieves an executor's banner image file.
    *
-   * @param executorId the executor identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
+   * @param executorId the executor identifier (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorBannerImage(String executorId, boolean isExternal) {
-    return getPlatformImage(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG, isExternal);
+  public Optional<InputStream> getExecutorBannerImage(String tenantId, String executorId) {
+    return getPlatformImage(tenantId, EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
    * Retrieves a catalog connector's logo image file.
    *
-   * @param fileName the logo filename
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
+   * @param fileName the logo filename (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCatalogConnectorImage(String fileName, boolean isExternal) {
-    return getPlatformImage(CONNECTORS_LOGO_PATH + fileName, isExternal);
+  public Optional<InputStream> getCatalogConnectorImage(String tenantId, String fileName) {
+    return getPlatformImage(tenantId, CONNECTORS_LOGO_PATH + fileName);
   }
 
   /**
    * Platform assets are written once under the default tenant during startup for built in assets
    * should fall back to specific tenant if isExternal is true.
    *
-   * @param filePath to retrieve
-   * @param isExternal indicates if the file is a built-in asset (false) or from an external asset
-   *     (true)
+   * @param filePath to retrieve (true)
    * @return finded file
    */
-  private Optional<InputStream> getPlatformImage(String filePath, boolean isExternal) {
-    Optional<InputStream> tenantFile = getFilePath(filePath);
+  private Optional<InputStream> getPlatformImage(String tenantId, String filePath) {
+    Optional<InputStream> tenantFile = getFilePath(tenantId, filePath);
     if (tenantFile.isPresent()) {
       return tenantFile;
     }
-    return minioService.getFilePathForTenant(
-        isExternal ? TenantContext.getCurrentTenant() : Tenant.DEFAULT_TENANT_UUID, filePath);
+    // TODO JRI WTF
+    return minioService.getFilePathForTenant(Tenant.DEFAULT_TENANT_UUID, filePath);
   }
 
   /**
@@ -216,7 +205,7 @@ public class FileService {
    * @param fileTarget the target file path
    * @return an Optional containing the FileContainer with filename, content type, and stream
    */
-  public Optional<FileContainer> getFileContainer(String fileTarget) {
-    return minioService.getFileContainerInTenant(fileTarget);
+  public Optional<FileContainer> getFileContainer(String tenantId, String fileTarget) {
+    return minioService.getFileContainerInTenant(tenantId, fileTarget);
   }
 }

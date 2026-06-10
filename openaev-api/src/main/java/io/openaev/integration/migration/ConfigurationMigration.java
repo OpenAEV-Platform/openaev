@@ -9,7 +9,6 @@ import io.openaev.service.connector_instances.EncryptionFactory;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public abstract class ConfigurationMigration {
@@ -32,7 +31,6 @@ public abstract class ConfigurationMigration {
     this.encryptionFactory = encryptionFactory;
   }
 
-  @Transactional
   public void migrate() throws Exception {
     Optional<CatalogConnector> connector =
         catalogConnectorService.findByFactoryClassName(factoryClassName);

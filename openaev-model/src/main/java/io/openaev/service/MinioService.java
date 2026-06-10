@@ -7,7 +7,6 @@ import io.minio.messages.DeleteError;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import io.openaev.config.MinioConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
@@ -58,34 +57,38 @@ public class MinioService implements DependenciesManager {
   // -- CREATE/UPDATE --
 
   public String uploadFileInTenantPath(
-      String fileName, InputStream data, long size, String contentType) throws Exception {
+      String tenantId, String fileName, InputStream data, long size, String contentType)
+      throws Exception {
     minioClient.putObject(
-        PutObjectArgs.builder().bucket(bucket()).object(getTenantPath(fileName)).stream(
+        PutObjectArgs.builder().bucket(bucket()).object(getTenantPath(tenantId, fileName)).stream(
                 data, size, -1)
             .contentType(contentType)
             .build());
-    return getTenantPath(fileName);
+    return getTenantPath(tenantId, fileName);
   }
 
-  public String uploadStreamInTenantPath(String fileName, String name, InputStream data)
-      throws Exception {
+  public String uploadStreamInTenantPath(
+      String tenantId, String fileName, String name, InputStream data) throws Exception {
     minioClient.putObject(
         PutObjectArgs.builder()
             .bucket(bucket())
-            .object(getTenantPath(fileName))
+            .object(getTenantPath(tenantId, fileName))
             .userMetadata(Map.of("filename", name))
             .stream(data, data.available(), -1)
             .build());
-    return getTenantPath(fileName);
+    return getTenantPath(tenantId, fileName);
   }
 
   // -- READ --
 
-  public Optional<InputStream> getFilePathInTenant(String name) {
+  public Optional<InputStream> getFilePathInTenant(String tenantId, String name) {
     try {
       GetObjectResponse objectStream =
           minioClient.getObject(
-              GetObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
+              GetObjectArgs.builder()
+                  .bucket(bucket())
+                  .object(getTenantPath(tenantId, name))
+                  .build());
       InputStreamResource streamResource = new InputStreamResource(objectStream);
       return Optional.of(streamResource.getInputStream());
     } catch (Exception e) {
@@ -110,11 +113,11 @@ public class MinioService implements DependenciesManager {
     }
   }
 
-  public Optional<FileContainer> getFileContainerInTenant(String fileTarget) {
+  public Optional<FileContainer> getFileContainerInTenant(String tenantId, String fileTarget) {
     try {
-      StatObjectResponse response = objectExists(getTenantPath(fileTarget));
+      StatObjectResponse response = objectExists(getTenantPath(tenantId, fileTarget));
       String filename = response.userMetadata().get("filename");
-      Optional<InputStream> inputStream = getFilePathInTenant(fileTarget);
+      Optional<InputStream> inputStream = getFilePathInTenant(tenantId, fileTarget);
       FileContainer fileContainer =
           new FileContainer(filename, response.contentType(), inputStream.orElseThrow());
       return Optional.of(fileContainer);
@@ -126,14 +129,14 @@ public class MinioService implements DependenciesManager {
 
   // -- DELETE --
 
-  public void deleteFileInTenantPath(String name) throws Exception {
+  public void deleteFileInTenantPath(String tenantId, String name) throws Exception {
     minioClient.removeObject(
-        RemoveObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
+        RemoveObjectArgs.builder().bucket(bucket()).object(getTenantPath(tenantId, name)).build());
   }
 
-  public void deleteDirectoryInTenantPath(String directory) {
+  public void deleteDirectoryInTenantPath(String tenantId, String directory) {
     try {
-      deleteObjectsByPrefix(getTenantPath(directory), false);
+      deleteObjectsByPrefix(getTenantPath(tenantId, directory), false);
     } catch (Exception e) {
       log.error("Error deleting directory {} for tenant", directory, e);
     }
@@ -141,9 +144,9 @@ public class MinioService implements DependenciesManager {
 
   // -- HELPERS --
 
-  public void isTenantPathExists() throws Exception {
+  public void isTenantPathExists(String tenantId) throws Exception {
     minioClient.statObject(
-        StatObjectArgs.builder().bucket(bucket()).object(getTenantPath("")).build());
+        StatObjectArgs.builder().bucket(bucket()).object(getTenantPath(tenantId, "")).build());
   }
 
   // -- PRIVATE --
@@ -174,8 +177,8 @@ public class MinioService implements DependenciesManager {
   }
 
   @VisibleForTesting
-  public int countObjectsForCurrentTenant(String prefix) {
-    Iterable<Result<Item>> results = listObjects(getTenantPath(prefix), false);
+  public int countObjectsForCurrentTenant(String tenantId, String prefix) {
+    Iterable<Result<Item>> results = listObjects(getTenantPath(tenantId, prefix), false);
     int count = 0;
     for (Result<Item> ignored : results) {
       count++;
@@ -260,8 +263,7 @@ public class MinioService implements DependenciesManager {
   }
 
   /** Returns the tenant-prefixed path for the given object name. */
-  private String getTenantPath(String objectName) {
-    String tenantId = TenantContext.getCurrentTenant();
+  private String getTenantPath(String tenantId, String objectName) {
     return getPathForTenant(tenantId, objectName);
   }
 

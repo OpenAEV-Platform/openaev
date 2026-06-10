@@ -65,6 +65,7 @@ public class UserApi extends RestBehavior {
             description = "Login successful",
             content = @Content(schema = @Schema(implementation = User.class))),
       })
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/api/login")
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
@@ -113,6 +114,7 @@ public class UserApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Mail to reset the password sent"),
         @ApiResponse(responseCode = "400", description = "The user was not found")
       })
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/api/reset")
   @AccessControl(skipRBAC = true)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
@@ -131,6 +133,7 @@ public class UserApi extends RestBehavior {
             description = "The password was changed",
             content = @Content(schema = @Schema(implementation = User.class))),
       })
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping("/api/reset/{token}")
   @AccessControl(skipRBAC = true)
   public User changePasswordReset(
@@ -150,6 +153,7 @@ public class UserApi extends RestBehavior {
             description = "Mail to reset the password sent",
             content = @Content(schema = @Schema(implementation = Boolean.class))),
       })
+  @Transactional(readOnly = true)
   @GetMapping("/api/reset/{token}")
   @AccessControl(skipRBAC = true)
   public boolean validatePasswordResetToken(

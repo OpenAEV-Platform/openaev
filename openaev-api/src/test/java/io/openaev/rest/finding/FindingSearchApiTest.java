@@ -71,9 +71,8 @@ class FindingSearchApiTest extends IntegrationTest {
     @DisplayName("Global search from tenant Y should not return findings created in tenant X")
     void given_findingInTenantX_should_notAppearInGlobalSearchFromTenantY() throws Exception {
       // Arrange
-      Tenant tenantX = createTenantX();
       Tenant tenantY = createTenantY();
-      createFindingDataInTenant(tenantX.getId());
+      createFindingDataInTenant();
 
       entityManager.flush();
       entityManager.clear();
@@ -94,9 +93,8 @@ class FindingSearchApiTest extends IntegrationTest {
     @DisplayName("Scenario findings search from tenant Y should not access tenant X scenario")
     void given_scenarioInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
       // Arrange
-      Tenant tenantX = createTenantX();
       Tenant tenantY = createTenantY();
-      TestData data = createFindingDataInTenant(tenantX.getId());
+      TestData data = createFindingDataInTenant();
 
       entityManager.flush();
       entityManager.clear();
@@ -121,9 +119,8 @@ class FindingSearchApiTest extends IntegrationTest {
     @DisplayName("Simulation findings search from tenant Y should not access tenant X simulation")
     void given_simulationInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
       // Arrange
-      Tenant tenantX = createTenantX();
       Tenant tenantY = createTenantY();
-      TestData data = createFindingDataInTenant(tenantX.getId());
+      TestData data = createFindingDataInTenant();
 
       entityManager.flush();
       entityManager.clear();
@@ -148,9 +145,8 @@ class FindingSearchApiTest extends IntegrationTest {
     @DisplayName("Inject findings search from tenant Y should not access tenant X inject")
     void given_injectInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
       // Arrange
-      Tenant tenantX = createTenantX();
       Tenant tenantY = createTenantY();
-      TestData data = createFindingDataInTenant(tenantX.getId());
+      TestData data = createFindingDataInTenant();
 
       entityManager.flush();
       entityManager.clear();
@@ -175,9 +171,8 @@ class FindingSearchApiTest extends IntegrationTest {
     @DisplayName("Endpoint findings search from tenant Y should not access tenant X endpoint")
     void given_endpointInTenantX_should_notBeAccessibleFromTenantY() throws Exception {
       // Arrange
-      Tenant tenantX = createTenantX();
       Tenant tenantY = createTenantY();
-      TestData data = createFindingDataInTenant(tenantX.getId());
+      TestData data = createFindingDataInTenant();
 
       entityManager.flush();
       entityManager.clear();
@@ -215,9 +210,7 @@ class FindingSearchApiTest extends IntegrationTest {
               Capability.ACCESS_FINDINGS, Capability.ACCESS_ASSESSMENT, Capability.ACCESS_ASSETS));
     }
 
-    private TestData createFindingDataInTenant(String tenantId) {
-      tenantIsolationHelper.switchToTenant(tenantId, entityManager);
-
+    private TestData createFindingDataInTenant() {
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       FindingComposer.Composer findingWrapper =

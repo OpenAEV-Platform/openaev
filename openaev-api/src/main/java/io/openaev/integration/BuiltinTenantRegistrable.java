@@ -1,5 +1,7 @@
 package io.openaev.integration;
 
+import io.openaev.context.TxCtx;
+
 /**
  * Marker interface for any built-in component (injector, executor, collector) that must be
  * registered once per tenant. Implementations are auto-discovered by {@link ManagerFactory} via
@@ -11,5 +13,5 @@ package io.openaev.integration;
 public interface BuiltinTenantRegistrable {
 
   /** Registers this built-in component in the <b>current</b> tenant context. */
-  void registerForTenant() throws Exception;
+  void registerForTenant(String tenantId) throws Exception;
 }

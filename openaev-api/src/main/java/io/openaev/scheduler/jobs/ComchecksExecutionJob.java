@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -30,7 +31,8 @@ import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.springframework.context.ApplicationContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -39,7 +41,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ComchecksExecutionJob implements Job {
   private final OpenAEVConfig openAEVConfig;
-  private final ApplicationContext context;
   private final ComcheckRepository comcheckRepository;
   private final ComcheckStatusRepository comcheckStatusRepository;
 
@@ -49,6 +50,8 @@ public class ComchecksExecutionJob implements Job {
   private final ManagerFactory managerFactory;
 
   private final ObjectMapper mapper;
+
+  @Lazy @Autowired private ComchecksExecutionJob proxySelf;
 
   private Inject buildComcheckEmail(Comcheck comCheck) {
     Inject emailInject = new Inject();
@@ -73,9 +76,14 @@ public class ComchecksExecutionJob implements Job {
   }
 
   @Override
-  @Transactional
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+    TxCtx ctx = TxCtx.noTenant();
+    proxySelf.txExecute(ctx);
+  }
+
+  @Transactional
+  public void txExecute(TxCtx ctx) throws JobExecutionException {
     Instant now = now();
     try {
       // 01. Manage expired comchecks.
@@ -114,7 +122,7 @@ public class ComchecksExecutionJob implements Job {
                     new ExecutableInject(false, true, emailInject, userInjectContexts);
                 io.openaev.executors.Injector emailExecutor =
                     this.managerFactory.getManager().requestEmailInjector();
-                Execution execution = emailExecutor.executeInjection(injection);
+                Execution execution = emailExecutor.executeInjection(ctx, injection);
                 // Save the status sent date
                 List<String> usersSuccessfullyNotified =
                     execution.getTraces().stream()

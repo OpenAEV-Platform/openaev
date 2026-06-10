@@ -13,7 +13,6 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
@@ -69,8 +68,7 @@ import org.hibernate.annotations.*;
 @Data
 @Entity
 @Table(name = "scenarios")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",

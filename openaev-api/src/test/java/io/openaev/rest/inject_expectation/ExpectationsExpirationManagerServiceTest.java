@@ -52,7 +52,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   void beforeEach() throws Exception {
     // Register the builtin collector for the test tenant (builtins are only registered
     // for tenants that exist at startup, not for the test tenant created by @WithMockUser)
-    expectationsExpirationManagerJob.registerForTenant();
+    expectationsExpirationManagerJob.registerForTenant("tenantId");
 
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =

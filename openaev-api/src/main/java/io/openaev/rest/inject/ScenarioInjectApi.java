@@ -90,6 +90,7 @@ public class ScenarioInjectApi extends RestBehavior {
         joinMap);
   }
 
+  @Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/injects",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects"
@@ -104,6 +105,7 @@ public class ScenarioInjectApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(readOnly = true)
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
@@ -174,6 +176,7 @@ public class ScenarioInjectApi extends RestBehavior {
         this.injectAssistantService.generateInjectsForScenario(scenario, input));
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({
     SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
@@ -209,6 +212,7 @@ public class ScenarioInjectApi extends RestBehavior {
     return scenarioInjectService.updateInjectForScenario(scenarioId, injectId, input);
   }
 
+  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation"

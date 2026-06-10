@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -58,7 +57,7 @@ public class CrowdstrikeExecutorServiceTest {
     crowdstrikeExecutor = new Executor();
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
-    crowdstrikeExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    crowdstrikeExecutor.setTenant(new Tenant("tenant"));
   }
 
   @Test

@@ -1,6 +1,7 @@
 package io.openaev.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
@@ -51,7 +52,7 @@ public interface EngineService {
    * @return a count object, including the current and previous interval count and the difference
    *     between the two
    */
-  EsCountInterval count(RawUserAuth user, CountRuntime runtime);
+  EsCountInterval count(TxCtx context, RawUserAuth user, CountRuntime runtime);
 
   /**
    * Calculates average using parameters
@@ -60,7 +61,7 @@ public interface EngineService {
    * @param averageRuntime the average runtime to use
    * @return an object label-average
    */
-  EsAvgs average(RawUserAuth user, AverageRuntime averageRuntime);
+  EsAvgs average(TxCtx context, RawUserAuth user, AverageRuntime averageRuntime);
 
   /**
    * Get the series in a Histogram model
@@ -73,6 +74,7 @@ public interface EngineService {
    * @return the resulting series
    */
   EsSeries termHistogram(
+      TxCtx context,
       RawUserAuth user,
       StructuralHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
@@ -86,7 +88,8 @@ public interface EngineService {
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiTermHistogram(RawUserAuth user, StructuralHistogramRuntime runtime);
+  List<EsSeries> multiTermHistogram(
+      TxCtx context, RawUserAuth user, StructuralHistogramRuntime runtime);
 
   /**
    * Get the series in a date histogram model
@@ -99,6 +102,7 @@ public interface EngineService {
    * @return the resulting series
    */
   EsSeries dateHistogram(
+      TxCtx context,
       RawUserAuth user,
       DateHistogramWidget widgetConfig,
       WidgetConfigurationWithSeries.Series config,
@@ -112,7 +116,7 @@ public interface EngineService {
    * @param runtime the structural histogram runtime to use
    * @return a list of series
    */
-  List<EsSeries> multiDateHistogram(RawUserAuth user, DateHistogramRuntime runtime);
+  List<EsSeries> multiDateHistogram(TxCtx context, RawUserAuth user, DateHistogramRuntime runtime);
 
   /**
    * Get a list of entities
@@ -121,7 +125,7 @@ public interface EngineService {
    * @param runtime the list runtime to use
    * @return entities result containing data and total count
    */
-  EsEntities entities(RawUserAuth user, ListRuntime runtime);
+  EsEntities entities(TxCtx context, RawUserAuth user, ListRuntime runtime);
 
   /**
    * Create the list configuration using entities and filters
@@ -141,7 +145,7 @@ public interface EngineService {
    * @param filter a list of filters
    * @return the list of results
    */
-  List<EsSearch> search(RawUserAuth user, String search, Filters.FilterGroup filter);
+  List<EsSearch> search(TxCtx context, RawUserAuth user, String search, Filters.FilterGroup filter);
 
   /**
    * Indexes a single document into the specified search engine index.

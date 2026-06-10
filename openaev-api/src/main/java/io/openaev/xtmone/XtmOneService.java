@@ -12,7 +12,6 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -60,7 +59,6 @@ public class XtmOneService {
    * is an upsert, so repeated calls are safe). Sends the current license state, business vertical,
    * and declared intents for agent binding.
    */
-  @Transactional(readOnly = true)
   public void autoRegister() {
     if (!config.isConfigured()) {
       return;

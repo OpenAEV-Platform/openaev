@@ -140,7 +140,7 @@ public class MapperApiTest extends IntegrationTest {
     ImportMapperAddInput importMapperInput = new ImportMapperAddInput();
     importMapperInput.setName("Test");
     importMapperInput.setInjectTypeColumn("B");
-    when(mapperService.createAndSaveImportMapper(any())).thenReturn(importMapper);
+    when(mapperService.createAndSaveImportMapper("tenant", any())).thenReturn(importMapper);
     // -- EXECUTE --
     String response =
         this.mvc
@@ -210,7 +210,7 @@ public class MapperApiTest extends IntegrationTest {
     ImportMapperUpdateInput importMapperInput = new ImportMapperUpdateInput();
     importMapperInput.setName("New name");
     importMapperInput.setInjectTypeColumn("B");
-    when(mapperService.updateImportMapper(any(), any())).thenReturn(importMapper);
+    when(mapperService.updateImportMapper("tenant", any(), any())).thenReturn(importMapper);
     // -- EXECUTE --
     String response =
         this.mvc
@@ -269,7 +269,7 @@ public class MapperApiTest extends IntegrationTest {
     when(injectImportService.importInjectIntoScenarioFromXLS(
             any(), any(), any(), any(), anyInt(), anyBoolean()))
         .thenReturn(new ImportTestSummary());
-    when(mapperService.createImportMapper(any())).thenReturn(importMapper);
+    when(mapperService.createImportMapper("tenant", any())).thenReturn(importMapper);
 
     // -- EXECUTE --
     String response =

@@ -14,7 +14,7 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 
 /**
- * Compile-time annotation processor that enforces two architectural rules:
+ * Compile-time annotation processor that enforces architectural rules for tenant context:
  *
  * <ol>
  *   <li><b>Rule 1</b>: Every REST endpoint ({@code @PostMapping}, {@code @GetMapping}, etc.) must
@@ -22,13 +22,17 @@ import javax.tools.Diagnostic;
  *   <li><b>Rule 2</b>: Every {@code @Transactional} method that is <em>not</em> a REST endpoint
  *       must declare a {@code TxCtx} parameter. REST endpoints are exempt because the AOP aspect
  *       resolves the tenant automatically from the HTTP request.
+ *   <li><b>Rule 3</b>: {@code @Query} annotations must not contain SpEL tenant expressions like
+ *       {@code #{#tenantContext.currentTenant}}. Tenant filtering is now handled by the AOP aspect
+ *       and the {@code TenantStatementInspector}.
  * </ol>
  *
- * <p>Both rules can be toggled independently via compiler options:
+ * <p>All rules can be toggled independently via compiler options:
  *
  * <pre>
- *   -Atenant.rule.endpoint.transactional=true   (Rule 1, default: false)
- *   -Atenant.rule.transactional.txctx=true       (Rule 2, default: false)
+ *   -Atenant.rule.endpoint.transactional=true       (Rule 1, default: false)
+ *   -Atenant.rule.transactional.txctx=true           (Rule 2, default: false)
+ *   -Atenant.rule.no.spel.tenant=true                (Rule 3, default: false)
  * </pre>
  */
 @SupportedAnnotationTypes({
@@ -38,11 +42,13 @@ import javax.tools.Diagnostic;
   "org.springframework.web.bind.annotation.DeleteMapping",
   "org.springframework.web.bind.annotation.PatchMapping",
   "org.springframework.transaction.annotation.Transactional",
-  "jakarta.transaction.Transactional"
+  "jakarta.transaction.Transactional",
+  "org.springframework.data.jpa.repository.Query"
 })
 @SupportedOptions({
   TenantTransactionalProcessor.OPT_RULE_ENDPOINT_TRANSACTIONAL,
-  TenantTransactionalProcessor.OPT_RULE_TRANSACTIONAL_TXCTX
+  TenantTransactionalProcessor.OPT_RULE_TRANSACTIONAL_TXCTX,
+  TenantTransactionalProcessor.OPT_RULE_NO_SPEL_TENANT
 })
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class TenantTransactionalProcessor extends AbstractProcessor {
@@ -52,6 +58,9 @@ public class TenantTransactionalProcessor extends AbstractProcessor {
 
   /** Option to enable/disable Rule 2: Non-endpoint @Transactional methods must have TxCtx. */
   static final String OPT_RULE_TRANSACTIONAL_TXCTX = "tenant.rule.transactional.txctx";
+
+  /** Option to enable/disable Rule 3: No SpEL tenant expressions in @Query. */
+  static final String OPT_RULE_NO_SPEL_TENANT = "tenant.rule.no.spel.tenant";
 
   private static final Set<String> HTTP_MAPPING_ANNOTATIONS =
       Set.of(
@@ -66,7 +75,13 @@ public class TenantTransactionalProcessor extends AbstractProcessor {
           "org.springframework.transaction.annotation.Transactional",
           "jakarta.transaction.Transactional");
 
+  private static final String QUERY_ANNOTATION = "org.springframework.data.jpa.repository.Query";
+
   private static final String TX_CTX_TYPE = "io.openaev.context.TxCtx";
+
+  /** Patterns that indicate legacy manual tenant filtering in @Query values. */
+  private static final Set<String> FORBIDDEN_SPEL_PATTERNS =
+      Set.of("tenantContext", "currentTenant", "tenantId");
 
   private boolean isEnabled(String option, boolean defaultValue) {
     String value = processingEnv.getOptions().get(option);
@@ -77,6 +92,7 @@ public class TenantTransactionalProcessor extends AbstractProcessor {
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     boolean rule1 = isEnabled(OPT_RULE_ENDPOINT_TRANSACTIONAL, false);
     boolean rule2 = isEnabled(OPT_RULE_TRANSACTIONAL_TXCTX, false);
+    boolean rule3 = isEnabled(OPT_RULE_NO_SPEL_TENANT, false);
 
     for (TypeElement annotation : annotations) {
       String annotationName = annotation.getQualifiedName().toString();
@@ -97,6 +113,11 @@ public class TenantTransactionalProcessor extends AbstractProcessor {
           if (!hasHttpMappingAnnotation(method)) {
             checkTransactionalHasTxCtx(method);
           }
+        }
+
+        // Rule 3: @Query must not contain SpEL tenant expressions
+        if (rule3 && QUERY_ANNOTATION.equals(annotationName)) {
+          checkQueryHasNoSpelTenant(method);
         }
       }
     }
@@ -128,8 +149,7 @@ public class TenantTransactionalProcessor extends AbstractProcessor {
 
   private void checkTransactionalHasTxCtx(ExecutableElement method) {
     boolean hasTxCtx =
-        method.getParameters().stream()
-            .anyMatch(p -> p.asType().toString().equals(TX_CTX_TYPE));
+        method.getParameters().stream().anyMatch(p -> p.asType().toString().equals(TX_CTX_TYPE));
     if (!hasTxCtx) {
       processingEnv
           .getMessager()
@@ -141,6 +161,39 @@ public class TenantTransactionalProcessor extends AbstractProcessor {
                   method.getSimpleName()),
               method);
     }
+  }
+
+  private void checkQueryHasNoSpelTenant(ExecutableElement method) {
+    method.getAnnotationMirrors().stream()
+        .filter(
+            am -> {
+              Element annotationElement = am.getAnnotationType().asElement();
+              return ((TypeElement) annotationElement)
+                  .getQualifiedName()
+                  .toString()
+                  .equals(QUERY_ANNOTATION);
+            })
+        .flatMap(am -> am.getElementValues().entrySet().stream())
+        .filter(entry -> "value".equals(entry.getKey().getSimpleName().toString()))
+        .forEach(
+            entry -> {
+              String queryValue = entry.getValue().getValue().toString();
+              for (String pattern : FORBIDDEN_SPEL_PATTERNS) {
+                if (queryValue.contains(pattern)) {
+                  processingEnv
+                      .getMessager()
+                      .printMessage(
+                          Diagnostic.Kind.ERROR,
+                          String.format(
+                              "@Query in '%s' contains legacy SpEL tenant expression '%s'."
+                                  + " Tenant filtering is now handled by TenantStatementInspector."
+                                  + " Remove manual tenant filtering from the query.",
+                              method.getSimpleName(), pattern),
+                          method);
+                  return; // one error per method is enough
+                }
+              }
+            });
   }
 
   /** Returns true if the method carries any Spring MVC mapping annotation. */

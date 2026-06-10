@@ -459,7 +459,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
     for (String id : injectorIds) {
       injectorRepository.deleteByIdAndTenantId(
-          id, io.openaev.context.TenantContext.getCurrentTenant());
+          id,"tenant");
     }
     entityManager.flush();
     entityManager.clear();

@@ -41,10 +41,12 @@ public class KillChainPhaseApi extends RestBehavior {
 
   @GetMapping
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public Iterable<KillChainPhase> killChainPhases() {
     return killChainPhaseRepository.findAll();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Page<KillChainPhase> killChainPhases(
@@ -61,6 +63,7 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public KillChainPhase killChainPhase(@PathVariable String killChainPhaseId) {
     return killChainPhaseRepository
         .findById(killChainPhaseId)
@@ -131,6 +134,7 @@ public class KillChainPhaseApi extends RestBehavior {
     return this.killChainPhaseRepository.saveAll(upserted);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping("/{killChainPhaseId}")
   @AccessControl(
       resourceId = "#killChainPhaseId",
@@ -144,6 +148,7 @@ public class KillChainPhaseApi extends RestBehavior {
 
   @GetMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
     return fromIterable(
@@ -154,6 +159,7 @@ public class KillChainPhaseApi extends RestBehavior {
         .toList();
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping("/options")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {

@@ -6,7 +6,7 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -22,7 +22,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -79,7 +78,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   @Override
   protected Collector getConnectorById(String collectorId) {
     return collectorRepository
-        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
+        .findById(collectorId)
         .orElse(null);
   }
 
@@ -102,7 +101,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   public Collector collector(String id) {
     return collectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findById(id)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
@@ -182,9 +181,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @param iconStream optional PNG icon data — uploaded to the file store when present
    * @return the persisted collector
    */
-  @Transactional
   public Collector register(
-      @NotNull String id,
+          String tenantId,
+          @NotNull String id,
       @NotNull String type,
       @NotNull String name,
       boolean external,
@@ -194,13 +193,13 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       throws Exception {
 
     if (iconStream != null) {
-      fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
+      fileService.uploadStream(tenantId, COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
     Collector collector =
-        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+        collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
@@ -232,7 +231,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       newCollector.setSecurityPlatform(securityPlatform);
     }
     // For new entities, isNew()=true triggers persist() via Spring Data save().
-    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newCollector.setTenant(new Tenant(tenantId));
     return collectorRepository.save(newCollector);
   }
 

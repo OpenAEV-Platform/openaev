@@ -15,7 +15,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -27,7 +26,6 @@ public class ManagerFactory implements DependenciesManager {
 
   private volatile Manager manager = null;
 
-  @Transactional
   @Lock(type = MANAGER_FACTORY, key = "manager-factory")
   public Manager getManager() {
     if (manager == null) {
@@ -55,7 +53,7 @@ public class ManagerFactory implements DependenciesManager {
         try {
           // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
           // (connector IDs are reused across tenants).
-          tenantRegistrationExecutor.registerForTenantIsolated(tenant);
+          tenantRegistrationExecutor.registerForTenant(tenant);
         } catch (DependenciesManagerException e) {
           log.error(
               "Failed to register built-in connectors for tenant '{}': {}",

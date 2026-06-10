@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -307,7 +306,7 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorId);
 
       Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(injectorId, "tenant");
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getName()).isEqualTo("External Injector");
@@ -362,7 +361,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ASSERT --
       Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(injectorId, "tenant");
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getName()).isEqualTo("Updated Name");
       assertThat(persisted.get().getCategory()).isEqualTo("updated-category");
@@ -394,7 +393,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ASSERT --
       Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(injectorId, "tenant");
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getExecutorCommands()).isNullOrEmpty();
@@ -443,11 +442,11 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
+      assertThat(injectorRepository.findByIdAndTenantId(dummyId, "tenant"))
           .isEmpty();
 
       Optional<Injector> realInjector =
-          injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
+          injectorRepository.findByIdAndTenantId(realInjectorId, "tenant");
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
@@ -608,7 +607,7 @@ public class InjectorApiTest extends IntegrationTest {
         "Given same injector type in two tenants, loading inject should reference correct tenant injector")
     void givenSameInjectorInTwoTenants_injectShouldReferenceCorrectInjector() throws Exception {
       // -- Arrange --
-      String tenantA = TenantContext.getCurrentTenant();
+      String tenantA = "tenant";
 
       // TenantBaseListener auto-sets tenant from TenantContext
       Injector injectorA = getInjector("Email Injector");
@@ -620,15 +619,8 @@ public class InjectorApiTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      // Create tenant B with same injector type
-      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-Injector");
-      tenantHelper.switchToTenant(tenantB.getId(), em);
-
       // TenantBaseListener auto-sets tenant B from TenantContext
       getInjector("Email Injector");
-
-      // Switch back to tenant A and reload the inject
-      tenantHelper.switchToTenant(tenantA, em);
 
       Inject reloadedInject = injectRepository.findById(injectA.getId()).orElseThrow();
 

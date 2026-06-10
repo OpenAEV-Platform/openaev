@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -37,14 +38,14 @@ public abstract class AbstractPrivilegeService {
     String id = getUUIDFromName(getRoleId(), tenantId);
     Optional<Role> role = roleService.findById(id);
     if (role.isEmpty()) {
-      return roleService.createRoleInternal(
-          id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
+      return roleService.createRoleInternal(tenantId,
+          id, getRoleName(), getRoleDescription(), getRoleCapabilities());
     }
     return roleService.updateRoleInternal(
         id, getRoleName(), getRoleDescription(), getRoleCapabilities());
   }
 
-  protected Group createWellKnownGroupWithRole(Role role, String tenantId) {
+  protected Group createWellKnownGroupWithRole(String tenantId, Role role) {
     String groupId = getUUIDFromName(getGroupId(), tenantId);
     Optional<Group> group = tenantGroupService.findById(groupId);
 
@@ -57,7 +58,7 @@ public abstract class AbstractPrivilegeService {
     if (group.isPresent()) {
       return tenantGroupService.updateGroupInfoWithRoles(group.get(), input, roles);
     }
-    return tenantGroupService.createInternalGroupWithRole(groupId, input, roles, tenantId);
+    return tenantGroupService.createInternalGroupWithRole(tenantId, groupId, input, roles);
   }
 
   public static String getUUIDFromName(String name, String tenantId) {

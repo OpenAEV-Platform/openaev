@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -57,7 +58,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -97,16 +97,16 @@ public class SecurityCoverageService {
    * @throws IOException there is an issue with serialisation
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
-  @Transactional(rollbackFor = Exception.class)
   public Scenario handleSecurityCoverageProcessing(
-      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle, String tenantId)
+          TxCtx ctx,
+      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
     String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
 
     SecurityCoverage securityCoverage =
-        buildSecurityCoverageFromStix(
-            securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
-    Scenario scenario = buildScenarioFromSecurityCoverage(securityCoverage);
+        buildSecurityCoverageFromStix(ctx,
+            securityCoverageObj, bundle, securityCoverageStixId, bundleHash);
+    Scenario scenario = buildScenarioFromSecurityCoverage(ctx, securityCoverage);
 
     // FIXME: extract this behaviour into an async worker
     pushSecurityCoverageBundleWithExternalURI(scenario);
@@ -126,11 +126,11 @@ public class SecurityCoverageService {
    * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    */
   private SecurityCoverage buildSecurityCoverageFromStix(
+          TxCtx ctx,
       ObjectBase stixCoverageObj,
       Bundle bundle,
       String externalId,
-      String stixJsonHash,
-      String tenantId)
+      String stixJsonHash)
       throws ParsingException, BundleValidationError, ConnectorError {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
@@ -148,12 +148,12 @@ public class SecurityCoverageService {
     String coveredRef = stixCoverageObj.getRequiredProperty(STIX_COVERED_REF);
     String openCtiUrl =
         openCTIConnectorService
-            .getConnectorBase(tenantId)
+            .getConnectorBase(ctx.tenantIdFromUri())
             .map(ConnectorBase::getUrl)
             .orElseThrow(
                 () ->
                     new ConnectorError(
-                        "No active OpenCTI connector found for tenant %s".formatted(tenantId)));
+                        "No active OpenCTI connector found for tenant %s".formatted(ctx.tenantIdFromUri())));
     securityCoverage.setExternalUrl(openCtiUrl + "/dashboard/id/" + coveredRef);
 
     // Optional fields
@@ -191,23 +191,23 @@ public class SecurityCoverageService {
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
-        securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.ATTACK_PATTERN), tenantId));
+        securityCoverageUtils.extractObjectReferences(ctx,
+            bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.VULNERABILITY), tenantId));
+        securityCoverageUtils.extractObjectReferences(ctx,
+            bundle.findByType(ObjectTypes.VULNERABILITY)));
 
     // Extract indicators
     securityCoverage.setIndicatorsRefs(
-        securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.INDICATOR), tenantId));
+        securityCoverageUtils.extractObjectReferences(ctx,
+            bundle.findByType(ObjectTypes.INDICATOR)));
 
     // Extract artifacts
     securityCoverage.setArtifactsRefs(
-        securityCoverageUtils.extractObjectReferences(
-            bundle.findByType(ObjectTypes.ARTIFACT), tenantId));
+        securityCoverageUtils.extractObjectReferences(ctx,
+            bundle.findByType(ObjectTypes.ARTIFACT)));
 
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
@@ -318,11 +318,11 @@ public class SecurityCoverageService {
    * @param securityCoverage the source coverage
    * @return the created or updated {@link Scenario}
    */
-  public Scenario buildScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+  public Scenario buildScenarioFromSecurityCoverage(TxCtx ctx, SecurityCoverage securityCoverage) {
     Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(securityCoverage);
     securityCoverage.setScenario(scenario);
     Set<Inject> injects =
-        securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
+        securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(ctx,
             scenario, securityCoverage);
     scenario.setInjects(injects);
     log.info(
@@ -645,10 +645,11 @@ public class SecurityCoverageService {
   }
 
   private BaseType<?> getAttackPatternCoverage(List<String> externalRefs, Exercise simulation) {
+    TxCtx ctx = TxCtx.of(simulation.getTenant().getId()); // TODO JRI What??
     return getCoverage(
         externalRefs,
         simulation,
-        ids -> attackPatternService.getAttackPatternsByExternalIds(new HashSet<>(ids)),
+        ids -> attackPatternService.getAttackPatternsByExternalIds(ctx, new HashSet<>(ids)),
         inject -> {
           if (inject.getInjectorContract().isPresent()) {
             return inject.getInjectorContract().get().getAttackPatterns();

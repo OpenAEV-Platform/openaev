@@ -69,7 +69,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     domainComposer.reset();
     injectorContractComposer.reset();
   }

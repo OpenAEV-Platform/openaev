@@ -115,7 +115,7 @@ public class CalderaExecutorService implements Runnable {
       // Check if endpoint exists
       List<Endpoint> existingEndpoints =
           endpointService.findEndpointByHostnameAndAtLeastOneIp(
-              input.getHostname(), input.getIps(), executor.getTenant().getId());
+              input.getHostname(), input.getIps());
       if (existingEndpoints.size() == 1) {
         updateExistingEndpointAndManageAgent(existingEndpoints.getFirst(), input);
       } else {

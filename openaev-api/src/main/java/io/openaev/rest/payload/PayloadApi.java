@@ -3,6 +3,7 @@ package io.openaev.rest.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.rest.collector.service.CollectorService;
@@ -41,11 +42,12 @@ public class PayloadApi extends RestBehavior {
   private final CollectorService collectorsService;
   private final PayloadMapper payloadMapper;
 
+  @Transactional(rollbackOn = Exception.class)
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
-  public Page<Payload> payloads(
+  public Page<Payload> payloads(TxCtx ctx,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.payloadService.searchPayloads(searchPaginationInput);
+    return this.payloadService.searchPayloads(ctx, searchPaginationInput);
   }
 
   @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
@@ -53,6 +55,7 @@ public class PayloadApi extends RestBehavior {
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public PayloadOutput payload(@PathVariable String payloadId) {
     PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
         payloadService.findPayloadWithRelatedEntities(payloadId);
@@ -104,10 +107,11 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
-    return this.payloadUpsertService.upsertPayload(input);
+  public Payload upsertPayload(TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
+    return this.payloadUpsertService.upsertPayload(ctx, input);
   }
 
+  @Transactional(rollbackOn = Exception.class)
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
   @AccessControl(
       resourceId = "#payloadId",
@@ -121,9 +125,9 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackOn = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
-      @Valid @RequestBody PayloadsDeprecateInput input) {
+      TxCtx context, @Valid @RequestBody PayloadsDeprecateInput input) {
     this.payloadService.deprecateNonProcessedPayloadsByCollector(
-        input.collectorId(), input.processedPayloadExternalIds());
+        context, input.collectorId(), input.processedPayloadExternalIds());
   }
 
   @GetMapping({
@@ -139,6 +143,7 @@ public class PayloadApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "The list of Documents used in a payload")
       })
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<RawDocument> documentsFromPayload(@PathVariable String payloadId) {
     return documentService.documentsForPayload(payloadId);
   }
@@ -158,6 +163,7 @@ public class PayloadApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Collectors used in a payload remediation")
       })
+  @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public List<Collector> collectorsFromPayload(@PathVariable String payloadId) {
     return collectorsService.collectorsForPayload(payloadId);
   }
