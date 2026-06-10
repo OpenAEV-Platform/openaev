@@ -2,26 +2,21 @@ package io.openaev.service;
 
 import static org.mockito.Mockito.verify;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.NotificationRuleResourceType;
 import io.openaev.notification.handler.ScenarioNotificationEventHandler;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
-import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.test.context.TestExecutionListeners;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class NotificationEvenServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+public class NotificationEvenServiceTest {
 
   @Mock private ApplicationEventPublisher appPublisher;
   @Mock private ScenarioNotificationEventHandler scenarioNotificationEventHandler;
@@ -36,7 +31,8 @@ public class NotificationEvenServiceTest extends IntegrationTest {
   }
 
   @Test
-  public void test_handleEvent() {
+  public void given_scenarioNotificationEvent_should_delegateToScenarioHandler() {
+    // -------- Arrange --------
     NotificationEvent notificationEvent =
         NotificationEvent.builder()
             .eventType(NotificationEventType.SIMULATION_COMPLETED)
@@ -44,12 +40,17 @@ public class NotificationEvenServiceTest extends IntegrationTest {
             .timestamp(Instant.now())
             .resourceId("id")
             .build();
+
+    // -------- Act --------
     notificationEventService.handleNotificationEvent(notificationEvent);
+
+    // -------- Assert --------
     verify(scenarioNotificationEventHandler).handle(notificationEvent);
   }
 
   @Test
-  public void test_send_event() {
+  public void given_notificationEvent_should_publishToApplicationEventBus() {
+    // -------- Arrange --------
     NotificationEvent notificationEvent =
         NotificationEvent.builder()
             .eventType(NotificationEventType.SIMULATION_COMPLETED)
@@ -57,7 +58,11 @@ public class NotificationEvenServiceTest extends IntegrationTest {
             .timestamp(Instant.now())
             .resourceId("id")
             .build();
+
+    // -------- Act --------
     notificationEventService.sendNotificationEvent(notificationEvent);
+
+    // -------- Assert --------
     verify(appPublisher).publishEvent(notificationEvent);
   }
 }

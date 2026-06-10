@@ -2,10 +2,10 @@ package io.openaev.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.NotificationRule;
 import io.openaev.database.model.NotificationRuleResourceType;
 import io.openaev.database.model.NotificationRuleTrigger;
@@ -13,40 +13,54 @@ import io.openaev.database.model.NotificationRuleType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
-import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.hibernate.Session;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class NotificationRuleServiceTest extends IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+public class NotificationRuleServiceTest {
 
   @Mock private EntityManager entityManager;
   @Mock private Session session;
   @Mock private NotificationRuleRepository notificationRuleRepository;
 
+  @Mock private UserService userService;
+  @Mock private ScenarioService scenarioService;
   @Mock private EmailNotificationService emailNotificationService;
 
   @Mock private TenantSettingsService tenantSettingsService;
-
   @Mock private PlatformSettingsService platformSettingsService;
 
-  @InjectMocks private NotificationRuleService notificationRuleService;
+  // Explicit construction ensures the exact mock instances are injected into the final fields,
+  // avoiding the JIT-caching issue that occurs when Mockito falls back to reflection-based
+  // field injection on private-final fields (Lombok @RequiredArgsConstructor) in Java 21.
+  private NotificationRuleService notificationRuleService;
+
+  @BeforeEach
+  void setUp() {
+    notificationRuleService =
+        new NotificationRuleService(
+            entityManager,
+            notificationRuleRepository,
+            userService,
+            scenarioService,
+            emailNotificationService,
+            platformSettingsService,
+            tenantSettingsService);
+  }
 
   @Test
-  public void test_activateNotificationRules() {
+  public void given_notificationRuleWithEmailType_should_sendNotification() {
     // -------- Arrange --------
     Map<String, String> data = new HashMap<>();
     NotificationRule rule = new NotificationRule();
@@ -60,7 +74,9 @@ public class NotificationRuleServiceTest extends IntegrationTest {
     when(notificationRuleRepository.findNotificationRuleByResourceAndTrigger(
             rule.getResourceId(), rule.getTrigger()))
         .thenReturn(List.of(rule));
-    when(entityManager.unwrap(Session.class)).thenReturn(session);
+    // doReturn avoids calling the generic unwrap() method on the mock before the stub is
+    // registered, which prevents a null-return when Mockito cannot infer the generic type <T>.
+    doReturn(session).when(entityManager).unwrap(Session.class);
     when(tenantSettingsService.resolveSettingValue(eq("tenant-id"), any(TenantSettingKeys.class)))
         .thenReturn("dark");
     when(tenantSettingsService.findSetting(eq("tenant-id"), any(String.class)))
