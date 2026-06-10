@@ -1,8 +1,10 @@
 package io.openaev.service;
 
 import static io.openaev.utils.fixtures.InjectExpectationFixture.createVulnerabilityInjectExpectation;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -777,6 +779,47 @@ class InjectExpectationServiceTest {
       assertEquals(expectedInjectIds.size(), result.size());
       assertEquals(expectedInjectIds, result);
       verifyNoMoreInteractions(injectExpectationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("applySignaturesFromStructuredOutput")
+  class ApplySignaturesFromStructuredOutputTests {
+
+    @Test
+    @DisplayName("Returns immediately when signatures are empty")
+    void givenEmptySignaturesShouldReturnWithoutSideEffects() {
+      assertDoesNotThrow(
+          () ->
+              injectExpectationService.applySignaturesFromStructuredOutput(
+                  "inject-id",
+                  "agent-id",
+                  null,
+                  null,
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  List.of()));
+
+      verifyNoInteractions(injectExpectationRepository);
+    }
+
+    @Test
+    @DisplayName("Throws an IllegalArgumentException for a non-technical expectation type")
+    void givenNonTechnicalExpectationTypeShouldThrowIllegalArgumentException() {
+      List<InjectExpectationSignature> signatures =
+          List.of(new InjectExpectationSignature("signature-type", "signature-value"));
+
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              injectExpectationService.applySignaturesFromStructuredOutput(
+                  "inject-id",
+                  "agent-id",
+                  null,
+                  null,
+                  InjectExpectation.EXPECTATION_TYPE.MANUAL,
+                  signatures));
+
+      verifyNoInteractions(injectExpectationRepository);
     }
   }
 }
