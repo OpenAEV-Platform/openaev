@@ -40,7 +40,7 @@ public class UrlAccessTokenApi {
 
   @GetMapping({URL_ACCESS_URI, TENANT_URL_ACCESS_URI})
   @LogExecutionTime
-  @AccessControl(skipRBAC = true)
+  @AccessControl(skipRBAC = true, actionPerformed = Action.READ, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
   public ResponseEntity<Void> access(@RequestParam("token") String rawToken) {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {

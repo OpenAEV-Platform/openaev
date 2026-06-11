@@ -73,7 +73,16 @@ public class AccessControlAuditLogAspect {
     try {
       action = accessControl.actionPerformed();
       isActive = auditLogger.isAuditLoggingEnabled();
-      isActionActive = auditLogger.isAuditLoggingValid(action);
+      // When skipRBAC=true the action defaults to SKIP_RBAC, which isAuditLoggingValid() rejects.
+      // If the developer explicitly declares both actionPerformed and resourceType on the
+      // annotation (opt-in signal), we force auditing regardless of the shouldSkip policy.
+      // This covers endpoints like URL token validation that bypass RBAC but are still
+      // security-relevant events worth recording.
+      boolean forceAudit =
+          accessControl.skipRBAC()
+              && action != Action.SKIP_RBAC
+              && accessControl.resourceType() != ResourceType.SKIP_RBAC;
+      isActionActive = forceAudit || auditLogger.isAuditLoggingValid(action);
     } catch (Exception e) {
       log.warn(LOG_ERROR_MSG, e);
     }
