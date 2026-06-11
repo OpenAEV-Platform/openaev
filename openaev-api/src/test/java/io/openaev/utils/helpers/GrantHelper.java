@@ -24,7 +24,7 @@ public class GrantHelper {
       throw new IllegalStateException("No user found");
     }
 
-    return user.get().getGroups();
+    return user.get().getUnscopedGroups();
   }
 
   private Grant createGrantForGroup(Group group) {

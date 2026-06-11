@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -846,9 +847,11 @@ class ExpectationApiTest extends IntegrationTest {
     @Test
     @DisplayName("Get available InjectExpectations for injects")
     void getAvailableInjectExpectationsForInjects() throws Exception {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
-      challengeInjectorIntegrationFactory.registerConnectorForTenant();
-      openaevInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      challengeInjectorIntegrationFactory.registerConnectorForTenant(
+          TenantContext.getCurrentTenant());
+      openaevInjectorIntegrationFactory.registerConnectorForTenant(
+          TenantContext.getCurrentTenant());
 
       // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
       // and link it to the implant injector (same pattern as the original @BeforeAll setup)

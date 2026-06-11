@@ -65,6 +65,7 @@ public class ExecutionExecutorServiceTest {
             null,
             null,
             null,
+            null,
             null);
     ReflectionTestUtils.setField(
         executorService, "connectorInstanceService", connectorInstanceService);
@@ -295,7 +296,7 @@ public class ExecutionExecutorServiceTest {
       Inject inject = createInjectWithActiveAgent(executor);
 
       Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-1");
@@ -336,7 +337,7 @@ public class ExecutionExecutorServiceTest {
       Inject inject = createInjectWithActiveAgent(executor);
 
       Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-fail");
@@ -407,7 +408,7 @@ public class ExecutionExecutorServiceTest {
               new AgentsAndAssetsAgentless(new HashSet<>(Set.of(agent1, agent2)), new HashSet<>()));
 
       Manager manager = mock(Manager.class);
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
 
       ConnectorInstancePersisted instance1 = new ConnectorInstancePersisted();
       instance1.setId("instance-cs-1");

@@ -68,7 +68,9 @@ public class Executor {
   private InjectStatus executeInternal(ExecutableInject executableInject, Injector injector) {
     Inject inject = executableInject.getInjection().getInject();
     io.openaev.executors.Injector executor =
-        managerFactory.getManager().requestInjectorExecutorByType(injector.getType());
+        managerFactory
+            .getManager(inject.getTenant().getId())
+            .requestInjectorExecutorByType(injector.getType());
 
     Execution execution = executor.executeInjection(executableInject);
     // After execution, expectations are already created

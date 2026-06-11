@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Domain;
@@ -69,7 +70,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     domainComposer.reset();
     injectorContractComposer.reset();
   }

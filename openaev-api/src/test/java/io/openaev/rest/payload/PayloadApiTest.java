@@ -19,12 +19,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
@@ -65,6 +67,7 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private jakarta.persistence.EntityManager entityManager;
+  @Autowired private ManagerFactory managerFactory;
 
   @Resource private ObjectMapper objectMapper;
 
@@ -72,7 +75,8 @@ class PayloadApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 
   @BeforeAll
