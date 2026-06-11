@@ -251,12 +251,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@casl/ability@npm:6.8.1":
-  version: 6.8.1
-  resolution: "@casl/ability@npm:6.8.1"
+"@casl/ability@npm:7.0.0":
+  version: 7.0.0
+  resolution: "@casl/ability@npm:7.0.0"
   dependencies:
-    "@ucast/mongo2js": "npm:^1.3.0"
-  checksum: 10c0/34e3589ce75c49325bc97f9f6d915d8da746094ac4b37582d91ddec450757f2a90e8f87c6ebe8a5fe0ea5a9ba2a257e3dcf7698a0ad95b753ec42559d749f0d6
+    "@ucast/mongo2js": "npm:^2.0.0"
+  checksum: 10c0/543ec3d58faa781c28cb65d825aba7692d933445e5487f2c9044929fe91ca5a6599997b6f57c1be6de5dcc5356248da214f8c68a5df3dfdc82fd369defb8c947
   languageName: node
   linkType: hard
 
@@ -3532,39 +3532,39 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ucast/core@npm:^1.0.0, @ucast/core@npm:^1.4.1, @ucast/core@npm:^1.6.1":
-  version: 1.10.2
-  resolution: "@ucast/core@npm:1.10.2"
-  checksum: 10c0/bc24a2b02d796b5c14353aaf1c8faf8103157695522e82e9d6d7813a300e631a406d4809030c582bda99a72232a8eb19f25b4d78857f1c9fab2e8fb2028706e8
+"@ucast/core@npm:2.0.0":
+  version: 2.0.0
+  resolution: "@ucast/core@npm:2.0.0"
+  checksum: 10c0/52f29f94d12f932490524fceab5cfde195d98476246ab56e04922302cf4987c8d32f7e4b02e12a03be582f6a70b7021b90010c3dcb17e94fee42cc1a48730220
   languageName: node
   linkType: hard
 
-"@ucast/js@npm:^3.0.0":
-  version: 3.0.4
-  resolution: "@ucast/js@npm:3.0.4"
+"@ucast/js@npm:4.0.1":
+  version: 4.0.1
+  resolution: "@ucast/js@npm:4.0.1"
   dependencies:
-    "@ucast/core": "npm:^1.0.0"
-  checksum: 10c0/c1243a22a82afa6a553317ed8201dbc496b86d3a33220778033773789bd7f38efe8ddb65d6dd9dd7b8035239f87a467b17c560afd206c0ece8b71780333d4f17
+    "@ucast/core": "npm:2.0.0"
+  checksum: 10c0/13e640a877f330e1966ceacb791748bb447ed57a55534861d7549fe35152d9f78894ad82e827905c20aee91472668a961d75609f149bf45dd2f7d61e1a454f25
   languageName: node
   linkType: hard
 
-"@ucast/mongo2js@npm:^1.3.0":
-  version: 1.4.0
-  resolution: "@ucast/mongo2js@npm:1.4.0"
+"@ucast/mongo2js@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@ucast/mongo2js@npm:2.0.0"
   dependencies:
-    "@ucast/core": "npm:^1.6.1"
-    "@ucast/js": "npm:^3.0.0"
-    "@ucast/mongo": "npm:^2.4.0"
-  checksum: 10c0/3feeb7b175fc8263764fbcb8a88d0bfa26640bc7fb2d76aa7c34cb21397ecb2008e8b66387f4204bf435d98cd9fad0afddef0948f82aa64e98fa7574b8dbb181
+    "@ucast/core": "npm:2.0.0"
+    "@ucast/js": "npm:4.0.1"
+    "@ucast/mongo": "npm:3.0.0"
+  checksum: 10c0/788548712d0dffbf59509eb8c6fcae9277cbb53db66ce7e642a7d09980fd7ccc03ffbd73a1e472de2be19c07289c4e339dab7199b5dd8f65b6349c577e9c127a
   languageName: node
   linkType: hard
 
-"@ucast/mongo@npm:^2.4.0":
-  version: 2.4.3
-  resolution: "@ucast/mongo@npm:2.4.3"
+"@ucast/mongo@npm:3.0.0":
+  version: 3.0.0
+  resolution: "@ucast/mongo@npm:3.0.0"
   dependencies:
-    "@ucast/core": "npm:^1.4.1"
-  checksum: 10c0/3b806014f5754594faae5045f778e330c03216904895116ad524bd5e57e24875d7994add478e873628b5b2406d8c4cbce6e3eba5a7c6591924e4226e956d78b6
+    "@ucast/core": "npm:2.0.0"
+  checksum: 10c0/94a677ccda25d2340f89b6b62d7f98c2eeb788039fbac0c3f8beaa77ab7959b2904c696f30d6d56d419a9d60e372deeb13d99e9e2e7859bca20af3bcc3001197
   languageName: node
   linkType: hard
 
@@ -9853,7 +9853,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "openaev-front@workspace:."
   dependencies:
-    "@casl/ability": "npm:6.8.1"
+    "@casl/ability": "npm:7.0.0"
     "@casl/react": "npm:5.0.1"
     "@ckeditor/ckeditor5-react": "npm:11.1.2"
     "@emotion/react": "npm:11.14.0"
