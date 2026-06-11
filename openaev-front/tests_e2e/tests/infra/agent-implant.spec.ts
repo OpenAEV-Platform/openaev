@@ -55,7 +55,7 @@ test.describe('Agent implant registration', () => {
     // Fill General tab
     await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
     await page.getByRole('combobox', { name: 'Domains' }).click();
-    await page.getByRole('option', { name: 'Command and Control' }).click();
+    await page.getByRole('option', { name: 'Endpoint' }).click();
     await page.keyboard.press('Escape');
 
     // Switch to Commands tab
