@@ -19,6 +19,7 @@ const getOsPlatform = (): string => {
 
 test.describe('Agent implant registration', () => {
   let hostname: string;
+  const payloadName = `E2E Payload ${Date.now()}`;
 
   test.beforeAll(async ({ browser }) => {
     expect(ADMIN_TOKEN, 'OPENAEV_ADMIN_TOKEN must be set').toBeTruthy();
@@ -44,6 +45,34 @@ test.describe('Agent implant registration', () => {
     const preBlock = page.locator('pre').first();
     await expect(preBlock).not.toBeEmpty();
     const installCommand = (await preBlock.textContent())!;
+
+    // Create the threat arsenal payload (Command Line for Linux)
+    await page.goto(tenantUrl('/admin'));
+    await page.getByRole('menuitem', { name: 'Threat Arsenal' }).click();
+    await page.waitForURL('**/threat-arsenal**');
+    await page.getByRole('button', { name: 'Add' }).click();
+
+    // Fill General tab
+    await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
+    await page.getByRole('combobox', { name: 'Domains' }).click();
+    await page.getByRole('option', { name: 'Command and Control' }).click();
+    await page.keyboard.press('Escape');
+
+    // Switch to Commands tab
+    await page.getByRole('tab', { name: 'Commands' }).click();
+    await page.getByRole('combobox', { name: 'Type *' }).click();
+    await page.getByRole('option', { name: 'Command Line' }).click();
+    await page.getByRole('combobox', { name: 'Platforms' }).click();
+    await page.getByRole('option', { name: 'Linux' }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('combobox', { name: 'Executor *' }).click();
+    await page.getByRole('option', { name: 'bash' }).click();
+    await page.locator('textarea[name="command_content"]').fill('echo \'this a test\'');
+
+    // Save the payload
+    await page.getByRole('tab', { name: 'General' }).click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await expect(page.getByText('The element has been successfully created')).toBeVisible();
 
     await context.close();
 
@@ -75,5 +104,51 @@ test.describe('Agent implant registration', () => {
 
     const endpointRow = page.getByRole('listitem').filter({ hasText: hostname });
     await expect(endpointRow).toBeVisible();
+  });
+
+  test('create and launch atomic test with payload on registered endpoint', async ({ page }) => {
+    // Navigate to Atomic Testings
+    await page.goto(tenantUrl('/admin/atomic_testings'));
+    await page.waitForURL('**/atomic_testings**');
+
+    // Open the create atomic test drawer
+    await page.getByRole('button', { name: 'Create' }).click();
+
+    // Search and select the payload we created
+    await page.getByPlaceholder('Search').first().fill(payloadName);
+    await page.getByText(payloadName).first().click();
+
+    // Add the registered endpoint as a target
+    await page.getByText('Modify assets').click();
+    await page.getByText(hostname, { exact: false }).first().click();
+    await page.getByRole('button', { name: 'Submit' }).click();
+
+    // Submit the atomic test creation
+    await page.getByRole('button', { name: 'Create' }).click();
+
+    // Wait for navigation to the atomic testing detail page
+    await page.waitForURL('**/atomic_testings/**');
+
+    // Launch the atomic test
+    await page.getByRole('button', { name: /Launch now/i }).click();
+    // Confirm the launch dialog
+    await page.getByRole('button', { name: /Launch/i }).last().click();
+
+    // Navigate to the "Inject Execution details" tab to see traces
+    await page.getByRole('tab', { name: /Execution details/i }).click();
+
+    // Wait for the agent to execute and send back results (up to 120s)
+    await expect(async () => {
+      await page.reload();
+      await page.getByRole('tab', { name: /Execution details/i }).click();
+      const traces = page.getByText('Traces');
+      await expect(traces).toBeVisible();
+      // Verify that execution traces contain content (not just the heading)
+      const traceContent = page.locator('text=SUCCESS').or(page.locator('text=FAILED'));
+      await expect(traceContent.first()).toBeVisible();
+    }).toPass({
+      intervals: [10_000],
+      timeout: 120_000,
+    });
   });
 });
