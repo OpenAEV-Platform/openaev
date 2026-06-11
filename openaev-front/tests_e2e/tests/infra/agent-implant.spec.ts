@@ -65,7 +65,8 @@ test.describe('Agent implant registration', () => {
     await page.getByRole('option', { name: 'Command Line' }).click();
     await page.getByRole('combobox', { name: 'Platforms' }).click();
     await page.getByRole('option', { name: 'Linux' }).click();
-    await page.keyboard.press('Escape');
+    // Close the multi-select dropdown by clicking the backdrop
+    await page.locator('.MuiBackdrop-root, .MuiBackdrop-invisible').click();
     await page.getByRole('combobox', { name: 'Executor *' }).click();
     await page.getByRole('option', { name: 'bash' }).click();
     await page.locator('textarea[name="command_content"]').fill('echo \'this a test\'');
