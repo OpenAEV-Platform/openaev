@@ -3,6 +3,7 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -138,6 +139,7 @@ public class CollectorApi extends RestBehavior {
               ? file.get().getInputStream()
               : null;
       return collectorService.register(
+          TenantContext.getCurrentTenant(),
           input.getId(),
           input.getType(),
           input.getName(),

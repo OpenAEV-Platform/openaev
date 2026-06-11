@@ -184,6 +184,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   @Transactional
   public Collector register(
+      @NotNull final String tenantId,
       @NotNull String id,
       @NotNull String type,
       @NotNull String name,
@@ -199,8 +200,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector =
-        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
@@ -210,7 +210,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (collector == null) {
       collector = new Collector();
       collector.setId(id);
-      collector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      collector.setTenant(new Tenant(tenantId));
       collector.setPeriod(period); // immutable after creation
     }
 
