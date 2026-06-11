@@ -18,11 +18,13 @@ const getOsPlatform = (): string => {
 
 test.describe('Agent implant registration', () => {
   let hostname: string;
+  let agentUser: string;
   const echoToken = `e2e-${Date.now()}`;
   const payloadName = `E2E Payload ${echoToken}`;
 
   test.beforeAll(async ({ browser }) => {
     hostname = os.hostname().toLowerCase();
+    agentUser = execSync('whoami', { encoding: 'utf-8' }).trim();
     const platform = getOsPlatform();
 
     // Create an authenticated page to navigate the UI
@@ -134,15 +136,15 @@ test.describe('Agent implant registration', () => {
     // Wait for the agent to execute and send back results (up to 240s)
     await expect(async () => {
       await page.reload();
-      // Wait for the endpoint row to show "Executed" status
-      await expect(page.getByRole('button', { name: new RegExp(`${hostname}.*Executed`, 'i') })).toBeVisible();
+      // Wait for the agent row to show "Executed" status (agent name = whoami output)
+      await expect(page.getByRole('button', { name: new RegExp(`${agentUser}.*Executed`, 'i') })).toBeVisible();
     }).toPass({
       intervals: [10_000],
       timeout: 240_000,
     });
 
-    // Expand the endpoint row to reveal traces
-    await page.getByRole('button', { name: new RegExp(`${hostname}.*Executed`, 'i') }).click();
+    // Expand the agent row to reveal traces
+    await page.getByRole('button', { name: new RegExp(`${agentUser}.*Executed`, 'i') }).click();
 
     // Verify traces are visible after expanding
     await expect(page.getByText('Implant spawn by the agent')).toBeVisible();
