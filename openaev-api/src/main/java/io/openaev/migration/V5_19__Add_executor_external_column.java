@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  * each integration, and now explicitly sets {@code external} to the correct value each time.
  */
 @Component
-public class V5_18__Add_executor_external_column extends BaseJavaMigration {
+public class V5_19__Add_executor_external_column extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
