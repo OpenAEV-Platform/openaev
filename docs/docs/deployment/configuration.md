@@ -69,7 +69,7 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
-{% if "audit-log" not in (config.extra.feature_flags.disabled|string|lower|replace(" ", "")).split(",") %}
+{% if "audit-log" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 #### Audit Logging
 
 Audit logging will allow you to have a trace of the actions performed using API calls.
