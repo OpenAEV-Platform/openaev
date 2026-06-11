@@ -1,5 +1,6 @@
 package io.openaev.service.connectors;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -9,7 +10,9 @@ import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Output> {
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
@@ -160,6 +163,13 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
                         false));
               });
     }
+
+    log.info(
+        "===> [getConnectorsOutput] tenantId={} connectorType={} resultCount={} connectorIds={}",
+        TenantContext.getCurrentTenant(),
+        connectorType,
+        result.size(),
+        connectors.stream().map(BaseConnectorEntity::getId).collect(Collectors.toList()));
 
     return result;
   }

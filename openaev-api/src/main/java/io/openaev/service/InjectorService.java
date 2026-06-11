@@ -273,69 +273,116 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       Map<String, String> executorCommands,
       Map<String, String> executorClearCommands,
       Boolean payloads) {
-    injector.setUpdatedAt(Instant.now());
-    injector.setType(type);
-    injector.setName(name);
-    injector.setExternal(true);
-    injector.setCustomContracts(customContracts);
-    injector.setCategory(category);
-    injector.setExecutorCommands(executorCommands);
-    injector.setExecutorClearCommands(executorClearCommands);
-    injector.setPayloads(payloads);
+    String injectorId = injector.getId();
+    String tenantId = injector.getTenant().getId();
+
+    // Native UPDATE — no entity mutation, no dirty state, no auto-flush problem.
+    // Cannot use injectorRepository.save(injector) here: Injector has a single @Id
+    // (injector_id) but the DB has a composite PK (injector_id, tenant_id), so Hibernate
+    // generates UPDATE ... WHERE injector_id = ? which matches all tenants and causes
+    // BatchedTooManyRowsAffectedException.
+    injectorRepository.updateExternalScalarProperties(
+        injectorId,
+        tenantId,
+        name,
+        type,
+        category,
+        Boolean.TRUE.equals(customContracts),
+        Boolean.TRUE.equals(payloads),
+        toHstoreString(executorCommands),
+        toHstoreString(executorClearCommands));
+
+    // Filter to this tenant's contracts only — the join table is keyed only on injector_id
+    // (not on injector_id+tenant_id), so injector.getContracts() loads contracts from all
+    // tenants when multiple tenants share the same injector_id.
+    List<InjectorContract> tenantContracts =
+        injector.getContracts().stream()
+            .filter(c -> tenantId.equals(c.getCompositeId().getTenantId()))
+            .toList();
+
     List<String> existing = new ArrayList<>();
     List<String> toDeletes = new ArrayList<>();
-    injector
-        .getContracts()
-        .forEach(
-            contract -> {
-              Optional<InjectorContractInput> current =
-                  contracts.stream().filter(c -> c.getId().equals(contract.getId())).findFirst();
-              if (current.isPresent()) {
-                existing.add(contract.getId());
-                contract.setManual(current.get().isManual());
-                contract.setLabels(current.get().getLabels());
-                contract.setContent(current.get().getContent());
-                contract.setAtomicTesting(current.get().isAtomicTesting());
-                contract.setPlatforms(current.get().getPlatforms());
-                if (!current.get().getAttackPatternsExternalIds().isEmpty()) {
-                  List<AttackPattern> attackPatterns =
-                      fromIterable(
-                          attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                              current.get().getAttackPatternsExternalIds(),
-                              injector.getTenant().getId()));
-                  contract.setAttackPatterns(attackPatterns);
-                } else {
-                  contract.setAttackPatterns(new ArrayList<>());
-                }
+    tenantContracts.forEach(
+        contract -> {
+          Optional<InjectorContractInput> current =
+              contracts.stream().filter(c -> c.getId().equals(contract.getId())).findFirst();
+          if (current.isPresent()) {
+            existing.add(contract.getId());
+            contract.setManual(current.get().isManual());
+            contract.setLabels(current.get().getLabels());
+            contract.setContent(current.get().getContent());
+            contract.setAtomicTesting(current.get().isAtomicTesting());
+            contract.setPlatforms(current.get().getPlatforms());
+            if (!current.get().getAttackPatternsExternalIds().isEmpty()) {
+              List<AttackPattern> attackPatterns =
+                  fromIterable(
+                      attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+                          current.get().getAttackPatternsExternalIds(), tenantId));
+              contract.setAttackPatterns(attackPatterns);
+            } else {
+              contract.setAttackPatterns(new ArrayList<>());
+            }
 
-                if (!payloads) {
-                  Set<Domain> currentDomains =
-                      this.domainService.upsertDomainEntities(
-                          contract.getDomains(), injector.getTenant().getId());
-                  Set<Domain> domainsToAdd =
-                      this.domainService.upserts(
-                          current.get().getDomains(), injector.getTenant().getId());
-                  contract.setDomains(
-                      this.domainService.mergeDomains(
-                          currentDomains, domainsToAdd, injector.getTenant()));
-                }
-              } else if (!contract.getCustom()) {
-                toDeletes.add(contract.getId());
-              }
-            });
+            if (!payloads) {
+              Set<Domain> currentDomains =
+                  this.domainService.upsertDomainEntities(contract.getDomains(), tenantId);
+              Set<Domain> domainsToAdd =
+                  this.domainService.upserts(current.get().getDomains(), tenantId);
+              contract.setDomains(
+                  this.domainService.mergeDomains(
+                      currentDomains, domainsToAdd, injector.getTenant()));
+            }
+          } else if (!contract.getCustom()) {
+            toDeletes.add(contract.getId());
+          }
+        });
+
     List<InjectorContract> toCreates =
         contracts.stream()
             .filter(c -> !existing.contains(c.getId()))
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
+
     injectorContractRepository.deleteAllByIdAndTenantId(
-        toDeletes.toArray(new String[0]), injector.getTenant().getId());
+        toDeletes.toArray(new String[0]), tenantId);
     // Remove deleted contracts from the owning-side collection to keep it in sync
     injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
+
     toCreates = fromIterable(injectorContractRepository.saveAll(toCreates));
-    // Link managed instances returned by saveAll() — originals are detached after merge()
     injector.getContracts().addAll(toCreates);
-    return injectorRepository.save(injector);
+
+    // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).
+    // Cannot use injectorRepository.save(injector) to sync the join table: it would issue
+    // UPDATE injectors SET ... WHERE injector_id = ? (no tenant_id) hitting all tenants.
+    for (InjectorContract contract : toCreates) {
+      injectorRepository.linkContract(injectorId, contract.getId(), tenantId);
+    }
+
+    return injector;
+  }
+
+  /**
+   * Converts a {@code Map<String, String>} to a PostgreSQL hstore literal suitable for {@code
+   * CAST(... AS hstore)}. Returns an empty string for null/empty maps (hstore accepts {@code ''}).
+   */
+  private String toHstoreString(Map<String, String> map) {
+    if (map == null || map.isEmpty()) {
+      return "";
+    }
+    return map.entrySet().stream()
+        .map(
+            e ->
+                "\""
+                    + escapeHstore(e.getKey())
+                    + "\"=>\""
+                    + escapeHstore(e.getValue())
+                    + "\"")
+        .collect(Collectors.joining(","));
+  }
+
+  private String escapeHstore(String value) {
+    if (value == null) return "";
+    return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   // -- BUILT - IN --

@@ -20,6 +20,14 @@ public interface InjectorRepository
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
+  /**
+   * Returns all injectors matching (type, tenantId). Should normally return 0 or 1 rows.
+   * Use instead of findByTypeAndTenantId when DB may contain duplicates caused by failed
+   * registrations (BatchedTooManyRowsAffectedException retry creating a second row).
+   */
+  @NotNull
+  List<Injector> findAllByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+
   List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);
 
   @Modifying
@@ -29,7 +37,40 @@ public interface InjectorRepository
   void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
 
   /**
-   * Updates builtin injector scalar properties scoped to a single tenant. Avoids the
+   * Updates external injector scalar properties scoped to a single tenant. Mirrors
+   * updateBuiltinScalarProperties but sets injector_external = true. Avoids the
+   * BatchedTooManyRowsAffectedException caused by Hibernate's single-column WHERE clause when
+   * the DB has a composite PK (injector_id, tenant_id).
+   */
+  @Modifying
+  @Query(
+      nativeQuery = true,
+      value =
+          """
+          UPDATE injectors SET
+            injector_name             = :name,
+            injector_type             = :type,
+            injector_category         = :category,
+            injector_external         = true,
+            injector_custom_contracts = :customContracts,
+            injector_payloads         = :payloads,
+            injector_executor_commands       = CAST(:executorCommands AS hstore),
+            injector_executor_clear_commands = CAST(:executorClearCommands AS hstore),
+            injector_updated_at       = now()
+          WHERE injector_id = :id AND tenant_id = :tenantId
+          """)
+  void updateExternalScalarProperties(
+      @Param("id") String id,
+      @Param("tenantId") String tenantId,
+      @Param("name") String name,
+      @Param("type") String type,
+      @Param("category") String category,
+      @Param("customContracts") boolean customContracts,
+      @Param("payloads") boolean payloads,
+      @Param("executorCommands") String executorCommands,
+      @Param("executorClearCommands") String executorClearCommands);
+
+  /** scoped to a single tenant. Avoids the
    * BatchedTooManyRowsAffectedException caused by Hibernate's single-column WHERE clause
    * (injector_id) when the DB has a composite PK (injector_id, tenant_id).
    */

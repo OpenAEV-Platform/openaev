@@ -318,9 +318,14 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
+    // Use findAllByTypeAndTenantId to tolerate duplicate rows caused by failed registrations
+    // (BatchedTooManyRowsAffectedException retry may create a second row with the same type+tenant).
+    // Takes the first match; duplicates will be cleaned up on next successful registration.
     Injector injector =
         this.injectorRepository
-            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+            .findAllByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
     Optional<InputStream> fileStream =
         fileService.getInjectorImage(injector.getType(), injector.isExternal());
