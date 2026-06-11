@@ -1,7 +1,8 @@
 package io.openaev.context;
 
-import io.openaev.database.model.Tenant;
 import java.util.Map;
+
+import io.openaev.database.model.Tenant;
 import org.springframework.data.spel.spi.EvaluationContextExtension;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,10 @@ public class TenantContext implements EvaluationContextExtension {
   public static String getCurrentTenant() {
     String tenant = CURRENT_TENANT.get();
     return tenant != null ? tenant : Tenant.DEFAULT_TENANT_UUID;
+  }
+
+  public static boolean hasCurrentTenant() {
+    return CURRENT_TENANT.get() != null;
   }
 
   /**
