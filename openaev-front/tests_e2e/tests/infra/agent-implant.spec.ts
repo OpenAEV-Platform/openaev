@@ -6,8 +6,7 @@ import { expect } from '@playwright/test';
 import { test } from '../../fixtures';
 import { tenantUrl } from '../../utils/url';
 
-const APP_URL = process.env.APP_URL ?? 'http://localhost:8080';
-const ADMIN_TOKEN = process.env.OPENAEV_ADMIN_TOKEN!;
+const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
 
 const getOsPlatform = (): string => {
   switch (os.platform()) {
@@ -22,7 +21,6 @@ test.describe('Agent implant registration', () => {
   const payloadName = `E2E Payload ${Date.now()}`;
 
   test.beforeAll(async ({ browser }) => {
-    expect(ADMIN_TOKEN, 'OPENAEV_ADMIN_TOKEN must be set').toBeTruthy();
     hostname = os.hostname().toLowerCase();
     const platform = getOsPlatform();
 
@@ -32,6 +30,8 @@ test.describe('Agent implant registration', () => {
       baseURL: APP_URL,
     });
     const page = await context.newPage();
+
+    let installCommand: string;
 
     // Navigate to the agents page and open the first executor (OpenAEV Agent)
     await page.goto(tenantUrl('/admin/agents'));
@@ -44,9 +44,9 @@ test.describe('Agent implant registration', () => {
     // Grab the install command from the <pre> block
     const preBlock = page.locator('pre').first();
     await expect(preBlock).not.toBeEmpty();
-    const installCommand = (await preBlock.textContent())!;
+    installCommand = (await preBlock.textContent())!;
 
-    // Create the threat arsenal payload (Command Line for Linux)
+    // Create the threat arsenal payload (Command Line for the current platform)
     await page.goto(tenantUrl('/admin'));
     await page.getByRole('menuitem', { name: 'Threat Arsenal' }).click();
     await page.waitForURL('**/threat-arsenal**');
@@ -56,20 +56,18 @@ test.describe('Agent implant registration', () => {
     await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
     await page.getByRole('combobox', { name: 'Domains' }).click();
     await page.getByRole('option', { name: 'Endpoint' }).click();
-    // Close the autocomplete by clicking on the name field (Escape may close the drawer)
-    await page.getByRole('textbox', { name: 'Name*' }).click();
 
     // Switch to Commands tab
     await page.getByRole('tab', { name: 'Commands' }).click();
     await page.getByRole('combobox', { name: 'Type *' }).click();
     await page.getByRole('option', { name: 'Command Line' }).click();
     await page.getByRole('combobox', { name: 'Platforms' }).click();
-    await page.getByRole('option', { name: 'Linux' }).click();
-    // Close the multi-select dropdown by clicking the backdrop
-    await page.locator('.MuiBackdrop-root, .MuiBackdrop-invisible').click();
+    await page.getByRole('option', { name: platform }).click();
+    const executor = platform === 'Windows' ? 'PowerShell' : 'Bash';
     await page.getByRole('combobox', { name: 'Executor *' }).click();
-    await page.getByRole('option', { name: 'bash' }).click();
-    await page.locator('textarea[name="command_content"]').fill('echo \'this a test\'');
+    await page.getByRole('option', { name: executor }).click();
+    const command = platform === 'Windows' ? 'Write-Output \'this a test\'' : 'echo \'this a test\'';
+    await page.locator('textarea[name="command_content"]').fill(command);
 
     // Save the payload
     await page.getByRole('tab', { name: 'General' }).click();
@@ -78,34 +76,31 @@ test.describe('Agent implant registration', () => {
 
     await context.close();
 
+    // Windows PowerShell 5.1 prompts for confirmation when iwr parses HTML;
+    // -UseBasicParsing avoids the interactive security prompt.
+    if (os.platform() === 'win32') {
+      installCommand = installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
+    }
+
     // Execute the install command
     execSync(installCommand, {
       stdio: 'inherit',
       timeout: 60_000,
+      shell: os.platform() === 'win32' ? 'powershell' : undefined,
     });
   });
 
   test('installed agent registers an endpoint', async ({ page }) => {
-    // Poll the endpoints API until the agent registers (up to 150 s)
+    // Poll the endpoints UI until the agent registers (up to 150 s)
     await expect(async () => {
-      const res = await page.request.get(`${APP_URL}/api/endpoints`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
-      expect(res.ok()).toBeTruthy();
-      const endpoints: { endpoint_hostname: string }[] = await res.json();
-      const match = endpoints.some(
-        e => e.endpoint_hostname.toLowerCase() === hostname,
-      );
-      expect(match, `No endpoint with hostname "${hostname}" found yet`).toBeTruthy();
+      await page.goto(tenantUrl('/admin/assets/endpoints'));
+      await page.waitForURL('**/assets/endpoints**');
+      const endpointRow = page.getByRole('listitem').filter({ hasText: hostname });
+      await expect(endpointRow).toBeVisible();
     }).toPass({
       intervals: [5_000],
       timeout: 150_000,
     });
-
-    // Verify the endpoint is visible in the UI
-    await page.goto(tenantUrl('/admin/assets/endpoints'));
-    await page.waitForURL('**/assets/endpoints**');
-
-    const endpointRow = page.getByRole('listitem').filter({ hasText: hostname });
-    await expect(endpointRow).toBeVisible();
   });
 
   test('create and launch atomic test with payload on registered endpoint', async ({ page }) => {
@@ -114,19 +109,19 @@ test.describe('Agent implant registration', () => {
     await page.waitForURL('**/atomic_testings**');
 
     // Open the create atomic test drawer
-    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('button', { name: 'Add' }).click();
 
     // Search and select the payload we created
-    await page.getByPlaceholder('Search').first().fill(payloadName);
+    await page.getByPlaceholder('Search these results...').first().fill(payloadName);
     await page.getByText(payloadName).first().click();
 
     // Add the registered endpoint as a target
-    await page.getByText('Modify assets').click();
+    await page.getByRole('button', { name: 'Modify assets' }).click();
     await page.getByText(hostname, { exact: false }).first().click();
-    await page.getByRole('button', { name: 'Submit' }).click();
+    await page.getByRole('button', { name: 'Update' }).click();
 
     // Submit the atomic test creation
-    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByTestId('inject-form-submit-button').click();
 
     // Wait for navigation to the atomic testing detail page
     await page.waitForURL('**/atomic_testings/**');
@@ -134,7 +129,7 @@ test.describe('Agent implant registration', () => {
     // Launch the atomic test
     await page.getByRole('button', { name: /Launch now/i }).click();
     // Confirm the launch dialog
-    await page.getByRole('button', { name: /Launch/i }).last().click();
+    await page.getByRole('button', { name: /Confirm/i }).click();
 
     // Navigate to the "Inject Execution details" tab to see traces
     await page.getByRole('tab', { name: /Execution details/i }).click();
@@ -145,9 +140,9 @@ test.describe('Agent implant registration', () => {
       await page.getByRole('tab', { name: /Execution details/i }).click();
       const traces = page.getByText('Traces');
       await expect(traces).toBeVisible();
-      // Verify that execution traces contain content (not just the heading)
-      const traceContent = page.locator('text=SUCCESS').or(page.locator('text=FAILED'));
-      await expect(traceContent.first()).toBeVisible();
+      await expect(page.locator('text=SUCCESS')).toBeVisible();
+      // Verify the trace contains the expected command output
+      await expect(page.getByText('this a test')).toBeVisible();
     }).toPass({
       intervals: [10_000],
       timeout: 120_000,
