@@ -752,12 +752,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ckeditor/ckeditor5-integrations-common@npm:^2.3.1":
-  version: 2.3.1
-  resolution: "@ckeditor/ckeditor5-integrations-common@npm:2.3.1"
+"@ckeditor/ckeditor5-integrations-common@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@ckeditor/ckeditor5-integrations-common@npm:2.4.0"
   peerDependencies:
     ckeditor5: ">=42.0.0 || ^0.0.0-nightly"
-  checksum: 10c0/307b0a74075364e68a23204028e1fa946c48572fb13686d73ecf7b5e3900005cb2177f9e9f0e8eb54b1d263e18c5e68c4a370493ad05b2d276859ed36e7c95a6
+  checksum: 10c0/e72fbfc878f2ffc3273b73b590f8efebeaa065e3c8d6d4a5e9d5e3eddd0e58d7f0d232479a286c352e19c66a66d4c9afefb24cbd7fcd62ed04808d3ff766fa5f
   languageName: node
   linkType: hard
 
@@ -923,15 +923,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ckeditor/ckeditor5-react@npm:11.1.2":
-  version: 11.1.2
-  resolution: "@ckeditor/ckeditor5-react@npm:11.1.2"
+"@ckeditor/ckeditor5-react@npm:11.2.0":
+  version: 11.2.0
+  resolution: "@ckeditor/ckeditor5-react@npm:11.2.0"
   dependencies:
-    "@ckeditor/ckeditor5-integrations-common": "npm:^2.3.1"
+    "@ckeditor/ckeditor5-integrations-common": "npm:^2.4.0"
   peerDependencies:
     ckeditor5: ">=46.0.0 || ^0.0.0-nightly || ^0.0.0-internal"
     react: ^16.13.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/fb52161652e3cb6d3aa485645bd8e6c8187d1f90272b55ad8f3f9a04ad902b0d83016f8009c8112874736864aaea1b0260048d63c350dd73d3593045f6ab1dc9
+  checksum: 10c0/c7f75a820a50d27d9b3a6cce2cca624e11e5f0302fa8eab48325ef26fc5b53703a299fcbb201a3f5753b316a6fc4197e3f6f01f20dd88d56d3751c1912bca426
   languageName: node
   linkType: hard
 
@@ -9855,7 +9855,7 @@ __metadata:
   dependencies:
     "@casl/ability": "npm:6.8.1"
     "@casl/react": "npm:5.0.1"
-    "@ckeditor/ckeditor5-react": "npm:11.1.2"
+    "@ckeditor/ckeditor5-react": "npm:11.2.0"
     "@emotion/react": "npm:11.14.0"
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.4"
