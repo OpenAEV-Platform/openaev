@@ -56,7 +56,8 @@ test.describe('Agent implant registration', () => {
     await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
     await page.getByRole('combobox', { name: 'Domains' }).click();
     await page.getByRole('option', { name: 'Endpoint' }).click();
-    await page.keyboard.press('Escape');
+    // Close the autocomplete by clicking on the name field (Escape may close the drawer)
+    await page.getByRole('textbox', { name: 'Name*' }).click();
 
     // Switch to Commands tab
     await page.getByRole('tab', { name: 'Commands' }).click();
