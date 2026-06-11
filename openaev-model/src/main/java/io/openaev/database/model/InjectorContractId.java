@@ -32,7 +32,11 @@ public class InjectorContractId implements Serializable {
   @Column(name = "injector_contract_id")
   private String id;
 
-  @Column(name = "tenant_id", updatable = false, nullable = false)
+  // Do NOT add updatable = false here: Hibernate 6.x incorrectly excludes the column from the
+  // UPDATE WHERE clause when updatable = false is set on an @EmbeddedId field, causing
+  // BatchedTooManyRowsAffectedException when multiple tenants share the same contract ID.
+  // PK columns are inherently non-updatable — the annotation is redundant and harmful.
+  @Column(name = "tenant_id", nullable = false)
   private String tenantId;
 
   public InjectorContractId(String id, String tenantId) {

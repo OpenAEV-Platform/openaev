@@ -31,26 +31,30 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :#{#tenantContext.currentTenant} "
+          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
               + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
-      @Param("hostname") String hostname, @Param("macAddresses") String[] macAddresses);
+      @Param("hostname") String hostname,
+      @Param("macAddresses") String[] macAddresses,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
-      @NotNull final @Param("macAddresses") String[] macAddresses);
+      @NotNull final @Param("macAddresses") String[] macAddresses,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
-      @NotNull final @Param("externalReference") String externalReference);
+      @NotNull final @Param("externalReference") String externalReference,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT a FROM Inject i"

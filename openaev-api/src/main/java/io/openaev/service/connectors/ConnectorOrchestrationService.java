@@ -195,7 +195,8 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
@@ -214,7 +215,8 @@ public class ConnectorOrchestrationService {
     }
 
     ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
+        connectorInstanceService.createConnectorInstance(
+            catalogConnectorWithConfigMap, input, tenantId);
 
     cleanDummyInjectorsIfItExists(
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),
@@ -256,7 +258,7 @@ public class ConnectorOrchestrationService {
       return;
     }
     ConnectorInstancePersisted instance =
-        connectorInstanceService.connectorInstanceById(connectorInstanceId);
+        connectorInstanceService.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
     connectorInstanceLogService.pushLogByConnectorInstance(
         instance, connectorInstanceLogService.transformRawLogsLineToLog(logs));
   }

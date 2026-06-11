@@ -1,3 +1,4 @@
+import { Backdrop, Typography } from '@mui/material';
 import { type FunctionComponent, useCallback, useState } from 'react';
 
 import { addTenant } from '../../../../../actions/platform/tenants/tenant-action';
@@ -54,15 +55,24 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
         handleClose={handleClose}
         title={t('Create a new tenant')}
       >
-        {loading
-          ? <Loader variant="inElement" />
-          : (
-              <TenantForm
-                onSubmit={handleSubmit}
-                onCancel={handleClose}
-              />
-            )}
+        <TenantForm
+          onSubmit={handleSubmit}
+          onCancel={handleClose}
+        />
       </Drawer>
+      <Backdrop
+        open={loading}
+        sx={{
+          zIndex: theme => theme.zIndex.drawer + 1,
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
+        <Loader />
+        <Typography variant="h6" color="inherit">
+          {t('Creating tenant…')}
+        </Typography>
+      </Backdrop>
     </>
   );
 };

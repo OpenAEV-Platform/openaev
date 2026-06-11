@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
@@ -64,7 +65,7 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.upsertEndpoint(input);
+    return this.endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
@@ -73,7 +74,7 @@ public class EndpointApi extends RestBehavior {
   public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
-    return this.endpointService.register(input);
+    return this.endpointService.register(input, TenantContext.getCurrentTenant());
   }
 
   @LogExecutionTime
@@ -140,7 +141,8 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
-    return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(endpointId));
+    return endpointMapper.toEndpointOverviewOutput(
+        this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant()));
   }
 
   @LogExecutionTime
@@ -187,7 +189,7 @@ public class EndpointApi extends RestBehavior {
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
     return endpointMapper.toEndpointOverviewOutput(
-        this.endpointService.updateEndpoint(endpointId, input));
+        this.endpointService.updateEndpoint(endpointId, input, TenantContext.getCurrentTenant()));
   }
 
   @DeleteMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
