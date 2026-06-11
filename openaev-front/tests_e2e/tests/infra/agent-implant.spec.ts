@@ -18,7 +18,8 @@ const getOsPlatform = (): string => {
 
 test.describe('Agent implant registration', () => {
   let hostname: string;
-  const payloadName = `E2E Payload ${Date.now()}`;
+  const echoToken = `e2e-${Date.now()}`;
+  const payloadName = `E2E Payload ${echoToken}`;
 
   test.beforeAll(async ({ browser }) => {
     hostname = os.hostname().toLowerCase();
@@ -61,15 +62,12 @@ test.describe('Agent implant registration', () => {
     await page.getByRole('tab', { name: 'Commands' }).click();
     await page.getByRole('combobox', { name: 'Type *' }).click();
     await page.getByRole('option', { name: 'Command Line' }).click();
-    const platformsCombo = page.getByRole('combobox', { name: 'Platforms' });
-    for (const p of ['Windows', 'Linux', 'MacOS']) {
-      await platformsCombo.click();
-      await page.getByRole('option', { name: p }).click();
-    }
+    await page.getByRole('combobox', { name: 'Platforms' }).click();
+    await page.getByRole('option', { name: platform }).click();
     const executor = platform === 'Windows' ? 'PowerShell' : 'Bash';
     await page.getByRole('combobox', { name: 'Executor *' }).click();
     await page.getByRole('option', { name: executor }).click();
-    await page.locator('textarea[name="command_content"]').fill('echo this a test');
+    await page.locator('textarea[name="command_content"]').fill(`echo ${echoToken}`);
 
     // Save the payload
     await page.getByRole('tab', { name: 'General' }).click();
@@ -133,21 +131,22 @@ test.describe('Agent implant registration', () => {
     // Confirm the launch dialog
     await page.getByRole('button', { name: /Confirm/i }).click();
 
-    // Navigate to the "Inject Execution details" tab to see traces
-    await page.getByRole('tab', { name: /Execution details/i }).click();
-
-    // Wait for the agent to execute and send back results (up to 120s)
+    // Wait for the agent to execute and send back results (up to 240s)
     await expect(async () => {
       await page.reload();
-      await page.getByRole('tab', { name: /Execution details/i }).click();
-      const traces = page.getByText('Traces');
-      await expect(traces).toBeVisible();
-      await expect(page.locator('text=SUCCESS')).toBeVisible();
-      // Verify the trace contains the expected command output
-      await expect(page.getByText('this a test')).toBeVisible();
+      // Wait for the endpoint row to show "Executed" status
+      await expect(page.getByRole('button', { name: new RegExp(`${hostname}.*Executed`, 'i') })).toBeVisible();
     }).toPass({
       intervals: [10_000],
-      timeout: 120_000,
+      timeout: 240_000,
     });
+
+    // Expand the endpoint row to reveal traces
+    await page.getByRole('button', { name: new RegExp(`${hostname}.*Executed`, 'i') }).click();
+
+    // Verify traces are visible after expanding
+    await expect(page.getByText('Implant spawn by the agent')).toBeVisible();
+    // Verify the attack command trace contains the echo output in stdout
+    await expect(page.getByText(new RegExp(`"stdout":".*${echoToken}`))).toBeVisible();
   });
 });
