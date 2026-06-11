@@ -61,13 +61,15 @@ test.describe('Agent implant registration', () => {
     await page.getByRole('tab', { name: 'Commands' }).click();
     await page.getByRole('combobox', { name: 'Type *' }).click();
     await page.getByRole('option', { name: 'Command Line' }).click();
-    await page.getByRole('combobox', { name: 'Platforms' }).click();
-    await page.getByRole('option', { name: platform }).click();
+    const platformsCombo = page.getByRole('combobox', { name: 'Platforms' });
+    for (const p of ['Windows', 'Linux', 'MacOS']) {
+      await platformsCombo.click();
+      await page.getByRole('option', { name: p }).click();
+    }
     const executor = platform === 'Windows' ? 'PowerShell' : 'Bash';
     await page.getByRole('combobox', { name: 'Executor *' }).click();
     await page.getByRole('option', { name: executor }).click();
-    const command = platform === 'Windows' ? 'Write-Output \'this a test\'' : 'echo \'this a test\'';
-    await page.locator('textarea[name="command_content"]').fill(command);
+    await page.locator('textarea[name="command_content"]').fill('echo this a test');
 
     // Save the payload
     await page.getByRole('tab', { name: 'General' }).click();
