@@ -44,7 +44,13 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
     // Explicitly remove it from the Redux store so the list updates immediately without a manual refresh.
     const connectorEntityType = `${connectorType}s`; // 'injectors', 'collectors', 'executors'
     if (connector?.id) {
-      dispatch({ type: DATA_DELETE_SUCCESS, payload: { type: connectorEntityType, id: connector.id } });
+      dispatch({
+        type: DATA_DELETE_SUCCESS,
+        payload: {
+          type: connectorEntityType,
+          id: connector.id,
+        },
+      });
     }
     await dispatch(apiRequest.fetchAll());
     setOpenDialogDelete(false);
