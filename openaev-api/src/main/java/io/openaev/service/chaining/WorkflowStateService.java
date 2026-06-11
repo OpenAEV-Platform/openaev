@@ -316,6 +316,15 @@ public class WorkflowStateService {
   }
 
   /**
+   * Deletes all workflow states associated with workflows of the given simulation.
+   *
+   * @param simulationId the ID of the simulation whose workflow states should be cleared
+   */
+  public void deleteAllBySimulationId(String simulationId) {
+    workflowStateRepository.deleteAllByWorkflowExecution_Simulation_Id(simulationId);
+  }
+
+  /**
    * Returns or creates the global state for a workflow execution.
    *
    * @param workflow the running workflow
