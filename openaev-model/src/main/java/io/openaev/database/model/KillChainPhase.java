@@ -22,6 +22,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class KillChainPhase implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static KillChainPhase fromTenant(String tenantId) {
+    KillChainPhase entity = new KillChainPhase();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "phase_id")
   @GeneratedValue(generator = "UUID")

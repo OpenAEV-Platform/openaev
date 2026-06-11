@@ -93,8 +93,8 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
-  public ImportMapper createImportMapper(TxCtx ctx,
-      @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
+  public ImportMapper createImportMapper(
+      TxCtx ctx, @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
     return mapperService.createAndSaveImportMapper(ctx.tenantIdFromUri(), importMapperAddInput);
   }
 
@@ -145,7 +145,8 @@ public class MapperApi extends RestBehavior {
   public void importMappers(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
     try {
-      mapperService.importMappers(ctx.tenantIdFromUri(),
+      mapperService.importMappers(
+          ctx.tenantIdFromUri(),
           mapper.readValue(file.getInputStream().readAllBytes(), new TypeReference<>() {}));
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -171,10 +172,11 @@ public class MapperApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
   public ImportMapper updateImportMapper(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable String mapperId,
       @Valid @RequestBody ImportMapperUpdateInput importMapperUpdateInput) {
-    return mapperService.updateImportMapper(ctx.tenantIdFromUri(), mapperId, importMapperUpdateInput);
+    return mapperService.updateImportMapper(
+        ctx.tenantIdFromUri(), mapperId, importMapperUpdateInput);
   }
 
   @Transactional(rollbackOn = Exception.class)
@@ -204,10 +206,11 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportTestInput input) {
-    ImportMapper importMapper = mapperService.createImportMapper(ctx.tenantIdFromUri(), input.getImportMapper());
+    ImportMapper importMapper =
+        mapperService.createImportMapper(ctx.tenantIdFromUri(), input.getImportMapper());
     importMapper
         .getInjectImporters()
         .forEach(
@@ -217,7 +220,7 @@ public class MapperApi extends RestBehavior {
                   .getRuleAttributes()
                   .forEach(ruleAttribute -> ruleAttribute.setId(UUID.randomUUID().toString()));
             });
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant(ctx.tenantIdFromUri());
     scenario.setRecurrenceStart(Instant.now());
     return injectImportService.importInjectIntoScenarioFromXLS(
         scenario, importMapper, importId, input.getName(), input.getTimezoneOffset(), false);
@@ -231,9 +234,9 @@ public class MapperApi extends RestBehavior {
   @LogExecutionTime
   @Transactional(rollbackOn = Exception.class)
   public void importEndpoints(
-      @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
+      TxCtx ctx, @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
-    mapperService.importMappersCsv(file, csvType);
+    mapperService.importMappersCsv(ctx, file, csvType);
   }
 
   private void validateUploadedFile(MultipartFile file) {

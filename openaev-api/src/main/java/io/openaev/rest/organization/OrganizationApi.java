@@ -50,16 +50,17 @@ public class OrganizationApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @PostMapping({ORGANIZATION_URI + "/search", TENANT_ORGANIZATION_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
-  public Page<Organization> organizations(TxCtx ctx,
-                                          @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<Organization> organizations(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.organizationService.organizationPagination(ctx, searchPaginationInput);
   }
 
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackOn = Exception.class)
-  public Organization createOrganization(@Valid @RequestBody OrganizationCreateInput input) {
-    Organization organization = new Organization();
+  public Organization createOrganization(
+      TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
+    Organization organization = Organization.fromTenant(ctx.tenantIdFromUri());
     organization.setUpdateAttributes(input);
     organization.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return organizationRepository.save(organization);

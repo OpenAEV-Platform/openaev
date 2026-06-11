@@ -97,6 +97,13 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @Transient
   private final ResourceType resourceType = ResourceType.SECURITY_PLATFORM;
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static SecurityPlatform fromTenant(String tenantId) {
+    SecurityPlatform entity = new SecurityPlatform();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public SecurityPlatform() {}
 
   public SecurityPlatform(

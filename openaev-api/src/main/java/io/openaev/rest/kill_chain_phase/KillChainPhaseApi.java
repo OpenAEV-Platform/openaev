@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.ResourceType;
@@ -90,8 +91,9 @@ public class KillChainPhaseApi extends RestBehavior {
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackOn = Exception.class)
-  public KillChainPhase createKillChainPhase(@Valid @RequestBody KillChainPhaseCreateInput input) {
-    KillChainPhase killChainPhase = new KillChainPhase();
+  public KillChainPhase createKillChainPhase(
+      TxCtx ctx, @Valid @RequestBody KillChainPhaseCreateInput input) {
+    KillChainPhase killChainPhase = KillChainPhase.fromTenant(ctx.tenantIdFromUri());
     killChainPhase.setUpdateAttributes(input);
     return killChainPhaseRepository.save(killChainPhase);
   }
@@ -100,7 +102,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackOn = Exception.class)
   public Iterable<KillChainPhase> upsertKillChainPhases(
-      @Valid @RequestBody KillChainPhaseUpsertInput input) {
+      TxCtx ctx, @Valid @RequestBody KillChainPhaseUpsertInput input) {
     List<KillChainPhase> upserted = new ArrayList<>();
     List<KillChainPhaseCreateInput> inputKillChainPhases = input.getKillChainPhases();
     inputKillChainPhases.forEach(
@@ -110,7 +112,7 @@ public class KillChainPhaseApi extends RestBehavior {
           Optional<KillChainPhase> optionalKillChainPhase =
               killChainPhaseRepository.findByKillChainNameAndShortName(killChainName, shortName);
           if (optionalKillChainPhase.isEmpty()) {
-            KillChainPhase newKillChainPhase = new KillChainPhase();
+            KillChainPhase newKillChainPhase = KillChainPhase.fromTenant(ctx.tenantIdFromUri());
             newKillChainPhase.setKillChainName(killChainName);
             newKillChainPhase.setStixId(killChainPhaseCreateInput.getStixId());
             newKillChainPhase.setExternalId(killChainPhaseCreateInput.getExternalId());

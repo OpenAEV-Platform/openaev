@@ -97,7 +97,7 @@ public class SentinelOneExecutorService implements Runnable {
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
-          assetGroup = new AssetGroup();
+          assetGroup = AssetGroup.fromTenant(executor.getTenant().getId());
           assetGroup.setExternalReference(assetGroupId);
           assetGroup.setTenant(executor.getTenant());
         }

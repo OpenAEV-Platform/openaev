@@ -122,6 +122,13 @@ public class Endpoint extends Asset {
     }
   }
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Endpoint fromTenant(String tenantId) {
+    Endpoint entity = new Endpoint();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Queryable(filterable = true)
   @Ipv4OrIpv6Constraint
   @Type(StringArrayType.class)

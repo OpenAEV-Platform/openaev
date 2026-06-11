@@ -98,14 +98,13 @@ public class SecurityCoverageService {
    */
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
   public Scenario handleSecurityCoverageProcessing(
-          TxCtx ctx,
-      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
+      TxCtx ctx, String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
     String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
 
     SecurityCoverage securityCoverage =
-        buildSecurityCoverageFromStix(ctx,
-            securityCoverageObj, bundle, securityCoverageStixId, bundleHash);
+        buildSecurityCoverageFromStix(
+            ctx, securityCoverageObj, bundle, securityCoverageStixId, bundleHash);
     Scenario scenario = buildScenarioFromSecurityCoverage(ctx, securityCoverage);
 
     // FIXME: extract this behaviour into an async worker
@@ -126,11 +125,7 @@ public class SecurityCoverageService {
    * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    */
   private SecurityCoverage buildSecurityCoverageFromStix(
-          TxCtx ctx,
-      ObjectBase stixCoverageObj,
-      Bundle bundle,
-      String externalId,
-      String stixJsonHash)
+      TxCtx ctx, ObjectBase stixCoverageObj, Bundle bundle, String externalId, String stixJsonHash)
       throws ParsingException, BundleValidationError, ConnectorError {
 
     SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
@@ -153,7 +148,8 @@ public class SecurityCoverageService {
             .orElseThrow(
                 () ->
                     new ConnectorError(
-                        "No active OpenCTI connector found for tenant %s".formatted(ctx.tenantIdFromUri())));
+                        "No active OpenCTI connector found for tenant %s"
+                            .formatted(ctx.tenantIdFromUri())));
     securityCoverage.setExternalUrl(openCtiUrl + "/dashboard/id/" + coveredRef);
 
     // Optional fields
@@ -191,23 +187,23 @@ public class SecurityCoverageService {
 
     // Extract Attack Patterns
     securityCoverage.setAttackPatternRefs(
-        securityCoverageUtils.extractObjectReferences(ctx,
-            bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
+        securityCoverageUtils.extractObjectReferences(
+            ctx, bundle.findByType(ObjectTypes.ATTACK_PATTERN)));
 
     // Extract vulnerabilities
     securityCoverage.setVulnerabilitiesRefs(
-        securityCoverageUtils.extractObjectReferences(ctx,
-            bundle.findByType(ObjectTypes.VULNERABILITY)));
+        securityCoverageUtils.extractObjectReferences(
+            ctx, bundle.findByType(ObjectTypes.VULNERABILITY)));
 
     // Extract indicators
     securityCoverage.setIndicatorsRefs(
-        securityCoverageUtils.extractObjectReferences(ctx,
-            bundle.findByType(ObjectTypes.INDICATOR)));
+        securityCoverageUtils.extractObjectReferences(
+            ctx, bundle.findByType(ObjectTypes.INDICATOR)));
 
     // Extract artifacts
     securityCoverage.setArtifactsRefs(
-        securityCoverageUtils.extractObjectReferences(ctx,
-            bundle.findByType(ObjectTypes.ARTIFACT)));
+        securityCoverageUtils.extractObjectReferences(
+            ctx, bundle.findByType(ObjectTypes.ARTIFACT)));
 
     // Default Fields
     String scheduling = stixCoverageObj.getOptionalProperty(STIX_PERIODICITY, "");
@@ -319,11 +315,11 @@ public class SecurityCoverageService {
    * @return the created or updated {@link Scenario}
    */
   public Scenario buildScenarioFromSecurityCoverage(TxCtx ctx, SecurityCoverage securityCoverage) {
-    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(securityCoverage);
+    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(ctx, securityCoverage);
     securityCoverage.setScenario(scenario);
     Set<Inject> injects =
-        securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(ctx,
-            scenario, securityCoverage);
+        securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
+            ctx, scenario, securityCoverage);
     scenario.setInjects(injects);
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
@@ -377,29 +373,31 @@ public class SecurityCoverageService {
    * @param securityCoverage the {@link SecurityCoverage}
    * @return the updated or newly created {@link Scenario}
    */
-  public Scenario updateOrCreateScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+  public Scenario updateOrCreateScenarioFromSecurityCoverage(
+      TxCtx ctx, SecurityCoverage securityCoverage) {
     if (securityCoverage.getScenario() != null) {
       return scenarioRepository
           .findById(securityCoverage.getScenario().getId())
-          .map(existing -> updateScenarioFromSecurityCoverage(existing, securityCoverage))
-          .orElseGet(() -> createAndInitializeScenario(securityCoverage));
+          .map(existing -> updateScenarioFromSecurityCoverage(ctx, existing, securityCoverage))
+          .orElseGet(() -> createAndInitializeScenario(ctx, securityCoverage));
     }
-    return createAndInitializeScenario(securityCoverage);
+    return createAndInitializeScenario(ctx, securityCoverage);
   }
 
-  private Scenario createAndInitializeScenario(SecurityCoverage securityCoverage) {
-    Scenario scenario = new Scenario();
-    updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
+  private Scenario createAndInitializeScenario(TxCtx ctx, SecurityCoverage securityCoverage) {
+    Scenario scenario = Scenario.fromTenant(ctx.tenantIdFromUri());
+    updatePropertiesFromSecurityCoverage(ctx, scenario, securityCoverage);
     return scenarioService.createScenario(scenario);
   }
 
   private Scenario updateScenarioFromSecurityCoverage(
-      Scenario scenario, SecurityCoverage securityCoverage) {
-    updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
+      TxCtx ctx, Scenario scenario, SecurityCoverage securityCoverage) {
+    updatePropertiesFromSecurityCoverage(ctx, scenario, securityCoverage);
     return scenarioService.updateScenario(scenario);
   }
 
-  private void updatePropertiesFromSecurityCoverage(Scenario scenario, SecurityCoverage sa) {
+  private void updatePropertiesFromSecurityCoverage(
+      TxCtx ctx, Scenario scenario, SecurityCoverage sa) {
     scenario.setSecurityCoverage(sa);
     scenario.setName(sa.getName());
     scenario.setDescription(sa.getDescription());
@@ -411,6 +409,7 @@ public class SecurityCoverageService {
     setRecurrence(scenario, sa);
     scenario.setTags(
         tagService.findOrCreateTagsFromNames(
+            ctx,
             sa.getPlatformsAffinity().stream()
                 .map("security coverage: %s"::formatted)
                 .collect(Collectors.toSet())));

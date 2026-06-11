@@ -37,7 +37,8 @@ class ExecutorServiceTest {
 
       // -------- Act --------
       Executor result =
-          executorService.register(TxCtx.of("tenant"),
+          executorService.register(
+              TxCtx.of("tenant"),
               "exec-new",
               "openaev_paloaltocortex_executor",
               "PaloAltoCortex",
@@ -78,7 +79,8 @@ class ExecutorServiceTest {
 
       // -------- Act --------
       Executor result =
-          executorService.register(TxCtx.of("tenant"),
+          executorService.register(
+              TxCtx.of("tenant"),
               "exec-existing",
               "openaev_crowdstrike_executor",
               "NewName",
@@ -106,7 +108,8 @@ class ExecutorServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
-      executorService.register(TxCtx.of("tenant"),
+      executorService.register(
+          TxCtx.of("tenant"),
           "exec-cap",
           "openaev_test_executor",
           "TestExecutor",

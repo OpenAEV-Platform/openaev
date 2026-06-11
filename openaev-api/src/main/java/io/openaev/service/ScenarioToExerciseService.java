@@ -45,7 +45,8 @@ public class ScenarioToExerciseService {
 
   public Exercise toExercise(
       @NotBlank final Scenario scenario, @Nullable final Instant start, final boolean isRunning) {
-    Exercise exercise = new Exercise();
+    Exercise exercise =
+        Exercise.fromTenant(scenario.getTenant() != null ? scenario.getTenant().getId() : null);
     exercise.setScenario(scenario);
     exercise.setName(scenario.getName());
     exercise.setDescription(scenario.getDescription());
@@ -72,8 +73,7 @@ public class ScenarioToExerciseService {
     exercise.setCustomDashboard(
         this.tenantSettingsService
             .findSetting(
-                scenario.getTenant().getId(),
-                TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+                scenario.getTenant().getId(), TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
             .map(Setting::getValue)
             .filter(v -> !v.isEmpty())
             .map(this.customDashboardService::customDashboard)
@@ -217,7 +217,9 @@ public class ScenarioToExerciseService {
     Map<String, Inject> mapExerciseInjectsByScenarioInject = new HashMap<>();
     scenarioInjects.forEach(
         scenarioInject -> {
-          Inject exerciseInject = new Inject();
+          Inject exerciseInject =
+              Inject.fromTenant(
+                  exerciseSaved.getTenant() != null ? exerciseSaved.getTenant().getId() : null);
           exerciseInject.setTitle(scenarioInject.getTitle());
           exerciseInject.setDescription(scenarioInject.getDescription());
           exerciseInject.setInjectorContract(scenarioInject.getInjectorContract().orElse(null));
@@ -324,7 +326,9 @@ public class ScenarioToExerciseService {
     origDocuments.forEach(
         origDocument -> {
           try {
-            Document destDocument = new Document();
+            Document destDocument =
+                Document.fromTenant(
+                    exercise.getTenant() != null ? exercise.getTenant().getId() : null);
             BeanUtils.copyProperties(destDocument, origDocument);
             Set<Exercise> exercises = destDocument.getExercises();
             exercises.add(exercise);

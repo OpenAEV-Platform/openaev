@@ -338,7 +338,9 @@ public class InjectUtils {
    * @throws RuntimeException if the content cannot be serialized/deserialized
    */
   public static Inject duplicateInject(@NotNull Inject injectOrigin) {
-    Inject duplicatedInject = new Inject();
+    Inject duplicatedInject =
+        Inject.fromTenant(
+            injectOrigin.getTenant() != null ? injectOrigin.getTenant().getId() : null);
     duplicatedInject.setUser(injectOrigin.getUser());
     duplicatedInject.setTitle(injectOrigin.getTitle());
     duplicatedInject.setDescription(injectOrigin.getDescription());

@@ -159,8 +159,7 @@ public class ServiceAccountPrivilegeServiceTest {
     privilegeService.ensurePrivilegedUserExists(TENANT_ID);
 
     // assert
-    verify(tenantGroupService)
-        .createInternalGroupWithRole(any(), anyString(), any(), any());
+    verify(tenantGroupService).createInternalGroupWithRole(any(), anyString(), any(), any());
     verify(tenantGroupService, never()).updateGroupInfoWithRoles(any(), any(), any());
   }
 
@@ -208,7 +207,7 @@ public class ServiceAccountPrivilegeServiceTest {
     // assert
     verify(roleService)
         .createRoleInternal(
-                eq(TENANT_ID),
+            eq(TENANT_ID),
             anyString(),
             eq(SERVICE_ROLE_NAME),
             eq(SERVICE_ROLE_DESCRIPTION),

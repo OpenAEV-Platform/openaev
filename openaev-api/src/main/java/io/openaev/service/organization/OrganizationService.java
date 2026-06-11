@@ -25,11 +25,13 @@ public class OrganizationService {
 
   private final UserService userService;
 
-  public Page<Organization> organizationPagination(TxCtx ctx,
-                                                   @NotNull SearchPaginationInput searchPaginationInput) {
+  public Page<Organization> organizationPagination(
+      TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
-        || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
+        || currentUser
+            .getCapabilities(ctx.tenantIdFromUri())
+            .contains(Capability.ACCESS_PLATFORM_SETTINGS)) {
       return buildPaginationJPA(
           this.organizationRepository::findAll, searchPaginationInput, Organization.class);
     } else {

@@ -51,7 +51,7 @@ public abstract class ConfigurationMigration {
     }
 
     log.info("Migrating config for {}", configuration);
-    ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
+    ConnectorInstancePersisted instance = ConnectorInstancePersisted.fromTenant(null);
     instance.setCatalogConnector(connector.get());
 
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);

@@ -1,1 +1,2 @@
 io.openaev.annotation.TenantTransactionalProcessor
+io.openaev.annotation.NoEntityInstantiationProcessor

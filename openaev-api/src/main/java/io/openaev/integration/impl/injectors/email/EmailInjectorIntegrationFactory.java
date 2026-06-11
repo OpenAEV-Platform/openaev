@@ -102,7 +102,7 @@ public class EmailInjectorIntegrationFactory extends BuiltinIntegrationFactory {
       injectorService.injector(ctx, EmailInjectorIntegration.EMAIL_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
       injectorService.registerBuiltinInjector(
-              ctx,
+          ctx,
           EmailInjectorIntegration.EMAIL_INJECTOR_ID,
           EmailInjectorIntegration.EMAIL_INJECTOR_NAME,
           emailContract,

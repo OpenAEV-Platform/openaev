@@ -35,6 +35,14 @@ import org.hibernate.annotations.UpdateTimestamp;
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("assets")})
 })
 public class AssetGroup implements TenantBase {
+
+  /** Creates a new instance scoped to the given tenant. */
+  public static AssetGroup fromTenant(String tenantId) {
+    AssetGroup entity = new AssetGroup();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "asset_group_id")

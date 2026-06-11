@@ -6,7 +6,6 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -77,9 +76,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository
-        .findById(collectorId)
-        .orElse(null);
+    return collectorRepository.findById(collectorId).orElse(null);
   }
 
   @Override
@@ -93,8 +90,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   @Override
-  protected Collector createNewConnector() {
-    return new Collector();
+  protected Collector createNewConnector(String tenantId) {
+    return Collector.fromTenant(tenantId);
   }
 
   // -- CRUD --
@@ -155,12 +152,13 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @param type the collector type name (e.g. "openaev_crowdstrike")
    * @return the existing or newly created {@link CollectorType}
    */
-  public CollectorType ensureCollectorTypeExists(String type) {
+  public CollectorType ensureCollectorTypeExists(String tenantId, String type) {
     return collectorTypeRepository
         .findByName(type)
         .orElseGet(
             () -> {
-              CollectorType ct = new CollectorType(type);
+              CollectorType ct = CollectorType.fromTenant(tenantId);
+              ct.setName(type);
               // Tenant is auto-assigned by TenantBaseListener @PrePersist
               return collectorTypeRepository.save(ct);
             });
@@ -182,8 +180,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @return the persisted collector
    */
   public Collector register(
-          String tenantId,
-          @NotNull String id,
+      String tenantId,
+      @NotNull String id,
       @NotNull String type,
       @NotNull String name,
       boolean external,
@@ -196,10 +194,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(tenantId, COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
-    CollectorType collectorType = ensureCollectorTypeExists(type);
+    CollectorType collectorType = ensureCollectorTypeExists(tenantId, type);
 
-    Collector collector =
-        collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
@@ -220,7 +217,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       return collectorRepository.save(collector);
     }
 
-    Collector newCollector = new Collector();
+    Collector newCollector = Collector.fromTenant(tenantId);
     newCollector.setId(id);
     newCollector.setName(name);
     newCollector.setType(type);
@@ -231,7 +228,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       newCollector.setSecurityPlatform(securityPlatform);
     }
     // For new entities, isNew()=true triggers persist() via Spring Data save().
-    newCollector.setTenant(new Tenant(tenantId));
     return collectorRepository.save(newCollector);
   }
 

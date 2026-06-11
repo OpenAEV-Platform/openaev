@@ -77,12 +77,12 @@ public class AttackPatternApi extends RestBehavior {
       summary = "Extract Attack Patterns from text or files using AI",
       description = "Get attack patterns ids extracted from a text or files using AI")
   public List<String> searchAttackPatternWithTTPAIWebservice(
-          TxCtx ctx,
+      TxCtx ctx,
       @RequestPart(value = "files", required = false) @Nullable List<MultipartFile> files,
       @RequestPart(value = "text", required = false) @Nullable final String text,
       @RequestPart(value = "agent_slug", required = false) @Nullable final String agentSlug) {
-    return attackPatternService.searchAttackPatternWithTTPAIWebservice(ctx,
-        files == null ? new ArrayList<>() : files, text == null ? "" : text, agentSlug);
+    return attackPatternService.searchAttackPatternWithTTPAIWebservice(
+        ctx, files == null ? new ArrayList<>() : files, text == null ? "" : text, agentSlug);
   }
 
   @GetMapping("/{attackPatternId}")
@@ -98,8 +98,9 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackOn = Exception.class)
-  public AttackPattern createAttackPattern(@Valid @RequestBody AttackPatternCreateInput input) {
-    AttackPattern attackPattern = new AttackPattern();
+  public AttackPattern createAttackPattern(
+      TxCtx ctx, @Valid @RequestBody AttackPatternCreateInput input) {
+    AttackPattern attackPattern = AttackPattern.fromTenant(ctx.tenantIdFromUri());
     attackPattern.setUpdateAttributes(input);
     attackPattern.setKillChainPhases(
         fromIterable(killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));
@@ -143,8 +144,8 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackOn = Exception.class)
-  public Iterable<AttackPattern> upsertAttackPatterns(TxCtx ctx,
-                                                      @Valid @RequestBody AttackPatternUpsertInput input) {
+  public Iterable<AttackPattern> upsertAttackPatterns(
+      TxCtx ctx, @Valid @RequestBody AttackPatternUpsertInput input) {
     List<AttackPattern> upserted = new ArrayList<>();
     List<AttackPatternCreateInput> attackPatterns = input.getAttackPatterns();
     List<AttackPatternCreateInput> patternsWithoutParent =
@@ -152,11 +153,11 @@ public class AttackPatternApi extends RestBehavior {
     List<AttackPatternCreateInput> patternsWithParent =
         attackPatterns.stream().filter(a -> a.getParentId() != null).toList();
     upserted.addAll(
-        attackPatternService.internalUpsertAttackPatterns(ctx,
-            patternsWithoutParent, input.getIgnoreDependencies()));
+        attackPatternService.internalUpsertAttackPatterns(
+            ctx, patternsWithoutParent, input.getIgnoreDependencies()));
     upserted.addAll(
-        attackPatternService.internalUpsertAttackPatterns(ctx,
-            patternsWithParent, input.getIgnoreDependencies()));
+        attackPatternService.internalUpsertAttackPatterns(
+            ctx, patternsWithParent, input.getIgnoreDependencies()));
     return upserted;
   }
 

@@ -198,7 +198,8 @@ public class FindingService {
             valueExtractor,
             assetExtractor,
             userExtractor,
-            teamExtractor);
+            teamExtractor,
+            inject);
 
     createFindings(findings, inject.getId());
   }
@@ -283,7 +284,8 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      Inject inject) {
 
     if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
       List<Finding> findings = new ArrayList<>();
@@ -296,7 +298,8 @@ public class FindingService {
                 valueExtractor,
                 assetExtractor,
                 userExtractor,
-                teamExtractor));
+                teamExtractor,
+                inject));
       }
       return findings;
     }
@@ -309,7 +312,8 @@ public class FindingService {
             valueExtractor,
             assetExtractor,
             userExtractor,
-            teamExtractor));
+            teamExtractor,
+            inject));
   }
 
   private Finding buildSingleFinding(
@@ -319,14 +323,17 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      Inject inject) {
 
     if (!validator.test(structuredOutputNode)) {
       throw new IllegalArgumentException(
           "Finding not correctly formatted: " + structuredOutputNode);
     }
 
-    Finding finding = FindingUtils.createFinding(contractOutputContext);
+    Finding finding =
+        FindingUtils.createFinding(
+            contractOutputContext, inject.getTenant() != null ? inject.getTenant().getId() : null);
     finding.setValue(valueExtractor.apply(structuredOutputNode));
     return linkFinding(structuredOutputNode, finding, assetExtractor, userExtractor, teamExtractor);
   }

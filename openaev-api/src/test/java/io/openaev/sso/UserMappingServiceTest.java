@@ -45,9 +45,7 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedId(String id) {
-    return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + "tenantId").getBytes())
-        .toString();
+    return UUID.nameUUIDFromBytes((UUID.fromString(id) + ":" + "tenantId").getBytes()).toString();
   }
 
   private String tenantScopedGroupId() {

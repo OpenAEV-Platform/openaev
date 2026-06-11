@@ -29,6 +29,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class Challenge implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Challenge fromTenant(String tenantId) {
+    Challenge entity = new Challenge();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "challenge_id")
   @GeneratedValue(generator = "UUID")

@@ -70,12 +70,12 @@ public class InjectorContractApi extends RestBehavior {
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-  public Page<? extends InjectorContractBaseOutput> injectorContracts(TxCtx ctx,
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+  public Page<? extends InjectorContractBaseOutput> injectorContracts(
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                    ctx,
+                ctx,
                 spec,
                 specCount,
                 pageable,
@@ -95,8 +95,7 @@ public class InjectorContractApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
-          TxCtx ctx,
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return injectorContractService.getDomainCounts(ctx, filtered);
   }
@@ -129,8 +128,8 @@ public class InjectorContractApi extends RestBehavior {
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
-  public InjectorContract createInjectorContract(TxCtx ctx,
-                                                 @Valid @RequestBody InjectorContractAddInput input) {
+  public InjectorContract createInjectorContract(
+      TxCtx ctx, @Valid @RequestBody InjectorContractAddInput input) {
     return injectorContractService.createNewInjectorContract(ctx, input);
   }
 
@@ -151,7 +150,7 @@ public class InjectorContractApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract updateInjectorContract(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
     return injectorContractService.updateInjectorContract(ctx, injectorContractId, input);

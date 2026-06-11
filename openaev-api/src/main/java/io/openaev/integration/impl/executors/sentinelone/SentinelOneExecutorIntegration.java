@@ -118,7 +118,7 @@ public class SentinelOneExecutorIntegration extends Integration {
     TxCtx ctx = TxCtx.noTenant();
     Executor executor =
         executorService.register(
-                ctx,
+            ctx,
             executorId,
             SENTINELONE_EXECUTOR_TYPE,
             executorName,

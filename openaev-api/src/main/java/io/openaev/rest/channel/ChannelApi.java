@@ -9,6 +9,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -112,8 +113,8 @@ public class ChannelApi extends RestBehavior {
   @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackOn = Exception.class)
-  public Channel createChannel(@Valid @RequestBody ChannelCreateInput input) {
-    Channel channel = new Channel();
+  public Channel createChannel(TxCtx ctx, @Valid @RequestBody ChannelCreateInput input) {
+    Channel channel = Channel.fromTenant(ctx.tenantIdFromUri());
     channel.setUpdateAttributes(input);
     return channelRepository.save(channel);
   }
@@ -143,8 +144,7 @@ public class ChannelApi extends RestBehavior {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
 
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findById(exerciseId);
+    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(exerciseId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
@@ -197,9 +197,7 @@ public class ChannelApi extends RestBehavior {
   public Article createArticleForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
@@ -241,9 +239,7 @@ public class ChannelApi extends RestBehavior {
       @PathVariable String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();

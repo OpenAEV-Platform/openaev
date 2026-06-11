@@ -46,6 +46,13 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   public static final String ID_COLUMN_NAME = "inject_id";
   public static final String ID_FIELD_NAME = "id";
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Inject fromTenant(String tenantId) {
+    Inject entity = new Inject();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public static final Comparator<Inject> executionComparator =
       (o1, o2) -> {
         if (o1.getDate().isPresent() && o2.getDate().isPresent()) {

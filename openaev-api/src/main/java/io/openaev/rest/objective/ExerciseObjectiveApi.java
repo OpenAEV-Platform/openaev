@@ -60,9 +60,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
   public Objective createObjective(
       @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
     objective.setExercise(exercise);
@@ -157,9 +155,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;
@@ -188,9 +184,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     exercise.setUpdatedAt(now());
     exerciseRepository.save(exercise);
     return result;

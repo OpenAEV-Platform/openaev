@@ -38,8 +38,7 @@ public class ExecutorFixture {
 
   public Executor getDefaultExecutor() {
     Optional<Executor> executorOptional =
-        executorRepository.findByTypeAndTenantId(
-            OPENAEV_EXECUTOR_TYPE, "tenant");
+        executorRepository.findByTypeAndTenantId(OPENAEV_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createOAEVExecutor()));
   }
 
@@ -69,22 +68,19 @@ public class ExecutorFixture {
 
   public Executor getCrowdstrikeExecutor() {
     Optional<Executor> executorOptional =
-        executorRepository.findByTypeAndTenantId(
-            CROWDSTRIKE_EXECUTOR_TYPE, "tenant");
+        executorRepository.findByTypeAndTenantId(CROWDSTRIKE_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createCrowdstrikeExecutor()));
   }
 
   public Executor getTaniumExecutor() {
     Optional<Executor> executorOptional =
-        executorRepository.findByTypeAndTenantId(
-            TANIUM_EXECUTOR_TYPE, "tenant");
+        executorRepository.findByTypeAndTenantId(TANIUM_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createTaniumExecutor()));
   }
 
   public Executor getSentineloneExecutor() {
     Optional<Executor> executorOptional =
-        executorRepository.findByTypeAndTenantId(
-            SENTINELONE_EXECUTOR_TYPE, "tenant");
+        executorRepository.findByTypeAndTenantId(SENTINELONE_EXECUTOR_TYPE, "tenant");
     return executorOptional.orElseGet(() -> executorRepository.save(createSentineloneExecutor()));
   }
 }

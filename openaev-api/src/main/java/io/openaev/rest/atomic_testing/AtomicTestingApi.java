@@ -49,8 +49,8 @@ public class AtomicTestingApi extends RestBehavior {
   @PostMapping("/search")
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
-  public Page<InjectResultOutput> findAllAtomicTestings(TxCtx ctx,
-                                                        @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<InjectResultOutput> findAllAtomicTestings(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(ctx, searchPaginationInput);
   }
 
@@ -82,8 +82,8 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
-      @Valid @RequestBody AtomicTestingInput input) {
-    return this.atomicTestingService.createOrUpdate(input, null);
+      TxCtx ctx, @Valid @RequestBody AtomicTestingInput input) {
+    return this.atomicTestingService.createOrUpdate(ctx, input, null);
   }
 
   @PutMapping("/{injectId}")
@@ -93,9 +93,10 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
-    return atomicTestingService.createOrUpdate(input, injectId);
+    return atomicTestingService.createOrUpdate(ctx, input, injectId);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -247,8 +248,9 @@ public class AtomicTestingApi extends RestBehavior {
       path = "/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
-  public void atomicTestingImport(TxCtx ctx,
-      @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {
+  public void atomicTestingImport(
+      TxCtx ctx, @RequestPart("file") MultipartFile file, HttpServletResponse response)
+      throws Exception {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }

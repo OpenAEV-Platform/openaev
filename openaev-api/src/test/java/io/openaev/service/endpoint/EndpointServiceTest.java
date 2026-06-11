@@ -123,7 +123,7 @@ class EndpointServiceTest {
           .thenReturn(Optional.of(endpoint));
 
       // -------- Act --------
-      Endpoint result = endpointService.endpoint(ctx,"ep-1");
+      Endpoint result = endpointService.endpoint(ctx, "ep-1");
 
       // -------- Assert --------
       assertNotNull(result);
@@ -176,14 +176,10 @@ class EndpointServiceTest {
       // -------- Prepare --------
       Endpoint ep = new Endpoint();
       String[] ips = {"10.0.0.1"};
-      when(endpointRepository.findByHostnameAndAtleastOneIp(
-              "host1", ips))
-          .thenReturn(List.of(ep));
+      when(endpointRepository.findByHostnameAndAtleastOneIp("host1", ips)).thenReturn(List.of(ep));
 
       // -------- Act --------
-      List<Endpoint> result =
-          endpointService.findEndpointByHostnameAndAtLeastOneIp(
-              "host1", ips);
+      List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp("host1", ips);
 
       // -------- Assert --------
       assertEquals(1, result.size());
@@ -261,7 +257,7 @@ class EndpointServiceTest {
           .thenReturn(Optional.of(endpoint));
 
       // -------- Act --------
-      Endpoint result = endpointService.endpoint(ctx,"ep-tenant-x");
+      Endpoint result = endpointService.endpoint(ctx, "ep-tenant-x");
 
       // -------- Assert --------
       assertNotNull(result);
@@ -278,7 +274,8 @@ class EndpointServiceTest {
           .thenReturn(Optional.empty());
 
       // -------- Act / Assert --------
-      assertThrows(ElementNotFoundException.class, () -> endpointService.endpoint(ctx, "ep-tenant-x"));
+      assertThrows(
+          ElementNotFoundException.class, () -> endpointService.endpoint(ctx, "ep-tenant-x"));
       verify(endpointRepository).findByIdAndTenantId("ep-tenant-x", "tenant-y");
     }
 
@@ -292,7 +289,7 @@ class EndpointServiceTest {
           .thenReturn(List.of(new Endpoint()));
 
       // -------- Act --------
-      List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp( "host-x", ips);
+      List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp("host-x", ips);
 
       // -------- Assert --------
       assertThat(result).hasSize(1);
@@ -313,8 +310,7 @@ class EndpointServiceTest {
 
       // -------- Assert --------
       assertThat(result).hasSize(1);
-      verify(endpointRepository).findByHostnameAndAtleastOneIp("host-explicit", ips
-      );
+      verify(endpointRepository).findByHostnameAndAtleastOneIp("host-explicit", ips);
     }
   }
 

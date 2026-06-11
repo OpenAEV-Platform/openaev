@@ -91,7 +91,7 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = "%s-logo.png".formatted(TANIUM_EXECUTOR_TYPE);
     fileService.uploadStream(
-            null, // TODO JRI What?? Catalog is global or per tenant?
+        null, // TODO JRI What?? Catalog is global or per tenant?
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-tanium.png"));

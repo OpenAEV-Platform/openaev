@@ -61,12 +61,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public EsCountInterval dashboardCount(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(ctx,
-        simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(
+        ctx, simulationId, widgetId, parameters);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -79,12 +79,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public EsAvgs dashboardAverage(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardAverageOnResourceId(ctx,
-        simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardAverageOnResourceId(
+        ctx, simulationId, widgetId, parameters);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -97,12 +97,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<EsSeries> dashboardSeries(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardSeriesOnResourceId(ctx,
-        simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardSeriesOnResourceId(
+        ctx, simulationId, widgetId, parameters);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -115,11 +115,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public EsEntities dashboardEntities(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(ctx, simulationId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        ctx, simulationId, widgetId, input);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -132,12 +133,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
-    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(ctx,
-        simulationId, widgetId, input);
+    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
+        ctx, simulationId, widgetId, input);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -150,12 +151,12 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<EsAttackPath> dashboardAttackPaths(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String simulationId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.customDashboardService.dashboardAttackPathsOnResourceId(ctx,
-        simulationId, widgetId, parameters);
+    return this.customDashboardService.dashboardAttackPathsOnResourceId(
+        ctx, simulationId, widgetId, parameters);
   }
 }

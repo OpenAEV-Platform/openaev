@@ -303,7 +303,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Exercise enableExerciseTeamPlayers(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -350,7 +350,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Exercise addExerciseTeamPlayers(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -374,7 +374,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise removeExerciseTeamPlayers(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -408,7 +408,7 @@ public class ExerciseApi extends RestBehavior {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
     }
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant(ctx.tenantIdFromUri());
     exercise.setUpdateAttributes(input);
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
@@ -418,8 +418,7 @@ public class ExerciseApi extends RestBehavior {
       exercise.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(
-                      ctx.tenantIdFromUri(),
-                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+                  ctx.tenantIdFromUri(), TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -753,8 +752,10 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
-  public Exercise changeExerciseStatus(TxCtx ctx,
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input)
+  public Exercise changeExerciseStatus(
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStatusInput input)
       throws ChainingException {
     ExerciseStatus status = input.getStatus();
     return exerciseService.changeExerciseStatus(ctx, status, exerciseId);
@@ -775,8 +776,8 @@ public class ExerciseApi extends RestBehavior {
   @Operation(
       summary = "Get simulations by their id",
       description = "Get the simulations with the specified ids if you have the right to see them")
-  public List<ExerciseSimple> simulationsById(TxCtx ctx,
-      @RequestBody final GetExercisesInput getExercisesInput) {
+  public List<ExerciseSimple> simulationsById(
+      TxCtx ctx, @RequestBody final GetExercisesInput getExercisesInput) {
     return exerciseService.exercises(ctx, getExercisesInput.getExerciseIds());
   }
 
@@ -784,12 +785,14 @@ public class ExerciseApi extends RestBehavior {
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({EXERCISE_URI + "/search", TENANT_EXERCISE_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public Page<ExerciseSimple> exercises(TxCtx ctx,
-                                        @RequestBody@Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<ExerciseSimple> exercises(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
-        || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT)) {
+        || currentUser
+            .getCapabilities(ctx.tenantIdFromUri())
+            .contains(Capability.ACCESS_ASSESSMENT)) {
       return buildPaginationCriteriaBuilder(
           (Specification<Exercise> specification,
               Specification<Exercise> specificationCount,
@@ -842,7 +845,9 @@ public class ExerciseApi extends RestBehavior {
   public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
     FileContainer fileContainer =
-        fileService.getFileContainer(ctx.tenantIdFromUri(), file).orElseThrow(ElementNotFoundException::new);
+        fileService
+            .getFileContainer(ctx.tenantIdFromUri(), file)
+            .orElseThrow(ElementNotFoundException::new);
     response.addHeader(
         HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
     response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());

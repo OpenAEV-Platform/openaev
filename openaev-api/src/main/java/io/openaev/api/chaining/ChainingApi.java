@@ -95,7 +95,7 @@ public class ChainingApi extends RestBehavior {
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulation input cannot be null");
 
-    Exercise simulation = new Exercise();
+    Exercise simulation = Exercise.fromTenant(ctx.tenantIdFromUri());
     simulation.setUpdateAttributes(input);
     simulation.setTags(
         StreamHelper.iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -107,8 +107,7 @@ public class ChainingApi extends RestBehavior {
       simulation.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(
-                  ctx.tenantIdFromUri(),
-                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+                  ctx.tenantIdFromUri(), TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -184,7 +183,7 @@ public class ChainingApi extends RestBehavior {
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
 
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant(ctx.tenantIdFromUri());
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
@@ -193,9 +192,7 @@ public class ChainingApi extends RestBehavior {
     } else {
       scenario.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  ctx.tenantIdFromUri(),
-                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .findSetting(ctx.tenantIdFromUri(), TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)

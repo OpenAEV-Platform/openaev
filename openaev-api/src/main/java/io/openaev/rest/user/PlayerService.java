@@ -59,8 +59,7 @@ public class PlayerService {
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
-    playersFunction =
-            this::paginate;
+    playersFunction = this::paginate;
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 

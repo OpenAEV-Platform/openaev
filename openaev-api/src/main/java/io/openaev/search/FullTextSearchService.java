@@ -118,8 +118,10 @@ public class FullTextSearchService<T extends Base> {
     return new PageImpl<>(Collections.emptyList(), pageable, 0);
   }
 
-  public Page<FullTextSearchResult> fullTextSearch(TxCtx ctx,
-                                                   @NotBlank final Class<?> clazz, @NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<FullTextSearchResult> fullTextSearch(
+      TxCtx ctx,
+      @NotBlank final Class<?> clazz,
+      @NotNull final SearchPaginationInput searchPaginationInput) {
     if (!hasText(searchPaginationInput.getTextSearch())) {
       return generateEmptyResult(searchPaginationInput);
     }
@@ -136,7 +138,9 @@ public class FullTextSearchService<T extends Base> {
     Capability capaForClass = capaByClassMap.get(clazzT).orElse(Capability.BYPASS);
     boolean isGrantable = clazzT.getAnnotation(Grantable.class) != null;
 
-    if (!currentUser.isAdminOrBypass(ctx.tenantIdFromUri()) && capaForClass != Capability.BYPASS && !isGrantable) {
+    if (!currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
+        && capaForClass != Capability.BYPASS
+        && !isGrantable) {
       // We can't really use the PermissionService.hasPermission method here because it would
       // require a mapping between classes and resourceType
       if (!currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.BYPASS)
@@ -241,8 +245,8 @@ public class FullTextSearchService<T extends Base> {
    * @return a map of class type to the count of results for that class
    */
   @SuppressWarnings("unchecked")
-  public Map<Class<T>, FullTextSearchCountResult> fullTextSearch(TxCtx ctx,
-      @Nullable final String searchTerm) {
+  public Map<Class<T>, FullTextSearchCountResult> fullTextSearch(
+      TxCtx ctx, @Nullable final String searchTerm) {
     if (!hasText(searchTerm)) {
       return Map.of(
           (Class<T>) Asset.class, new FullTextSearchCountResult(Asset.class.getSimpleName(), 0L),

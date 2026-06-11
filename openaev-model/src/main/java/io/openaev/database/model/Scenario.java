@@ -77,6 +77,13 @@ import org.hibernate.annotations.*;
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
 public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Scenario fromTenant(String tenantId) {
+    Scenario entity = new Scenario();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
     /** Scenario has scheduled recurrence. */

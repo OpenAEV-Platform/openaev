@@ -90,7 +90,7 @@ public class ScenarioApi extends RestBehavior {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant(ctx.tenantIdFromUri());
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
@@ -99,9 +99,7 @@ public class ScenarioApi extends RestBehavior {
     } else {
       scenario.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  ctx.tenantIdFromUri(),
-                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .findSetting(ctx.tenantIdFromUri(), TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -125,10 +123,10 @@ public class ScenarioApi extends RestBehavior {
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenarioWithInjectorContracts(TxCtx ctx,
-                                                      @Valid@RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+  public Scenario createScenarioWithInjectorContracts(
+      TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     return this.scenarioService.createScenarioWithInjectorContracts(
-            ctx,
+        ctx,
         inputs.getScenarioInput(),
         inputs.getInjectorContractSearchPaginationInput(),
         inputs.getLocale());
@@ -140,9 +138,10 @@ public class ScenarioApi extends RestBehavior {
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public List<Scenario> updateScenariosWithInjectorContracts(TxCtx ctx,
-      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return this.scenarioService.updateScenariosWithInjectorContracts(ctx,
+  public List<Scenario> updateScenariosWithInjectorContracts(
+      TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+    return this.scenarioService.updateScenariosWithInjectorContracts(
+        ctx,
         inputs.getScenarioIds(),
         inputs.getInjectorContractSearchPaginationInput(),
         inputs.getLocale());
@@ -169,8 +168,8 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/search", TENANT_SCENARIO_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public Page<RawPaginationScenario> scenarios(TxCtx ctx,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<RawPaginationScenario> scenarios(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.scenarioService.scenarios(ctx.tenantIdFromUri(), searchPaginationInput);
   }
 
@@ -181,9 +180,10 @@ public class ScenarioApi extends RestBehavior {
   @Operation(
       summary = "Get scenarios by their id",
       description = "Get the scenarios with the specified ids if you have the right to see them")
-  public List<ScenarioSimple> scenariosById(TxCtx ctx,
-      @RequestBody final GetScenariosInput getScenariosInput) {
-    return this.scenarioService.scenarios(ctx.tenantIdFromUri(), getScenariosInput.getScenarioIds());
+  public List<ScenarioSimple> scenariosById(
+      TxCtx ctx, @RequestBody final GetScenariosInput getScenariosInput) {
+    return this.scenarioService.scenarios(
+        ctx.tenantIdFromUri(), getScenariosInput.getScenarioIds());
   }
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -267,15 +267,20 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.SCENARIO)
   public void exportScenario(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
       @RequestParam(required = false) final boolean isWithVariableValues,
       HttpServletResponse response)
       throws IOException {
-    this.scenarioService.exportScenario(ctx.tenantIdFromUri(),
-        scenarioId, isWithTeams, isWithPlayers, isWithVariableValues, response);
+    this.scenarioService.exportScenario(
+        ctx.tenantIdFromUri(),
+        scenarioId,
+        isWithTeams,
+        isWithPlayers,
+        isWithVariableValues,
+        response);
   }
 
   // -- IMPORT --
@@ -283,7 +288,8 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public void importScenario(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
+  public void importScenario(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
+      throws Exception {
     this.importService.handleFileImport(ctx.tenantIdFromUri(), file, null, null);
   }
 
@@ -401,13 +407,13 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Scenario removeScenarioTeamPlayers(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String teamId,
       @Valid @RequestBody final ScenarioTeamPlayersEnableInput input) {
     Team team =
         teamRepository
-            .findByIdAndTenantId(teamId,ctx.tenantIdFromUri())
+            .findByIdAndTenantId(teamId, ctx.tenantIdFromUri())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));

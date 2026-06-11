@@ -121,7 +121,8 @@ public class ThreatArsenalService {
    * @param input the search and pagination parameters (only filters are used)
    * @return a list of domain counts
    */
-  public List<InjectorContractDomainCountOutput> getDomainCounts(TxCtx ctx, SearchPaginationInput input) {
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      TxCtx ctx, SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     return injectorContractService.getDomainCounts(ctx, filtered);
@@ -296,12 +297,14 @@ public class ThreatArsenalService {
    * @param input to filter
    * @return the injector contracts search results
    */
-  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(TxCtx ctx,
-      InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+  public Page<? extends InjectorContractBaseOutput> searchInjectorContracts(
+      TxCtx ctx,
+      InjectorContractService.OutputMode mode,
+      InjectorContractSearchPaginationInput input) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                    ctx,
+                ctx,
                 spec,
                 specCount,
                 pageable,
@@ -321,8 +324,10 @@ public class ThreatArsenalService {
    * @param input to filter
    * @return the injector contracts search results excluding tabletop types
    */
-  public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(TxCtx ctx,
-      InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+  public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(
+      TxCtx ctx,
+      InjectorContractService.OutputMode mode,
+      InjectorContractSearchPaginationInput input) {
     Specification<InjectorContract> excludeTabletop =
         (root, query, cb) -> {
           Join<InjectorContract, Injector> injectorJoin = root.join("injectors");
@@ -332,7 +337,7 @@ public class ThreatArsenalService {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                    ctx,
+                ctx,
                 spec.and(excludeTabletop),
                 specCount.and(excludeTabletop),
                 pageable,

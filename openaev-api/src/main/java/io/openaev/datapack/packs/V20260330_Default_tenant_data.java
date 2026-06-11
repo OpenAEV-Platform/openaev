@@ -62,13 +62,13 @@ public class V20260330_Default_tenant_data extends DataPack {
         // tenant created
         PresetTenantData.DEFAULT_ROLES.forEach(
             (roleName, capabilities) -> {
-              Role role = roleService.createRole(ctx.tenantIdFromUri(), roleName, roleName, capabilities);
+              Role role =
+                  roleService.createRole(ctx.tenantIdFromUri(), roleName, roleName, capabilities);
               Group group = new Group();
               group.setName(roleName);
               group.setDescription(roleName);
               group.setDefaultUserAssignation(false);
-              group.setTenant(
-                  entityManager.getReference(Tenant.class, ctx.tenantIdFromUri()));
+              group.setTenant(entityManager.getReference(Tenant.class, ctx.tenantIdFromUri()));
               group.setRoles(List.of(role));
               if (PresetTenantData.ADMIN.equals(roleName)) {
                 userRepository

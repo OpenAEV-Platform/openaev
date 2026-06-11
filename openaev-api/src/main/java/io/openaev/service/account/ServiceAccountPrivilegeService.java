@@ -2,7 +2,6 @@ package io.openaev.service.account;
 
 import static io.openaev.service.account.Constants.*;
 
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;

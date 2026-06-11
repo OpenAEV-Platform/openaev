@@ -32,8 +32,7 @@ public class DataPackProcessorTest extends IntegrationTest {
     // assert
     assertThat(
             dataPackService.findByIdAndTenant(
-                TestDataPack.class.getCanonicalName(),
-                new Tenant("tenant")))
+                TestDataPack.class.getCanonicalName(), new Tenant("tenant")))
         .isPresent();
     assertThat(tagRepository.findByName(testDataPack.tagName)).isPresent();
   }
@@ -43,8 +42,7 @@ public class DataPackProcessorTest extends IntegrationTest {
   public void alreadyProcessedDatapackDontProcessAgain() {
     DataPackProcessor processor = new DataPackProcessor(List.of(testDataPack), tenantRepository);
     // fake registering the data pack
-    dataPackService.registerDataPack(
-        testDataPack.getPackId(), new Tenant("tenant"));
+    dataPackService.registerDataPack(testDataPack.getPackId(), new Tenant("tenant"));
 
     // act
     processor.process();
@@ -52,8 +50,7 @@ public class DataPackProcessorTest extends IntegrationTest {
     // assert
     assertThat(
             dataPackService.findByIdAndTenant(
-                TestDataPack.class.getCanonicalName(),
-                new Tenant("tenant")))
+                TestDataPack.class.getCanonicalName(), new Tenant("tenant")))
         .isPresent();
     // not that we prevented the pack from processing so we shouldn't find the contents in db
     assertThat(tagRepository.findByName(testDataPack.tagName)).isEmpty();

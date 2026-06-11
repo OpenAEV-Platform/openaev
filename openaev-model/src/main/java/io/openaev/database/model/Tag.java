@@ -57,6 +57,13 @@ public class Tag implements TenantBase {
           CISCO_TAG_NAME, "#049fd9",
           VULNERABILITY_TAG_NAME, "#ff0019");
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Tag fromTenant(String tenantId) {
+    Tag entity = new Tag();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Setter
   @Id
   @Column(name = "tag_id")

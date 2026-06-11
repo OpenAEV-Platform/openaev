@@ -52,8 +52,8 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
   @Override
   public boolean doProcess(TxCtx ctx) {
     try {
-      tagService.ensureWellKnownTags();
-      Set<TagRule> presetRules = tagRuleService.ensurePresetRules();
+      tagService.ensureWellKnownTags(ctx);
+      Set<TagRule> presetRules = tagRuleService.ensurePresetRules(ctx);
 
       Set<Endpoint.PLATFORM_TYPE> platformsToConsider =
           Set.of(
@@ -81,7 +81,7 @@ public class V20260107_Tags_and_tagrules_and_assetgroups extends DataPack {
           filterGroup.setMode(Filters.FilterMode.and);
           filterGroup.setFilters(List.of(filterArch, filterPlatform));
 
-          AssetGroup assetGroup = new AssetGroup();
+          AssetGroup assetGroup = AssetGroup.fromTenant(ctx.tenantIdFromUri());
           assetGroup.setName("All %s %s".formatted(platform.toString(), arch.toString()));
           assetGroup.setDynamicFilter(filterGroup);
 

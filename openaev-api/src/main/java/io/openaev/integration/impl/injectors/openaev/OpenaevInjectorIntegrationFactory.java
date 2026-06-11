@@ -111,7 +111,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
     Map<String, String> executorClearCommands =
         OpenaevImplantCommandBuilder.buildExecutorClearCommands();
     injectorService.registerBuiltinInjector(
-            ctx,
+        ctx,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME,
         openAEVImplantContract,

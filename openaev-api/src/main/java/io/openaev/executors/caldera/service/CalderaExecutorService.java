@@ -155,7 +155,7 @@ public class CalderaExecutorService implements Runnable {
     if (existingAgent.isPresent()) {
       agent = existingAgent.get();
     } else {
-      agent = new Agent();
+      agent = Agent.fromTenant(executor.getTenant().getId());
       setNewAgentAttributes(input, agent);
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
@@ -197,15 +197,14 @@ public class CalderaExecutorService implements Runnable {
   }
 
   private void createNewEndpointAndAgent(AgentRegisterInput input) {
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant(executor.getTenant().getId());
     endpoint.setName(input.getName());
     endpoint.setPlatform(input.getPlatform());
     endpoint.setArch(input.getArch());
     endpoint.setHostname(input.getHostname());
     endpoint.setIps(input.getIps());
-    endpoint.setTenant(executor.getTenant());
     endpointService.createEndpoint(endpoint);
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant(executor.getTenant().getId());
     setUpdatedAgentAttributes(agent, input, endpoint);
     setNewAgentAttributes(input, agent);
     agentService.createOrUpdateAgent(agent);

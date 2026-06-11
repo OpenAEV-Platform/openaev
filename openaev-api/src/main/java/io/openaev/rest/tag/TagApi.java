@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tag;
@@ -40,16 +41,16 @@ public class TagApi extends RestBehavior {
   @PostMapping({TAG_URI, TENANT_TAG_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
   @Transactional(rollbackOn = Exception.class)
-  public Tag createTag(@Valid @RequestBody TagCreateInput input) {
-    return tagService.createTag(input);
+  public Tag createTag(TxCtx ctx, @Valid @RequestBody TagCreateInput input) {
+    return tagService.createTag(ctx, input);
   }
 
   @Operation(summary = "Upsert tag")
   @PostMapping({TAG_URI + "/upsert", TENANT_TAG_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
   @Transactional(rollbackOn = Exception.class)
-  public Tag upsertTag(@Valid @RequestBody TagCreateInput input) {
-    return tagService.upsertTag(input);
+  public Tag upsertTag(TxCtx ctx, @Valid @RequestBody TagCreateInput input) {
+    return tagService.upsertTag(ctx, input);
   }
 
   // -- READ --

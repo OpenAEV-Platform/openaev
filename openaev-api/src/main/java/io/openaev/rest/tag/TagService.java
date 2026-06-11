@@ -9,7 +9,6 @@ import static java.time.Instant.now;
 
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.tag.form.TagCreateInput;
@@ -33,25 +32,25 @@ public class TagService {
 
   // -- CREATE --
 
-  public Tag createTag(TagCreateInput input) {
-    Tag tag = new Tag();
+  public Tag createTag(TxCtx ctx, TagCreateInput input) {
+    Tag tag = Tag.fromTenant(ctx.tenantIdFromUri());
     tag.setUpdateAttributes(input);
     return tagRepository.save(tag);
   }
 
-  public Tag createTag(String name) {
+  public Tag createTag(TxCtx ctx, String name) {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(name);
     tagCreateInput.setColor(Tag.WellKnown.getOrDefault(name, generateRandomColor()));
-    return upsertTag(tagCreateInput);
+    return upsertTag(ctx, tagCreateInput);
   }
 
-  public Tag upsertTag(TagCreateInput input) {
+  public Tag upsertTag(TxCtx ctx, TagCreateInput input) {
     Optional<Tag> tag = tagRepository.findByName(input.getName().toLowerCase());
     if (tag.isPresent()) {
       return tag.get();
     } else {
-      Tag newTag = new Tag();
+      Tag newTag = Tag.fromTenant(ctx.tenantIdFromUri());
       newTag.setUpdateAttributes(input);
       return tagRepository.save(newTag);
     }
@@ -63,7 +62,7 @@ public class TagService {
    * @param names collection of strings, each representing a requested tag
    * @return set of tags exactly matching the provided set of names
    */
-  public Set<Tag> findOrCreateTagsFromNames(Set<String> names) {
+  public Set<Tag> findOrCreateTagsFromNames(TxCtx ctx, Set<String> names) {
     Set<Tag> tags = new HashSet<>();
 
     if (names != null) {
@@ -75,7 +74,7 @@ public class TagService {
         tagCreateInput.setName(label);
         tagCreateInput.setColor(generateRandomColor());
 
-        tags.add(upsertTag(tagCreateInput));
+        tags.add(upsertTag(ctx, tagCreateInput));
       }
     }
 
@@ -87,7 +86,7 @@ public class TagService {
    *
    * @return the complete set of well known tags
    */
-  public Set<Tag> ensureWellKnownTags() {
+  public Set<Tag> ensureWellKnownTags(TxCtx ctx) {
     Set<Tag> wellKnownTags = new HashSet<>();
     for (Map.Entry<String, String> entry : Tag.WellKnown.entrySet()) {
       wellKnownTags.add(
@@ -95,7 +94,7 @@ public class TagService {
               .findByName(entry.getKey())
               .orElseGet(
                   () -> {
-                    Tag tag = new Tag();
+                    Tag tag = Tag.fromTenant(ctx.tenantIdFromUri());
                     tag.setName(entry.getKey());
                     tag.setColor(entry.getValue());
                     return tagRepository.save(tag);

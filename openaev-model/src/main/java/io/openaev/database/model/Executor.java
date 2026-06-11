@@ -22,6 +22,13 @@ import org.hibernate.annotations.Type;
 @EntityListeners({ModelBaseListener.class})
 public class Executor extends BaseConnectorEntity implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Executor fromTenant(String tenantId) {
+    Executor entity = new Executor();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "executor_id")
   @JsonProperty("executor_id")

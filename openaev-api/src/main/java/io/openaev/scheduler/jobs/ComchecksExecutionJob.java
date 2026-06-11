@@ -54,7 +54,7 @@ public class ComchecksExecutionJob implements Job {
   @Lazy @Autowired private ComchecksExecutionJob proxySelf;
 
   private Inject buildComcheckEmail(Comcheck comCheck) {
-    Inject emailInject = new Inject();
+    Inject emailInject = Inject.fromTenant(comCheck.getExercise().getTenant().getId());
     InjectorContract contract =
         injectorContractRepository.findById(EmailContract.EMAIL_DEFAULT).orElseThrow();
     emailInject.setInjectorContract(contract);

@@ -5,19 +5,17 @@ import io.openaev.database.model.Tenant;
 import java.util.*;
 
 public class PresetDomain {
-  private static final Domain ENDPOINT = Domain.builder().name("Endpoint").color("#389CFF").build();
-  private static final Domain NETWORK = Domain.builder().name("Network").color("#009933").build();
-  private static final Domain WEB_APP = Domain.builder().name("Web App").color("#FF9933").build();
+  private static final Domain ENDPOINT = Domain.createStatic("Endpoint", "#389CFF");
+  private static final Domain NETWORK = Domain.createStatic("Network", "#009933");
+  private static final Domain WEB_APP = Domain.createStatic("Web App", "#FF9933");
   private static final Domain EMAIL_INFILTRATION =
-      Domain.builder().name("E-mail Infiltration").color("#FF6666").build();
+      Domain.createStatic("E-mail Infiltration", "#FF6666");
   private static final Domain DATA_EXFILTRATION =
-      Domain.builder().name("Data Exfiltration").color("#9933CC").build();
-  private static final Domain URL_FILTERING =
-      Domain.builder().name("URL Filtering").color("#66CCFF").build();
-  private static final Domain CLOUD = Domain.builder().name("Cloud").color("#9999CC").build();
-  private static final Domain TABLETOP = Domain.builder().name("Tabletop").color("#FFCC33").build();
-  private static final Domain TOCLASSIFY =
-      Domain.builder().name("To classify").color("#FFFFFF").build();
+      Domain.createStatic("Data Exfiltration", "#9933CC");
+  private static final Domain URL_FILTERING = Domain.createStatic("URL Filtering", "#66CCFF");
+  private static final Domain CLOUD = Domain.createStatic("Cloud", "#9999CC");
+  private static final Domain TABLETOP = Domain.createStatic("Tabletop", "#FFCC33");
+  private static final Domain TOCLASSIFY = Domain.createStatic("To classify", "#FFFFFF");
 
   private static final Map<Domain, List<String>> domainKeywordsMap =
       Map.of(
@@ -29,39 +27,39 @@ public class PresetDomain {
           CLOUD, List.of("aws", "azure", "gcp"));
 
   public static Domain getEndpoint() {
-    return new Domain(ENDPOINT);
+    return ENDPOINT.copy();
   }
 
   public static Domain getNetwork() {
-    return new Domain(NETWORK);
+    return NETWORK.copy();
   }
 
   public static Domain getWebApp() {
-    return new Domain(WEB_APP);
+    return WEB_APP.copy();
   }
 
   public static Domain getEmailInfiltration() {
-    return new Domain(EMAIL_INFILTRATION);
+    return EMAIL_INFILTRATION.copy();
   }
 
   public static Domain getDataExfiltration() {
-    return new Domain(DATA_EXFILTRATION);
+    return DATA_EXFILTRATION.copy();
   }
 
   public static Domain getUrlFiltering() {
-    return new Domain(URL_FILTERING);
+    return URL_FILTERING.copy();
   }
 
   public static Domain getCloud() {
-    return new Domain(CLOUD);
+    return CLOUD.copy();
   }
 
   public static Domain getTabletop() {
-    return new Domain(TABLETOP);
+    return TABLETOP.copy();
   }
 
   public static Domain getToClassify() {
-    return new Domain(TOCLASSIFY);
+    return TOCLASSIFY.copy();
   }
 
   public static List<Domain> getDomainsForTenant(Tenant tenant) {
@@ -78,8 +76,10 @@ public class PresetDomain {
             TABLETOP,
             TOCLASSIFY);
     for (Domain domain : listToInsert) {
-      domains.add(
-          Domain.builder().name(domain.getName()).color(domain.getColor()).tenant(tenant).build());
+      Domain newDomain = Domain.fromTenant(tenant.getId());
+      newDomain.setName(domain.getName());
+      newDomain.setColor(domain.getColor());
+      domains.add(newDomain);
     }
     return domains;
   }
@@ -89,7 +89,7 @@ public class PresetDomain {
     domainKeywordsMap.forEach(
         (domain, keywords) -> {
           if (foundInKeywords(keywords, searchValue)) {
-            domains.add(new Domain(domain));
+            domains.add(domain.copy());
           }
         });
     return domains;

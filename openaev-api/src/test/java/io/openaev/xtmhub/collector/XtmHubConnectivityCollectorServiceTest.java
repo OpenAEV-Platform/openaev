@@ -96,11 +96,10 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
 
   private void saveRegistration(String token, Tenant tenant) {
 
-      TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
-      registration.setToken(token);
-      registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
-      registration.setConnectivityEmailEligible(true);
-      tenantXtmHubRegistrationRepository.save(registration);
-
+    TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+    registration.setToken(token);
+    registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
+    registration.setConnectivityEmailEligible(true);
+    tenantXtmHubRegistrationRepository.save(registration);
   }
 }

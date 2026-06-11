@@ -195,7 +195,7 @@ public class InjectSearchService {
     return query.getResultList().stream()
         .map(
             tuple -> {
-              Inject inject = new Inject();
+              Inject inject = Inject.fromTenant(null);
               inject.setId(tuple.get("inject_id", String.class));
               inject.setTitle(tuple.get("inject_title", String.class));
               inject.setEnabled(tuple.get("inject_enabled", Boolean.class));
@@ -205,7 +205,7 @@ public class InjectSearchService {
                   ofNullable(tuple.get("inject_exercise", String.class))
                       .map(
                           id -> {
-                            Exercise exercise = new Exercise();
+                            Exercise exercise = Exercise.fromTenant(null);
                             exercise.setId(id);
                             return exercise;
                           })
@@ -214,7 +214,7 @@ public class InjectSearchService {
                   ofNullable(tuple.get("inject_scenario", String.class))
                       .map(
                           id -> {
-                            Scenario scenario = new Scenario();
+                            Scenario scenario = Scenario.fromTenant(null);
                             scenario.setId(id);
                             return scenario;
                           })
@@ -229,7 +229,7 @@ public class InjectSearchService {
                               Arrays.stream(ids)
                                   .map(
                                       id -> {
-                                        Tag tag = new Tag();
+                                        Tag tag = Tag.fromTenant(null);
                                         tag.setId(id);
                                         return tag;
                                       })
@@ -242,7 +242,7 @@ public class InjectSearchService {
                               Arrays.stream(ids)
                                   .map(
                                       id -> {
-                                        Team team = new Team();
+                                        Team team = Team.fromTenant(null);
                                         team.setId(id);
                                         return team;
                                       })
@@ -255,7 +255,7 @@ public class InjectSearchService {
                               Arrays.stream(ids)
                                   .map(
                                       id -> {
-                                        Asset asset = new Asset();
+                                        Asset asset = Asset.fromTenant(null);
                                         asset.setId(id);
                                         return asset;
                                       })
@@ -268,7 +268,7 @@ public class InjectSearchService {
                               Arrays.stream(ids)
                                   .map(
                                       id -> {
-                                        AssetGroup assetGroup = new AssetGroup();
+                                        AssetGroup assetGroup = AssetGroup.fromTenant(null);
                                         assetGroup.setId(id);
                                         return assetGroup;
                                       })

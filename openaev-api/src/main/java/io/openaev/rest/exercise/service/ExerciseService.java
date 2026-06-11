@@ -197,8 +197,7 @@ public class ExerciseService {
 
   /** Validates that the exercise exists for the current tenant. Throws if not found. */
   public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
-    if (!this.exerciseRepository.existsById(
-        exerciseId)) {
+    if (!this.exerciseRepository.existsById(exerciseId)) {
       throw new ElementNotFoundException("Exercise not found");
     }
   }
@@ -222,7 +221,9 @@ public class ExerciseService {
     User currentUser = userService.currentUser();
     List<RawExerciseSimple> exercises =
         currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
-                || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT)
+                || currentUser
+                    .getCapabilities(ctx.tenantIdFromUri())
+                    .contains(Capability.ACCESS_ASSESSMENT)
             ? exerciseRepository.rawByExerciseIds(exerciseIds)
             : exerciseRepository.rawGrantedByExerciseIds(currentUser().getId(), exerciseIds);
     return exerciseMapper.getExerciseSimples(exercises);
@@ -252,7 +253,7 @@ public class ExerciseService {
   }
 
   private Exercise copyExercise(Exercise exerciseOrigin) {
-    Exercise exerciseDuplicate = new Exercise();
+    Exercise exerciseDuplicate = Exercise.fromTenant(exerciseOrigin.getTenant().getId());
     exerciseDuplicate.setName(duplicateString(exerciseOrigin.getName()));
     exerciseDuplicate.setCategory(exerciseOrigin.getCategory());
     exerciseDuplicate.setDescription(exerciseOrigin.getDescription());
@@ -482,7 +483,9 @@ public class ExerciseService {
     User currentUser = userService.currentUser();
     List<RawExerciseSimple> exercises =
         currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
-                || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT)
+                || currentUser
+                    .getCapabilities(ctx.tenantIdFromUri())
+                    .contains(Capability.ACCESS_ASSESSMENT)
             ? exerciseRepository.rawAll()
             : exerciseRepository.rawAllGranted(currentUser().getId());
     return exerciseMapper.getExerciseSimples(exercises);

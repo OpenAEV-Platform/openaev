@@ -29,6 +29,13 @@ public class DnsResolution extends Payload {
   @NotNull
   private String hostname;
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static DnsResolution fromTenant(String tenantId) {
+    DnsResolution entity = new DnsResolution();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public DnsResolution() {}
 
   public DnsResolution(String id, String type, String name) {

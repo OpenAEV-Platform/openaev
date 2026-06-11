@@ -1,7 +1,6 @@
 package io.openaev.integration;
 
 import io.openaev.authorisation.HttpClientFactory;
-import io.openaev.context.TxCtx;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 

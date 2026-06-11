@@ -18,6 +18,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class NotificationRule implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static NotificationRule fromTenant(String tenantId) {
+    NotificationRule entity = new NotificationRule();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @GeneratedValue(generator = "UUID")
   @UuidGenerator

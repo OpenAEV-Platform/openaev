@@ -42,8 +42,8 @@ public class StixService {
     String securityCoverageStixId =
         securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
 
-    return securityCoverageService.handleSecurityCoverageProcessing(ctx,
-        securityCoverageStixId, securityCoverageObj, bundle);
+    return securityCoverageService.handleSecurityCoverageProcessing(
+        ctx, securityCoverageStixId, securityCoverageObj, bundle);
   }
 
   /**

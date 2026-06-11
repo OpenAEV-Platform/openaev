@@ -18,10 +18,8 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Reusable helper for tenant isolation integration tests.

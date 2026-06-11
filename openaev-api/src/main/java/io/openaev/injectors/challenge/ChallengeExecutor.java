@@ -74,8 +74,8 @@ public class ChallengeExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(TxCtx ctx,
-                                  @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
+  public ExecutionProcess process(
+      TxCtx ctx, @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
       ChallengeContent content = contentConvert(injection, ChallengeContent.class);
       List<Challenge> challenges =

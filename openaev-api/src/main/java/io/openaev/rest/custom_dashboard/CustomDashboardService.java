@@ -242,7 +242,7 @@ public class CustomDashboardService {
   }
 
   public EsCountInterval dashboardCountOnResourceId(
-          TxCtx ctx,
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -254,7 +254,7 @@ public class CustomDashboardService {
   }
 
   public EsAvgs dashboardAverageOnResourceId(
-          TxCtx ctx,
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -265,7 +265,8 @@ public class CustomDashboardService {
     return this.dashboardService.average(ctx, widgetId, parameters);
   }
 
-  public List<EsSeries> dashboardSeriesOnResourceId(TxCtx ctx,
+  public List<EsSeries> dashboardSeriesOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -276,7 +277,8 @@ public class CustomDashboardService {
     return this.dashboardService.series(ctx, widgetId, parameters);
   }
 
-  public EsEntities dashboardEntitiesOnResourceId(TxCtx ctx,
+  public EsEntities dashboardEntitiesOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       @Nullable final EntitiesPaginationInput input) {
@@ -284,13 +286,15 @@ public class CustomDashboardService {
     if (!isWidgetInResourceDashboard(resourceId, widgetId)) {
       throw new AccessDeniedException("Access denied");
     }
-    return this.dashboardService.entities(ctx,
+    return this.dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
   }
 
-  public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(TxCtx ctx,
+  public WidgetToEntitiesOutput widgetToEntitiesRuntimeOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       @NotBlank WidgetToEntitiesInput input) {
@@ -301,7 +305,8 @@ public class CustomDashboardService {
     return this.dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
-  public List<EsAttackPath> dashboardAttackPathsOnResourceId(TxCtx ctx,
+  public List<EsAttackPath> dashboardAttackPathsOnResourceId(
+      TxCtx ctx,
       @NotBlank final String resourceId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters)

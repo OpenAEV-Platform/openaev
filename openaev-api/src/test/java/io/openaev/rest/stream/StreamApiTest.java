@@ -106,8 +106,8 @@ public class StreamApiTest {
   public void test_listenDatabaseUpdate_WHEN_user_has_permission() {
 
     // mock PermissionService method
-    when(permissionService.hasPermission("tenant",
-            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
+    when(permissionService.hasPermission(
+            "tenant", mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
         .thenReturn(true);
 
     Scenario scenario = ScenarioFixture.getScenario();
@@ -134,8 +134,8 @@ public class StreamApiTest {
     when(mapper.createObjectNode()).thenReturn(mock(ObjectNode.class));
 
     // mock PermissionService method
-    when(permissionService.hasPermission("tenant",
-            mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
+    when(permissionService.hasPermission(
+            "tenant", mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ))
         .thenReturn(false);
 
     Scenario scenario = ScenarioFixture.getScenario();

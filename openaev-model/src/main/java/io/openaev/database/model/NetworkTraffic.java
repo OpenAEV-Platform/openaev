@@ -53,6 +53,13 @@ public class NetworkTraffic extends Payload {
   @NotNull
   private String protocol;
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static NetworkTraffic fromTenant(String tenantId) {
+    NetworkTraffic entity = new NetworkTraffic();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public NetworkTraffic() {}
 
   public NetworkTraffic(String id, String type, String name) {

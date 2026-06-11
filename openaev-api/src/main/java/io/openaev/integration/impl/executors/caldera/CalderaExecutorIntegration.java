@@ -104,7 +104,7 @@ public class CalderaExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
-                null, // TODO JRI What?? Catalog is global or per tenant?
+            null, // TODO JRI What?? Catalog is global or per tenant?
             executorId,
             CALDERA_EXECUTOR_TYPE,
             executorName,

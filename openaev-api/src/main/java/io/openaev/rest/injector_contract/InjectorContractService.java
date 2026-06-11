@@ -142,7 +142,7 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   private QuerySetup setupQuery(
-          TxCtx ctx,
+      TxCtx ctx,
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
@@ -194,7 +194,9 @@ public class InjectorContractService implements DependenciesManager {
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts(TxCtx ctx) {
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
-        || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_THREAT_ARSENALS)) {
+        || currentUser
+            .getCapabilities(ctx.tenantIdFromUri())
+            .contains(Capability.ACCESS_THREAT_ARSENALS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
     return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
@@ -210,14 +212,14 @@ public class InjectorContractService implements DependenciesManager {
    * @return the created injector contract
    */
   public InjectorContract createNewInjectorContract(TxCtx ctx, InjectorContractAddInput input) {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant(ctx.tenantIdFromUri());
     injectorContract.setCustom(true);
     injectorContract.setUpdateAttributes(input);
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
       aps =
-          attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(ctx,
-              new HashSet<>(input.getAttackPatternsExternalIds()));
+          attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(
+              ctx, new HashSet<>(input.getAttackPatternsExternalIds()));
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
           attackPatternService.findAllByInternalIdsThrowIfMissing(
@@ -249,7 +251,9 @@ public class InjectorContractService implements DependenciesManager {
 
   public InjectorContract createBuiltinInjectorContract(
       Contract source, Injector injector, boolean isPayloads) {
-    InjectorContract target = new InjectorContract();
+    InjectorContract target =
+        InjectorContract.fromTenant(
+            injector != null && injector.getTenant() != null ? injector.getTenant().getId() : null);
     target.setId(source.getId());
     // Populate the inverse (non-owning) side only so getInjector() works
     // for tenant resolution in applyBuiltinContractData.
@@ -331,8 +335,7 @@ public class InjectorContractService implements DependenciesManager {
    * @throws ElementNotFoundException if not found
    */
   public InjectorContract updateInjectorContract(
-          TxCtx ctx,
-      String injectorContractId, InjectorContractUpdateInput input) {
+      TxCtx ctx, String injectorContractId, InjectorContractUpdateInput input) {
     InjectorContract injectorContract =
         injectorContractRepository
             .findByIdOrExternalId(injectorContractId, injectorContractId)
@@ -508,7 +511,7 @@ public class InjectorContractService implements DependenciesManager {
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
-          TxCtx ctx,
+      TxCtx ctx,
       Specification<InjectorContract> specification,
       Specification<InjectorContract> specificationCount,
       Pageable pageable,
@@ -785,7 +788,7 @@ public class InjectorContractService implements DependenciesManager {
    * @return the created injector contract (not yet persisted)
    */
   public InjectorContract convertInjectorFromInput(InjectorContractInput in, Injector injector) {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant(injector.getTenant().getId());
     injectorContract.setId(in.getId());
     injectorContract.setManual(in.isManual());
     injectorContract.setLabels(in.getLabels());
@@ -816,7 +819,8 @@ public class InjectorContractService implements DependenciesManager {
    * @param input the search and filtering criteria
    * @return the list of domain counts derived from effective contract associations
    */
-  public List<InjectorContractDomainCountOutput> getDomainCounts(TxCtx ctx, SearchPaginationInput input) {
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      TxCtx ctx, SearchPaginationInput input) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());

@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Mitigation;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -86,8 +87,8 @@ public class MitigationApi extends RestBehavior {
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
   @Transactional(rollbackOn = Exception.class)
-  public Mitigation createMitigation(@Valid @RequestBody MitigationCreateInput input) {
-    Mitigation mitigation = new Mitigation();
+  public Mitigation createMitigation(TxCtx ctx, @Valid @RequestBody MitigationCreateInput input) {
+    Mitigation mitigation = Mitigation.fromTenant(ctx.tenantIdFromUri());
     mitigation.setUpdateAttributes(input);
     mitigation.setAttackPatterns(
         fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())));
@@ -124,7 +125,7 @@ public class MitigationApi extends RestBehavior {
     return mitigationRepository.save(mitigation);
   }
 
-  private List<Mitigation> upsertMitigations(List<MitigationCreateInput> mitigations) {
+  private List<Mitigation> upsertMitigations(TxCtx ctx, List<MitigationCreateInput> mitigations) {
     List<Mitigation> upserted = new ArrayList<>();
     mitigations.forEach(
         mitigationInput -> {
@@ -137,7 +138,7 @@ public class MitigationApi extends RestBehavior {
                       attackPatternRepository.findAllById(mitigationInput.getAttackPatternsIds()))
                   : List.of();
           if (optionalMitigation.isEmpty()) {
-            Mitigation newMitigation = new Mitigation();
+            Mitigation newMitigation = Mitigation.fromTenant(ctx.tenantIdFromUri());
             newMitigation.setStixId(mitigationInput.getStixId());
             newMitigation.setExternalId(mitigationExternalId);
             newMitigation.setAttackPatterns(attackPatterns);
@@ -166,9 +167,10 @@ public class MitigationApi extends RestBehavior {
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
   @Transactional(rollbackOn = Exception.class)
-  public Iterable<Mitigation> upsertMitigation(@Valid @RequestBody MitigationUpsertInput input) {
+  public Iterable<Mitigation> upsertMitigation(
+      TxCtx ctx, @Valid @RequestBody MitigationUpsertInput input) {
     List<MitigationCreateInput> mitigations = input.getMitigations();
-    return new ArrayList<>(upsertMitigations(mitigations));
+    return new ArrayList<>(upsertMitigations(ctx, mitigations));
   }
 
   @Transactional(rollbackOn = Exception.class)

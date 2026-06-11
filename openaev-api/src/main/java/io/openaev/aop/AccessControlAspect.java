@@ -111,7 +111,7 @@ public class AccessControlAspect {
     // Perform your RBAC check with the extracted value
     boolean allowed =
         permissionService.hasPermission(
-                null, // TODO JRI What?? AOP
+            null, // TODO JRI What?? AOP
             principal,
             httpMappingInfo,
             resourceId,

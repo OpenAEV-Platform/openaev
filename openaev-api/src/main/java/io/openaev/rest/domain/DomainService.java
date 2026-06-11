@@ -71,8 +71,7 @@ public class DomainService implements DependenciesManager {
   }
 
   public Domain upsert(TxCtx ctx, final DomainBaseInput input) {
-    return this.upsert(
-        input.getName(), input.getColor(), new Tenant(ctx.tenantIdFromUri()));
+    return this.upsert(input.getName(), input.getColor(), new Tenant(ctx.tenantIdFromUri()));
   }
 
   public Domain upsert(final Domain domainToUpsert) {
@@ -141,14 +140,10 @@ public class DomainService implements DependenciesManager {
 
     // Both empty or just "To classify" - return placeholder
     if (isExistingDomainsEmptyOrToClassify && domainsEmptyOrToClassify) {
-      return new HashSet<>(
-          Collections.singletonList(
-              this.upsert(
-                  Domain.builder()
-                      .name(PresetDomain.getToClassify().getName())
-                      .color(PresetDomain.getToClassify().getColor())
-                      .tenant(tenant)
-                      .build())));
+      Domain newDomain = Domain.fromTenant(tenant.getId());
+      newDomain.setName(PresetDomain.getToClassify().getName());
+      newDomain.setColor(PresetDomain.getToClassify().getColor());
+      return new HashSet<>(Collections.singletonList(this.upsert(newDomain)));
     }
 
     // Filter out "To classify" from domains to add
@@ -203,11 +198,10 @@ public class DomainService implements DependenciesManager {
   // -- PRIVATE --
 
   private Domain buildSanityDomain(final String name, final String color, final Tenant tenant) {
-    return Domain.builder()
-        .name(name)
-        .color(color != null ? color : generateRandomColor())
-        .tenant(tenant)
-        .build();
+    Domain domain = Domain.fromTenant(tenant.getId());
+    domain.setName(name);
+    domain.setColor(color != null ? color : generateRandomColor());
+    return domain;
   }
 
   @Override

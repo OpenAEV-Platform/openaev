@@ -100,12 +100,13 @@ public class V20260101_Starter_pack extends DataPack {
     }
 
     // unconditionally run this code
-    Set<Tag> tags = tagService.ensureWellKnownTags();
-    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
+    Set<Tag> tags = tagService.ensureWellKnownTags(ctx);
+    Set<TagRule> tagRules = tagRuleService.ensurePresetRules(ctx);
 
     try {
       Endpoint honeyScanMeEndpoint =
           this.createHoneyScanMeAgentlessEndpoint(
+              ctx,
               new ArrayList<>(
                   tags.stream()
                       .filter(
@@ -114,7 +115,7 @@ public class V20260101_Starter_pack extends DataPack {
                                   .contains(t.getName()))
                       .map(Tag::getId)
                       .toList()));
-      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup(ctx);
 
       TagRule openCTITagRule =
           tagRules.stream()
@@ -135,7 +136,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
+  private Endpoint createHoneyScanMeAgentlessEndpoint(TxCtx ctx, List<String> tags) {
     EndpointInput endpointInput = new EndpointInput();
     endpointInput.setName(HoneyScanMeEndpoint.HOSTNAME);
     endpointInput.setHostname(HoneyScanMeEndpoint.HOSTNAME);
@@ -144,10 +145,10 @@ public class V20260101_Starter_pack extends DataPack {
     endpointInput.setPlatform(HoneyScanMeEndpoint.PLATFORM);
     endpointInput.setEol(HoneyScanMeEndpoint.END_OF_LIFE);
     endpointInput.setTagIds(tags);
-    return this.endpointService.createEndpoint(endpointInput);
+    return this.endpointService.createEndpoint(ctx, endpointInput);
   }
 
-  private AssetGroup createAllEndpointsAssetGroup() {
+  private AssetGroup createAllEndpointsAssetGroup(TxCtx ctx) {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -158,7 +159,7 @@ public class V20260101_Starter_pack extends DataPack {
     filterGroup.setMode(Filters.FilterMode.or);
     filterGroup.setFilters(List.of(filter));
 
-    AssetGroup allEndpointsAssetGroup = new AssetGroup();
+    AssetGroup allEndpointsAssetGroup = AssetGroup.fromTenant(ctx.tenantIdFromUri());
     allEndpointsAssetGroup.setName(AllEndpointsAssetGroup.NAME);
     allEndpointsAssetGroup.setDynamicFilter(filterGroup);
 
@@ -170,8 +171,14 @@ public class V20260101_Starter_pack extends DataPack {
         .forEach(
             resourceToAdd -> {
               try {
-                this.importService.handleInputStreamFileImport(ctx.tenantIdFromUri(),
-                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
+                this.importService.handleInputStreamFileImport(
+                    ctx.tenantIdFromUri(),
+                    resourceToAdd.getInputStream(),
+                    null,
+                    null,
+                    asset,
+                    assetGroup,
+                    "");
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());

@@ -42,8 +42,8 @@ public class OvhSmsExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(TxCtx ctx,
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+  public ExecutionProcess process(
+      TxCtx ctx, @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     OvhSmsContent content = contentConvert(injection, OvhSmsContent.class);

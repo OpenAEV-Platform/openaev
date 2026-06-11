@@ -1,10 +1,8 @@
 package io.openaev.service;
 
-import static io.openaev.database.specification.GroupSpecification.tenantScope;
 import static java.util.stream.Collectors.toList;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -26,7 +24,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,8 +41,8 @@ public class TenantGroupService {
     return groupRepository.save(createGroupInner(tenantId, UUID.randomUUID().toString(), input));
   }
 
-  public Group createInternalGroupWithRole(String tenantId,
-                                           @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles) {
+  public Group createInternalGroupWithRole(
+      String tenantId, @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles) {
     Group group = createGroupInner(tenantId, id, input);
     group.setRoles(roles);
     group.setTenant(new Tenant(tenantId));
@@ -55,10 +52,7 @@ public class TenantGroupService {
   /** Add a grant to a tenant group. */
   public Group addGrant(String tenantId, @NotBlank final String groupId, GroupGrantInput input) {
     grantService.validateResourceIdForGrant(input.getResourceId());
-    Group group =
-        groupRepository
-            .findById(groupId)
-            .orElseThrow(ElementNotFoundException::new);
+    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateGroupId(tenantId, group.getId());
     Grant grant = new Grant();
     grant.setName(input.getName());
@@ -70,7 +64,8 @@ public class TenantGroupService {
     return groupRepository.save(group);
   }
 
-  private Group createGroupInner(String tenantId, @NotBlank final String id, TenantGroupCreateInput input) {
+  private Group createGroupInner(
+      String tenantId, @NotBlank final String id, TenantGroupCreateInput input) {
     Group group = new Group();
     group.setUpdateAttributes(input);
     group.setId(id);
@@ -82,17 +77,13 @@ public class TenantGroupService {
 
   /** Find a tenant group by ID, scoped to the current tenant. */
   public Group findByIdInTenant(@NotBlank final String groupId) {
-    return groupRepository
-        .findById(groupId)
-        .orElseThrow(ElementNotFoundException::new);
+    return groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
   }
 
   /** Search tenant groups with pagination. */
   public Page<Group> search(SearchPaginationInput searchPaginationInput) {
     return io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA(
-            groupRepository::findAll,
-        searchPaginationInput,
-        Group.class);
+        groupRepository::findAll, searchPaginationInput, Group.class);
   }
 
   public Optional<Group> findById(@NotBlank final String id) {
@@ -101,7 +92,8 @@ public class TenantGroupService {
 
   // -- UPDATE --
 
-  public Group updateGroupRoles(String tenantId, @NotBlank final String groupId, GroupUpdateRolesInput input) {
+  public Group updateGroupRoles(
+      String tenantId, @NotBlank final String groupId, GroupUpdateRolesInput input) {
     Group group =
         groupRepository
             .findById(groupId)
@@ -134,21 +126,16 @@ public class TenantGroupService {
   public Group updateGroup(String tenantId, String groupId, TenantGroupCreateInput input) {
     // Check if new name is reserved
     ReservedKeyValidator.validateGroupId(tenantId, groupId);
-    Group group =
-        groupRepository
-            .findById(groupId)
-            .orElseThrow(ElementNotFoundException::new);
+    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     // Check if previous name is reserved
     ReservedKeyValidator.validateGroupId(tenantId, group.getId());
     return this.updateGroup(group, input);
   }
 
   /** Update the users of a tenant group. */
-  public Group updateUsers(String tenantId, @NotBlank final String groupId, GroupUpdateUsersInput input) {
-    Group group =
-        groupRepository
-            .findById(groupId)
-            .orElseThrow(ElementNotFoundException::new);
+  public Group updateUsers(
+      String tenantId, @NotBlank final String groupId, GroupUpdateUsersInput input) {
+    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateGroupId(tenantId, group.getId());
     List<User> users = userRepository.findAllById(input.getUserIds());
     users.forEach(user -> ReservedKeyValidator.validateUserEmailPattern(user.getEmail()));
@@ -180,11 +167,9 @@ public class TenantGroupService {
   }
 
   /** Remove a grant from a tenant group. */
-  public Group removeGrant(String tenantId, @NotBlank final String groupId, @NotBlank final String grantId) {
-    Group group =
-        groupRepository
-            .findById(groupId)
-            .orElseThrow(ElementNotFoundException::new);
+  public Group removeGrant(
+      String tenantId, @NotBlank final String groupId, @NotBlank final String grantId) {
+    Group group = groupRepository.findById(groupId).orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateGroupId(tenantId, group.getId());
     Grant grant =
         group.getGrants().stream()

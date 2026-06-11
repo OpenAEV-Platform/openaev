@@ -57,15 +57,16 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/agentless", TENANT_ENDPOINT_URI + "/agentless"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.createEndpoint(input);
+  public Endpoint createEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
+    return this.endpointService.createEndpoint(ctx, input);
   }
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.upsertEndpoint(input);
+  public Endpoint upsertAgentLessEndpoint(
+      TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
+    return this.endpointService.upsertEndpoint(ctx, input);
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
@@ -142,8 +143,10 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
-  public EndpointOverviewOutput endpoint(TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
-    return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(ctx, endpointId));
+  public EndpointOverviewOutput endpoint(
+      TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
+    return endpointMapper.toEndpointOverviewOutput(
+        this.endpointService.getEndpoint(ctx, endpointId));
   }
 
   @LogExecutionTime
@@ -189,7 +192,7 @@ public class EndpointApi extends RestBehavior {
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public EndpointOverviewOutput updateEndpoint(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
     return endpointMapper.toEndpointOverviewOutput(

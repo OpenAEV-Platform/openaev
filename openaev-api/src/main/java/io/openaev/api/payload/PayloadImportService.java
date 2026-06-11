@@ -61,17 +61,18 @@ public class PayloadImportService {
    * @return the import result containing the persisted payload and the synchronised injector
    *     contract
    */
-  public PayloadImportResult importPayload(TxCtx ctx,  MultipartFile file) throws Exception {
+  public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file) throws Exception {
     ZipJsonService.ImportOutput<Payload> response =
         zipJsonApi.handleImport(ctx.tenantIdFromUri(), file, "payload_name", IMPORT_OPTIONS, null);
 
     List<AttackPattern> attackPatterns =
-        extractRelationshipObjects(ctx,
-            "attack_patterns", this::handleAttackPatternImport, response.sourceDocument());
+        extractRelationshipObjects(
+            ctx, "attack_patterns", this::handleAttackPatternImport, response.sourceDocument());
     List<Domain> domains =
-        extractRelationshipObjects(ctx,"domains", this::handleDomainImport, response.sourceDocument());
+        extractRelationshipObjects(
+            ctx, "domains", this::handleDomainImport, response.sourceDocument());
     List<Tag> tags =
-        extractRelationshipObjects(ctx,"tags", this::handleTagImport, response.sourceDocument());
+        extractRelationshipObjects(ctx, "tags", this::handleTagImport, response.sourceDocument());
 
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
@@ -115,11 +116,11 @@ public class PayloadImportService {
     TagCreateInput input = new TagCreateInput();
     input.setName(object.attributes().get("tag_name").toString());
     input.setColor(object.attributes().get("tag_color").toString());
-    return tagService.upsertTag(input);
+    return tagService.upsertTag(ctx, input);
   }
 
   private <T> List<T> extractRelationshipObjects(
-          TxCtx ctx,
+      TxCtx ctx,
       String relName,
       BiFunction<TxCtx, ResourceObject, T> valueExtractor,
       JsonApiDocument<ResourceObject> resourceDocument) {
@@ -137,7 +138,7 @@ public class PayloadImportService {
     return relationship.asMany().stream()
         .map(ref -> includedById.get(ref.id()))
         .filter(Objects::nonNull)
-            .map(resourceObject -> valueExtractor.apply(ctx, resourceObject))
+        .map(resourceObject -> valueExtractor.apply(ctx, resourceObject))
         .filter(Objects::nonNull)
         .toList();
   }

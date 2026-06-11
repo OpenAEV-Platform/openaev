@@ -116,7 +116,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
       injectorService.injector(ctx, ChannelInjectorIntegration.CHANNEL_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
       injectorService.registerBuiltinInjector(
-              ctx,
+          ctx,
           ChannelInjectorIntegration.CHANNEL_INJECTOR_ID,
           ChannelInjectorIntegration.CHANNEL_INJECTOR_NAME,
           channelContract,

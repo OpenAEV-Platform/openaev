@@ -134,7 +134,7 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackOn = Exception.class)
   public Collector registerCollector(
-          TxCtx ctx,
+      TxCtx ctx,
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
@@ -142,7 +142,8 @@ public class CollectorApi extends RestBehavior {
           file.isPresent() && "image/png".equals(file.get().getContentType())
               ? file.get().getInputStream()
               : null;
-      return collectorService.register(ctx.tenantIdFromUri(),
+      return collectorService.register(
+          ctx.tenantIdFromUri(),
           input.getId(),
           input.getType(),
           input.getName(),

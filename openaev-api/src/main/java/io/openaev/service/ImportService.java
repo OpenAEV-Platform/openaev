@@ -49,7 +49,7 @@ public class ImportService {
   }
 
   private void handleDataImport(
-          String tenantId,
+      String tenantId,
       InputStream inputStream,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
@@ -62,8 +62,15 @@ public class ImportService {
       int importVersion = importNode.get("export_version").asInt();
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
-        importer.importData(TxCtx.of(tenantId),
-            importNode, docReferences, exercise, scenario, asset, assetGroup, suffix);
+        importer.importData(
+            TxCtx.of(tenantId),
+            importNode,
+            docReferences,
+            exercise,
+            scenario,
+            asset,
+            assetGroup,
+            suffix);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
       }
@@ -72,9 +79,10 @@ public class ImportService {
     }
   }
 
-  public void handleFileImport(String tenantId, MultipartFile file, Exercise exercise, Scenario scenario)
-      throws Exception {
-    handleInputStreamImport(tenantId,
+  public void handleFileImport(
+      String tenantId, MultipartFile file, Exercise exercise, Scenario scenario) throws Exception {
+    handleInputStreamImport(
+        tenantId,
         file.getInputStream(),
         exercise,
         scenario,
@@ -84,7 +92,7 @@ public class ImportService {
   }
 
   public void handleInputStreamFileImport(
-          String tenantId,
+      String tenantId,
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -96,7 +104,7 @@ public class ImportService {
   }
 
   private void handleInputStreamImport(
-          String tenantId,
+      String tenantId,
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -248,7 +256,8 @@ public class ImportService {
 
       // Process all loaded data
       for (InputStream dataStream : dataImports) {
-        handleDataImport(tenantId, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
+        handleDataImport(
+            tenantId, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
       }
     } finally {
       tempFile.delete();

@@ -18,7 +18,6 @@ import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -117,7 +116,7 @@ public class ScenarioImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public void injectsImport(
-          TxCtx ctx,
+      TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String scenarioId)
       throws Exception {

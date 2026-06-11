@@ -356,9 +356,7 @@ public class CollectorApiTest extends IntegrationTest {
     void shouldSetUpdatedAtWhenReRegisteringExternalCollector() throws Exception {
       Collector existing = getCollector("reregister-type");
       Collector persisted =
-          collectorRepository
-              .findByIdAndTenantId(existing.getId(), "tenant")
-              .orElseThrow();
+          collectorRepository.findByIdAndTenantId(existing.getId(), "tenant").orElseThrow();
       java.time.Instant originalUpdatedAt = persisted.getUpdatedAt();
 
       CollectorCreateInput input = new CollectorCreateInput();
@@ -376,9 +374,7 @@ public class CollectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       Collector updated =
-          collectorRepository
-              .findByIdAndTenantId(input.getId(), "tenant")
-              .orElseThrow();
+          collectorRepository.findByIdAndTenantId(input.getId(), "tenant").orElseThrow();
       assertThat(updated.isExternal()).isTrue();
       assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(originalUpdatedAt);
     }

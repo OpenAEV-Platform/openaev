@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
-
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -266,8 +265,6 @@ public class User implements Base {
   @Transient
   private final ResourceType resourceType = ResourceType.USER;
 
-
-
   @Setter
   @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
   @JsonIgnore
@@ -360,8 +357,7 @@ public class User implements Base {
    */
   public boolean hasTenantBypass(String tenantId) {
     return getGroups().stream()
-        .filter(
-            group -> group.getTenant() != null && tenantId.equals(group.getTenant().getId()))
+        .filter(group -> group.getTenant() != null && tenantId.equals(group.getTenant().getId()))
         .flatMap(group -> group.getRoles().stream())
         .flatMap(role -> role.getCapabilities().stream())
         .anyMatch(Capability.BYPASS::equals);
@@ -378,10 +374,7 @@ public class User implements Base {
    */
   private List<Group> scopedGroups(String tenantId) {
     return getGroups().stream()
-        .filter(
-            group ->
-                group.getTenant() == null
-                    || (tenantId.equals(group.getTenant().getId())))
+        .filter(group -> group.getTenant() == null || (tenantId.equals(group.getTenant().getId())))
         .toList();
   }
 

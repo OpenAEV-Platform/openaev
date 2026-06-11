@@ -44,8 +44,8 @@ public class InjectorFixture {
         UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
   }
 
-  private Injector initializeBuiltInInjector(String tenantId,
-      BuiltinIntegrationFactory factory, String injectorType) {
+  private Injector initializeBuiltInInjector(
+      String tenantId, BuiltinIntegrationFactory factory, String injectorType) {
     try {
       factory.registerConnectorForTenant(tenantId);
     } catch (Exception e) {
@@ -60,8 +60,8 @@ public class InjectorFixture {
                     "Injector not found after initialization: " + injectorType));
   }
 
-  private Injector getWellKnownInjector(String tenantId,
-      String injectorType, BuiltinIntegrationFactory factory, boolean isPayload) {
+  private Injector getWellKnownInjector(
+      String tenantId, String injectorType, BuiltinIntegrationFactory factory, boolean isPayload) {
     Injector injector =
         injectorRepository
             .findByTypeAndTenantId(injectorType, tenantId)
@@ -73,11 +73,12 @@ public class InjectorFixture {
   }
 
   public Injector getWellKnownOaevImplantInjector(String tenantId) {
-    return getWellKnownInjector(tenantId,
-        OpenAEVImplantContract.TYPE, openaevInjectorIntegrationFactory, true);
+    return getWellKnownInjector(
+        tenantId, OpenAEVImplantContract.TYPE, openaevInjectorIntegrationFactory, true);
   }
 
   public Injector getWellKnownEmailInjector(String tenantId, boolean isPayload) {
-    return getWellKnownInjector(tenantId, EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
+    return getWellKnownInjector(
+        tenantId, EmailContract.TYPE, emailInjectorIntegrationFactory, isPayload);
   }
 }

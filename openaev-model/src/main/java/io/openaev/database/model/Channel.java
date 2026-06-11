@@ -26,6 +26,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class Channel implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Channel fromTenant(String tenantId) {
+    Channel entity = new Channel();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "channel_id")
   @GeneratedValue(generator = "UUID")

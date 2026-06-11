@@ -32,6 +32,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class CustomDashboard implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static CustomDashboard fromTenant(String tenantId) {
+    CustomDashboard entity = new CustomDashboard();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "custom_dashboard_id", updatable = false, nullable = false)
   @GeneratedValue(generator = "UUID")

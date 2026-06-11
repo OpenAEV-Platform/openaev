@@ -41,8 +41,10 @@ public class DirectInjectInput {
   private List<InjectDocumentInput> documents = new ArrayList<>();
 
   public Inject toInject(
-      @NotNull final InjectorContract injectorContract, @NotNull final Injector injector) {
-    Inject inject = new Inject();
+      @NotNull final InjectorContract injectorContract,
+      @NotNull final Injector injector,
+      String tenantId) {
+    Inject inject = Inject.fromTenant(tenantId);
     inject.setTitle(getTitle());
     inject.setDescription(getDescription());
     inject.setContent(getContent());

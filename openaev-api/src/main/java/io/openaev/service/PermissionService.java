@@ -64,7 +64,7 @@ public class PermissionService {
   public boolean hasEventPermission(TxCtx tx, String principalId, @NotNull final BaseEvent event) {
     User user = userService.user(principalId);
     return hasPermission(
-            tx.tenantIdFromUri(),
+        tx.tenantIdFromUri(),
         user,
         Optional.empty(),
         event.getInstance().getId(),
@@ -73,7 +73,7 @@ public class PermissionService {
   }
 
   public boolean hasPermission(
-          String tenantId,
+      String tenantId,
       @NotNull final User user,
       Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
       String resourceId,
@@ -171,7 +171,7 @@ public class PermissionService {
   }
 
   boolean hasCapaPermission(
-          String tenantId,
+      String tenantId,
       @NotNull final User user,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
@@ -189,7 +189,8 @@ public class PermissionService {
   }
 
   /** Checks whether the user's BYPASS capability covers the requested resource scope. */
-  private boolean isBypassGranted(String tenantId, User user, ResourceType resourceType, Action action) {
+  private boolean isBypassGranted(
+      String tenantId, User user, ResourceType resourceType, Action action) {
     boolean hasPlatformBypass = user.hasPlatformBypass();
     boolean hasTenantBypass = user.hasTenantBypass(tenantId);
     if (!hasPlatformBypass && !hasTenantBypass) {

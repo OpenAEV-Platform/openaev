@@ -39,7 +39,8 @@ public class PermissionServiceTest extends IntegrationTest {
   @Test
   public void test_hasPermission_WHEN_admin() {
     assertTrue(
-        permissionService.hasPermission("tenant", 
+        permissionService.hasPermission(
+            "tenant",
             getUser(USER_ID, true),
             Optional.empty(),
             RESOURCE_ID,
@@ -57,12 +58,12 @@ public class PermissionServiceTest extends IntegrationTest {
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     when(objectiveRepository.findById(objectiveId)).thenReturn(Optional.of(objective));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), objectiveId, ResourceType.OBJECTIVE, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), objectiveId, ResourceType.OBJECTIVE, Action.READ));
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), objectiveId, ResourceType.OBJECTIVE, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), objectiveId, ResourceType.OBJECTIVE, Action.WRITE));
   }
 
   @Test
@@ -75,12 +76,12 @@ public class PermissionServiceTest extends IntegrationTest {
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     when(evaluationRepository.findById(evaluationId)).thenReturn(Optional.of(evaluation));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), evaluationId, ResourceType.EVALUATION, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), evaluationId, ResourceType.EVALUATION, Action.READ));
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), evaluationId, ResourceType.EVALUATION, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), evaluationId, ResourceType.EVALUATION, Action.WRITE));
   }
 
   @Test
@@ -88,8 +89,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ));
   }
 
   @Test
@@ -97,8 +98,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.WRITE));
   }
 
   @Test
@@ -107,8 +108,8 @@ public class PermissionServiceTest extends IntegrationTest {
     user.setGroups(List.of(getGroup(Capability.ACCESS_ASSESSMENT)));
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.READ));
   }
 
   @Test
@@ -116,8 +117,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SIMULATION, Action.DELETE));
   }
 
   @Test
@@ -125,16 +126,16 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasLaunchGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.LAUNCH));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.LAUNCH));
   }
 
   @Test
   public void test_hasPermission_search_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.SEARCH));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.SEARCH));
   }
 
   @Test
@@ -142,8 +143,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
   }
 
   @Test
@@ -151,8 +152,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.BYPASS)));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.READ));
   }
 
   @Test
@@ -160,40 +161,40 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CHANNEL, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_read_player_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.PLAYER, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.PLAYER, Action.READ));
   }
 
   @Test
   public void test_hasPermission_read_team_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.READ));
   }
 
   @Test
   public void test_hasPermission_write_player_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.PLAYER, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.PLAYER, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_write_team_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.TEAM, Action.WRITE));
   }
 
   @Test
@@ -201,8 +202,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
   }
 
   @Test
@@ -211,16 +212,21 @@ public class PermissionServiceTest extends IntegrationTest {
     user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     when(grantService.hasReadGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.DUPLICATE));
+        permissionService.hasPermission(
+            "tenant",
+            user,
+            Optional.empty(),
+            RESOURCE_ID,
+            ResourceType.SCENARIO,
+            Action.DUPLICATE));
   }
 
   @Test
   public void test_hasPermission_create_WHEN_has_no_capa() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.CREATE));
   }
 
   @Test
@@ -234,8 +240,8 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), injectId, ResourceType.INJECT, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), injectId, ResourceType.INJECT, Action.WRITE));
   }
 
   @Test
@@ -249,48 +255,48 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), injectId, ResourceType.INJECT, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), injectId, ResourceType.INJECT, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_search_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.SEARCH));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.SEARCH));
   }
 
   @Test
   public void test_hasPermission_duplicate_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.DUPLICATE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.DUPLICATE));
   }
 
   @Test
   public void test_hasPermission_read_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.READ));
   }
 
   @Test
   public void test_hasPermission_write_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_create_user_WHEN_has_no_grant() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.CREATE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.USER, Action.CREATE));
   }
 
   @Test
@@ -307,50 +313,50 @@ public class PermissionServiceTest extends IntegrationTest {
         new AccessControlAspect.HttpMappingInfo(
             RequestMethod.GET, new String[] {"api/injector/options"}, Map.of("sourceId", injectId));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.of(mappingInfo), null, ResourceType.INJECTOR, Action.SEARCH));
+        permissionService.hasPermission(
+            "tenant", user, Optional.of(mappingInfo), null, ResourceType.INJECTOR, Action.SEARCH));
   }
 
   @Test
   public void test_hasPermission_read_workflow_step_WHEN_has_no_permission() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.READ));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
   }
 
   @Test
   public void test_hasPermission_update_workflow_step_WHEN_has_no_permission() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.WRITE));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
   }
 
   @Test
   public void test_hasPermission_delete_workflow_step_WHEN_has_no_permission() {
     User user = getUser(USER_ID, false);
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
     assertFalse(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
 
   @Test
@@ -358,14 +364,14 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.ACCESS_ASSESSMENT)));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.READ));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.READ));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.READ));
   }
 
   @Test
@@ -373,14 +379,14 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.WRITE));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.WRITE));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.WRITE));
   }
 
   @Test
@@ -388,14 +394,14 @@ public class PermissionServiceTest extends IntegrationTest {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.DELETE_ASSESSMENT)));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.STEP, Action.DELETE));
     assertTrue(
-        permissionService.hasPermission("tenant", 
-            user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
+        permissionService.hasPermission(
+            "tenant", user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
 
   private User getUser(final String id, final boolean isAdmin) {

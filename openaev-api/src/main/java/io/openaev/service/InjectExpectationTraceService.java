@@ -59,8 +59,7 @@ public class InjectExpectationTraceService {
     // Start by getting the collector. We can take the first one since they are all the same
     Collector collector =
         collectorRepository
-            .findById(
-                injectExpectationTraces.getFirst().getSourceId())
+            .findById(injectExpectationTraces.getFirst().getSourceId())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Map<SimpleRawExpectationTrace, InjectExpectationTrace> traces = new HashMap<>();
     injectExpectationTraces.forEach(

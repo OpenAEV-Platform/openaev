@@ -17,6 +17,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class TenantXtmHubRegistration implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static TenantXtmHubRegistration fromTenant(String tenantId) {
+    TenantXtmHubRegistration entity = new TenantXtmHubRegistration();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "registration_id")
   @GeneratedValue(generator = "UUID")

@@ -88,7 +88,7 @@ public class CrowdStrikeExecutorService implements Runnable {
           if (existingAssetGroup.isPresent()) {
             assetGroup = existingAssetGroup.get();
           } else {
-            assetGroup = new AssetGroup();
+            assetGroup = AssetGroup.fromTenant(executor.getTenant().getId());
             assetGroup.setExternalReference(hostGroup);
             assetGroup.setTenant(executor.getTenant());
           }

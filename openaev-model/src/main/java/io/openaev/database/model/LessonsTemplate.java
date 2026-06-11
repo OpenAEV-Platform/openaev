@@ -22,6 +22,13 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 public class LessonsTemplate implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static LessonsTemplate fromTenant(String tenantId) {
+    LessonsTemplate entity = new LessonsTemplate();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "lessons_template_id")
   @GeneratedValue(generator = "UUID")

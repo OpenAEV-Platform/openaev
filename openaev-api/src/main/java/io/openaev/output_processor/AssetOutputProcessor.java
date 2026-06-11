@@ -4,6 +4,7 @@ import static io.openaev.database.model.AssetType.Values.ENDPOINT_TYPE;
 import static io.openaev.database.model.AssetType.Values.SECURITY_PLATFORM_TYPE;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.inject.service.ContractOutputContext;
@@ -97,13 +98,17 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
    * @param assetNode The JSON node representing the endpoint asset
    */
   private void processEndpoint(ExecutionProcessingContext executionContext, JsonNode assetNode) {
-    EndpointInput input = buildEndpointInput(assetNode);
+    EndpointInput input = buildEndpointInput(executionContext, assetNode);
     Optional<Endpoint> existing = endpointService.findExistingEndpoint(input);
     if (existing.isPresent()) {
       log.info("Endpoint already exists: {} (id={})", input.getName(), existing.get().getId());
       return;
     }
-    Endpoint created = endpointService.createEndpoint(input);
+    TxCtx ctx =
+        executionContext.inject().getTenant() != null
+            ? TxCtx.of(executionContext.inject().getTenant().getId())
+            : TxCtx.noTenant();
+    Endpoint created = endpointService.createEndpoint(ctx, input);
     log.info("Created endpoint: {} (id={})", input.getName(), created.getId());
   }
 
@@ -113,7 +118,8 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
    * @param assetNode The JSON node representing the endpoint asset
    * @return EndpointInput populated with asset data
    */
-  private EndpointInput buildEndpointInput(JsonNode assetNode) {
+  private EndpointInput buildEndpointInput(
+      ExecutionProcessingContext executionContext, JsonNode assetNode) {
     JsonNode extended = assetNode.path(EXTENDED_ATTRIBUTES);
 
     EndpointInput input = new EndpointInput();
@@ -129,8 +135,12 @@ public class AssetOutputProcessor extends AbstractOutputProcessor {
     for (JsonNode tag : assetNode.path(TAGS)) {
       tagNames.add(tag.asText());
     }
+    TxCtx ctx =
+        executionContext.inject().getTenant() != null
+            ? TxCtx.of(executionContext.inject().getTenant().getId())
+            : TxCtx.noTenant();
     input.setTagIds(
-        tagService.findOrCreateTagsFromNames(tagNames).stream().map(Tag::getId).toList());
+        tagService.findOrCreateTagsFromNames(ctx, tagNames).stream().map(Tag::getId).toList());
 
     // Platform and arch
     input.setPlatform(Endpoint.PLATFORM_TYPE.fromString(extended.path(PLATFORM).asText()));

@@ -18,9 +18,8 @@ public class DataPackService {
   }
 
   public DataPack registerDataPack(String id, Tenant tenant) {
-    DataPack dp = new DataPack();
+    DataPack dp = DataPack.fromTenant(tenant.getId());
     dp.setId(id);
-    dp.setTenant(tenant);
     return dataPackRepository.save(dp);
   }
 }

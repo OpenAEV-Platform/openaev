@@ -46,6 +46,13 @@ public class Agent implements TenantBase {
     session,
   }
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Agent fromTenant(String tenantId) {
+    Agent entity = new Agent();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "agent_id")
   @JsonProperty("agent_id")

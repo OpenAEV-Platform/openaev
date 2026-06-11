@@ -22,6 +22,7 @@ import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 import com.opencsv.exceptions.CsvDataTypeMismatchException;
 import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
@@ -84,19 +85,22 @@ public class MapperService {
    * @param importMapperAddInput The input from the call
    * @return The created ImportMapper
    */
-  public ImportMapper createAndSaveImportMapper(String tenantId, ImportMapperAddInput importMapperAddInput) {
+  public ImportMapper createAndSaveImportMapper(
+      String tenantId, ImportMapperAddInput importMapperAddInput) {
     ImportMapper importMapper = createImportMapper(tenantId, importMapperAddInput);
 
     return importMapperRepository.save(importMapper);
   }
 
-  public ImportMapper createImportMapper(String tenantId, ImportMapperAddInput importMapperAddInput) {
-    ImportMapper importMapper = new ImportMapper();
+  public ImportMapper createImportMapper(
+      String tenantId, ImportMapperAddInput importMapperAddInput) {
+    ImportMapper importMapper = ImportMapper.fromTenant(tenantId);
     importMapper.setUpdateAttributes(importMapperAddInput);
     importMapper.setInjectImporters(new ArrayList<>());
 
     Map<String, InjectorContract> mapInjectorContracts =
-        getMapOfInjectorContracts(tenantId,
+        getMapOfInjectorContracts(
+            tenantId,
             importMapperAddInput.getImporters().stream()
                 .map(InjectImporterAddInput::getInjectorContractId)
                 .toList());
@@ -169,8 +173,8 @@ public class MapperService {
    * @param importMapperUpdateInput The input from the call
    * @return The updated ImportMapper
    */
-  public ImportMapper updateImportMapper(String tenantId,
-      String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
+  public ImportMapper updateImportMapper(
+      String tenantId, String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
     ImportMapper importMapper =
         importMapperRepository
             .findById(UUID.fromString(mapperId))
@@ -179,7 +183,8 @@ public class MapperService {
     importMapper.setUpdateDate(Instant.now());
 
     Map<String, InjectorContract> mapInjectorContracts =
-        getMapOfInjectorContracts(tenantId,
+        getMapOfInjectorContracts(
+            tenantId,
             importMapperUpdateInput.getImporters().stream()
                 .map(InjectImporterUpdateInput::getInjectorContractId)
                 .toList());
@@ -198,13 +203,11 @@ public class MapperService {
    * @param ids The ids of the injector contracts we want
    * @return The map of injector contracts by ids
    */
-  private Map<String, InjectorContract> getMapOfInjectorContracts(String tenantId, List<String> ids) {
+  private Map<String, InjectorContract> getMapOfInjectorContracts(
+      String tenantId, List<String> ids) {
     return stream(
             injectorContractRepository
-                .findAllById(
-                    ids.stream()
-                        .map(s -> new InjectorContractId(s, tenantId))
-                        .toList())
+                .findAllById(ids.stream().map(s -> new InjectorContractId(s, tenantId)).toList())
                 .spliterator(),
             false)
         .collect(Collectors.toMap(InjectorContract::getId, Function.identity()));
@@ -536,7 +539,7 @@ public class MapperService {
    * @param file file to import
    * @throws Exception exception if problem during the import
    */
-  public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {
+  public void importMappersCsv(TxCtx ctx, MultipartFile file, CsvType csvType) throws Exception {
     File tempFile = createTempFile("openaev-import-" + now().getEpochSecond(), ".csv");
     FileUtils.copyInputStreamToFile(file.getInputStream(), tempFile);
 
@@ -556,7 +559,7 @@ public class MapperService {
       switch (csvType) {
         case ENDPOINTS:
           try {
-            importEndpointsCsv(setEndpointsColumnMapping(), csvReader);
+            importEndpointsCsv(ctx, setEndpointsColumnMapping(), csvReader);
           } catch (Exception e) {
             throw new RuntimeException("Error during export CSV", e);
           }
@@ -571,7 +574,7 @@ public class MapperService {
   }
 
   private void importEndpointsCsv(
-      ColumnPositionMappingStrategy columnPositionMappingStrategy, CSVReader csvReader)
+      TxCtx ctx, ColumnPositionMappingStrategy columnPositionMappingStrategy, CSVReader csvReader)
       throws JsonProcessingException {
 
     CsvToBean csv = new CsvToBean();
@@ -583,7 +586,7 @@ public class MapperService {
     for (Object object : list) {
       EndpointExportImport endpointExportImport = (EndpointExportImport) object;
 
-      Endpoint endpoint = new Endpoint();
+      Endpoint endpoint = Endpoint.fromTenant(ctx.tenantIdFromUri());
       endpoint.setName(endpointExportImport.getName());
       endpoint.setDescription(endpointExportImport.getDescription());
       endpoint.setHostname(endpointExportImport.getHostname());
@@ -604,7 +607,7 @@ public class MapperService {
         TagCreateInput tagCreateInput = new TagCreateInput();
         tagCreateInput.setName(tag.getName());
         tagCreateInput.setColor(tag.getColor());
-        tagsForCreation.add(this.tagService.upsertTag(tagCreateInput));
+        tagsForCreation.add(this.tagService.upsertTag(ctx, tagCreateInput));
       }
       endpoint.setTags(iterableToSet(tagsForCreation));
       endpoint.setEoL(endpointExportImport.isEol());
@@ -635,7 +638,7 @@ public class MapperService {
   public void importMappers(String tenantId, List<ImportMapperAddInput> mappers) {
     importMapperRepository.saveAll(
         mappers.stream()
-                .map(input -> createImportMapper(tenantId, input))
+            .map(input -> createImportMapper(tenantId, input))
             .peek(
                 (m) ->
                     m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)))

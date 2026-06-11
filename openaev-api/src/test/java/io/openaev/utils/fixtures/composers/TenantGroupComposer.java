@@ -40,9 +40,7 @@ public class TenantGroupComposer extends ComposerBase<Group> {
 
     @Override
     public TenantGroupComposer.Composer persist() {
-      group.setTenant(
-          entityManager.getReference(
-              Tenant.class, "tenant"));
+      group.setTenant(entityManager.getReference(Tenant.class, "tenant"));
       roleComposers.forEach(TenantRoleComposer.Composer::persist);
       groupRepository.save(group);
       grantComposers.forEach(GrantComposer.Composer::persist);

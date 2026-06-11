@@ -29,6 +29,13 @@ import org.hibernate.annotations.*;
 @EntityListeners({ModelBaseListener.class})
 public class Finding implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Finding fromTenant(String tenantId) {
+    Finding entity = new Finding();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "finding_id", updatable = false, nullable = false)
   @GeneratedValue(generator = "UUID")

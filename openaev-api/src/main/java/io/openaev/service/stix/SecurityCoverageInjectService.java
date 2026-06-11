@@ -66,8 +66,8 @@ public class SecurityCoverageInjectService {
    * @param securityCoverage the related security coverage providing AttackPattern references
    * @return list injects related to this scenario
    */
-  public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(TxCtx ctx,
-      Scenario scenario, SecurityCoverage securityCoverage) {
+  public Set<Inject> createdInjectsForScenarioAndSecurityCoverage(
+      TxCtx ctx, Scenario scenario, SecurityCoverage securityCoverage) {
 
     // 1. Remove all inject placeholders
     cleanInjectPlaceholders(scenario.getId());
@@ -92,7 +92,7 @@ public class SecurityCoverageInjectService {
 
     // 6. Build injects from Attack Patterns
     createInjectsByAttackPatterns(
-            ctx,
+        ctx,
         scenario,
         securityCoverage.getAttackPatternRefs(),
         requiredAssetGroupMap,
@@ -194,6 +194,7 @@ public class SecurityCoverageInjectService {
                     if (!this.documentService.documentExists(documentId)) {
                       Inject inject =
                           injectAssistantService.buildManualInject(
+                              scenario.getTenant().getId(),
                               contractForPlaceholder,
                               documentId,
                               null,
@@ -275,7 +276,8 @@ public class SecurityCoverageInjectService {
       Scenario scenario,
       Set<Tag> tags) {
     Inject inject =
-        injectService.buildInject(injectorContract, injectName, injectDescription, true);
+        injectService.buildInject(
+            scenario.getTenant().getId(), injectorContract, injectName, injectDescription, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
     inject.setAssetGroups(assetGroups);
@@ -408,7 +410,12 @@ public class SecurityCoverageInjectService {
                 vulnerabilityId ->
                     Stream.of(
                         injectAssistantService.buildManualInject(
-                            contractForPlaceholder, vulnerabilityId, null, null, null)))
+                            scenario.getTenant().getId(),
+                            contractForPlaceholder,
+                            vulnerabilityId,
+                            null,
+                            null,
+                            null)))
             .peek(inject -> inject.setScenario(scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
@@ -497,7 +504,7 @@ public class SecurityCoverageInjectService {
    * @param attackPatternRefs the related security coverage providing AttackPattern references
    */
   private void createInjectsByAttackPatterns(
-          TxCtx ctx,
+      TxCtx ctx,
       Scenario scenario,
       Set<StixRefToExternalRef> attackPatternRefs,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -527,7 +534,12 @@ public class SecurityCoverageInjectService {
                 attackPatternId ->
                     Stream.of(
                         injectAssistantService.buildManualInject(
-                            contractForPlaceholder, attackPatternId, null, null, null)))
+                            scenario.getTenant().getId(),
+                            contractForPlaceholder,
+                            attackPatternId,
+                            null,
+                            null,
+                            null)))
             .peek(inject -> inject.setScenario(scenario))
             .toList();
     injectService.saveAll(placeholdersInject);
@@ -884,7 +896,9 @@ public class SecurityCoverageInjectService {
       return;
     }
 
-    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Set<Tag> tags =
+        tagService.findOrCreateTagsFromNames(
+            TxCtx.of(scenario.getTenant().getId()), new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
     Inject injectToCreate =
         createInjectAndAssociateToScenario(
             hostname,
@@ -914,7 +928,11 @@ public class SecurityCoverageInjectService {
       Set<Tag> tags) {
     Inject inject =
         injectService.buildInject(
-            injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
+            scenario.getTenant().getId(),
+            injectorContract,
+            "Resolve DNS " + hostname,
+            "Resolve Domain Name " + hostname,
+            true);
     inject.setTags(tags);
     inject.setScenario(scenario);
     inject.setAssetGroups(assetGroups);
@@ -938,7 +956,9 @@ public class SecurityCoverageInjectService {
       return;
     }
 
-    Set<Tag> tags = tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
+    Set<Tag> tags =
+        tagService.findOrCreateTagsFromNames(
+            TxCtx.of(scenario.getTenant().getId()), new HashSet<>(Set.of(OPENCTI_TAG_NAME)));
 
     Inject injectToCreate =
         createInjectAndAssociateToScenario(

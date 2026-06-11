@@ -31,6 +31,13 @@ import org.hibernate.annotations.*;
 @EntityListeners({ModelBaseListener.class})
 public class AttackPattern implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static AttackPattern fromTenant(String tenantId) {
+    AttackPattern entity = new AttackPattern();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "attack_pattern_id")
   @GeneratedValue(generator = "UUID")

@@ -76,10 +76,7 @@ public class SecurityExpression extends SecurityExpressionRoot
     if (isUserHasBypass()) {
       return true;
     }
-    Exercise exercise =
-        exerciseRepository
-            .findById(simulationId)
-            .orElseThrow();
+    Exercise exercise = exerciseRepository.findById(simulationId).orElseThrow();
     List<User> planners = exercise.getPlanners();
     Optional<User> planner =
         planners.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
@@ -101,10 +98,7 @@ public class SecurityExpression extends SecurityExpressionRoot
     if (isUserHasBypass()) {
       return true;
     }
-    Exercise exercise =
-        exerciseRepository
-            .findById(simulationId)
-            .orElseThrow();
+    Exercise exercise = exerciseRepository.findById(simulationId).orElseThrow();
     List<User> observers = exercise.getObservers();
     Optional<User> observer =
         observers.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
@@ -115,10 +109,7 @@ public class SecurityExpression extends SecurityExpressionRoot
     if (isUserHasBypass()) {
       return true;
     }
-    Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow();
+    Exercise exercise = exerciseRepository.findById(exerciseId).orElseThrow();
     List<User> players = exercise.getUsers();
     Optional<User> player =
         players.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();

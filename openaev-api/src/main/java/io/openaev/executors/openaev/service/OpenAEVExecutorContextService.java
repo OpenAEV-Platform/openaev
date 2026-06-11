@@ -63,7 +63,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
     if (platform == null) {
       throw new RuntimeException("Unsupported null platform");
     }
-    AssetAgentJob assetAgentJob = new AssetAgentJob();
+    AssetAgentJob assetAgentJob = AssetAgentJob.fromTenant(inject.getTenant().getId());
     assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch));
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);

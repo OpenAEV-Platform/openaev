@@ -98,7 +98,8 @@ public class PayloadService {
             .orElseGet(
                 () -> {
                   String contractId = String.valueOf(UUID.randomUUID());
-                  InjectorContract newContract = new InjectorContract();
+                  InjectorContract newContract =
+                      InjectorContract.fromTenant(payload.getTenant().getId());
                   newContract.setId(contractId);
                   return newContract;
                 });
@@ -311,36 +312,38 @@ public class PayloadService {
   }
 
   public Payload generateDuplicatedPayload(Payload originalPayload) {
+    String tenantId =
+        originalPayload.getTenant() != null ? originalPayload.getTenant().getId() : null;
     return switch (originalPayload.getTypeEnum()) {
       case COMMAND -> {
         Command originCommand = (Command) Hibernate.unproxy(originalPayload);
-        Command duplicateCommand = new Command();
+        Command duplicateCommand = Command.fromTenant(tenantId);
         payloadUtils.duplicateCommonProperties(originCommand, duplicateCommand);
         yield duplicateCommand;
       }
       case EXECUTABLE -> {
         Executable originExecutable = (Executable) Hibernate.unproxy(originalPayload);
-        Executable duplicateExecutable = new Executable();
+        Executable duplicateExecutable = Executable.fromTenant(tenantId);
         payloadUtils.duplicateCommonProperties(originExecutable, duplicateExecutable);
         duplicateExecutable.setExecutableFile(originExecutable.getExecutableFile());
         yield duplicateExecutable;
       }
       case FILE_DROP -> {
         FileDrop originFileDrop = (FileDrop) Hibernate.unproxy(originalPayload);
-        FileDrop duplicateFileDrop = new FileDrop();
+        FileDrop duplicateFileDrop = FileDrop.fromTenant(tenantId);
         payloadUtils.duplicateCommonProperties(originFileDrop, duplicateFileDrop);
         duplicateFileDrop.setFileDropFile(originFileDrop.getFileDropFile());
         yield duplicateFileDrop;
       }
       case DNS_RESOLUTION -> {
         DnsResolution originDnsResolution = (DnsResolution) Hibernate.unproxy(originalPayload);
-        DnsResolution duplicateDnsResolution = new DnsResolution();
+        DnsResolution duplicateDnsResolution = DnsResolution.fromTenant(tenantId);
         payloadUtils.duplicateCommonProperties(originDnsResolution, duplicateDnsResolution);
         yield duplicateDnsResolution;
       }
       case NETWORK_TRAFFIC -> {
         NetworkTraffic originNetworkTraffic = (NetworkTraffic) Hibernate.unproxy(originalPayload);
-        NetworkTraffic duplicateNetworkTraffic = new NetworkTraffic();
+        NetworkTraffic duplicateNetworkTraffic = NetworkTraffic.fromTenant(tenantId);
         payloadUtils.duplicateCommonProperties(originNetworkTraffic, duplicateNetworkTraffic);
         yield duplicateNetworkTraffic;
       }
@@ -375,7 +378,8 @@ public class PayloadService {
    * @param searchPaginationInput the input containing pagination and search criteria
    * @return a paginated list of Payloads
    */
-  public Page<Payload> searchPayloads(TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<Payload> searchPayloads(
+      TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     User currentUser = userService.currentUser();
     return buildPaginationJPA(
         SpecificationUtils.withGrantFilter(
@@ -383,7 +387,9 @@ public class PayloadService {
             Grant.GRANT_TYPE.OBSERVER,
             currentUser.getId(),
             currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
-            currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_PAYLOADS)),
+            currentUser
+                .getCapabilities(ctx.tenantIdFromUri())
+                .contains(Capability.ACCESS_PAYLOADS)),
         handleArchitectureFilter(searchPaginationInput),
         Payload.class);
   }
@@ -396,7 +402,7 @@ public class PayloadService {
    * @param scenario to add to document if file drop is created
    * @return retrieved or created FileDrop
    */
-  public FileDrop getFileDropPayloadByDocument( String documentId, Scenario scenario) {
+  public FileDrop getFileDropPayloadByDocument(String documentId, Scenario scenario) {
     FileDrop fileDrop =
         payloadRepository
             .findByDocumentId(documentId)
@@ -415,7 +421,7 @@ public class PayloadService {
   public FileDrop createFileDropPayload(String tenantId, String documentId) {
     Document document = this.documentService.document(documentId);
 
-    FileDrop fileDrop = new FileDrop();
+    FileDrop fileDrop = FileDrop.fromTenant(tenantId);
     fileDrop.setFileDropFile(document);
     fileDrop.setName(String.format("Drop %s file", document.getName()));
     fileDrop.setDescription(
@@ -436,9 +442,9 @@ public class PayloadService {
         saved,
         List.of(),
         domainService.upserts(
-            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())),
-            tenantId),
-        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+            Set.of(InjectorContractDomainDTO.fromDomain(PresetDomain.getEndpoint())), tenantId),
+        tagService.findOrCreateTagsFromNames(
+            TxCtx.of(tenantId), new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
 
@@ -451,7 +457,8 @@ public class PayloadService {
   public DnsResolution getDynamicDnsResolutionPayload(String tenantId) {
     return payloadRepository
         .findById(DYNAMIC_DNS_RESOLUTION_UUID)
-        .map(DnsResolution.class::cast).orElseGet(() -> createDynamicDnsResolutionPayload(tenantId));
+        .map(DnsResolution.class::cast)
+        .orElseGet(() -> createDynamicDnsResolutionPayload(tenantId));
   }
 
   /**
@@ -462,7 +469,7 @@ public class PayloadService {
    */
   @Lock(type = LockResourceType.PAYLOAD, key = DYNAMIC_DNS_RESOLUTION_UUID)
   private DnsResolution createDynamicDnsResolutionPayload(String tenantId) {
-    DnsResolution dynamicDnsResolutionPayload = new DnsResolution();
+    DnsResolution dynamicDnsResolutionPayload = DnsResolution.fromTenant(tenantId);
     dynamicDnsResolutionPayload.setId(DYNAMIC_DNS_RESOLUTION_UUID);
     dynamicDnsResolutionPayload.setHostname(DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE);
     dynamicDnsResolutionPayload.setName("Dynamic DNS Resolution");
@@ -495,7 +502,8 @@ public class PayloadService {
                 PresetDomain.getNetwork(),
                 PresetDomain.getUrlFiltering()),
             tenantId),
-        tagService.findOrCreateTagsFromNames(new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
+        tagService.findOrCreateTagsFromNames(
+            TxCtx.of(tenantId), new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
 

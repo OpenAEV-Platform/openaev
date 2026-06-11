@@ -30,8 +30,8 @@ class MinioServiceTest extends IntegrationTest {
     // -- ACT --
     InputStream data = new ByteArrayInputStream(TEST_CONTENT);
     String fullPath =
-        minioService.uploadFileInTenantPath("tenantId",
-            TEST_FILE_NAME, data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
+        minioService.uploadFileInTenantPath(
+            "tenantId", TEST_FILE_NAME, data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
 
     // -- ASSERT --
     assertDoesNotThrow(() -> minioService.objectExists(fullPath));
@@ -57,11 +57,12 @@ class MinioServiceTest extends IntegrationTest {
   void should_get_file_in_tenant_path() throws Exception {
     // -- ARRANGE --
     InputStream data = new ByteArrayInputStream(TEST_CONTENT);
-    minioService.uploadFileInTenantPath("tenantId",
-        "readable/test-read.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
+    minioService.uploadFileInTenantPath(
+        "tenantId", "readable/test-read.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
 
     // -- ACT --
-    Optional<InputStream> result = minioService.getFilePathInTenant("tenantId","readable/test-read.txt");
+    Optional<InputStream> result =
+        minioService.getFilePathInTenant("tenantId", "readable/test-read.txt");
 
     // -- ASSERT --
     assertThat(result).isPresent();
@@ -72,7 +73,8 @@ class MinioServiceTest extends IntegrationTest {
   @Test
   void should_return_empty_when_file_does_not_exist() {
     // -- ACT --
-    Optional<InputStream> result = minioService.getFilePathInTenant("tenantId","nonexistent/ghost.bin");
+    Optional<InputStream> result =
+        minioService.getFilePathInTenant("tenantId", "nonexistent/ghost.bin");
 
     // -- ASSERT --
     assertThat(result).isEmpty();
@@ -102,7 +104,7 @@ class MinioServiceTest extends IntegrationTest {
   void should_return_empty_file_container_when_file_does_not_exist() {
     // -- ACT --
     Optional<FileContainer> result =
-        minioService.getFileContainerInTenant("tenantId","nonexistent/missing-doc");
+        minioService.getFileContainerInTenant("tenantId", "nonexistent/missing-doc");
 
     // -- ASSERT --
     assertThat(result).isEmpty();
@@ -115,12 +117,12 @@ class MinioServiceTest extends IntegrationTest {
     // -- ARRANGE --
     InputStream data = new ByteArrayInputStream(TEST_CONTENT);
     String fullPath =
-        minioService.uploadFileInTenantPath("tenantId",
-            "to-delete/single-file.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
+        minioService.uploadFileInTenantPath(
+            "tenantId", "to-delete/single-file.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
     assertDoesNotThrow(() -> minioService.objectExists(fullPath));
 
     // -- ACT --
-    minioService.deleteFileInTenantPath("tenantId","to-delete/single-file.txt");
+    minioService.deleteFileInTenantPath("tenantId", "to-delete/single-file.txt");
 
     // -- ASSERT --
     assertThrows(ErrorResponseException.class, () -> minioService.objectExists(fullPath));
@@ -129,10 +131,10 @@ class MinioServiceTest extends IntegrationTest {
   @Test
   void should_delete_directory_in_tenant_path() throws Exception {
     // -- ARRANGE --
-    String dir =  "tenant/exercises/ex-to-delete/";
+    String dir = "tenant/exercises/ex-to-delete/";
     InputStream data = new ByteArrayInputStream(TEST_CONTENT);
-    minioService.uploadFileInTenantPath("tenantId",
-        dir + "file1.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
+    minioService.uploadFileInTenantPath(
+        "tenantId", dir + "file1.txt", data, TEST_CONTENT.length, TEST_CONTENT_TYPE);
     assertThat(minioService.countObjectsForCurrentTenant("tenantId", dir)).isEqualTo(1);
 
     // -- ACT --

@@ -616,9 +616,9 @@ class XtmHubServiceTest {
         "Should send a single email when ALL tenants have lost connectivity for more than 24h")
     void whenAllTenantsLostConnectivityMoreThan24h_ShouldSendEmailOnce() {
       // Given
-      
+
       TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(25));
-      
+
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(30));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -651,9 +651,9 @@ class XtmHubServiceTest {
         "Should not send global email when only some tenants have lost connectivity, but notify the affected tenant admin")
     void whenOnlySomeTenantsLostConnectivity_ShouldNotSendEmail() {
       // Given
-      
+
       TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(25));
-      
+
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -684,7 +684,7 @@ class XtmHubServiceTest {
         "Should not send email again and not reset flag when all tenants are still lost and email was already sent")
     void whenAllTenantsStillLostAndEmailAlreadySent_ShouldNotSendEmailAgain() {
       // Given — both flags disabled to simulate emails were already sent on a previous run
-      
+
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       reg.setConnectivityEmailEligible(false); // per-tenant email already sent
       String tenantId = reg.getTenant().getId();
@@ -712,7 +712,7 @@ class XtmHubServiceTest {
     @DisplayName("Should reset the email flag when connectivity is restored after having been lost")
     void whenConnectivityRestoredAfterLoss_ShouldResetEmailFlag() {
       // Given — both flags disabled to simulate emails were sent on a previous run
-      
+
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       reg.setConnectivityEmailEligible(false); // per-tenant email was sent
       String tenantId = reg.getTenant().getId();
@@ -746,7 +746,7 @@ class XtmHubServiceTest {
     @DisplayName("Should send email when no registrations exist after filtering NOT_FOUND")
     void whenAllRegistrationsAreNotFound_ShouldNotSendEmail() {
       // Given
-      
+
       TenantXtmHubRegistration reg = buildRegistration("token-1", now.minusHours(30));
       String tenantId = reg.getTenant().getId();
 
@@ -773,9 +773,9 @@ class XtmHubServiceTest {
     @DisplayName("Should send correct url per tenant in the GraphQL request body")
     void whenRegistrationsExist_ShouldSendCorrectUrlPerTenant() {
       // Given
-      
+
       TenantXtmHubRegistration reg1 = buildRegistration("token-1", now.minusHours(1));
-      
+
       TenantXtmHubRegistration reg2 = buildRegistration("token-2", now.minusHours(1));
 
       when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
@@ -1005,7 +1005,8 @@ class XtmHubServiceTest {
 
       // When
       ResponseStatusException exception =
-          assertThrows(ResponseStatusException.class, () -> xtmHubService.autoRegister("tenant", token));
+          assertThrows(
+              ResponseStatusException.class, () -> xtmHubService.autoRegister("tenant", token));
 
       // Then
       assertEquals(HttpStatus.BAD_GATEWAY, exception.getStatusCode());

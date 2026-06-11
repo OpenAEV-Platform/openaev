@@ -326,6 +326,7 @@
                         <arg>-Atenant.rule.endpoint.transactional=true</arg>
                         <arg>-Atenant.rule.transactional.txctx=true</arg>
                         <arg>-Atenant.rule.no.spel.tenant=true</arg>
+                        <arg>-Aentity.rule.no.direct.new=true</arg>
                     </compilerArgs>
                     <source>21</source>
                     <target>21</target>

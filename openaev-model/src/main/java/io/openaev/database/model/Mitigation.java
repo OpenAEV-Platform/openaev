@@ -26,6 +26,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class Mitigation implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Mitigation fromTenant(String tenantId) {
+    Mitigation entity = new Mitigation();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "mitigation_id")
   @GeneratedValue(generator = "UUID")

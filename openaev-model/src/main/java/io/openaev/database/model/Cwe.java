@@ -17,10 +17,16 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "cwes")
 @EntityListeners({ModelBaseListener.class})
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Cwe implements TenantBase {
+
+  /** Creates a new instance scoped to the given tenant. */
+  public static Cwe fromTenant(String tenantId) {
+    Cwe entity = new Cwe();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
 
   @Id
   @Column(name = "cwe_id")

@@ -61,11 +61,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsCountInterval dashboardCount(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardCountOnResourceId(ctx, scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardCountOnResourceId(
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -78,12 +79,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsAvgs dashboardAverage(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardAverageOnResourceId(ctx,
-        scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardAverageOnResourceId(
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -96,12 +97,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<EsSeries> dashboardSeries(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
-    return this.customDashboardService.dashboardSeriesOnResourceId(ctx,
-        scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardSeriesOnResourceId(
+        ctx, scenarioId, widgetId, parameters);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -114,11 +115,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsEntities dashboardEntities(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
-    return this.customDashboardService.dashboardEntitiesOnResourceId(ctx, scenarioId, widgetId, input);
+    return this.customDashboardService.dashboardEntitiesOnResourceId(
+        ctx, scenarioId, widgetId, input);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -131,12 +133,12 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
-    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(ctx,
-        scenarioId, widgetId, input);
+    return this.customDashboardService.widgetToEntitiesRuntimeOnResourceId(
+        ctx, scenarioId, widgetId, input);
   }
 
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
@@ -150,12 +152,12 @@ public class ScenarioDashboardApi {
       resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Search TagRules")
   public List<EsAttackPath> dashboardAttackPaths(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
-    return this.customDashboardService.dashboardAttackPathsOnResourceId(ctx,
-        scenarioId, widgetId, parameters);
+    return this.customDashboardService.dashboardAttackPathsOnResourceId(
+        ctx, scenarioId, widgetId, parameters);
   }
 }

@@ -4,6 +4,7 @@ import static io.openaev.rest.custom_dashboard.CustomDashboardApi.CUSTOM_DASHBOA
 import static io.openaev.rest.custom_dashboard.CustomDashboardApi.TENANT_CUSTOM_DASHBOARDS_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Widget;
@@ -41,9 +42,12 @@ public class CustomDashboardWidgetApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Widget> createWidget(
+      TxCtx ctx,
       @PathVariable @NotBlank final String id,
       @RequestBody @Valid @NotNull final WidgetInput input) {
-    return ResponseEntity.ok(this.widgetService.createWidget(id, input.toWidget(new Widget())));
+    return ResponseEntity.ok(
+        this.widgetService.createWidget(
+            id, input.toWidget(Widget.fromTenant(ctx.tenantIdFromUri()))));
   }
 
   @GetMapping

@@ -27,8 +27,8 @@ public class ManualExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(TxCtx ctx,
-                                  @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+  public ExecutionProcess process(
+      TxCtx ctx, @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
 
     ManualContent content = contentConvert(injection, ManualContent.class);

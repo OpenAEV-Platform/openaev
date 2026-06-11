@@ -26,6 +26,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class Organization implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Organization fromTenant(String tenantId) {
+    Organization entity = new Organization();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "organization_id")
   @GeneratedValue(generator = "UUID")

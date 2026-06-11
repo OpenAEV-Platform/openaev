@@ -43,10 +43,10 @@ public class CustomDashboardApi extends RestBehavior {
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
-      @RequestBody @Valid @NotNull final CustomDashboardInput input) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final CustomDashboardInput input) {
     return ResponseEntity.ok(
         this.customDashboardService.createCustomDashboard(
-            input.toCustomDashboard(new CustomDashboard())));
+            input.toCustomDashboard(CustomDashboard.fromTenant(ctx.tenantIdFromUri()))));
   }
 
   @GetMapping
@@ -82,6 +82,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> updateCustomDashboard(
+      TxCtx ctx,
       @PathVariable @NotBlank final String customDashboardId,
       @RequestBody @Valid @NotNull final CustomDashboardInput input) {
     CustomDashboard existingCustomDashboard =
@@ -97,8 +98,8 @@ public class CustomDashboardApi extends RestBehavior {
       resourceId = "#customDashboardId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DASHBOARD)
-  public ResponseEntity<Void> deleteCustomDashboard(TxCtx ctx,
-                                                    @PathVariable @NotBlank final String customDashboardId) {
+  public ResponseEntity<Void> deleteCustomDashboard(
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
     this.customDashboardService.deleteCustomDashboard(ctx.tenantIdFromUri(), customDashboardId);
     return ResponseEntity.noContent().build();
   }

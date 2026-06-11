@@ -8,8 +8,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class NotificationRuleMapper {
-  public NotificationRule toNotificationRule(final CreateNotificationRuleInput input) {
-    NotificationRule notificationRule = new NotificationRule();
+  public NotificationRule toNotificationRule(
+      final CreateNotificationRuleInput input, String tenantId) {
+    NotificationRule notificationRule = NotificationRule.fromTenant(tenantId);
     notificationRule.setResourceId(input.getResourceId());
     notificationRule.setSubject(input.getSubject());
     try {

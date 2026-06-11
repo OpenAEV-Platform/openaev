@@ -103,9 +103,7 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
     Injector injector =
-        injectorRepository
-            .findById(injectorId)
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
     return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
             contract -> {
@@ -127,9 +125,7 @@ public class InjectorApi extends RestBehavior {
   public Injector updateInjector(
       @PathVariable String injectorId, @Valid @RequestBody InjectorUpdateInput input) {
     Injector injector =
-        injectorRepository
-            .findById(injectorId)
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
     return injectorService.updateExistingExternalInjector(
         injector,
         injector.getType(),
@@ -149,9 +145,7 @@ public class InjectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
   public Injector injector(@PathVariable String injectorId) {
-    return injectorRepository
-        .findById(injectorId)
-        .orElseThrow(ElementNotFoundException::new);
+    return injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
   }
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -174,7 +168,8 @@ public class InjectorApi extends RestBehavior {
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
   @Transactional(rollbackOn = Exception.class)
-  public InjectorRegistration registerInjector(TxCtx ctx,
+  public InjectorRegistration registerInjector(
+      TxCtx ctx,
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     return injectorService.registerExternalInjector(ctx, input, file);

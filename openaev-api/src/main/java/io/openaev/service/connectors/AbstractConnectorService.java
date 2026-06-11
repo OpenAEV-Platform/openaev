@@ -1,6 +1,5 @@
 package io.openaev.service.connectors;
 
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -41,7 +40,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
       ConnectorInstance instance,
       boolean existingConnector);
 
-  protected abstract T createNewConnector();
+  protected abstract T createNewConnector(String tenantId);
 
   private String getConnectorIdFromInstance(ConnectorInstance instance) {
     return instance.getConfigurations().stream()
@@ -80,7 +79,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
   }
 
   private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
-    T newConnector = createNewConnector();
+    T newConnector = createNewConnector(instance.getTenant().getId());
     newConnector.setId(collectorId);
     newConnector.setName(resolveConnectorName(instance));
     newConnector.setExternal(true);

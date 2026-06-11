@@ -66,7 +66,9 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       EndpointRegisterInput input = buildRegisterInput();
       Endpoint mockEndpoint = new Endpoint();
       mockEndpoint.setHostname("test");
-      doReturn(mockEndpoint).when(endpointService).register(any(), any(EndpointRegisterInput.class));
+      doReturn(mockEndpoint)
+          .when(endpointService)
+          .register(any(), any(EndpointRegisterInput.class));
 
       // Act & Assert
       mvc.perform(
@@ -103,7 +105,9 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
       EndpointRegisterInput input = buildRegisterInput();
       Endpoint mockEndpoint = new Endpoint();
       mockEndpoint.setHostname("test");
-      doReturn(mockEndpoint).when(endpointService).register(any(), any(EndpointRegisterInput.class));
+      doReturn(mockEndpoint)
+          .when(endpointService)
+          .register(any(), any(EndpointRegisterInput.class));
 
       // Act & Assert
       mvc.perform(

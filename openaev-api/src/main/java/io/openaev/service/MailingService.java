@@ -41,7 +41,7 @@ public class MailingService {
     emailContent.setSubject(subject);
     emailContent.setBody(body);
 
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant(null);
     InjectorContract emailContract =
         this.injectorContractRepository
             .findById(EmailContract.EMAIL_DEFAULT)

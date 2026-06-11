@@ -117,7 +117,7 @@ public class TaniumExecutorIntegration extends Integration {
     TxCtx ctx = TxCtx.noTenant();
     Executor executor =
         executorService.register(
-                ctx,
+            ctx,
             executorId,
             TANIUM_EXECUTOR_TYPE,
             executorName,

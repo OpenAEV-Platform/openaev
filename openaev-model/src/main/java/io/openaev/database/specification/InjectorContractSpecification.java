@@ -43,11 +43,13 @@ public class InjectorContractSpecification {
    * @param currentUser current user performing the search
    * @return Specification for filtering InjectorContracts based on user grants
    */
-  public static Specification<InjectorContract> hasAccessToInjectorContract(TxCtx ctx,
-                                                                            final User currentUser) {
+  public static Specification<InjectorContract> hasAccessToInjectorContract(
+      TxCtx ctx, final User currentUser) {
     return (root, query, cb) -> {
       if (currentUser.isAdminOrBypass(ctx.tenantIdFromUri())
-          || currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_THREAT_ARSENALS)) {
+          || currentUser
+              .getCapabilities(ctx.tenantIdFromUri())
+              .contains(Capability.ACCESS_THREAT_ARSENALS)) {
         return cb.conjunction();
       }
 

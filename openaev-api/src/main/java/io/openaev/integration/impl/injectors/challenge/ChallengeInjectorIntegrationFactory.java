@@ -117,7 +117,8 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
     try {
       injectorService.injector(ctx, ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(ctx,
+      injectorService.registerBuiltinInjector(
+          ctx,
           ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
           ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
           challengeContract,

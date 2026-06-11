@@ -142,10 +142,11 @@ public class CatalogConnectorApiTest extends IntegrationTest {
       throws Exception {
     // Arrange
     String fileName = "tenant-fallback-logo.png";
-      fileService.uploadStream("tenant",
-          FileService.CONNECTORS_LOGO_PATH,
-          fileName,
-          new ByteArrayInputStream(new byte[] {1, 2, 3}));
+    fileService.uploadStream(
+        "tenant",
+        FileService.CONNECTORS_LOGO_PATH,
+        fileName,
+        new ByteArrayInputStream(new byte[] {1, 2, 3}));
     Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("logo-fallback");
 
     // Act / Assert

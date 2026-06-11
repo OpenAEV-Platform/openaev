@@ -143,11 +143,10 @@ public class ExecutorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
   public Executor updateExecutor(
-      @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) { // TODO JRI What?? input not used?
+      @PathVariable String executorId,
+      @Valid @RequestBody ExecutorUpdateInput input) { // TODO JRI What?? input not used?
     Executor executor =
-        executorRepository
-            .findById(executorId)
-            .orElseThrow(ElementNotFoundException::new);
+        executorRepository.findById(executorId).orElseThrow(ElementNotFoundException::new);
     return updateExecutor(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
   }
@@ -159,27 +158,27 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackOn = Exception.class)
   public Executor registerExecutor(
-          TxCtx ctx,
+      TxCtx ctx,
       @Valid @RequestPart("input") ExecutorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> icon,
       @RequestPart("banner") Optional<MultipartFile> banner) {
     try {
       // Upload icon
       if (icon.isPresent() && "image/png".equals(icon.get().getContentType())) {
-        fileService.uploadFile(ctx.tenantIdFromUri(),
-            FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png", icon.get());
+        fileService.uploadFile(
+            ctx.tenantIdFromUri(),
+            FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png",
+            icon.get());
       }
       // Upload icon
       if (banner.isPresent() && "image/png".equals(banner.get().getContentType())) {
-        fileService.uploadFile(ctx.tenantIdFromUri(),
+        fileService.uploadFile(
+            ctx.tenantIdFromUri(),
             FileService.EXECUTORS_IMAGES_BANNERS_BASE_PATH + input.getType() + ".png",
             banner.get());
       }
       // We need to support upsert for registration
-      Executor executor =
-          executorRepository
-              .findById(input.getId())
-              .orElse(null);
+      Executor executor = executorRepository.findById(input.getId()).orElse(null);
       if (executor == null) {
         Executor executorChecking =
             executorRepository
@@ -196,7 +195,7 @@ public class ExecutorApi extends RestBehavior {
         return updateExecutor(executor, input.getType(), input.getName(), input.getPlatforms());
       } else {
         // save the injector
-        Executor newExecutor = new Executor();
+        Executor newExecutor = Executor.fromTenant(ctx.tenantIdFromUri());
         newExecutor.setId(input.getId());
         newExecutor.setName(input.getName());
         newExecutor.setType(input.getType());
@@ -378,7 +377,7 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackOn = Exception.class)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
-          TxCtx ctx,
+      TxCtx ctx,
       @Parameter(
               description =
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
@@ -399,8 +398,7 @@ public class ExecutorApi extends RestBehavior {
     String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
 
     // FIND TOKEN BY TENANT
-    String token =
-        privilegeService.getTokenUserServiceAccountByTenant(ctx.tenantIdFromUri());
+    String token = privilegeService.getTokenUserServiceAccountByTenant(ctx.tenantIdFromUri());
 
     String installCommand =
         this.endpointService.generateInstallCommand(

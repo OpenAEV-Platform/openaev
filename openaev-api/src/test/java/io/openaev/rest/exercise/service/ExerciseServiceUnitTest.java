@@ -12,7 +12,6 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
@@ -40,7 +39,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -475,44 +473,44 @@ class ExerciseServiceUnitTest {
       exercise.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
       when(exerciseRepository.findByIdAndTenantId(exerciseId, "tenant-1"))
-              .thenReturn(Optional.of(exercise));
+          .thenReturn(Optional.of(exercise));
       when(teamRepository.findAllById(any()))
-              .thenAnswer(
-                      invocation -> {
-                        Iterable<String> ids = invocation.getArgument(0);
-                        Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
-                        List<Team> result = new ArrayList<>();
-                        ids.forEach(
-                                id -> {
-                                  Team team = teamsById.get(id);
-                                  if (team != null) {
-                                    result.add(team);
-                                  }
-                                });
-                        return result;
-                      });
+          .thenAnswer(
+              invocation -> {
+                Iterable<String> ids = invocation.getArgument(0);
+                Map<String, Team> teamsById = Map.of("team-2", existingTeam2, "team-3", newTeam);
+                List<Team> result = new ArrayList<>();
+                ids.forEach(
+                    id -> {
+                      Team team = teamsById.get(id);
+                      if (team != null) {
+                        result.add(team);
+                      }
+                    });
+                return result;
+              });
       when(userRepository.findById("user-1")).thenReturn(Optional.of(newPlayer));
       when(exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
               exerciseId, "team-3", "user-1"))
-              .thenReturn(false);
+          .thenReturn(false);
       when(teamService.find(any())).thenReturn(List.of());
 
       mockedExerciseService.replaceTeams(exerciseId, List.of("team-2", "team-3", "team-3"));
 
       verify(exerciseTeamUserRepository)
-              .deleteByExerciseIdAndTeamIds(
-                      eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+          .deleteByExerciseIdAndTeamIds(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
       verify(injectRepository)
-              .removeTeamsForExercise(
-                      eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+          .removeTeamsForExercise(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
       verify(lessonsCategoryRepository)
-              .removeTeamsForExercise(
-                      eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
+          .removeTeamsForExercise(
+              eq(exerciseId), argThat(ids -> ids.size() == 1 && ids.contains("team-1")));
 
       verify(exerciseTeamUserRepository)
-              .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-3", "user-1");
+          .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-3", "user-1");
       verify(exerciseTeamUserRepository, never())
-              .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-2", "user-1");
+          .existsByExerciseIdAndTeamIdAndUserId(exerciseId, "team-2", "user-1");
 
       assertEquals(2, exercise.getTeams().size());
       assertTrue(exercise.getTeams().stream().anyMatch(team -> "team-2".equals(team.getId())));
@@ -532,7 +530,7 @@ class ExerciseServiceUnitTest {
       exercise.setTeams(new ArrayList<>(List.of(existingTeam)));
 
       when(exerciseRepository.findByIdAndTenantId(exerciseId, "tenant-1"))
-              .thenReturn(Optional.of(exercise));
+          .thenReturn(Optional.of(exercise));
       when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
       when(teamService.find(any())).thenReturn(List.of());
 

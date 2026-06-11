@@ -45,8 +45,8 @@ public class PayloadApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
-  public Page<Payload> payloads(TxCtx ctx,
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<Payload> payloads(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(ctx, searchPaginationInput);
   }
 

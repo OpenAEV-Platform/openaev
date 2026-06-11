@@ -2,7 +2,6 @@ package io.openaev.collectors.expectations_expiration_manager;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
-import io.openaev.context.TxCtx;
 import io.openaev.integration.BuiltinTenantRegistrable;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -35,7 +34,7 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
       collectorService.collector(config.getId());
     } catch (ElementNotFoundException e) {
       collectorService.register(
-              tenantId,
+          tenantId,
           config.getId(),
           FAKE_DETECTOR_COLLECTOR_TYPE,
           FAKE_DETECTOR_COLLECTOR_NAME,

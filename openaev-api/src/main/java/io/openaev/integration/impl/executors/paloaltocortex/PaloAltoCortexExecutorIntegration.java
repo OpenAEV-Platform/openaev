@@ -118,7 +118,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     TxCtx ctx = TxCtx.noTenant();
     Executor executor =
         executorService.register(
-                ctx,
+            ctx,
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
             executorName,

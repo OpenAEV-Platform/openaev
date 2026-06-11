@@ -73,8 +73,8 @@ public class CveApi extends RestBehavior {
   @PostMapping(CVE_API)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
   @Transactional(rollbackOn = Exception.class)
-  public CveSimple createCve(@Valid @RequestBody VulnerabilityCreateInput input) {
-    return cveMapper.toCveSimple(vulnerabilityService.createVulnerability(input));
+  public CveSimple createCve(TxCtx ctx, @Valid @RequestBody VulnerabilityCreateInput input) {
+    return cveMapper.toCveSimple(vulnerabilityService.createVulnerability(ctx, input));
   }
 
   @Operation(summary = "Bulk insert CVEs")
@@ -82,9 +82,10 @@ public class CveApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   @PostMapping(CVE_API + "/bulk")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
-  public void bulkInsertCVEsForCollector(@Valid @RequestBody @NotNull CVEBulkInsertInput input) {
+  public void bulkInsertCVEsForCollector(
+      TxCtx ctx, @Valid @RequestBody @NotNull CVEBulkInsertInput input) {
     this.vulnerabilityService.bulkUpsertVulnerabilities(
-        vulnerabilityMapper.fromCVEBulkInsertInput(input));
+        ctx, vulnerabilityMapper.fromCVEBulkInsertInput(input));
   }
 
   @Operation(summary = "Update an existing CVE")
@@ -95,8 +96,8 @@ public class CveApi extends RestBehavior {
       resourceType = ResourceType.VULNERABILITY)
   @Transactional(rollbackOn = Exception.class)
   public CveSimple updateCve(
-      @PathVariable String cveId, @Valid @RequestBody VulnerabilityUpdateInput input) {
-    return cveMapper.toCveSimple(vulnerabilityService.updateVulnerability(cveId, input));
+      TxCtx ctx, @PathVariable String cveId, @Valid @RequestBody VulnerabilityUpdateInput input) {
+    return cveMapper.toCveSimple(vulnerabilityService.updateVulnerability(ctx, cveId, input));
   }
 
   @Operation(summary = "Delete a CVE")

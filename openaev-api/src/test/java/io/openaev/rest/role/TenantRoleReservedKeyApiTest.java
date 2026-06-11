@@ -51,14 +51,12 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
 
   /** Computes the tenant-scoped reserved id used by the service-account role in this tenant. */
   private String reservedServiceRoleId() {
-    return AbstractPrivilegeService.getUUIDFromName(
-        SERVICE_ROLE_ID, "tenant");
+    return AbstractPrivilegeService.getUUIDFromName(SERVICE_ROLE_ID, "tenant");
   }
 
   /** Computes the tenant-scoped reserved id used by the STIX-processor role in this tenant. */
   private String reservedStixRoleId() {
-    return AbstractPrivilegeService.getUUIDFromName(
-        PROCESS_STIX_ROLE_ID, "tenant");
+    return AbstractPrivilegeService.getUUIDFromName(PROCESS_STIX_ROLE_ID, "tenant");
   }
 
   /** Persists a role having an explicitly assigned (reserved) id. */
@@ -89,11 +87,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   roleService.createRole(
-                          "tenant",
-                      reservedId,
-                      "AnyName",
-                      "desc",
-                      Set.of(Capability.ACCESS_ASSETS)))
+                      "tenant", reservedId, "AnyName", "desc", Set.of(Capability.ACCESS_ASSETS)))
           .isInstanceOf(BadRequestException.class);
     }
 
@@ -108,11 +102,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   roleService.createRole(
-                          "tenant",
-                      reservedId,
-                      "AnyName",
-                      "desc",
-                      Set.of(Capability.ACCESS_ASSETS)))
+                      "tenant", reservedId, "AnyName", "desc", Set.of(Capability.ACCESS_ASSETS)))
           .isInstanceOf(BadRequestException.class);
     }
 

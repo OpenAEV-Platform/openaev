@@ -145,19 +145,22 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/search/export", TENANT_INJECT_URI + "/search/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
-          TxCtx ctx,
-      @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
+      TxCtx ctx,
+      @RequestBody @Valid InjectExportFromSearchRequestInput input,
+      HttpServletResponse response)
       throws IOException {
 
     // Control and format inputs
     List<Inject> injects =
-        getInjectsAndCheckInputForBulkProcessing(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.OBSERVER);
+        getInjectsAndCheckInputForBulkProcessing(
+            ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.OBSERVER);
 
     if (injects.isEmpty()) {
       throw new ElementNotFoundException("No injects to export");
     }
 
-    runInjectExport(ctx.tenantIdFromUri(),
+    runInjectExport(
+        ctx.tenantIdFromUri(),
         injects,
         ExportOptions.mask(
             input.getExportOptions().isWithPlayers(),
@@ -170,7 +173,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/export", TENANT_INJECT_URI + "/export"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
-          TxCtx ctx,
+      TxCtx ctx,
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
       HttpServletResponse response)
       throws IOException {
@@ -184,7 +187,9 @@ public class InjectApi extends RestBehavior {
                     SpecificationUtils.hasGrantAccess(
                         currentUser.getId(),
                         currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
-                        currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser
+                            .getCapabilities(ctx.tenantIdFromUri())
+                            .contains(Capability.ACCESS_ASSESSMENT),
                         Grant.GRANT_TYPE.OBSERVER)));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =
@@ -218,7 +223,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
           final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
@@ -234,10 +239,11 @@ public class InjectApi extends RestBehavior {
     runInjectExport(ctx.tenantIdFromUri(), List.of(inject), exportOptionsMask, response);
   }
 
-  private void runInjectExport(String tenantId,
-      List<Inject> injects, int exportOptionsMask, HttpServletResponse response)
+  private void runInjectExport(
+      String tenantId, List<Inject> injects, int exportOptionsMask, HttpServletResponse response)
       throws IOException {
-    byte[] zippedExport = injectExportService.exportInjectsToZip(tenantId, injects, exportOptionsMask);
+    byte[] zippedExport =
+        injectExportService.exportInjectsToZip(tenantId, injects, exportOptionsMask);
     String zipName = injectExportService.getZipFileName(exportOptionsMask);
 
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
@@ -491,7 +497,7 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
@@ -552,11 +558,13 @@ public class InjectApi extends RestBehavior {
   @PutMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public List<Inject> bulkUpdateInject(TxCtx ctx, @RequestBody @Valid final InjectBulkUpdateInputs input) {
+  public List<Inject> bulkUpdateInject(
+      TxCtx ctx, @RequestBody @Valid final InjectBulkUpdateInputs input) {
 
     // Control and format inputs
     List<Inject> injectsToUpdate =
-        getInjectsAndCheckInputForBulkProcessing(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER);
+        getInjectsAndCheckInputForBulkProcessing(
+            ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Bulk update
     return this.injectService.bulkUpdateInject(injectsToUpdate, input.getUpdateOperations());
@@ -569,11 +577,13 @@ public class InjectApi extends RestBehavior {
   @DeleteMapping({INJECT_URI, TENANT_INJECT_URI})
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public List<Inject> bulkDelete(TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
+  public List<Inject> bulkDelete(
+      TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
 
     // Control and format inputs
     List<Inject> injectsToDelete =
-        getInjectsAndCheckInputForBulkProcessing(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER);
+        getInjectsAndCheckInputForBulkProcessing(
+            ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Bulk delete
     this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
@@ -609,8 +619,8 @@ public class InjectApi extends RestBehavior {
    * @return The list of injects to process
    * @throws BadRequestException If the input is not correctly formatted
    */
-  private List<Inject> getInjectsAndCheckInputForBulkProcessing(String tenantId,
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+  private List<Inject> getInjectsAndCheckInputForBulkProcessing(
+      String tenantId, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))

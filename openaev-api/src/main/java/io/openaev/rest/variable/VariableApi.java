@@ -44,9 +44,7 @@ public class VariableApi extends RestBehavior {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
     Exercise exercise =
-        this.exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     variable.setExercise(exercise);
     return this.variableService.createVariable(variable);
   }

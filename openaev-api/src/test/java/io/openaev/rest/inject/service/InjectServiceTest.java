@@ -493,7 +493,9 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectsAndCheckPermission("tenant", input, Grant.GRANT_TYPE.PLANNER));
+            () ->
+                injectService.getInjectsAndCheckPermission(
+                    "tenant", input, Grant.GRANT_TYPE.PLANNER));
 
     // Assert
     assertEquals(

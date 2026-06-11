@@ -60,6 +60,13 @@ import org.hibernate.annotations.*;
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
 public class Payload implements GrantableBase, TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Payload fromTenant(String tenantId) {
+    Payload entity = new Payload();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
   public enum PAYLOAD_SOURCE {

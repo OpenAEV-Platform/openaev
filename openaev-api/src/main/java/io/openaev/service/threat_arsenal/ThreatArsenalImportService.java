@@ -40,9 +40,11 @@ public class ThreatArsenalImportService {
     return importFromPayload(ctx, file);
   }
 
-  private ThreatArsenalAction importFromInjectorContract(TxCtx ctx, MultipartFile file) throws Exception {
+  private ThreatArsenalAction importFromInjectorContract(TxCtx ctx, MultipartFile file)
+      throws Exception {
     ZipJsonService.ImportOutput<InjectorContract> response =
-        injectorContractZipJsonApi.handleImport(ctx.tenantIdFromUri(),
+        injectorContractZipJsonApi.handleImport(
+            ctx.tenantIdFromUri(),
             file,
             "injector_contract_labels",
             null,

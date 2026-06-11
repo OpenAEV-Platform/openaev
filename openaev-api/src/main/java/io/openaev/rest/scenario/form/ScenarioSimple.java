@@ -47,7 +47,7 @@ public class ScenarioSimple {
           scenario.getScenario_tags().stream()
               .map(
                   (tagId) -> {
-                    Tag tag = new Tag();
+                    Tag tag = Tag.fromTenant(null);
                     tag.setId(tagId);
                     return tag;
                   })

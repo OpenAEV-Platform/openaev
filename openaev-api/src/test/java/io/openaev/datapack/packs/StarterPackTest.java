@@ -76,7 +76,7 @@ public class StarterPackTest extends IntegrationTest {
   @Autowired private DataPackService dataPackService;
 
   private static final String TENANT_TEST_ID = "tenant";
-  
+
   @Test
   @DisplayName("Should not init StarterPack for disabled feature")
   public void shouldNotInitStarterPackForDisabledFeature() {
@@ -113,8 +113,7 @@ public class StarterPackTest extends IntegrationTest {
     assertFalse(
         dataPackService
             .findByIdAndTenant(
-                V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TENANT_TEST_ID))
+                V20260101_Starter_pack.class.getCanonicalName(), new Tenant(TENANT_TEST_ID))
             .isPresent());
   }
 
@@ -157,8 +156,7 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(
         dataPackService
             .findByIdAndTenant(
-                V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TENANT_TEST_ID))
+                V20260101_Starter_pack.class.getCanonicalName(), new Tenant(TENANT_TEST_ID))
             .isPresent());
   }
 
@@ -178,7 +176,9 @@ public class StarterPackTest extends IntegrationTest {
             zipJsonService,
             resolver);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
-    doThrow(new Exception()).when(mockImportService).handleFileImport(any(), any(), isNull(), isNull());
+    doThrow(new Exception())
+        .when(mockImportService)
+        .handleFileImport(any(), any(), isNull(), isNull());
 
     // EXECUTE
     datapack.process(TxCtx.of(TENANT_TEST_ID));
@@ -494,9 +494,7 @@ public class StarterPackTest extends IntegrationTest {
 
   private void verifyEndpointExist() {
     List<Asset> assets =
-        StreamSupport.stream(
-                assetRepository.findByTenantId(TENANT_TEST_ID).spliterator(),
-                false)
+        StreamSupport.stream(assetRepository.findByTenantId(TENANT_TEST_ID).spliterator(), false)
             .toList();
     assertEquals(1, assets.size());
 
@@ -562,8 +560,7 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(
         dataPackService
             .findByIdAndTenant(
-                V20260101_Starter_pack.class.getCanonicalName(),
-                new Tenant(TENANT_TEST_ID))
+                V20260101_Starter_pack.class.getCanonicalName(), new Tenant(TENANT_TEST_ID))
             .isPresent());
   }
 
@@ -572,8 +569,7 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =
-        settingRepository.findByKeyAndTenantId(
-            "platform_home_dashboard", TENANT_TEST_ID);
+        settingRepository.findByKeyAndTenantId("platform_home_dashboard", TENANT_TEST_ID);
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
@@ -583,8 +579,7 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =
-        settingRepository.findByKeyAndTenantId(
-            "platform_scenario_dashboard", TENANT_TEST_ID);
+        settingRepository.findByKeyAndTenantId("platform_scenario_dashboard", TENANT_TEST_ID);
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }
@@ -594,8 +589,7 @@ public class StarterPackTest extends IntegrationTest {
     assertTrue(dashboardTest.isPresent());
 
     Optional<Setting> staticsParameters =
-        settingRepository.findByKeyAndTenantId(
-            "platform_simulation_dashboard", TENANT_TEST_ID);
+        settingRepository.findByKeyAndTenantId("platform_simulation_dashboard", TENANT_TEST_ID);
     assertTrue(staticsParameters.isPresent());
     assertEquals(dashboardTest.get().getId(), staticsParameters.get().getValue());
   }

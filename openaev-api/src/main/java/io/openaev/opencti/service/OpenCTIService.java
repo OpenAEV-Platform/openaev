@@ -285,12 +285,13 @@ public class OpenCTIService {
    * @param mimeType of the file to download
    * @return the document created from downloaded file
    */
-  public Document downloadAndSaveFile(TxCtx ctx ,String uri, String name, String mimeType, String tenantId) {
+  public Document downloadAndSaveFile(
+      TxCtx ctx, String uri, String name, String mimeType, String tenantId) {
     try {
       ResponseFile octiResponseFile = downloadFile(uri, tenantId);
 
       if (octiResponseFile != null) {
-        Tag openCtiTag = getOpenCTITag();
+        Tag openCtiTag = getOpenCTITag(ctx);
         DocumentCreateInput documentCreateInput = new DocumentCreateInput();
         documentCreateInput.setDescription(name);
         if (openCtiTag != null) {
@@ -298,7 +299,7 @@ public class OpenCTIService {
         }
 
         return documentService.upsert(
-                ctx,
+            ctx,
             name,
             octiResponseFile.getInputStream(),
             octiResponseFile.getSize(),
@@ -325,10 +326,10 @@ public class OpenCTIService {
         config.getToken());
   }
 
-  private Tag getOpenCTITag() {
+  private Tag getOpenCTITag(TxCtx ctx) {
     TagCreateInput tagCreateInput = new TagCreateInput();
     tagCreateInput.setName(Tag.OPENCTI_TAG_NAME);
-    return tagService.upsertTag(tagCreateInput);
+    return tagService.upsertTag(ctx, tagCreateInput);
   }
 
   private OpenCTIConfig resolveConfig(final String tenantId) throws ConnectorError {

@@ -6,7 +6,6 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
@@ -64,9 +63,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
       @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -109,9 +106,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public LessonsCategory createExerciseLessonsCategory(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setExercise(exercise);
@@ -342,11 +337,10 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackOn = Exception.class)
-  public void sendExerciseLessons(@PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
+  public void sendExerciseLessons(
+      @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))

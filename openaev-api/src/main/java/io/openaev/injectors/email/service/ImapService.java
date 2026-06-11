@@ -290,7 +290,8 @@ public class ImapService extends ExternalServiceBase {
     this.getSettingRepository().save(currentState);
   }
 
-  private void tryToSynchronizeFolderFromBox(String tenantId, String folderName, Boolean isSent) throws Exception {
+  private void tryToSynchronizeFolderFromBox(String tenantId, String folderName, Boolean isSent)
+      throws Exception {
     try (Folder folderBox = imapStore.getFolder(folderName)) {
       folderBox.open(Folder.READ_ONLY);
       synchronizeBox(tenantId, folderBox, isSent);

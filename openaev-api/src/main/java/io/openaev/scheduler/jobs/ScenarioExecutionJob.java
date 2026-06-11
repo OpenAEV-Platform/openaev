@@ -87,12 +87,10 @@ public class ScenarioExecutionJob implements Job {
         // Create simulation with start date provided by cron
         .forEach(
             scenario -> {
-
-                this.scenarioToExerciseService.toExercise(
-                    scenario,
-                    scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
-                    false);
-
+              this.scenarioToExerciseService.toExercise(
+                  scenario,
+                  scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
+                  false);
             });
   }
 

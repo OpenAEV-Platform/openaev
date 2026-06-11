@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
@@ -67,7 +68,7 @@ public class TagRuleService {
     }
 
     // if the tag  or one of the asset group doesn't exist we exist throw a ElementNotFoundException
-    TagRule tagRule = new TagRule();
+    TagRule tagRule = TagRule.fromTenant(tag.getTenant().getId());
     tagRule.setTag(tag);
     tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
     return tagRuleRepository.save(tagRule);
@@ -212,10 +213,11 @@ public class TagRuleService {
             .collect(Collectors.toList());
   }
 
-  public Set<TagRule> ensurePresetRules() {
+  public Set<TagRule> ensurePresetRules(TxCtx ctx) {
     Set<TagRule> tagRules = new HashSet<>();
     for (String tagName : TagRule.RESERVED_TAG_NAMES) {
-      Tag tag = tagRepository.findByName(tagName).orElseGet(() -> tagService.createTag(tagName));
+      Tag tag =
+          tagRepository.findByName(tagName).orElseGet(() -> tagService.createTag(ctx, tagName));
       tagRules.add(
           this.findByTagName(tag.getName())
               .orElseGet(() -> this.createTagRule(tag, new ArrayList<>(), true)));

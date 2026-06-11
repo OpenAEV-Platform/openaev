@@ -67,8 +67,7 @@ public class SecurityCoverageUtils {
    * @param objects the list of STIX objects to scan
    * @return a set of {@link StixRefToExternalRef} mappings between STIX and MITRE IDs
    */
-  public Set<StixRefToExternalRef> extractObjectReferences(TxCtx ctx,
-      List<ObjectBase> objects) {
+  public Set<StixRefToExternalRef> extractObjectReferences(TxCtx ctx, List<ObjectBase> objects) {
     Set<StixRefToExternalRef> stixToRef = new HashSet<>();
 
     for (ObjectBase obj : objects) {
@@ -113,8 +112,8 @@ public class SecurityCoverageUtils {
         if (extensionObj.has(StixConstants.FILES)
             && filesValue instanceof io.openaev.stix.types.List<?> filesList) {
           List<String> documentIds =
-              getAllDocumentIdsFromFiles(ctx,
-                  (io.openaev.stix.types.List<Dictionary>) filesList, ctx.tenantIdFromUri());
+              getAllDocumentIdsFromFiles(
+                  ctx, (io.openaev.stix.types.List<Dictionary>) filesList, ctx.tenantIdFromUri());
           manageAndAddStixRefToExternalRefs(stixToRef, obj, documentIds);
         }
         continue;
@@ -184,8 +183,8 @@ public class SecurityCoverageUtils {
         : null;
   }
 
-  private List<String> getAllDocumentIdsFromFiles(TxCtx ctx,
-      io.openaev.stix.types.List<Dictionary> filesList, final String tenantId) {
+  private List<String> getAllDocumentIdsFromFiles(
+      TxCtx ctx, io.openaev.stix.types.List<Dictionary> filesList, final String tenantId) {
     return filesList.getValue().stream()
         .filter(
             file ->
@@ -195,7 +194,8 @@ public class SecurityCoverageUtils {
         .map(
             file -> {
               Document document =
-                  openCtiService.downloadAndSaveFile(ctx,
+                  openCtiService.downloadAndSaveFile(
+                      ctx,
                       (String) file.get(CommonProperties.URI.toString()).getValue(),
                       (String) file.get(CommonProperties.NAME.toString()).getValue(),
                       (String) file.get(CommonProperties.MIME_TYPE.toString()).getValue(),

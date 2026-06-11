@@ -1,7 +1,5 @@
 package io.openaev.integration;
 
-import io.openaev.context.TxCtx;
-
 /**
  * Marker interface for any built-in component (injector, executor, collector) that must be
  * registered once per tenant. Implementations are auto-discovered by {@link ManagerFactory} via

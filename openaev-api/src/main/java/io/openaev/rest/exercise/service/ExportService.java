@@ -77,7 +77,8 @@ public class ExportService {
             docId -> {
               Document doc =
                   documentRepository.findById(docId).orElseThrow(ElementNotFoundException::new);
-              Optional<InputStream> docStream = fileService.getFile(exercise.getTenant().getId(), doc);
+              Optional<InputStream> docStream =
+                  fileService.getFile(exercise.getTenant().getId(), doc);
               if (docStream.isPresent()) {
                 try {
                   ZipEntry zipDoc = new ZipEntry(doc.getTarget());

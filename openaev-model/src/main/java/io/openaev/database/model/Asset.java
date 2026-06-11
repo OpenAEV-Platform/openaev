@@ -33,6 +33,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class Asset implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Asset fromTenant(String tenantId) {
+    Asset entity = new Asset();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "asset_id")
   @GeneratedValue(generator = "UUID")

@@ -129,7 +129,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<InjectTestStatusOutput> bulkTestInject(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable @NotBlank String simulationId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
 
@@ -146,7 +146,9 @@ public class SimulationInjectTestApi extends RestBehavior {
 
     // Specification building
     Specification<Inject> filterSpecifications =
-        this.injectService.getInjectSpecification(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER).and(testable());
+        this.injectService
+            .getInjectSpecification(ctx.tenantIdFromUri(), input, Grant.GRANT_TYPE.PLANNER)
+            .and(testable());
 
     // Services calls
     // Bulk test

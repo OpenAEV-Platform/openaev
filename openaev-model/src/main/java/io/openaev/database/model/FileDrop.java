@@ -38,6 +38,13 @@ public class FileDrop extends Payload {
     return Optional.of(this.getFileDropFile());
   }
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static FileDrop fromTenant(String tenantId) {
+    FileDrop entity = new FileDrop();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public FileDrop() {}
 
   public FileDrop(String id, String type, String name) {

@@ -45,8 +45,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
       @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findById(scenarioId);
+    Optional<Scenario> scenarioOpt = this.scenarioRepository.findById(scenarioId);
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
@@ -70,9 +69,7 @@ public class ScenarioChallengesApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ScenarioChallengesReader observerChallenges(@PathVariable String scenarioId) {
     Scenario scenario =
-        scenarioRepository
-            .findById(scenarioId)
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
     ScenarioChallengesReader scenarioChallengesReader = new ScenarioChallengesReader(scenario);
     Iterable<Challenge> challenges = challengeService.getScenarioChallenges(scenario);
     scenarioChallengesReader.setScenarioChallenges(

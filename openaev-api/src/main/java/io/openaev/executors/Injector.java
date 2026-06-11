@@ -25,8 +25,8 @@ public abstract class Injector {
     this.context = context;
   }
 
-  public abstract ExecutionProcess process(TxCtx ctx, Execution execution, ExecutableInject injection)
-      throws Exception;
+  public abstract ExecutionProcess process(
+      TxCtx ctx, Execution execution, ExecutableInject injection) throws Exception;
 
   public StatusPayload getPayloadOutput(String externalId) {
     return null;
@@ -76,8 +76,8 @@ public abstract class Injector {
     return this.context.getMapper().treeToValue(content, converter);
   }
 
-  public List<DataAttachment> resolveAttachments(TxCtx ctx,
-                                                 Execution execution, ExecutableInject injection, List<Document> documents) {
+  public List<DataAttachment> resolveAttachments(
+      TxCtx ctx, Execution execution, ExecutableInject injection, List<Document> documents) {
     List<DataAttachment> resolved = new ArrayList<>();
     // Add attachments from direct configuration
     injection
@@ -102,7 +102,8 @@ public abstract class Injector {
               this.context.getDocumentRepository().findById(documentId);
           try {
             Document doc = askedDocument.orElseThrow();
-            InputStream fileInputStream = this.context.getFileService().getFile(ctx.tenantIdFromUri(), doc).orElseThrow();
+            InputStream fileInputStream =
+                this.context.getFileService().getFile(ctx.tenantIdFromUri(), doc).orElseThrow();
             byte[] content = IOUtils.toByteArray(fileInputStream);
             resolved.add(new DataAttachment(documentId, doc.getName(), content, doc.getType()));
           } catch (Exception e) {

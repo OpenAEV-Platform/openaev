@@ -78,7 +78,7 @@ public class TaniumExecutorService implements Runnable {
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
-          assetGroup = new AssetGroup();
+          assetGroup = AssetGroup.fromTenant(executor.getTenant().getId());
           assetGroup.setExternalReference(computerGroupId);
           assetGroup.setTenant(executor.getTenant());
         }

@@ -38,7 +38,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsCountInterval count(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.count(ctx, widgetId, parameters);
@@ -50,7 +50,8 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public EsAvgs average(TxCtx ctx,
+  public EsAvgs average(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.average(ctx, widgetId, parameters);
@@ -62,7 +63,8 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public List<EsSeries> series(TxCtx ctx,
+  public List<EsSeries> series(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.series(ctx, widgetId, parameters);
@@ -74,10 +76,12 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public EsEntities entities(TxCtx ctx,
+  public EsEntities entities(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
-    return this.dashboardService.entities(ctx,
+    return this.dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
@@ -89,8 +93,10 @@ public class DashboardApi extends RestBehavior {
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
-  public WidgetToEntitiesOutput widgetToEntitiesRuntime(TxCtx ctx,
-      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
+  public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+      TxCtx ctx,
+      @PathVariable final String widgetId,
+      @Valid @RequestBody WidgetToEntitiesInput input) {
     return this.dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
@@ -101,7 +107,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsAttackPath> attackPaths(
-          TxCtx ctx,
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {

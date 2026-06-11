@@ -26,6 +26,13 @@ import org.hibernate.annotations.UuidGenerator;
 @InnerRelationship
 public class Widget implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Widget fromTenant(String tenantId) {
+    Widget entity = new Widget();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "widget_id", updatable = false, nullable = false)
   @GeneratedValue(generator = "UUID")

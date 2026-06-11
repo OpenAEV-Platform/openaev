@@ -96,7 +96,8 @@ public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory 
     try {
       injectorService.injector(ctx, ManualInjectorIntegration.MANUAL_INJECTOR_ID);
     } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(ctx,
+      injectorService.registerBuiltinInjector(
+          ctx,
           ManualInjectorIntegration.MANUAL_INJECTOR_ID,
           ManualInjectorIntegration.MANUAL_INJECTOR_NAME,
           manualContract,

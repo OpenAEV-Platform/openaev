@@ -128,7 +128,7 @@ public class DocumentApi extends RestBehavior {
       return documentService.save(document);
     } else {
       fileService.uploadFile(context.tenantIdFromUri(), fileTarget, file);
-      Document document = new Document();
+      Document document = Document.fromTenant(context.tenantIdFromUri());
       document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
       document.setDescription(input.getDescription());
@@ -149,11 +149,13 @@ public class DocumentApi extends RestBehavior {
   @PostMapping({DOCUMENT_API + "/upsert", TENANT_DOCUMENT_API + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackOn = Exception.class)
-  public Document upsertDocument(TxCtx ctx,
+  public Document upsertDocument(
+      TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
-    return documentService.upsert(ctx,
+    return documentService.upsert(
+        ctx,
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),

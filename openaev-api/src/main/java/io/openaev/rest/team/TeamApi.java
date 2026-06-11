@@ -13,6 +13,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
@@ -124,9 +125,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The team")})
   @Operation(description = "Get a team", summary = "Get team")
   public Team getTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository
-        .findById(teamId)
-        .orElseThrow(ElementNotFoundException::new);
+    return teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
   }
 
   @Transactional(readOnly = true)
@@ -140,10 +139,7 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Get the list of players of a team", summary = "Get team's players")
   public Iterable<User> getTeamPlayers(
       @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository
-        .findById(teamId)
-        .orElseThrow(ElementNotFoundException::new)
-        .getUsers();
+    return teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new).getUsers();
   }
 
   @PostMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -151,9 +147,9 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team createTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
-    Team team = new Team();
+    Team team = Team.fromTenant(ctx.tenantIdFromUri());
     team.setUpdateAttributes(input);
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
@@ -169,7 +165,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The created/updated team")})
   @Operation(description = "Create a new team or update an existing team", summary = "Upsert team")
-  public Team upsertTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team upsertTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");
@@ -185,7 +181,7 @@ public class TeamApi extends RestBehavior {
               input.getOrganizationId(), existingTeam.getOrganization(), organizationRepository));
       return teamRepository.save(existingTeam);
     } else {
-      Team newTeam = new Team();
+      Team newTeam = Team.fromTenant(ctx.tenantIdFromUri());
       newTeam.setUpdateAttributes(input);
       newTeam.setOrganization(
           updateRelation(
@@ -230,10 +226,7 @@ public class TeamApi extends RestBehavior {
   public Team updateTeam(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody TeamUpdateInput input) {
-    Team team =
-        teamRepository
-            .findById(teamId)
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     team.setUpdateAttributes(input);
     team.setUpdatedAt(now());
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -255,10 +248,7 @@ public class TeamApi extends RestBehavior {
   public Team updateTeamUsers(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
-    Team team =
-        teamRepository
-            .findById(teamId)
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
     team.setUsers(fromIterable(teamUsers));
     return teamRepository.save(team);

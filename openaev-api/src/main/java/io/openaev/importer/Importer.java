@@ -19,8 +19,8 @@ import java.util.stream.StreamSupport;
 public interface Importer {
 
   void importData(
-          TxCtx ctx,
-          JsonNode importNode,
+      TxCtx ctx,
+      JsonNode importNode,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
       Scenario scenario,

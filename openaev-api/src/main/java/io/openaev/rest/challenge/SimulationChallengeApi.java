@@ -99,8 +99,7 @@ public class SimulationChallengeApi extends RestBehavior {
   @Transactional(readOnly = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findById(simulationId);
+    Optional<Exercise> exerciseOpt = this.exerciseRepository.findById(simulationId);
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
@@ -127,9 +126,7 @@ public class SimulationChallengeApi extends RestBehavior {
   @Transactional(readOnly = true)
   public SimulationChallengesReader observerChallenges(@PathVariable String simulationId) {
     Exercise exercise =
-        exerciseRepository
-            .findById(simulationId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
     SimulationChallengesReader simulationChallengesReader =
         new SimulationChallengesReader(exercise);
     Iterable<Challenge> challenges = challengeService.getExerciseChallenges(simulationId);

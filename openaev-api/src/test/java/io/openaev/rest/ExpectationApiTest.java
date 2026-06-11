@@ -854,8 +854,7 @@ class ExpectationApiTest extends IntegrationTest {
       // and link it to the implant injector (same pattern as the original @BeforeAll setup)
       Injector implantInjector =
           injectorRepository
-              .findByTypeAndTenantId(
-                  OpenAEVImplantContract.TYPE, "tenant")
+              .findByTypeAndTenantId(OpenAEVImplantContract.TYPE, "tenant")
               .orElseThrow(() -> new AssertionError("Implant injector not registered"));
       InjectorContract implantContract =
           InjectorContractFixture.createInjectorContract(Map.of("en", "Implant Test Contract"));

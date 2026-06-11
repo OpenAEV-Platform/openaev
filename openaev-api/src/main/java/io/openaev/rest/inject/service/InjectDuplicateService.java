@@ -33,9 +33,7 @@ public class InjectDuplicateService {
   public Inject duplicateInjectForScenarioWithDuplicateWordInTitle(
       final String scenarioId, final String injectId) {
     Scenario scenario =
-        scenarioRepository
-            .findById(scenarioId)
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithScenario(scenario, inject);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));
@@ -50,9 +48,7 @@ public class InjectDuplicateService {
   public Inject duplicateInjectForExerciseWithDuplicateWordInTitle(
       final String exerciseId, final String injectId) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     Inject duplicatedInject = getDuplicatedInjectWithExercise(exercise, inject);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));

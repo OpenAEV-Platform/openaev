@@ -43,6 +43,13 @@ import org.hibernate.annotations.*;
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SIMULATION)
 public class Exercise implements GrantableBase, TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Exercise fromTenant(String tenantId) {
+    Exercise entity = new Exercise();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Getter
   @Id
   @Column(name = "exercise_id")

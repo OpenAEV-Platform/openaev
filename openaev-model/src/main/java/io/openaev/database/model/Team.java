@@ -36,6 +36,13 @@ import org.hibernate.annotations.UuidGenerator;
 })
 public class Team implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Team fromTenant(String tenantId) {
+    Team entity = new Team();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "team_id")
   @GeneratedValue(generator = "UUID")

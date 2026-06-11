@@ -68,9 +68,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository
-        .findById(executorId)
-        .orElse(null);
+    return executorRepository.findById(executorId).orElse(null);
   }
 
   @Override
@@ -83,8 +81,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   }
 
   @Override
-  protected Executor createNewConnector() {
-    return new Executor();
+  protected Executor createNewConnector(String tenantId) {
+    return Executor.fromTenant(tenantId);
   }
 
   /**
@@ -140,8 +138,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   }
 
   public Executor register(
-          TxCtx ctx,
-          String id,
+      TxCtx ctx,
+      String id,
       String type,
       String name,
       String documentationUrl,
@@ -157,20 +155,19 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
     // Save imgs
     if (iconData != null) {
-      fileService.uploadStream(ctx.tenantIdFromUri(), EXECUTORS_IMAGES_ICONS_BASE_PATH, type + EXT_PNG, iconData);
+      fileService.uploadStream(
+          ctx.tenantIdFromUri(), EXECUTORS_IMAGES_ICONS_BASE_PATH, type + EXT_PNG, iconData);
     }
     if (bannerData != null) {
-      fileService.uploadStream(ctx.tenantIdFromUri(), EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
+      fileService.uploadStream(
+          ctx.tenantIdFromUri(), EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
     Executor executor =
         executorRepository.findByIdAndTenantId(id, ctx.tenantIdFromUri()).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(ctx.tenantIdFromUri());
-      executor = new Executor();
+      executor = Executor.fromTenant(ctx.tenantIdFromUri());
       executor.setId(id);
-      executor.setTenant(tenant);
-      executor.setTenantId(tenant.getId());
     }
 
     executor.setName(name);

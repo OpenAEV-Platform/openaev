@@ -18,13 +18,26 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "domains")
 @EntityListeners({ModelBaseListener.class})
-@Builder
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Domain implements TenantBase {
+
+  /** Creates a new instance scoped to the given tenant. */
+  public static Domain fromTenant(String tenantId) {
+    Domain entity = new Domain();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
+  public static Domain createStatic(String name, String color) {
+    Domain domain = new Domain();
+    domain.setName(name);
+    domain.setColor(color);
+    return domain;
+  }
 
   @Id
   @Column(name = "domain_id")
@@ -76,12 +89,14 @@ public class Domain implements TenantBase {
     return this.getName().equals(((Domain) obj).getName());
   }
 
-  public Domain(Domain domain) {
-    this.id = domain.getId();
-    this.name = domain.getName();
-    this.color = domain.getColor();
-    this.tenant = domain.getTenant();
-    this.creationDate = domain.getCreationDate();
-    this.updateDate = domain.getUpdateDate();
+  public Domain copy() {
+    Domain domain = new Domain();
+    domain.setId(this.id);
+    domain.setName(this.name);
+    domain.setColor(this.color);
+    domain.setTenant(this.tenant);
+    domain.setCreationDate(this.creationDate);
+    domain.setUpdateDate(this.updateDate);
+    return domain;
   }
 }

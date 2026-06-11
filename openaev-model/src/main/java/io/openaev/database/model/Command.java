@@ -35,6 +35,13 @@ public class Command extends Payload {
   @NotNull
   private String content;
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Command fromTenant(String tenantId) {
+    Command entity = new Command();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public Command() {}
 
   public Command(String id, String type, String name) {

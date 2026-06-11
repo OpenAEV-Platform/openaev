@@ -22,6 +22,14 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "connector_instances")
 @EntityListeners({ModelBaseListener.class})
 public class ConnectorInstancePersisted extends ConnectorInstance implements TenantBase {
+
+  /** Creates a new instance scoped to the given tenant. */
+  public static ConnectorInstancePersisted fromTenant(String tenantId) {
+    ConnectorInstancePersisted entity = new ConnectorInstancePersisted();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "connector_instance_id")
   @GeneratedValue(generator = "UUID")

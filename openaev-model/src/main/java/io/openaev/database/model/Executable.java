@@ -32,6 +32,13 @@ public class Executable extends Payload {
   @NotNull
   private Document executableFile;
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Executable fromTenant(String tenantId) {
+    Executable entity = new Executable();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public Executable() {}
 
   public Executable(String id, String type, String name) {

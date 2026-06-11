@@ -389,6 +389,8 @@ public class InjectImportService {
                 }
                 ImportRow rowSummary =
                     importRow(
+                        scenario,
+                        exercise,
                         row,
                         importMapper,
                         start,
@@ -470,6 +472,8 @@ public class InjectImportService {
   }
 
   private ImportRow importRow(
+      Scenario scenario,
+      Exercise exercise,
       Row row,
       ImportMapper importMapper,
       Instant start,
@@ -577,8 +581,15 @@ public class InjectImportService {
     InjectImporter matchingInjectImporter = matchingInjectImporters.get(0);
     InjectorContract injectorContract = matchingInjectImporter.getInjectorContract();
 
-    // Creating the inject
-    Inject inject = new Inject();
+    String tenantId = null;
+    if (scenario != null) {
+      tenantId = scenario.getTenant().getId();
+    } else if (exercise != null) {
+      tenantId = exercise.getTenant().getId();
+    } else {
+      throw new IllegalArgumentException("At least one of exercise or scenario should be present");
+    }
+    Inject inject = Inject.fromTenant(tenantId);
     inject.setDependsDuration(0L);
 
     // Adding the description
@@ -764,7 +775,9 @@ public class InjectImportService {
                             mapTeamByName,
                             expectation,
                             importMapper,
-                            mapPatternByAllTeams)));
+                            mapPatternByAllTeams,
+                            scenario,
+                            exercise)));
     // The user is the one doing the import
     inject.setUser(
         userRepository
@@ -827,7 +840,9 @@ public class InjectImportService {
       Map<String, Team> mapTeamByName,
       AtomicReference<InjectExpectation> expectation,
       ImportMapper importMapper,
-      Map<String, Pattern> mapPatternByAllTeams) {
+      Map<String, Pattern> mapPatternByAllTeams,
+      Scenario scenario,
+      Exercise exercise) {
     // If it's a reserved field, it's already taken care of
     if (importReservedField.contains(ruleAttribute.getName())) {
       return emptyList();
@@ -914,7 +929,16 @@ public class InjectImportService {
                   inject.getTeams().add(mapTeamByName.get(teamName));
                 } else {
                   // The team does not exist, we create a new one
-                  Team team = new Team();
+                  String tenantId2 = null;
+                  if (scenario != null) {
+                    tenantId2 = scenario.getTenant().getId();
+                  } else if (exercise != null) {
+                    tenantId2 = exercise.getTenant().getId();
+                  } else {
+                    throw new IllegalArgumentException(
+                        "At least one of exercise or scenario should be present");
+                  }
+                  Team team = Team.fromTenant(tenantId2);
                   team.setName(teamName);
                   team.setContextual(true);
                   team = teamRepository.save(team);
@@ -1224,16 +1248,16 @@ public class InjectImportService {
                                     - earliestInstant.getEpochSecond())));
   }
 
-  public void importInjectsForScenario(String tenantId, MultipartFile file, String scenarioId) throws Exception {
+  public void importInjectsForScenario(String tenantId, MultipartFile file, String scenarioId)
+      throws Exception {
     Scenario targetScenario =
-        scenarioRepository
-            .findById(scenarioId)
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(tenantId, file, null, targetScenario);
   }
 
-  public void importInjectsForSimulation(String tenantId, MultipartFile file, String simulationId) throws Exception {
+  public void importInjectsForSimulation(String tenantId, MultipartFile file, String simulationId)
+      throws Exception {
     Exercise targetSimulation =
         exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
 

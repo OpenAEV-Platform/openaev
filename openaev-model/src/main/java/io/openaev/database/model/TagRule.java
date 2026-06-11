@@ -28,6 +28,13 @@ public class TagRule implements TenantBase {
           SECURITY_COVERAGE_MACOS_TAG_NAME,
           SECURITY_COVERAGE_LINUX_TAG_NAME);
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static TagRule fromTenant(String tenantId) {
+    TagRule entity = new TagRule();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "tag_rule_id")
   @GeneratedValue(generator = "UUID")

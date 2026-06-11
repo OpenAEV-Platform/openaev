@@ -91,9 +91,7 @@ public class TenantUserService implements DependenciesManager {
     if (userIds.isEmpty()) {
       return List.of();
     }
-    return userRepository.findAll(fromIds(userIds)).stream()
-        .map(UserMapper::toOutput)
-        .toList();
+    return userRepository.findAll(fromIds(userIds)).stream().map(UserMapper::toOutput).toList();
   }
 
   /** Returns all users belonging to the current tenant. */

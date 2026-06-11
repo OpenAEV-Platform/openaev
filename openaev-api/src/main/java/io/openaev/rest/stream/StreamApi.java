@@ -99,34 +99,32 @@ public class StreamApi extends RestBehavior {
             return;
           }
 
-
-            FluxSink<Object> fluxSink = consumer.fluxSink();
-            OpenAEVPrincipal principal = consumer.principal();
-            TxCtx ctx = TxCtx.of(null, principal.tenantIds());
-            if (!permissionService.hasEventPermission(ctx, principal.getId(), event)) {
-              try {
-                String propertyId =
-                    event
-                        .getInstance()
-                        .getClass()
-                        .getDeclaredField("id")
-                        .getAnnotation(JsonProperty.class)
-                        .value();
-                ObjectNode deleteNode = mapper.createObjectNode();
-                deleteNode.set(
-                    propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-                BaseEvent userEvent = event.clone();
-                userEvent.setInstanceData(deleteNode);
-                userEvent.setType(DATA_DELETE);
-                sendStreamEvent(fluxSink, userEvent);
-              } catch (Exception e) {
-                String simpleName = event.getInstance().getClass().getSimpleName();
-                log.warn(String.format("Class %s can't be streamed", simpleName), e);
-              }
-            } else {
-              sendStreamEvent(fluxSink, event);
+          FluxSink<Object> fluxSink = consumer.fluxSink();
+          OpenAEVPrincipal principal = consumer.principal();
+          TxCtx ctx = TxCtx.of(null, principal.tenantIds());
+          if (!permissionService.hasEventPermission(ctx, principal.getId(), event)) {
+            try {
+              String propertyId =
+                  event
+                      .getInstance()
+                      .getClass()
+                      .getDeclaredField("id")
+                      .getAnnotation(JsonProperty.class)
+                      .value();
+              ObjectNode deleteNode = mapper.createObjectNode();
+              deleteNode.set(
+                  propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+              BaseEvent userEvent = event.clone();
+              userEvent.setInstanceData(deleteNode);
+              userEvent.setType(DATA_DELETE);
+              sendStreamEvent(fluxSink, userEvent);
+            } catch (Exception e) {
+              String simpleName = event.getInstance().getClass().getSimpleName();
+              log.warn(String.format("Class %s can't be streamed", simpleName), e);
             }
-
+          } else {
+            sendStreamEvent(fluxSink, event);
+          }
         });
   }
 
@@ -160,8 +158,7 @@ public class StreamApi extends RestBehavior {
                 fluxSinkConsumer ->
                     consumers.put(
                         sessionId,
-                        new StreamConsumer(
-                            currentUser(), ctx.tenantIdFromUri(), fluxSinkConsumer)))
+                        new StreamConsumer(currentUser(), ctx.tenantIdFromUri(), fluxSinkConsumer)))
             .doAfterTerminate(() -> consumers.remove(sessionId));
     // Build the health check flux.
     Flux<Object> ping =

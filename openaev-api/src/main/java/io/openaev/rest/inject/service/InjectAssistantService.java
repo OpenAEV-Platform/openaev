@@ -69,6 +69,7 @@ public class InjectAssistantService {
               try {
                 Set<Inject> injectsToAdd =
                     this.generateInjectsByAttackPatternId(
+                        scenario.getTenant().getId(),
                         attackPatternId,
                         endpoints,
                         assetsFromGroupMap,
@@ -98,6 +99,7 @@ public class InjectAssistantService {
    * @return a set of generated injects
    */
   private Set<Inject> generateInjectsByAttackPatternId(
+      String tenantId,
       String attackPatternId,
       List<Endpoint> endpoints,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -110,6 +112,7 @@ public class InjectAssistantService {
 
     Set<Inject> injects =
         buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
+            tenantId,
             attackPattern,
             endpoints,
             assetsFromGroupMap,
@@ -145,7 +148,10 @@ public class InjectAssistantService {
         .flatMap(
             attackPattern ->
                 buildInjectsForAnyPlatformAndArchitecture(
-                    injectsPerAttackPattern, attackPattern, contractForPlaceholder)
+                    scenario.getTenant().getId(),
+                    injectsPerAttackPattern,
+                    attackPattern,
+                    contractForPlaceholder)
                     .stream())
         .peek(inject -> inject.setScenario(scenario))
         .toList();
@@ -174,7 +180,11 @@ public class InjectAssistantService {
       try {
         Set<Inject> injectsToAdd =
             this.generateInjectsForSingleAttackPatternWithAssetGroups(
-                attackPattern, assetsFromGroupMap, injectsPerAttackPattern, contractForPlaceholder);
+                scenario.getTenant().getId(),
+                attackPattern,
+                assetsFromGroupMap,
+                injectsPerAttackPattern,
+                contractForPlaceholder);
         injectsToAdd.forEach(inject -> inject.setScenario(scenario));
         injects.addAll(injectsToAdd);
       } catch (UnprocessableContentException e) {
@@ -200,6 +210,7 @@ public class InjectAssistantService {
    * @throws UnprocessableContentException if no valid inject configuration can be found
    */
   private Set<Inject> generateInjectsForSingleAttackPatternWithAssetGroups(
+      String tenantId,
       AttackPattern attackPattern,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       Integer injectsPerAttackPattern,
@@ -209,6 +220,7 @@ public class InjectAssistantService {
     // Computing best case (with all possible platforms and architecture)
     List<Endpoint> NO_ENDPOINTS = new ArrayList<>();
     return buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
+        tenantId,
         attackPattern,
         NO_ENDPOINTS,
         assetsFromGroupMap,
@@ -228,6 +240,7 @@ public class InjectAssistantService {
    * @return the list of generated injects
    */
   private List<Inject> buildInjectsForAnyPlatformAndArchitecture(
+      String tenantId,
       Integer injectsPerAttackPattern,
       AttackPattern attackPattern,
       InjectorContract contractForPlaceholder) {
@@ -240,11 +253,12 @@ public class InjectAssistantService {
           .map(
               ic ->
                   injectService.buildTechnicalInject(
-                      ic, attackPattern.getExternalId(), attackPattern.getName()))
+                      tenantId, ic, attackPattern.getExternalId(), attackPattern.getName()))
           .toList();
     }
     return List.of(
         buildManualInject(
+            tenantId,
             contractForPlaceholder,
             attackPattern.getExternalId(),
             "[any platform]",
@@ -278,6 +292,7 @@ public class InjectAssistantService {
         .flatMap(
             vulnerability ->
                 buildInjectsWithTargetsByVulnerability(
+                    scenario.getTenant().getId(),
                     vulnerability,
                     mapVulnerabilityInjectorContract.getOrDefault(
                         vulnerability.getExternalId().toLowerCase(), Set.of()),
@@ -326,6 +341,7 @@ public class InjectAssistantService {
    * @return a set of generated {@link Inject} objects, never {@code null}
    */
   private Set<Inject> buildInjectsWithTargetsByVulnerability(
+      String tenantId,
       Vulnerability vulnerability,
       Set<InjectorContract> injectorContracts,
       Map<AssetGroup, List<Endpoint>> assetGroupListMap,
@@ -334,13 +350,16 @@ public class InjectAssistantService {
     if (injectorContracts.isEmpty()) {
       return Set.of(
           buildManualInject(
-              contractForPlaceholder, vulnerability.getExternalId(), null, null, null));
+              tenantId, contractForPlaceholder, vulnerability.getExternalId(), null, null, null));
     }
     Set<Inject> injects = new HashSet<>();
     for (InjectorContract ic : injectorContracts) {
       Inject inject =
           injectService.buildTechnicalInject(
-              ic, vulnerability.getExternalId(), vulnerability.getCisaVulnerabilityName());
+              tenantId,
+              ic,
+              vulnerability.getExternalId(),
+              vulnerability.getCisaVulnerabilityName());
       // Set the targets in the inject based on the field types in the contract's content.fields.
       // Fields of type "asset-group" take priority, because tag rules are directly associated with
       // asset groups.
@@ -353,6 +372,7 @@ public class InjectAssistantService {
   }
 
   private Set<Inject> buildInjectsBasedOnAttackPatternsAndAssetsAndAssetGroups(
+      String tenantId,
       AttackPattern attackPattern,
       List<Endpoint> endpoints,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
@@ -362,6 +382,7 @@ public class InjectAssistantService {
     // Try best case (all possible platform/arch combinations)
     Set<Inject> bestCase =
         buildInjectsForAllPlatformAndArchCombinations(
+            tenantId,
             endpoints,
             new ArrayList<>(assetsFromGroupMap.keySet()),
             injectsPerAttackPattern,
@@ -378,6 +399,7 @@ public class InjectAssistantService {
 
     if (!endpoints.isEmpty()) {
       handleEndpoints(
+          tenantId,
           endpoints,
           attackPattern,
           injectsPerAttackPattern,
@@ -389,6 +411,7 @@ public class InjectAssistantService {
 
     if (!assetsFromGroupMap.isEmpty()) {
       handleAssetGroups(
+          tenantId,
           assetsFromGroupMap,
           attackPattern,
           injectsPerAttackPattern,
@@ -416,6 +439,7 @@ public class InjectAssistantService {
    * @return the set of injects, or an empty list if no contracts matched
    */
   private Set<Inject> buildInjectsForAllPlatformAndArchCombinations(
+      String tenantId,
       List<Endpoint> endpoints,
       List<AssetGroup> assetGroups,
       Integer injectsPerAttackPattern,
@@ -430,7 +454,7 @@ public class InjectAssistantService {
             ic -> {
               Inject inject =
                   injectService.buildTechnicalInject(
-                      ic, attackPattern.getExternalId(), attackPattern.getName());
+                      tenantId, ic, attackPattern.getExternalId(), attackPattern.getName());
               inject.setAssetGroups(assetGroups);
               inject.setAssets(endpoints.stream().map(Asset.class::cast).toList());
               return inject;
@@ -449,6 +473,7 @@ public class InjectAssistantService {
    * @param knownInjectorContracts the list of already known injector contracts
    */
   private void handleEndpoints(
+      String tenantId,
       List<Endpoint> endpoints,
       AttackPattern attackPattern,
       Integer injectsPerAttackPattern,
@@ -470,7 +495,7 @@ public class InjectAssistantService {
                   contract,
                   k ->
                       injectService.buildTechnicalInject(
-                          k, attackPattern.getExternalId(), attackPattern.getName()));
+                          tenantId, k, attackPattern.getExternalId(), attackPattern.getName()));
           inject.setAssets(value.stream().map(Asset.class::cast).toList());
         });
     // Add manual injects
@@ -482,6 +507,7 @@ public class InjectAssistantService {
                   key -> {
                     String[] parts = key.split(":");
                     return buildManualInject(
+                        tenantId,
                         contractForPlaceholder,
                         attackPattern.getExternalId(),
                         parts[0],
@@ -555,6 +581,7 @@ public class InjectAssistantService {
    * @param knownInjectorContracts the list of already known injector contracts
    */
   private void handleAssetGroups(
+      String tenantId,
       Map<AssetGroup, List<Endpoint>> assetsFromGroupMap,
       AttackPattern attackPattern,
       Integer injectsPerAttackPattern,
@@ -576,7 +603,7 @@ public class InjectAssistantService {
                     contract,
                     k ->
                         injectService.buildTechnicalInject(
-                            k, attackPattern.getExternalId(), attackPattern.getName()));
+                            tenantId, k, attackPattern.getExternalId(), attackPattern.getName()));
             inject.getAssetGroups().add(group);
           });
 
@@ -587,6 +614,7 @@ public class InjectAssistantService {
                 k -> {
                   String[] parts = k.split(":");
                   return buildManualInject(
+                      tenantId,
                       contractForPlaceholder,
                       attackPattern.getExternalId(),
                       parts[0],
@@ -667,12 +695,14 @@ public class InjectAssistantService {
    * @return the built manual Inject object
    */
   public Inject buildManualInject(
+      String tenantId,
       InjectorContract contractForPlaceholder,
       String identifier,
       String platform,
       String architecture,
       String whishedPayloadType) {
     return injectService.buildInject(
+        tenantId,
         contractForPlaceholder,
         formatTitle(identifier, platform, architecture),
         formatDescription(identifier, platform, architecture, whishedPayloadType),

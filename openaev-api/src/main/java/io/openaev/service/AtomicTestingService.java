@@ -90,8 +90,9 @@ public class AtomicTestingService {
     return payloadMapper.getStatusPayloadOutputFromInject(inject);
   }
 
-  public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
-    Inject injectToSave = new Inject();
+  public InjectResultOverviewOutput createOrUpdate(
+      TxCtx ctx, AtomicTestingInput input, String injectId) {
+    Inject injectToSave = Inject.fromTenant(ctx.tenantIdFromUri());
     if (injectId != null) {
       injectToSave = findInject(injectId);
     }
@@ -255,8 +256,8 @@ public class AtomicTestingService {
    * @param searchPaginationInput Pagination and filtering parameters
    * @return A paginated list of atomic testing results
    */
-  public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(TxCtx ctx,
-                                                                     @NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(
+      TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Atomic testings are injects where scenario and exercise are null. They are also subject to
@@ -270,7 +271,9 @@ public class AtomicTestingService {
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(),
                     currentUser.isAdminOrBypass(ctx.tenantIdFromUri()),
-                    currentUser.getCapabilities(ctx.tenantIdFromUri()).contains(Capability.ACCESS_ASSESSMENT),
+                    currentUser
+                        .getCapabilities(ctx.tenantIdFromUri())
+                        .contains(Capability.ACCESS_ASSESSMENT),
                     Grant.GRANT_TYPE.OBSERVER));
 
     return buildPaginationCriteriaBuilder(

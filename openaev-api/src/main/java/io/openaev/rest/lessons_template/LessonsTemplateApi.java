@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.LessonsTemplateCategoryRepository;
 import io.openaev.database.repository.LessonsTemplateQuestionRepository;
@@ -40,8 +41,9 @@ public class LessonsTemplateApi extends RestBehavior {
   @PostMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.LESSON_LEARNED)
   @Transactional(rollbackOn = Exception.class)
-  public LessonsTemplate createLessonsTemplate(@Valid @RequestBody LessonsTemplateInput input) {
-    LessonsTemplate lessonsTemplate = new LessonsTemplate();
+  public LessonsTemplate createLessonsTemplate(
+      TxCtx ctx, @Valid @RequestBody LessonsTemplateInput input) {
+    LessonsTemplate lessonsTemplate = LessonsTemplate.fromTenant(ctx.tenantIdFromUri());
     lessonsTemplate.setUpdateAttributes(input);
     return lessonsTemplateRepository.save(lessonsTemplate);
   }

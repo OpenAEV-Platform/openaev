@@ -37,6 +37,13 @@ import org.hibernate.annotations.UpdateTimestamp;
 @EntityListeners({ModelBaseListener.class})
 public class InjectorContract implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static InjectorContract fromTenant(String tenantId) {
+    InjectorContract entity = new InjectorContract();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   public static final String ID_FIELD_NAME = "id";
   public static final String COMPOSITE_ID_FIELD_NAME = "compositeId";
 

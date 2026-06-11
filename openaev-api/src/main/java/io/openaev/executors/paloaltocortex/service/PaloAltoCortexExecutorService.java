@@ -65,7 +65,7 @@ public class PaloAltoCortexExecutorService implements Runnable {
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
-          assetGroup = new AssetGroup();
+          assetGroup = AssetGroup.fromTenant(executor.getTenant().getId());
           assetGroup.setExternalReference(PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName);
           assetGroup.setTenant(executor.getTenant());
         }

@@ -23,6 +23,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EntityListeners({ModelBaseListener.class})
 public class ImportMapper implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static ImportMapper fromTenant(String tenantId) {
+    ImportMapper entity = new ImportMapper();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "mapper_id")
   @JsonProperty("import_mapper_id")

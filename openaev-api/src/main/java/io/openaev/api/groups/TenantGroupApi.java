@@ -50,7 +50,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group groupGrant(TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
+  public Group groupGrant(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
     return tenantGroupService.addGrant(ctx.tenantIdFromUri(), groupId, input);
   }
 
@@ -83,8 +84,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group updateGroupUsers(TxCtx ctx,
-      @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
+  public Group updateGroupUsers(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
     return tenantGroupService.updateUsers(ctx.tenantIdFromUri(), groupId, input);
   }
 
@@ -103,8 +104,8 @@ public class TenantGroupApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Group updated"),
         @ApiResponse(responseCode = "404", description = "Role or Group not found")
       })
-  public Group updateGroupRoles(TxCtx ctx,
-      @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
+  public Group updateGroupRoles(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
     return tenantGroupService.updateGroupRoles(ctx.tenantIdFromUri(), groupId, input);
   }
 
@@ -115,8 +116,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  public Group updateGroupInformation(TxCtx ctx,
-      @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
+  public Group updateGroupInformation(
+      TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.updateGroup(ctx.tenantIdFromUri(), groupId, input);
   }
 

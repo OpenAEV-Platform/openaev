@@ -113,8 +113,8 @@ public class ConnectorOrchestrationService {
     return connectorInstanceService.updateRequestedStatus(instance, requestedStatus);
   }
 
-  private void throwIfConnectorIdDoesNotExist(TxCtx ctx,
-                                              CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
+  private void throwIfConnectorIdDoesNotExist(
+      TxCtx ctx, CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
       throws DataIntegrityViolationException {
     String connectorId =
         collectorInput.getConfigurations().stream()
@@ -141,8 +141,8 @@ public class ConnectorOrchestrationService {
     }
   }
 
-  private void cleanDummyInjectorsIfItExists(TxCtx ctx,
-                                             String catalogConnectorSlug, ConnectorType catalogConnectorType) {
+  private void cleanDummyInjectorsIfItExists(
+      TxCtx ctx, String catalogConnectorSlug, ConnectorType catalogConnectorType) {
     if (ConnectorType.INJECTOR.equals(catalogConnectorType)) {
       injectorService.deleteDummyInjectorIfItExists(ctx, catalogConnectorSlug);
     }
@@ -193,8 +193,8 @@ public class ConnectorOrchestrationService {
    * @return Created ConnectorInstance
    */
   public ConnectorInstancePersisted createConnectorInstance(
-          TxCtx ctx,
-          CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
+      TxCtx ctx,
+      CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
     throwIfEnterpriseLicenseNotActive();
 
@@ -214,9 +214,10 @@ public class ConnectorOrchestrationService {
     }
 
     ConnectorInstancePersisted connectorInstance =
-        connectorInstanceService.createConnectorInstance(catalogConnectorWithConfigMap, input);
+        connectorInstanceService.createConnectorInstance(ctx, catalogConnectorWithConfigMap, input);
 
-    cleanDummyInjectorsIfItExists(ctx,
+    cleanDummyInjectorsIfItExists(
+        ctx,
         catalogConnectorWithConfigMap.catalogConnector.getSlug(),
         catalogConnectorWithConfigMap.catalogConnector.getContainerType());
 

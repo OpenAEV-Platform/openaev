@@ -43,7 +43,7 @@ public class CustomDashboardTenantService {
   // -- HOME DASHBOARD WIDGET QUERIES --
 
   public EsCountInterval homeDashboardCount(
-          TxCtx ctx,
+      TxCtx ctx,
       @NotBlank String tenantId,
       @NotBlank final String widgetId,
       final Map<String, String> parameters) {
@@ -51,41 +51,36 @@ public class CustomDashboardTenantService {
     return dashboardService.count(ctx, widgetId, parameters);
   }
 
-  public EsAvgs homeDashboardAverage(TxCtx ctx,
-      @NotBlank final String widgetId,
-      final Map<String, String> parameters) {
+  public EsAvgs homeDashboardAverage(
+      TxCtx ctx, @NotBlank final String widgetId, final Map<String, String> parameters) {
     isWidgetInHomeDashboard(ctx.tenantIdFromUri(), widgetId);
     return dashboardService.average(ctx, widgetId, parameters);
   }
 
-  public List<EsSeries> homeDashboardSeries(TxCtx ctx,
-      @NotBlank final String widgetId,
-      final Map<String, String> parameters) {
+  public List<EsSeries> homeDashboardSeries(
+      TxCtx ctx, @NotBlank final String widgetId, final Map<String, String> parameters) {
     isWidgetInHomeDashboard(ctx.tenantIdFromUri(), widgetId);
     return dashboardService.series(ctx, widgetId, parameters);
   }
 
   public EsEntities homeDashboardEntities(
-          TxCtx ctx,
-      @NotBlank final String widgetId,
-      @Nullable final EntitiesPaginationInput input) {
+      TxCtx ctx, @NotBlank final String widgetId, @Nullable final EntitiesPaginationInput input) {
     isWidgetInHomeDashboard(ctx.tenantIdFromUri(), widgetId);
-    return dashboardService.entities(ctx,
+    return dashboardService.entities(
+        ctx,
         widgetId,
         input == null ? new HashMap<>() : input.getParameters(),
         input == null ? null : input.getPagination());
   }
 
-  public WidgetToEntitiesOutput homeDashboardEntitiesRuntime(TxCtx ctx,
-      @NotBlank final String widgetId,
-      @NotBlank WidgetToEntitiesInput input) {
+  public WidgetToEntitiesOutput homeDashboardEntitiesRuntime(
+      TxCtx ctx, @NotBlank final String widgetId, @NotBlank WidgetToEntitiesInput input) {
     isWidgetInHomeDashboard(ctx.tenantIdFromUri(), widgetId);
     return dashboardService.widgetToEntitiesRuntime(ctx, widgetId, input);
   }
 
-  public List<EsAttackPath> homeDashboardAttackPaths(TxCtx ctx,
-      @NotBlank final String widgetId,
-      final Map<String, String> parameters)
+  public List<EsAttackPath> homeDashboardAttackPaths(
+      TxCtx ctx, @NotBlank final String widgetId, final Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     isWidgetInHomeDashboard(ctx.tenantIdFromUri(), widgetId);
     return dashboardService.attackPaths(ctx, widgetId, parameters);

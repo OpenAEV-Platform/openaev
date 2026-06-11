@@ -72,8 +72,11 @@ public class PayloadUpsertService {
     }
   }
 
-  private Payload createPayloadFromUpsert(TxCtx ctx,
-      PayloadUpsertInput input, List<AttackPattern> attackPatterns, CollectorType collectorType) {
+  private Payload createPayloadFromUpsert(
+      TxCtx ctx,
+      PayloadUpsertInput input,
+      List<AttackPattern> attackPatterns,
+      CollectorType collectorType) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
@@ -99,17 +102,15 @@ public class PayloadUpsertService {
             : new HashSet<>(
                 Set.of(
                     domainService.upsert(
-                        Domain.builder()
-                            .name(PresetDomain.getToClassify().getName())
-                            .color(PresetDomain.getToClassify().getColor())
-                            .tenant(new Tenant(ctx.tenantIdFromUri()))
-                            .build()))),
+                        PresetDomain.getToClassify().getName(),
+                        PresetDomain.getToClassify().getColor(),
+                        new Tenant(ctx.tenantIdFromUri())))),
         this.tagService.tagSet((input.getTagIds())));
     return saved;
   }
 
   public Payload updatePayloadFromUpsert(
-          TxCtx ctx,
+      TxCtx ctx,
       PayloadUpsertInput input,
       Payload existingPayload,
       List<AttackPattern> attackPatterns,

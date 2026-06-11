@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -363,8 +364,8 @@ public class ConnectorInstanceService {
   }
 
   private ConnectorInstancePersisted buildNewConnectorInstanceFromCatalog(
-      CatalogConnector catalogConnector) {
-    ConnectorInstancePersisted newInstance = new ConnectorInstancePersisted();
+      String tenantId, CatalogConnector catalogConnector) {
+    ConnectorInstancePersisted newInstance = ConnectorInstancePersisted.fromTenant(tenantId);
     newInstance.setCatalogConnector(catalogConnector);
     newInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     newInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
@@ -488,10 +489,12 @@ public class ConnectorInstanceService {
    * @return the created connector instance
    */
   public ConnectorInstancePersisted createConnectorInstance(
+      TxCtx ctx,
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input) {
     ConnectorInstancePersisted newInstance =
-        buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
+        buildNewConnectorInstanceFromCatalog(
+            ctx.tenantIdFromUri(), catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
         getConnectorInstanceConfigurationsFromInput(
             catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);

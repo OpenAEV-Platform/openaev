@@ -29,10 +29,8 @@ public class OpenCTIConfigTest extends IntegrationTest {
     @Test
     @DisplayName("returns a variant of the public URL for the API URL")
     void shouldReturnVariantOfPublicUrlForApiUrl() {
-      assertThat(xtmConfig.getOpencti().get("tenant").getApiUrl())
-          .isEqualTo("public_url/graphql");
-      assertThat(xtmConfig.getOpencti().get("tenant").getUrl())
-          .isEqualTo("public_url");
+      assertThat(xtmConfig.getOpencti().get("tenant").getApiUrl()).isEqualTo("public_url/graphql");
+      assertThat(xtmConfig.getOpencti().get("tenant").getUrl()).isEqualTo("public_url");
     }
   }
 
@@ -45,10 +43,8 @@ public class OpenCTIConfigTest extends IntegrationTest {
     @Test
     @DisplayName("returns different URLs for API URL and URL")
     void shouldReturnDifferentValuesForPublicAndApiUrl() {
-      assertThat(openCTIConfig.getOpencti().get("tenant").getApiUrl())
-          .isEqualTo("api_url");
-      assertThat(openCTIConfig.getOpencti().get("tenant").getUrl())
-          .isEqualTo("public_url");
+      assertThat(openCTIConfig.getOpencti().get("tenant").getApiUrl()).isEqualTo("api_url");
+      assertThat(openCTIConfig.getOpencti().get("tenant").getUrl()).isEqualTo("public_url");
     }
   }
 }

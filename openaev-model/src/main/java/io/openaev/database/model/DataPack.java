@@ -11,6 +11,13 @@ import lombok.Setter;
 @Table(name = "datapacks")
 public class DataPack implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static DataPack fromTenant(String tenantId) {
+    DataPack entity = new DataPack();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @EmbeddedId
   @JsonProperty("datapack_tenant_id_relationship")
   private DatapackTenantId compositeId = new DatapackTenantId();

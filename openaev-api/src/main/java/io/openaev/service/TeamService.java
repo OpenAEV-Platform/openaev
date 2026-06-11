@@ -59,7 +59,7 @@ public class TeamService {
    * @return the copied team, not persisted
    */
   public Team copyContextualTeam(Team teamToCopy) {
-    Team newTeam = new Team();
+    Team newTeam = Team.fromTenant(teamToCopy.getTenant().getId());
     newTeam.setName(teamToCopy.getName());
     newTeam.setDescription(teamToCopy.getDescription());
     newTeam.setTags(CopyObjectListUtils.copy(teamToCopy.getTags(), Tag.class));

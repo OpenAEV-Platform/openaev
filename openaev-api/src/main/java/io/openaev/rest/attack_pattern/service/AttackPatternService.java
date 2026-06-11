@@ -185,15 +185,15 @@ public class AttackPatternService {
    *     IDs.
    * @return List of attack pattern IDs corresponding to the external IDs.
    */
-  private List<String> getAttackPatternInternalIdsFromExternalIds(TxCtx ctx,
-      Set<String> externalAttackPatternIds) {
+  private List<String> getAttackPatternInternalIdsFromExternalIds(
+      TxCtx ctx, Set<String> externalAttackPatternIds) {
     return this.getAttackPatternsByExternalIds(ctx, externalAttackPatternIds).stream()
         .map(AttackPattern::getId)
         .toList();
   }
 
-  public List<AttackPattern> getAttackPatternsByExternalIdsThrowIfMissing(TxCtx ctx,
-      Set<String> externalAttackPatternIds) {
+  public List<AttackPattern> getAttackPatternsByExternalIdsThrowIfMissing(
+      TxCtx ctx, Set<String> externalAttackPatternIds) {
     List<AttackPattern> attackPatterns =
         this.getAttackPatternsByExternalIds(ctx, externalAttackPatternIds);
     List<String> missingIds =
@@ -259,8 +259,8 @@ public class AttackPatternService {
    * @param agentSlug XTM One agent slug to use when XTM One is configured.
    * @return List of attack pattern IDs found in the analysis.
    */
-  public List<String> searchAttackPatternWithTTPAIWebservice(TxCtx ctx,
-      List<MultipartFile> files, String text, String agentSlug) {
+  public List<String> searchAttackPatternWithTTPAIWebservice(
+      TxCtx ctx, List<MultipartFile> files, String text, String agentSlug) {
     validateInputs(files, text);
     try {
       String responseBody;
@@ -283,8 +283,8 @@ public class AttackPatternService {
   }
 
   /** Backwards-compatible overload — uses the default TTP extractor agent. */
-  public List<String> searchAttackPatternWithTTPAIWebservice(TxCtx ctx,
-      List<MultipartFile> files, String text) {
+  public List<String> searchAttackPatternWithTTPAIWebservice(
+      TxCtx ctx, List<MultipartFile> files, String text) {
     return searchAttackPatternWithTTPAIWebservice(ctx, files, text, null);
   }
 
@@ -330,9 +330,10 @@ public class AttackPatternService {
    * @param stixRefs list of tuples linking an atatck pattern ext ID with a stix ID
    * @return list of resolved internal AttackPattern entities
    */
-  public Map<String, AttackPattern> fetchInternalAttackPatternIds(TxCtx ctx,
-      Set<StixRefToExternalRef> stixRefs) {
-    return getAttackPatternsByExternalIds(ctx, securityCoverageUtils.getExternalIds(stixRefs)).stream()
+  public Map<String, AttackPattern> fetchInternalAttackPatternIds(
+      TxCtx ctx, Set<StixRefToExternalRef> stixRefs) {
+    return getAttackPatternsByExternalIds(ctx, securityCoverageUtils.getExternalIds(stixRefs))
+        .stream()
         .collect(Collectors.toMap(attack -> attack.getId(), Function.identity()));
   }
 
@@ -340,16 +341,15 @@ public class AttackPatternService {
     return attackPatternRepository.findAllByIdIn(idsAttackPattern);
   }
 
-  private AttackPattern createAttackPatternFromAttackPatternCreateInput(TxCtx ctx,
-      AttackPatternCreateInput input) {
-    AttackPattern newAttackPattern = new AttackPattern();
+  private AttackPattern createAttackPatternFromAttackPatternCreateInput(
+      TxCtx ctx, AttackPatternCreateInput input) {
+    AttackPattern newAttackPattern = AttackPattern.fromTenant(ctx.tenantIdFromUri());
     newAttackPattern.setName(input.getName());
     newAttackPattern.setStixId(input.getStixId());
     newAttackPattern.setDescription(input.getDescription());
     newAttackPattern.setExternalId(input.getExternalId());
     newAttackPattern.setPlatforms(input.getPlatforms());
     newAttackPattern.setPermissionsRequired(input.getPermissionsRequired());
-    newAttackPattern.setTenant(new Tenant(ctx.tenantIdFromUri()));
     return newAttackPattern;
   }
 
@@ -365,15 +365,18 @@ public class AttackPatternService {
   public AttackPattern findOrCreate(TxCtx ctx, AttackPatternCreateInput input) {
     Optional<AttackPattern> attackPattern =
         attackPatternRepository
-            .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(input.getExternalId()), ctx.tenantIdFromUri())
+            .findAllByExternalIdInIgnoreCaseAndTenantId(
+                List.of(input.getExternalId()), ctx.tenantIdFromUri())
             .stream()
             .findFirst();
     return attackPattern.orElseGet(
-        () -> attackPatternRepository.save(createAttackPatternFromAttackPatternCreateInput(ctx, input)));
+        () ->
+            attackPatternRepository.save(
+                createAttackPatternFromAttackPatternCreateInput(ctx, input)));
   }
 
-  public List<AttackPattern> internalUpsertAttackPatterns(TxCtx ctx,
-      List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
+  public List<AttackPattern> internalUpsertAttackPatterns(
+      TxCtx ctx, List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
     List<AttackPattern> upserted = new ArrayList<>();
     attackPatterns.forEach(
         attackPatternInput -> {

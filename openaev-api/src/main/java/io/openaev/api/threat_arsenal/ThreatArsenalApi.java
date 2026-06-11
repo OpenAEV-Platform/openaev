@@ -66,8 +66,8 @@ public class ThreatArsenalApi {
     TENANT_THREAT_ARSENAL_URL + "/domain-counts"
   })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<InjectorContractDomainCountOutput> getDomainCounts(TxCtx ctx,
-                                                                 @RequestBody @Valid final SearchPaginationInput input) {
+  public List<InjectorContractDomainCountOutput> getDomainCounts(
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getDomainCounts(ctx, input);
   }
 
@@ -85,8 +85,8 @@ public class ThreatArsenalApi {
   @jakarta.transaction.Transactional(rollbackOn = Exception.class)
   @PostMapping({THREAT_ARSENAL_URL + "/search", TENANT_THREAT_ARSENAL_URL + "/search"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public Page<? extends InjectorContractBaseOutput> threatArsenals(TxCtx ctx,
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+  public Page<? extends InjectorContractBaseOutput> threatArsenals(
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     InjectorContractService.OutputMode outputMode =
         input.isIncludeContentDetails()
             ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
@@ -103,8 +103,8 @@ public class ThreatArsenalApi {
     TENANT_THREAT_ARSENAL_URL + "/search/non-tabletop"
   })
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public Page<? extends InjectorContractBaseOutput> threatArsenalsNonTabletop(TxCtx ctx,
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+  public Page<? extends InjectorContractBaseOutput> threatArsenalsNonTabletop(
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     InjectorContractService.OutputMode outputMode =
         input.isIncludeContentDetails()
             ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT

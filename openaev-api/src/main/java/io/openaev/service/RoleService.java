@@ -34,15 +34,18 @@ public class RoleService {
 
   // -- CREATE --
 
-  public Role createRole(String tenantId,
-                         @NotBlank final String roleName,
+  public Role createRole(
+      String tenantId,
+      @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
-    return createRole(tenantId, UUID.randomUUID().toString(), roleName, roleDescription, capabilities);
+    return createRole(
+        tenantId, UUID.randomUUID().toString(), roleName, roleDescription, capabilities);
   }
 
-  public Role createRole(String tenantId,
-                         @NotBlank final String id,
+  public Role createRole(
+      String tenantId,
+      @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
@@ -55,8 +58,8 @@ public class RoleService {
    * validation.
    */
   public Role createRoleInternal(
-          String tenantId,
-          @NotBlank final String id,
+      String tenantId,
+      @NotBlank final String id,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
@@ -98,8 +101,9 @@ public class RoleService {
 
   // -- UPDATE --
 
-  public Role updateRole(String tenantId,
-                         @NotBlank final String roleId,
+  public Role updateRole(
+      String tenantId,
+      @NotBlank final String roleId,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
@@ -110,7 +114,7 @@ public class RoleService {
 
   /** Internal method for system-managed roles. Bypasses reserved name validation. */
   public Role updateRoleInternal(
-          @NotBlank final String roleId,
+      @NotBlank final String roleId,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {

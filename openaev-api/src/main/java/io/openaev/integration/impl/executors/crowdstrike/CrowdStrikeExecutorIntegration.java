@@ -120,7 +120,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     TxCtx ctx = TxCtx.noTenant();
     Executor executor =
         executorService.register(
-                ctx,
+            ctx,
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
             executorName,

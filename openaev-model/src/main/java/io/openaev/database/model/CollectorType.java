@@ -28,6 +28,13 @@ import org.hibernate.annotations.UuidGenerator;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class CollectorType implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static CollectorType fromTenant(String tenantId) {
+    CollectorType entity = new CollectorType();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "collector_type_id")
   @JsonProperty("collector_type_id")

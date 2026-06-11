@@ -62,7 +62,8 @@ public class XtmHubApi extends RestBehavior {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
-  public XtmHubRegistrationOutput register(TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
+  public XtmHubRegistrationOutput register(
+      TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
     return xtmHubRegistrationMapper.toXtmHubRegistrationOutput(
         this.xtmHubService.register(ctx.tenantIdFromUri(), input.getToken()));
   }

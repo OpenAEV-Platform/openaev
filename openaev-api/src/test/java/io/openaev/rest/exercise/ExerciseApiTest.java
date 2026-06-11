@@ -105,8 +105,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     settingRepository.save(
         settingRepository
-            .findByKeyAndTenantId(
-                TENANT_SIMULATION_DASHBOARD.key(), "tenant")
+            .findByKeyAndTenantId(TENANT_SIMULATION_DASHBOARD.key(), "tenant")
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());

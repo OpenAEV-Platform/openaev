@@ -59,14 +59,12 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
 
   /** Computes the tenant-scoped reserved id used by the service-account group in this tenant. */
   private String reservedServiceGroupId() {
-    return AbstractPrivilegeService.getUUIDFromName(
-        SERVICE_GROUP_ID, "tenant");
+    return AbstractPrivilegeService.getUUIDFromName(SERVICE_GROUP_ID, "tenant");
   }
 
   /** Computes the tenant-scoped reserved id used by the STIX-processor group in this tenant. */
   private String reservedStixGroupId() {
-    return AbstractPrivilegeService.getUUIDFromName(
-        PROCESS_STIX_GROUP_ID, "tenant");
+    return AbstractPrivilegeService.getUUIDFromName(PROCESS_STIX_GROUP_ID, "tenant");
   }
 
   /** Persists a group with an explicitly assigned (reserved) id. */
@@ -270,8 +268,7 @@ public class TenantGroupReservedKeyApiTest extends IntegrationTest {
           TenantRoleFixture.getRole("ReservedRoleById", Set.of(Capability.ACCESS_ASSETS));
       roleWithReservedId.setId(
           AbstractPrivilegeService.getUUIDFromName(
-              io.openaev.service.account.Constants.SERVICE_ROLE_ID,
-                  "tenant"));
+              io.openaev.service.account.Constants.SERVICE_ROLE_ID, "tenant"));
       Role reservedRole = tenantRoleComposer.forRole(roleWithReservedId).persist().get();
       GroupUpdateRolesInput input =
           GroupUpdateRolesInput.builder().roleIds(List.of(reservedRole.getId())).build();

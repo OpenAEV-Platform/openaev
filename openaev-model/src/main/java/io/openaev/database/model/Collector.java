@@ -24,6 +24,13 @@ import org.hibernate.annotations.Type;
 @EntityListeners({ModelBaseListener.class})
 public class Collector extends BaseConnectorEntity implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Collector fromTenant(String tenantId) {
+    Collector entity = new Collector();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "collector_id")
   @JsonProperty("collector_id")

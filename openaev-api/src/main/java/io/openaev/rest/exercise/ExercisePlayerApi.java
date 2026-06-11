@@ -36,9 +36,7 @@ public class ExercisePlayerApi extends RestBehavior {
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(this.userRepository, userId);
     Exercise exercise =
-        this.exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     return new PublicExercise(exercise);
   }
 }

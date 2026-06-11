@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
@@ -58,8 +59,8 @@ public class AssetGroupApi extends RestBehavior {
   @PostMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
-  public AssetGroup createAssetGroup(@Valid @RequestBody final AssetGroupInput input) {
-    AssetGroup assetGroup = new AssetGroup();
+  public AssetGroup createAssetGroup(TxCtx ctx, @Valid @RequestBody final AssetGroupInput input) {
+    AssetGroup assetGroup = AssetGroup.fromTenant(ctx.tenantIdFromUri());
     assetGroup.setUpdateAttributes(input);
     assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     return this.assetGroupService.createAssetGroup(assetGroup);

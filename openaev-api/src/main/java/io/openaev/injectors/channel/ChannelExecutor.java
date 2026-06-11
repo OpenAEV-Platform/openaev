@@ -85,8 +85,8 @@ public class ChannelExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(TxCtx ctx,
-                                  @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
+  public ExecutionProcess process(
+      TxCtx ctx, @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
       ChannelContent content = contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
@@ -121,7 +121,8 @@ public class ChannelExecutor extends Injector {
                   .filter(InjectDocument::isAttached)
                   .map(InjectDocument::getDocument)
                   .toList();
-          List<DataAttachment> attachments = resolveAttachments(ctx, execution, injection, documents);
+          List<DataAttachment> attachments =
+              resolveAttachments(ctx, execution, injection, documents);
           String message =
               content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
           boolean encrypted = content.isEncrypted();

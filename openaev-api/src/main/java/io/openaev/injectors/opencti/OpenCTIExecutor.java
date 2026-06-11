@@ -59,8 +59,8 @@ public class OpenCTIExecutor extends Injector {
   }
 
   @Override
-  public ExecutionProcess process(TxCtx ctx,
-      @NotNull final Execution execution, @NotNull final ExecutableInject injection)
+  public ExecutionProcess process(
+      TxCtx ctx, @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
     CaseContent content = contentConvert(injection, CaseContent.class);

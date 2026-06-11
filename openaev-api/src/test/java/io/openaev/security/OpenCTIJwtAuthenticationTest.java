@@ -87,9 +87,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
       c.setJwks(jwks);
       c.setOpenCTIConfig(openCTIConfig.getOpencti().get("tenantId"));
       c.setTenantId("tenantId");
-      Mockito.doReturn(Optional.of(c))
-          .when(openCTIConnectorService)
-          .getConnectorBase("tenantId");
+      Mockito.doReturn(Optional.of(c)).when(openCTIConnectorService).getConnectorBase("tenantId");
       Mockito.doReturn(List.of(c)).when(openCTIConnectorService).getRegisterConnectors();
     }
 

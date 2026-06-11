@@ -101,9 +101,7 @@ public class ComcheckApi extends RestBehavior {
     check.setName(comCheck.getName());
     check.setStart(now());
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     check.setExercise(exercise);
     // 02. Get users
     List<String> teamIds = comCheck.getTeamIds();

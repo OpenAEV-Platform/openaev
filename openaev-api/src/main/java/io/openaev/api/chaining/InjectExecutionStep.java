@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
@@ -378,7 +377,9 @@ public class InjectExecutionStep implements ActionStep {
 
     Injector injector =
         injectUtils.resolveInjectorReference(data.getInjectorId(), injectorContract);
-    Inject inject = data.toInject(injectorContract, injector);
+    String tenantId =
+        simulation != null ? simulation.getTenant().getId() : scenario.getTenant().getId();
+    Inject inject = data.toInject(injectorContract, injector, tenantId);
     inject.setUser(this.userService.currentUser());
 
     inject.setTeams(teamService.getTeamsByIds(data.getTeams()));
@@ -594,7 +595,7 @@ public class InjectExecutionStep implements ActionStep {
                           "Injector contract not found for step (READY) ID: " + step.getId()));
 
       injectorContract.setCompositeId(
-          new InjectorContractId(injectorContract.getId(), injectorContract.getTenant().getId() ));
+          new InjectorContractId(injectorContract.getId(), injectorContract.getTenant().getId()));
       inject.setInjectorContract(injectorContract);
 
       // GET INJECTOR

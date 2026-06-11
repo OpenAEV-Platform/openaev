@@ -39,7 +39,8 @@ public class FullTextSearchApi extends RestBehavior {
   @PostMapping({GLOBAL_SEARCH_URI + "/{clazz}", TENANT_GLOBAL_SEARCH_URI + "/{clazz}"})
   @AccessControl(skipRBAC = true)
   @Transactional
-  public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(TxCtx ctx,
+  public Page<FullTextSearchService.FullTextSearchResult> fullTextSearch(
+      TxCtx ctx,
       @PathVariable @NotBlank final String clazz,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput)
       throws ClassNotFoundException {
@@ -47,7 +48,8 @@ public class FullTextSearchApi extends RestBehavior {
       throw new IllegalArgumentException("Class not allowed : " + clazz);
     }
 
-    return this.fullTextSearchService.fullTextSearch(ctx, Class.forName(clazz), searchPaginationInput);
+    return this.fullTextSearchService.fullTextSearch(
+        ctx, Class.forName(clazz), searchPaginationInput);
   }
 
   @Data

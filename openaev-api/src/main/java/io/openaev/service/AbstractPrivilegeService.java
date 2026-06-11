@@ -1,7 +1,6 @@
 package io.openaev.service;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -38,8 +37,8 @@ public abstract class AbstractPrivilegeService {
     String id = getUUIDFromName(getRoleId(), tenantId);
     Optional<Role> role = roleService.findById(id);
     if (role.isEmpty()) {
-      return roleService.createRoleInternal(tenantId,
-          id, getRoleName(), getRoleDescription(), getRoleCapabilities());
+      return roleService.createRoleInternal(
+          tenantId, id, getRoleName(), getRoleDescription(), getRoleCapabilities());
     }
     return roleService.updateRoleInternal(
         id, getRoleName(), getRoleDescription(), getRoleCapabilities());

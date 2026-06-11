@@ -77,9 +77,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedId(String id) {
-    return UUID.nameUUIDFromBytes(
-            (UUID.fromString(id) + ":" + "tenantId").getBytes())
-        .toString();
+    return UUID.nameUUIDFromBytes((UUID.fromString(id) + ":" + "tenantId").getBytes()).toString();
   }
 
   private String tenantScopedRoleId() {
@@ -487,8 +485,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.clear();
 
         Optional<User> user =
-            userService.findByTokenAndTenantId(
-                testConnector.getToken(), "tenantId");
+            userService.findByTokenAndTenantId(testConnector.getToken(), "tenantId");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -530,8 +527,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.clear();
 
         Optional<User> user =
-            userService.findByTokenAndTenantId(
-                testConnector.getToken(), "tenant");
+            userService.findByTokenAndTenantId(testConnector.getToken(), "tenant");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -685,8 +681,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.clear();
 
         Optional<User> user =
-            userService.findByTokenAndTenantId(
-                testConnector.getToken(), "tenant");
+            userService.findByTokenAndTenantId(testConnector.getToken(), "tenant");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
@@ -728,8 +723,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         entityManager.clear();
 
         Optional<User> user =
-            userService.findByTokenAndTenantId(
-                testConnector.getToken(), "tenant");
+            userService.findByTokenAndTenantId(testConnector.getToken(), "tenant");
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())

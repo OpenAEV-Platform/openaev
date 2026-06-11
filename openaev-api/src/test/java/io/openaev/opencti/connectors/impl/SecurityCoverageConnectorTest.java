@@ -26,8 +26,7 @@ public class SecurityCoverageConnectorTest extends IntegrationTest {
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
 
   private SecurityCoverageConnector getConnector() {
-    Optional<ConnectorBase> connector =
-        openCTIConnectorService.getConnectorBase("tenant");
+    Optional<ConnectorBase> connector = openCTIConnectorService.getConnectorBase("tenant");
     assertThat(connector).isPresent();
     return (SecurityCoverageConnector) connector.get();
   }

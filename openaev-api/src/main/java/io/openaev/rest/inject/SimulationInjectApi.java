@@ -9,6 +9,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -227,9 +228,7 @@ public class SimulationInjectApi extends RestBehavior {
   public InjectOutput createInjectForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
@@ -246,9 +245,7 @@ public class SimulationInjectApi extends RestBehavior {
   public List<Inject> createInjectsForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
-        exerciseRepository
-            .findById(exerciseId)
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     return this.injectService.createAndSaveInjectList(exercise, null, inputs);
   }
 
@@ -278,6 +275,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public InjectStatus executeInject(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {
@@ -286,7 +284,7 @@ public class SimulationInjectApi extends RestBehavior {
             .findById(input.getInjectorContract())
             .orElseThrow(() -> new ElementNotFoundException("Injector contract not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
-    Inject inject = input.toInject(injectorContract, injector);
+    Inject inject = input.toInject(injectorContract, injector, ctx.tenantIdFromUri());
     inject.setUser(
         this.userRepository
             .findById(currentUser().getId())

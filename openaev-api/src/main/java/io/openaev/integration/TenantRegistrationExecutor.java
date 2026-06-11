@@ -2,19 +2,17 @@ package io.openaev.integration;
 
 import io.openaev.database.model.Tenant;
 import io.openaev.multitenancy.DependenciesManagerException;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.springframework.stereotype.Component;
 
 /**
  * Executes built-in tenant registration. Provides two entry points:
  *
  * <ul>
- *   <li>{@link #registerForTenant(Tenant)} — startup path: switches tenant context,
- *       registers, then flushes/clears/restores.
+ *   <li>{@link #registerForTenant(Tenant)} — startup path: switches tenant context, registers, then
+ *       flushes/clears/restores.
  *   <li>{@link #registerForTenant(Tenant)} — tenant creation path: just registers (caller manages
  *       context).
  * </ul>

@@ -178,7 +178,9 @@ public class InjectService {
 
     // Get common attributes
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
-    Inject inject = input.toInject(injectorContract, injector);
+    String tenantId =
+        exercise != null ? exercise.getTenant().getId() : scenario.getTenant().getId();
+    Inject inject = input.toInject(injectorContract, injector, tenantId);
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
@@ -281,8 +283,12 @@ public class InjectService {
    * @return the inject object built
    */
   public Inject buildInject(
-      InjectorContract injectorContract, String title, String description, Boolean enabled) {
-    Inject inject = new Inject();
+      String tenantId,
+      InjectorContract injectorContract,
+      String title,
+      String description,
+      Boolean enabled) {
+    Inject inject = Inject.fromTenant(tenantId);
     inject.setTitle(title);
     inject.setDescription(description);
     inject.setInjectorContract(injectorContract);
@@ -303,8 +309,9 @@ public class InjectService {
    * @return the built Inject object
    */
   public Inject buildTechnicalInject(
-      InjectorContract injectorContract, String identifier, String name) {
+      String tenantId, InjectorContract injectorContract, String identifier, String name) {
     return buildInject(
+        tenantId,
         injectorContract,
         String.format("[%s] %s - %s", identifier, name, injectorContract.getLabels().get("en")),
         null,
@@ -568,8 +575,10 @@ public class InjectService {
    * @throws BadRequestException if neither of the searchPaginationInput or injectIDsToSearch is
    *     provided
    */
-  public Specification<Inject> getInjectSpecification(String tenantId,
-      final InjectBulkProcessingInput input, Grant.GRANT_TYPE requestedGrantLevel) {
+  public Specification<Inject> getInjectSpecification(
+      String tenantId,
+      final InjectBulkProcessingInput input,
+      Grant.GRANT_TYPE requestedGrantLevel) {
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
         || (!CollectionUtils.isEmpty(input.getInjectIDsToProcess())
@@ -598,7 +607,8 @@ public class InjectService {
     }
     // Filter out any injects not related to resources where the user is granted with the
     // appropriate level
-    filterSpecifications = filterSpecifications.and(hasGrantAccessForInject(tenantId, requestedGrantLevel));
+    filterSpecifications =
+        filterSpecifications.and(hasGrantAccessForInject(tenantId, requestedGrantLevel));
     return filterSpecifications;
   }
 
@@ -659,8 +669,8 @@ public class InjectService {
    * @return the injects to update/delete
    * @throws AccessDeniedException if the user is not allowed to update/delete the injects
    */
-  public List<Inject> getInjectsAndCheckPermission(String tenantId,
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+  public List<Inject> getInjectsAndCheckPermission(
+      String tenantId, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
@@ -1164,7 +1174,8 @@ public class InjectService {
    * @param grantType the grant type to check
    * @return a Specification that checks if the user has access to the inject
    */
-  public Specification<Inject> hasGrantAccessForInject(String tenantId, Grant.GRANT_TYPE grantType) {
+  public Specification<Inject> hasGrantAccessForInject(
+      String tenantId, Grant.GRANT_TYPE grantType) {
 
     User currentUser = userService.currentUser();
     boolean hasCapabilityAccessAssessment =
@@ -1428,7 +1439,7 @@ public class InjectService {
    * @param locale to set default inject label
    */
   public void createInjectsFromInjectorContractInput(
-          TxCtx ctx,
+      TxCtx ctx,
       Exercise exercise,
       List<Scenario> scenarios,
       InjectorContractSearchPaginationInput input,
@@ -1452,11 +1463,11 @@ public class InjectService {
     } while (page.hasNext());
   }
 
-  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(TxCtx ctx,
-                                                                                InjectorContractSearchPaginationInput input, int pageNumber) {
+  private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
+      TxCtx ctx, InjectorContractSearchPaginationInput input, int pageNumber) {
     input.setPage(pageNumber);
-    return threatArsenalService.searchInjectorContracts(ctx,
-        InjectorContractService.OutputMode.FULL, input);
+    return threatArsenalService.searchInjectorContracts(
+        ctx, InjectorContractService.OutputMode.FULL, input);
   }
 
   private List<InjectInput> toInjectInputs(

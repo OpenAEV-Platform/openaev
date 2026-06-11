@@ -121,8 +121,8 @@ public class EndpointService {
     return this.endpointRepository.save(endpoint);
   }
 
-  public Endpoint createEndpoint(@NotNull final EndpointInput input) {
-    Endpoint endpoint = new Endpoint();
+  public Endpoint createEndpoint(TxCtx ctx, @NotNull final EndpointInput input) {
+    Endpoint endpoint = Endpoint.fromTenant(ctx.tenantIdFromUri());
     endpoint.setUpdateAttributes(input);
     endpoint.setIps(EndpointMapper.setIps(input.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
@@ -137,7 +137,8 @@ public class EndpointService {
         .orElseThrow(() -> new ElementNotFoundException("Endpoint not found"));
   }
 
-  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(@NotBlank final String hostname, @NotNull final String[] ips) {
+  public List<Endpoint> findEndpointByHostnameAndAtLeastOneIp(
+      @NotBlank final String hostname, @NotNull final String[] ips) {
     return this.endpointRepository.findByHostnameAndAtleastOneIp(hostname, ips);
   }
 
@@ -310,8 +311,8 @@ public class EndpointService {
     }
   }
 
-  public Endpoint updateEndpoint(TxCtx ctx,
-      @NotBlank final String endpointId, @NotNull final EndpointInput input) {
+  public Endpoint updateEndpoint(
+      TxCtx ctx, @NotBlank final String endpointId, @NotNull final EndpointInput input) {
     Endpoint toUpdate = this.endpoint(ctx, endpointId);
     toUpdate.setUpdateAttributes(input);
     toUpdate.setEoL(input.isEol());
@@ -385,7 +386,7 @@ public class EndpointService {
               .noneMatch(agent -> agent.getAsset().getId().equals(endpointToUpdate.getId()))) {
             final AgentRegisterInput inputToSave = optionalInputToSave.get();
             setUpdatedEndpointAttributes(endpointToUpdate, inputToSave);
-            agentToSave = new Agent();
+            agentToSave = Agent.fromTenant(inputToSave.getExecutor().getTenant().getId());
             setNewAgentAttributes(inputToSave, agentToSave);
             setUpdatedAgentAttributes(agentToSave, inputToSave, endpointToUpdate);
             // TODO: Making this function transactional is not helping to solve tags
@@ -401,7 +402,7 @@ public class EndpointService {
     // Create new agents/endpoints
     if (!inputs.isEmpty()) {
       for (AgentRegisterInput inputToUpdate : inputs) {
-        endpointToSave = new Endpoint();
+        endpointToSave = Endpoint.fromTenant(inputToUpdate.getExecutor().getTenant().getId());
         endpointToSave.setUpdateAttributes(inputToUpdate);
         endpointToSave.setIps(inputToUpdate.getIps());
         endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
@@ -409,7 +410,7 @@ public class EndpointService {
         // TODO: Making this function transactional is not helping to solve tags
         // addSourceTagToEndpoint(endpointToSave, inputToUpdate);
         endpointsToSave.add(endpointToSave);
-        agentToSave = new Agent();
+        agentToSave = Agent.fromTenant(inputToUpdate.getExecutor().getTenant().getId());
         setNewAgentAttributes(inputToUpdate, agentToSave);
         setUpdatedAgentAttributes(agentToSave, inputToUpdate, endpointToSave);
         agentsToSave.add(agentToSave);
@@ -472,17 +473,16 @@ public class EndpointService {
         if (assetAgentJobRepository
             .findUpgradeJobByAgentIdAndInjectNull(agent.getId(), agent.getTenant().getId())
             .isEmpty()) {
-          AssetAgentJob assetAgentJob = new AssetAgentJob();
+          AssetAgentJob assetAgentJob = AssetAgentJob.fromTenant(agent.getTenant().getId());
           assetAgentJob.setCommand(
               generateUpgradeCommand(
-                      ctx,
+                  ctx,
                   endpoint.getPlatform().name(),
                   input.getInstallationMode(),
                   input.getInstallationDirectory(),
                   input.getServiceName(),
                   agent.getTenant().getId()));
           assetAgentJob.setAgent(agent);
-          assetAgentJob.setTenant(agent.getTenant());
           assetAgentJob.setCreatedAt(now());
 
           try {
@@ -522,7 +522,7 @@ public class EndpointService {
     String tagName = "source:" + input.getExecutor().getName().toLowerCase();
     Optional<Tag> tag = tagRepository.findByName(tagName);
     if (tag.isEmpty()) {
-      Tag newTag = new Tag();
+      Tag newTag = Tag.fromTenant(endpoint.getTenant().getId());
       newTag.setColor(input.getExecutor().getBackgroundColor());
       newTag.setName(tagName);
       tagRepository.save(newTag);
@@ -553,7 +553,7 @@ public class EndpointService {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
     updateEndpoint(endpoint);
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant(input.getExecutor().getTenant().getId());
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
     return agentService.createOrUpdateAgent(agent);
@@ -575,7 +575,7 @@ public class EndpointService {
     if (existingAgent.isPresent()) {
       agent = existingAgent.get();
     } else {
-      agent = new Agent();
+      agent = Agent.fromTenant(input.getExecutor().getTenant().getId());
       setNewAgentAttributes(input, agent);
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
@@ -609,15 +609,14 @@ public class EndpointService {
   }
 
   private Agent createNewEndpointAndAgent(AgentRegisterInput input) {
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant(input.getExecutor().getTenant().getId());
     endpoint.setUpdateAttributes(input);
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
-    endpoint.setTenant(input.getExecutor().getTenant());
     addSourceTagToEndpoint(endpoint, input);
     createEndpoint(endpoint);
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant(input.getExecutor().getTenant().getId());
     setUpdatedAgentAttributes(agent, input, endpoint);
     setNewAgentAttributes(input, agent);
     return agentService.createOrUpdateAgent(agent);
@@ -635,7 +634,6 @@ public class EndpointService {
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
-    agent.setTenant(input.getExecutor().getTenant());
   }
 
   private AgentRegisterInput toAgentEndpoint(TxCtx ctx, EndpointRegisterInput input) {
@@ -793,7 +791,7 @@ public class EndpointService {
   }
 
   public String generateUpgradeCommand(
-          TxCtx ctx,
+      TxCtx ctx,
       String platform,
       String installationMode,
       String installationDir,
@@ -801,8 +799,7 @@ public class EndpointService {
       String tenantId)
       throws IOException {
     // FIND TOKEN BY TENANT
-    String token =
-        privilegeService.getTokenUserServiceAccountByTenant(ctx.tenantIdFromUri());
+    String token = privilegeService.getTokenUserServiceAccountByTenant(ctx.tenantIdFromUri());
     String upgradeName = OPENAEV_AGENT_UPGRADE;
     if (installationMode != null && !installationMode.equals(SERVICE)) {
       upgradeName = upgradeName.concat("-").concat(installationMode);
@@ -870,7 +867,7 @@ public class EndpointService {
    * @param input the endpoint input data
    * @return the created or updated Endpoint entity
    */
-  public Endpoint upsertEndpoint(EndpointInput input) {
+  public Endpoint upsertEndpoint(TxCtx ctx, EndpointInput input) {
     Optional<Endpoint> endpoint = findExistingEndpoint(input);
     if (endpoint.isPresent()) {
       Endpoint endpointToUpdate = endpoint.get();
@@ -897,7 +894,7 @@ public class EndpointService {
       }
       return updateEndpoint(endpointToUpdate);
     }
-    return createEndpoint(input);
+    return createEndpoint(ctx, input);
   }
 
   /**

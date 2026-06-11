@@ -11,8 +11,8 @@ import java.util.Set;
  * Output DTO for the {@code /api/me} endpoint.
  *
  * <p>Wraps the {@link User} entity (serialized as-is via {@link JsonUnwrapped}) and adds
- * tenant-scoped fields that require a {@code tenantId} to compute and therefore cannot
- * be serialized directly from the entity (Jackson can't call parameterized getters).
+ * tenant-scoped fields that require a {@code tenantId} to compute and therefore cannot be
+ * serialized directly from the entity (Jackson can't call parameterized getters).
  */
 public record MeOutput(
     @JsonUnwrapped User user,

@@ -163,25 +163,30 @@ public class ScenarioService {
   }
 
   public Scenario createScenarioWithInjectorContracts(
-          TxCtx ctx,
+      TxCtx ctx,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    Scenario preparedScenario = prepareScenarioFromScenarioInput(ctx.tenantIdFromUri(), scenarioInput);
+    Scenario preparedScenario =
+        prepareScenarioFromScenarioInput(ctx.tenantIdFromUri(), scenarioInput);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
-    this.injectService.createInjectsFromInjectorContractInput(ctx,
-        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+    this.injectService.createInjectsFromInjectorContractInput(
+        ctx,
+        null,
+        new ArrayList<>(List.of(scenario)),
+        injectorContractSearchPaginationInput,
+        locale);
     return scenario;
   }
 
   public List<Scenario> updateScenariosWithInjectorContracts(
-          TxCtx ctx,
+      TxCtx ctx,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
-    this.injectService.createInjectsFromInjectorContractInput(ctx,
-        null, scenarios, injectorContractSearchPaginationInput, locale);
+    this.injectService.createInjectsFromInjectorContractInput(
+        ctx, null, scenarios, injectorContractSearchPaginationInput, locale);
     return scenarios;
   }
 
@@ -225,8 +230,8 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
   }
 
-  public Page<RawPaginationScenario> scenarios(String tenantId,
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+  public Page<RawPaginationScenario> scenarios(
+      String tenantId, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Compute custom filter
@@ -245,7 +250,7 @@ public class ScenarioService {
   private TriFunction<
           Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
       getFindAllFunction(
-              String tenantId,
+          String tenantId,
           UnaryOperator<Specification<Scenario>> deepFilterSpecification,
           Map<String, Join<Base, Base>> joinMap) {
     User currentUser = userService.currentUser();
@@ -496,7 +501,7 @@ public class ScenarioService {
   // -- EXPORT --
 
   public void exportScenario(
-          String tenantId,
+      String tenantId,
       @NotBlank final String scenarioId,
       final boolean isWithTeams,
       final boolean isWithPlayers,
@@ -764,10 +769,7 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findById(teamId)
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
     Team savedTeam = teamRepository.save(team);
@@ -778,10 +780,7 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team =
-        teamRepository
-            .findById(teamId)
-            .orElseThrow(ElementNotFoundException::new);
+    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 
@@ -824,10 +823,7 @@ public class ScenarioService {
 
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
-      Scenario scenarioOrigin =
-          scenarioRepository
-              .findById(scenarioId)
-              .orElseThrow();
+      Scenario scenarioOrigin = scenarioRepository.findById(scenarioId).orElseThrow();
       Scenario scenario = copyScenario(scenarioOrigin);
       Scenario scenarioDuplicate = scenarioRepository.save(scenario);
       getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);
@@ -886,7 +882,7 @@ public class ScenarioService {
   }
 
   private Scenario copyScenario(Scenario scenario) {
-    Scenario scenarioDuplicate = new Scenario();
+    Scenario scenarioDuplicate = Scenario.fromTenant(scenario.getTenant().getId());
     scenarioDuplicate.setName(duplicateString(scenario.getName()));
     scenarioDuplicate.setCategory(scenario.getCategory());
     scenarioDuplicate.setDescription(scenario.getDescription());
@@ -1133,7 +1129,7 @@ public class ScenarioService {
 
   private Scenario prepareScenarioFromScenarioInput(
       @NotBlank final String tenantId, @NotNull final ScenarioInput input) {
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant(tenantId);
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {

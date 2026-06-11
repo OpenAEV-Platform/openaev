@@ -8,8 +8,9 @@ public final class FindingUtils {
 
   private FindingUtils() {}
 
-  public static Finding createFinding(@NotNull final ContractOutputContext element) {
-    Finding finding = new Finding();
+  public static Finding createFinding(
+      @NotNull final ContractOutputContext element, String tenantId) {
+    Finding finding = Finding.fromTenant(tenantId);
     finding.setType(element.type());
     finding.setField(element.key());
     finding.setLabels(element.labels()); // TODO: Set tags

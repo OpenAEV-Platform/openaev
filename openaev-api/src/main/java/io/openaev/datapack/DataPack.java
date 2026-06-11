@@ -23,7 +23,8 @@ public abstract class DataPack {
         .findByIdAndTenant(packId, new Tenant(ctx.tenantIdFromUri()))
         .map(
             dataPack -> {
-              log.debug("Already processed datapack '{}' for tenant {}.", packId, ctx.tenantIdFromUri());
+              log.debug(
+                  "Already processed datapack '{}' for tenant {}.", packId, ctx.tenantIdFromUri());
               return DataPackProcessingResult.SKIPPED;
             })
         .orElseGet(

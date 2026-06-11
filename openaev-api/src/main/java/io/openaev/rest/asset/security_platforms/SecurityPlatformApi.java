@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -55,8 +56,8 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
-      @Valid @RequestBody final SecurityPlatformInput input) {
-    SecurityPlatform securityPlatform = new SecurityPlatform();
+      TxCtx ctx, @Valid @RequestBody final SecurityPlatformInput input) {
+    SecurityPlatform securityPlatform = SecurityPlatform.fromTenant(ctx.tenantIdFromUri());
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
     if (input.getLogoDark() != null) {
@@ -77,7 +78,7 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
-      @Valid @RequestBody SecurityPlatformUpsertInput input) {
+      TxCtx ctx, @Valid @RequestBody SecurityPlatformUpsertInput input) {
     Optional<SecurityPlatform> securityPlatform =
         securityPlatformRepository.findByExternalReference(input.getExternalReference());
     if (securityPlatform.isPresent()) {
@@ -100,7 +101,7 @@ public class SecurityPlatformApi {
           iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
       return this.securityPlatformRepository.save(existingSecurityPlatform);
     } else {
-      SecurityPlatform newSecurityPlatform = new SecurityPlatform();
+      SecurityPlatform newSecurityPlatform = SecurityPlatform.fromTenant(ctx.tenantIdFromUri());
       newSecurityPlatform.setUpdateAttributes(input);
       newSecurityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
       if (input.getLogoDark() != null) {

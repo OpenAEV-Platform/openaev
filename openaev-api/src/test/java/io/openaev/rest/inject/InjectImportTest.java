@@ -283,8 +283,8 @@ class InjectImportTest extends IntegrationTest {
       throws IOException {
     List<Inject> injects = wrappers.stream().map(InjectComposer.Composer::get).toList();
     byte[] data =
-        exportService.exportInjectsToZip("tenant",
-            injects, ExportOptions.mask(withPlayers, withTeams, withVariableValues));
+        exportService.exportInjectsToZip(
+            "tenant", injects, ExportOptions.mask(withPlayers, withTeams, withVariableValues));
     clearEntityManager();
     return data;
   }

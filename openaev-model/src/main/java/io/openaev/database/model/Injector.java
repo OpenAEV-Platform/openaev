@@ -25,6 +25,13 @@ import org.hibernate.annotations.Type;
 @EntityListeners({ModelBaseListener.class})
 public class Injector extends BaseConnectorEntity implements TenantBase {
 
+  /** Creates a new instance scoped to the given tenant. */
+  public static Injector fromTenant(String tenantId) {
+    Injector entity = new Injector();
+    entity.setTenant(new Tenant(tenantId));
+    return entity;
+  }
+
   @Id
   @Column(name = "injector_id")
   @JsonProperty("injector_id")

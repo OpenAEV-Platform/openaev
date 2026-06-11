@@ -71,8 +71,8 @@ class AttackPatternServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
-                new ArrayList<>(files), "  "));
+            attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                TxCtx.noTenant(), new ArrayList<>(files), "  "));
   }
 
   @DisplayName("given_moreThanFiveFiles_should_throwIllegalArgumentException")
@@ -91,7 +91,9 @@ class AttackPatternServiceTest {
     // Act / Assert
     assertThrows(
         IllegalArgumentException.class,
-        () -> attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(), files, "valid text"));
+        () ->
+            attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                TxCtx.noTenant(), files, "valid text"));
   }
 
   @DisplayName("given_missingEnterpriseLicense_should_throwIllegalStateException")
@@ -106,7 +108,8 @@ class AttackPatternServiceTest {
     assertThrows(
         IllegalStateException.class,
         () ->
-            attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(), List.of(), "extract this"));
+            attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                TxCtx.noTenant(), List.of(), "extract this"));
     verify(restTemplate, never()).postForEntity(anyString(), any(), any());
   }
 
@@ -136,7 +139,8 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(), List.of(), "extract this");
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+            TxCtx.noTenant(), List.of(), "extract this");
 
     // Assert
     assertEquals(2, ids.size());
@@ -166,8 +170,8 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
-            List.of(), "Analyze this attack", "filigran-ttp-extractor");
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+            TxCtx.noTenant(), List.of(), "Analyze this attack", "filigran-ttp-extractor");
 
     // Assert
     assertEquals(1, ids.size());
@@ -197,8 +201,8 @@ class AttackPatternServiceTest {
 
     // Act
     List<String> ids =
-        attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
-            List.of(), "context", "cti-ttp-harvester-filigran-ia");
+        attackPatternService.searchAttackPatternWithTTPAIWebservice(
+            TxCtx.noTenant(), List.of(), "context", "cti-ttp-harvester-filigran-ia");
 
     // Assert
     assertEquals(1, ids.size());
@@ -220,8 +224,8 @@ class AttackPatternServiceTest {
         assertThrows(
             org.springframework.web.server.ResponseStatusException.class,
             () ->
-                attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
-                    List.of(), "context", "cti-ttp-harvester-filigran-ia"));
+                attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                    TxCtx.noTenant(), List.of(), "context", "cti-ttp-harvester-filigran-ia"));
     assertEquals(503, ex.getStatusCode().value());
     assertTrue(ex.getReason() == null || !ex.getReason().contains("@"));
   }
@@ -239,8 +243,8 @@ class AttackPatternServiceTest {
         assertThrows(
             org.springframework.web.server.ResponseStatusException.class,
             () ->
-                attackPatternService.searchAttackPatternWithTTPAIWebservice(TxCtx.noTenant(),
-                    List.of(huge), "context", null));
+                attackPatternService.searchAttackPatternWithTTPAIWebservice(
+                    TxCtx.noTenant(), List.of(huge), "context", null));
     assertEquals(413, ex.getStatusCode().value());
     // No XTM One / legacy call should happen if validation rejects the upload
     verify(xtmOneClient, never()).callAgentSync(anyString(), anyString(), any());
@@ -260,8 +264,8 @@ class AttackPatternServiceTest {
     assertThrows(
         ElementNotFoundException.class,
         () ->
-            attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(TxCtx.noTenant(),
-                Set.of("T1003", "T1059")));
+            attackPatternService.getAttackPatternsByExternalIdsThrowIfMissing(
+                TxCtx.noTenant(), Set.of("T1003", "T1059")));
   }
 
   @DisplayName("given_missingInternalIds_should_throwElementNotFoundException")

@@ -24,7 +24,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_METHOD)
 class V1_DataImporterTest extends IntegrationTest {
@@ -78,8 +77,15 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   void testImportData() {
     // -- EXECUTE --
-    this.importer.importData(TxCtx.of("tenant"),
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    this.importer.importData(
+        TxCtx.of("tenant"),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     Optional<Exercise> exercise = this.exerciseRepository.findOne(exerciseByName(EXERCISE_NAME));
@@ -117,8 +123,15 @@ class V1_DataImporterTest extends IntegrationTest {
                 Paths.get(
                     "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
     this.importNode = mapper.readTree(jsonContent);
-    this.importer.importData(TxCtx.of("tenant"),
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    this.importer.importData(
+        TxCtx.of("tenant"),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
     InjectorContract injectorContract =
@@ -145,8 +158,15 @@ class V1_DataImporterTest extends IntegrationTest {
     entityManager.clear();
     openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
-    this.importer.importData(TxCtx.of("tenant"),
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    this.importer.importData(
+        TxCtx.of("tenant"),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
     InjectorContract injectorContract2 =
         injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
@@ -171,8 +191,15 @@ class V1_DataImporterTest extends IntegrationTest {
                 Paths.get(
                     "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
     this.importNode = mapper.readTree(jsonContent);
-    this.importer.importData(TxCtx.of("tenant"),
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    this.importer.importData(
+        TxCtx.of("tenant"),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // dummy injector should be created with 1 associated injector contract
     Injector dummyInjector =
@@ -200,8 +227,15 @@ class V1_DataImporterTest extends IntegrationTest {
     for (Path xtmScenariosFilePath : xtmScenariosFilesPath) {
       String jsonContent = Files.readString(xtmScenariosFilePath);
       JsonNode importNode = mapper.readTree(jsonContent);
-      this.importer.importData(TxCtx.of("tenant"),
-          importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+      this.importer.importData(
+          TxCtx.of("tenant"),
+          importNode,
+          Map.of(),
+          null,
+          null,
+          null,
+          null,
+          Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     }
   }
 
@@ -240,8 +274,15 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importNode = mapper.readTree(jsonContent);
 
     // -- EXECUTE --
-    this.importer.importData(TxCtx.of("tenant"),
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    this.importer.importData(
+        TxCtx.of("tenant"),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     List<Payload> payloads = new ArrayList<>();
@@ -276,8 +317,15 @@ class V1_DataImporterTest extends IntegrationTest {
     this.importNode = mapper.readTree(jsonContent);
 
     // -- EXECUTE --
-    this.importer.importData(TxCtx.of("tenant"),
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    this.importer.importData(
+        TxCtx.of("tenant"),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     List<Payload> payloads = new ArrayList<>();
