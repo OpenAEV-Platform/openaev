@@ -50,7 +50,7 @@ class FindingServiceTest extends IntegrationTest {
     ContractOutputElement contractOutputElement = getContractOutputElementTypeIPv6();
     ContractOutputContext contractOutputContext = ContractOutputContext.from(contractOutputElement);
 
-    Finding existing = new Finding();
+    Finding existing = Finding.fromTenant("tenant");
     existing.setValue(value);
     existing.setInject(inject);
     existing.setField(contractOutputElement.getKey());
@@ -87,7 +87,7 @@ class FindingServiceTest extends IntegrationTest {
     ContractOutputElement contractOutputElement = getContractOutputElementTypeIPv6();
     ContractOutputContext contractOutputContext = ContractOutputContext.from(contractOutputElement);
 
-    Finding existing = new Finding();
+    Finding existing = Finding.fromTenant("tenant");
     existing.setValue(value);
     existing.setInject(inject);
     existing.setField(contractOutputElement.getKey());
@@ -161,7 +161,8 @@ class FindingServiceTest extends IntegrationTest {
             node -> node.get("id").asText(),
             node -> Collections.emptyList(),
             node -> Collections.emptyList(),
-            node -> Collections.emptyList());
+            node -> Collections.emptyList(),
+            Inject.fromTenant("tenant"));
 
     assertNotNull(findings);
     assertEquals(2, findings.size());
@@ -218,7 +219,8 @@ class FindingServiceTest extends IntegrationTest {
                 node -> node.get("port").asText(),
                 node -> Collections.emptyList(),
                 node -> Collections.emptyList(),
-                node -> Collections.emptyList()));
+                node -> Collections.emptyList(),
+                Inject.fromTenant("tenant")));
   }
 
   @Nested
@@ -243,7 +245,7 @@ class FindingServiceTest extends IntegrationTest {
         Inject inject = getDefaultInject();
         inject = injectRepository.save(inject);
 
-        Finding finding = new Finding();
+        Finding finding = Finding.fromTenant("tenant");
         finding.setValue("tenant-finding-" + UUID.randomUUID());
         finding.setInject(inject);
         finding.setField("finding_field");

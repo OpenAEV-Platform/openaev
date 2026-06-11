@@ -21,7 +21,7 @@ class MapperServiceExportTest extends IntegrationTest {
   @Test
   void exportMapper() throws Exception {
     // -- PREPARE --
-    ImportMapper mapper = new ImportMapper();
+    ImportMapper mapper = ImportMapper.fromTenant("tenant");
     mapper.setName("Test Mapper");
     mapper.setInjectTypeColumn("injectType");
     mapper.setInjectImporters(new ArrayList<>());

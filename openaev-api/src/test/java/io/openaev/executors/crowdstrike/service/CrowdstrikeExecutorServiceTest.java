@@ -54,7 +54,7 @@ public class CrowdstrikeExecutorServiceTest {
   @BeforeEach
   void setUp() {
     crowdstrikeAgent = CrowdstrikeDeviceFixture.createDefaultCrowdStrikeDevice();
-    crowdstrikeExecutor = new Executor();
+    crowdstrikeExecutor = Executor.fromTenant("tenant");
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
     crowdstrikeExecutor.setTenant(new Tenant("tenant"));

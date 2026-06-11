@@ -64,12 +64,12 @@ class ChannelApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createArticleForScenarioTest() throws Exception {
     // -- PREPARE --
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Scenario name");
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     SCENARIO_ID = scenarioCreated.getId();
 
-    Channel channel = new Channel();
+    Channel channel = Channel.fromTenant("tenant");
     channel.setName("A channel");
     channel = this.channelRepository.save(channel);
     CHANNEL_ID = channel.getId();

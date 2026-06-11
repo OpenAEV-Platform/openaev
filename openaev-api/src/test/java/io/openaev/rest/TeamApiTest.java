@@ -91,7 +91,7 @@ class TeamApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_existingTeamNameInput_should_throwAnException() throws Exception {
     // --PREPARE--
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setName(TEAM_NAME);
     this.teamRepository.save(team);
 
@@ -150,7 +150,7 @@ class TeamApiTest extends IntegrationTest {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
     exercise = this.exerciseService.createExercise(exercise);
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setName(CONTEXTUAL_TEAM_NAME);
     team.setContextual(true);
     team.setExercises(List.of(exercise));
@@ -184,7 +184,7 @@ class TeamApiTest extends IntegrationTest {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
 
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setUpdateAttributes(teamInput);
     team = teamRepository.save(team);
     String newName = "updatedName";
@@ -214,7 +214,7 @@ class TeamApiTest extends IntegrationTest {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
 
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setUpdateAttributes(teamInput);
     teamRepository.save(team);
     String newName = "updatedName";
@@ -301,16 +301,16 @@ class TeamApiTest extends IntegrationTest {
 
   private Inject prepareOptionsEndpointTestData() {
     // Teams
-    Team team1input = new Team();
+    Team team1input = Team.fromTenant("tenant");
     team1input.setName(TEAM_NAME + "1");
     Team team1 = this.teamRepository.save(team1input);
-    Team team2input = new Team();
+    Team team2input = Team.fromTenant("tenant");
     team2input.setName(TEAM_NAME + "2");
     Team team2 = this.teamRepository.save(team2input);
-    Team team3input = new Team();
+    Team team3input = Team.fromTenant("tenant");
     team3input.setName(TEAM_NAME + "3");
     Team team3 = this.teamRepository.save(team3input);
-    Team team4input = new Team();
+    Team team4input = Team.fromTenant("tenant");
     team4input.setName(TEAM_NAME + "4");
     Team team4 = this.teamRepository.save(team4input);
     Exercise exInput = ExerciseFixture.getExercise();

@@ -29,7 +29,7 @@ public class ImportMapperFixture {
 
   public static ImportMapper createImportMapper(
       String mapperName, String injectTypeValue, String injectTypeColumn) {
-    ImportMapper importMapper = new ImportMapper();
+    ImportMapper importMapper = ImportMapper.fromTenant("tenant");
     importMapper.setName(mapperName);
     importMapper.setInjectTypeColumn(injectTypeColumn);
     importMapper.setInjectImporters(new ArrayList<>());

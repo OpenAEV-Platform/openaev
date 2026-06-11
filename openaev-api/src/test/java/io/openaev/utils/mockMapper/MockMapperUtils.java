@@ -12,7 +12,7 @@ import java.util.UUID;
 public class MockMapperUtils {
 
   public static ImportMapper createImportMapper() {
-    ImportMapper importMapper = new ImportMapper();
+    ImportMapper importMapper = ImportMapper.fromTenant("tenant");
     importMapper.setId(UUID.randomUUID().toString());
     importMapper.setName("Test");
     importMapper.setUpdateDate(Instant.now());
@@ -29,7 +29,7 @@ public class MockMapperUtils {
     InjectImporter injectImporter = new InjectImporter();
     injectImporter.setId(UUID.randomUUID().toString());
     injectImporter.setImportTypeValue("Test");
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(UUID.randomUUID().toString());
     injectImporter.setInjectorContract(injectorContract);
     injectImporter.setRuleAttributes(new ArrayList<>());

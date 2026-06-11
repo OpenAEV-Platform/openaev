@@ -21,17 +21,17 @@ public class TagRuleFixture {
 
   public static TagRule createTagRule(String tagRuleId) {
 
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setName(TAG_NAME);
 
-    AssetGroup assetGroup1 = new AssetGroup();
+    AssetGroup assetGroup1 = AssetGroup.fromTenant("tenant");
     assetGroup1.setId(ASSET_GROUP_ID_1);
     assetGroup1.setName(ASSET_GROUP_NAME_1);
-    AssetGroup assetGroup2 = new AssetGroup();
+    AssetGroup assetGroup2 = AssetGroup.fromTenant("tenant");
     assetGroup2.setId(ASSET_GROUP_ID_2);
     assetGroup2.setName(ASSET_GROUP_NAME_2);
 
-    TagRule rule = new TagRule();
+    TagRule rule = TagRule.fromTenant("tenant");
     rule.setAssetGroups(new ArrayList<>(Arrays.asList(assetGroup1, assetGroup2)));
     rule.setTag(tag);
     rule.setId(tagRuleId);
@@ -40,10 +40,10 @@ public class TagRuleFixture {
   }
 
   public static TagRule createTagRule(String tagRuleId, List<AssetGroup> assetGroups) {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setName(TAG_NAME);
 
-    TagRule rule = new TagRule();
+    TagRule rule = TagRule.fromTenant("tenant");
     rule.setAssetGroups(assetGroups);
     rule.setTag(tag);
     rule.setId(tagRuleId);
@@ -52,7 +52,7 @@ public class TagRuleFixture {
   }
 
   public static TagRule createDefaultTagRule() {
-    return new TagRule();
+    return TagRule.fromTenant("tenant");
   }
 
   public static TagRuleOutput createTagRuleOutput() {

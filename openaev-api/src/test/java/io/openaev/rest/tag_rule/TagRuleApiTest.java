@@ -313,7 +313,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   private TagRule createTagRule(String tagName, List<String> assetGroupNames) {
-    TagRule tagRule = new TagRule();
+    TagRule tagRule = TagRule.fromTenant("tenant");
     tagRule.setTag(createTag(tagName));
     assetGroupNames.forEach(
         assetGroupName -> tagRule.getAssetGroups().add(createAssetGroup(assetGroupName)));
@@ -321,7 +321,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   private Tag createTag(String tagName) {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setName(tagName + System.currentTimeMillis());
     tag.setColor("#0000");
     return tagRepository.save(tag);

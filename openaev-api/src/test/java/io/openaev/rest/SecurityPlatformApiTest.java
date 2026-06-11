@@ -231,13 +231,13 @@ class SecurityPlatformApiTest extends IntegrationTest {
   }
 
   private List<SecurityPlatformComposer.Composer> prepareOptionsSecurityPlatformTestData() {
-    SecurityPlatform securityPlatformTest1 = new SecurityPlatform();
+    SecurityPlatform securityPlatformTest1 = SecurityPlatform.fromTenant("tenant");
     securityPlatformTest1.setName(SECURITY_PLATFORM_NAME + "1");
     securityPlatformTest1.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
     SecurityPlatformComposer.Composer securityPlatform1 =
         securityPlatformComposer.forSecurityPlatform(securityPlatformTest1);
     securityPlatform1.persist();
-    SecurityPlatform securityPlatformTest2 = new SecurityPlatform();
+    SecurityPlatform securityPlatformTest2 = SecurityPlatform.fromTenant("tenant");
     securityPlatformTest2.setName(SECURITY_PLATFORM_NAME + "2");
     securityPlatformTest2.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.SIEM);
     SecurityPlatformComposer.Composer securityPlatform2 =

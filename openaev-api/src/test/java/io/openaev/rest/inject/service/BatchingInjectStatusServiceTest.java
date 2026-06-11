@@ -60,7 +60,7 @@ class BatchingInjectStatusServiceTest {
   }
 
   private Inject createInjectWithPendingStatus(String injectId) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(injectId);
     InjectStatus status = new InjectStatus();
     status.setName(ExecutionStatus.PENDING);
@@ -69,7 +69,7 @@ class BatchingInjectStatusServiceTest {
   }
 
   private Inject createInjectWithExecutingStatus(String injectId) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(injectId);
     InjectStatus status = new InjectStatus();
     status.setName(ExecutionStatus.EXECUTING);
@@ -78,7 +78,7 @@ class BatchingInjectStatusServiceTest {
   }
 
   private Agent createAgent(String agentId) {
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant("tenant");
     agent.setId(agentId);
     return agent;
   }

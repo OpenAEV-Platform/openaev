@@ -347,7 +347,7 @@ public class InjectImportServiceTest {
     @Test
     void shouldDelegateToImportService_forSimulation() throws Exception {
       // -------- Prepare --------
-      Exercise exercise = new Exercise();
+      Exercise exercise = Exercise.fromTenant("tenant");
       exercise.setId("ex-1");
       when(exerciseRepository.findById("ex-1")).thenReturn(Optional.of(exercise));
 

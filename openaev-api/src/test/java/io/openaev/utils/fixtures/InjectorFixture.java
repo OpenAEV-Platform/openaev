@@ -29,7 +29,7 @@ public class InjectorFixture {
   }
 
   public static Injector createInjector(String id, String name, String type) {
-    Injector injector = new Injector();
+    Injector injector = Injector.fromTenant("tenant");
     injector.setId(id);
     injector.setName(name);
     injector.setType(type);

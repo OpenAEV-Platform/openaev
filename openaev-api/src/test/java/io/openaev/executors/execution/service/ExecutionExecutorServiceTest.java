@@ -284,7 +284,7 @@ public class ExecutionExecutorServiceTest {
         "Given active agent with executor and connector instance, should route via requestForInstance")
     void given_activeAgentWithExecutor_should_routeViaRequestForInstance() throws Exception {
       // Arrange
-      Executor executor = new Executor();
+      Executor executor = Executor.fromTenant("tenant");
       executor.setId("executor-1");
       executor.setName("CrowdStrike");
       executor.setType("openaev_crowdstrike");
@@ -295,7 +295,8 @@ public class ExecutionExecutorServiceTest {
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager()).thenReturn(manager);
 
-      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+      ConnectorInstancePersisted connectorInstance =
+          ConnectorInstancePersisted.fromTenant("tenant");
       connectorInstance.setId("instance-1");
       stubFindByExecutorId(executor.getId(), connectorInstance);
 
@@ -321,7 +322,7 @@ public class ExecutionExecutorServiceTest {
         "Given executor context service throws exception, should save error traces for all agents")
     void given_executorContextServiceThrows_should_saveErrorTraces() throws Exception {
       // Arrange
-      Executor executor = new Executor();
+      Executor executor = Executor.fromTenant("tenant");
       executor.setId("executor-fail");
       executor.setName("FailingExecutor");
       executor.setType("openaev_failing");
@@ -332,7 +333,8 @@ public class ExecutionExecutorServiceTest {
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager()).thenReturn(manager);
 
-      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+      ConnectorInstancePersisted connectorInstance =
+          ConnectorInstancePersisted.fromTenant("tenant");
       connectorInstance.setId("instance-fail");
       stubFindByExecutorId(executor.getId(), connectorInstance);
 
@@ -361,13 +363,13 @@ public class ExecutionExecutorServiceTest {
         "Given agents on two different executors, should dispatch to each executor separately")
     void given_agentsOnTwoExecutors_should_dispatchToEachSeparately() throws Exception {
       // Arrange
-      Executor executor1 = new Executor();
+      Executor executor1 = Executor.fromTenant("tenant");
       executor1.setId("executor-cs-1");
       executor1.setName("CrowdStrike 1");
       executor1.setType("openaev_crowdstrike");
       executor1.setExternal(true);
 
-      Executor executor2 = new Executor();
+      Executor executor2 = Executor.fromTenant("tenant");
       executor2.setId("executor-cs-2");
       executor2.setName("CrowdStrike 2");
       executor2.setType("openaev_crowdstrike");
@@ -401,9 +403,9 @@ public class ExecutionExecutorServiceTest {
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager()).thenReturn(manager);
 
-      ConnectorInstancePersisted instance1 = new ConnectorInstancePersisted();
+      ConnectorInstancePersisted instance1 = ConnectorInstancePersisted.fromTenant("tenant");
       instance1.setId("instance-cs-1");
-      ConnectorInstancePersisted instance2 = new ConnectorInstancePersisted();
+      ConnectorInstancePersisted instance2 = ConnectorInstancePersisted.fromTenant("tenant");
       instance2.setId("instance-cs-2");
 
       stubFindByExecutorId("executor-cs-1", instance1);

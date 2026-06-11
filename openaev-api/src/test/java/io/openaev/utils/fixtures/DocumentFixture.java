@@ -27,7 +27,7 @@ public class DocumentFixture {
 
   private static Document createDocumentWithName(String name) {
     String new_name = name == null ? "document-%s".formatted(UUID.randomUUID()) : name;
-    Document document = new Document();
+    Document document = Document.fromTenant("tenant");
     document.setName(new_name);
     return document;
   }

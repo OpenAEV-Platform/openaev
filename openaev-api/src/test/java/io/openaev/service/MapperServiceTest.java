@@ -371,7 +371,8 @@ public class MapperServiceTest extends IntegrationTest {
 
     // Act / Assert
     assertThrows(
-        BadRequestException.class, () -> mapperService.importMappersCsv(csvFile, CsvType.AGENT));
+        BadRequestException.class,
+        () -> mapperService.importMappersCsv(null, csvFile, CsvType.AGENT));
   }
 
   @DisplayName("given_mappersInput_should_appendImportedSuffix_whenImportMappers")
@@ -399,7 +400,7 @@ public class MapperServiceTest extends IntegrationTest {
   void given_injectorContractWithPayload_should_exportSortedAndFallbackValues_whenExportMappersCsv()
       throws Exception {
     // Arrange
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setCreatedAt(Instant.parse("2024-01-01T01:01:01Z"));
     injectorContract.setLabels(
         new LinkedHashMap<>(java.util.Map.of("fr", "Nom Francais", "en", "English contract name")));
@@ -409,30 +410,30 @@ public class MapperServiceTest extends IntegrationTest {
           io.openaev.database.model.Endpoint.PLATFORM_TYPE.Linux
         });
 
-    Domain domainB = new Domain();
+    Domain domainB = Domain.fromTenant("tenant");
     domainB.setName("Domain B");
-    Domain domainA = new Domain();
+    Domain domainA = Domain.fromTenant("tenant");
     domainA.setName("Domain A");
     injectorContract.setDomains(Set.of(domainB, domainA));
 
-    Tag tagB = new Tag();
+    Tag tagB = Tag.fromTenant("tenant");
     tagB.setName("Beta");
-    Tag tagA = new Tag();
+    Tag tagA = Tag.fromTenant("tenant");
     tagA.setName("Alpha");
     injectorContract.setTags(Set.of(tagB, tagA));
 
-    AttackPattern attackPattern2 = new AttackPattern();
+    AttackPattern attackPattern2 = AttackPattern.fromTenant("tenant");
     attackPattern2.setName("Credential Access");
-    AttackPattern attackPattern1 = new AttackPattern();
+    AttackPattern attackPattern1 = AttackPattern.fromTenant("tenant");
     attackPattern1.setName("Initial Access");
     injectorContract.setAttackPatterns(new ArrayList<>(List.of(attackPattern2, attackPattern1)));
 
-    Injector injector = new Injector();
+    Injector injector = Injector.fromTenant("tenant");
     injector.setId("injector-id");
     injector.setType("atomic-testing");
     injectorContract.addInjector(injector);
 
-    Payload payload = new Payload();
+    Payload payload = Payload.fromTenant("tenant");
     payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
     payload.setDescription("Payload description");
     payload.setSource(Payload.PAYLOAD_SOURCE.MANUAL);
@@ -480,7 +481,7 @@ public class MapperServiceTest extends IntegrationTest {
   void given_injectorContractWithoutPayload_should_exportEmptyValues_whenExportMappersCsv()
       throws Exception {
     // Arrange
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setLabels(new LinkedHashMap<>());
     injectorContract.setDomains(Set.of());
     injectorContract.setPlatforms(new io.openaev.database.model.Endpoint.PLATFORM_TYPE[] {});

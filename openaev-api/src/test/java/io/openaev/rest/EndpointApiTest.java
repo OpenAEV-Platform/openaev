@@ -123,7 +123,7 @@ class EndpointApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_wrongInput_cant_createEndpointAgentlessSuccessfully() throws Exception {
     // --PREPARE--
-    Endpoint endpointInput = new Endpoint();
+    Endpoint endpointInput = Endpoint.fromTenant("tenant");
     endpointInput.setHostname("Missing attributes for this endpoint");
 
     // --EXECUTE--
@@ -145,7 +145,7 @@ class EndpointApiTest extends IntegrationTest {
     String externalReference = "external01";
     EndpointRegisterInput registerInput =
         createWindowsEndpointRegisterInput(List.of(tag.getId()), externalReference);
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setUpdateAttributes(registerInput);
     endpoint.setIps(EndpointMapper.setIps(registerInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(registerInput.getMacAddresses()));
@@ -199,7 +199,7 @@ class EndpointApiTest extends IntegrationTest {
     String externalReference = "external01";
     EndpointRegisterInput registerInput =
         createWindowsEndpointRegisterInput(List.of(tag.getId()), externalReference);
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setUpdateAttributes(registerInput);
     endpoint.setIps(EndpointMapper.setIps(registerInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(registerInput.getMacAddresses()));
@@ -241,7 +241,7 @@ class EndpointApiTest extends IntegrationTest {
     Tag tag = tagRepository.save(getTagNoId());
     String externalReference = "external01";
     EndpointInput endpointInput = createWindowsEndpointInput(List.of(tag.getId()));
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setUpdateAttributes(endpointInput);
     endpoint.setIps(EndpointMapper.setIps(endpointInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(endpointInput.getMacAddresses()));
@@ -290,7 +290,7 @@ class EndpointApiTest extends IntegrationTest {
     Tag tag = tagRepository.save(getTagNoId());
     String externalReference = "external01";
     EndpointInput endpointInput = createWindowsEndpointInput(List.of(tag.getId()));
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setUpdateAttributes(endpointInput);
     endpoint.setIps(EndpointMapper.setIps(endpointInput.getIps()));
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(endpointInput.getMacAddresses()));
@@ -814,10 +814,10 @@ class EndpointApiTest extends IntegrationTest {
       input.setService(true);
       input.setElevated(false);
 
-      Agent agent = new Agent();
+      Agent agent = Agent.fromTenant("tenant");
       agent.setId("agent-1");
 
-      AssetAgentJob assetAgentJob = new AssetAgentJob();
+      AssetAgentJob assetAgentJob = AssetAgentJob.fromTenant("tenant");
       assetAgentJob.setId("job-1");
       assetAgentJob.setCommand("whoami");
       assetAgentJob.setAgent(agent);
@@ -846,7 +846,7 @@ class EndpointApiTest extends IntegrationTest {
     void given_existingAssetAgentJobId_should_traceRetrievalAndDeleteJob() throws Exception {
       // -- PREPARE --
       String assetAgentJobId = "job-to-clean";
-      AssetAgentJob assetAgentJob = new AssetAgentJob();
+      AssetAgentJob assetAgentJob = AssetAgentJob.fromTenant("tenant");
       assetAgentJob.setId(assetAgentJobId);
       assetAgentJob.setCommand("command");
 

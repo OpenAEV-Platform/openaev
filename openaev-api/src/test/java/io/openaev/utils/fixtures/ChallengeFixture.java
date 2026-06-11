@@ -32,7 +32,7 @@ public class ChallengeFixture {
 
   private static Challenge createChallengeWithName(String name) {
     String new_name = name == null ? "challenge-%s".formatted(UUID.randomUUID()) : name;
-    Challenge challenge = new Challenge();
+    Challenge challenge = Challenge.fromTenant("tenant");
     challenge.setName(new_name);
     return challenge;
   }

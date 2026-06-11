@@ -66,7 +66,7 @@ class ExecutorServiceTest {
         "Given existing executor, register should not overwrite tenant and should update fields")
     void given_existingExecutor_should_updateFieldsWithoutChangingTenant() throws Exception {
       // -------- Arrange --------
-      Executor existing = new Executor();
+      Executor existing = Executor.fromTenant("tenant");
       existing.setId("exec-existing");
       existing.setName("OldName");
       existing.setType("openaev_crowdstrike_executor");

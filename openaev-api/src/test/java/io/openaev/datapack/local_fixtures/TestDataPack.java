@@ -26,7 +26,7 @@ public class TestDataPack extends DataPack {
     TagCreateInput input = new TagCreateInput();
     input.setName(tagName);
     input.setColor(generateRandomColor());
-    tagService.upsertTag(input);
+    tagService.upsertTag(null, input);
     return true;
   }
 }

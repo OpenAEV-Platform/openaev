@@ -52,7 +52,7 @@ public class PaloAltoCortexExecutorServiceTest {
   @BeforeEach
   void setUp() {
     paloAltoCortexEndpoint = PaloAltoCortexDeviceFixture.createDefaultPaloAltoCortexEndpoint();
-    paloAltoCortexExecutor = new Executor();
+    paloAltoCortexExecutor = Executor.fromTenant("tenant");
     paloAltoCortexExecutor.setName(PALOALTOCORTEX_EXECUTOR_NAME);
     paloAltoCortexExecutor.setType(PALOALTOCORTEX_EXECUTOR_TYPE);
     paloAltoCortexExecutor.setTenant(new Tenant("tenant"));

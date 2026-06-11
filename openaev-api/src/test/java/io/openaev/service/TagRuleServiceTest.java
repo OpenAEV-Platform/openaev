@@ -171,7 +171,7 @@ public class TagRuleServiceTest extends IntegrationTest {
   @Test
   void testUpdateTagRule() {
     TagRule beforeUpdate = TagRuleFixture.createTagRule(TAG_RULE_ID);
-    TagRule expected = new TagRule();
+    TagRule expected = TagRule.fromTenant("tenant");
     expected.setId(TAG_RULE_ID);
     expected.setTag(TagFixture.getTag("test"));
 
@@ -198,7 +198,7 @@ public class TagRuleServiceTest extends IntegrationTest {
   void testUpdateTagRule_WITH_octi_tag() {
     TagRule beforeUpdate = TagRuleFixture.createTagRule(TAG_RULE_ID);
     beforeUpdate.setTag(TagFixture.getTagWithText("opencti"));
-    TagRule expected = new TagRule();
+    TagRule expected = TagRule.fromTenant("tenant");
     expected.setId(TAG_RULE_ID);
     expected.setTag(TagFixture.getTag("test"));
 
@@ -228,7 +228,7 @@ public class TagRuleServiceTest extends IntegrationTest {
     Tag reservedTag =
         TagFixture.getTagWithText(TagRule.RESERVED_TAG_NAMES.stream().findFirst().get());
 
-    TagRule tagRule = new TagRule();
+    TagRule tagRule = TagRule.fromTenant("tenant");
     tagRule.setId(TAG_RULE_ID);
     tagRule.setTag(unreservedTag);
 

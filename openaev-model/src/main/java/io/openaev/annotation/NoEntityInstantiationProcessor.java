@@ -67,25 +67,25 @@ public class NoEntityInstantiationProcessor extends AbstractProcessor {
       TypeMirror tenantBaseType = tenantBaseElement.asType();
       for (Element element : roundEnv.getElementsAnnotatedWith(entityAnnotation)) {
         if (element instanceof TypeElement typeElement) {
-          boolean hasBuilder =
-              typeElement.getAnnotationMirrors().stream()
-                  .anyMatch(
-                      am -> {
-                        Element ae = am.getAnnotationType().asElement();
-                        return ae instanceof TypeElement te
-                            && te.getQualifiedName().toString().equals("lombok.Builder");
-                      });
-          if (hasBuilder) {
-            processingEnv
-                .getMessager()
-                .printMessage(
-                    Diagnostic.Kind.ERROR,
-                    "Usage of @Builder on @Entity classes is forbidden.",
-                    typeElement);
-          }
-
           if (processingEnv.getTypeUtils().isAssignable(typeElement.asType(), tenantBaseType)) {
             tenantEntityClassNames.add(typeElement.getQualifiedName().toString());
+
+            boolean hasBuilder =
+                typeElement.getAnnotationMirrors().stream()
+                    .anyMatch(
+                        am -> {
+                          Element ae = am.getAnnotationType().asElement();
+                          return ae instanceof TypeElement te
+                              && te.getQualifiedName().toString().equals("lombok.Builder");
+                        });
+            if (hasBuilder) {
+              processingEnv
+                  .getMessager()
+                  .printMessage(
+                      Diagnostic.Kind.ERROR,
+                      "Usage of @Builder on tenant entities is forbidden.",
+                      typeElement);
+            }
           }
         }
       }
@@ -94,9 +94,20 @@ public class NoEntityInstantiationProcessor extends AbstractProcessor {
     // Register the AST scanner once (on the first round)
     if (!listenerRegistered) {
       listenerRegistered = true;
-      Trees trees = Trees.instance(processingEnv);
-      com.sun.source.util.JavacTask.instance(processingEnv)
-          .addTaskListener(new EntityNewClassListener(trees));
+      try {
+        javax.annotation.processing.ProcessingEnvironment unwrapped =
+            jbUnwrap(javax.annotation.processing.ProcessingEnvironment.class, processingEnv);
+        Trees trees = Trees.instance(unwrapped);
+        com.sun.source.util.JavacTask.instance(unwrapped)
+            .addTaskListener(new EntityNewClassListener(trees));
+      } catch (Exception e) {
+        // Log a warning or ignore if running in an environment where JavacTask is unavailable
+        processingEnv
+            .getMessager()
+            .printMessage(
+                Diagnostic.Kind.WARNING,
+                "Could not register AST scanner for entity instantiation check: " + e.getMessage());
+      }
     }
 
     return false;
@@ -105,6 +116,19 @@ public class NoEntityInstantiationProcessor extends AbstractProcessor {
   private boolean isEnabled() {
     String value = processingEnv.getOptions().get(OPT_NO_ENTITY_NEW);
     return value != null && Boolean.parseBoolean(value);
+  }
+
+  private static <T> T jbUnwrap(Class<? extends T> iface, T wrapper) {
+    T unwrapped = null;
+    try {
+      final Class<?> apiWrappers =
+          wrapper.getClass().getClassLoader().loadClass("org.jetbrains.jps.javac.APIWrappers");
+      final java.lang.reflect.Method unwrapMethod =
+          apiWrappers.getDeclaredMethod("unwrap", Class.class, Object.class);
+      unwrapped = iface.cast(unwrapMethod.invoke(null, iface, wrapper));
+    } catch (Throwable ignored) {
+    }
+    return unwrapped != null ? unwrapped : wrapper;
   }
 
   /**

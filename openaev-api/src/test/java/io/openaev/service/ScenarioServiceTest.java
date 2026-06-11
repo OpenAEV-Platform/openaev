@@ -270,7 +270,7 @@ class ScenarioServiceTest extends IntegrationTest {
     Team noContextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName2", false));
     scenarioTeams.add(noContextualTeam);
 
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setTitle("test-inject");
     inject.setDependsDuration(0L);
     inject.setTeams(scenarioTeams);
@@ -313,7 +313,7 @@ class ScenarioServiceTest extends IntegrationTest {
                     scenarioDuplicated.getTeams().stream()
                         .filter(team -> team.getContextual().equals(true))
                         .findFirst()
-                        .orElse(new Team())
+                        .orElse(Team.fromTenant("tenant"))
                         .getId(),
                     injectTeam.getId());
               } else {
@@ -363,7 +363,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   public void testRunChecksForSmtpIssue() {
     // PREPARE
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
@@ -397,7 +397,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   public void testRunChecksForImapIssue() {
     // PREPARE
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
@@ -431,7 +431,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   public void testRunChecksForExecutorIssue() {
     // PREPARE
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
@@ -464,7 +464,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   public void testRunChecksForCollectorIssue() {
     // PREPARE
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
@@ -497,7 +497,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   public void testRunChecksForMissingContentIssue() {
     // PREPARE
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
@@ -530,7 +530,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Test
   public void given_disabledInject_should_notReturnMissingContent() {
     // Arrange
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setEnabled(false);
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
@@ -555,7 +555,7 @@ class ScenarioServiceTest extends IntegrationTest {
     // PREPARE
     Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
 
-    Injector injector = new Injector();
+    Injector injector = Injector.fromTenant("tenant");
     injector.setDependencies(
         new ExternalServiceDependency[] {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP

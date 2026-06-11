@@ -45,7 +45,7 @@ public class NotificationRuleServiceTest extends IntegrationTest {
   public void test_activateNotificationRules() {
     // -------- Arrange --------
     Map<String, String> data = new HashMap<>();
-    NotificationRule rule = new NotificationRule();
+    NotificationRule rule = NotificationRule.fromTenant("tenant");
     rule.setResourceId("id");
     rule.setNotificationResourceType(NotificationRuleResourceType.SCENARIO);
     rule.setType(NotificationRuleType.EMAIL);

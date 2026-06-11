@@ -50,7 +50,7 @@ public class SentinelOneExecutorServiceTest {
   @BeforeEach
   void setUp() {
     sentinelOneAgent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
-    sentinelOneExecutor = new Executor();
+    sentinelOneExecutor = Executor.fromTenant("tenant");
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
     sentinelOneExecutor.setTenant(new Tenant("tenant"));

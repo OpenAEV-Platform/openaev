@@ -12,7 +12,7 @@ public class KillChainPhaseFixture {
 
   public static KillChainPhase getKillChainPhase(
       @NotBlank final String name, @NotBlank final Long order) {
-    KillChainPhase killChainPhase = new KillChainPhase();
+    KillChainPhase killChainPhase = KillChainPhase.fromTenant("tenant");
     killChainPhase.setName(name);
     killChainPhase.setShortName(name);
     killChainPhase.setKillChainName("mitre-attack");

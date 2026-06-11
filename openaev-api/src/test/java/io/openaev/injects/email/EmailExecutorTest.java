@@ -95,7 +95,7 @@ public class EmailExecutorTest extends IntegrationTest {
             InjectExpectation.EXPECTATION_TYPE.MANUAL,
             "The animation team can validate the audience reaction");
     content.setExpectations(List.of(expectation));
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setInjectorContract(injectorContractFixture.getWellKnownGlobalEmailContract());
     inject.setContent(this.mapper.valueToTree(content));
     Iterable<User> users = this.userRepository.findAll();

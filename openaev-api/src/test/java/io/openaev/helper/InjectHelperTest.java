@@ -42,7 +42,7 @@ public class InjectHelperTest extends IntegrationTest {
   @Test
   void injectsToRunTest() {
     // -- PREPARE --
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName("Exercise name");
     exercise.setStart(Instant.now());
     exercise.setFrom("test@test.com");
@@ -55,7 +55,7 @@ public class InjectHelperTest extends IntegrationTest {
     user.setEmail(USER_EMAIL);
     this.userRepository.save(user);
 
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setName("My team");
     team.setExercises(exercises);
     team.setUsers(List.of(user));
@@ -68,7 +68,7 @@ public class InjectHelperTest extends IntegrationTest {
     this.exerciseTeamUserRepository.save(exerciseTeamUser);
 
     // Executable Inject
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setTitle("Test inject");
     inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setEnabled(true);

@@ -68,7 +68,7 @@ public class ReportApiTest extends IntegrationTest {
     sessionContextField.set(reportApi, objectMapper);
     mvc = MockMvcBuilders.standaloneSetup(reportApi).build();
 
-    exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName("Exercise name");
     exercise.setId("exercise123");
     report = new Report();
@@ -167,7 +167,7 @@ public class ReportApiTest extends IntegrationTest {
     @Test
     void updateReportInjectCommentTest() throws Exception {
       // -- PREPARE --
-      Inject inject = new Inject();
+      Inject inject = Inject.fromTenant("tenant");
       inject.setTitle("Test inject");
       inject.setId(UUID.randomUUID().toString());
       inject.setExercise(exercise);

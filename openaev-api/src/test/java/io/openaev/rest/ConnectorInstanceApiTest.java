@@ -544,7 +544,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      Executor executor = new Executor();
+      Executor executor = Executor.fromTenant("tenant");
       executor.setId(UUID.randomUUID().toString());
       executor.setName("Test Executor");
       executor.setType(catalogConnector.getSlug());

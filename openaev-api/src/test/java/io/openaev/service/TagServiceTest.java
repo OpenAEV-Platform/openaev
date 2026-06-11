@@ -116,7 +116,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(existingOrNewTag);
 
       // -------- Act --------
-      Tag result = tagService.createTag(wellKnownName);
+      Tag result = tagService.createTag(null, wellKnownName);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -138,7 +138,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.createTag(unknownName);
+      Tag result = tagService.createTag(null, unknownName);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -160,7 +160,7 @@ public class TagServiceTest {
       when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Tag result = tagService.createTag(tagName);
+      Tag result = tagService.createTag(null, tagName);
 
       // -------- Assert --------
       assertSame(existingTag, result);
@@ -187,7 +187,7 @@ public class TagServiceTest {
       when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(null, input);
 
       // -------- Assert --------
       assertSame(existingTag, result);
@@ -209,7 +209,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(null, input);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -233,7 +233,7 @@ public class TagServiceTest {
       when(tagRepository.findByName(tagName.toLowerCase())).thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(null, input);
 
       // -------- Assert --------
       assertSame(existingTag, result);
@@ -305,7 +305,7 @@ public class TagServiceTest {
       Set<String> names = null;
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -319,7 +319,7 @@ public class TagServiceTest {
       Set<String> names = Collections.emptySet();
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -336,7 +336,7 @@ public class TagServiceTest {
       names.add(invalidName);
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertTrue(result.isEmpty());
@@ -368,7 +368,7 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertEquals(2, result.size());
@@ -391,7 +391,7 @@ public class TagServiceTest {
           .thenReturn(Optional.of(existingTag));
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertEquals(1, result.size());
@@ -417,7 +417,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertEquals(2, result.size());
@@ -444,7 +444,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(validTag);
 
       // -------- Act --------
-      Set<Tag> result = tagService.findOrCreateTagsFromNames(names);
+      Set<Tag> result = tagService.findOrCreateTagsFromNames(null, names);
 
       // -------- Assert --------
       assertEquals(1, result.size());
@@ -477,7 +477,7 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(null);
 
       // -------- Assert --------
       assertEquals(wellKnownTagCount, result.size());
@@ -503,7 +503,7 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(null);
 
       // -------- Assert --------
       assertEquals(Tag.WellKnown.size(), result.size());
@@ -548,7 +548,7 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(null);
 
       // -------- Assert --------
       assertEquals(Tag.WellKnown.size(), result.size());
@@ -571,7 +571,7 @@ public class TagServiceTest {
               });
 
       // -------- Act --------
-      Set<Tag> result = tagService.ensureWellKnownTags();
+      Set<Tag> result = tagService.ensureWellKnownTags(null);
 
       // -------- Assert --------
       // Find the tag with the expected name
@@ -622,7 +622,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(null, input);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -643,7 +643,7 @@ public class TagServiceTest {
       when(tagRepository.save(any(Tag.class))).thenReturn(newTag);
 
       // -------- Act --------
-      Tag result = tagService.upsertTag(input);
+      Tag result = tagService.upsertTag(null, input);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -657,7 +657,7 @@ public class TagServiceTest {
    * ============================================================ */
 
   private Tag createTag(String id, String name, String color) {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setId(id);
     tag.setName(name);
     tag.setColor(color);

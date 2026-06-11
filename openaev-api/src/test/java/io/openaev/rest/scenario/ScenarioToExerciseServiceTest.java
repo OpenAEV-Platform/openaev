@@ -3,7 +3,6 @@ package io.openaev.rest.scenario;
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
 import static io.openaev.utils.fixtures.ArticleFixture.ARTICLE_NAME;
 import static io.openaev.utils.fixtures.ArticleFixture.getArticle;
-import static io.openaev.utils.fixtures.DocumentFixture.getDocumentJpeg;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.ObjectiveFixture.OBJECTIVE_NAME;
 import static io.openaev.utils.fixtures.ObjectiveFixture.getObjective;
@@ -116,7 +115,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
         });
 
     // Document
-    Document document = getDocumentJpeg();
+    Document document = Document.fromTenant("tenant");
     Document documentSaved = this.documentRepository.save(document);
     scenario.setDocuments(
         new ArrayList<>() {
@@ -126,12 +125,12 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
         });
 
     // Article
-    Document documentArticle = new Document();
+    Document documentArticle = Document.fromTenant("tenant");
     String documentArticleName = "A document for my article";
     documentArticle.setName(documentArticleName);
     documentArticle.setType("image/jpeg");
     Document documentArticleSaved = this.documentRepository.save(documentArticle);
-    Channel channel = new Channel();
+    Channel channel = Channel.fromTenant("tenant");
     channel.setName("A channel");
     Channel channelSaved = this.channelRepository.save(channel);
     Article article = getArticle(channelSaved);
@@ -205,7 +204,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     Variable variableSaved = this.variableRepository.save(variable);
 
     // Default Simulation dashboard
-    CustomDashboard defaultDashboard = new CustomDashboard();
+    CustomDashboard defaultDashboard = CustomDashboard.fromTenant("tenant");
     defaultDashboard.setName("Default scenario dashboard");
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
     settingRepository.save(

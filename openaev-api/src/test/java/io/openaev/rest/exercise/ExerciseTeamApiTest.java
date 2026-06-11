@@ -44,11 +44,11 @@ public class ExerciseTeamApiTest extends IntegrationTest {
     @DisplayName("Returns global and exercise teams when searching teams")
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndExerciseTeams()
         throws Exception {
-      Team team = new Team();
+      Team team = Team.fromTenant("tenant");
       String teamName = "Team test";
       team.setName(teamName);
 
-      Team contextualTeam = new Team();
+      Team contextualTeam = Team.fromTenant("tenant");
       contextualTeam.setName(teamName + " 2");
       contextualTeam.setContextual(true);
       List<Team> savedTeams = teamRepository.saveAll(List.of(team, contextualTeam));
@@ -80,18 +80,18 @@ public class ExerciseTeamApiTest extends IntegrationTest {
     @DisplayName("Returns only exercise teams")
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyExerciseTeams()
         throws Exception {
-      Team team = new Team();
+      Team team = Team.fromTenant("tenant");
       String teamName = "Team test";
       team.setName(teamName);
 
-      Team team1 = new Team();
+      Team team1 = Team.fromTenant("tenant");
       team1.setName(teamName + "1");
 
-      Team contextualTeam = new Team();
+      Team contextualTeam = Team.fromTenant("tenant");
       contextualTeam.setName(teamName + "3");
       contextualTeam.setContextual(true);
 
-      Team contextualTeam1 = new Team();
+      Team contextualTeam1 = Team.fromTenant("tenant");
       contextualTeam1.setName(teamName + "4");
       contextualTeam1.setContextual(true);
 

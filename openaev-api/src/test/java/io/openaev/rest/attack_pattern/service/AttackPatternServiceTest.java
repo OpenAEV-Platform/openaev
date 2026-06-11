@@ -127,10 +127,10 @@ class AttackPatternServiceTest {
     when(restTemplate.postForEntity(anyString(), any(), any()))
         .thenReturn(ResponseEntity.ok(responseBody));
 
-    AttackPattern first = new AttackPattern();
+    AttackPattern first = AttackPattern.fromTenant("tenant");
     first.setId("internal-1");
     first.setExternalId("t1003");
-    AttackPattern second = new AttackPattern();
+    AttackPattern second = AttackPattern.fromTenant("tenant");
     second.setId("internal-2");
     second.setExternalId("T1059");
 
@@ -162,7 +162,7 @@ class AttackPatternServiceTest {
             eq("filigran-ttp-extractor"), eq("Analyze this attack"), isNull()))
         .thenReturn(serviceOutput);
 
-    AttackPattern ap = new AttackPattern();
+    AttackPattern ap = AttackPattern.fromTenant("tenant");
     ap.setId("internal-xtm-1");
     ap.setExternalId("T1003");
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
@@ -193,7 +193,7 @@ class AttackPatternServiceTest {
     when(xtmOneClient.callAgentSync(eq("cti-ttp-harvester-filigran-ia"), eq("context"), isNull()))
         .thenReturn(nativeResponse);
 
-    AttackPattern ap = new AttackPattern();
+    AttackPattern ap = AttackPattern.fromTenant("tenant");
     ap.setId("internal-xtm-2");
     ap.setExternalId("T1059");
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
@@ -255,7 +255,7 @@ class AttackPatternServiceTest {
   @Test
   void given_missingExternalIds_should_throwElementNotFoundException() {
     // Arrange
-    AttackPattern found = new AttackPattern();
+    AttackPattern found = AttackPattern.fromTenant("tenant");
     found.setExternalId("T1003");
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
         .thenReturn(List.of(found));
@@ -272,7 +272,7 @@ class AttackPatternServiceTest {
   @Test
   void given_missingInternalIds_should_throwElementNotFoundException() {
     // Arrange
-    AttackPattern found = new AttackPattern();
+    AttackPattern found = AttackPattern.fromTenant("tenant");
     found.setId("id-1");
     when(attackPatternRepository.findAllById(anyList())).thenReturn(List.of(found));
 
@@ -286,7 +286,7 @@ class AttackPatternServiceTest {
   @Test
   void given_existingExternalId_should_returnExistingAttackPattern() {
     // Arrange
-    AttackPattern existing = new AttackPattern();
+    AttackPattern existing = AttackPattern.fromTenant("tenant");
     existing.setId("existing-id");
 
     AttackPatternCreateInput input = new AttackPatternCreateInput();
@@ -322,7 +322,7 @@ class AttackPatternServiceTest {
     when(attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(anyList(), anyString()))
         .thenReturn(new ArrayList<>());
 
-    AttackPattern saved = new AttackPattern();
+    AttackPattern saved = AttackPattern.fromTenant("tenant");
     saved.setId("saved-id");
     when(attackPatternRepository.save(any(AttackPattern.class))).thenReturn(saved);
 

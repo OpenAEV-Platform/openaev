@@ -133,7 +133,7 @@ class InjectCallbackContractTest {
   }
 
   private Inject createInjectWithStatus(String injectId, ExecutionStatus executionStatus) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(injectId);
     InjectStatus status = new InjectStatus();
     status.setName(executionStatus);
@@ -142,7 +142,7 @@ class InjectCallbackContractTest {
   }
 
   private Agent createAgent(String agentId) {
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant("tenant");
     agent.setId(agentId);
     return agent;
   }

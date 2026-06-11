@@ -16,7 +16,7 @@ public class WidgetFixture {
   public static final String NAME = "Widget 1";
 
   public static Widget createDefaultWidget() {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(VERTICAL_BAR_CHART);
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
     widgetConfig.setTitle(NAME);
@@ -37,7 +37,7 @@ public class WidgetFixture {
       String dateAttribute,
       HistogramInterval interval,
       String entityName) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(VERTICAL_BAR_CHART);
     // series
     DateHistogramWidget widgetConfig = new DateHistogramWidget();
@@ -103,7 +103,7 @@ public class WidgetFixture {
       CustomDashboardTimeRange timeRange,
       String dateAttribute,
       InjectExpectation.EXPECTATION_TYPE type) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(SECURITY_COVERAGE_CHART);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
@@ -126,7 +126,7 @@ public class WidgetFixture {
 
   public static Widget createSecurityDomainWidget(
       CustomDashboardTimeRange timeRange, String dateAttribute) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(AVERAGE);
     // series
     AverageConfiguration widgetConfig = new AverageConfiguration();
@@ -157,7 +157,7 @@ public class WidgetFixture {
 
   public static Widget createStructuralWidgetWithTimeRange(
       CustomDashboardTimeRange timeRange, String dateAttribute, String field, String entityName) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(DONUT);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
@@ -184,7 +184,7 @@ public class WidgetFixture {
   }
 
   public static Widget createNumberWidgetWithEntity(String entityName) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(WidgetType.NUMBER);
     // series
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
@@ -209,7 +209,7 @@ public class WidgetFixture {
   }
 
   public static Widget createNumberWidgetWithEndpointAndFilter() {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(WidgetType.NUMBER);
     // series
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
@@ -242,7 +242,7 @@ public class WidgetFixture {
 
   public static Widget createNumberWidgetWithEntityAndTimeRange(
       String entityName, CustomDashboardTimeRange timeRange, String dateAttribute) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(WidgetType.NUMBER);
     // series
     WidgetConfigurationWithSeries.Series series = new WidgetConfigurationWithSeries.Series();
@@ -267,7 +267,7 @@ public class WidgetFixture {
   }
 
   public static Widget createListWidgetWithEntity(String entityName) {
-    Widget widget = new Widget();
+    Widget widget = Widget.fromTenant("tenant");
     widget.setType(WidgetType.LIST);
     // series
     ListConfiguration.ListPerspective series = new ListConfiguration.ListPerspective();

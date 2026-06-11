@@ -117,13 +117,13 @@ class ExpectationApiTest extends IntegrationTest {
                 savedInjectorContract, INJECTION_NAME, savedAssetGroup));
 
     // -- Collector --
-    CollectorType collectorType1 = new CollectorType(UUID.randomUUID().toString());
-    CollectorType collectorType2 = new CollectorType(UUID.randomUUID().toString());
+    CollectorType collectorType1 = CollectorType.fromTenant("tenant");
+    CollectorType collectorType2 = CollectorType.fromTenant("tenant");
 
     collectorTypeRepository.save(collectorType1);
     collectorTypeRepository.save(collectorType2);
 
-    Collector collector = new Collector();
+    Collector collector = Collector.fromTenant("tenant");
     collector.setId(UUID.randomUUID().toString());
     collector.setName("collector-name");
     collector.setType(collectorType1.getName());
@@ -131,7 +131,7 @@ class ExpectationApiTest extends IntegrationTest {
     collector.setExternal(true);
     savedCollector = collectorRepository.save(collector);
 
-    Collector collector2 = new Collector();
+    Collector collector2 = Collector.fromTenant("tenant");
     collector2.setId(UUID.randomUUID().toString());
     collector2.setName("collector-2-name");
     collector2.setType(collectorType2.getName());

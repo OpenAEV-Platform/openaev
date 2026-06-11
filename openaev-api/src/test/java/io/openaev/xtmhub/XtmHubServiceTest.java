@@ -211,7 +211,7 @@ class XtmHubServiceTest {
 
   /** Builds a TenantXtmHubRegistration with the given token and lastConnectivityCheck. */
   private TenantXtmHubRegistration buildRegistration(String token, LocalDateTime lastCheck) {
-    TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+    TenantXtmHubRegistration registration = TenantXtmHubRegistration.fromTenant("tenant");
     registration.setToken(token);
     registration.setRegistrationDate(registrationDate);
     registration.setRegistrationUserId("user-123");

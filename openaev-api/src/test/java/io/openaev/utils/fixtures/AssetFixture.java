@@ -7,7 +7,7 @@ import java.time.Instant;
 public class AssetFixture {
 
   public static Asset createDefaultAsset(@NotNull final String name) {
-    Asset asset = new Asset();
+    Asset asset = Asset.fromTenant("tenant");
     asset.setCreatedAt(Instant.now());
     asset.setUpdatedAt(Instant.now());
     asset.setName(name);

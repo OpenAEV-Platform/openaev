@@ -80,7 +80,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
   void beforeAll() throws Exception {
     emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     manualInjectorIntegrationFactory.registerConnectorForTenant("tenant");
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
     scenario.setReplyTos(List.of("test@test.com"));

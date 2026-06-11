@@ -91,7 +91,7 @@ public class InjectorContractFixture {
 
   public static InjectorContract createPayloadInjectorContractWithFieldsContent(
       List<ContractCardinalityElement> customFieldsContent) throws JsonProcessingException {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
 
@@ -119,7 +119,7 @@ public class InjectorContractFixture {
 
   @SneakyThrows
   private static InjectorContract createDefaultInjectorContractInternal() {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.addInjector(createDefaultPayloadInjector());
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
@@ -248,7 +248,7 @@ public class InjectorContractFixture {
     String contentJson = mapper.writeValueAsString(contractDef);
     ObjectNode convertedContent = (ObjectNode) mapper.readTree(contentJson);
 
-    InjectorContract contract = new InjectorContract();
+    InjectorContract contract = InjectorContract.fromTenant("tenant");
     contract.setId(contractId);
     setDefaultTenant(contract);
     contract.setContent(contentJson);
@@ -265,7 +265,7 @@ public class InjectorContractFixture {
 
   public static InjectorContract createInjectorContract(Map<String, String> labels, String content)
       throws JsonProcessingException {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
     injectorContract.setLabels(labels);
@@ -278,7 +278,7 @@ public class InjectorContractFixture {
   }
 
   public static InjectorContract createInjectorContract(ObjectNode convertedContent) {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
     injectorContract.setConvertedContent(convertedContent);

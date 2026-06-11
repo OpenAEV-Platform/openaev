@@ -38,7 +38,7 @@ class AssetOutputProcessorTest {
 
     Inject inject = mock(Inject.class);
     when(executionContext.inject()).thenReturn(inject);
-    when(tagService.findOrCreateTagsFromNames(any())).thenReturn(Set.of());
+    when(tagService.findOrCreateTagsFromNames(any(), any())).thenReturn(Set.of());
   }
 
   @Test
@@ -149,11 +149,11 @@ class AssetOutputProcessorTest {
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
     when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
-    when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
+    when(endpointService.createEndpoint(any(), any(EndpointInput.class))).thenReturn(created);
 
     processor.process(executionContext, contractOutputContext, node);
 
-    verify(endpointService).createEndpoint(any(EndpointInput.class));
+    verify(endpointService).createEndpoint(any(), any(EndpointInput.class));
   }
 
   @Test
@@ -171,7 +171,7 @@ class AssetOutputProcessorTest {
 
     processor.process(executionContext, contractOutputContext, node);
 
-    verify(endpointService, never()).createEndpoint(any(EndpointInput.class));
+    verify(endpointService, never()).createEndpoint(any(), any(EndpointInput.class));
   }
 
   @Test
@@ -186,13 +186,13 @@ class AssetOutputProcessorTest {
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
     when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
-    when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
-    when(tagService.findOrCreateTagsFromNames(any())).thenReturn(Set.of());
+    when(endpointService.createEndpoint(any(), any(EndpointInput.class))).thenReturn(created);
+    when(tagService.findOrCreateTagsFromNames(any(), any())).thenReturn(Set.of());
 
     processor.process(executionContext, contractOutputContext, node);
 
-    verify(tagService).findOrCreateTagsFromNames(any());
-    verify(endpointService).createEndpoint(any(EndpointInput.class));
+    verify(tagService).findOrCreateTagsFromNames(any(), any());
+    verify(endpointService).createEndpoint(any(), any(EndpointInput.class));
   }
 
   @Test
@@ -207,12 +207,12 @@ class AssetOutputProcessorTest {
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
     when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
-    when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
+    when(endpointService.createEndpoint(any(), any(EndpointInput.class))).thenReturn(created);
 
     processor.process(executionContext, contractOutputContext, node);
 
     ArgumentCaptor<EndpointInput> captor = ArgumentCaptor.forClass(EndpointInput.class);
-    verify(endpointService).createEndpoint(captor.capture());
+    verify(endpointService).createEndpoint(any(), captor.capture());
     EndpointInput endpointInput = captor.getValue();
     assertTrue("hostC".equals(endpointInput.getHostname()));
     assertTrue(endpointInput.getIps() != null && endpointInput.getIps().length == 1);

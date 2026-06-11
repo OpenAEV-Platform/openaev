@@ -48,7 +48,7 @@ class ChainingApiUnitTest {
     @Test
     void shouldDuplicateSimulationAndCopyStepTemplate() throws ChainingException {
       String simulationId = "simulation-id";
-      Exercise simulation = new Exercise();
+      Exercise simulation = Exercise.fromTenant("tenant");
       simulation.setId(simulationId);
       Workflow sourceWorkflow = new Workflow();
       Workflow duplicatedWorkflow = new Workflow();
@@ -76,7 +76,7 @@ class ChainingApiUnitTest {
     @Test
     void shouldThrowWhenWorkflowTemplateNotFound() throws ChainingException {
       String simulationId = "simulation-id";
-      Exercise simulation = new Exercise();
+      Exercise simulation = Exercise.fromTenant("tenant");
       simulation.setId("simulation-dup-id");
       doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(exerciseService.getDuplicateExercise(simulationId)).thenReturn(simulation);
@@ -95,7 +95,7 @@ class ChainingApiUnitTest {
     @Test
     void shouldDuplicateScenarioAndCopyStepTemplate() throws ChainingException {
       String scenarioId = "scenario-id";
-      Scenario scenario = new Scenario();
+      Scenario scenario = Scenario.fromTenant("tenant");
       Workflow sourceWorkflow = new Workflow();
       Workflow duplicatedWorkflow = new Workflow();
 
@@ -123,7 +123,7 @@ class ChainingApiUnitTest {
     @Test
     void shouldThrowWhenWorkflowTemplateNotFound() throws ChainingException {
       String scenarioId = "scenario-id";
-      Scenario scenario = new Scenario();
+      Scenario scenario = Scenario.fromTenant("tenant");
       doNothing().when(workflowService).isPreviewFeatureChainingEnable();
       when(scenarioService.getDuplicateScenario(scenarioId)).thenReturn(scenario);
       when(workflowService.findWorkflowTemplateByScenarioId(scenarioId))

@@ -43,7 +43,7 @@ class InjectExpectationTraceServiceTest {
     injectExpectation = new InjectExpectation();
     injectExpectation.setId(injectExpectationId);
 
-    securityPlatform = new SecurityPlatform();
+    securityPlatform = SecurityPlatform.fromTenant("tenant");
     securityPlatform.setId(securityPlatformId);
 
     injectExpectationTrace = new InjectExpectationTrace();

@@ -59,7 +59,7 @@ public class VariableApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void createVariableForScenarioTest() throws Exception {
     // -- PREPARE --
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Scenario name");
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
     SCENARIO_ID = scenarioCreated.getId();

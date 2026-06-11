@@ -88,7 +88,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
         .createInject(any(Inject.class));
 
     // UPDATE STEP:
-    Inject injectExecuted = new Inject();
+    Inject injectExecuted = Inject.fromTenant("tenant");
     injectExecuted.setId("INJECT-ID");
 
     ExecutionTrace executionTrace = new ExecutionTrace();

@@ -72,7 +72,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   }
 
   protected Exercise getExercise() {
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName("Exercise name");
     exercise.setStatus(SCHEDULED);
     exercise.setFrom("test@test.com");
@@ -82,13 +82,13 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   }
 
   private Team getTeam() {
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setName("test");
     return this.teamRepository.save(team);
   }
 
   private Inject getInject(Exercise exerciseCreated) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setTitle("test");
     inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setExercise(exerciseCreated);

@@ -20,7 +20,7 @@ public class ExecutorFixture {
   @Autowired ExecutorRepository executorRepository;
 
   public Executor createOAEVExecutor() {
-    Executor executor = new Executor();
+    Executor executor = Executor.fromTenant("tenant");
     executor.setType(OPENAEV_EXECUTOR_TYPE);
     executor.setId(OPENAEV_EXECUTOR_ID);
     executor.setName(OPENAEV_EXECUTOR_NAME);
@@ -29,7 +29,7 @@ public class ExecutorFixture {
   }
 
   public Executor createDefaultExecutor(String executorName) {
-    Executor executor = new Executor();
+    Executor executor = Executor.fromTenant("tenant");
     executor.setType(executorName.toLowerCase().replace(" ", "-"));
     executor.setName(executorName);
     executor.setId(UUID.randomUUID().toString());
@@ -43,7 +43,7 @@ public class ExecutorFixture {
   }
 
   public Executor createCrowdstrikeExecutor() {
-    Executor executor = new Executor();
+    Executor executor = Executor.fromTenant("tenant");
     executor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
     executor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     executor.setId(UUID.randomUUID().toString());
@@ -51,7 +51,7 @@ public class ExecutorFixture {
   }
 
   private Executor createTaniumExecutor() {
-    Executor executor = new Executor();
+    Executor executor = Executor.fromTenant("tenant");
     executor.setType(TANIUM_EXECUTOR_TYPE);
     executor.setName(TANIUM_EXECUTOR_NAME);
     executor.setId(UUID.randomUUID().toString());
@@ -59,7 +59,7 @@ public class ExecutorFixture {
   }
 
   public Executor createSentineloneExecutor() {
-    Executor executor = new Executor();
+    Executor executor = Executor.fromTenant("tenant");
     executor.setType(SENTINELONE_EXECUTOR_TYPE);
     executor.setName(SENTINELONE_EXECUTOR_NAME);
     executor.setId(UUID.randomUUID().toString());

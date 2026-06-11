@@ -118,9 +118,9 @@ class ExerciseServiceUnitTest {
     Tag tag1 = TagFixture.getTag("Tag1");
     Tag tag2 = TagFixture.getTag("Tag2");
     Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
+    Inject inject1 = Inject.fromTenant("tenant");
     inject1.setId("1");
-    Inject inject2 = new Inject();
+    Inject inject2 = Inject.fromTenant("tenant");
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
@@ -151,9 +151,9 @@ class ExerciseServiceUnitTest {
     Tag tag1 = TagFixture.getTag("Tag1");
     Tag tag2 = TagFixture.getTag("Tag2");
     Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
+    Inject inject1 = Inject.fromTenant("tenant");
     inject1.setId("1");
-    Inject inject2 = new Inject();
+    Inject inject2 = Inject.fromTenant("tenant");
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
@@ -177,9 +177,9 @@ class ExerciseServiceUnitTest {
     Tag tag1 = TagFixture.getTag("Tag1");
     Tag tag2 = TagFixture.getTag("Tag2");
     Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
+    Inject inject1 = Inject.fromTenant("tenant");
     inject1.setId("1");
-    Inject inject2 = new Inject();
+    Inject inject2 = Inject.fromTenant("tenant");
     inject1.setId("2");
     Exercise exercise = ExerciseFixture.getExercise(null);
     exercise.setInjects(List.of(inject1, inject2));
@@ -453,22 +453,22 @@ class ExerciseServiceUnitTest {
     void shouldFullyRemoveDeselectedTeamAndEnableOnlyNewTeams() {
       String exerciseId = "exercise-123";
 
-      Team existingTeam1 = new Team();
+      Team existingTeam1 = Team.fromTenant("tenant");
       existingTeam1.setId("team-1");
       existingTeam1.setUsers(new ArrayList<>());
 
-      Team existingTeam2 = new Team();
+      Team existingTeam2 = Team.fromTenant("tenant");
       existingTeam2.setId("team-2");
       existingTeam2.setUsers(new ArrayList<>());
 
       User newPlayer = new User();
       newPlayer.setId("user-1");
 
-      Team newTeam = new Team();
+      Team newTeam = Team.fromTenant("tenant");
       newTeam.setId("team-3");
       newTeam.setUsers(List.of(newPlayer));
 
-      Exercise exercise = new Exercise();
+      Exercise exercise = Exercise.fromTenant("tenant");
       exercise.setId(exerciseId);
       exercise.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
@@ -521,11 +521,11 @@ class ExerciseServiceUnitTest {
     void shouldNotCallCleanupWhenNoTeamIsRemoved() {
       String exerciseId = "exercise-123";
 
-      Team existingTeam = new Team();
+      Team existingTeam = Team.fromTenant("tenant");
       existingTeam.setId("team-1");
       existingTeam.setUsers(new ArrayList<>());
 
-      Exercise exercise = new Exercise();
+      Exercise exercise = Exercise.fromTenant("tenant");
       exercise.setId(exerciseId);
       exercise.setTeams(new ArrayList<>(List.of(existingTeam)));
 

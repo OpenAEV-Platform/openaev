@@ -64,7 +64,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     void given_admin_should_register() throws Exception {
       // Arrange
       EndpointRegisterInput input = buildRegisterInput();
-      Endpoint mockEndpoint = new Endpoint();
+      Endpoint mockEndpoint = Endpoint.fromTenant("tenant");
       mockEndpoint.setHostname("test");
       doReturn(mockEndpoint)
           .when(endpointService)
@@ -103,7 +103,7 @@ class AgentRuntimeAccessControlTest extends IntegrationTest {
     void given_agentRuntimeAccess_should_allowRegister() throws Exception {
       // Arrange
       EndpointRegisterInput input = buildRegisterInput();
-      Endpoint mockEndpoint = new Endpoint();
+      Endpoint mockEndpoint = Endpoint.fromTenant("tenant");
       mockEndpoint.setHostname("test");
       doReturn(mockEndpoint)
           .when(endpointService)

@@ -57,7 +57,7 @@ public class EndpointFixture {
   }
 
   private static Endpoint baseEndpoint(String name, Endpoint.PLATFORM_TYPE platform) {
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setCreatedAt(Instant.now());
     endpoint.setUpdatedAt(Instant.now());
     endpoint.setName(name);

@@ -54,7 +54,7 @@ public class TaniumExecutorServiceTest {
   @BeforeEach
   void setUp() {
     taniumEndpoint = TaniumDeviceFixture.createDefaultTaniumEndpoint();
-    taniumExecutor = new Executor();
+    taniumExecutor = Executor.fromTenant("tenant");
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
     taniumExecutor.setTenant(new Tenant("tenantId"));

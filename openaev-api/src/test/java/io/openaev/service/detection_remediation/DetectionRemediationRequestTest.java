@@ -23,7 +23,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
   @Test
   public void getPayloadValueForWebserviceFromPayloadInput_Command() {
-    Command payload = new Command();
+    Command payload = Command.fromTenant("tenant");
     List<AttackPattern> attackPatterns = getAttackPatterns();
 
     List<String> attackPatternsIds = attackPatterns.stream().map(AttackPattern::getId).toList();
@@ -56,7 +56,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
   @Test
   public void getPayloadValueForWebserviceFromPayloadInput_DnsResolution() {
-    DnsResolution payload = new DnsResolution();
+    DnsResolution payload = DnsResolution.fromTenant("tenant");
 
     List<AttackPattern> attackPatterns = getAttackPatterns();
 
@@ -88,7 +88,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
   @Test
   public void getPayloadValueForWebserviceFromPayloadInject_Command() {
-    Command payload = new Command();
+    Command payload = Command.fromTenant("tenant");
     List<AttackPattern> attackPatterns = getAttackPatterns();
     getPayload(payload);
     DetectionRemediationRequest detectionRemediationRequest =
@@ -119,7 +119,7 @@ public class DetectionRemediationRequestTest extends IntegrationTest {
 
   @Test
   public void getPayloadValueForWebserviceFromPayloadInject_DnsResolution() {
-    DnsResolution payload = new DnsResolution();
+    DnsResolution payload = DnsResolution.fromTenant("tenant");
     List<AttackPattern> attackPatterns = getAttackPatterns();
     getPayload(payload);
     DetectionRemediationRequest detectionRemediationRequest =

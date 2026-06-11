@@ -171,7 +171,7 @@ class InjectServiceTest {
     AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
     AssetGroup assetGroup3 = getAssetGroup("assetgroup3");
     AssetGroup assetGroup4 = getAssetGroup("assetgroup4");
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(INJECT_ID);
     inject.setAssetGroups(List.of(assetGroup1, assetGroup2, assetGroup3));
     doReturn(Optional.of(inject)).when(injectRepository).findById(INJECT_ID);
@@ -192,7 +192,7 @@ class InjectServiceTest {
     AssetGroup assetGroup1 = getAssetGroup("assetgroup1");
     AssetGroup assetGroup2 = getAssetGroup("assetgroup2");
     AssetGroup assetGroup3 = getAssetGroup("assetgroup3");
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(INJECT_ID);
     inject.setAssetGroups(List.of(assetGroup1, assetGroup2, assetGroup3));
     doReturn(Optional.of(inject)).when(injectRepository).findById(INJECT_ID);
@@ -284,16 +284,16 @@ class InjectServiceTest {
   @Test
   void bulkUpdateInjectsWithValidOperations() {
     // Arrange
-    Team t0 = new Team();
-    t0.setId("team0");
-    Asset a0 = new Asset();
-    a0.setId("asset0");
-    Inject i1 = new Inject();
+    Team team = Team.fromTenant("tenant");
+    team.setId("team0");
+    Asset asset = Asset.fromTenant("tenant");
+    asset.setId("asset0");
+    Inject i1 = Inject.fromTenant("tenant");
     i1.setId("inject1");
-    Inject i2 = new Inject();
+    Inject i2 = Inject.fromTenant("tenant");
     i2.setId("inject2");
-    i1.setTeams(new ArrayList<>(List.of(t0)));
-    i1.setAssets(new ArrayList<>(List.of(a0)));
+    i1.setTeams(new ArrayList<>(List.of(team)));
+    i1.setAssets(new ArrayList<>(List.of(asset)));
 
     List<Inject> injectsToUpdate = List.of(i1, i2);
 
@@ -308,25 +308,27 @@ class InjectServiceTest {
 
     List<InjectBulkUpdateOperation> operations = List.of(ope1, ope2);
 
-    Team t1 = new Team();
+    Team t0 = Team.fromTenant("tenant");
+    Team t1 = Team.fromTenant("tenant");
     t1.setId("team1");
-    Team t2 = new Team();
-    t2.setId("team2");
-    List<Team> tList = List.of(t1, t2);
+    Team team2 = Team.fromTenant("tenant");
+    team2.setId("team2");
+    List<Team> tList = List.of(t1, team2);
 
-    Asset a1 = new Asset();
+    Asset a0 = Asset.fromTenant("tenant");
+    Asset a1 = Asset.fromTenant("tenant");
     a1.setId("asset1");
-    Asset a2 = new Asset();
-    a2.setId("asset2");
-    List<Asset> aList = List.of(a1, a2);
+    Asset asset2 = Asset.fromTenant("tenant");
+    asset2.setId("asset2");
+    List<Asset> aList = List.of(a1, asset2);
 
     when(teamRepository.findAllById(any())).thenReturn(tList);
     when(assetService.assets(any())).thenReturn(aList);
 
     // Expected results
-    Inject i1updated = new Inject();
+    Inject i1updated = Inject.fromTenant("tenant");
     i1updated.setId("inject1");
-    Inject i2updated = new Inject();
+    Inject i2updated = Inject.fromTenant("tenant");
     i2updated.setId("inject2");
     i1updated.setTeams(new ArrayList<>(List.of(t0)));
     i1updated.getTeams().addAll(tList);
@@ -357,7 +359,8 @@ class InjectServiceTest {
   @Test
   void bulkUpdateInjectsWithEmptyOperations() {
     // Arrange
-    List<Inject> injectsToUpdate = List.of(new Inject(), new Inject());
+    List<Inject> injectsToUpdate =
+        List.of(Inject.fromTenant("tenant"), Inject.fromTenant("tenant"));
     List<InjectBulkUpdateOperation> operations = List.of();
 
     when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
@@ -377,9 +380,9 @@ class InjectServiceTest {
   @Test
   void bulkUpdateInjectsWithNonExistingEntity() {
     // Arrange
-    Inject i1 = new Inject();
+    Inject i1 = Inject.fromTenant("tenant");
     i1.setId("inject1");
-    Inject i2 = new Inject();
+    Inject i2 = Inject.fromTenant("tenant");
     i2.setId("inject2");
     List<Inject> injectsToUpdate = List.of(i1, i2);
 
@@ -393,9 +396,9 @@ class InjectServiceTest {
     when(teamRepository.findAllById(any())).thenReturn(List.of());
 
     // Expected results
-    Inject i1updated = new Inject();
+    Inject i1updated = Inject.fromTenant("tenant");
     i1updated.setId("inject1");
-    Inject i2updated = new Inject();
+    Inject i2updated = Inject.fromTenant("tenant");
     i2updated.setId("inject2");
 
     List<Inject> expectedUpdatedInjects = List.of(i1updated, i2updated);
@@ -421,7 +424,7 @@ class InjectServiceTest {
     input.getSearchPaginationInput().setFilterGroup(new Filters.FilterGroup());
     input.getSearchPaginationInput().setTextSearch("test");
 
-    List<Inject> injects = List.of(new Inject(), new Inject());
+    List<Inject> injects = List.of(Inject.fromTenant("tenant"), Inject.fromTenant("tenant"));
     //noinspection unchecked
     when(injectRepository.findAll(any(Specification.class))).thenReturn(injects);
 
@@ -443,7 +446,7 @@ class InjectServiceTest {
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of("id1", "id2"));
 
-    List<Inject> injects = List.of(new Inject(), new Inject());
+    List<Inject> injects = List.of(Inject.fromTenant("tenant"), Inject.fromTenant("tenant"));
 
     when(userService.currentUser()).thenReturn(new User());
 
@@ -469,7 +472,7 @@ class InjectServiceTest {
 
     when(userService.currentUser()).thenReturn(new User());
 
-    List<Inject> injects = List.of(new Inject(), new Inject());
+    List<Inject> injects = List.of(Inject.fromTenant("tenant"), Inject.fromTenant("tenant"));
 
     //noinspection unchecked
     when(injectRepository.findAll(any(Specification.class))).thenReturn(injects);
@@ -547,12 +550,12 @@ class InjectServiceTest {
   @DisplayName("Test canApplyTargetType with manual inject")
   @Test
   void testCanApplyAssetToInject_WITH_no_assetGroup() throws JsonProcessingException {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setContent(
         "{\"manual\":true,\"fields\":[{\"key\":\"content\",\"label\":\"Content\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"\",\"richText\":false,\"type\":\"textarea\"}]}");
     injectorContract.setConvertedContent(
         (ObjectNode) mapper.readTree(injectorContract.getContent()));
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     doCallRealMethod().when(injectorContractService).checkTargetSupport(any(), any());
     inject.setInjectorContract(injectorContract);
 
@@ -562,12 +565,12 @@ class InjectServiceTest {
   @DisplayName("Test canApplyTargetType with inject with asset group")
   @Test
   void testCanApplyAssetGroupToInject_WITH_assets() throws JsonProcessingException {
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setContent(
         "{\"manual\":true,\"fields\":[{\"key\":\"assetgroups\",\"label\":\"Content\",\"mandatory\":true,\"readOnly\":false,\"mandatoryGroups\":null,\"linkedFields\":[],\"linkedValues\":[],\"defaultValue\":\"\",\"richText\":false,\"type\":\"asset-group\"}]}");
     injectorContract.setConvertedContent(
         (ObjectNode) mapper.readTree(injectorContract.getContent()));
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     doCallRealMethod().when(injectorContractService).checkTargetSupport(any(), any());
     inject.setInjectorContract(injectorContract);
 
@@ -581,7 +584,7 @@ class InjectServiceTest {
     String injectStatusID = "injectStatusID";
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setId(injectStatusID);
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(injectId);
     inject.setStatus(injectStatus);
     injectStatus.setInject(inject);
@@ -604,7 +607,7 @@ class InjectServiceTest {
   @Test
   void given_inject_without_injectcontent_SHOULD_take_default() throws JsonProcessingException {
     InjectInput injectInput = new InjectInput();
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
@@ -625,7 +628,7 @@ class InjectServiceTest {
                 ]
               }
             """;
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(injectorContractId);
     injectorContract.setContent(injectorContractString);
     ObjectMapper mapper = new ObjectMapper();
@@ -657,7 +660,7 @@ class InjectServiceTest {
     Injector contractInjector = InjectorFixture.createDefaultPayloadInjector();
     contractInjector.setId("contract-injector-id");
 
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(injectorContractId);
     injectorContract.addInjector(contractInjector);
     ObjectNode contractContent = mapper.createObjectNode();
@@ -673,7 +676,7 @@ class InjectServiceTest {
     injectInput.setInjectorId(injectorId);
     injectInput.setDependsDuration(0L);
 
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
 
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
     when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
@@ -704,7 +707,7 @@ class InjectServiceTest {
     Injector contractInjector = InjectorFixture.createDefaultPayloadInjector();
     contractInjector.setId("contract-injector-id");
 
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(injectorContractId);
     injectorContract.addInjector(contractInjector);
     ObjectNode contractContent = mapper.createObjectNode();
@@ -717,7 +720,7 @@ class InjectServiceTest {
     // injectorId is NOT set — auto-resolve from contract
     injectInput.setDependsDuration(0L);
 
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
 
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
     when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
@@ -742,7 +745,7 @@ class InjectServiceTest {
     String unknownInjectorId = "unknown-injector-id";
     String injectorContractId = "contract-id";
 
-    InjectorContract injectorContract = new InjectorContract();
+    InjectorContract injectorContract = InjectorContract.fromTenant("tenant");
     injectorContract.setId(injectorContractId);
     injectorContract.setInjectors(List.of());
     ObjectNode contractContent = mapper.createObjectNode();
@@ -755,7 +758,7 @@ class InjectServiceTest {
     injectInput.setInjectorId(unknownInjectorId);
     injectInput.setDependsDuration(0L);
 
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
 
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
     when(injectUtils.resolveInjector(unknownInjectorId, injectorContract))
@@ -943,7 +946,7 @@ class InjectServiceTest {
 
     // MOCK
     when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
-    Injector nmapInjector = new Injector();
+    Injector nmapInjector = Injector.fromTenant("tenant");
     nmapInjector.setId("testNmap");
     nmapInjector.setType("openaev_nmap");
     when(injectorService.findAll()).thenReturn(List.of(nmapInjector));

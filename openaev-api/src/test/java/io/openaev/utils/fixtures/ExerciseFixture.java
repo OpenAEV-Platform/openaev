@@ -18,7 +18,7 @@ public class ExerciseFixture {
   }
 
   public static Exercise getExercise(List<Team> exerciseTeams) {
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName(EXERCISE_NAME);
     if (exerciseTeams != null) {
       exercise.setTeams(exerciseTeams);
@@ -134,7 +134,7 @@ public class ExerciseFixture {
 
   private static Exercise createDefaultExerciseWithName(String name) {
     String new_name = name == null ? "exercise-%s".formatted(UUID.randomUUID()) : name;
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName(new_name);
     return exercise;
   }

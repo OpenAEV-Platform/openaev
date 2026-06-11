@@ -156,7 +156,7 @@ public class PayloadInputFixture {
   }
 
   public static Document createDefaultExecutableFile() {
-    Document executableFile = new Document();
+    Document executableFile = Document.fromTenant("tenant");
     executableFile.setName("Executable file");
     executableFile.setType("text/x-sh");
     return executableFile;

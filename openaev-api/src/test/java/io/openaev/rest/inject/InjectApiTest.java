@@ -140,13 +140,13 @@ class InjectApiTest extends IntegrationTest {
     emailInjectorIntegrationFactory.registerConnectorForTenant("tenant");
     openaevInjectorIntegrationFactory.registerConnectorForTenant("tenant");
 
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Scenario name");
     scenario.setFrom("test@test.com");
     scenario.setReplyTos(new ArrayList<>(List.of("test@test.com")));
     SCENARIO = scenarioService.createScenario(scenario);
 
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName("Exercise name");
     exercise.setStart(Instant.now());
     exercise.setFrom("test@test.com");
@@ -154,16 +154,16 @@ class InjectApiTest extends IntegrationTest {
     exercise.setStatus(RUNNING);
     EXERCISE = exerciseService.createExercise(exercise);
 
-    Document document1 = new Document();
+    Document document1 = Document.fromTenant("tenant");
     document1.setName("Document 1");
     document1.setType("image");
-    Document document2 = new Document();
+    Document document2 = Document.fromTenant("tenant");
     document2.setName("Document 2");
     document2.setType("pdf");
     DOCUMENT1 = documentRepository.save(document1);
     DOCUMENT2 = documentRepository.save(document2);
 
-    Team team = new Team();
+    Team team = Team.fromTenant("tenant");
     team.setName("team");
     TEAM = teamRepository.save(team);
 
@@ -182,7 +182,7 @@ class InjectApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void deleteInjectsForScenarioTest() throws Exception {
     // -- PREPARE --
-    Inject injectForScenario1 = new Inject();
+    Inject injectForScenario1 = Inject.fromTenant("tenant");
     injectForScenario1.setTitle("Inject for scenario 1");
     injectForScenario1.setCreatedAt(Instant.now());
     injectForScenario1.setUpdatedAt(Instant.now());
@@ -287,7 +287,7 @@ class InjectApiTest extends IntegrationTest {
     injectInput.setTitle("Test inject");
     injectInput.setDependsDuration(0L);
     InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
-    Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector());
+    Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector(), "tenant");
     Inject savedInject = injectRepository.save(inject);
 
     Inject injectToUpdate = injectRepository.findById(savedInject.getId()).orElseThrow();
@@ -515,14 +515,14 @@ class InjectApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void deleteInjectsForExerciseTest() throws Exception {
     // -- PREPARE --
-    Inject injectForExercise1 = new Inject();
+    Inject injectForExercise1 = Inject.fromTenant("tenant");
     injectForExercise1.setTitle("Inject for exercise 1");
     injectForExercise1.setCreatedAt(Instant.now());
     injectForExercise1.setUpdatedAt(Instant.now());
     injectForExercise1.setDependsDuration(1L);
     injectForExercise1.setExercise(EXERCISE);
 
-    Inject injectForExercise2 = new Inject();
+    Inject injectForExercise2 = Inject.fromTenant("tenant");
     injectForExercise2.setTitle("Inject for exercise 2");
     injectForExercise2.setCreatedAt(Instant.now());
     injectForExercise2.setUpdatedAt(Instant.now());

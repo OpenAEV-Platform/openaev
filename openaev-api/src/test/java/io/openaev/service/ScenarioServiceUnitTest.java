@@ -37,9 +37,9 @@ class ScenarioServiceUnitTest {
     Tag tag1 = TagFixture.getTag("Tag1");
     Tag tag2 = TagFixture.getTag("Tag2");
     Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
+    Inject inject1 = Inject.fromTenant("tenant");
     inject1.setId("1");
-    Inject inject2 = new Inject();
+    Inject inject2 = Inject.fromTenant("tenant");
     inject1.setId("2");
     Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
     scenario.setTags(Set.of(tag1, tag2));
@@ -69,9 +69,9 @@ class ScenarioServiceUnitTest {
     Tag tag1 = TagFixture.getTag("Tag1");
     Tag tag2 = TagFixture.getTag("Tag2");
     Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
+    Inject inject1 = Inject.fromTenant("tenant");
     inject1.setId("1");
-    Inject inject2 = new Inject();
+    Inject inject2 = Inject.fromTenant("tenant");
     inject1.setId("2");
     Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
     scenario.setTags(Set.of(tag1, tag2));
@@ -94,9 +94,9 @@ class ScenarioServiceUnitTest {
     Tag tag1 = TagFixture.getTag("Tag1");
     Tag tag2 = TagFixture.getTag("Tag2");
     Tag tag3 = TagFixture.getTag("Tag3");
-    Inject inject1 = new Inject();
+    Inject inject1 = Inject.fromTenant("tenant");
     inject1.setId("1");
-    Inject inject2 = new Inject();
+    Inject inject2 = Inject.fromTenant("tenant");
     inject2.setId("2");
     Scenario scenario = ScenarioFixture.getScenario(null, Set.of(inject1, inject2));
     scenario.setTags(Set.of(tag1, tag2));
@@ -150,7 +150,7 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldKeepExistingFrom_whenAlreadySet() {
-      Scenario scenario = new Scenario();
+      Scenario scenario = Scenario.fromTenant("tenant");
       scenario.setFrom("existing@mail.com");
 
       scenarioService.computeEmails(scenario);
@@ -164,7 +164,7 @@ class ScenarioServiceUnitTest {
 
     @Test
     void shouldReturnRecurringScenarios_afterInstant() {
-      Scenario scenario = new Scenario();
+      Scenario scenario = Scenario.fromTenant("tenant");
       when(scenarioRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
           .thenReturn(List.of(scenario));
 
@@ -219,7 +219,7 @@ class ScenarioServiceUnitTest {
     @Test
     void shouldNotThrow_whenLicenseActive() {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
-      Scenario scenario = new Scenario();
+      Scenario scenario = Scenario.fromTenant("tenant");
       scenario.setInjects(new HashSet<>());
 
       assertDoesNotThrow(() -> scenarioService.throwIfScenarioNotLaunchable(scenario));
@@ -228,8 +228,8 @@ class ScenarioServiceUnitTest {
     @Test
     void shouldDelegateToInjectService_whenLicenseNotActive() {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
-      Inject inject = new Inject();
-      Scenario scenario = new Scenario();
+      Inject inject = Inject.fromTenant("tenant");
+      Scenario scenario = Scenario.fromTenant("tenant");
       scenario.setInjects(new HashSet<>(List.of(inject)));
 
       scenarioService.throwIfScenarioNotLaunchable(scenario);

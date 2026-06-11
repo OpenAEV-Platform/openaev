@@ -84,11 +84,11 @@ public class CalderaExecutorServiceTest {
     calderaAgent = new Agent();
     calderaAgent.setArchitecture("Arch");
     calderaAgent.setPaw(CALDERA_AGENT_EXTERNAL_REF);
-    calderaExecutor = new Executor();
+    calderaExecutor = Executor.fromTenant("tenant");
     calderaExecutor.setName(CALDERA_EXECUTOR_NAME);
     calderaExecutor.setType(CALDERA_EXECUTOR_TYPE);
     calderaExecutor.setTenant(new Tenant("tenant"));
-    randomExecutor = new Executor();
+    randomExecutor = Executor.fromTenant("tenant");
     randomExecutor.setName("NAME");
     randomExecutor.setType("TYPE");
     randomExecutor.setTenant(new Tenant("tenant"));
@@ -104,7 +104,7 @@ public class CalderaExecutorServiceTest {
     calderaEndpoint = createEndpoint(calderaAgent);
     randomEndpoint = createEndpoint(randomAgent);
 
-    agentEndpoint = new io.openaev.database.model.Agent();
+    agentEndpoint = io.openaev.database.model.Agent.fromTenant("tenant");
     agentEndpoint.setProcessName(calderaAgent.getExe_name());
     agentEndpoint.setExecutor(calderaExecutor);
     agentEndpoint.setExternalReference(calderaAgent.getPaw());
@@ -116,7 +116,7 @@ public class CalderaExecutorServiceTest {
   }
 
   private Endpoint createEndpoint(Agent agent) {
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setName(agent.getHost());
     endpoint.setDescription("Asset collected by Caldera executor context.");
     endpoint.setIps(EndpointMapper.setIps(agent.getHost_ip_addrs()));
@@ -191,7 +191,7 @@ public class CalderaExecutorServiceTest {
       // inject.setInjector is NOT called — simulates a legacy inject
 
       Endpoint endpoint = EndpointFixture.createEndpoint();
-      io.openaev.database.model.Agent agent = new io.openaev.database.model.Agent();
+      io.openaev.database.model.Agent agent = io.openaev.database.model.Agent.fromTenant("tenant");
       agent.setId("agentId");
       agent.setExternalReference("agentExtRef");
       agent.setAsset(endpoint);

@@ -7,7 +7,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 public class AttackPatternFixture {
 
   public static AttackPattern createDefaultAttackPattern() {
-    AttackPattern attackPattern = new AttackPattern();
+    AttackPattern attackPattern = AttackPattern.fromTenant("tenant");
     attackPattern.setName("AttackPattern-" + RandomStringUtils.random(25, true, true));
     attackPattern.setExternalId(
         "T"
@@ -19,7 +19,7 @@ public class AttackPatternFixture {
   }
 
   public static AttackPattern createAttackPatternsWithExternalId(final String externalId) {
-    AttackPattern attackPattern = new AttackPattern();
+    AttackPattern attackPattern = AttackPattern.fromTenant("tenant");
     attackPattern.setName("AttackPattern-" + externalId);
     attackPattern.setExternalId(externalId);
     attackPattern.setStixId("attack-pattern-test--" + externalId);

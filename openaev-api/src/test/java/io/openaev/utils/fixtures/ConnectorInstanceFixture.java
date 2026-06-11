@@ -10,7 +10,7 @@ import java.util.HashSet;
 
 public class ConnectorInstanceFixture {
   public static ConnectorInstancePersisted createMigratedInstance() {
-    ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    ConnectorInstancePersisted connectorInstance = ConnectorInstancePersisted.fromTenant("tenant");
     connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstance.setSource(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
@@ -18,7 +18,7 @@ public class ConnectorInstanceFixture {
   }
 
   public static ConnectorInstancePersisted createDefaultConnectorInstance() {
-    ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+    ConnectorInstancePersisted connectorInstance = ConnectorInstancePersisted.fromTenant("tenant");
     connectorInstance.setSource(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT);
     connectorInstance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
     connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);

@@ -95,9 +95,9 @@ public class ExerciseApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_exercise_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
-    CustomDashboard defaultDashboard = new CustomDashboard();
-    defaultDashboard.setName("Default scenario dashboard");
-    CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
+    CustomDashboard customDashboard = CustomDashboard.fromTenant("tenant");
+    customDashboard.setName("Default scenario dashboard");
+    CustomDashboard customDashboardSaved = customDashboardRepository.save(customDashboard);
 
     ExerciseInput exerciseInput = new ExerciseInput();
     String name = "My scenario";
@@ -256,7 +256,7 @@ public class ExerciseApiTest extends IntegrationTest {
 
     AssetGroup assetGroup =
         assetGroupRepository.save(AssetGroupFixture.createDefaultAssetGroup("assetGroup"));
-    TagRule tagRule = new TagRule();
+    TagRule tagRule = TagRule.fromTenant("tenant");
     tagRule.setTag(tag2);
     tagRule.setAssetGroups(List.of(assetGroup));
     this.tagRuleRepository.save(tagRule);
@@ -482,7 +482,7 @@ public class ExerciseApiTest extends IntegrationTest {
       User userTom = userRepository.save(UserFixture.getUser("Tom", "RT1", "tom-rt1@fake.email"));
       USER_IDS.add(userTom.getId());
 
-      Team sharedTeam = new Team();
+      Team sharedTeam = Team.fromTenant("tenant");
       sharedTeam.setName("SharedTeam-RT1");
       sharedTeam.setUsers(List.of(userTom));
       teamRepository.save(sharedTeam);
@@ -549,17 +549,17 @@ public class ExerciseApiTest extends IntegrationTest {
     @DisplayName("Replacing teams should update the exercise team list in database")
     void replacingTeamsShouldPersistNewTeamListInDatabase() throws Exception {
       // -- PREPARE --
-      Team teamToRemove = new Team();
+      Team teamToRemove = Team.fromTenant("tenant");
       teamToRemove.setName("TeamToRemove-RT3");
       teamRepository.save(teamToRemove);
       TEAM_IDS.add(teamToRemove.getId());
 
-      Team teamToKeep = new Team();
+      Team teamToKeep = Team.fromTenant("tenant");
       teamToKeep.setName("TeamToKeep-RT3");
       teamRepository.save(teamToKeep);
       TEAM_IDS.add(teamToKeep.getId());
 
-      Team teamToAdd = new Team();
+      Team teamToAdd = Team.fromTenant("tenant");
       teamToAdd.setName("TeamToAdd-RT3");
       teamRepository.save(teamToAdd);
       TEAM_IDS.add(teamToAdd.getId());

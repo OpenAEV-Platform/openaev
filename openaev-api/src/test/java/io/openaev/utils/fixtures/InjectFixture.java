@@ -81,7 +81,7 @@ public class InjectFixture {
 
   public static Inject createTechnicalInject(
       InjectorContract injectorContract, String title, Asset asset) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setTitle(title);
     inject.setInjectorContract(injectorContract);
     inject.setAssets(List.of(asset));
@@ -93,7 +93,7 @@ public class InjectFixture {
 
   public static Inject createTechnicalInjectWithAssetGroup(
       InjectorContract injectorContract, String title, AssetGroup assetGroup) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setTitle(title);
     inject.setInjectorContract(injectorContract);
     inject.setAssetGroups(List.of(assetGroup));
@@ -183,7 +183,7 @@ public class InjectFixture {
 
   private static Inject createInjectWithTitle(String title) {
     String new_title = title == null ? "inject-%s".formatted(UUID.randomUUID()) : title;
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setDependsDuration(0L);
     inject.setTitle(new_title);
     return inject;

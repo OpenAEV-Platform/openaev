@@ -67,7 +67,7 @@ class EndpointServiceTest {
     @Test
     void shouldSaveEndpoint_whenGivenEntity() {
       // -------- Prepare --------
-      Endpoint endpoint = new Endpoint();
+      Endpoint endpoint = Endpoint.fromTenant("tenant");
       endpoint.setHostname("host1");
       when(endpointRepository.save(endpoint)).thenReturn(endpoint);
 
@@ -93,14 +93,14 @@ class EndpointServiceTest {
       input.setTagIds(List.of("tag-1"));
       input.setEol(true);
 
-      Tag tag = new Tag();
+      Tag tag = Tag.fromTenant("tenant");
       tag.setId("tag-1");
       when(tagRepository.findAllById(List.of("tag-1"))).thenReturn(List.of(tag));
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
-      Endpoint result = endpointService.createEndpoint(input);
+      Endpoint result = endpointService.createEndpoint(null, input);
 
       // -------- Assert --------
       assertNotNull(result);
@@ -117,7 +117,7 @@ class EndpointServiceTest {
     void shouldReturnEndpoint_whenFound() {
       TxCtx ctx = TxCtx.of("tenant-x");
       // -------- Prepare --------
-      Endpoint endpoint = new Endpoint();
+      Endpoint endpoint = Endpoint.fromTenant("tenant");
       endpoint.setId("ep-1");
       when(endpointRepository.findByIdAndTenantId("ep-1", ctx.tenantIdFromUri()))
           .thenReturn(Optional.of(endpoint));
@@ -144,8 +144,8 @@ class EndpointServiceTest {
     @Test
     void shouldReturnAllEndpoints() {
       // -------- Prepare --------
-      Endpoint ep1 = new Endpoint();
-      Endpoint ep2 = new Endpoint();
+      Endpoint ep1 = Endpoint.fromTenant("tenant");
+      Endpoint ep2 = Endpoint.fromTenant("tenant");
       when(endpointRepository.findAll()).thenReturn(List.of(ep1, ep2));
 
       // -------- Act --------
@@ -158,7 +158,7 @@ class EndpointServiceTest {
     @Test
     void shouldReturnEndpointsByIds() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       ep.setId("ep-1");
       when(endpointRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
           .thenReturn(List.of(ep));
@@ -174,7 +174,7 @@ class EndpointServiceTest {
     void shouldFindByHostnameAndIp() {
       TxCtx ctx = TxCtx.of("tenant-x");
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       String[] ips = {"10.0.0.1"};
       when(endpointRepository.findByHostnameAndAtleastOneIp("host1", ips)).thenReturn(List.of(ep));
 
@@ -188,7 +188,7 @@ class EndpointServiceTest {
     @Test
     void shouldFindByHostnameAndMacAddress() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       String[] macs = {"AA:BB:CC:DD:EE:FF"};
       when(endpointRepository.findByHostnameAndAtleastOneMacAddress("host1", macs))
           .thenReturn(List.of(ep));
@@ -204,7 +204,7 @@ class EndpointServiceTest {
     @Test
     void shouldFindByExternalReference() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       when(endpointRepository.findByExternalReference("ext-ref")).thenReturn(List.of(ep));
 
       // -------- Act --------
@@ -217,7 +217,7 @@ class EndpointServiceTest {
     @Test
     void shouldFindByMacAddress() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       String[] macs = {"AA:BB:CC:DD:EE:FF"};
       when(endpointRepository.findByAtleastOneMacAddress(macs)).thenReturn(List.of(ep));
 
@@ -251,7 +251,7 @@ class EndpointServiceTest {
     void given_endpointInTenantX_should_beReadableFromTenantX() {
       // -------- Prepare --------
       TxCtx ctx = TxCtx.of("tenant-x");
-      Endpoint endpoint = new Endpoint();
+      Endpoint endpoint = Endpoint.fromTenant("tenant");
       endpoint.setId("ep-tenant-x");
       when(endpointRepository.findByIdAndTenantId("ep-tenant-x", "tenant-x"))
           .thenReturn(Optional.of(endpoint));
@@ -286,7 +286,7 @@ class EndpointServiceTest {
       TxCtx ctx = TxCtx.of("tenant-x");
       String[] ips = {"10.0.0.1"};
       when(endpointRepository.findByHostnameAndAtleastOneIp("host-x", ips))
-          .thenReturn(List.of(new Endpoint()));
+          .thenReturn(List.of(Endpoint.fromTenant("tenant")));
 
       // -------- Act --------
       List<Endpoint> result = endpointService.findEndpointByHostnameAndAtLeastOneIp("host-x", ips);
@@ -302,7 +302,7 @@ class EndpointServiceTest {
       // -------- Prepare --------
       String[] ips = {"10.0.0.2"};
       when(endpointRepository.findByHostnameAndAtleastOneIp("host-explicit", ips))
-          .thenReturn(List.of(new Endpoint()));
+          .thenReturn(List.of(Endpoint.fromTenant("tenant")));
 
       // -------- Act --------
       List<Endpoint> result =
@@ -366,7 +366,7 @@ class EndpointServiceTest {
     @Test
     void shouldUpdateEndpointAndSetTimestamp() {
       // -------- Prepare --------
-      Endpoint endpoint = new Endpoint();
+      Endpoint endpoint = Endpoint.fromTenant("tenant");
       endpoint.setId("ep-1");
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
@@ -383,7 +383,7 @@ class EndpointServiceTest {
     void shouldUpdateEndpointFromInput() {
       TxCtx ctx = TxCtx.of("tenant-x");
       // -------- Prepare --------
-      Endpoint existing = new Endpoint();
+      Endpoint existing = Endpoint.fromTenant("tenant");
       existing.setId("ep-1");
       when(endpointRepository.findByIdAndTenantId("ep-1", ctx.tenantIdFromUri()))
           .thenReturn(Optional.of(existing));
@@ -518,7 +518,7 @@ class EndpointServiceTest {
     @Test
     void shouldReturnEndpointsForScenario() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       when(endpointRepository.findDistinctByInjectsScenarioId("sc-1")).thenReturn(List.of(ep));
 
       // -------- Act --------
@@ -531,7 +531,7 @@ class EndpointServiceTest {
     @Test
     void shouldReturnEndpointsForSimulation() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       when(endpointRepository.findDistinctByInjectsExerciseId("sim-1")).thenReturn(List.of(ep));
 
       // -------- Act --------
@@ -544,7 +544,7 @@ class EndpointServiceTest {
     @Test
     void shouldReturnEndpointOutputsForScenario() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       EndpointOutput output = EndpointOutput.builder().id("ep-1").build();
       when(endpointRepository.findDistinctByInjectsScenarioIdAndIdIn("sc-1", List.of("ep-1")))
           .thenReturn(List.of(ep));
@@ -562,7 +562,7 @@ class EndpointServiceTest {
     @Test
     void shouldReturnEndpointOutputsForSimulation() {
       // -------- Prepare --------
-      Endpoint ep = new Endpoint();
+      Endpoint ep = Endpoint.fromTenant("tenant");
       EndpointOutput output = EndpointOutput.builder().id("ep-2").build();
       when(endpointRepository.findDistinctByInjectsExerciseIdAndIdIn("sim-1", List.of("ep-2")))
           .thenReturn(List.of(ep));

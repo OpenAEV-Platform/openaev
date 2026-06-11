@@ -97,7 +97,7 @@ class CveApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should fetch a CVE by ID")
     void shouldFetchCveById() throws Exception {
-      Vulnerability cve = new Vulnerability();
+      Vulnerability cve = Vulnerability.fromTenant("tenant");
       cve.setExternalId(CVE_2025_5678);
       cve.setCvssV31(new BigDecimal("8.9"));
       cve.setDescription("Test CVE");
@@ -117,7 +117,7 @@ class CveApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should update an existing CVE")
     void shouldUpdateCve() throws Exception {
-      Vulnerability cve = new Vulnerability();
+      Vulnerability cve = Vulnerability.fromTenant("tenant");
       cve.setExternalId("CVE-2025-5679");
       cve.setCvssV31(new BigDecimal("4.5"));
       cve.setDescription("Old description");
@@ -191,7 +191,7 @@ class CveApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should delete a CVE")
     void shouldDeleteCve() throws Exception {
-      Vulnerability cve = new Vulnerability();
+      Vulnerability cve = Vulnerability.fromTenant("tenant");
       cve.setExternalId("CVE-2025-5679");
       cve.setCvssV31(new BigDecimal("7.5"));
       cve.setDescription("To be deleted");
@@ -206,13 +206,13 @@ class CveApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return CVEs on search")
     void shouldReturnCvesOnSearch() throws Exception {
-      Vulnerability cve = new Vulnerability();
+      Vulnerability cve = Vulnerability.fromTenant("tenant");
       cve.setExternalId("CVE-2024-5679");
       cve.setCvssV31(new BigDecimal("4.5"));
       cve.setDescription("Cve 1");
       vulnerabilityComposer.forVulnerability(cve).persist();
 
-      Vulnerability cve1 = new Vulnerability();
+      Vulnerability cve1 = Vulnerability.fromTenant("tenant");
       cve1.setExternalId("CVE-2025-5671");
       cve1.setCvssV31(new BigDecimal("1.8"));
       cve1.setDescription("Cve 2");

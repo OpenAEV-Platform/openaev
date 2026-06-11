@@ -60,13 +60,13 @@ class ChannelServiceTest {
       Article article = ArticleFixture.getArticle(channel);
       article.setId("article-1");
 
-      InjectorContract contract = new InjectorContract();
+      InjectorContract contract = InjectorContract.fromTenant("tenant");
       contract.setId(CHANNEL_PUBLISH);
 
       InjectStatus status = new InjectStatus();
       status.setTrackingSentDate(Instant.now());
 
-      Inject inject = new Inject();
+      Inject inject = Inject.fromTenant("tenant");
       inject.setId("inject-1");
       inject.setInjectorContract(contract);
       inject.setStatus(status);

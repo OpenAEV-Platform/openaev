@@ -34,12 +34,12 @@ class InjectCrudTest extends IntegrationTest {
   @Test
   void createInjectSuccess() {
     // -- PREPARE --
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName("Exercise name");
     exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
     Exercise exerciseCreated = this.exerciseRepository.save(exercise);
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setTitle("test");
     inject.setInjectorContract(injectorContractFixture.getWellKnownSingleEmailContract());
     inject.setExercise(exerciseCreated);

@@ -8,7 +8,7 @@ import io.openaev.database.model.AssetAgentJob;
 public class AssetAgentJobFixture {
 
   public static AssetAgentJob createDefaultAssetAgentJob(Agent agent) {
-    AssetAgentJob assetAgentJob = new AssetAgentJob();
+    AssetAgentJob assetAgentJob = AssetAgentJob.fromTenant("tenant");
     assetAgentJob.setCommand("whoami");
     assetAgentJob.setAgent(agent);
     assetAgentJob.setCreatedAt(now());

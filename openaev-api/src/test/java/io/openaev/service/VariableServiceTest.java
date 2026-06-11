@@ -33,7 +33,7 @@ public class VariableServiceTest extends IntegrationTest {
 
   @BeforeAll
   void beforeAll() {
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setName("Exercise name");
     exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));

@@ -42,7 +42,7 @@ class WorkflowTimeoutServiceTest {
     void
         should_endSteps_deleteDelayQueue_endWorkflow_completeActiveInjects_finishSimulation_inOrder() {
       // Arrange
-      Exercise simulation = new Exercise();
+      Exercise simulation = Exercise.fromTenant("tenant");
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
@@ -92,7 +92,7 @@ class WorkflowTimeoutServiceTest {
     @DisplayName("should_completeAllActiveInjectStatuses_queuingExecutingPending")
     void should_completeAllActiveInjectStatuses_queuingExecutingPending() {
       // Arrange
-      Exercise simulation = new Exercise();
+      Exercise simulation = Exercise.fromTenant("tenant");
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
@@ -120,7 +120,7 @@ class WorkflowTimeoutServiceTest {
     @DisplayName("given_noActiveInjects_should_stillFinishSimulation")
     void given_noActiveInjects_should_stillFinishSimulation() {
       // Arrange
-      Exercise simulation = new Exercise();
+      Exercise simulation = Exercise.fromTenant("tenant");
       simulation.setId(UUID.randomUUID().toString());
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
@@ -193,7 +193,7 @@ class WorkflowTimeoutServiceTest {
   }
 
   private static Inject buildInjectWithStatus(ExecutionStatus status) {
-    Inject inject = new Inject();
+    Inject inject = Inject.fromTenant("tenant");
     inject.setId(UUID.randomUUID().toString());
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setId(UUID.randomUUID().toString());

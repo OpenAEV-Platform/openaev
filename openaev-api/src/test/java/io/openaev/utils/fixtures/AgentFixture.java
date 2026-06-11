@@ -3,13 +3,12 @@ package io.openaev.utils.fixtures;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Executor;
-import io.openaev.database.model.Tenant;
 import java.time.Instant;
 
 public class AgentFixture {
 
   public static Agent createDefaultAgentService() {
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant("tenant");
     agent.setExecutedByUser(Agent.ADMIN_SYSTEM_WINDOWS);
     agent.setPrivilege(Agent.PRIVILEGE.admin);
     agent.setDeploymentMode(Agent.DEPLOYMENT_MODE.service);
@@ -18,7 +17,7 @@ public class AgentFixture {
   }
 
   public static Agent createDefaultAgentSession() {
-    Agent agent = new Agent();
+    Agent agent = Agent.fromTenant("tenant");
     agent.setExecutedByUser(Agent.ADMIN_SYSTEM_WINDOWS);
     agent.setPrivilege(Agent.PRIVILEGE.admin);
     agent.setDeploymentMode(Agent.DEPLOYMENT_MODE.session);
@@ -36,7 +35,7 @@ public class AgentFixture {
     Agent agent = createDefaultAgentService();
     agent.setAsset(asset);
     agent.setExternalReference(externalReference);
-    agent.setTenant(new Tenant("tenant"));
+
     return agent;
   }
 }

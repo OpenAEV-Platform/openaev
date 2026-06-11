@@ -11,7 +11,7 @@ public class FindingFixture {
   public static final String CREDENTIALS_FIELD = "credentials_field";
 
   public static Finding createDefaultTextFinding() {
-    Finding finding = new Finding();
+    Finding finding = Finding.fromTenant("tenant");
     finding.setType(ContractOutputType.Text);
     finding.setName("Text");
     finding.setField(TEXT_FIELD);
@@ -30,7 +30,7 @@ public class FindingFixture {
     String cveName =
         "CVE-%d-%d"
             .formatted(Math.round(Math.random() * 1000), Math.round(Math.random() * 1000000));
-    Finding finding = new Finding();
+    Finding finding = Finding.fromTenant("tenant");
     finding.setType(ContractOutputType.CVE);
     finding.setName("vulnerability");
     finding.setField(TEXT_FIELD);
@@ -40,7 +40,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultIPV6Finding() {
-    Finding finding = new Finding();
+    Finding finding = Finding.fromTenant("tenant");
     finding.setType(ContractOutputType.IPv6);
     finding.setName("Ipv6");
     finding.setField(IPV6_FIELD);
@@ -49,7 +49,7 @@ public class FindingFixture {
   }
 
   public static Finding createDefaultFindingCredentials() {
-    Finding finding = new Finding();
+    Finding finding = Finding.fromTenant("tenant");
     finding.setType(ContractOutputType.Credentials);
     finding.setName("Credentials");
     finding.setField(CREDENTIALS_FIELD);

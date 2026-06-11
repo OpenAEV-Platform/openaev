@@ -11,7 +11,7 @@ public class DomainFixture {
   }
 
   public static Domain getDomainWithNameAndColour(String name, String rgbColour) {
-    Domain domain = new Domain();
+    Domain domain = Domain.fromTenant("tenant");
     domain.setName(name);
     domain.setColor(rgbColour);
     return domain;

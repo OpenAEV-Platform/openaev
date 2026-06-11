@@ -26,7 +26,7 @@ public class ChannelFixture {
 
   private static Channel createChannelWithName(String name) {
     String new_name = name == null ? "channel-%s".formatted(UUID.randomUUID()) : name;
-    Channel channel = new Channel();
+    Channel channel = Channel.fromTenant("tenant");
     channel.setName(new_name);
     return channel;
   }

@@ -415,7 +415,7 @@ public class ManagerTest {
       Manager manager = new Manager(List.of(getRegularFactory()));
       manager.monitorIntegrations();
 
-      ConnectorInstance unknownInstance = new ConnectorInstancePersisted();
+      ConnectorInstance unknownInstance = ConnectorInstancePersisted.fromTenant("tenant");
       unknownInstance.setId("unknown-instance-id");
 
       // Act & Assert

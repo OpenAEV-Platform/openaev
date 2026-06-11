@@ -64,16 +64,17 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
   void beforeEach() {
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("test"));
 
-    SecurityPlatform sp = new SecurityPlatform();
-    sp.setExternalReference(UUID.randomUUID().toString());
-    sp.setName("sp-name");
-    sp.setSecurityPlatformType(SECURITY_PLATFORM_TYPE.SIEM);
-    savedSecurityPlatform = securityPlatformRepository.save(sp);
+    SecurityPlatform securityPlatform = SecurityPlatform.fromTenant("tenant");
+    securityPlatform.setExternalReference(UUID.randomUUID().toString());
+    securityPlatform.setName("sp-name");
+    securityPlatform.setSecurityPlatformType(SECURITY_PLATFORM_TYPE.SIEM);
+    savedSecurityPlatform = securityPlatformRepository.save(securityPlatform);
 
-    CollectorType collectorType = new CollectorType("type");
+    CollectorType collectorType = CollectorType.fromTenant("tenant");
+    collectorType.setName("type");
     collectorTypeRepository.save(collectorType);
 
-    Collector collector = new Collector();
+    Collector collector = Collector.fromTenant("tenant");
     collector.setId(UUID.randomUUID().toString());
     collector.setName("collector-name");
     collector.setSecurityPlatform(savedSecurityPlatform);

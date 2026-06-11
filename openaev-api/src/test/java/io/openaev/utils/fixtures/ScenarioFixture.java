@@ -30,7 +30,7 @@ public class ScenarioFixture {
   }
 
   public static Scenario getScenario(List<Team> scenarioTeams, Set<Inject> scenarioInjects) {
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Crisis simulation");
     scenario.setDescription("A crisis simulation for my enterprise");
     scenario.setSubtitle("A crisis simulation");
@@ -46,7 +46,7 @@ public class ScenarioFixture {
   }
 
   public static Scenario createDefaultCrisisScenario() {
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Crisis scenario");
     scenario.setDescription("A crisis scenario for my enterprise");
     scenario.setSubtitle("A crisis scenario");
@@ -57,7 +57,7 @@ public class ScenarioFixture {
   }
 
   public static Scenario createDefaultIncidentResponseScenario() {
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setName("Incident response scenario");
     scenario.setDescription("An incident response scenario for my enterprise");
     scenario.setSubtitle("An incident response scenario");

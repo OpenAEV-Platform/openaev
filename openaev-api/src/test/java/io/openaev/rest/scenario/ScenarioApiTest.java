@@ -160,9 +160,9 @@ public class ScenarioApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void given_scenario_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
-    CustomDashboard defaultDashboard = new CustomDashboard();
-    defaultDashboard.setName("Default scenario dashboard");
-    CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
+    CustomDashboard expected = CustomDashboard.fromTenant("tenant");
+    expected.setName("Default scenario dashboard");
+    CustomDashboard customDashboardSaved = customDashboardRepository.save(expected);
 
     ScenarioInput scenarioInput = new ScenarioInput();
     String name = "My scenario";
@@ -330,7 +330,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     AssetGroup assetGroup =
         assetGroupRepository.save(AssetGroupFixture.createDefaultAssetGroup("assetGroup"));
-    TagRule tagRule = new TagRule();
+    TagRule tagRule = TagRule.fromTenant("tenant");
     tagRule.setTag(tag2);
     tagRule.setAssetGroups(List.of(assetGroup));
     this.tagRuleRepository.save(tagRule);

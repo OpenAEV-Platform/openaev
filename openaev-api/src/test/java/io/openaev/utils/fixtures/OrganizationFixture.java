@@ -14,7 +14,7 @@ public class OrganizationFixture {
   }
 
   public static Organization createOrganization() {
-    Organization organization = new Organization();
+    Organization organization = Organization.fromTenant("tenant");
     organization.setName(ORGANIZATION_FIXTURE_NAME);
     organization.setDescription("Filigran test organization");
     return organization;
@@ -26,7 +26,7 @@ public class OrganizationFixture {
 
   private static Organization createOrganisationWithName(String name) {
     String new_name = name == null ? "organisation-%s".formatted(UUID.randomUUID()) : name;
-    Organization organisation = new Organization();
+    Organization organisation = Organization.fromTenant("tenant");
     organisation.setName(new_name);
     return organisation;
   }

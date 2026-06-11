@@ -4,7 +4,7 @@ import io.openaev.database.model.SecurityPlatform;
 
 public class SecurityPlatformFixture {
   public static SecurityPlatform createDefault(String name, String type) {
-    SecurityPlatform edr = new SecurityPlatform();
+    SecurityPlatform edr = SecurityPlatform.fromTenant("tenant");
     edr.setSecurityPlatformType(SecurityPlatform.SECURITY_PLATFORM_TYPE.valueOf(type));
     edr.setName(name);
     edr.setDescription("I don't see anything, hear anything, say anything");

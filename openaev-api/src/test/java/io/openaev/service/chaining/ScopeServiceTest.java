@@ -32,7 +32,7 @@ class ScopeServiceTest {
   // ---------------------------------------------------------------------------
 
   private Endpoint endpointWithSeenIp(String id, String name, String seenIp) {
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setId(id);
     endpoint.setName(name);
     endpoint.setSeenIp(seenIp);
@@ -42,7 +42,7 @@ class ScopeServiceTest {
   }
 
   private Endpoint endpointWithIps(String id, String name, String... ips) {
-    Endpoint endpoint = new Endpoint();
+    Endpoint endpoint = Endpoint.fromTenant("tenant");
     endpoint.setId(id);
     endpoint.setName(name);
     endpoint.setIps(ips);

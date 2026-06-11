@@ -53,7 +53,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
   void createNotificationRule() throws Exception {
     User testUser = testUserHolder.get();
 
-    Scenario scenario = new Scenario();
+    Scenario scenario = Scenario.fromTenant("tenant");
     scenario.setDescription("Test scenario");
     scenario.setName("Test scenario");
     scenario.setFrom("test@openaev.io");
@@ -277,7 +277,7 @@ public class NotificationRuleApiTest extends IntegrationTest {
   }
 
   private NotificationRule getNotificationRule(String resourceId, User testUser) {
-    NotificationRule notificationRule = new NotificationRule();
+    NotificationRule notificationRule = NotificationRule.fromTenant("tenant");
     notificationRule.setOwner(userRepository.findById(testUser.getId()).orElse(null));
     notificationRule.setSubject("subject");
     notificationRule.setNotificationResourceType(NotificationRuleResourceType.SCENARIO);

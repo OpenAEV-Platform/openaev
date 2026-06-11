@@ -131,7 +131,7 @@ public class ReportServiceTest extends IntegrationTest {
       Report report = new Report();
       report.setName("test");
       report.setId(UUID.randomUUID().toString());
-      Inject inject = new Inject();
+      Inject inject = Inject.fromTenant("tenant");
       inject.setId("fakeID123");
 
       // add report inject comment
@@ -170,7 +170,7 @@ public class ReportServiceTest extends IntegrationTest {
       Report report = new Report();
       report.setName("test");
       report.setId(UUID.randomUUID().toString());
-      Inject inject = new Inject();
+      Inject inject = Inject.fromTenant("tenant");
       inject.setId("fakeID123");
 
       ReportInjectCommentInput commentInput = new ReportInjectCommentInput();

@@ -1,7 +1,5 @@
 package io.openaev.utils.fixtures;
 
-import static io.openaev.database.model.Command.COMMAND_TYPE;
-import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Payload.PAYLOAD_SOURCE.MANUAL;
 import static io.openaev.database.model.Payload.PAYLOAD_STATUS.VERIFIED;
 
@@ -28,7 +26,9 @@ public class PayloadFixture {
       String commandLine,
       @Nullable List<PayloadPrerequisite> prerequisites,
       @Nullable String cleanupCmd) {
-    Command command = new Command(UUID.randomUUID().toString(), COMMAND_TYPE, COMMAND_PAYLOAD_NAME);
+    Command command = Command.fromTenant("tenant");
+    command.setId(UUID.randomUUID().toString());
+    command.setName(COMMAND_PAYLOAD_NAME);
     command.setContent(commandLine);
     command.setExecutor(executor);
     if (prerequisites != null) {
@@ -69,8 +69,9 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultDnsResolution() {
-    final DnsResolution dnsResolution =
-        new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
+    final DnsResolution dnsResolution = DnsResolution.fromTenant("tenant");
+    dnsResolution.setId("dns-resolution-id");
+    dnsResolution.setName("dns resolution payload");
     dnsResolution.setHostname("localhost");
     initializeDefaultPayload(dnsResolution, LINUX_PLATFORM);
     return dnsResolution;
@@ -78,8 +79,9 @@ public class PayloadFixture {
 
   public static Payload createDefaultDnsResolutionWithArguments(List<PayloadArgument> arguments) {
 
-    final DnsResolution dnsResolution =
-        new DnsResolution("dns-resolution-id", DNS_RESOLUTION_TYPE, "dns resolution payload");
+    final DnsResolution dnsResolution = DnsResolution.fromTenant("tenant");
+    dnsResolution.setId("dns-resolution-id");
+    dnsResolution.setName("dns resolution payload");
     dnsResolution.setHostname("localhost");
     initializeDefaultPayload(dnsResolution, LINUX_PLATFORM);
     dnsResolution.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
@@ -89,8 +91,9 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultExecutable(Document document) {
-    final Executable executable =
-        new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
+    final Executable executable = Executable.fromTenant("tenant");
+    executable.setId("executable-id");
+    executable.setName("executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     executable.setExecutableFile(document);
     initializeDefaultPayload(executable, MACOS_PLATFORM);
@@ -98,16 +101,18 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultExecutable() {
-    final Executable executable =
-        new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
+    final Executable executable = Executable.fromTenant("tenant");
+    executable.setId("executable-id");
+    executable.setName("executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(executable, MACOS_PLATFORM);
     return executable;
   }
 
   public static Payload createDefaultExecutableWithArguments(List<PayloadArgument> arguments) {
-    final Executable executable =
-        new Executable("executable-id", Executable.EXECUTABLE_TYPE, "executable payload");
+    final Executable executable = Executable.fromTenant("tenant");
+    executable.setId("executable-id");
+    executable.setName("executable payload");
     executable.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(executable, MACOS_PLATFORM);
     executable.setArguments(arguments);
@@ -115,16 +120,18 @@ public class PayloadFixture {
   }
 
   public static Payload createDefaultFileDrop() {
-    final FileDrop filedrop =
-        new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
+    final FileDrop filedrop = FileDrop.fromTenant("tenant");
+    filedrop.setId("filedrop-id");
+    filedrop.setName("filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(filedrop, MACOS_PLATFORM);
     return filedrop;
   }
 
   public static Payload createDefaultFileDropWithArguments(List<PayloadArgument> arguments) {
-    final FileDrop filedrop =
-        new FileDrop("filedrop-id", Executable.EXECUTABLE_TYPE, "filedrop payload");
+    final FileDrop filedrop = FileDrop.fromTenant("tenant");
+    filedrop.setId("filedrop-id");
+    filedrop.setName("filedrop payload");
     filedrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.arm64);
     initializeDefaultPayload(filedrop, MACOS_PLATFORM);
     filedrop.setArguments(arguments);

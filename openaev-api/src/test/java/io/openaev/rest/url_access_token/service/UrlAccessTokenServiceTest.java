@@ -58,7 +58,7 @@ class UrlAccessTokenServiceTest {
     void given_validInput_should_generateAndPersistToken() {
       // Arrange
       Instant exerciseEnd = Instant.parse("2026-05-12T10:00:00Z");
-      Exercise exercise = new Exercise();
+      Exercise exercise = Exercise.fromTenant("tenant");
       exercise.setEnd(exerciseEnd);
       User tokenUser = new User();
       User creatorUser = new User();
@@ -92,7 +92,7 @@ class UrlAccessTokenServiceTest {
     @Test
     void given_noCurrentUser_should_generateTokenWithNullCreator() {
       // Arrange
-      Exercise exercise = new Exercise();
+      Exercise exercise = Exercise.fromTenant("tenant");
       exercise.setEnd(Instant.now().plus(1, ChronoUnit.DAYS));
       User tokenUser = new User();
 
@@ -348,7 +348,7 @@ class UrlAccessTokenServiceTest {
   }
 
   private UrlAccessToken buildValidToken(String exerciseId, String userId) {
-    Exercise exercise = new Exercise();
+    Exercise exercise = Exercise.fromTenant("tenant");
     exercise.setId(exerciseId);
 
     User user = new User();

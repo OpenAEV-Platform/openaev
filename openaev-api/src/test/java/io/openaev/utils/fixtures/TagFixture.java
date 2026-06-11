@@ -7,7 +7,7 @@ public class TagFixture {
   public static final String TAG_NAME = "tag";
 
   public static Tag getTag() {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setId(TAG_ID);
     tag.setName(TAG_NAME);
     tag.setColor("#FFFFFF");
@@ -15,28 +15,28 @@ public class TagFixture {
   }
 
   public static Tag getTagNoId() {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setName(TAG_NAME);
     tag.setColor("#FFFFFF");
     return tag;
   }
 
   public static Tag getTagWithText(String text) {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setName(text);
     tag.setColor("#FFFFFF");
     return tag;
   }
 
   public static Tag getTagWithTextAndColour(String text, String colour) {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setName(text);
     tag.setColor(colour);
     return tag;
   }
 
   public static Tag getTag(final String id) {
-    Tag tag = new Tag();
+    Tag tag = Tag.fromTenant("tenant");
     tag.setId(id);
     tag.setName(TAG_NAME);
     tag.setColor("#FFFFFF");

@@ -205,7 +205,7 @@ public class XtmHubApiTest extends IntegrationTest {
     input.setMessage(message);
 
     Tenant defaultTenant = entityManager.find(Tenant.class, Tenant.DEFAULT_TENANT_UUID);
-    TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+    TenantXtmHubRegistration registration = TenantXtmHubRegistration.fromTenant("tenant");
     registration.setToken("contact-us-token");
     registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
     registration.setTenant(defaultTenant);

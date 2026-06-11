@@ -10,7 +10,7 @@ import java.util.List;
 public class AssetGroupFixture {
 
   public static AssetGroup createDefaultAssetGroup(@NotNull final String name) {
-    AssetGroup assetGroup = new AssetGroup();
+    AssetGroup assetGroup = AssetGroup.fromTenant("tenant");
     assetGroup.setName(name);
     assetGroup.setDescription("An asset group");
     return assetGroup;
