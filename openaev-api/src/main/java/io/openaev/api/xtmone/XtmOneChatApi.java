@@ -1,5 +1,6 @@
-package io.openaev.rest.xtmone;
+package io.openaev.api.xtmone;
 
+import io.openaev.aop.AccessControl;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.xtmone.XtmOneClient;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +36,7 @@ public class XtmOneChatApi extends RestBehavior {
   private static final Pattern FILE_ID_PATTERN =
       Pattern.compile(
           "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+  private static final Pattern CONVERSATION_ID_PATTERN = FILE_ID_PATTERN;
   private final XtmOneClient client;
   private final XtmOneConfig config;
 
@@ -58,6 +61,64 @@ public class XtmOneChatApi extends RestBehavior {
       return ResponseEntity.internalServerError().build();
     }
     return ResponseEntity.ok(result);
+  }
+
+  /** Lists past conversations for the chatbot history menu. */
+  @GetMapping(XTM_ONE_URI + "/chat/sessions")
+  // skipRBAC: chat data lives in XTM One and is scoped there to the per-user JWT minted by
+  // XtmOneClient — there is no OpenAEV resource to check grants against. The EE gate matches the
+  // Ariane feature gating (see AskArianeButton) and XtmOneProxyApi.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Map<String, Object>> listSessions() {
+    if (!config.isConfigured()) {
+      return ResponseEntity.ok(Map.of("conversations", List.of()));
+    }
+    Map<String, Object> result = client.listChatSessions();
+    if (result == null) {
+      // Degrade to an empty history instead of breaking the chat panel.
+      return ResponseEntity.ok(Map.of("conversations", List.of()));
+    }
+    return ResponseEntity.ok(result);
+  }
+
+  /** Removes a conversation from the chatbot history menu (archived upstream). */
+  @DeleteMapping(XTM_ONE_URI + "/chat/sessions/{conversationId}")
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Void> deleteSession(@PathVariable String conversationId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (conversationId == null || !CONVERSATION_ID_PATTERN.matcher(conversationId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (!client.deleteChatSession(conversationId)) {
+      return ResponseEntity.internalServerError().build();
+    }
+    return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * Mid-run steering: injects a user message into the running agent loop of the conversation.
+   * Upstream status codes propagate as-is (e.g. 409 when no response is currently being generated)
+   * — the chatbot rolls back its optimistic bubble on any non-2xx.
+   */
+  @PostMapping(XTM_ONE_URI + "/chat/messages/steer")
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Map<String, Object>> steerMessage(@RequestBody Map<String, Object> body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    String content = body.get("content") != null ? body.get("content").toString() : "";
+    String conversationId =
+        body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
+    if (content.isBlank()
+        || conversationId == null
+        || !CONVERSATION_ID_PATTERN.matcher(conversationId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    return ResponseEntity.ok(client.steerChatMessage(content, conversationId));
   }
 
   @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

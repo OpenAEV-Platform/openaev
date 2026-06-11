@@ -70,7 +70,7 @@ runs:
         distribution: temurin
         cache: maven
 
-    - name: Wait for and download compiled artifacts
+    - name: Wait for compiled artifacts
       shell: bash
       run: |
         echo "⏳ Waiting for backend-compile artifacts (services booting in parallel)..."
@@ -95,27 +95,21 @@ runs:
           echo "  Attempt $i/120 — not ready, retrying in 5s..."
           sleep 5
         done
-
-        echo "📥 Downloading backend-compiled..."
         # Remove any cached openaev artifacts to prevent "file exists"
         # errors when extracting the freshly compiled artifact.
         rm -rf ~/.m2/repository/io/openaev/
-        if ! gh run download "${{ github.run_id }}" -n backend-compiled -D ~/.m2/repository/io/openaev/; then
-          echo "❌ Failed to download backend-compiled artifact"
-          exit 1
-        fi
-        echo "📥 Downloading api-build-output..."
-        if ! gh run download "${{ github.run_id }}" -n api-build-output -D openaev-api/target; then
-          echo "❌ Failed to download api-build-output artifact"
-          exit 1
-        fi
 
-        echo "🔍 Post-download: listing ~/.m2/repository/io/openaev/ (top 3 levels):"
-        find ~/.m2/repository/io/openaev/ -maxdepth 3 -type d 2>/dev/null | head -20 || echo "  directory does not exist"
-        echo "---"
-        echo "🔍 Post-download: listing openaev-api/target/ (top 3 levels):"
-        find openaev-api/target/ -maxdepth 3 -type d 2>/dev/null | head -20 || echo "  directory does not exist"
-        echo "---"
+    - name: Download backend-compiled artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: backend-compiled
+        path: ~/.m2/repository/io/openaev/
+
+    - name: Download api-build-output artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: api-build-output
+        path: openaev-api/target
 
     - name: Verify downloaded artifacts
       shell: bash

@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.IntegrationTest;
 import io.openaev.database.model.NotificationRule;
 import io.openaev.database.model.NotificationRuleResourceType;
 import io.openaev.database.model.NotificationRuleTrigger;
@@ -13,29 +12,40 @@ import io.openaev.database.model.NotificationRuleType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.NotificationRuleRepository;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
-import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.hibernate.Session;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@SpringBootTest
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-public class NotificationRuleServiceTest extends IntegrationTest {
+/**
+ * Pure Mockito unit test: the service is exercised with mocks only, so no Spring context is needed
+ * (previously this was a {@code @SpringBootTest}, which only slowed the suite down).
+ *
+ * <p>The service is constructed explicitly instead of via {@code @InjectMocks}: {@link Session}
+ * extends {@link EntityManager} (Hibernate 6), so constructor injection has two candidate mocks for
+ * the {@code EntityManager} parameter and may inject the {@code session} mock depending on field
+ * iteration order — making the test order/JVM dependent (the {@code session} mock's {@code unwrap}
+ * is not stubbed, yielding an NPE).
+ */
+@ExtendWith(MockitoExtension.class)
+public class NotificationRuleServiceTest {
 
   @Mock private EntityManager entityManager;
   @Mock private Session session;
   @Mock private NotificationRuleRepository notificationRuleRepository;
+
+  @Mock private UserService userService;
+
+  @Mock private ScenarioService scenarioService;
 
   @Mock private EmailNotificationService emailNotificationService;
 
@@ -43,7 +53,20 @@ public class NotificationRuleServiceTest extends IntegrationTest {
 
   @Mock private PlatformSettingsService platformSettingsService;
 
-  @InjectMocks private NotificationRuleService notificationRuleService;
+  private NotificationRuleService notificationRuleService;
+
+  @BeforeEach
+  void setUp() {
+    notificationRuleService =
+        new NotificationRuleService(
+            entityManager,
+            notificationRuleRepository,
+            userService,
+            scenarioService,
+            emailNotificationService,
+            platformSettingsService,
+            tenantSettingsService);
+  }
 
   @Test
   public void test_activateNotificationRules() {

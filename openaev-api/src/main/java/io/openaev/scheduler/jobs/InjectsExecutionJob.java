@@ -66,6 +66,9 @@ public class InjectsExecutionJob implements Job {
 
   public static final String DEFAULT_EXECUTION_THRESHOLD_TIME_IN_MINUTES = "10";
 
+  // Thread-safe and expensive to instantiate; never recreate per dependency evaluation
+  private static final ExpressionParser SPEL_PARSER = new SpelExpressionParser();
+
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
 
@@ -277,11 +280,9 @@ public class InjectsExecutionJob implements Job {
                     String.format("#this['%s']", condition.split("==")[0].trim()));
           }
 
-          ExpressionParser parser = new SpelExpressionParser();
-
           EvaluationContext context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
           try {
-            Expression exp = parser.parseExpression(expressionToEvaluate);
+            Expression exp = SPEL_PARSER.parseExpression(expressionToEvaluate);
             boolean canBeExecuted =
                 Boolean.TRUE.equals(exp.getValue(context, mapCondition, Boolean.class));
             if (!canBeExecuted) {
@@ -389,6 +390,12 @@ public class InjectsExecutionJob implements Job {
       // Get all injects to execute grouped by exercise.
       List<ExecutableInject> injects = injectHelper.getInjectsToRun();
 
+      // Computed once for the whole batch instead of once per inject (was O(n^2))
+      Set<String> batchInjectIds =
+          injects.stream()
+              .map(execInject -> execInject.getInjection().getId())
+              .collect(Collectors.toSet());
+
       // We're grouping the injects to run by exercises but also making sure no injects
       // run in the same batch as it's parents
       Map<String, List<ExecutableInject>> byExercises =
@@ -403,19 +410,15 @@ public class InjectsExecutionJob implements Job {
                       // out. It'll then start the injects that were not started because the
                       // platform was down.
                       executableInject.getInjection().getInject().getDependsOn() == null
-                          || !intersect(
-                              injects.stream()
-                                  .map(execInject -> execInject.getInjection().getId())
-                                  .toList(),
-                              executableInject.getInjection().getInject().getDependsOn().stream()
-                                  .map(
-                                      injectDependency ->
-                                          injectDependency
-                                              .getCompositeId()
-                                              .getInjectParent()
-                                              .getInject()
-                                              .getId())
-                                  .toList()))
+                          || executableInject.getInjection().getInject().getDependsOn().stream()
+                              .map(
+                                  injectDependency ->
+                                      injectDependency
+                                          .getCompositeId()
+                                          .getInjectParent()
+                                          .getInject()
+                                          .getId())
+                              .noneMatch(batchInjectIds::contains))
               .collect(
                   groupingBy(
                       ex ->
@@ -476,20 +479,5 @@ public class InjectsExecutionJob implements Job {
       }
     }
     injectService.saveAll(fulfilled);
-  }
-
-  /**
-   * Return true if some elements are in the two lists
-   *
-   * @param firstList the first list to test
-   * @param secondList the second list to test
-   * @return true if some elements are present in both the lists
-   */
-  private boolean intersect(List<String> firstList, List<String> secondList) {
-    return !firstList.stream()
-        .distinct()
-        .filter(secondList::contains)
-        .collect(Collectors.toSet())
-        .isEmpty();
   }
 }

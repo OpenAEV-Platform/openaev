@@ -1,4 +1,4 @@
-package io.openaev.rest.xtmone;
+package io.openaev.api.xtmone;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
