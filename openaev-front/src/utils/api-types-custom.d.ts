@@ -171,6 +171,7 @@ export type ConditionType =
   | 'IS_NULL' | 'IS_NOT_NULL'
   | 'GT' | 'GTE' | 'LT' | 'LTE'
   | 'IN' | 'NIN'
+  | 'STARTS_WITH' | 'ENDS_WITH'
   | 'AFTER' | 'BEFORE'
   | 'MAPPER' | 'DEPEND_ON';
 

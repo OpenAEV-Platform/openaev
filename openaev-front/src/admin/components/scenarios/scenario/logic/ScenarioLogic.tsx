@@ -24,8 +24,7 @@ import LogicFlow from './flow/LogicFlow';
 import LogicActionEditDrawer from './LogicActionEditDrawer';
 import LogicActionForm from './LogicActionForm';
 import LogicAddComponentDialog from './LogicAddComponentDialog';
-import { type ConditionRule } from './LogicConditionRuleRow';
-import LogicEventForm from './LogicEventForm';
+import LogicEventForm, { type ConditionItem } from './LogicEventForm';
 import LogicHealthWarnings from './LogicHealthWarnings';
 
 const ScenarioLogic: FunctionComponent = () => {
@@ -186,8 +185,8 @@ const ScenarioLogic: FunctionComponent = () => {
   const handleCreateOrUpdateEvent = async (data: {
     label: string;
     description: string;
-    conditions: ConditionRule[];
-    logicOperator: 'AND' | 'OR';
+    conditionItems: ConditionItem[];
+    topOperator: 'AND' | 'OR';
   }) => {
     const savedParentActionStepId = parentActionStepId;
 
@@ -211,7 +210,7 @@ const ScenarioLogic: FunctionComponent = () => {
         await deleteCondition(scenarioId, cond.condition_id);
       }
 
-      if (data.conditions.length > 0) {
+      if (data.conditionItems.length > 0) {
         const latestWorkflow = await fetchWorkflow(scenarioId) as { data: Workflow };
         await addConditionsToStep(editingStep.step_id, data, latestWorkflow.data);
       }
@@ -244,7 +243,7 @@ const ScenarioLogic: FunctionComponent = () => {
       await createCondition(scenarioId, newStep.step_id, dependCondition);
     }
 
-    if (data.conditions.length > 0) {
+    if (data.conditionItems.length > 0) {
       await addConditionsToStep(newStep.step_id, data, result.data);
     }
 
@@ -254,38 +253,67 @@ const ScenarioLogic: FunctionComponent = () => {
 
   const addConditionsToStep = (
     stepId: string,
-    data: { conditions: ConditionRule[]; logicOperator: 'AND' | 'OR' },
+    data: { conditionItems: ConditionItem[]; topOperator: 'AND' | 'OR' },
     _currentWorkflow: Workflow,
   ): Promise<Workflow> => {
-    if (data.conditions.length === 0) return Promise.resolve(_currentWorkflow);
+    if (data.conditionItems.length === 0) return Promise.resolve(_currentWorkflow);
 
     const rootCondition: ConditionCreateInput = {
-      condition_type: data.logicOperator,
+      condition_type: data.topOperator,
     };
 
-    return createCondition(scenarioId, stepId, rootCondition).then((result: { data: Workflow }) => {
+    return createCondition(scenarioId, stepId, rootCondition).then(async (result: { data: Workflow }) => {
       setWorkflow(result.data);
       const updatedStep = result.data.workflow_steps.find(s => s.step_id === stepId);
       const rootCond = updatedStep?.step_conditions[updatedStep.step_conditions.length - 1];
       if (!rootCond) return result.data;
 
-      let chain = Promise.resolve(result.data);
-      for (const rule of data.conditions) {
-        chain = chain.then(() => {
+      let latestWorkflow = result.data;
+
+      for (const item of data.conditionItems) {
+        if (item.itemType === 'single') {
           const childCondition: ConditionCreateInput = {
-            condition_key: rule.key,
-            condition_field: rule.field || undefined,
-            condition_value: rule.value || undefined,
-            condition_type: rule.operator,
+            condition_key: item.condition.key,
+            condition_field: item.condition.field || undefined,
+            condition_value: item.condition.value || undefined,
+            condition_type: item.condition.operator,
             condition_parent_id: rootCond.condition_id,
           };
-          return createCondition(scenarioId, stepId, childCondition).then((res: { data: Workflow }) => {
-            setWorkflow(res.data);
-            return res.data;
-          });
-        });
+          const res = await createCondition(scenarioId, stepId, childCondition) as { data: Workflow };
+          setWorkflow(res.data);
+          latestWorkflow = res.data;
+        } else {
+          // Create the group node (AND/OR) as child of root
+          const groupCondition: ConditionCreateInput = {
+            condition_type: item.groupOperator,
+            condition_parent_id: rootCond.condition_id,
+          };
+          const groupRes = await createCondition(scenarioId, stepId, groupCondition) as { data: Workflow };
+          setWorkflow(groupRes.data);
+          latestWorkflow = groupRes.data;
+
+          // Find the newly created group condition
+          const groupStep = latestWorkflow.workflow_steps.find(s => s.step_id === stepId);
+          const groupCond = groupStep?.step_conditions[groupStep.step_conditions.length - 1];
+          if (!groupCond) continue;
+
+          // Create leaf conditions as children of the group
+          for (const rule of item.conditions) {
+            const leafCondition: ConditionCreateInput = {
+              condition_key: rule.key,
+              condition_field: rule.field || undefined,
+              condition_value: rule.value || undefined,
+              condition_type: rule.operator,
+              condition_parent_id: groupCond.condition_id,
+            };
+            const leafRes = await createCondition(scenarioId, stepId, leafCondition) as { data: Workflow };
+            setWorkflow(leafRes.data);
+            latestWorkflow = leafRes.data;
+          }
+        }
       }
-      return chain;
+
+      return latestWorkflow;
     });
   };
 

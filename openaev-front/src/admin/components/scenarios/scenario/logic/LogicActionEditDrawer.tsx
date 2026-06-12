@@ -205,21 +205,14 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
       const data = JSON.parse(getCurrentStepData());
       const newSource = { input_type: inputType, input_field: inputField };
 
-      // Update payload_arguments if the field exists there
       if (Array.isArray(data.payload_arguments)) {
         const arg = data.payload_arguments.find((a: { key: string }) => a.key === linkMenuFieldKey);
-        if (arg) {
-          arg.input_sources = [newSource];
-        }
+        if (arg) arg.input_sources = [newSource];
       }
-      // Also update contract_fields
       if (Array.isArray(data.contract_fields)) {
         const field = data.contract_fields.find((f: { key: string }) => f.key === linkMenuFieldKey);
-        if (field) {
-          field.input_sources = [newSource];
-        }
+        if (field) field.input_sources = [newSource];
       }
-      // If not found in either, add to payload_arguments
       if (!data.payload_arguments?.some((a: { key: string }) => a.key === linkMenuFieldKey)
         && !data.contract_fields?.some((f: { key: string }) => f.key === linkMenuFieldKey)) {
         if (!data.payload_arguments) data.payload_arguments = [];
@@ -228,7 +221,6 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
 
       const newStepData = JSON.stringify(data);
       setModifiedStepData(newStepData);
-      // Re-derive bindings with a temporary step object
       const tempStep = { ...step, step_data: newStepData };
       setInputBindings(extractInputBindings(tempStep, allSteps));
       setUnlinkedFields(prev => {
@@ -353,7 +345,7 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
             <Typography variant="subtitle2">{t('Arguments')}</Typography>
             {visibleFields.map(field => {
               const binding = getBindingForField(field.key);
-              const isBound = binding?.bound === true;
+              const isBound = binding !== null;
 
               if (isBound && binding) {
                 // Auto-bound argument
@@ -465,17 +457,15 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
                       variant="standard"
                     />
                   </div>
-                  {linkableOptions.length > 0 && (
-                    <Tooltip title={t('Link to upstream output')}>
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleOpenLinkMenu(e, field.key)}
-                        sx={{ color: theme.palette.primary.main }}
-                      >
-                        <LinkOutlined sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
+                  <Tooltip title={t('Link to output type')}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleOpenLinkMenu(e, field.key)}
+                      sx={{ color: theme.palette.primary.main }}
+                    >
+                      <LinkOutlined sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
                   <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, whiteSpace: 'nowrap' }}>
                     {t('Manual')}
                   </Typography>
@@ -524,28 +514,25 @@ const LogicActionEditDrawer: FunctionComponent<Props> = ({
         </div>
       </div>
       </Drawer>
-      {/* Link field menu — outside drawer to avoid cloneElement issues */}
+      {/* Link menu — same leaf types as event condition filter */}
       <Menu
         anchorEl={linkMenuAnchor}
         open={Boolean(linkMenuAnchor)}
         onClose={handleCloseLinkMenu}
         slotProps={{ paper: { style: { maxHeight: 300 } } }}
       >
-        {linkableOptions.map(opt => (
-          <MenuItem
-            key={opt.label}
-            onClick={() => handleLinkField(opt.inputType, opt.inputField)}
-            sx={{ fontSize: 13 }}
-          >
-            <FindingIcon findingType={opt.inputType} />
-            <Typography sx={{ ml: 1, fontSize: 13 }}>{opt.label}</Typography>
-          </MenuItem>
-        ))}
-        {linkableOptions.length === 0 && (
-          <MenuItem disabled sx={{ fontSize: 13 }}>
-            <Typography color="text.secondary" sx={{ fontSize: 13 }}>{t('No upstream outputs available')}</Typography>
-          </MenuItem>
-        )}
+        {outputTypeCatalog
+          .filter(ot => ot.fields.length === 0 || ['username','password','hash','token','ticket','share','cve'].includes(ot.outputType))
+          .map(ot => (
+            <MenuItem
+              key={ot.outputType}
+              onClick={() => handleLinkField(ot.outputType, null)}
+              sx={{ fontSize: 13 }}
+            >
+              <FindingIcon findingType={ot.outputType} />
+              <Typography sx={{ ml: 1, fontSize: 13 }}>{ot.outputType}</Typography>
+            </MenuItem>
+          ))}
       </Menu>
     </>
   );

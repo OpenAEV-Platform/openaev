@@ -1,17 +1,20 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { CheckOutlined, MoreVert } from '@mui/icons-material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, TextField, ToggleButton } from '@mui/material';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteScenario, duplicateScenario, exportScenarioUri } from '../../../../actions/scenarios/scenario-actions';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
 import ExportOptionsDialog from '../../../../components/common/export/ExportOptionsDialog';
 import { useFormatter } from '../../../../components/i18n';
 import { type Scenario } from '../../../../utils/api-types';
+import { simpleCall, simplePutCall, simplePostCall } from '../../../../utils/Action';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
+import { type ScenarioVariant } from './ScenarioVariantContext';
 import ScenarioUpdate from './ScenarioUpdate';
 
 type ScenarioActionType = 'Duplicate' | 'Update' | 'Delete' | 'Export';
@@ -35,6 +38,54 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   const navigate = useNavigate();
   const { canManage, canDelete } = useScenarioPermissions(scenario.scenario_id);
   const ability = useContext(AbilityContext);
+
+  // Variants — loaded directly (not via context to avoid lifecycle issues)
+  const [variants, setVariants] = useState<ScenarioVariant[]>([]);
+
+  const loadVariants = async () => {
+    if (inList) return; // only needed on detail page
+    try {
+      const result = await simpleCall(`/api/scenarios/${scenario.scenario_id}/variants`);
+      // eslint-disable-next-line no-console
+      console.log('[ScenarioPopover] variants result:', result?.data);
+      if (result?.data && Array.isArray(result.data)) {
+        setVariants(result.data as ScenarioVariant[]);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('[ScenarioPopover] variants data is not array:', result);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[ScenarioPopover] variants fetch error:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadVariants();
+  }, [scenario.scenario_id, inList]);
+
+  const handleSwitchVariant = async (variantId: string) => {
+    try {
+      await simplePutCall(`/api/scenarios/${scenario.scenario_id}/variants/${variantId}/activate`, {});
+      await loadVariants();
+      // reload page so variant config takes effect everywhere
+      window.location.reload();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleCreateVariant = async (name: string) => {
+    try {
+      await simplePostCall(`/api/scenarios/${scenario.scenario_id}/variants`, { variant_name: name });
+      await loadVariants();
+    } catch {
+      // ignore
+    }
+  };
+
+  // Menu anchor
+  const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
   // Duplicate
   const [duplicate, setDuplicate] = useState(false);
@@ -76,32 +127,77 @@ const ScenarioPopover: FunctionComponent<Props> = ({
     link.click();
   };
 
-  // Button Popover
-  const entries = [];
-  if (actions.includes('Update')) entries.push({
-    label: 'Update',
-    action: () => handleOpenEdit(),
-    userRight: canManage,
-  });
-  if (actions.includes('Duplicate')) entries.push({
-    label: 'Duplicate',
-    action: () => handleOpenDuplicate(),
-    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT),
-  });
-  if (actions.includes('Export')) entries.push({
-    label: 'Export',
-    action: () => handleOpenExport(),
-    userRight: true,
-  });
-  if (actions.includes('Delete')) entries.push({
-    label: 'Delete',
-    action: () => handleOpenDelete(),
-    userRight: canDelete,
-  });
+  // New variant dialog
+  const [openCreateVariant, setOpenCreateVariant] = useState(false);
+  const [newVariantName, setNewVariantName] = useState('');
 
   return (
     <>
-      {actions.length > 0 && <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />}
+      {inList
+        ? (
+            <IconButton
+              size="large"
+              color="primary"
+              onClick={(e) => { e.stopPropagation(); setAnchorEl(e.currentTarget); }}
+            >
+              <MoreVert fontSize="medium" color="primary" />
+            </IconButton>
+          )
+        : (
+            <ToggleButton
+              value="popover"
+              size="small"
+              color="primary"
+              onClick={(e) => { e.stopPropagation(); setAnchorEl(e.currentTarget); }}
+            >
+              <MoreVert fontSize="small" color="primary" />
+            </ToggleButton>
+          )}
+
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+        {actions.includes('Update') && canManage && (
+          <MenuItem onClick={() => { handleOpenEdit(); setAnchorEl(null); }}>{t('Update')}</MenuItem>
+        )}
+        {actions.includes('Duplicate') && ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT) && (
+          <MenuItem onClick={() => { handleOpenDuplicate(); setAnchorEl(null); }}>{t('Duplicate')}</MenuItem>
+        )}
+        {actions.includes('Export') && (
+          <MenuItem onClick={() => { handleOpenExport(); setAnchorEl(null); }}>{t('Export')}</MenuItem>
+        )}
+        {actions.includes('Delete') && canDelete && (
+          <MenuItem onClick={() => { handleOpenDelete(); setAnchorEl(null); }}>{t('Delete')}</MenuItem>
+        )}
+
+        {/* Variants section — only on detail page (not in list) */}
+        {!inList && variants.length > 0 && <Divider />}
+        {!inList && variants.map(v => (
+          <MenuItem
+            key={v.variant_id}
+            selected={v.variant_is_active}
+            onClick={async () => {
+              setAnchorEl(null);
+              if (!v.variant_is_active) await handleSwitchVariant(v.variant_id);
+            }}
+          >
+            {v.variant_is_active
+              ? (
+                  <>
+                    <ListItemIcon><CheckOutlined fontSize="small" color="primary" /></ListItemIcon>
+                    <ListItemText>{v.variant_name}</ListItemText>
+                  </>
+                )
+              : (
+                  <ListItemText inset>{v.variant_name}</ListItemText>
+                )}
+          </MenuItem>
+        ))}
+        {!inList && (
+          <MenuItem onClick={() => { setAnchorEl(null); setNewVariantName(''); setOpenCreateVariant(true); }}>
+            <ListItemText inset>{t('New variant...')}</ListItemText>
+          </MenuItem>
+        )}
+      </Menu>
+
       {actions.includes(('Update'))
         && (
           <ScenarioUpdate
@@ -138,6 +234,32 @@ const ScenarioPopover: FunctionComponent<Props> = ({
             text={`${t('Do you want to delete this scenario:')} ${scenario.scenario_name} ?`}
           />
         )}
+
+      {/* Create variant dialog */}
+      <Dialog open={openCreateVariant} onClose={() => setOpenCreateVariant(false)} maxWidth="xs" fullWidth PaperProps={{ elevation: 1 }}>
+        <DialogTitle>{t('Create variant')}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus fullWidth size="small"
+            label={t('Variant name')}
+            value={newVariantName}
+            onChange={e => setNewVariantName(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === 'Enter' && newVariantName.trim()) {
+                await handleCreateVariant(newVariantName.trim());
+                setOpenCreateVariant(false);
+              }
+            }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCreateVariant(false)}>{t('Cancel')}</Button>
+          <Button color="secondary" disabled={!newVariantName.trim()} onClick={async () => { await handleCreateVariant(newVariantName.trim()); setOpenCreateVariant(false); }}>
+            {t('Create')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

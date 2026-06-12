@@ -23,20 +23,18 @@ const fetchOutputTypesCatalog = (): Promise<OutputTypeDescriptor[]> => {
 
 const ALL_OPERATORS: { value: ConditionType; label: string }[] = [
   { value: 'EQ', label: 'Equals' },
-  { value: 'NEQ', label: 'Not equals' },
-  { value: 'GT', label: 'Greater than' },
-  { value: 'GTE', label: 'Greater or equal' },
-  { value: 'LT', label: 'Less than' },
-  { value: 'LTE', label: 'Less or equal' },
+  { value: 'NEQ', label: 'NotEquals' },
   { value: 'IN', label: 'Contains' },
-  { value: 'NIN', label: 'Not contains' },
-  { value: 'IS_NULL', label: 'Is null' },
-  { value: 'IS_NOT_NULL', label: 'Is not null' },
+  { value: 'NIN', label: 'NotContains' },
+  { value: 'STARTS_WITH', label: 'StartsWith' },
+  { value: 'ENDS_WITH', label: 'EndsWith' },
+  { value: 'IS_NULL', label: 'IsNull' },
+  { value: 'IS_NOT_NULL', label: 'IsNotNull' },
 ];
 
 const TYPE_ONLY_OPERATORS: { value: ConditionType; label: string }[] = [
-  { value: 'IS_NOT_NULL', label: 'Is not null' },
-  { value: 'IS_NULL', label: 'Is null' },
+  { value: 'IS_NOT_NULL', label: 'IsNotNull' },
+  { value: 'IS_NULL', label: 'IsNull' },
 ];
 
 const NO_VALUE_OPERATORS = new Set<string>(['IS_NULL', 'IS_NOT_NULL']);
@@ -67,44 +65,23 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, index, onChange
     fetchOutputTypesCatalog().then(setOutputTypes);
   }, []);
 
-  // Build type items from catalog
+  const FILTER_TYPE_ALLOWLIST = new Set([
+    'username', 'password', 'hash', 'token', 'ticket', 'share', 'cve',
+  ]);
+
   const typeItems = useMemo(() =>
-    outputTypes.map(ot => ot.outputType),
+    outputTypes
+      .filter(ot => ot.fields.length === 0 || FILTER_TYPE_ALLOWLIST.has(ot.outputType))
+      .map(ot => ot.outputType),
   [outputTypes]);
 
-  // Sub-field items for the selected type
-  const selectedOutputType = outputTypes.find(ot => ot.outputType === rule.key);
-  const subFieldItems = useMemo(() =>
-    selectedOutputType?.fields.map(f => f.key) ?? [],
-  [selectedOutputType]);
+  const availableOperators = ALL_OPERATORS;
+  const showValueField = !NO_VALUE_OPERATORS.has(rule.operator);
 
-  const hasSubField = rule.field !== '';
-  const availableOperators = hasSubField ? ALL_OPERATORS : TYPE_ONLY_OPERATORS;
-  const showValueField = hasSubField && !NO_VALUE_OPERATORS.has(rule.operator);
-
-  // Provider info
   const providers = rule.key ? getActionsProvisioningField(allSteps, rule.key) : [];
 
-  // When type changes, reset field and adjust operator
   const handleTypeChange = (newType: string) => {
-    const newRule: ConditionRule = {
-      ...rule,
-      key: newType,
-      field: '',
-      operator: 'IS_NOT_NULL',
-      value: '',
-    };
-    onChange(newRule);
-  };
-
-  // When field changes, adjust operator if needed
-  const handleFieldChange = (newField: string) => {
-    const newHasSubField = newField !== '';
-    let { operator } = rule;
-    if (!newHasSubField && !NO_VALUE_OPERATORS.has(operator)) {
-      operator = 'IS_NOT_NULL';
-    }
-    onChange({ ...rule, field: newField, operator, value: newHasSubField ? rule.value : '' });
+    onChange({ ...rule, key: newType, field: '', operator: 'EQ', value: '' });
   };
 
   return (
@@ -138,25 +115,6 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, index, onChange
           </MenuItem>
         ))}
       </TextField>
-
-      {/* Step 2: Sub-field (only if type has sub-fields) */}
-      {subFieldItems.length > 0 && (
-        <TextField
-          select
-          label={t('Sub-field')}
-          value={rule.field}
-          onChange={e => handleFieldChange(e.target.value)}
-          size="small"
-          sx={{ minWidth: 130 }}
-        >
-          <MenuItem value="">
-            <em>{t('(any)')}</em>
-          </MenuItem>
-          {subFieldItems.map(field => (
-            <MenuItem key={field} value={field}>{field}</MenuItem>
-          ))}
-        </TextField>
-      )}
 
       {/* Operator */}
       <TextField
@@ -210,7 +168,7 @@ const LogicConditionRuleRow: FunctionComponent<Props> = ({ rule, index, onChange
         </div>
       )}
 
-      {hasSubField && showValueField && (
+      {showValueField && (
         <>
           <Switch
             checked={rule.caseSensitive}

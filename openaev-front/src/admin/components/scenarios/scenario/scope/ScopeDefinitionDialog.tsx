@@ -36,6 +36,7 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../../utils/permissions/PermissionsProvider';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import AssetStatus from '../../../assets/AssetStatus';
+import { useScenarioVariant } from '../ScenarioVariantContext';
 
 interface Props {
   open: boolean;
@@ -56,6 +57,9 @@ const ScopeDefinitionDialog: FunctionComponent<Props> = ({
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
+  const { activeVariant } = useScenarioVariant();
+  // allowListLabel kept for potential future variant usage; default is now 'Initial List'
+  const allowListLabel = activeVariant?.variant_config?.scope_allow_list_label ?? 'Initial List';
 
   const [activeTab, setActiveTab] = useState(0);
   const [timeoutMinutes, setTimeoutMinutes] = useState(Math.round(initialTimeoutSeconds / 60));
@@ -250,7 +254,7 @@ const ScopeDefinitionDialog: FunctionComponent<Props> = ({
         },
       }}
     >
-      <DialogTitle>{t('Define Scope')}</DialogTitle>
+      <DialogTitle>{t('Define Variables')}</DialogTitle>
       <DialogContent>
         <Box sx={{ marginBottom: 2, marginTop: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h4">{t('Simulation timeout')}</Typography>
@@ -271,11 +275,11 @@ const ScopeDefinitionDialog: FunctionComponent<Props> = ({
           sx={{ marginBottom: 2 }}
         >
           <Tab
-            label={t('Whitelist')}
+            label={t(allowListLabel)}
             sx={{ '&.Mui-selected': { color: theme.palette.success.main } }}
           />
           <Tab
-            label={t('Blacklist')}
+            label={t('Deny List')}
             sx={{ '&.Mui-selected': { color: theme.palette.error.main } }}
           />
         </Tabs>
@@ -301,7 +305,7 @@ const ScopeDefinitionDialog: FunctionComponent<Props> = ({
               size="small"
               value={currentManualInput}
               onChange={(e) => setCurrentManualInput(e.target.value)}
-              placeholder={t('IP, hostname, or subnet (e.g. 192.168.1.0/24)')}
+              placeholder={t('IP, hostname, subnet, credential, token, hash… (e.g. 192.168.1.0/24)')}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddManualEntry(); } }}
               sx={{ flex: 1 }}
             />

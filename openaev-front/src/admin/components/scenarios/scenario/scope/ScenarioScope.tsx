@@ -155,7 +155,7 @@ const ScenarioScope: FunctionComponent<Props> = ({ scenarioId }) => {
       <Typography variant="h4" sx={{ marginBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: theme.spacing(1) }}>
           <AdjustOutlined fontSize="inherit" />
-          {t('Scope')}
+          {t('Variables')}
           {hasScope && (
             <Chip
               label={`${t('Timeout')}: ${timeoutMinutes} min`}
@@ -187,16 +187,16 @@ const ScenarioScope: FunctionComponent<Props> = ({ scenarioId }) => {
       </Typography>
       {hasScope ? (
         <div style={{ display: 'flex', gap: theme.spacing(3) }}>
-          {renderScopeList(t('Whitelist'), 'success', scope!.whitelist)}
-          {renderScopeList(t('Blacklist'), 'error', scope!.blacklist)}
+          {renderScopeList(t('Initial List'), 'success', scope!.whitelist)}
+          {renderScopeList(t('Deny List'), 'error', scope!.blacklist)}
         </div>
       ) : (
         <div style={{ textAlign: 'center', padding: theme.spacing(3) }}>
           <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 2 }}>
-            {t('No scope defined. Define which assets and endpoints are targeted by this scenario.')}
+            {t('No variables defined. Add targets for the Initial List and Deny List (IPs, hostnames, subnets, credentials, etc.).')}
           </Typography>
           <Button variant="outlined" startIcon={<AdjustOutlined />} onClick={() => setDialogOpen(true)}>
-            {t('Define Scope')}
+            {t('Define Variables')}
           </Button>
         </div>
       )}

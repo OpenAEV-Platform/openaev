@@ -22,14 +22,26 @@ public enum ContractOutputType {
   @JsonProperty("ipv6")
   IPv6("ipv6"),
 
-  @JsonProperty("credentials")
-  Credentials("credentials"),
+  @JsonProperty("credential")
+  Credentials("credential"),
 
   @JsonProperty("cve")
   CVE("cve"),
 
   @JsonProperty("username")
   Username("username"),
+
+  @JsonProperty("password")
+  Password("password"),
+
+  @JsonProperty("hash")
+  Hash("hash"),
+
+  @JsonProperty("token")
+  Token("token"),
+
+  @JsonProperty("ticket")
+  Ticket("ticket"),
 
   @JsonProperty("share")
   Share("share"),
