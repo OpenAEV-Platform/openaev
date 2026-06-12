@@ -1686,6 +1686,11 @@
                         "description": "Time offset between retry attempts.",
                         "format": "duration",
                         "type": "string"
+                    },
+                    "SPLUNK_ES_QUERY": {
+                        "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator), {target_ips} (target IP values, quoted for IN operator), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'), {ip_conditions} (legacy: auto-generated IP filters with all CIM field names), {process_conditions} (auto-generated URL path filters), {time_window} (time window in seconds, legacy). The query MUST include '| table _time' for proper alert parsing. Leave empty to use the default query.",
+                        "default": "index={alerts_index} (src_ip IN ({source_ips}) OR src IN ({source_ips}) OR source_ip IN ({source_ips}) OR client_ip IN ({source_ips})) (dst_ip IN ({target_ips}) OR dest IN ({target_ips}) OR dest_ip IN ({target_ips}) OR destination_ip IN ({target_ips}) OR server_ip IN ({target_ips})) {process_conditions} earliest={start_date} latest={end_date} | table _time, src_ip, src, source_ip, client_ip, dst_ip, dest, dest_ip, destination_ip, server_ip, signature, rule_name, event_type, severity, url_path, url, path, query, _raw | sort -_time",
+                        "type": "string"
                     }
                 },
                 "required": [
