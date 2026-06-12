@@ -23,7 +23,6 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.annotation.Nullable;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -34,6 +33,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -91,7 +91,7 @@ public class AttackPatternApi extends RestBehavior {
 
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public AttackPattern createAttackPattern(@Valid @RequestBody AttackPatternCreateInput input) {
     AttackPattern attackPattern = new AttackPattern();
     attackPattern.setUpdateAttributes(input);
@@ -118,7 +118,7 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ATTACK_PATTERN)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public AttackPattern updateAttackPattern(
       @NotBlank @PathVariable final String attackPatternId,
       @Valid @RequestBody AttackPatternUpdateInput input) {
@@ -135,7 +135,7 @@ public class AttackPatternApi extends RestBehavior {
 
   @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<AttackPattern> upsertAttackPatterns(
       @Valid @RequestBody AttackPatternUpsertInput input) {
     List<AttackPattern> upserted = new ArrayList<>();
@@ -158,7 +158,7 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ATTACK_PATTERN)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteAttackPattern(@PathVariable String attackPatternId) {
     attackPatternRepository.deleteById(attackPatternId);
   }

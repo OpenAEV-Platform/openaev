@@ -20,7 +20,6 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.ManagerFactory;
-import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +31,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @DisallowConcurrentExecution

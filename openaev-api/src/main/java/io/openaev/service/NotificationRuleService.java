@@ -11,7 +11,6 @@ import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.ImageUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
@@ -24,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.Session;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service

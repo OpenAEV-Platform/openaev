@@ -14,10 +14,10 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.comcheck.form.ComcheckInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,7 +50,7 @@ public class ComcheckApi extends RestBehavior {
 
   @GetMapping("/api/comcheck/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId) {
     ComcheckStatus comcheckStatus =
         comcheckStatusRepository
@@ -80,7 +80,7 @@ public class ComcheckApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteComcheck(@PathVariable String exerciseId, @PathVariable String comcheckId) {
     comcheckRepository.deleteById(comcheckId);
   }
@@ -93,7 +93,7 @@ public class ComcheckApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Comcheck communicationCheck(
       @PathVariable String exerciseId, @Valid @RequestBody ComcheckInput comCheck) {
     // 01. Create the comcheck and get the ID

@@ -13,11 +13,11 @@ import io.openaev.utils.mapper.VulnerabilityMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -68,7 +68,7 @@ public class CveApi extends RestBehavior {
   @Operation(summary = "Create a new CVE")
   @PostMapping(CVE_API)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public CveSimple createCve(@Valid @RequestBody VulnerabilityCreateInput input) {
     return cveMapper.toCveSimple(vulnerabilityService.createVulnerability(input));
   }
@@ -88,7 +88,7 @@ public class CveApi extends RestBehavior {
       resourceId = "#cveId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.VULNERABILITY)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public CveSimple updateCve(
       @PathVariable String cveId, @Valid @RequestBody VulnerabilityUpdateInput input) {
     return cveMapper.toCveSimple(vulnerabilityService.updateVulnerability(cveId, input));
@@ -100,7 +100,7 @@ public class CveApi extends RestBehavior {
       resourceId = "#cveId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.VULNERABILITY)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteCve(@PathVariable String cveId) {
     vulnerabilityService.deleteById(cveId);
   }

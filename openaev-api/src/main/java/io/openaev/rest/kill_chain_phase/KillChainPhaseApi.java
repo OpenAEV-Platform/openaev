@@ -17,7 +17,6 @@ import io.openaev.rest.kill_chain_phase.form.KillChainPhaseUpdateInput;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseUpsertInput;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -72,7 +72,7 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public KillChainPhase updateKillChainPhase(
       @PathVariable String killChainPhaseId, @Valid @RequestBody KillChainPhaseUpdateInput input) {
     KillChainPhase killchainPhase =
@@ -86,7 +86,7 @@ public class KillChainPhaseApi extends RestBehavior {
 
   @PostMapping
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public KillChainPhase createKillChainPhase(@Valid @RequestBody KillChainPhaseCreateInput input) {
     KillChainPhase killChainPhase = new KillChainPhase();
     killChainPhase.setUpdateAttributes(input);
@@ -95,7 +95,7 @@ public class KillChainPhaseApi extends RestBehavior {
 
   @PostMapping("/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<KillChainPhase> upsertKillChainPhases(
       @Valid @RequestBody KillChainPhaseUpsertInput input) {
     List<KillChainPhase> upserted = new ArrayList<>();

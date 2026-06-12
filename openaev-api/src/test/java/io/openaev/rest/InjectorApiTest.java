@@ -39,7 +39,6 @@ import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +51,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional

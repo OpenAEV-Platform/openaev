@@ -19,9 +19,9 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.objective.form.EvaluationInput;
 import io.openaev.rest.objective.form.ObjectiveInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -54,7 +54,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Objective createObjective(
       @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
@@ -134,7 +134,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Evaluation createEvaluation(
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
