@@ -8,9 +8,9 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.ArticleRepository;
-import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.ChallengeFlagRepository;
 import io.openaev.database.repository.ChallengeRepository;
+import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.user.PlayerService;
@@ -89,7 +89,8 @@ public class V20260101_CI_packTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    var playerEmails = userRepository.rawAllPlayers().stream().map(RawPlayer::getUser_email).toList();
+    var playerEmails =
+        userRepository.rawAllPlayers().stream().map(RawPlayer::getUser_email).toList();
     assertThat(playerEmails).containsAll(CI_PLAYER_EMAILS);
     assertEquals(3, articleRepository.count());
     assertEquals(4, challengeRepository.count());
@@ -120,9 +121,12 @@ public class V20260101_CI_packTest extends IntegrationTest {
         .anyMatch(c -> "Decode the Payload".equals(c.getName()))
         .anyMatch(c -> "Log Analysis".equals(c.getName()))
         .anyMatch(c -> "Privilege Escalation".equals(c.getName()));
-    challenges.forEach(c ->
-        assertEquals(1, c.getFlags().size(),
-            "Challenge '%s' should have exactly 1 flag".formatted(c.getName())));
+    challenges.forEach(
+        c ->
+            assertEquals(
+                1,
+                c.getFlags().size(),
+                "Challenge '%s' should have exactly 1 flag".formatted(c.getName())));
   }
 
   private void verifyPayloadsCreated() {
