@@ -13,8 +13,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface FindingRepository
@@ -81,7 +79,7 @@ public interface FindingRepository
         SELECT finding_id FROM inserted_finding
         """,
       nativeQuery = true)
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  // TODO XFO : was REQUIRE_NEW
   String saveCompleteFinding(
       @Param("findingField") String findingField,
       @Param("findingType") String findingType,

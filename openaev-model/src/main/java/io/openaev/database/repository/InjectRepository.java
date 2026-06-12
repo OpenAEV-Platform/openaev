@@ -17,7 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Repository interface for {@link Inject} entities.
@@ -333,7 +332,6 @@ public interface InjectRepository
               + "WHERE it.team_id IN :teamIds "
               + "AND EXISTS (SELECT 1 FROM injects i WHERE it.inject_id = i.inject_id AND i.inject_exercise = :exerciseId)",
       nativeQuery = true)
-  @Transactional
   void removeTeamsForExercise(
       @Param("exerciseId") final String exerciseId, @Param("teamIds") final List<String> teamIds);
 
@@ -344,7 +342,6 @@ public interface InjectRepository
               + "WHERE it.team_id IN :teamIds "
               + "AND EXISTS (SELECT 1 FROM injects i WHERE it.inject_id = i.inject_id AND i.inject_scenario = :scenarioId)",
       nativeQuery = true)
-  @Transactional
   void removeTeamsForScenario(
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 

@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface TenantXtmHubRegistrationRepository
@@ -21,7 +20,6 @@ public interface TenantXtmHubRegistrationRepository
   List<TenantXtmHubRegistration> findAllByTenantNotDeleted();
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
   @Query(
       value = "DELETE FROM tenant_xtmhub_registrations WHERE tenant_id = :tenantId",
       nativeQuery = true)

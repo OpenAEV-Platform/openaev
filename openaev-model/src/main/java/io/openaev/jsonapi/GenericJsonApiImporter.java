@@ -31,7 +31,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /* Based on https://jsonapi.org/ */
 @Component
@@ -43,7 +42,6 @@ public class GenericJsonApiImporter<T extends Base> {
   @Resource private final ObjectMapper objectMapper;
   private final FileService fileService;
 
-  @Transactional
   public T handleImportEntity(
       JsonApiDocument<ResourceObject> doc,
       IncludeOptions includeOptions,

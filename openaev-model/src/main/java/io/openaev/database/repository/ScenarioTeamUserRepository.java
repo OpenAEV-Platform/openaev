@@ -13,7 +13,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface ScenarioTeamUserRepository
@@ -28,7 +27,6 @@ public interface ScenarioTeamUserRepository
   @Query(
       value = "delete from scenarios_teams_users i where i.team_id in :teamIds",
       nativeQuery = true)
-  @Transactional
   void deleteTeamFromAllReferences(@Param("teamIds") List<String> teamIds);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -37,7 +35,6 @@ public interface ScenarioTeamUserRepository
           "delete from scenarios_teams_users "
               + "where scenario_id = :scenarioId and team_id in :teamIds",
       nativeQuery = true)
-  @Transactional
   void deleteByScenarioIdAndTeamIds(
       @Param("scenarioId") String scenarioId, @Param("teamIds") Collection<String> teamIds);
 

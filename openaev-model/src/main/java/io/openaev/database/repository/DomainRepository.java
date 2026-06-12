@@ -12,18 +12,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface DomainRepository
     extends CrudRepository<Domain, String>, JpaSpecificationExecutor<Domain> {
 
   @NotNull
-  @Transactional(readOnly = true)
   Optional<Domain> findByName(@NotNull String name);
 
   @NotNull
-  @Transactional(readOnly = true)
   List<Domain> findByNameIn(Collection<String> names);
 
   @Query(

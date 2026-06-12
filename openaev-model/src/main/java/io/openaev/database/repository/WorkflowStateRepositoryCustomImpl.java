@@ -3,7 +3,6 @@ package io.openaev.database.repository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @RequiredArgsConstructor
@@ -12,7 +11,6 @@ public class WorkflowStateRepositoryCustomImpl implements WorkflowStateRepositor
   private final EntityManager em;
 
   @Override
-  @Transactional
   public void addInput(Long id, String input) {
     em.createNativeQuery(
             """
@@ -31,7 +29,6 @@ public class WorkflowStateRepositoryCustomImpl implements WorkflowStateRepositor
   }
 
   @Override
-  @Transactional
   public void addCorrelated(Long id, String correlated) {
     em.createNativeQuery(
             """
@@ -50,7 +47,6 @@ public class WorkflowStateRepositoryCustomImpl implements WorkflowStateRepositor
   }
 
   @Override
-  @Transactional
   public void addHash(Long id, String hashExecution) {
     em.createNativeQuery(
             """

@@ -166,7 +166,7 @@
                         </path>
                     </annotationProcessorPaths>
                     <compilerArgs>
-                        <arg>-Aio.openaev.annotation.processor.NoTransactionalRule=false</arg>
+                        <arg>-Aio.openaev.annotation.processor.NoTransactionalRule=true</arg>
                         <arg>-Aio.openaev.annotation.processor.NoWebLayerRule=true</arg>
                     </compilerArgs>
                 </configuration>

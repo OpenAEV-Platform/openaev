@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface AgentRepository
@@ -42,6 +41,5 @@ public interface AgentRepository
 
   @Modifying
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)
-  @Transactional
   void deleteByAgentId(String agentId);
 }

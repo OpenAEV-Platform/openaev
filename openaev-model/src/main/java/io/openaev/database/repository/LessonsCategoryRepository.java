@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface LessonsCategoryRepository
@@ -28,7 +27,6 @@ public interface LessonsCategoryRepository
               + "WHERE lct.team_id IN :teamIds "
               + "AND EXISTS (SELECT 1 FROM lessons_categories lc WHERE lct.lessons_category_id = lc.lessons_category_id AND lc.lessons_category_exercise = :exerciseId)",
       nativeQuery = true)
-  @Transactional
   void removeTeamsForExercise(
       @Param("exerciseId") final String exerciseId, @Param("teamIds") final List<String> teamIds);
 
@@ -39,7 +37,6 @@ public interface LessonsCategoryRepository
               + "WHERE lct.team_id IN :teamIds "
               + "AND EXISTS (SELECT 1 FROM lessons_categories lc WHERE lct.lessons_category_id = lc.lessons_category_id AND lc.lessons_category_scenario = :scenarioId)",
       nativeQuery = true)
-  @Transactional
   void removeTeamsForScenario(
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 }

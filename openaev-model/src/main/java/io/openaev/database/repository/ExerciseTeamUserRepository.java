@@ -14,7 +14,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface ExerciseTeamUserRepository
@@ -29,7 +28,6 @@ public interface ExerciseTeamUserRepository
   @Query(
       value = "delete from exercises_teams_users i where i.team_id in :teamIds",
       nativeQuery = true)
-  @Transactional
   void deleteTeamsFromAllReferences(@Param("teamIds") List<String> teamIds);
 
   @Modifying
@@ -54,7 +52,6 @@ public interface ExerciseTeamUserRepository
           "delete from exercises_teams_users "
               + "where exercise_id = :exerciseId and team_id in :teamIds",
       nativeQuery = true)
-  @Transactional
   void deleteByExerciseIdAndTeamIds(
       @Param("exerciseId") String exerciseId, @Param("teamIds") Collection<String> teamIds);
 

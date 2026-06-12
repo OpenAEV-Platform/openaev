@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface SettingRepository
@@ -37,6 +36,5 @@ public interface SettingRepository
   @Query(value = "SHOW server_version", nativeQuery = true)
   String getServerVersion();
 
-  @Transactional
   void deleteByKeyIn(@NotNull final Collection<String> keys);
 }

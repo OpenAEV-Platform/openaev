@@ -14,7 +14,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Repository interface for {@link Scenario} entities.
@@ -251,7 +250,6 @@ public interface ScenarioRepository
       value =
           "DELETE FROM scenarios_teams st WHERE st.scenario_id = :scenarioId AND st.team_id in :teamIds",
       nativeQuery = true)
-  @Transactional
   void removeTeams(
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
