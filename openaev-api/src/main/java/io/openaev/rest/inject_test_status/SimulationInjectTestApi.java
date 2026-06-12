@@ -70,7 +70,7 @@ public class SimulationInjectTestApi extends RestBehavior {
         simulationId, searchPaginationInput);
   }
 
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class, readOnly = true)
   @GetMapping({
     EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
     TENANT_EXERCISE_URI + "/{simulationId}/injects/{injectId}/test"
@@ -85,7 +85,7 @@ public class SimulationInjectTestApi extends RestBehavior {
     return injectTestStatusService.testInject(injectId);
   }
 
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class, readOnly = true)
   @GetMapping({
     EXERCISE_URI + "/injects/test/{testId}",
     TENANT_EXERCISE_URI + "/injects/test/{testId}"

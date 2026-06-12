@@ -31,7 +31,7 @@ public class ScenarioStatisticApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class, readOnly = true)
   @Operation(summary = "Retrieve scenario statistics")
   public ScenarioStatistic getScenarioStatistics(@PathVariable @NotBlank final String scenarioId) {
     return scenarioStatisticService.getStatistics(scenarioId);
