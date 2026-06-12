@@ -173,9 +173,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                 <CardHeader
                   avatar={(
                     <Avatar
-                      sx={{
-                        bgcolor: channelColor,
-                      }}
+                      sx={{ bgcolor: channelColor }}
                     >
                       {(article.article_author || t('Unknown')).charAt(0)}
                     </Avatar>
