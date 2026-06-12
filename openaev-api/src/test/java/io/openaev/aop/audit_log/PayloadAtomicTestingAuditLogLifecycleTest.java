@@ -16,11 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
-import io.openaev.context.TenantContext;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.injectors.email.service.ImapService;
-import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
-import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.payload.form.PayloadCreateInput;
@@ -63,8 +60,6 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private DomainComposer domainComposer;
   @Autowired private EndpointComposer endpointComposer;
-  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
-  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @MockitoBean private ImapService imapService;
 
@@ -97,13 +92,6 @@ class PayloadAtomicTestingAuditLogLifecycleTest extends IntegrationTest {
     @WithMockUser(isAdmin = true)
     // Verifies end-to-end audit logging for payload + atomic testing lifecycle actions.
     void given_payloadAndAtomicTestingLifecycle_should_logExpectedAuditEvents() throws Exception {
-      // Arrange
-      // Register built-in injector under the active mock user context for deterministic tenant
-      // scope.
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(
-          TenantContext.getCurrentTenant());
-
       // Use unique labels to avoid collisions with existing data in integration environments.
       String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
       String payloadName = "audit-payload-" + uniqueSuffix;
