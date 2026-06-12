@@ -18,6 +18,7 @@
         <commons-email.version>1.5</commons-email.version>
         <springdoc.version>2.8.16</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
+        <rewrite-maven-plugin.version>6.24.0</rewrite-maven-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
@@ -410,6 +411,28 @@
                     <outputFileName>swagger.json</outputFileName>
                     <outputDir>.</outputDir>
                     <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openrewrite.maven</groupId>
+                <artifactId>rewrite-maven-plugin</artifactId>
+                <version>${rewrite-maven-plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>io.openaev</groupId>
+                        <artifactId>openaev-rewrite</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <activeRecipes>
+                        <recipe>io.openaev.rewrite.ReplaceJakartaTransactionalWithSpringTransactional</recipe>
+                        <recipe>io.openaev.rewrite.SetReadOnlyOnGetMappingTransactionalMethods</recipe>
+                        <recipe>io.openaev.rewrite.AddTransactionalToMappedMethods</recipe>
+                        <recipe>io.openaev.rewrite.AddTxCtxAndFixCallSites</recipe>
+                    </activeRecipes>
+                    <checkstyleDetectionEnabled>false</checkstyleDetectionEnabled>
+                    <skipMavenParsing>true</skipMavenParsing>
                 </configuration>
             </plugin>
         </plugins>
