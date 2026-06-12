@@ -9,6 +9,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
@@ -67,7 +69,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/profile")
-  @AccessControl(skipRBAC = true)
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
@@ -82,7 +84,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/information")
-  @AccessControl(skipRBAC = true)
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
@@ -95,7 +97,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/password")
-  @AccessControl(skipRBAC = true)
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
       throws InputValidationException {
     User user =
