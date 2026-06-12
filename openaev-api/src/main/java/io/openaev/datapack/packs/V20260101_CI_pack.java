@@ -141,7 +141,7 @@ public class V20260101_CI_pack extends DataPack {
                     300, "FLAG{ci-privesc}")
     ).forEach(c -> {
       FlagInput flagInput = new FlagInput();
-      flagInput.setType(FLAG_TYPE.VALUE.name());   // ← VALUE, pas TEXT
+      flagInput.setType(FLAG_TYPE.VALUE.name());
       flagInput.setValue(c.flag());
 
       ChallengeInput input = new ChallengeInput(
@@ -203,7 +203,7 @@ public class V20260101_CI_pack extends DataPack {
       input.setContent(p.content());
       input.setAttackPatternsIds(Collections.emptyList());
       input.setTagIds(Collections.emptyList());
-      input.setDomainIds(Collections.emptyList());  // @NotNull — liste vide OK
+      input.setDomainIds(Collections.emptyList());
       payloadCreationService.createPayload(input);
       log.info("CI DataPack — payload created: {}", p.name());
     });
