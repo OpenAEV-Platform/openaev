@@ -15,10 +15,10 @@ import io.openaev.rest.report.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -82,7 +82,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Report createExerciseReport(
       @PathVariable String exerciseId, @Valid @RequestBody ReportInput input) {
     Exercise exercise = this.exerciseService.exercise(exerciseId);
@@ -99,7 +99,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Report updateReportInjectComment(
       @PathVariable String exerciseId,
       @PathVariable String reportId,
@@ -119,7 +119,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Report updateExerciseReport(
       @PathVariable String exerciseId,
       @PathVariable String reportId,
@@ -137,7 +137,7 @@ public class ReportApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseReport(@PathVariable String exerciseId, @PathVariable String reportId) {
     Report report = this.reportService.report(UUID.fromString(reportId));
     assert exerciseId.equals(report.getExercise().getId());

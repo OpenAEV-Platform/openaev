@@ -21,7 +21,6 @@ import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
-import jakarta.transaction.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -81,7 +80,6 @@ public class StreamApi extends RestBehavior {
           ResourceType.CONNECTOR_INSTANCE_LOG);
 
   @Async("streamExecutor")
-  @Transactional
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
     if (RESOURCES_STREAM_EXCLUSION.contains(event.getInstance().getResourceType())

@@ -309,7 +309,7 @@
                     </annotationProcessorPaths>
                     <compilerArgs>
                         <arg>-Aio.openaev.annotation.processor.NoRepositoryRule=false</arg>
-                        <arg>-Aio.openaev.annotation.processor.NoJakartaTransactionalRule=false</arg>
+                        <arg>-Aio.openaev.annotation.processor.NoJakartaTransactionalRule=true</arg>
                         <arg>-Aio.openaev.annotation.processor.EndpointTransactionalRule=false</arg>
                     </compilerArgs>
                 </configuration>

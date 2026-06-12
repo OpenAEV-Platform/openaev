@@ -8,13 +8,13 @@ import io.openaev.database.model.Filters;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
-import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Set;
 import lombok.Getter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

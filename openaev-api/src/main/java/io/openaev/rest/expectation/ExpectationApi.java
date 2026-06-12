@@ -14,13 +14,13 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.ExpectationService;
 import io.openaev.service.InjectExpectationService;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -36,7 +36,7 @@ public class ExpectationApi extends RestBehavior {
   private final InjectExpectationService injectExpectationService;
   private final ExpectationService expectationService;
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectation updateInjectExpectation(
@@ -45,7 +45,7 @@ public class ExpectationApi extends RestBehavior {
     return injectExpectationService.updateInjectExpectation(expectationId, input);
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete",
     TENANT_EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete"
@@ -183,7 +183,7 @@ public class ExpectationApi extends RestBehavior {
     TENANT_INJECTS_EXPECTATIONS_URI + "/{expectationId}"
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public InjectExpectation updateInjectExpectation(
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
@@ -195,7 +195,7 @@ public class ExpectationApi extends RestBehavior {
       description = "Bulk Update Inject expectation from an external source, e.g., EDR collector.")
   @PutMapping({INJECTS_EXPECTATIONS_URI + "/bulk", TENANT_INJECTS_EXPECTATIONS_URI + "/bulk"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void updateInjectExpectation(
       @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());

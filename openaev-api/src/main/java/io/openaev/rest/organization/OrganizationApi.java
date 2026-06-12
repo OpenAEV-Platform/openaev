@@ -18,12 +18,12 @@ import io.openaev.rest.organization.form.OrganizationUpdateInput;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -54,7 +54,7 @@ public class OrganizationApi extends RestBehavior {
 
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Organization createOrganization(@Valid @RequestBody OrganizationCreateInput input) {
     Organization organization = new Organization();
     organization.setUpdateAttributes(input);

@@ -30,7 +30,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,6 +50,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -93,7 +93,7 @@ public class DocumentApi extends RestBehavior {
 
   @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Document uploadDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
@@ -147,7 +147,7 @@ public class DocumentApi extends RestBehavior {
 
   @PostMapping({DOCUMENT_API + "/upsert", TENANT_DOCUMENT_API + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Document upsertDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
@@ -224,7 +224,7 @@ public class DocumentApi extends RestBehavior {
     return documentService.save(document);
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
   @AccessControl(
       resourceId = "#documentId",
@@ -486,7 +486,7 @@ public class DocumentApi extends RestBehavior {
     return toDocumentRelationsOutput(documentService.document(documentId));
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @DeleteMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
   @AccessControl(
       resourceId = "#documentId",

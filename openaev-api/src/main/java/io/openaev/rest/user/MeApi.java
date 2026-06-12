@@ -27,13 +27,13 @@ import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -118,7 +118,7 @@ public class MeApi extends RestBehavior {
   @PostMapping(ME_URI + "/token/refresh")
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
     User user =
         userRepository

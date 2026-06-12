@@ -4,7 +4,6 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import io.openaev.IntegrationTest;
-import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -12,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 public class PeriodServiceTest extends IntegrationTest {

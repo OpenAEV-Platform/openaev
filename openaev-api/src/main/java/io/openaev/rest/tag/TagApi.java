@@ -14,11 +14,11 @@ import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,7 +39,7 @@ public class TagApi extends RestBehavior {
   @Operation(summary = "Create tag")
   @PostMapping({TAG_URI, TENANT_TAG_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Tag createTag(@Valid @RequestBody TagCreateInput input) {
     return tagService.createTag(input);
   }
@@ -47,7 +47,7 @@ public class TagApi extends RestBehavior {
   @Operation(summary = "Upsert tag")
   @PostMapping({TAG_URI + "/upsert", TENANT_TAG_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Tag upsertTag(@Valid @RequestBody TagCreateInput input) {
     return tagService.upsertTag(input);
   }
@@ -76,7 +76,7 @@ public class TagApi extends RestBehavior {
       resourceId = "#tagId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.TAG)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Tag updateTag(
       @PathVariable @Schema(description = "ID of the tag") String tagId,
       @Valid @RequestBody TagUpdateInput input) {

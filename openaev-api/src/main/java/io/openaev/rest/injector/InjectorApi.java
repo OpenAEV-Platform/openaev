@@ -30,7 +30,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -44,6 +43,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -168,7 +168,7 @@ public class InjectorApi extends RestBehavior {
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public InjectorRegistration registerInjector(
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {

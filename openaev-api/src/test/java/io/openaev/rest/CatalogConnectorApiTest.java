@@ -21,7 +21,6 @@ import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.transaction.Transactional;
 import java.io.ByteArrayInputStream;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +29,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
