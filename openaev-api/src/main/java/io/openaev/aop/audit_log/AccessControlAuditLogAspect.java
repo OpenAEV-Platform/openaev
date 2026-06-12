@@ -69,22 +69,11 @@ public class AccessControlAuditLogAspect {
     Action action = null;
     boolean isActive = false;
     boolean isActionActive = false;
-    boolean isActiveOnSkipRBAC = false;
 
     try {
       action = accessControl.actionPerformed();
       isActive = auditLogger.isAuditLoggingEnabled();
       isActionActive = auditLogger.isAuditLoggingValid(action);
-
-      // If skipRBAC is active but there is a resourceType and actionPerformed
-      // defined, we will still log the event. This will be applicable when the
-      // user changes a password, or an agent token...
-      isActiveOnSkipRBAC =
-          accessControl.skipRBAC()
-              && accessControl.resourceType() != null
-              && accessControl.resourceType() != ResourceType.SKIP_RBAC
-              && action != null
-              && action != Action.SKIP_RBAC;
     } catch (Exception e) {
       log.warn(LOG_ERROR_MSG, e);
     }
@@ -106,7 +95,7 @@ public class AccessControlAuditLogAspect {
 
             logAccessControlEvent(
                 joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
-          } else if (isActionActive || isActiveOnSkipRBAC) {
+          } else if (isActionActive) {
             // Capture snapshots on the servlet thread before any async handoff.
             snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(action);
@@ -124,18 +113,16 @@ public class AccessControlAuditLogAspect {
       throw ex;
     }
 
-    if (isActive) {
+    if (isActive && isActionActive) {
       try {
-        if (isActionActive || isActiveOnSkipRBAC) {
-          // Capture snapshots on the servlet thread before any async handoff.
-          snapshots = captureEntitySnapshots();
-          String eventScope = LogUtils.getEventScope(action);
-          String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
-          JsonNode resultNode = getOutputNode(result);
+        // Capture snapshots on the servlet thread before any async handoff.
+        snapshots = captureEntitySnapshots();
+        String eventScope = LogUtils.getEventScope(action);
+        String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
+        JsonNode resultNode = getOutputNode(result);
 
-          logAccessControlEvent(
-              joinPoint, accessControl, eventScope, eventStatus, resultNode, snapshots);
-        }
+        logAccessControlEvent(
+            joinPoint, accessControl, eventScope, eventStatus, resultNode, snapshots);
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
