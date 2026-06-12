@@ -92,7 +92,7 @@ public class EndpointApi extends RestBehavior {
     TENANT_ENDPOINT_URI + "/jobs/{endpointExternalReference}"
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class, readOnly = true)
   public List<AssetAgentJob> getEndpointJobs(
       @PathVariable @NotBlank final String endpointExternalReference) {
     return this.assetAgentJobRepository.findAll(

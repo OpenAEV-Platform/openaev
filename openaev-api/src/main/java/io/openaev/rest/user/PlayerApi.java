@@ -44,7 +44,7 @@ public class PlayerApi extends RestBehavior {
 
   @GetMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class, readOnly = true)
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
     User currentUser = userService.currentUser();
