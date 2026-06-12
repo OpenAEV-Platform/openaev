@@ -74,7 +74,7 @@ public class SimulationChallengeApi extends RestBehavior {
   })
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
-  @jakarta.transaction.Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public SimulationChallengesReader validateChallenge(
       @PathVariable String exerciseId,
       @PathVariable String challengeId,

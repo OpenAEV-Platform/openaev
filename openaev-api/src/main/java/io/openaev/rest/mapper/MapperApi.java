@@ -29,7 +29,6 @@ import io.openaev.utils.constants.Constants;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -46,6 +45,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
@@ -178,7 +178,7 @@ public class MapperApi extends RestBehavior {
 
   @PostMapping("/store")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Import injects into an xls file")
   public ImportPostSummary importXLSFile(@RequestPart("file") @NotNull MultipartFile file) {
     validateUploadedFile(file);
@@ -190,7 +190,7 @@ public class MapperApi extends RestBehavior {
       resourceId = "#importId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
       @PathVariable @NotBlank final String importId,
@@ -217,7 +217,7 @@ public class MapperApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   @PostMapping("/import/csv")
   @LogExecutionTime
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void importEndpoints(
       @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {

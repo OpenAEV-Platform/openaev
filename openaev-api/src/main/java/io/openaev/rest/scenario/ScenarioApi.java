@@ -42,7 +42,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -54,6 +53,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -283,7 +283,7 @@ public class ScenarioApi extends RestBehavior {
     return this.teamService.find(fromScenario(scenarioId));
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/teams/remove",
     TENANT_SCENARIO_URI + "/{scenarioId}/teams/remove"
@@ -298,7 +298,7 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.removeTeams(scenarioId, input.getTeamIds());
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/teams/replace",
     TENANT_SCENARIO_URI + "/{scenarioId}/teams/replace"
@@ -325,7 +325,7 @@ public class ScenarioApi extends RestBehavior {
     return userRepository.rawPlayersByScenarioId(scenarioId);
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/enable",
     TENANT_SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/enable"
@@ -342,7 +342,7 @@ public class ScenarioApi extends RestBehavior {
         scenarioId, teamId, input.getPlayersIds());
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/disable",
     TENANT_SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/disable"
@@ -358,7 +358,7 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.disablePlayers(scenarioId, teamId, input.getPlayersIds());
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/add",
     TENANT_SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/add"
@@ -374,7 +374,7 @@ public class ScenarioApi extends RestBehavior {
     return this.scenarioService.addScenarioPlayer(scenarioId, teamId, input.getPlayersIds());
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @PutMapping({
     SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/remove",
     TENANT_SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/remove"
@@ -460,7 +460,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Scenario updateScenarioLessons(
       @PathVariable String scenarioId, @Valid @RequestBody LessonsInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);

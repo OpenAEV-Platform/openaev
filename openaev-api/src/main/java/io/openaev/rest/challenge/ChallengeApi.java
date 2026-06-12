@@ -22,12 +22,12 @@ import io.openaev.service.ChallengeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -55,7 +55,7 @@ public class ChallengeApi extends RestBehavior {
   @LogExecutionTime
   @PostMapping({CHALLENGE_URI + "/find", TENANT_CHALLENGE_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
-  @org.springframework.transaction.annotation.Transactional(readOnly = true)
+  @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
       @RequestBody @Valid @NotNull final List<String> challengeIds) {
     return this.challengeRepository.findAll(fromIds(challengeIds));
@@ -66,7 +66,7 @@ public class ChallengeApi extends RestBehavior {
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHALLENGE)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Challenge updateChallenge(
       @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
     Challenge challenge =
@@ -96,7 +96,7 @@ public class ChallengeApi extends RestBehavior {
 
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
     Challenge challenge = new Challenge();
     challenge.setUpdateAttributes(input);
@@ -122,7 +122,7 @@ public class ChallengeApi extends RestBehavior {
       resourceId = "#challengeId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHALLENGE)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteChallenge(@PathVariable String challengeId) {
     challengeRepository.deleteById(challengeId);
   }
