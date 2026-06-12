@@ -145,7 +145,7 @@ const ConnectorInstanceForm = ({
     return 'Create';
   };
 
-  const formatFieldType = (configurationType: CatalogConnectorConfiguration['connector_configuration_type'], configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'], isEnum: boolean): ContractType => {
+  const formatFieldType = (configurationType: CatalogConnectorConfiguration['connector_configuration_type'], configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'], isEnum: boolean, defaultValue?: unknown): ContractType => {
     if (isEnum) {
       return 'choice';
     }
@@ -158,6 +158,9 @@ const ConnectorInstanceForm = ({
     if (configurationType == 'INTEGER') {
       return 'number';
     }
+    if (configurationType == 'STRING' && typeof defaultValue === 'string' && defaultValue.length > 100) {
+      return 'textarea';
+    }
     return 'text';
   };
 
@@ -169,7 +172,7 @@ const ConnectorInstanceForm = ({
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
       key: `connector_instance_configurations.${index}.configuration_value`,
-      type: formatFieldType(definition.connector_configuration_type, definition.connector_configuration_format, !!definition.connector_configuration_enum?.length),
+      type: formatFieldType(definition.connector_configuration_type, definition.connector_configuration_format, !!definition.connector_configuration_enum?.length, definition.connector_configuration_default),
       mandatory: required,
       label: formatKeyToLabel(definition.connector_configuration_key || ''), // TODO should be not null
       readOnly: false,
