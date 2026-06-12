@@ -113,6 +113,7 @@ public class MeApi extends RestBehavior {
   }
 
   @PostMapping(ME_URI + "/token/refresh")
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackOn = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
