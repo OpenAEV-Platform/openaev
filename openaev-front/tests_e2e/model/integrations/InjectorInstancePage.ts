@@ -48,12 +48,11 @@ class InjectorInstancePage {
    * The backend populates configurations asynchronously once the injector is running.
    */
   async waitForConfigurations(specificItem: string, timeout = TIMEOUT): Promise<void> {
-    await this.page.locator('div', { hasText: specificItem }).first().waitFor({ state: 'visible', timeout });
+    await this.page.locator('div', { hasText: specificItem }).first().waitFor({
+      state: 'visible',
+      timeout,
+    });
   }
 }
 
 export default InjectorInstancePage;
-
-
-
-

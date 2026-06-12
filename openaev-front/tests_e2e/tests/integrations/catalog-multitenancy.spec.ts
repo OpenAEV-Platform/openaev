@@ -3,14 +3,14 @@ import { expect } from '@playwright/test';
 import TenantApiHelpers from '../../api-helpers/TenantApiHelpers';
 import { test } from '../../fixtures';
 import CatalogPage from '../../model/integrations/CatalogPage';
-import InjectorsListPage from '../../model/integrations/InjectorsListPage';
 import InjectorInstancePage from '../../model/integrations/InjectorInstancePage';
+import InjectorsListPage from '../../model/integrations/InjectorsListPage';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
-import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 import { TIMEOUT } from '../../utils/constants';
+import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 /**
  * End-to-end test: catalog multi-tenancy isolation.
@@ -32,17 +32,11 @@ import { TIMEOUT } from '../../utils/constants';
  */
 test.describe('Catalog — multi-tenancy isolation', () => {
   const NMAP_INJECTOR_NAME = 'Nmap - Tenant A';
-  // UUID of the newly created tenant — populated during the test, used for cleanup
   let newTenantId: string | null = null;
 
   test.afterEach(async ({ request }) => {
-    // Best-effort teardown: soft-delete the tenant created during the test
     if (newTenantId) {
-      try {
-        await new TenantApiHelpers(request).softDeleteTenant(newTenantId);
-      } catch {
-        // Ignore cleanup errors (e.g. EE disabled, tenant already deleted)
-      }
+      await new TenantApiHelpers(request).softDeleteTenant(newTenantId);
       newTenantId = null;
     }
   });
@@ -124,7 +118,7 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     // Act: open the left-bar tenant switcher and pick any tenant that is NOT Tenant A
     const tenantSwitcher = new TenantSwitcherComponent(page);
     await tenantSwitcher.openSwitcher(tenantName);
-    await tenantSwitcher.selectFirstOtherTenant(tenantName);
+    await tenantSwitcher.selectTenantByName('Default');
     // Assert: URL now contains the default tenant UUID
     await page.waitForURL(
       url => url.toString().includes(DEFAULT_TENANT_UUID),
@@ -136,7 +130,6 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     // Arrange: navigate to the injectors list in the default tenant
     await page.goto(tenantUrl('/admin/integrations/injectors'));
     await injectorsListPage.waitForLoad();
-    await page.waitForLoadState('networkidle');
     // Assert: the collector name from Tenant A must not appear here
     await expect(page.getByText(NMAP_INJECTOR_NAME)).toBeHidden();
   });

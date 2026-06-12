@@ -19,7 +19,10 @@ class TenantSwitcherComponent {
     if (await expandButton.count() > 0) {
       await expandButton.click();
       // Wait for the animation to finish — the toggle flips to "Collapse menu"
-      await this.page.getByRole('menuitem', { name: 'Collapse menu' }).waitFor({ state: 'visible', timeout: TIMEOUT });
+      await this.page.getByRole('menuitem', { name: 'Collapse menu' }).waitFor({
+        state: 'visible',
+        timeout: TIMEOUT,
+      });
     }
   }
 
@@ -33,7 +36,10 @@ class TenantSwitcherComponent {
   async openSwitcher(currentTenantName: string): Promise<void> {
     await this.expandIfCollapsed();
     const tenantMenuItem = this.page.getByRole('menuitem').filter({ hasText: currentTenantName });
-    await tenantMenuItem.waitFor({ state: 'visible', timeout: TIMEOUT });
+    await tenantMenuItem.waitFor({
+      state: 'visible',
+      timeout: TIMEOUT,
+    });
     await tenantMenuItem.click();
   }
 
@@ -44,27 +50,6 @@ class TenantSwitcherComponent {
     const popover = this.page.locator('.MuiPopover-root').last();
     await popover.waitFor({ state: 'visible' });
     await popover.getByRole('menuitem').filter({ hasText: tenantName }).click();
-  }
-
-  /**
-   * Clicks the first tenant item in the popover that does NOT match
-   * currentTenantName.  Useful when switching to the default tenant without
-   * knowing its display name upfront.
-   */
-  async selectFirstOtherTenant(currentTenantName: string): Promise<void> {
-    const popover = this.page.locator('.MuiPopover-root').last();
-    await popover.waitFor({ state: 'visible' });
-    const items = popover.getByRole('menuitem');
-    const count = await items.count();
-    for (let i = 0; i < count; i++) {
-      const item = items.nth(i);
-      const text = await item.textContent();
-      if (text && !text.includes(currentTenantName)) {
-        await item.click();
-        return;
-      }
-    }
-    throw new Error(`No tenant other than "${currentTenantName}" found in the switcher popover.`);
   }
 }
 export default TenantSwitcherComponent;
