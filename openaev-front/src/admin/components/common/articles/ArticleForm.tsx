@@ -21,6 +21,7 @@ import { useHelper } from '../../../../store';
 import { type ArticleCreateInput, type ArticleUpdateInput, type Channel, type Document } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { type AppAbility } from '../../../../utils/permissions/ability';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -135,7 +136,7 @@ const ArticleForm = ({
   const { t } = useFormatter();
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability: AppAbility = useContext(AbilityContext);
 
   const { control, watch, setValue, formState: { isSubmitting } } = useFormContext<ArticleCreateInput | ArticleUpdateInput>();
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
