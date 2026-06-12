@@ -1,4 +1,4 @@
-package io.openaev.utils;
+package io.openaev.utils.object;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
