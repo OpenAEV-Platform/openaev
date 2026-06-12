@@ -148,7 +148,6 @@ jobs:
       OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
-      OPENAEV_ENABLED_DEV_FEATURES: MULTI_TENANCY
       SPRING_PROFILES_ACTIVE: ci
       GH_TOKEN: ${{ github.token }}
     steps:
