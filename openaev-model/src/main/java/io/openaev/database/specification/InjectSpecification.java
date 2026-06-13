@@ -82,6 +82,13 @@ public class InjectSpecification {
    * Pauses only push the planned date later, so this is a safe superset of the exact in-memory
    * check ({@code isBeforeOrEqualsNow}) which must still be applied afterwards.
    *
+   * <p>The reference is rounded up by one second on purpose: {@link Instant#getEpochSecond()}
+   * truncates to whole seconds while {@code date_part('epoch', start)} is fractional. Without the
+   * rounding {@code elapsedSeconds} could be under-counted by up to ~1s and wrongly exclude an
+   * inject whose {@code dependsDuration} was just reached (it would never be loaded, so the
+   * in-memory check could not re-include it). Over-counting by up to 1s only widens the candidate
+   * set, which the exact check then prunes, so this stays a true superset.
+   *
    * @param now the reference instant
    * @return the constructed specification
    */
@@ -92,7 +99,7 @@ public class InjectSpecification {
           cb.function(
               "date_part", Double.class, cb.literal("epoch"), exercisePath.<Instant>get("start"));
       Expression<Double> elapsedSeconds =
-          cb.diff(cb.literal((double) now.getEpochSecond()), startEpochSeconds);
+          cb.diff(cb.literal((double) (now.getEpochSecond() + 1)), startEpochSeconds);
       return cb.or(
           cb.isNotNull(root.get("triggerNowDate")),
           cb.lessThanOrEqualTo(root.get("dependsDuration").as(Double.class), elapsedSeconds));
