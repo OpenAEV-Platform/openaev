@@ -1,0 +1,10 @@
+site/
+.cache/
+*.iml
+.DS_Store
+.dev_venv
+.idea
+.mypy_cache
+.venv
+venv
+.vscode
