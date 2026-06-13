@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Slf4j
-public class V5_20__Add_Trigram_Indexes_When_Available extends BaseJavaMigration {
+public class V5_21__Add_Trigram_Indexes_When_Available extends BaseJavaMigration {
 
   private static final String[][] TRIGRAM_INDEXES = {
     {"idx_trgm_injects_title", "injects", "inject_title"},
