@@ -76,7 +76,8 @@ public class ComchecksExecutionJob implements Job {
   }
 
   /** Everything needed to send one comcheck email batch, materialized inside the DB transaction. */
-  private record ComcheckSendTask(ExecutableInject injection, List<ComcheckStatus> statuses) {}
+  private record ComcheckSendTask(
+      ExecutableInject injection, List<ComcheckStatus> statuses, String tenantId) {}
 
   @Override
   @LogExecutionTime
@@ -94,7 +95,7 @@ public class ComchecksExecutionJob implements Job {
           .forEach(
               task -> {
                 io.openaev.executors.Injector emailExecutor =
-                    this.managerFactory.getManager().requestEmailInjector();
+                    this.managerFactory.getManager(task.tenantId()).requestEmailInjector();
                 Execution execution = emailExecutor.executeInjection(task.injection());
                 // Save the status sent date (repository-managed transaction)
                 List<String> usersSuccessfullyNotified =
@@ -154,7 +155,8 @@ public class ComchecksExecutionJob implements Job {
               Inject emailInject = buildComcheckEmail(comCheck);
               return new ComcheckSendTask(
                   new ExecutableInject(false, true, emailInject, userInjectContexts),
-                  comcheckStatuses);
+                  comcheckStatuses,
+                  exercise.getTenant().getId());
             })
         .toList();
   }

@@ -216,7 +216,11 @@ public class FindingService {
   public void createFindings(
       @NotNull final List<Finding> findings, @NotBlank final String injectId) {
     Inject inject = injectService.inject(injectId);
-    findings.forEach(finding -> finding.setInject(inject));
+    findings.forEach(
+        finding -> {
+          finding.setInject(inject);
+          finding.setTenant(inject.getTenant());
+        });
     List<Finding> deduplicatedFindings = deduplicateFindings(findings);
     findingRepository.saveAll(deduplicatedFindings);
   }

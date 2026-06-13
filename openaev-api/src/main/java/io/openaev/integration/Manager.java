@@ -5,17 +5,21 @@ import io.openaev.database.model.ConnectorInstance.CURRENT_STATUS_TYPE;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.exception.ComponentNotFoundException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 public class Manager {
   private final List<IntegrationFactory> factories;
 
-  @Getter private final Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
+  @Getter private final String tenantId;
 
-  public Manager(List<IntegrationFactory> factories) throws Exception {
+  @Getter
+  private final Map<ConnectorInstance, Integration> spawnedIntegrations = new ConcurrentHashMap<>();
+
+  public Manager(String tenantId, List<IntegrationFactory> factories) throws Exception {
+    this.tenantId = tenantId;
     this.factories = factories;
 
     initialise();
@@ -115,17 +119,20 @@ public class Manager {
   }
 
   /** Not thread-safe */
-  @Transactional
   public void monitorIntegrations() {
     for (IntegrationFactory factory : factories) {
       List<ConnectorInstance> newInstances =
-          factory.findRelatedInstances().stream()
+          factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
-
+      log.info(
+          "==> Found {} new instances for factory {}, tenantId={}",
+          newInstances.size(),
+          factory.getClassName(),
+          tenantId);
       if (!newInstances.isEmpty()) {
         log.info(
-            "monitorIntegrations: found {} new instance(s) for factory {}: {}",
+            "==> monitorIntegrations: found {} new instance(s) for factory {}: {}",
             newInstances.size(),
             factory.getClassName(),
             newInstances.stream().map(ConnectorInstance::getId).toList());
