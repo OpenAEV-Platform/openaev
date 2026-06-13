@@ -37,7 +37,7 @@ Once the OpenCTI instance is up and running, gather the following information:
 
 #### Step 1: Configure OpenAEV to connect to OpenCTI
 
-Each OpenCTI connection is scoped to an OpenAEV **tenant**, identified by its UUID (`{id}`). This allows each tenant in a [multi-tenant deployment](../../administration/multi-tenancy.md) to have its own OpenCTI integration.
+Each OpenCTI connection is scoped to an OpenAEV **tenant**, identified by its UUID (`{id}`). This allows each tenant in a [multi-tenant deployment](../administration/multi-tenancy.md) to have its own OpenCTI integration.
 
 Set the following parameters in your OpenAEV deployment:
 

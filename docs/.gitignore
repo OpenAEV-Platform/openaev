@@ -8,3 +8,4 @@ site/
 .venv
 venv
 .vscode
+.venv-build/

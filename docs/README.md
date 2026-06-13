@@ -28,7 +28,7 @@ Please follow the Manual instructions below.
 ### Alternative: manual local build and serve
 Clone the repository:
 ```shell
-$ git clone git@github.com:OpenAEV-Platform/docs.git
+$ git clone git@github.com:OpenAEV-Platform/openaev.git
 ```
 
 Install dependencies; consider a virtual environment for doing so

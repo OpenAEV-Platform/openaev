@@ -3,7 +3,7 @@
 
     We are doing our best to complete this page. 
     If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) 
-    or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/docs).
+    or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/openaev).
 
 
 Media pressure consists of articles or web contents you create to give more shape to your Scenario, or to simulate contextual pressure on your Teams and Players.

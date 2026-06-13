@@ -5,7 +5,7 @@ site_url: https://docs.openaev.io
 copyright: © 2025 Filigran. All rights reserved
 repo_name: GitHub
 repo_url: https://github.com/OpenAEV-Platform/openaev
-edit_uri: https://github.com/OpenAEV-Platform/docs/blob/main/docs/
+edit_uri: https://github.com/OpenAEV-Platform/openaev/blob/main/docs/docs/
 
 # Theming
 theme:
@@ -64,7 +64,7 @@ plugins:
   - search
   - macros
   - git-committers:
-      repository: OpenAEV-Platform/docs
+      repository: OpenAEV-Platform/openaev
       branch: main
   - git-revision-date-localized:
       enable_creation_date: true
