@@ -119,4 +119,51 @@ class TenantStatementInspectorTest {
         RuntimeException.class,
         () -> inspector.inspect("WITH c AS (SELECT * FROM findings) SELECT * FROM documents"));
   }
+
+  @Test
+  @DisplayName("a CTE on a same-named tenant table is rejected (fail-closed)")
+  void sameNameCteFailsClosed() {
+    assertThrows(
+        RuntimeException.class,
+        () -> inspector.inspect("WITH c AS (SELECT * FROM documents) SELECT * FROM documents d"));
+  }
+
+  @Test
+  @DisplayName("a sub-query on a non-tenant table is allowed; the main table stays filtered")
+  void nonTenantSubqueryAllowed() {
+    String out = inspect("SELECT * FROM documents d WHERE d.user_id IN (SELECT u.id FROM users u)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a scalar tenant sub-query in the select list is rejected (fail-closed)")
+  void scalarSelectSubqueryFailsClosed() {
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            inspector.inspect(
+                "SELECT d.id, (SELECT count(*) FROM findings f) AS n FROM documents d"));
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query in a join condition is rejected (fail-closed)")
+  void joinConditionSubqueryFailsClosed() {
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            inspector.inspect(
+                "SELECT * FROM documents d JOIN users u ON u.id = d.user_id"
+                    + " AND u.id IN (SELECT f.user_id FROM findings f)"));
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query inside a UNION is rejected (fail-closed)")
+  void unionSubqueryFailsClosed() {
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            inspector.inspect(
+                "SELECT * FROM documents d WHERE d.x IN"
+                    + " (SELECT a FROM findings f UNION SELECT b FROM findings f2)"));
+  }
 }

@@ -1,16 +1,14 @@
 package io.openaev.config;
 
-import java.util.HashSet;
-import java.util.Locale;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Set;
-import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.PlainSelect;
-import net.sf.jsqlparser.statement.select.SelectItem;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 
@@ -21,7 +19,7 @@ import org.hibernate.resource.jdbc.spi.StatementInspector;
  *
  * <p>Security principle: <b>every</b> reference to a tenant-aware table must be filtered. The
  * inspector wraps the tables of the top-level FROM and joins, and rejects (fail-closed) any
- * statement that still references a tenant-aware table anywhere else — a sub-query, a CTE, a join
+ * statement that references a tenant-aware table anywhere else — a sub-query, a CTE, a join
  * condition — rather than letting it through partially filtered, which would leak rows across
  * tenants. Coverage of those other positions is added over time; until then they are denied.
  */
@@ -50,7 +48,7 @@ public class TenantStatementInspector implements StatementInspector {
   }
 
   private String rewriteSelect(PlainSelect select) {
-    rejectUnfilteredTenantReferences(select);
+    rejectUnwrappedTenantReferences(select);
     FromItem from = select.getFromItem();
     if (from != null) {
       select.setFromItem(filterFromItem(from));
@@ -64,63 +62,28 @@ public class TenantStatementInspector implements StatementInspector {
   }
 
   /**
-   * Fails closed if a tenant-aware table is referenced anywhere we do not filter: only the
-   * top-level FROM and join tables are wrapped, so a tenant table appearing in a sub-query, CTE or
-   * join condition would otherwise slip through unfiltered.
+   * Fails closed if a tenant-aware table is referenced anywhere other than the top-level FROM and
+   * joins (the only positions we wrap) — for example in a sub-query, a CTE or a join condition. The
+   * check compares table nodes by identity, so it does not depend on names or on traversal depth: a
+   * nested reference sharing a name with a filtered table is still caught.
    */
-  private void rejectUnfilteredTenantReferences(PlainSelect select) {
-    Set<String> covered = coveredTableNames(select);
-    for (String name : new TablesNamesFinder<Void>().getTables((Statement) select)) {
-      if (isTenant(name) && !covered.contains(name.toLowerCase(Locale.ROOT))) {
-        throw new IllegalStateException("unfiltered tenant table referenced: " + name);
-      }
-    }
-    // A tenant table sharing a name with a covered one would pass the check above; reject any
-    // tenant
-    // reference found in a position we do not wrap.
-    if (referencesTenant(select.getWhere()) || referencesTenant(select.getHaving())) {
-      throw new IllegalStateException("tenant table referenced in an unfiltered sub-query");
-    }
-    for (SelectItem<?> item : select.getSelectItems()) {
-      if (referencesTenant(item.getExpression())) {
-        throw new IllegalStateException(
-            "tenant table referenced in an unfiltered select sub-query");
-      }
-    }
-    if (select.getJoins() != null) {
-      for (Join join : select.getJoins()) {
-        if (join.getOnExpressions() != null) {
-          for (Expression on : join.getOnExpressions()) {
-            if (referencesTenant(on)) {
-              throw new IllegalStateException(
-                  "tenant table referenced in an unfiltered join condition");
-            }
-          }
-        }
-      }
-    }
-  }
-
-  private Set<String> coveredTableNames(PlainSelect select) {
-    Set<String> covered = new HashSet<>();
+  private void rejectUnwrappedTenantReferences(PlainSelect select) {
+    Set<Table> topLevel = Collections.newSetFromMap(new IdentityHashMap<>());
     if (select.getFromItem() instanceof Table table) {
-      covered.add(table.getName().toLowerCase(Locale.ROOT));
+      topLevel.add(table);
     }
     if (select.getJoins() != null) {
       for (Join join : select.getJoins()) {
         if (join.getRightItem() instanceof Table table) {
-          covered.add(table.getName().toLowerCase(Locale.ROOT));
+          topLevel.add(table);
         }
       }
     }
-    return covered;
-  }
-
-  private boolean referencesTenant(Expression expression) {
-    if (expression == null) {
-      return false;
+    UnwrappedTenantDetector detector = new UnwrappedTenantDetector(topLevel);
+    detector.getTables((Statement) select);
+    if (detector.found) {
+      throw new IllegalStateException("tenant table referenced outside the filtered FROM/joins");
     }
-    return new TablesNamesFinder<Void>().getTables(expression).stream().anyMatch(this::isTenant);
   }
 
   private boolean isTenant(String table) {
@@ -151,6 +114,28 @@ public class TenantStatementInspector implements StatementInspector {
       return ((PlainSelect) dummy).getFromItem();
     } catch (Exception e) {
       throw new IllegalStateException("failed to build tenant-filtered subquery", e);
+    }
+  }
+
+  /**
+   * Walks the whole statement and flags any tenant-aware table that is not one of the top-level
+   * FROM/join tables we wrap — i.e. a tenant table reached through a sub-query, CTE or join
+   * condition. Tables are matched by identity, so names and nesting depth are irrelevant.
+   */
+  private final class UnwrappedTenantDetector extends TablesNamesFinder<Void> {
+    private final Set<Table> topLevel;
+    private boolean found = false;
+
+    private UnwrappedTenantDetector(Set<Table> topLevel) {
+      this.topLevel = topLevel;
+    }
+
+    @Override
+    public <S> Void visit(Table table, S context) {
+      if (!topLevel.contains(table) && isTenant(table.getName())) {
+        found = true;
+      }
+      return super.visit(table, context);
     }
   }
 }
