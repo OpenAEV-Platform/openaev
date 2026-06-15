@@ -39,6 +39,10 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     const tenantsPage = new TenantsPage(page);
     await page.goto(tenantUrl('/admin/settings/security/tenants'));
     await tenantsPage.waitForLoad();
+    await expect(
+      tenantsPage.createFabButton,
+      'Enterprise Edition / multi-tenancy must be enabled: expected the tenant "Add" button to be visible.',
+    ).toBeVisible({ timeout: TIMEOUT });
     await tenantsPage.openCreateDrawer();
     await tenantsPage.fillTenantName(tenantName);
     await tenantsPage.submitCreate();
