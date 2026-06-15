@@ -16,7 +16,7 @@ class TenantSwitcherComponent {
    */
   async expandIfCollapsed(): Promise<void> {
     const expandButton = this.page.getByRole('menuitem', { name: 'Expand menu' });
-    if (await expandButton.count() > 0) {
+    if ((await expandButton.count()) > 0) {
       await expandButton.click();
       // Wait for the animation to finish — the toggle flips to "Collapse menu"
       await this.page.getByRole('menuitem', { name: 'Collapse menu' }).waitFor({
@@ -35,12 +35,34 @@ class TenantSwitcherComponent {
    */
   async openSwitcher(currentTenantName: string): Promise<void> {
     await this.expandIfCollapsed();
-    const tenantMenuItem = this.page.getByRole('menuitem').filter({ hasText: currentTenantName });
-    await tenantMenuItem.waitFor({
+    const tenantMenuItemByName = this.page.getByRole('menuitem').filter({ hasText: currentTenantName }).first();
+    const tenantMenuItemByIcon = this.page
+      .getByRole('menuitem')
+      .filter({ has: this.page.locator('svg[data-testid="HomeWorkOutlinedIcon"]') })
+      .first();
+
+    if ((await tenantMenuItemByName.count()) > 0 && (await tenantMenuItemByName.isVisible())) {
+      await tenantMenuItemByName.click();
+    } else {
+      await tenantMenuItemByIcon.waitFor({
+        state: 'visible',
+        timeout: TIMEOUT,
+      });
+      await tenantMenuItemByIcon.click();
+    }
+
+    await this.page.locator('.MuiPopover-root').last().waitFor({
       state: 'visible',
       timeout: TIMEOUT,
     });
-    await tenantMenuItem.click();
+  }
+
+  /**
+   * All tenant menu items inside the currently open switcher popover.
+   * Call {@link openSwitcher} first to open the popover.
+   */
+  get popoverTenantItems() {
+    return this.page.locator('.MuiPopover-root').last().getByRole('menuitem');
   }
 
   /**
