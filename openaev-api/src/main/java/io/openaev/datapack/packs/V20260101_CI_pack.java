@@ -2,10 +2,7 @@ package io.openaev.datapack.packs;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
-import io.openaev.database.repository.ArticleRepository;
-import io.openaev.database.repository.ChallengeFlagRepository;
-import io.openaev.database.repository.ChallengeRepository;
-import io.openaev.database.repository.ChannelRepository;
+import io.openaev.database.repository.*;
 import io.openaev.datapack.DataPack;
 import io.openaev.rest.challenge.form.ChallengeInput;
 import io.openaev.rest.challenge.form.FlagInput;
@@ -31,6 +28,7 @@ public class V20260101_CI_pack extends DataPack {
   private final ChallengeRepository challengeRepository;
   private final ChallengeFlagRepository challengeFlagRepository;
   private final PayloadCreationService payloadCreationService;
+  private final PayloadRepository payloadRepository;
 
   public V20260101_CI_pack(
       DataPackService dataPackService,
@@ -39,7 +37,8 @@ public class V20260101_CI_pack extends DataPack {
       ArticleRepository articleRepository,
       ChallengeRepository challengeRepository,
       ChallengeFlagRepository challengeFlagRepository,
-      PayloadCreationService payloadCreationService) {
+      PayloadCreationService payloadCreationService,
+      PayloadRepository payloadRepository) {
     super(dataPackService);
     this.playerService = playerService;
     this.channelRepository = channelRepository;
@@ -47,6 +46,7 @@ public class V20260101_CI_pack extends DataPack {
     this.challengeRepository = challengeRepository;
     this.challengeFlagRepository = challengeFlagRepository;
     this.payloadCreationService = payloadCreationService;
+    this.payloadRepository = payloadRepository;
   }
 
   @Override

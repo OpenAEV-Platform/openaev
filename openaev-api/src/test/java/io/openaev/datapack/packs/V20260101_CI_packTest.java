@@ -7,11 +7,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawPlayer;
-import io.openaev.database.repository.ArticleRepository;
-import io.openaev.database.repository.ChallengeFlagRepository;
-import io.openaev.database.repository.ChallengeRepository;
-import io.openaev.database.repository.ChannelRepository;
-import io.openaev.database.repository.UserRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.user.PlayerService;
 import io.openaev.service.DataPackService;
@@ -49,6 +45,7 @@ public class V20260101_CI_packTest extends IntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private PayloadCreationService payloadCreationService;
   @Autowired private EntityManager entityManager;
+  @Autowired private PayloadRepository payloadRepository;
 
   private V20260101_CI_pack buildDataPack() {
     return new V20260101_CI_pack(
@@ -58,7 +55,8 @@ public class V20260101_CI_packTest extends IntegrationTest {
         articleRepository,
         challengeRepository,
         challengeFlagRepository,
-        payloadCreationService);
+        payloadCreationService,
+        payloadRepository);
   }
 
   @Test
@@ -130,7 +128,14 @@ public class V20260101_CI_packTest extends IntegrationTest {
   }
 
   private void verifyPayloadsCreated() {
-    assertNotNull(payloadCreationService);
+    var payloads = payloadRepository.findAll();
+    long count = StreamSupport.stream(payloads.spliterator(), false).count();
+    assertEquals(4, count);
+    assertThat(payloads)
+        .anyMatch(p -> "CI — Whoami".equals(p.getName()))
+        .anyMatch(p -> "CI — System Info".equals(p.getName()))
+        .anyMatch(p -> "CI — Network Scan".equals(p.getName()))
+        .anyMatch(p -> "CI — DNS Exfil Sim".equals(p.getName()));
   }
 
   private void verifyDataPackMarkedAsProcessed() {
