@@ -15,22 +15,20 @@ public class V5_20__Add_delete_cascade_exercise_email_reply_to extends BaseJavaM
           """
           DO $$
           BEGIN
+            -- Drop existing constraint if present
             IF EXISTS (
               SELECT 1 FROM pg_constraint
               WHERE conname = 'fk_exercise_id'
+                AND conrelid = 'exercise_mails_reply_to'::regclass
             ) THEN
               ALTER TABLE exercise_mails_reply_to DROP CONSTRAINT fk_exercise_id;
             END IF;
-          END $$;
-          """);
 
-      statement.execute(
-          """
-          DO $$
-          BEGIN
+            -- Re-create with ON DELETE CASCADE if not already present
             IF NOT EXISTS (
               SELECT 1 FROM pg_constraint
               WHERE conname = 'fk_exercise_id'
+                AND conrelid = 'exercise_mails_reply_to'::regclass
             ) THEN
               ALTER TABLE exercise_mails_reply_to
                 ADD CONSTRAINT fk_exercise_id
