@@ -597,6 +597,66 @@ public class ExerciseApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Delete simulation")
+  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT, Capability.MANAGE_ASSESSMENT})
+  class DeleteSimulation {
+
+    @Test
+    @DisplayName("Should delete exercise and cascade related data")
+    void given_existingExercise_should_deleteExerciseAndCascadeRelatedData() throws Exception {
+      // Arrange
+      User user = userRepository.save(UserFixture.getUser("Del", "USER", "del-user@fake.email"));
+      USER_IDS.add(user.getId());
+
+      Team team = teamRepository.save(TeamFixture.getTeam(user, "DelTeam", false));
+      TEAM_IDS.add(team.getId());
+
+      Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
+      exercise.setTeams(List.of(team));
+      exercise.setReplyTos(List.of("reply@test.com"));
+      Exercise exerciseSaved = exerciseRepository.save(exercise);
+      EXERCISE_IDS.add(exerciseSaved.getId());
+
+      ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
+      exerciseTeamUser.setExercise(exerciseSaved);
+      exerciseTeamUser.setTeam(team);
+      exerciseTeamUser.setUser(user);
+      exerciseTeamUserRepository.save(exerciseTeamUser);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(delete(EXERCISE_URI + "/" + exerciseSaved.getId()).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertFalse(
+          exerciseRepository.findById(exerciseSaved.getId()).isPresent(),
+          "Exercise should be deleted");
+      assertTrue(
+          exerciseTeamUserRepository
+              .rawByExerciseIds(List.of(exerciseSaved.getId()))
+              .isEmpty(),
+          "Exercise team users should be cascade-deleted");
+    }
+
+    @Test
+    @DisplayName("Should return 404 when exercise does not exist")
+    void given_nonExistentExercise_should_returnNotFound() throws Exception {
+      // Arrange
+      String nonExistentId = UUID.randomUUID().toString();
+
+      // Act & Assert
+      mvc.perform(delete(EXERCISE_URI + "/" + nonExistentId).with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
   @DisplayName("Inject check")
   @WithMockUser(isAdmin = true)
   @Transactional
