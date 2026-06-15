@@ -1,5 +1,6 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
@@ -20,6 +21,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.datapack.packs.V20260330_Default_tenant_data;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -188,6 +190,26 @@ class TenantServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertThat(softDeleted.getDeletedAt()).isNotNull();
     assertThat(tenantRepository.findById(created.getId())).isPresent();
+  }
+
+  @Test
+  void should_fail_when_soft_deleting_default_tenant() {
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.softDelete(DEFAULT_TENANT_UUID))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Default tenant cannot be deleted");
+  }
+
+  @Test
+  void should_fail_when_soft_deleting_current_tenant() {
+    // -- ARRANGE --
+    String currentTenantId = "current-tenant-id";
+    TenantContext.setCurrentTenant(currentTenantId);
+
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.softDelete(currentTenantId))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Current tenant cannot be deleted");
   }
 
   @Test

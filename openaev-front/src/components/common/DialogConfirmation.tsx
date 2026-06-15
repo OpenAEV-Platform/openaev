@@ -27,10 +27,13 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   const [loading, setLoading] = useState(false);
 
   const handleLoadingAndSubmit = () => {
-    if (handleSubmit) {
-      setLoading(true);
-      handleSubmit(() => setLoading(false));
-    }
+    if (!handleSubmit) return;
+    setLoading(true);
+
+    Promise.resolve(handleSubmit())
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (
