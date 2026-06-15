@@ -9,6 +9,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
@@ -111,7 +113,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PostMapping(ME_URI + "/token/refresh")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackOn = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
     User user =
