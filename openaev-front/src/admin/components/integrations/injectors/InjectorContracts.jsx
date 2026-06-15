@@ -1,6 +1,6 @@
 import { SmartButtonOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -129,6 +129,10 @@ const InjectorContracts = () => {
     },
   ];
 
+  const POLL_INTERVAL_MS = 10_000;
+  const POLL_MAX_ATTEMPTS = 30; // 5 minutes max
+
+  const [hasFetched, setHasFetched] = useState(false);
   const [injectorContracts, setInjectorContracts] = useState([]);
   const [searchPaginationInput, setSearchPaginationInput] = useState({
     sorts: initSorting('injector_contract_labels'),
@@ -142,6 +146,51 @@ const InjectorContracts = () => {
         }],
     },
   });
+
+  const triggerRefetch = () => setSearchPaginationInput(prev => ({ ...prev }));
+  const pollIntervalRef = useRef(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  };
+
+  // Intercept setContent to track when the first fetch completes
+  const handleContractsLoaded = useCallback((data) => {
+    setInjectorContracts(data);
+    setHasFetched(true);
+  }, []);
+
+  // After the first fetch: if empty, start polling (async contract registration after deployment)
+  useEffect(() => {
+    if (!hasFetched) return undefined;
+    if (injectorContracts.length > 0) {
+      stopPolling();
+      return undefined;
+    }
+
+    stopPolling();
+    let attempts = 0;
+    pollIntervalRef.current = setInterval(() => {
+      attempts += 1;
+      if (attempts >= POLL_MAX_ATTEMPTS) {
+        stopPolling();
+        return;
+      }
+      triggerRefetch();
+    }, POLL_INTERVAL_MS);
+
+    return stopPolling;
+  }, [hasFetched]);
+
+  // Stop polling as soon as contracts appear
+  useEffect(() => {
+    if (injectorContracts.length > 0) {
+      stopPolling();
+    }
+  }, [injectorContracts.length]);
 
   // Export
   const exportProps = {
@@ -160,7 +209,7 @@ const InjectorContracts = () => {
       <PaginationComponent
         fetch={searchInjectorContracts}
         searchPaginationInput={searchPaginationInput}
-        setContent={setInjectorContracts}
+        setContent={handleContractsLoaded}
         exportProps={exportProps}
       />
       <div className="clearfix" />

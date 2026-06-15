@@ -10,6 +10,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -321,8 +322,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       Set<ConnectorInstanceConfiguration> configurations =
           instanceDb.getFirst().getConfigurations();
-      // 2 from input + token = 3 (COLLECTOR_ID is already in input, not auto-generated)
-      assertEquals(3, configurations.size());
+      // key_string  + COLLECTOR_ID + OPENAEV_TOKEN + OPENAEV_TENANT_ID= 4 configurations
+      assertEquals(4, configurations.size());
 
       // Verify the COLLECTOR_ID matches the existing collector
       Optional<ConnectorInstanceConfiguration> confValueCollectorId =
@@ -464,9 +465,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           ConnectorInstance.REQUESTED_STATUS_TYPE.stopping,
           instanceDb.getFirst().getRequestedStatus());
       assertEquals(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT, instanceDb.getFirst().getSource());
-      assertEquals(
-          5,
-          instanceDb.getFirst().getConfigurations().size()); // 3 from input + token + collector_id
+      assertEquals(6, instanceDb.getFirst().getConfigurations().size());
       Set<ConnectorInstanceConfiguration> configurations =
           instanceDb.getFirst().getConfigurations();
       TriConsumer<String, String, Boolean> assertConfiguration =
@@ -520,7 +519,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -563,7 +562,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -607,7 +606,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -636,7 +635,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Manager manager = mock(Manager.class);
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -675,7 +674,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
       doThrow(new RuntimeException("Integration failed to stop")).when(integration).initialise();
 
@@ -729,6 +728,11 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     CatalogConnector catalogConnector = getCatalogConnector();
     ConnectorInstance instance =
         getConnectorInstance(catalogConnector, Set.of(confValue1, confValue3));
+    // confValue2 must belong to a different instance to satisfy @NotNull on connectorInstance
+    // while still being absent from `instance`'s configuration results
+    ConnectorInstancePersisted otherInstance =
+        getConnectorInstance(catalogConnector, new HashSet<>());
+    confValue2.setConnectorInstance(otherInstance);
     connectorInstanceConfigurationRepository.save(confValue2);
 
     String response =

@@ -2966,6 +2966,7 @@ export interface Executor {
   /** @format date-time */
   executor_created_at: string;
   executor_doc?: string;
+  executor_external?: boolean;
   /** @minLength 1 */
   executor_id: string;
   /** @minLength 1 */
@@ -2975,7 +2976,6 @@ export interface Executor {
   executor_type: string;
   /** @format date-time */
   executor_updated_at: string;
-  external?: boolean;
   listened?: boolean;
 }
 
@@ -8440,6 +8440,7 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
+  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */

@@ -35,13 +35,15 @@ public abstract class IntegrationFactory {
     runMigrations();
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public List<Integration> sync(List<ConnectorInstance> instances) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
+      log.info("==> in sync for instances {} ", instances.size());
       try {
         Integration integration = this.spawn(connectorInstance);
         integration.initialise();
-
+        log.info("==> integration.initialise {} ", integration.getCurrentStatus());
         list.add(integration);
       } catch (Exception e) {
         log.error(
@@ -56,8 +58,8 @@ public abstract class IntegrationFactory {
   }
 
   @Transactional
-  public List<ConnectorInstance> findRelatedInstances() {
-    return connectorInstanceService.connectorInstances().stream()
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
+    return connectorInstanceService.connectorInstancesByTenantId(tenantId).stream()
         .filter(ci -> this.getClassName().equals(ci.getClassName()))
         .map(ci -> (ConnectorInstance) ci)
         .toList();

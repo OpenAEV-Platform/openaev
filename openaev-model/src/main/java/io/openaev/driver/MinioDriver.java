@@ -73,8 +73,8 @@ public class MinioDriver {
    */
   private void moveDefaultTenantFiles(MinioClient minioClient, String bucket) throws Exception {
     Set<String> tenants =
-        tenantRepository.findAll().stream()
-            .map(tenant -> tenant.getId() + "/")
+        tenantRepository.findAllIdsByDeletedAtIsNull().stream()
+            .map(id -> id + "/")
             .collect(Collectors.toSet());
 
     Iterable<Result<Item>> objects =
