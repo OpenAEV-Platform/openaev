@@ -61,10 +61,7 @@ public class EmailContract extends Contractor {
     // Contracts
     ContractExpectations expectationsField =
         expectationsField(
-            List.of(),
-            List.of(
-                this.expectationBuilderService.buildTextExpectation(),
-                this.expectationBuilderService.buildManualExpectation()));
+            List.of(), List.of(this.expectationBuilderService.buildManualExpectation()));
     ContractConfig contractConfig = getConfig();
     // Standard contract
     List<ContractElement> standardInstance =
