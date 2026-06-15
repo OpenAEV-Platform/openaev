@@ -62,7 +62,7 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     }
   });
 
-  test('should be able to install an injector in a tenant', async ({ page }) => {
+  test('should be able to install an external injector in a new tenant', async ({ page }) => {
     expect(newTenantId).not.toBeNull();
     // ─────────────────────────────────────────────────
     // Step - Install Nmap Injector from the Catalog in Tenant A
@@ -139,3 +139,4 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     await expect(page.getByText(NMAP_INJECTOR_NAME)).toBeHidden();
   });
 });
+
