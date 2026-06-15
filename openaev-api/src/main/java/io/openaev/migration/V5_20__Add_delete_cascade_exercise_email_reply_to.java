@@ -12,11 +12,32 @@ public class V5_20__Add_delete_cascade_exercise_email_reply_to extends BaseJavaM
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute(
-          "ALTER TABLE exercise_mails_reply_to DROP CONSTRAINT IF EXISTS fk_exercise_id");
+          """
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conname = 'fk_exercise_id'
+            ) THEN
+              ALTER TABLE exercise_mails_reply_to DROP CONSTRAINT fk_exercise_id;
+            END IF;
+          END $$;
+          """);
+
       statement.execute(
-          "ALTER TABLE exercise_mails_reply_to "
-              + "ADD CONSTRAINT fk_exercise_id "
-              + "FOREIGN KEY (exercise_id) REFERENCES exercises(exercise_id) ON DELETE CASCADE");
+          """
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conname = 'fk_exercise_id'
+            ) THEN
+              ALTER TABLE exercise_mails_reply_to
+                ADD CONSTRAINT fk_exercise_id
+                FOREIGN KEY (exercise_id) REFERENCES exercises(exercise_id) ON DELETE CASCADE;
+            END IF;
+          END $$;
+          """);
     }
   }
 }
