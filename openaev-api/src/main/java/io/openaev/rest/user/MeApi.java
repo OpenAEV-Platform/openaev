@@ -69,7 +69,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/profile")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
@@ -84,7 +85,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/information")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
@@ -97,7 +99,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/password")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
       throws InputValidationException {
     User user =

@@ -114,7 +114,8 @@ public class UserApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "The user was not found")
       })
   @PostMapping("/api/reset")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
     userService.requestPasswordReset(input);
@@ -132,7 +133,8 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/reset/{token}")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
