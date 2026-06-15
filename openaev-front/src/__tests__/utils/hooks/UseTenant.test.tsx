@@ -388,7 +388,7 @@ describe('useTenant', () => {
       expect(mockFetchUserTenants).toHaveBeenCalledTimes(2);
     });
 
-    it('given_reloadCalled_should_keepCurrentUrlTenant', async () => {
+    it('given_reloadCalledWithTenantId_should_navigateToThatTenant', async () => {
       // Arrange — URL points to ALPHA so setTenant is called during init
       mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
@@ -400,18 +400,49 @@ describe('useTenant', () => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
 
-      // Arrange — reload with an updated list (auto-switch is disabled)
+      // Arrange — reload returns a list that includes GAMMA
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
+      mockBuildTenantUrl.mockClear();
 
-      // Act
+      // Act — explicitly request a switch to GAMMA
+      await act(async () => {
+        await result.current.reloadUserTenants(TENANT_GAMMA.tenant_id);
+      });
+
+      // Assert — navigates to GAMMA (full page nav since URL is on ALPHA)
+      expect(mockBuildTenantUrl).toHaveBeenCalledWith(
+        TENANT_GAMMA.tenant_id,
+        expect.any(String),
+      );
+      expect(window.location.href).toContain(TENANT_GAMMA.tenant_id);
+    });
+
+    it('given_reloadCalledWithoutTenantId_should_keepCurrentUrlTenant', async () => {
+      // Arrange — URL points to BETA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_BETA.tenant_id);
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
+      const useTenant = await importUseTenant();
+
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+      });
+
+      // Arrange — reload returns updated list, no preferred tenant ID passed
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
+      mockBuildTenantUrl.mockClear();
+
+      // Act — reload without specifying a tenant (e.g. after creating a tenant without auto-switch)
       await act(async () => {
         await result.current.reloadUserTenants();
       });
 
-      // Assert — stays on the current URL tenant (ALPHA), no auto-switch
+      // Assert — stays on URL tenant (BETA), no navigation triggered
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
       });
+      expect(mockBuildTenantUrl).not.toHaveBeenCalled();
     });
   });
 
