@@ -552,6 +552,15 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
+  public void delete(String simulationId) {
+    existsByIdAndTenantId(simulationId);
+    exerciseRepository.deleteById(simulationId);
+  }
+  /**
+   * Delete a simulation
+   *
+   * @param simulationId ID of the simulation to delete
+   */
   public void deleteById(String simulationId) {
     exerciseRepository.deleteById(simulationId);
   }

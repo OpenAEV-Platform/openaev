@@ -566,8 +566,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExercise(@PathVariable String exerciseId) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
-    exerciseRepository.delete(exercise);
+    exerciseService.delete(exerciseId);
   }
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
