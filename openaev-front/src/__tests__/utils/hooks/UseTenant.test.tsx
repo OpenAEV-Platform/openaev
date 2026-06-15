@@ -388,7 +388,7 @@ describe('useTenant', () => {
       expect(mockFetchUserTenants).toHaveBeenCalledTimes(2);
     });
 
-    it('given_reloadWithPreferredTenantId_should_navigateToPreferredTenant', async () => {
+    it('given_reloadCalled_should_keepCurrentUrlTenant', async () => {
       // Arrange — URL points to ALPHA so setTenant is called during init
       mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
@@ -400,44 +400,15 @@ describe('useTenant', () => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
 
-      // Arrange — reload with a preferred tenant
+      // Arrange — reload with an updated list (auto-switch is disabled)
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
 
       // Act
       await act(async () => {
-        await result.current.reloadUserTenants(TENANT_GAMMA.tenant_id);
+        await result.current.reloadUserTenants();
       });
 
-      // Assert — navigateToTenant triggers a full page navigation (skips setTenant)
-      expect(mockBuildTenantUrl).toHaveBeenCalledWith(
-        TENANT_GAMMA.tenant_id,
-        expect.any(String),
-      );
-      expect(window.location.href).toContain(TENANT_GAMMA.tenant_id);
-    });
-
-    it('given_reloadWithNonexistentPreferredId_should_fallbackToFirstTenant', async () => {
-      // Arrange — URL points to ALPHA so setTenant is called during init
-      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
-      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
-      const useTenant = await importUseTenant();
-
-      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
-
-      await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
-      });
-
-      // Arrange — reload with a nonexistent preferred tenant
-      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
-
-      // Act
-      await act(async () => {
-        await result.current.reloadUserTenants('nonexistent-id');
-      });
-
-      // Assert — should fall back to first tenant since preferred doesn't exist
-      // and URL has no tenant (mockExtractTenantFromUrl returns null)
+      // Assert — stays on the current URL tenant (ALPHA), no auto-switch
       await waitFor(() => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
