@@ -48,7 +48,6 @@ public class PermissionServiceTest extends IntegrationTest {
   @Mock private WorkflowService workflowService;
   @Mock private StepService stepService;
   @Mock private ConditionService conditionService;
-  @Mock private NotificationRuleService notificationRuleService;
   @Mock private InjectorContractService injectorContractService;
 
   @InjectMocks private PermissionService permissionService;
@@ -436,6 +435,7 @@ public class PermissionServiceTest extends IntegrationTest {
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
+
   public void given_workflowWithParentSimulation_should_allowAccessWhenGranted() {
     String workflowId = "workflowId";
     String simulationId = "simulationId";
@@ -516,7 +516,8 @@ public class PermissionServiceTest extends IntegrationTest {
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), conditionId, ResourceType.CONDITION, Action.WRITE));
-=======
+  }
+
   public void test_hasPermission_create_notificationRule_WHEN_has_read_grant_on_scenario() {
     // Given: a user with a READ grant on the parent scenario
     String scenarioId = "scenario-123";
