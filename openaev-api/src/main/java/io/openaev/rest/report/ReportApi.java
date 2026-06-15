@@ -5,12 +5,12 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Report;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.report.form.ReportInjectCommentInput;
 import io.openaev.rest.report.form.ReportInput;
-import io.openaev.rest.report.model.Report;
 import io.openaev.rest.report.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
