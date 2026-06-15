@@ -69,7 +69,7 @@ const useTenant = (me: User | undefined, logged: unknown) => {
     return true;
   }, [setTenant, location]);
 
-  const loadUserTenants = useCallback(async (newCurrentTenantId?: string) => {
+  const loadUserTenants = useCallback(async () => {
     if (!me) return;
 
     try {
@@ -80,9 +80,6 @@ const useTenant = (me: User | undefined, logged: unknown) => {
         setUserTenants(tenants);
 
         // If a preferred tenant is requested, switch to it
-        if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
-          return;
-        }
         // Resolve tenant from URL (per-tab, multi-tab safe).
         // Falls back to the first tenant in the list (post-login / public pages).
         const urlTenantId = extractTenantFromUrl();
@@ -105,8 +102,7 @@ const useTenant = (me: User | undefined, logged: unknown) => {
 
   useEffect(() => {
     if (me && logged) {
-      const urlTenantId = extractTenantFromUrl() ?? undefined;
-      loadUserTenants(urlTenantId);
+      loadUserTenants();
     }
   }, [me, logged, loadUserTenants]);
 
