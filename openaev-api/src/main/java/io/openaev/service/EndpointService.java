@@ -706,17 +706,18 @@ public class EndpointService {
       String tenantId)
       throws IOException {
     String extension =
-        switch (platform.toLowerCase()) {
+        switch (platform.toLowerCase(Locale.ROOT)) {
           case "windows" -> "ps1";
           case "linux", "macos" -> "sh";
-          default -> throw new UnsupportedOperationException("");
+          default ->
+              throw new UnsupportedOperationException("Unsupported agent platform: " + platform);
         };
 
     // Cache the raw script template per platform/script: the content only depends on static
     // configuration (origin + version), and this method is called from the agent-registration
     // transaction - without the cache every registration could trigger an HTTP download from
     // JFrog while holding the DB transaction open
-    String cacheKey = platform.toLowerCase() + "/" + file;
+    String cacheKey = platform.toLowerCase(Locale.ROOT) + "/" + file;
     String template = agentScriptTemplateCache.get(cacheKey);
     if (template == null) {
       template = loadAgentScriptTemplate(platform, file, extension);
@@ -743,7 +744,7 @@ public class EndpointService {
       throws IOException {
     InputStream in = null;
     String filename;
-    String resourcePath = "/openaev-agent/" + platform.toLowerCase() + "/";
+    String resourcePath = "/openaev-agent/" + platform.toLowerCase(Locale.ROOT) + "/";
 
     if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = file + "-" + version + "." + extension;

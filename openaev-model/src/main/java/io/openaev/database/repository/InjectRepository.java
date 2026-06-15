@@ -117,7 +117,7 @@ public interface InjectRepository
               + "      JOIN injects child2 ON child2.inject_id = d2.inject_children_id "
               + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract "
               + "      WHERE c2.injector_contract_updated_at > :from "
-              + ")"
+              + ") "
               + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
