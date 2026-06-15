@@ -1,6 +1,6 @@
 import { HomeWorkOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import PaginatedList from '../../../../components/common/list/PaginatedList';
@@ -11,10 +11,8 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type TenantOutput } from '../../../../utils/api-types';
-import NoAccess from '../../../../utils/permissions/NoAccess';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import SecurityMenu from '../../settings/SecurityMenu';
 import useTenants from './hooks/useTenants';
 import TenantCreate from './tenant/TenantCreate';
@@ -31,10 +29,6 @@ import {
 const Tenants = () => {
   // Standard hooks
   const { t } = useFormatter();
-  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
-  const ability = useContext(AbilityContext);
-  const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
-
   const {
     tenants,
     setTenantList,
@@ -51,10 +45,6 @@ const Tenants = () => {
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT, buildSearchPagination({ sorts: TENANT_SORTS }));
   const headers = useMemo(() => getTenantHeaders(t), [t]);
-
-  if (!isMultiTenancyEnabled || !canAccessTenants) {
-    return <NoAccess />;
-  }
 
   return (
     <div style={{ display: 'flex' }}>
