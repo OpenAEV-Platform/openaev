@@ -705,22 +705,27 @@ public class EndpointService {
       String serviceNameOrPrefix,
       String tenantId)
       throws IOException {
-    String extension =
+    // Validate the platform and map it to a fixed directory plus script extension. Mapping to
+    // literal values (rather than reusing the raw platform string) keeps user-controlled data out
+    // of the resource path resolved in loadAgentScriptTemplate (avoids java/path-injection).
+    String platformDir =
         switch (platform.toLowerCase(Locale.ROOT)) {
-          case "windows" -> "ps1";
-          case "linux", "macos" -> "sh";
+          case "windows" -> "windows";
+          case "linux" -> "linux";
+          case "macos" -> "macos";
           default ->
               throw new UnsupportedOperationException("Unsupported agent platform: " + platform);
         };
+    String extension = "windows".equals(platformDir) ? "ps1" : "sh";
 
     // Cache the raw script template per platform/script: the content only depends on static
     // configuration (origin + version), and this method is called from the agent-registration
     // transaction - without the cache every registration could trigger an HTTP download from
     // JFrog while holding the DB transaction open
-    String cacheKey = platform.toLowerCase(Locale.ROOT) + "/" + file;
+    String cacheKey = platformDir + "/" + file;
     String template = agentScriptTemplateCache.get(cacheKey);
     if (template == null) {
-      template = loadAgentScriptTemplate(platform, file, extension);
+      template = loadAgentScriptTemplate(platformDir, file, extension);
       agentScriptTemplateCache.put(cacheKey, template);
     }
 
@@ -740,11 +745,11 @@ public class EndpointService {
         .replace("${OPENAEV_TENANT_ID}", tenantId);
   }
 
-  private String loadAgentScriptTemplate(String platform, String file, String extension)
+  private String loadAgentScriptTemplate(String platformDir, String file, String extension)
       throws IOException {
     InputStream in = null;
     String filename;
-    String resourcePath = "/openaev-agent/" + platform.toLowerCase(Locale.ROOT) + "/";
+    String resourcePath = "/openaev-agent/" + platformDir + "/";
 
     if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = file + "-" + version + "." + extension;
