@@ -145,7 +145,15 @@ const ConnectorInstanceForm = ({
     return 'Create';
   };
 
-  const formatFieldType = (configurationType: CatalogConnectorConfiguration['connector_configuration_type'], configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'], isEnum: boolean, defaultValue?: unknown): ContractType => {
+  // Threshold above which a STRING field renders as a multiline textarea instead of a single-line input
+  const TEXTAREA_DEFAULT_LENGTH_THRESHOLD = 100;
+
+  const formatFieldType = (
+    configurationType: CatalogConnectorConfiguration['connector_configuration_type'],
+    configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'],
+    isEnum: boolean,
+    defaultValue?: unknown,
+  ): ContractType => {
     if (isEnum) {
       return 'choice';
     }
@@ -158,7 +166,7 @@ const ConnectorInstanceForm = ({
     if (configurationType == 'INTEGER') {
       return 'number';
     }
-    if (configurationType == 'STRING' && typeof defaultValue === 'string' && defaultValue.length > 100) {
+    if (configurationType == 'STRING' && typeof defaultValue === 'string' && defaultValue.length > TEXTAREA_DEFAULT_LENGTH_THRESHOLD) {
       return 'textarea';
     }
     return 'text';
