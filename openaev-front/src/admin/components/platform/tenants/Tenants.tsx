@@ -35,10 +35,6 @@ const Tenants = () => {
   const ability = useContext(AbilityContext);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
-  if (!isMultiTenancyEnabled || !canAccessTenants) {
-    return <NoAccess />;
-  }
-
   const {
     tenants,
     setTenantList,
@@ -55,6 +51,10 @@ const Tenants = () => {
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT, buildSearchPagination({ sorts: TENANT_SORTS }));
   const headers = useMemo(() => getTenantHeaders(t), [t]);
+
+  if (!isMultiTenancyEnabled || !canAccessTenants) {
+    return <NoAccess />;
+  }
 
   return (
     <div style={{ display: 'flex' }}>

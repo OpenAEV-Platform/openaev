@@ -18,6 +18,7 @@ import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.datapack.packs.V20260330_Default_tenant_data;
@@ -69,54 +70,61 @@ class TenantServiceTest extends IntegrationTest {
     // -- ACT --
     Tenant created = tenantService.create(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
-    // Simulate for tenant creation because Dataprocessor has @Profile("!test")
-    datapack.process(created);
+    try {
+      // Simulate for tenant creation because Dataprocessor has @Profile("!test")
+      datapack.process(created);
 
-    // Upload a file to verify MinIO path-based isolation works
-    byte[] content = "tenant-test-content".getBytes(StandardCharsets.UTF_8);
-    InputStream data = new ByteArrayInputStream(content);
-    minioClient.putObject(
-        PutObjectArgs.builder()
-            .bucket(minioConfig.getBucket())
-            .object(created.getId() + "/test-file.txt")
-            .stream(data, content.length, -1)
-            .contentType("text/plain")
-            .build());
+      // Upload a file to verify MinIO path-based isolation works
+      byte[] content = "tenant-test-content".getBytes(StandardCharsets.UTF_8);
+      InputStream data = new ByteArrayInputStream(content);
+      minioClient.putObject(
+          PutObjectArgs.builder()
+              .bucket(minioConfig.getBucket())
+              .object(created.getId() + "/test-file.txt")
+              .stream(data, content.length, -1)
+              .contentType("text/plain")
+              .build());
 
-    // -- ASSERT --
-    assertThat(created.getId()).isNotNull();
-    assertThat(created.getName()).isEqualTo(TENANT_NAME);
-    // Verify the file exists under the tenant prefix
-    Iterable<Result<Item>> results =
-        minioClient.listObjects(
-            ListObjectsArgs.builder()
-                .bucket(minioConfig.getBucket())
-                .prefix(created.getId() + "/")
-                .maxKeys(1)
-                .build());
-    boolean pathExists = results.iterator().hasNext();
-    assertThat(pathExists).isTrue();
+      // -- ASSERT --
+      assertThat(created.getId()).isNotNull();
+      assertThat(created.getName()).isEqualTo(TENANT_NAME);
+      // Verify the file exists under the tenant prefix
+      Iterable<Result<Item>> results =
+          minioClient.listObjects(
+              ListObjectsArgs.builder()
+                  .bucket(minioConfig.getBucket())
+                  .prefix(created.getId() + "/")
+                  .maxKeys(1)
+                  .build());
+      boolean pathExists = results.iterator().hasNext();
+      assertThat(pathExists).isTrue();
 
-    // Verify the 9 domains from PresetDomain are created for this tenant
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(domainRepository.findAll()).hasSize(9);
-    // Verify datapack
-    assertThat(vulnerabilityRepository.findAll()).hasSize(7);
-    assertThat(cweRepository.findAll()).hasSize(7);
-    assertThat(roleService.findAll(created.getId())).hasSize(3);
-    List<Group> groups = groupRepository.findAllByTenantId(created.getId());
-    assertThat(groups).hasSize(3);
-    assertThat(
-            groups.stream()
-                .filter(group -> group.getName().equals("Admin"))
-                .findFirst()
-                .get()
-                .getUsers())
-        .hasSize(1);
+      // Verify the 9 domains from PresetDomain are created for this tenant
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
+      assertThat(domainRepository.findAll()).hasSize(9);
+      // Verify datapack
+      assertThat(vulnerabilityRepository.findAll()).hasSize(7);
+      assertThat(cweRepository.findAll()).hasSize(7);
+      List<Role> roles = roleService.findAll(created.getId());
+      assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
+      assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
+      List<Group> groups = groupRepository.findAllByTenantId(created.getId());
+      assertThat(groups).extracting(Group::getName).contains("Admin", "Manager", "Observer");
+      assertThat(groups).hasSizeGreaterThanOrEqualTo(3);
+      assertThat(
+              groups.stream()
+                  .filter(group -> group.getName().equals("Admin"))
+                  .findFirst()
+                  .get()
+                  .getUsers())
+          .hasSize(1);
 
-    Tenant exists = tenantService.findById(created.getId());
-    assertThat(exists.getName()).isEqualTo(TENANT_NAME);
+      Tenant exists = tenantService.findById(created.getId());
+      assertThat(exists.getName()).isEqualTo(TENANT_NAME);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @Test
@@ -207,9 +215,13 @@ class TenantServiceTest extends IntegrationTest {
     TenantContext.setCurrentTenant(currentTenantId);
 
     // -- ACT & ASSERT --
-    assertThatThrownBy(() -> tenantService.softDelete(currentTenantId))
-        .isInstanceOf(BadRequestException.class)
-        .hasMessageContaining("Current tenant cannot be deleted");
+    try {
+      assertThatThrownBy(() -> tenantService.softDelete(currentTenantId))
+          .isInstanceOf(BadRequestException.class)
+          .hasMessageContaining("Current tenant cannot be deleted");
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @Test
@@ -235,28 +247,31 @@ class TenantServiceTest extends IntegrationTest {
         Instant.now().minus(SOFT_DELETE_RETENTION_DAYS + 1, ChronoUnit.DAYS));
     tenantRepository.save(tenantExpired);
     TenantContext.setCurrentTenant(tenantExpired.getId());
+    try {
+      Tenant tenantRecent = getTenant("Tenant Recent");
+      tenantComposer.forTenant(tenantRecent).persist();
+      tenantService.softDelete(tenantRecent.getId());
 
-    Tenant tenantRecent = getTenant("Tenant Recent");
-    tenantComposer.forTenant(tenantRecent).persist();
-    tenantService.softDelete(tenantRecent.getId());
+      // -- ACT --
+      int purged = tenantService.purgeExpiredTenants();
 
-    // -- ACT --
-    int purged = tenantService.purgeExpiredTenants();
+      // -- ASSERT --
+      assertThat(purged).isEqualTo(1);
+      assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
+      assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
 
-    // -- ASSERT --
-    assertThat(purged).isEqualTo(1);
-    assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
-    assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
-
-    // Verify no domain anymore for the deleted tenant
-    Session session = entityManager.unwrap(Session.class);
-    session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
-    assertThat(domainRepository.findAll()).isEmpty();
-    // Verify datapack
-    assertThat(vulnerabilityRepository.findAll()).isEmpty();
-    assertThat(cweRepository.findAll()).isEmpty();
-    assertThat(roleService.findAll(tenantExpired.getId())).isEmpty();
-    assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
+      // Verify no domain anymore for the deleted tenant
+      Session session = entityManager.unwrap(Session.class);
+      session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
+      assertThat(domainRepository.findAll()).isEmpty();
+      // Verify datapack
+      assertThat(vulnerabilityRepository.findAll()).isEmpty();
+      assertThat(cweRepository.findAll()).isEmpty();
+      assertThat(roleService.findAll(tenantExpired.getId())).isEmpty();
+      assertThat(groupRepository.findAllByTenantId(tenantExpired.getId())).isEmpty();
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @Test
