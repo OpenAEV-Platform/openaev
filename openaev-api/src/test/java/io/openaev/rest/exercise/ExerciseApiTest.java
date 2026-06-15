@@ -638,9 +638,7 @@ public class ExerciseApiTest extends IntegrationTest {
           exerciseRepository.findById(exerciseSaved.getId()).isPresent(),
           "Exercise should be deleted");
       assertTrue(
-          exerciseTeamUserRepository
-              .rawByExerciseIds(List.of(exerciseSaved.getId()))
-              .isEmpty(),
+          exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseSaved.getId())).isEmpty(),
           "Exercise team users should be cascade-deleted");
     }
 
