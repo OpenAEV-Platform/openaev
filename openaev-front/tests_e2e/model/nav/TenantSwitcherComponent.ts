@@ -17,7 +17,10 @@ class TenantSwitcherComponent {
   async openSwitcher(_currentTenantName?: string): Promise<void> {
     const switcher = this.page.getByTestId('tenant-switcher');
 
-    await switcher.waitFor({ state: 'visible', timeout: TIMEOUT });
+    await switcher.waitFor({
+      state: 'visible',
+      timeout: TIMEOUT,
+    });
     await switcher.click();
 
     await this.page.locator('.MuiPopover-root').last().waitFor({
