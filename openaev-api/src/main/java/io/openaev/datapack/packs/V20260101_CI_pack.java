@@ -26,7 +26,6 @@ public class V20260101_CI_pack extends DataPack {
   private final ChannelRepository channelRepository;
   private final ArticleRepository articleRepository;
   private final ChallengeRepository challengeRepository;
-  private final ChallengeFlagRepository challengeFlagRepository;
   private final PayloadCreationService payloadCreationService;
   private final PayloadRepository payloadRepository;
 
@@ -36,7 +35,6 @@ public class V20260101_CI_pack extends DataPack {
       ChannelRepository channelRepository,
       ArticleRepository articleRepository,
       ChallengeRepository challengeRepository,
-      ChallengeFlagRepository challengeFlagRepository,
       PayloadCreationService payloadCreationService,
       PayloadRepository payloadRepository) {
     super(dataPackService);
@@ -44,7 +42,6 @@ public class V20260101_CI_pack extends DataPack {
     this.channelRepository = channelRepository;
     this.articleRepository = articleRepository;
     this.challengeRepository = challengeRepository;
-    this.challengeFlagRepository = challengeFlagRepository;
     this.payloadCreationService = payloadCreationService;
     this.payloadRepository = payloadRepository;
   }
@@ -62,6 +59,9 @@ public class V20260101_CI_pack extends DataPack {
       return true;
     } catch (Exception e) {
       log.error("CI DataPack — failed to inject seed data", e);
+      org.springframework.transaction.interceptor.TransactionAspectSupport
+          .currentTransactionStatus()
+          .setRollbackOnly();
       return false;
     }
   }
@@ -81,7 +81,7 @@ public class V20260101_CI_pack extends DataPack {
               input.setFirstname(p.firstname());
               input.setLastname(p.lastname());
               playerService.createPlayer(input);
-              log.info("CI DataPack — player created: {}", p.email());
+              log.info("CI DataPack — ensured player exists: {}", p.email());
             });
   }
 
@@ -171,16 +171,17 @@ public class V20260101_CI_pack extends DataPack {
               Challenge challenge = new Challenge();
               challenge.setUpdateAttributes(input);
               List<ChallengeFlag> flags =
-                  input.flags().stream()
-                      .map(
-                          fi -> {
-                            ChallengeFlag cf = new ChallengeFlag();
-                            cf.setType(FLAG_TYPE.valueOf(fi.getType()));
-                            cf.setValue(fi.getValue());
-                            cf.setChallenge(challenge);
-                            return cf;
-                          })
-                      .toList();
+                  new java.util.ArrayList<>(
+                      input.flags().stream()
+                          .map(
+                              fi -> {
+                                ChallengeFlag cf = new ChallengeFlag();
+                                cf.setType(FLAG_TYPE.valueOf(fi.getType()));
+                                cf.setValue(fi.getValue());
+                                cf.setChallenge(challenge);
+                                return cf;
+                              })
+                          .toList());
               challenge.setFlags(flags);
 
               challengeRepository.save(challenge);

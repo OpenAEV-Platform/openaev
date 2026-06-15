@@ -12,7 +12,6 @@ import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.user.PlayerService;
 import io.openaev.service.DataPackService;
 import jakarta.persistence.EntityManager;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +40,6 @@ public class V20260101_CI_packTest extends IntegrationTest {
   @Autowired private ChannelRepository channelRepository;
   @Autowired private ArticleRepository articleRepository;
   @Autowired private ChallengeRepository challengeRepository;
-  @Autowired private ChallengeFlagRepository challengeFlagRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private PayloadCreationService payloadCreationService;
   @Autowired private EntityManager entityManager;
@@ -54,7 +52,6 @@ public class V20260101_CI_packTest extends IntegrationTest {
         channelRepository,
         articleRepository,
         challengeRepository,
-        challengeFlagRepository,
         payloadCreationService,
         payloadRepository);
   }
@@ -89,15 +86,23 @@ public class V20260101_CI_packTest extends IntegrationTest {
 
     var playerEmails =
         userRepository.rawAllPlayers().stream().map(RawPlayer::getUser_email).toList();
-    assertThat(playerEmails).containsAll(CI_PLAYER_EMAILS);
+    var ciPlayerEmails = playerEmails.stream().filter(CI_PLAYER_EMAILS::contains).toList();
+    assertThat(ciPlayerEmails).containsExactlyInAnyOrderElementsOf(CI_PLAYER_EMAILS);
+    assertEquals(1, channelRepository.count());
     assertEquals(3, articleRepository.count());
     assertEquals(4, challengeRepository.count());
+    assertEquals(
+        4,
+        StreamSupport.stream(payloadRepository.findAll().spliterator(), false)
+            .filter(p -> p.getName() != null && p.getName().startsWith("CI — "))
+            .count());
   }
 
   private void verifyPlayersCreated() {
-    List<RawPlayer> players = userRepository.rawAllPlayers();
-    var playerEmails = players.stream().map(RawPlayer::getUser_email).toList();
-    assertThat(playerEmails).containsAll(CI_PLAYER_EMAILS);
+    var playerEmails =
+        userRepository.rawAllPlayers().stream().map(RawPlayer::getUser_email).toList();
+    var ciPlayerEmails = playerEmails.stream().filter(CI_PLAYER_EMAILS::contains).toList();
+    assertThat(ciPlayerEmails).containsExactlyInAnyOrderElementsOf(CI_PLAYER_EMAILS);
   }
 
   private void verifyArticlesCreated() {
