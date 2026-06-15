@@ -4,6 +4,12 @@ import os from 'node:os';
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
+import EndpointListPage from '../../model/assets/EndpointListPage';
+import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
+import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
+import LeftMenuComponent from '../../model/LeftMenuComponent';
+import ThreatArsenalFormComponent from '../../model/threat-arsenals/ThreatArsenalFormComponent';
+import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
 import { tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -51,29 +57,24 @@ test.describe('Agent implant registration', () => {
 
     // Create the threat arsenal payload (Command Line for the current platform)
     await page.goto(tenantUrl('/admin'));
-    await page.getByRole('menuitem', { name: 'Threat Arsenal' }).click();
-    await page.waitForURL('**/threat-arsenal**');
-    await page.getByRole('button', { name: 'Add' }).click();
+    const leftMenu = new LeftMenuComponent(page);
+    await leftMenu.goToThreatArsenal();
 
-    // Fill General tab
-    await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
-    await page.getByRole('combobox', { name: 'Domains' }).click();
-    await page.getByRole('option', { name: 'Endpoint' }).click();
+    const threatArsenalList = new ThreatArsenalListPage(page);
+    await threatArsenalList.waitForLoad();
+    await threatArsenalList.openCreateThreatArsenal();
 
-    // Switch to Commands tab
-    await page.getByRole('tab', { name: 'Commands' }).click();
-    await page.getByRole('combobox', { name: 'Type *' }).click();
-    await page.getByRole('option', { name: 'Command Line' }).click();
-    await page.getByRole('combobox', { name: 'Platforms' }).click();
-    await page.getByRole('option', { name: platform }).click();
+    const threatArsenalForm = new ThreatArsenalFormComponent(page);
+    await threatArsenalForm.nameField.fill(payloadName);
+    await threatArsenalForm.selectDomain('Endpoint');
+    await threatArsenalForm.switchToCommandsTab();
+    await threatArsenalForm.selectCommandType('Command Line');
+    await threatArsenalForm.selectPlatform(platform);
     const executor = platform === 'Windows' ? 'PowerShell' : 'Bash';
-    await page.getByRole('combobox', { name: 'Executor *' }).click();
-    await page.getByRole('option', { name: executor }).click();
-    await page.locator('textarea[name="command_content"]').fill(`echo ${echoToken}`);
-
-    // Save the payload
-    await page.getByRole('tab', { name: 'General' }).click();
-    await page.getByRole('button', { name: 'Create' }).click();
+    await threatArsenalForm.selectExecutor(executor);
+    await threatArsenalForm.commandField.fill(`echo ${echoToken}`);
+    await threatArsenalForm.switchToGeneralTab();
+    await threatArsenalForm.save();
     await expect(page.getByText('The element has been successfully created')).toBeVisible();
 
     await context.close();
@@ -96,9 +97,9 @@ test.describe('Agent implant registration', () => {
     // Poll the endpoints UI until the agent registers (up to 150 s)
     await expect(async () => {
       await page.goto(tenantUrl('/admin/assets/endpoints'));
-      await page.waitForURL('**/assets/endpoints**');
-      const endpointRow = page.getByRole('listitem').filter({ hasText: hostname });
-      await expect(endpointRow).toBeVisible();
+      const endpointList = new EndpointListPage(page);
+      await endpointList.waitForLoad();
+      await expect(endpointList.getEndpointByHostname(hostname)).toBeVisible();
     }).toPass({
       intervals: [5_000],
       timeout: 150_000,
@@ -108,30 +109,18 @@ test.describe('Agent implant registration', () => {
   test('create and launch atomic test with payload on registered endpoint', async ({ page }) => {
     // Navigate to Atomic Testings
     await page.goto(tenantUrl('/admin/atomic_testings'));
-    await page.waitForURL('**/atomic_testings**');
+    const atomicTestingList = new AtomicTestingListPage(page);
+    await atomicTestingList.waitForLoad();
+    await atomicTestingList.openCreateAtomicTesting();
 
-    // Open the create atomic test drawer
-    await page.getByRole('button', { name: 'Add' }).click();
-
-    // Search and select the payload we created
-    await page.getByPlaceholder('Search these results...').first().fill(payloadName);
-    await page.getByText(payloadName).first().click();
-
-    // Add the registered endpoint as a target
-    await page.getByRole('button', { name: 'Modify assets' }).click();
-    await page.getByText(hostname, { exact: false }).first().click();
-    await page.getByRole('button', { name: 'Update' }).click();
-
-    // Submit the atomic test creation
-    await page.getByTestId('inject-form-submit-button').click();
-
-    // Wait for navigation to the atomic testing detail page
-    await page.waitForURL('**/atomic_testings/**');
+    // Fill and submit the atomic test form
+    const atomicTestingForm = new AtomicTestingFormComponent(page);
+    await atomicTestingForm.searchAndSelectPayload(payloadName);
+    await atomicTestingForm.selectAsset(hostname);
+    await atomicTestingForm.submit();
 
     // Launch the atomic test
-    await page.getByRole('button', { name: /Launch now/i }).click();
-    // Confirm the launch dialog
-    await page.getByRole('button', { name: /Confirm/i }).click();
+    await atomicTestingForm.launch();
 
     // Wait for the agent to execute and send back results (up to 240s)
     await expect(async () => {
