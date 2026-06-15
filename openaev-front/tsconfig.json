@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    // noEmit is true so TS doesn't produce JS output; Vite/esbuild handles transpilation and browser compat
+    // we can target ESNext as Vite handles transpilation and browser compat
     "target": "ESNext",
     "lib": [
       "dom",
