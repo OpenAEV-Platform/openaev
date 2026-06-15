@@ -175,12 +175,6 @@ public class TenantService {
     if (Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
       throw new BadRequestException("Default tenant cannot be deleted: " + tenantId);
     }
-
-    String currentTenantId = TenantContext.getCurrentTenant();
-    if (Objects.equals(tenantId, currentTenantId)) {
-      throw new BadRequestException("Current tenant cannot be deleted: " + tenantId);
-    }
-
     Tenant tenant = findById(tenantId);
     if (tenant.getDeletedAt() != null) {
       throw new BadRequestException("Tenant is already deleted: " + tenantId);
