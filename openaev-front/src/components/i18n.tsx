@@ -4,9 +4,9 @@ import { type IntlShape, useIntl } from 'react-intl';
 
 import { bytesFormat, numberFormat } from '../utils/number';
 
-export const isNone = (date: moment.MomentInput) => {
+export const isNone = (date: Parameters<IntlShape['formatDate']>[0]) => {
   if (!date) return true;
-  const parsedDate = moment(date).format();
+  const parsedDate = moment(date as moment.MomentInput).format();
   return (
     parsedDate.startsWith('Invalid')
     || parsedDate.startsWith('1970')
@@ -23,13 +23,9 @@ const inject18n = <P extends object>(WrappedComponent: ComponentType<P>) => {
       if (number === null || number === '') {
         return '-';
       }
-      return `${numberFormat(number).number}${
-        numberFormat(number).symbol
-      }`;
+      return `${numberFormat(number).number}${numberFormat(number).symbol}`;
     };
-    const formatBytes = (number: number) => `${bytesFormat(number).number}${
-      bytesFormat(number).symbol
-    }`;
+    const formatBytes = (number: number) => `${bytesFormat(number).number}${bytesFormat(number).symbol}`;
     const longDate = (date: Parameters<IntlShape['formatDate']>[0]) => {
       if (isNone(date)) {
         return translate('None');
@@ -181,13 +177,9 @@ export const useFormatter = () => {
       return '-';
     }
     const t = numberFormat(number).number;
-    return `${t}${
-      numberFormat(number).symbol
-    }`;
+    return `${t}${numberFormat(number).symbol}`;
   };
-  const formatBytes = (number: number) => `${bytesFormat(number).number}${
-    bytesFormat(number).symbol
-  }`;
+  const formatBytes = (number: number) => `${bytesFormat(number).number}${bytesFormat(number).symbol}`;
   const longDate = (date: Parameters<IntlShape['formatDate']>[0]) => {
     if (isNone(date)) {
       return translate('None');
