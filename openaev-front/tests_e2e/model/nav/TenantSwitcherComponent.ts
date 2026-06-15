@@ -33,7 +33,7 @@ class TenantSwitcherComponent {
    *
    * @param currentTenantName  The displayed name of the active tenant.
    */
-  async openSwitcher(currentTenantName: string): Promise<void> {
+  async  openSwitcher(currentTenantName: string): Promise<void> {
     await this.expandIfCollapsed();
     const tenantMenuItemByName = this.page.getByRole('menuitem').filter({ hasText: currentTenantName }).first();
     const tenantMenuItemByIcon = this.page
