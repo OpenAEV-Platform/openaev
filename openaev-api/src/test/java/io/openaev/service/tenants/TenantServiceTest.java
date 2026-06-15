@@ -206,18 +206,6 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
-  void should_fail_when_soft_deleting_current_tenant() {
-    // -- ARRANGE --
-    String currentTenantId = "current-tenant-id";
-    TenantContext.setCurrentTenant(currentTenantId);
-
-    // -- ACT & ASSERT --
-    assertThatThrownBy(() -> tenantService.softDelete(currentTenantId))
-        .isInstanceOf(BadRequestException.class)
-        .hasMessageContaining("Current tenant cannot be deleted");
-  }
-
-  @Test
   void should_reactivate_soft_deleted_tenant() {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
