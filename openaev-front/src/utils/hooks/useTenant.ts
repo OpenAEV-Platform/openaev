@@ -79,7 +79,7 @@ const useTenant = (me: User | undefined, logged: unknown) => {
       if (tenants && tenants.length > 0) {
         setUserTenants(tenants);
 
-        // If a preferred tenant is explicitly requested, switch to it
+        // If a preferred tenant is requested, switch to it
         if (newCurrentTenantId && navigateToTenant(newCurrentTenantId, tenants)) {
           return;
         }
