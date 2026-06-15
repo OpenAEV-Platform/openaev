@@ -1,12 +1,10 @@
-package io.openaev.rest.report.model;
+package io.openaev.database.model;
 
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.model.Base;
-import io.openaev.database.model.Exercise;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;

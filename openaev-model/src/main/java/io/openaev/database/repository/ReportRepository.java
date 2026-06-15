@@ -1,7 +1,7 @@
-package io.openaev.rest.report.repository;
+package io.openaev.database.repository;
 
-import io.openaev.rest.report.model.Report;
-import io.openaev.rest.report.model.ReportInjectComment;
+import io.openaev.database.model.Report;
+import io.openaev.database.model.ReportInjectComment;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
