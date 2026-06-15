@@ -15,9 +15,9 @@ import { simplePostCall } from '../../../utils/Action';
 import { type License, type PlatformSettings } from '../../../utils/api-types';
 import { daysBetweenDates } from '../../../utils/Time';
 import { zodImplement } from '../../../utils/Zod';
+import { LICENSE_OPTION_TRIAL } from './constants';
 import TopBanner, { type TopBannerColor } from './TopBanner';
 
-export const LICENSE_OPTION_TRIAL = 'trial';
 const TRIAL_YELLOW_DAYS = 8;
 const TRIAL_GREEN_DAYS = 22;
 interface ContactUsInput { message: string }

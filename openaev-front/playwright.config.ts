@@ -62,9 +62,16 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+      },
     },
     {
       name: 'Google Chrome',
+      // Infra tests may have side-effects on the host machine (e.g. installing an agent)
+      // and are run separately via playwright.infra.chromium_config.ts
+      testIgnore: /infra\/.*/,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',

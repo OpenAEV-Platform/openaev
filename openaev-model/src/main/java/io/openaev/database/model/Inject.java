@@ -148,8 +148,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @OneToMany(
       mappedBy = "compositeId.injectChildren",
       fetch = FetchType.EAGER,
-      orphanRemoval = true,
-      cascade = CascadeType.ALL)
+      cascade = {CascadeType.MERGE, CascadeType.PERSIST})
   @JsonProperty("inject_depends_on")
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<InjectDependency> dependsOn = new ArrayList<>();

@@ -74,7 +74,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
@@ -103,12 +103,13 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
     Map<String, String> executorCommands =
         OpenaevImplantCommandBuilder.buildExecutorCommands(openAEVConfig);
     Map<String, String> executorClearCommands =
         OpenaevImplantCommandBuilder.buildExecutorClearCommands();
     injectorService.registerBuiltinInjector(
+        tenantId,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME,
         openAEVImplantContract,

@@ -19,6 +19,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
@@ -129,6 +130,7 @@ public class ExerciseService {
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
@@ -620,6 +622,7 @@ public class ExerciseService {
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
+      urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
@@ -1146,18 +1149,23 @@ public class ExerciseService {
 
       // we ignore manual expectation
       if (ExpectationType.HUMAN_RESPONSE.equals(type)) {
-        break;
+        continue;
       }
 
       ExpectationResultsByType secondLastSimulationResultsByType =
           secondLastSimulationResultsMap.get(type);
+
+      // if the second simulation has no result for this type, skip
+      if (secondLastSimulationResultsByType == null) {
+        continue;
+      }
 
       // we ignore if one of the 2 expectation is still PENDING
       if (InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               lastSimulationResultsByType.avgResult())
           || InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               secondLastSimulationResultsByType.avgResult())) {
-        break;
+        continue;
       }
 
       float lastSimulationScore =

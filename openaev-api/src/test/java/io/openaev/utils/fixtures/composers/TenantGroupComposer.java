@@ -52,7 +52,8 @@ public class TenantGroupComposer extends ComposerBase<Group> {
     @Override
     public TenantGroupComposer.Composer delete() {
       grantComposers.forEach(GrantComposer.Composer::delete);
-      groupRepository.deleteByIdNative(group.getId());
+      group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
+      groupRepository.delete(group);
       roleComposers.forEach(TenantRoleComposer.Composer::delete);
       return null;
     }

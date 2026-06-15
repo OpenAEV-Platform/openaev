@@ -1257,7 +1257,14 @@ export interface ConditionCreateInput {
   /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
-  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_subtype?:
+    | "port"
+    | "ipv4"
+    | "ipv6"
+    | "username"
+    | "password"
+    | "service"
+    | "host";
   /** Path to the value in the output of the step from */
   condition_key_type?:
     | "execution_time"
@@ -1315,7 +1322,14 @@ export interface ConditionCreateInput {
 export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
-  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_subtype?:
+    | "port"
+    | "ipv4"
+    | "ipv6"
+    | "username"
+    | "password"
+    | "service"
+    | "host";
   condition_key_type?:
     | "execution_time"
     | "step_template_id"
@@ -2952,6 +2966,7 @@ export interface Executor {
   /** @format date-time */
   executor_created_at: string;
   executor_doc?: string;
+  executor_external?: boolean;
   /** @minLength 1 */
   executor_id: string;
   /** @minLength 1 */
@@ -2961,7 +2976,6 @@ export interface Executor {
   executor_type: string;
   /** @format date-time */
   executor_updated_at: string;
-  external?: boolean;
   listened?: boolean;
 }
 
@@ -5451,6 +5465,25 @@ export interface PageInjectTestStatusOutput {
   totalPages?: number;
 }
 
+export interface PageInjectorContractBaseOutput {
+  content?: InjectorContractBaseOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageKillChainPhase {
   content?: KillChainPhase[];
   empty?: boolean;
@@ -6328,6 +6361,7 @@ export interface PlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
+    | "URL_ACCESS_TOKEN"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6599,6 +6633,7 @@ export interface PublicPlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
+    | "URL_ACCESS_TOKEN"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -7261,6 +7296,18 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+/** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
+export interface ScopeAssetOutput {
+  /** External reference of the asset */
+  asset_external_reference?: string;
+  /** ID of the asset */
+  asset_id?: string;
+  /** Name of the asset */
+  asset_name?: string;
+  /** Type of the asset (Endpoint, SecurityPlatform, …) */
+  asset_type?: string;
 }
 
 /** Input for a scope variable attached to a workflow. */
@@ -8393,6 +8440,7 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
+  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */

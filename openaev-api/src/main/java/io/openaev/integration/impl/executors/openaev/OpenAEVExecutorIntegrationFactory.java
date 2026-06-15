@@ -56,7 +56,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
@@ -75,7 +75,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
     try {
       executorService.executor(OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID);
     } catch (ElementNotFoundException e) {
@@ -91,7 +91,8 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
             Endpoint.PLATFORM_TYPE.Windows.name(),
             Endpoint.PLATFORM_TYPE.Linux.name(),
             Endpoint.PLATFORM_TYPE.MacOS.name()
-          });
+          },
+          false);
     }
   }
 }

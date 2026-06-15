@@ -57,7 +57,7 @@ public class OpenCTIJwtAuthenticationTest extends IntegrationTest {
   void setUp() throws Exception {
     userComposer.reset();
     tokenComposer.reset();
-    manualInjectorIntegrationFactory.registerConnectorForTenant();
+    manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
   }
 
   private Stream<Arguments> authorizationOpenCTI() throws Exception {

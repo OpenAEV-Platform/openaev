@@ -121,6 +121,11 @@ public class TenantService {
     return tenantRepository.findTenantsByUserId(userId);
   }
 
+  @Transactional(readOnly = true)
+  public List<String> findActiveTenantIds() {
+    return tenantRepository.findAllIdsByDeletedAtIsNull();
+  }
+
   /** Counts the number of active (non-soft-deleted) tenants. */
   @Transactional(readOnly = true)
   public long countActiveTenants() {

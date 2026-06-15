@@ -74,13 +74,13 @@ public class UserMappingServiceTest extends IntegrationTest {
       List<String> roles = List.of("observer");
 
       // -- ACT & ASSERT --
-      assertThat(user.getGroups().size()).isEqualTo(0);
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
       userMappingService.mapCurrentUserWithGroup(null, user, roles);
-      assertThat(user.getGroups().size()).isEqualTo(0);
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
       userMappingService.mapCurrentUserWithGroup("", user, roles);
-      assertThat(user.getGroups().size()).isEqualTo(0);
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
       userMappingService.mapCurrentUserWithGroup("   ", user, roles);
-      assertThat(user.getGroups().size()).isEqualTo(0);
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
     }
   }
 
@@ -109,7 +109,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
     // -- ASSERT --
-    assertTrue(user.getGroups().contains(specificGroup));
+    assertTrue(user.getUnscopedGroups().contains(specificGroup));
   }
 
   @Test
@@ -130,7 +130,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
     // -- ASSERT --
-    Group userGroup = user.getGroups().get(0);
+    Group userGroup = user.getUnscopedGroups().get(0);
     assertTrue(userGroup.getName().equals("admin"));
   }
 
@@ -151,7 +151,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
     // -- ASSERT --
-    assertThat(user.getGroups().size()).isEqualTo(0);
+    assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
   }
 
   @Test
@@ -178,7 +178,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
     // -- ASSERT --
-    assertThat(user.getGroups().size()).isEqualTo(0);
+    assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
   }
 
   @Test
@@ -205,8 +205,8 @@ public class UserMappingServiceTest extends IntegrationTest {
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
     // -- ASSERT --
-    assertThat(user.getGroups().size()).isEqualTo(1);
-    assertThat(user.getGroups().getFirst().getName()).isEqualTo("admin2");
+    assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+    assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("admin2");
   }
 
   @Test
@@ -229,7 +229,7 @@ public class UserMappingServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
     User user = UserFixture.getUser();
-    user.getGroups().addAll(List.of(specificGroup1, specificGroup2));
+    user.getUnscopedGroups().addAll(List.of(specificGroup1, specificGroup2));
     userComposer.forUser(user).persist();
     entityManager.flush();
     entityManager.clear();
@@ -239,8 +239,8 @@ public class UserMappingServiceTest extends IntegrationTest {
     userMappingService.mapCurrentUserWithGroup(object, user, roles);
 
     // -- ASSERT --
-    assertThat(user.getGroups().size()).isEqualTo(1);
-    assertThat(user.getGroups().getFirst().getName()).isEqualTo("observerOAEV1");
+    assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+    assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("observerOAEV1");
   }
 
   @Nested

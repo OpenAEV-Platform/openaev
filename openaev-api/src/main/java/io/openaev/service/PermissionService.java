@@ -217,6 +217,10 @@ public class PermissionService {
       Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
       return new Target(inject.getParentResourceId(), inject.getParentResourceType(), parentAction);
     } else if (resourceType == ResourceType.NOTIFICATION_RULE) {
+      // For CREATE, resourceId is the parent scenario ID (notification rule doesn't exist yet)
+      if (Action.CREATE.equals(action)) {
+        return new Target(resourceId, ResourceType.SCENARIO, Action.READ);
+      }
       NotificationRule notificationRule =
           notificationRuleService
               .findById(resourceId)

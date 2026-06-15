@@ -10,6 +10,7 @@ import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 import { api } from '../../../network';
+import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import installChatbotCsrf from './installChatbotCsrf';
 
@@ -161,6 +162,11 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
       apiEndpoints={{
         agents: '/agents',
         messages: '/messages',
+        // Mid-run steering — must be set explicitly because the chatbot
+        // default ('/chat/messages/steer') assumes XTM One-style paths,
+        // while the OpenAEV proxy exposes '/messages/steer' relative to
+        // its '/api/xtmone/chat' base.
+        steer: '/messages/steer',
         sessions: '/sessions',
         upload: '/upload',
         download: '/files',
@@ -177,6 +183,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
       onWidthChange={onWidthChange}
       onResizeStart={onResizeStart}
       onResizeEnd={onResizeEnd}
+      onTaskComplete={(_title, body) => MESSAGING$.notifySuccess(body)}
     />,
     container,
   );

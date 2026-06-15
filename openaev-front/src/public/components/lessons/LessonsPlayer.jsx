@@ -66,7 +66,7 @@ const LessonsPlayer = (props) => {
   };
   const sortCategories = R.sortWith([R.ascend(R.prop('lessons_category_order'))]);
   const sortQuestions = R.sortWith([R.ascend(R.prop('lessons_question_order'))]);
-  const sortedCategories = sortCategories(R.filter(n => n.lessons_category_users.includes(source.finalUserId), lessonsCategories));
+  const sortedCategories = sortCategories(lessonsCategories);
 
   const initialValues = R.pipe(R.map(n => ({
     [`${n.lessons_answer_question}_score`]: n.lessons_answer_score || 0,

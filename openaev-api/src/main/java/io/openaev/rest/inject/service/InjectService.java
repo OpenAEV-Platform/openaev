@@ -104,6 +104,7 @@ public class InjectService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
   private final InjectRepository injectRepository;
+  private final InjectDependenciesRepository injectDependenciesRepository;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;

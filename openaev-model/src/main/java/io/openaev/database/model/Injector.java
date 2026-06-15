@@ -94,6 +94,7 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       })
+  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
 
