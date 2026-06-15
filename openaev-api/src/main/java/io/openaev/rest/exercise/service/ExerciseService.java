@@ -552,10 +552,13 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
+  @Transactional
   public void delete(String simulationId) {
     existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
+
   /**
    * Delete a simulation
    *

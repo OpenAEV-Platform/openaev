@@ -62,6 +62,7 @@ public class AgentService {
     return agentsSaved;
   }
 
+  @Transactional
   public void deleteAgent(@NotBlank final String agentId) {
     this.agentRepository.deleteByAgentId(agentId);
   }

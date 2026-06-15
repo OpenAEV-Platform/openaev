@@ -60,6 +60,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -71,6 +72,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class ExerciseApi extends RestBehavior {
@@ -564,7 +566,6 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackFor = Exception.class)
   public void deleteExercise(@PathVariable String exerciseId) {
     exerciseService.delete(exerciseId);
   }
