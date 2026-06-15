@@ -171,7 +171,11 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
             injects.stream().map(Inject::getId).collect(Collectors.toSet()));
     return toList(
         results.stream()
-            .map(r -> new Complex<>(new CoverageResult(r.type().name(), (int) Math.round(r.getSuccessRate() * 100))))
+            .map(
+                r ->
+                    new Complex<>(
+                        new CoverageResult(
+                            r.type().name(), (int) Math.round(r.getSuccessRate() * 100))))
             .toList());
   }
 
