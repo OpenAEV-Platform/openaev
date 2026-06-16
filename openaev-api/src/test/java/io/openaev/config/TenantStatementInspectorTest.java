@@ -250,20 +250,61 @@ class TenantStatementInspectorTest {
     assertFalse(out.contains("can_access_tenant(g.tenant_id, true)"), out);
   }
 
+  // --- INSERT --------------------------------------------------------------
+
+  @Test
+  @DisplayName("an INSERT ... SELECT filters its source query")
+  void insertSelectFiltersSource() {
+    String out = inspect("INSERT INTO documents (id, x) SELECT f.id, f.x FROM findings f");
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... VALUES passes through (write-side tenant assignment is the listener's)")
+  void insertValuesPassesThrough() {
+    assertFalse(inspect("INSERT INTO documents (id) VALUES (1)").contains("can_access_tenant"));
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query inside INSERT ... VALUES is filtered")
+  void insertValuesSubqueryFiltered() {
+    String out = inspect("INSERT INTO documents (id) VALUES ((SELECT max(f.x) FROM findings f))");
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("the INSERT target table is left intact (not wrapped)")
+  void insertTargetStaysIntact() {
+    String out = inspect("INSERT INTO documents (id, x) SELECT f.id, f.x FROM findings f");
+    assertTrue(out.contains("INSERT INTO documents"), out);
+    assertFalse(out.contains("can_access_tenant(documents"), out);
+  }
+
+  @Test
+  @DisplayName("an INSERT ... ON CONFLICT DO NOTHING passes")
+  void insertOnConflictDoNothingPasses() {
+    assertDoesNotThrow(
+        () ->
+            inspector.inspect("INSERT INTO documents (id) VALUES (1) ON CONFLICT (id) DO NOTHING"));
+  }
+
+  @Test
+  @DisplayName("an INSERT ... ON CONFLICT DO UPDATE on a tenant table is rejected (fail-closed)")
+  void insertOnConflictDoUpdateFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () ->
+            inspector.inspect(
+                "INSERT INTO documents (id, x) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET x = 2"));
+  }
+
   // --- Fail-closed ---------------------------------------------------------
 
   @Test
   @DisplayName("unparseable SQL is rejected (fail-closed)")
   void unparseableFailsClosed() {
     assertThrows(TenantFilteringException.class, () -> inspector.inspect("NOT SQL AT ALL ;;;"));
-  }
-
-  @Test
-  @DisplayName("an INSERT is rejected (fail-closed)")
-  void insertFailsClosed() {
-    assertThrows(
-        TenantFilteringException.class,
-        () -> inspector.inspect("INSERT INTO documents (id) VALUES (1)"));
   }
 
   @Test
