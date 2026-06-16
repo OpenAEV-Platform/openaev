@@ -151,6 +151,6 @@ class StepServiceScenarioIntegrationTest {
                         ? workflow.getWorkflowTemplate().getId()
                         : null))
         .findFirst()
-        .orElseThrow(() -> new AssertionError("Workflow END not find"));
+        .orElseThrow(() -> new AssertionError("Workflow END not found"));
   }
 }
