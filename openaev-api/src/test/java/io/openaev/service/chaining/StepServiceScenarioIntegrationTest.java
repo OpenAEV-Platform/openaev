@@ -138,7 +138,7 @@ class StepServiceScenarioIntegrationTest {
         .filter(workflow -> WorkflowStatus.TEMPLATE.equals(workflow.getStatus()))
         .filter(workflow -> !workflow.getId().equals(sourceTemplateId))
         .findFirst()
-        .orElseThrow(() -> new AssertionError("New Workflow TEMPLATE not find"));
+        .orElseThrow(() -> new AssertionError("New Workflow TEMPLATE not found"));
   }
 
   private Workflow findEndedWorkflowRun(List<Workflow> workflows, String templateId) {
