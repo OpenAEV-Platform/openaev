@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo, type MouseEvent, useState } from 'react';
 
-import { useFormatter } from '../../../../../components/i18n';
+import { useFormatter } from '../../../../../../components/i18n';
 
 export type EventNodeData = Node<{
   label: string;
@@ -41,7 +41,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
     <div
       style={{
         border: `1px solid ${theme.palette.warning.main}50`,
-        borderRadius: 8,
+        borderRadius: theme.spacing(1),
         padding: '12px 16px',
         background: `${theme.palette.warning.main}14`,
         minWidth: 180,

@@ -1,7 +1,7 @@
 import { Close, InfoOutlined } from '@mui/icons-material';
 import { Box, Button, IconButton, Typography } from '@mui/material';
 
-import { useFormatter } from '../../../../components/i18n';
+import { useFormatter } from '../../../../../components/i18n';
 
 interface AddActionFooterProps {
   numberOfSelectedElements: number;

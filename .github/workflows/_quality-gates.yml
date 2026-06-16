@@ -13,10 +13,6 @@ name: "Quality Gates"
 on:
   workflow_call:
     inputs:
-      is-pr:
-        description: "Whether this run is triggered by a pull request (true/false)."
-        type: boolean
-        default: false
       upload-codecov:
         description: "Upload coverage reports to Codecov and save artifacts"
         type: boolean
@@ -149,14 +145,53 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/e2e-tests
         with:
-          is-pr: ${{ inputs.is-pr }}
           playwright-config: ${{ matrix.playwright-config }}
           browser: ${{ matrix.browser }}
+
+  e2e-infra-tests:
+    name: "🧪 E2E Infra (${{ matrix.arch }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux-only: these tests start service containers via `docker run`,
+        # and Docker is not available on GitHub-hosted Windows/macOS runners.
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/e2e-tests
+        with:
+          playwright-config: playwright.infra.chromium_config.ts
+          browser: chromium
 
   api-types-check:
     name: "🔎 API Types Check"
@@ -185,7 +220,8 @@ jobs:
 
   codecov:
     name: "📊 Coverage Merge & Upload"
-    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
+    needs:
+      [api-tests, frontend-quality, e2e-tests, e2e-infra-tests, api-types-check]
     # Always run so partial coverage (e.g. backend+frontend) is still
     # uploaded even when one upstream job fails or is cancelled.
     if: ${{ !cancelled() }}
@@ -328,31 +364,64 @@ jobs:
 
   # ──────────────────────────────────────────────────────────────────
   # Gate: fail the workflow if ANY quality gate job failed.
+  #
+  # ⚠️  IMPORTANT: This job is a REQUIRED status check in the GitHub
+  #     branch-protection rules for merging PRs.
+  #     • Do NOT remove this job.
+  #     • Do NOT rename the job key ("quality-status") or its display
+  #       name ("🚦 Quality Status") — the branch-protection rule
+  #       references it by name.
+  #     • When adding a new quality gate job, add it to the `needs`
+  #       list AND the failure check below.
   # ──────────────────────────────────────────────────────────────────
   quality-status:
     name: "🚦 Quality Status"
     needs:
-      [spotless-check, frontend-quality, api-tests, e2e-tests, api-types-check]
+      [
+        spotless-check,
+        frontend-quality,
+        api-tests,
+        e2e-tests,
+        e2e-infra-tests,
+        api-types-check,
+      ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
       - name: Check all quality gate results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          echo "spotless-check:   ${{ needs.spotless-check.result }}"
-          echo "frontend-quality: ${{ needs.frontend-quality.result }}"
-          echo "api-tests:        ${{ needs.api-tests.result }}"
-          echo "e2e-tests:        ${{ needs.e2e-tests.result }}"
-          echo "api-types-check:  ${{ needs.api-types-check.result }}"
+          FAILED=0
+          TOTAL=0
 
-          if [[ "${{ needs.spotless-check.result }}" == "failure" ]] ||
-             [[ "${{ needs.frontend-quality.result }}" == "failure" ]] ||
-             [[ "${{ needs.api-tests.result }}" == "failure" ]] ||
-             [[ "${{ needs.e2e-tests.result }}" == "failure" ]] ||
-             [[ "${{ needs.api-types-check.result }}" == "failure" ]]; then
-            echo ""
-            echo "❌ One or more quality gates failed"
+          echo "══════════════════════════════════════════════════"
+          echo "  🚦  Quality Gate Results"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+
+          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
+            result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
+            TOTAL=$((TOTAL + 1))
+
+            case "$result" in
+              success)   icon="✅" ;;
+              failure)   icon="❌"; FAILED=$((FAILED + 1)) ;;
+              skipped)   icon="⏭️" ;;
+              cancelled) icon="🚫"; FAILED=$((FAILED + 1)) ;;
+              *)         icon="❓" ;;
+            esac
+
+            printf "  %s  %-30s %s\n" "$icon" "$job" "$result"
+          done
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ $FAILED/$TOTAL quality gate(s) failed"
             exit 1
           fi
-          echo ""
-          echo "✅ All quality gates passed"
+
+          echo "✅ All $TOTAL quality gates passed"
