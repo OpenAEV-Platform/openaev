@@ -45,7 +45,6 @@ public class ExecutionExecutorServiceTest {
   @Mock private InjectService injectService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
-  @Mock private ExecutorContextService executorContextService;
   @Mock private ManagerFactory managerFactory;
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
@@ -323,6 +322,11 @@ public class ExecutionExecutorServiceTest {
           .launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());
       verify(mockContextService)
           .launchExecutorSubprocess(eq(inject), any(Endpoint.class), any(), anyString());
+      // The agent count resolved at launch is persisted on the status so the COMPLETE callback
+      // path can decide completion without re-resolving the asset/agent graph.
+      ArgumentCaptor<InjectStatus> statusCaptor = ArgumentCaptor.forClass(InjectStatus.class);
+      verify(injectStatusRepository).save(statusCaptor.capture());
+      assertThat(statusCaptor.getValue().getExpectedAgentCount()).isEqualTo(1);
     }
 
     @Test
