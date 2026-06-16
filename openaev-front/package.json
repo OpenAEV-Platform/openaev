@@ -12,7 +12,7 @@
     "extract-translation": "node scripts/extract-i18n-keyword.js",
     "sort-translation": "node scripts/sort-translation-files.js",
     "i18n-checker": "npm run generate-i18n-checker-constant && node scripts/i18n-checker.js",
-    "generate-i18n-checker-constant": "tsc src/constants/Lang.ts --outDir scripts/constants --skipLibCheck --module ES6 --target ES6",
+    "generate-i18n-checker-constant": "tsc src/constants/Lang.ts --outDir scripts/constants --skipLibCheck --module ES6 --target ES6 --ignoreConfig",
     "start": "vite",
     "deprecated-start": "node builder/dev/dev.js",
     "build": "vite build",
@@ -146,7 +146,7 @@
     "monocart-coverage-reports": "2.12.12",
     "monocart-reporter": "2.11.2",
     "swagger-typescript-api": "13.12.2",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.61.0",
     "vite": "8.0.16",
     "vitest": "4.1.8"
