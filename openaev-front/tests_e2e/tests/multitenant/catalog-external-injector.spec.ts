@@ -13,23 +13,13 @@ import { TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 /**
- * End-to-end test: catalog multi-tenancy isolation.
- *
- * Prerequisites (full-stack environment required):
- *  - Enterprise Edition license active
- *  - Logged in as sadmin (admin@openaev.io)
- *  - Nmap catalog connector present in the catalog
- *  - For steps 3-4: a running Nmap collector agent connected via XTM Composer
- *
- * Flow:
- *  beforeEach: Navigate to Platform > Tenants management and create Tenant A
- *  3.  In Tenant A: go to Integrations > Catalog, deploy Nmap named "Nmap - Tenant A"
- *  4.  In Tenant A: open the deployed collector, click Start, wait for "Started" status
- *  5.  In Tenant A: go to Threat Arsenal, search "Nmap", verify contracts are present
- *  6.  Switch tenant to the default tenant via the left-bar tenant switcher
- *  7.  In default tenant: Integrations > Injectors — verify "Nmap - Tenant A" is absent
+ * End-to-end test: catalog injector installation per tenant.
  */
-test.describe('Catalog — multi-tenancy isolation', () => {
+test.describe('Catalog — injector installation per tenant', () => {
+  test.skip(
+    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
+    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
+  );
   const NMAP_INJECTOR_NAME = 'Nmap - Tenant A';
   let newTenantId: string | null = null;
   let tenantName: string;
@@ -46,6 +36,12 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     await tenantsPage.openCreateDrawer();
     await tenantsPage.fillTenantName(tenantName);
     await tenantsPage.submitCreate();
+
+    const tenantSwitcher = new TenantSwitcherComponent(page);
+    await tenantSwitcher.openSwitcher('Default');
+    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
+    await tenantSwitcher.selectTenantByName(tenantName);
+
     await page.waitForURL(
       url => !url.toString().includes(DEFAULT_TENANT_UUID),
       { timeout: TIMEOUT },

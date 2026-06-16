@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 import TenantApiHelpers from '../../api-helpers/TenantApiHelpers';
 import { test } from '../../fixtures';
 import InjectorsListPage from '../../model/integrations/InjectorsListPage';
+import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import { TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
@@ -11,12 +12,12 @@ const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
 
 /**
  * End-to-end tests: built-in connectors provisioned on new tenant creation.
- *
- * Prerequisites:
- *  - Enterprise Edition license active
- *  - MULTI_TENANCY feature flag enabled
  */
 test.describe('Multi-tenancy — built-in connectors', () => {
+  test.skip(
+    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
+    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
+  );
   let newTenantId: string | null = null;
 
   const BUILTIN_INJECTORS = [
@@ -50,8 +51,14 @@ test.describe('Multi-tenancy — built-in connectors', () => {
       'Enterprise Edition / multi-tenancy must be enabled: expected the tenant "Add" button to be visible.',
     ).toBeVisible({ timeout: TIMEOUT });
     await tenantsPage.openCreateDrawer();
-    await tenantsPage.fillTenantName(`Tenant Builtin E2E ${Date.now()}`);
+    const tenantName = `Tenant Builtin E2E ${Date.now()}`;
+    await tenantsPage.fillTenantName(tenantName);
     await tenantsPage.submitCreate();
+
+    const tenantSwitcher = new TenantSwitcherComponent(page);
+    await tenantSwitcher.openSwitcher('Default');
+    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
+    await tenantSwitcher.selectTenantByName(tenantName);
     await page.waitForURL(
       url => !url.toString().includes(DEFAULT_TENANT_UUID),
       { timeout: TIMEOUT },

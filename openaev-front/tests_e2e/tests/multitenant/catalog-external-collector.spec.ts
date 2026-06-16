@@ -3,18 +3,19 @@ import { expect } from '@playwright/test';
 import TenantApiHelpers from '../../api-helpers/TenantApiHelpers';
 import { test } from '../../fixtures';
 import CatalogPage from '../../model/integrations/CatalogPage';
+import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import { TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 /**
  * End-to-end test: install an external collector (Atomic Red Team) in a new tenant.
- *
- * Prerequisites (full-stack environment required):
- *  - Enterprise Edition license active
- *  - MULTI_TENANCY feature flag enabled
  */
 test.describe('Catalog — external collector deployment', () => {
+  test.skip(
+    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
+    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
+  );
   let newTenantId: string | null = null;
   let tenantName: string;
 
@@ -34,6 +35,11 @@ test.describe('Catalog — external collector deployment', () => {
     await tenantsPage.openCreateDrawer();
     await tenantsPage.fillTenantName(tenantName);
     await tenantsPage.submitCreate();
+
+    const tenantSwitcher = new TenantSwitcherComponent(page);
+    await tenantSwitcher.openSwitcher('Default');
+    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
+    await tenantSwitcher.selectTenantByName(tenantName);
 
     await page.waitForURL(
       url => !url.toString().includes(DEFAULT_TENANT_UUID),

@@ -9,13 +9,12 @@ import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 /**
  * End-to-end tests: multi-tenancy — tenant creation and the tenant switcher.
- *
- * Prerequisites (full-stack environment required):
- *  - Enterprise Edition license active
- *  - Logged in as admin (admin@openaev.io)
- *  - MULTI_TENANCY feature flag enabled
  */
 test.describe('Multi-tenancy — tenant management', () => {
+  test.skip(
+    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
+    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
+  );
   let newTenantId: string | null = null;
 
   test.afterEach(async ({ request }) => {
@@ -48,7 +47,13 @@ test.describe('Multi-tenancy — tenant management', () => {
     await tenantsPage.fillTenantName(tenantName);
     await tenantsPage.submitCreate();
 
-    // Assert: browser navigates into the new tenant (URL no longer contains DEFAULT_TENANT_UUID)
+    // ─────────────────────────────────────────────────
+    // Step 3 — Switch to the new tenant from the tenant switcher
+    // ─────────────────────────────────────────────────
+    const tenantSwitcher = new TenantSwitcherComponent(page);
+    await tenantSwitcher.openSwitcher('Default');
+    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
+    await tenantSwitcher.selectTenantByName(tenantName);
     await page.waitForURL(
       url => !url.toString().includes(DEFAULT_TENANT_UUID),
       { timeout: TIMEOUT },
@@ -63,7 +68,6 @@ test.describe('Multi-tenancy — tenant management', () => {
     // ─────────────────────────────────────────────────
     // Verify — Tenant switcher contains the expected tenants
     // ─────────────────────────────────────────────────
-    const tenantSwitcher = new TenantSwitcherComponent(page);
 
     // Open the switcher while in Tenant A
     await tenantSwitcher.openSwitcher(tenantName);
@@ -73,7 +77,7 @@ test.describe('Multi-tenancy — tenant management', () => {
     await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
 
     // ─────────────────────────────────────────────────
-    // Step 3 — Tenant switcher navigation
+    // Step 4 — Tenant switcher navigation
     // ─────────────────────────────────────────────────
     // Act: select Default from the open popover
     await tenantSwitcher.selectTenantByName('Default');
