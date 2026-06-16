@@ -7,6 +7,7 @@ import '@filigran/chatbot/styles.css';
 import './static/css/index.css';
 import './static/css/CKEditorDark.css';
 import './static/css/CKEditorLight.css';
+import '@filigran/ui/index.css'
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

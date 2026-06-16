@@ -8,6 +8,8 @@ import ResponsePie from '../../common/injects/ResponsePie';
 import AtomicTestingHeaderActions from './AtomicTestingHeaderActions';
 import AtomicTestingTabs from './AtomicTestingTabs';
 import AtomicTestingTitle from './AtomicTestingTitle';
+import {Button} from '@filigran/ui'
+//mport {Button} from '@filigran/ui/servers'
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
@@ -55,6 +57,7 @@ const AtomicTestingHeader = ({ injectResultOverview, setInjectResultOverview }: 
         <ResponsePie hasTitles={false} forceSize={112} expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
         <AtomicTestingHeaderActions injectResultOverview={injectResultOverview} setInjectResultOverview={setInjectResultOverview} />
       </div>
+      <Button onClick={() => alert('ddddd')}>TEST CORINNE</Button>
     </Box>
   );
 };

@@ -1,3 +1,21 @@
+:root {
+  --font-geologica: 'Geologica';
+  --font-ibm-plex-sans: 'IBM Plex Sans';
+}
+
+* {
+  font-family: var(--font-ibm-plex-sans), system-ui, sans-serif !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-geologica), system-ui, sans-serif !important;
+}
+
 * {
   scrollbar-width: thin;
 }
