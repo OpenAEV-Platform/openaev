@@ -198,17 +198,87 @@ class TenantStatementInspectorTest {
     assertFalse(out.contains("can_access_tenant(u."), out);
   }
 
+  // --- UPDATE / DELETE -----------------------------------------------------
+
+  @Test
+  @DisplayName("an UPDATE adds the tenant filter to its WHERE")
+  void updateWithWhereFiltered() {
+    String out = inspect("UPDATE documents d SET x = 1 WHERE d.id = ?");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE without a WHERE gets one with the tenant filter")
+  void updateWithoutWhereFiltered() {
+    String out = inspect("UPDATE documents SET x = 1");
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE on a non-tenant table is left untouched")
+  void updateNonTenantUntouched() {
+    assertFalse(inspect("UPDATE users SET x = 1 WHERE id = ?").contains("can_access_tenant"));
+  }
+
+  @Test
+  @DisplayName("an UPDATE with a tenant sub-query filters both the target and the sub-query")
+  void updateWhereSubqueryFiltered() {
+    String out = inspect("UPDATE documents d SET x = 1 WHERE d.y IN (SELECT f.y FROM findings f)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a DELETE adds the tenant filter to its WHERE")
+  void deleteFiltered() {
+    String out = inspect("DELETE FROM documents d WHERE d.id = ?");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a DELETE without an alias filters on the table name")
+  void deleteNoAliasFiltered() {
+    String out = inspect("DELETE FROM documents WHERE id = ?");
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a write to a dual-scope table does not reach platform rows (no allow_platform)")
+  void updateDualScopeTargetExcludesPlatform() {
+    String out = inspect("UPDATE groups g SET x = 1 WHERE g.id = ?");
+    assertTrue(out.contains("can_access_tenant(g.tenant_id)"), out);
+    assertFalse(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+  }
+
   // --- Fail-closed ---------------------------------------------------------
 
   @Test
   @DisplayName("unparseable SQL is rejected (fail-closed)")
   void unparseableFailsClosed() {
-    assertThrows(RuntimeException.class, () -> inspector.inspect("NOT SQL AT ALL ;;;"));
+    assertThrows(TenantFilteringException.class, () -> inspector.inspect("NOT SQL AT ALL ;;;"));
   }
 
   @Test
-  @DisplayName("a non-select statement is rejected (fail-closed)")
-  void updateFailsClosed() {
-    assertThrows(RuntimeException.class, () -> inspector.inspect("UPDATE documents SET x = 1"));
+  @DisplayName("an INSERT is rejected (fail-closed)")
+  void insertFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO documents (id) VALUES (1)"));
+  }
+
+  @Test
+  @DisplayName("an UPDATE ... FROM is rejected (fail-closed)")
+  void updateFromFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("UPDATE documents d SET x = 1 FROM findings f WHERE f.id = d.fid"));
+  }
+
+  @Test
+  @DisplayName("a DELETE ... USING is rejected (fail-closed)")
+  void deleteUsingFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("DELETE FROM documents d USING findings f WHERE f.id = d.fid"));
   }
 }
