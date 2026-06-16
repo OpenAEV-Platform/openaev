@@ -8,7 +8,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.sql.DataSource;
+import org.hibernate.cfg.AvailableSettings;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -33,6 +35,21 @@ public class TenantFilteringConfig {
       DataSource dataSource, @Value("${openaev.tenant.active-tables:}") List<String> activeTables) {
     List<String> allowlist = activeTables.stream().filter(name -> !name.isBlank()).toList();
     return deriveFromSchema(dataSource).restrictTo(allowlist);
+  }
+
+  @Bean
+  public TenantStatementInspector tenantStatementInspector(TenantTables tenantTables) {
+    return new TenantStatementInspector(tenantTables);
+  }
+
+  @Bean
+  public HibernatePropertiesCustomizer tenantStatementInspectorCustomizer(
+      TenantStatementInspector inspector) {
+    // putIfAbsent, not put: a test that wires its own statement_inspector (the capture probe) keeps
+    // it; production sets none, so ours is installed. The trade-off is that any other inspector set
+    // ahead of ours would silently displace it; TenantFilteringConfigTest pins ours as the one
+    // Hibernate runs, so that regression fails the build rather than disabling isolation silently.
+    return properties -> properties.putIfAbsent(AvailableSettings.STATEMENT_INSPECTOR, inspector);
   }
 
   static TenantTables deriveFromSchema(DataSource dataSource) {

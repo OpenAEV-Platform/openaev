@@ -1,11 +1,14 @@
 package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.persistence.EntityManagerFactory;
 import java.util.List;
 import javax.sql.DataSource;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,8 @@ import org.springframework.test.context.TestExecutionListeners;
 class TenantFilteringConfigTest {
 
   @Autowired private DataSource dataSource;
+  @Autowired private EntityManagerFactory entityManagerFactory;
+  @Autowired private TenantStatementInspector inspector;
 
   @Test
   @DisplayName("classifies tenant tables by the nullability of their tenant_id column")
@@ -57,5 +62,25 @@ class TenantFilteringConfigTest {
     TenantTables active = TenantFilteringConfig.deriveFromSchema(dataSource).restrictTo(List.of());
     assertTrue(active.strict().isEmpty());
     assertTrue(active.dualScope().isEmpty());
+  }
+
+  @Test
+  @DisplayName("the inspector is the one Hibernate runs (guards against another one displacing it)")
+  void inspectorIsRegisteredWithHibernate() {
+    // Guards the putIfAbsent trade-off: if any other statement_inspector were ever installed ahead
+    // of ours, isolation would silently switch off. This assertion fails the build instead.
+    assertSame(
+        inspector,
+        entityManagerFactory
+            .unwrap(SessionFactoryImplementor.class)
+            .getSessionFactoryOptions()
+            .getStatementInspector());
+  }
+
+  @Test
+  @DisplayName("with no active table the wired inspector passes statements through untouched")
+  void wiredInspectorIsInertByDefault() {
+    String sql = "SELECT * FROM documents d WHERE d.id = ?";
+    assertEquals(sql, inspector.inspect(sql));
   }
 }
