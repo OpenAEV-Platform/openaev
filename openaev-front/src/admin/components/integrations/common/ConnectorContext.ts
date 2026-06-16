@@ -32,7 +32,7 @@ export interface ConnectorContextType<T> {
   connectorCatalog?: CatalogConnectorOutput;
   connector?: ConnectorOutput;
   connectorInstance?: ConnectorInstanceOutput;
-  logoUrl: (_type: string) => string;
+  logoUrl: (injectorId: string) => string;
   apiRequest: {
     fetchAll: () => (dispatch: Dispatch) => Promise<T[]>;
     fetchSingle: (id: string) => (dispatch: Dispatch) => Promise<T>;
@@ -56,7 +56,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     list: '/admin/integrations/injectors',
     detail: (id: string) => `/admin/integrations/injectors/${id}`,
   },
-  logoUrl: (type: string) => buildTenantApiPath(`/api/images/injectors/${type}`),
+  logoUrl: ( injectorId: string) => buildTenantApiPath(`/api/images/injectors/id/${injectorId}`),
   normalizeSingle: data => ({
     id: data?.injector_id,
     name: data?.injector_name,
@@ -77,7 +77,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     fetchSingle: (id: string) => fetchCollector(id),
     getRelatedIds: (id: string) => fetchCollectorRelatedIds(id),
   },
-  logoUrl: (type: string) => buildTenantApiPath(`/api/images/collectors/${type}`),
+  logoUrl: (injectorId: string) => buildTenantApiPath(`/api/images/collectors/id/${injectorId}`),
   normalizeSingle: data => ({
     id: data?.collector_id,
     name: data?.collector_name,
@@ -106,7 +106,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     list: '/admin/integrations/executors',
     detail: (id: string) => `/admin/integrations/executors/${id}`,
   },
-  logoUrl: (type: string) => buildTenantApiPath(`/api/images/executors/icons/${type}`),
+  logoUrl: (injectorId:string) => buildTenantApiPath(`/api/images/executors/icons/id/i${injectorId}`),
   normalizeSingle: data => ({
     id: data?.executor_id,
     name: data?.executor_name,

@@ -4,7 +4,9 @@ import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
+import { fetchCollectors } from './actions/Collector';
 import { type LoggedHelper } from './actions/helper';
+import { fetchInjectors } from './actions/injectors/injector-action';
 import fetchPublicPlatformParameters from './actions/settings/platform-settings-action';
 import { fetchTenantSettings } from './actions/settings/tenant-settings-action';
 import EnterpriseEditionAgreementDialog from './admin/components/common/entreprise_edition/EnterpriseEditionAgreementDialog';
@@ -63,6 +65,8 @@ const Root = () => {
     if (logged && me) {
       dispatch(fetchPlatformParameters());
       dispatch(fetchTenantSettings());
+      dispatch(fetchInjectors());
+      dispatch(fetchCollectors());
     } else if (logged === null) {
       dispatch(fetchPublicPlatformParameters());
     }

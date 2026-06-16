@@ -311,29 +311,6 @@ public class DocumentApi extends RestBehavior {
 
   @GetMapping(
       value = {
-        INJECTOR_IMAGES_API + "/{injectorType}",
-        TENANT_INJECTOR_IMAGES_API + "/{injectorType}"
-      },
-      produces = MediaType.IMAGE_PNG_VALUE)
-  @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
-      throws IOException {
-    Injector injector =
-        this.injectorRepository
-            .findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant())
-            .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
-    Optional<InputStream> fileStream =
-        fileService.getInjectorImage(injector.getType(), injector.isExternal());
-    if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
-    }
-    return null;
-  }
-
-  @GetMapping(
-      value = {
         INJECTOR_IMAGES_API + "/id/{injectorId}",
         TENANT_INJECTOR_IMAGES_API + "/id/{injectorId}"
       },
@@ -347,29 +324,6 @@ public class DocumentApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
     Optional<InputStream> fileStream =
         fileService.getInjectorImage(injector.getType(), injector.isExternal());
-    if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
-    }
-    return null;
-  }
-
-  @GetMapping(
-      value = {
-        COLLECTOR_IMAGES_API + "/{collectorType}",
-        TENANT_COLLECTOR_IMAGES_API + "/{collectorType}"
-      },
-      produces = MediaType.IMAGE_PNG_VALUE)
-  @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
-      throws IOException {
-    Collector collector =
-        this.collectorRepository
-            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
-            .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
-    Optional<InputStream> fileStream =
-        fileService.getCollectorImage(collector.getType(), collector.isExternal());
     if (fileStream.isPresent()) {
       return ResponseEntity.ok()
           .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
