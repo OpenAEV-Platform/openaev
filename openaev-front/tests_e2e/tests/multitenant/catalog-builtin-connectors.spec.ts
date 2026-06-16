@@ -14,10 +14,11 @@ const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
  * End-to-end tests: built-in connectors provisioned on new tenant creation.
  */
 test.describe('Multi-tenancy — built-in connectors', () => {
-  test.skip(
-    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
-    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
-  );
+  const skipInCiWithoutLicense = Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE;
+  if (skipInCiWithoutLicense) {
+    return;
+  }
+
   let newTenantId: string | null = null;
 
   const BUILTIN_INJECTORS = [

@@ -16,10 +16,11 @@ import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
  * End-to-end test: catalog injector installation per tenant.
  */
 test.describe('Catalog — injector installation per tenant', () => {
-  test.skip(
-    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
-    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
-  );
+  const skipInCiWithoutLicense = Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE;
+  if (skipInCiWithoutLicense) {
+    return;
+  }
+
   const NMAP_INJECTOR_NAME = 'Nmap - Tenant A';
   let newTenantId: string | null = null;
   let tenantName: string;

@@ -12,10 +12,11 @@ import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
  * End-to-end test: install an external executor (Tanium) in a new tenant.
  */
 test.describe('Catalog — external executor deployment', () => {
-  test.skip(
-    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
-    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
-  );
+  const skipInCiWithoutLicense = Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE;
+  if (skipInCiWithoutLicense) {
+    return;
+  }
+
   let newTenantId: string | null = null;
   let tenantName: string;
 

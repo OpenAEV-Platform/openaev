@@ -28,10 +28,11 @@ const getOsPlatform = (): string => {
  * End-to-end test: OpenAEV agent executor running atomic test on a new tenant.
  */
 test.describe('Multi-tenancy — agent on new tenant', () => {
-  test.skip(
-    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
-    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
-  );
+  const skipInCiWithoutLicense = Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE;
+  if (skipInCiWithoutLicense) {
+    return;
+  }
+
   let newTenantId: string | null = null;
   let hostname: string;
   let agentUser: string;

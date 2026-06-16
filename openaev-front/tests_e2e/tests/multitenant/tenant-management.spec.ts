@@ -11,10 +11,11 @@ import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
  * End-to-end tests: multi-tenancy — tenant creation and the tenant switcher.
  */
 test.describe('Multi-tenancy — tenant management', () => {
-  test.skip(
-    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
-    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
-  );
+  const skipInCiWithoutLicense = Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE;
+  if (skipInCiWithoutLicense) {
+    return;
+  }
+
   let newTenantId: string | null = null;
 
   test.afterEach(async ({ request }) => {
