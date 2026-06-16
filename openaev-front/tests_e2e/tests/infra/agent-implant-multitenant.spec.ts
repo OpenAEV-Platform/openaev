@@ -25,18 +25,12 @@ const getOsPlatform = (): string => {
 
 /**
  * End-to-end test: OpenAEV agent executor running atomic test on a new tenant.
- *
- * Prerequisites:
- *  - Enterprise Edition license active
- *  - MULTI_TENANCY feature flag enabled
- *  - XTM Composer running
- *  - Elevated privileges (agent install requires root/sudo)
- *
- * NOTE: This test lives under tests/infra/ because it requires elevated
- * privileges and is run via playwright.infra.chromium_config.ts (excluded
- * from the default playwright.config.ts).
  */
 test.describe('Multi-tenancy — agent on new tenant', () => {
+  test.skip(
+      Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
+      'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
+  );
   let newTenantId: string | null = null;
   let hostname: string;
   let agentUser: string;

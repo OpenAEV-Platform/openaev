@@ -184,6 +184,7 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
