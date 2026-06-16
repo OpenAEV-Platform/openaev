@@ -8,9 +8,9 @@ import lombok.Setter;
 public class CoverageResult {
   private String name;
 
-  private double score;
+  private int score;
 
-  public CoverageResult(String name, double successRate) {
+  public CoverageResult(String name, int successRate) {
     this.name = name;
     this.score = successRate;
   }
