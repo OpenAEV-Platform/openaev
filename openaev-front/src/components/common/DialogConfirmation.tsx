@@ -1,6 +1,6 @@
 import { Button, Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -25,6 +25,11 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
 }) => {
   const { t } = useFormatter();
   const [loading, setLoading] = useState(false);
+
+  // Reset loading state whenever the dialog closes so the next opening starts fresh
+  useEffect(() => {
+    if (!open) setLoading(false);
+  }, [open]);
 
   const handleLoadingAndSubmit = () => {
     if (handleSubmit) {

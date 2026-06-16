@@ -7,6 +7,9 @@ import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -50,7 +53,10 @@ public class PermissionService {
           ResourceType.NOTIFICATION_RULE,
           ResourceType.INJECTOR_CONTRACT,
           ResourceType.OBJECTIVE,
-          ResourceType.EVALUATION);
+          ResourceType.EVALUATION,
+          ResourceType.WORKFLOW,
+          ResourceType.STEP,
+          ResourceType.CONDITION);
 
   private final GrantService grantService;
   private final InjectService injectService;
@@ -58,6 +64,9 @@ public class PermissionService {
   private final InjectorContractService injectorContractService;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
+  private final WorkflowService workflowService;
+  private final StepService stepService;
+  private final ConditionService conditionService;
 
   @Transactional
   public boolean hasPermission(
@@ -244,8 +253,33 @@ public class PermissionService {
       Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
       return new Target(
           evaluation.getParentResourceId(), evaluation.getParentResourceType(), parentAction);
+    } else if (resourceType == ResourceType.WORKFLOW) {
+      Workflow workflow = workflowService.findById(resourceId);
+      // delete/write on a workflow is treated as a write on its parent (simulation/scenario)
+      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+      return resolveWorkflowTarget(workflow, parentAction);
+    } else if (resourceType == ResourceType.STEP) {
+      Step step = stepService.findById(resourceId);
+      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+      return resolveWorkflowTarget(step.getWorkflow(), parentAction);
+    } else if (resourceType == ResourceType.CONDITION) {
+      Condition condition = conditionService.findConditionRootById(resourceId);
+      Workflow workflow = workflowService.findById(condition.getWorkflowId());
+      Action parentAction = (action == Action.READ) ? Action.READ : Action.WRITE;
+      return resolveWorkflowTarget(workflow, parentAction);
     }
     return new Target(resourceId, resourceType, action);
+  }
+
+  private Target resolveWorkflowTarget(Workflow workflow, Action parentAction) {
+    if (workflow.getSimulation() != null) {
+      return new Target(workflow.getSimulation().getId(), ResourceType.SIMULATION, parentAction);
+    }
+    if (workflow.getScenario() != null) {
+      return new Target(workflow.getScenario().getId(), ResourceType.SCENARIO, parentAction);
+    }
+    throw new ElementNotFoundException(
+        "Workflow has no associated simulation or scenario: " + workflow.getId());
   }
 
   /** Used to return Parent resource information */

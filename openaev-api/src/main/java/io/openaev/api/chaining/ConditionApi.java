@@ -61,7 +61,10 @@ public class ConditionApi extends RestBehavior {
     @ApiResponse(responseCode = "200", description = "Condition tree found"),
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#conditionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.CONDITION)
   @GetMapping("/{conditionId}")
   public EventOutput findById(@PathVariable String conditionId) {
     return toOutput(conditionService.findConditionRootById(conditionId));
@@ -71,7 +74,10 @@ public class ConditionApi extends RestBehavior {
       summary = "Get condition trees by workflow",
       description = "Lists all root conditions for a given workflow")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Condition trees retrieved")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW)
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
     return conditionService.findNonMapperConditionsByWorkflowId(workflowId).stream()
@@ -89,7 +95,10 @@ public class ConditionApi extends RestBehavior {
     @ApiResponse(responseCode = "400", description = "Invalid input"),
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#conditionId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.CONDITION)
   @PutMapping("/{conditionId}")
   public EventOutput update(
       @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
@@ -106,8 +115,9 @@ public class ConditionApi extends RestBehavior {
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
   @AccessControl(
+      resourceId = "#conditionId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+      resourceType = ResourceType.CONDITION)
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String conditionId) {
