@@ -62,7 +62,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
           connectorName: connector?.name || catalogConnector?.catalog_connector_title,
           connectorType: catalogConnector?.catalog_connector_type,
           connectorLogoName: connector?.type || catalogConnector?.catalog_connector_slug,
-          connectorLogoUrl: instance ? buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`) : logoUrl(connector?.type),
+          connectorLogoUrl: instance ? buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`) : logoUrl(connector?.id),
           connectorDescription: catalogConnector?.catalog_connector_description,
           isExternal: catalogConnector?.catalog_connector_manager_supported,
           isVerified: instance != null,

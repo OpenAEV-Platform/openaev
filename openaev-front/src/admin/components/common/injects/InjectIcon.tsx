@@ -3,8 +3,12 @@ import { useTheme } from '@mui/material/styles';
 import { ApplicationCogOutline, Console, FileImportOutline, LanConnect } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
+import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
+import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
 import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
+import { useHelper } from '../../../../store';
+import { type Collector, type Injector } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 interface Props {
@@ -33,6 +37,22 @@ const InjectIcon: FunctionComponent<Props> = ({
   const theme = useTheme();
   const fontSize = size || 'medium';
 
+  const { injectors } = useHelper((helper: InjectorHelper) => ({
+    injectors: helper.getInjectorsIncludingPending(),
+  }));
+
+  const { collectors } = useHelper((helper: CollectorHelper) => ({
+    collectors: helper.getCollectorsIncludingPending(),
+  }));
+
+  const resolvedInjectorId = (injectors as Injector[])?.find(
+    (inj: Injector) => inj.injector_type === type,
+  )?.injector_id;
+
+  const resolvedCollectorId = (collectors as Collector[])?.find(
+    (c: Collector) => c.collector_type === type,
+  )?.collector_id;
+
   const iconSelector = (type: string, isPayload: boolean, variant: string, fontSize: string, done: boolean, disabled: boolean) => {
     const style = {
       marginTop: variant === 'list' ? theme.spacing(0.5) : 0,
@@ -51,7 +71,12 @@ const InjectIcon: FunctionComponent<Props> = ({
     if (isPayload) {
       if (type.startsWith('openaev_')) {
         return (
-          <img onClick={onClick} src={buildTenantApiPath(`/api/images/collectors/${type}`)} alt={type} style={style} />
+          <img
+            onClick={onClick}
+            src={resolvedCollectorId ? buildTenantApiPath(`/api/images/collectors/id/${resolvedCollectorId}`) : undefined}
+            alt={type}
+            style={style}
+          />
         );
       }
       switch (type) {
@@ -71,7 +96,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     }
     return (
       <img
-        src={buildTenantApiPath(`/api/images/injectors/${type}`)}
+        src={resolvedInjectorId ? buildTenantApiPath(`/api/images/injectors/id/${resolvedInjectorId}`) : undefined}
         onClick={onClick}
         alt={type}
         style={style}
