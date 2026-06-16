@@ -1,6 +1,8 @@
 package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
@@ -72,6 +74,33 @@ class TenantIsolationExampleTest {
     setScope(TENANT_B);
     assertEquals(1, visibleExampleTags(), "tenant B's row is intact and still its own");
     assertEquals(TAG_B, theOnlyVisibleTag());
+  }
+
+  @Test
+  @DisplayName(
+      "a statement shape the filter cannot cover is refused on an active table (fail-closed)")
+  void unsupportedShapeOnActiveTableIsRefused() {
+    setScope(TENANT_A);
+    Throwable thrown =
+        assertThrows(
+            Exception.class,
+            () ->
+                entityManager
+                    .createNativeQuery(
+                        "DELETE FROM tags t USING tenants x WHERE x.tenant_id = t.tenant_id")
+                    .executeUpdate());
+    assertTrue(
+        causedByTenantFiltering(thrown),
+        "an un-filterable shape must fail closed via TenantFilteringException, got: " + thrown);
+  }
+
+  private static boolean causedByTenantFiltering(Throwable thrown) {
+    for (Throwable cause = thrown; cause != null; cause = cause.getCause()) {
+      if (cause instanceof TenantFilteringException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private int deleteTag(String id) {
