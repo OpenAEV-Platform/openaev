@@ -1,5 +1,10 @@
 package io.openaev.config;
 
+import io.openaev.database.model.DualScopeBase;
+import io.openaev.database.model.TenantBase;
+import jakarta.persistence.Table;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,6 +22,41 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
     DUAL
   }
 
+  /**
+   * Derives the tenant tables from the entity model: an entity implementing {@link DualScopeBase}
+   * is a dual-scope table, one implementing {@link TenantBase} is strict, others are ignored. The
+   * table name is read from the entity's {@code @Table}; a tenant-aware entity without one fails
+   * fast.
+   */
+  public static TenantTables fromEntities(Collection<? extends Class<?>> entities) {
+    Set<String> strict = new HashSet<>();
+    Set<String> dualScope = new HashSet<>();
+    for (Class<?> entity : entities) {
+      boolean dual = DualScopeBase.class.isAssignableFrom(entity);
+      boolean strictFamily = TenantBase.class.isAssignableFrom(entity);
+      if (!dual && !strictFamily) {
+        continue;
+      }
+      (dual ? dualScope : strict).add(tableName(entity));
+    }
+    return new TenantTables(strict, dualScope);
+  }
+
+  private static String tableName(Class<?> entity) {
+    // @Table is not inherited; a SINGLE_TABLE subclass shares its parent's table, so walk up the
+    // class hierarchy to find the nearest mapping.
+    for (Class<?> type = entity;
+        type != null && type != Object.class;
+        type = type.getSuperclass()) {
+      Table table = type.getAnnotation(Table.class);
+      if (table != null && !table.name().isBlank()) {
+        return table.name();
+      }
+    }
+    throw new IllegalStateException(
+        "tenant-aware entity must declare @Table(name=...): " + entity.getName());
+  }
+
   public TenantTables {
     strict = lowercase(strict);
     dualScope = lowercase(dualScope);
@@ -30,11 +70,13 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
 
   public Family family(String table) {
     String name = table.toLowerCase(Locale.ROOT);
-    if (dualScope.contains(name)) {
-      return Family.DUAL;
-    }
+    // Prefer STRICT on a (very unlikely) conflict: hiding platform rows is safer than exposing
+    // them.
     if (strict.contains(name)) {
       return Family.STRICT;
+    }
+    if (dualScope.contains(name)) {
+      return Family.DUAL;
     }
     return Family.NONE;
   }
