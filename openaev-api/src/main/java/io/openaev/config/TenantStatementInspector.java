@@ -7,6 +7,8 @@ import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
+import net.sf.jsqlparser.statement.insert.ConflictActionType;
+import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
@@ -54,6 +56,9 @@ public class TenantStatementInspector implements StatementInspector {
     if (statement instanceof Delete delete) {
       return rewriteDelete(delete);
     }
+    if (statement instanceof Insert insert) {
+      return rewriteInsert(insert);
+    }
     throw new TenantFilteringException(
         "statement shape not supported by tenant filtering: "
             + statement.getClass().getSimpleName());
@@ -81,6 +86,26 @@ public class TenantStatementInspector implements StatementInspector {
     filterContainedSelects(delete);
     delete.setWhere(withTenantPredicate(delete.getTable(), delete.getWhere()));
     return delete.toString();
+  }
+
+  private String rewriteInsert(Insert insert) {
+    // An ON CONFLICT DO UPDATE updates an existing (possibly cross-tenant) row; until the
+    // write-side
+    // tenant policy is settled it is refused on a tenant table. DO NOTHING is harmless.
+    if (insert.getConflictAction() != null
+        && insert.getConflictAction().getConflictActionType() == ConflictActionType.DO_UPDATE
+        && insert.getTable() != null
+        && tables.family(insert.getTable().getName()) != TenantTables.Family.NONE) {
+      throw new TenantFilteringException(
+          "INSERT ... ON CONFLICT DO UPDATE on a tenant table not yet covered by tenant filtering");
+    }
+    // Only the SELECT source (and any sub-query) is filtered. A VALUES insert has no read to
+    // filter;
+    // assigning/validating the target tenant on write is a separate concern (entity listener for
+    // ORM
+    // persists; bulk/native inserts are not covered yet).
+    filterContainedSelects(insert);
+    return insert.toString();
   }
 
   /** Wraps the FROM and join tables of every select contained in the statement. */
