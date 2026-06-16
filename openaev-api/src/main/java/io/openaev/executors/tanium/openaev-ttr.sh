@@ -26,10 +26,12 @@ if [ -z "${1:-}" ]; then
 fi
 
 # ── 1. URL-decode ─────────────────────────────────────────────────────────────
-# %20 is stripped (not replaced): space is not valid base64.
+# Tanium URL-encodes the base64 payload; restore the 3 non-alphanumeric
+# characters of standard base64: + = /
+# Note: [xX] bracket notation is used instead of sed's 'i' flag because
+# the 'i' flag is a GNU extension not available on macOS/BSD sed.
 DECODED=$(echo -n "$1" \
-  | sed -e 's#%2[bB]#+#g' -e 's#%3[dD]#=#g' -e 's#%2[fF]#/#g' \
-        -e 's#%0[aA]##g' -e 's#%0[dD]##g' -e 's#%20##g')
+  | sed -e 's#%2[bB]#+#g' -e 's#%3[dD]#=#g' -e 's#%2[fF]#/#g')
 
 # ── 2. Base64-decode ──────────────────────────────────────────────────────────
 PAYLOAD=$(echo -n "$DECODED" | base64 -d 2>/dev/null) \
@@ -46,7 +48,7 @@ trap 'rm -f "$PAYLOAD_SCRIPT"' EXIT INT TERM
 
 {
   echo '#!/bin/sh'
-  printf '%s\n' "$PAYLOAD"
+  echo "$PAYLOAD"
 } > "$PAYLOAD_SCRIPT"
 
 chmod 700 "$PAYLOAD_SCRIPT"
@@ -66,6 +68,7 @@ detach_with_nohup() {
 }
 
 detach_with_systemd() {
+  # Requires elevated privileges (Tanium agent runs as root)
   command -v systemd-run >/dev/null 2>&1 || return 1
   systemd-run --quiet /bin/sh -c "$WRAPPED_CMD" 2>/dev/null
 }
