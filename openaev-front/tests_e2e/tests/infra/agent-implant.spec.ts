@@ -9,8 +9,8 @@ import EndpointListPage from '../../model/assets/EndpointListPage';
 import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
-import { tenantUrl } from '../../utils/url';
 import { AUTH_FILE } from '../../utils/constants';
+import { tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
 

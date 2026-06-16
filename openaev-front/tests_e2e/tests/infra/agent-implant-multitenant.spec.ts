@@ -10,7 +10,7 @@ import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestin
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
-import { TIMEOUT } from '../../utils/constants';
+import { AUTH_FILE, TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -49,7 +49,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     const platform = getOsPlatform();
 
     const context = await browser.newContext({
-      storageState: 'tests_e2e/.auth/user.json',
+      storageState: AUTH_FILE,
       baseURL: APP_URL,
     });
     const page = await context.newPage();
