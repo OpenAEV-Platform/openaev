@@ -11,6 +11,7 @@ import net.sf.jsqlparser.statement.insert.ConflictActionType;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
@@ -137,6 +138,16 @@ public class TenantStatementInspector implements StatementInspector {
   private FromItem filterFromItem(FromItem item) {
     if (item instanceof ParenthesedSelect) {
       return item;
+    }
+    if (item instanceof ParenthesedFromItem group) {
+      // A parenthesized join group: filter its inner FROM and joins like any other level.
+      group.setFromItem(filterFromItem(group.getFromItem()));
+      if (group.getJoins() != null) {
+        for (Join join : group.getJoins()) {
+          join.setRightItem(filterFromItem(join.getRightItem()));
+        }
+      }
+      return group;
     }
     if (!(item instanceof Table table)) {
       throw new TenantFilteringException(

@@ -3,6 +3,7 @@ package io.openaev.config;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -88,6 +89,78 @@ class TenantStatementInspectorTest {
     String out = inspect("SELECT * FROM documents d, findings f WHERE f.doc_id = d.id");
     assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  // --- Parenthesized join group --------------------------------------------
+
+  @Test
+  @DisplayName("a parenthesized join group filters the tenant tables inside it")
+  void parenthesizedJoinGroupFiltered() {
+    String out =
+        inspect("SELECT * FROM (documents d JOIN findings f ON f.doc_id = d.id) WHERE d.id = ?");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a parenthesized group joined to an outer table filters every tenant table")
+  void parenthesizedJoinGroupJoinedOutside() {
+    String out =
+        inspect(
+            "SELECT * FROM (documents d JOIN users u ON u.id = d.user_id)"
+                + " JOIN findings f ON f.x = d.id");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertFalse(out.contains("can_access_tenant(u."), out);
+  }
+
+  @Test
+  @DisplayName("a parenthesized group of only non-tenant tables is left untouched")
+  void parenthesizedNonTenantGroupUntouched() {
+    String out = inspect("SELECT * FROM (users u JOIN roles r ON r.id = u.role_id)");
+    assertFalse(out.contains("can_access_tenant"), out);
+  }
+
+  @Test
+  @DisplayName("a nested parenthesized group filters tenant tables at every depth")
+  void nestedParenthesizedGroupFiltered() {
+    String out =
+        inspect(
+            "SELECT * FROM ((documents d JOIN findings f ON f.doc_id = d.id)"
+                + " JOIN groups g ON g.x = d.id)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName("a left join to a parenthesized group stays a left join and filters inside it")
+  void leftJoinToParenthesizedGroupStaysOuter() {
+    String out =
+        inspect(
+            "SELECT * FROM documents d"
+                + " LEFT JOIN (findings f JOIN users u ON u.id = f.uid) ON f.doc_id = d.id");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertFalse(out.contains("can_access_tenant(u."), out);
+    assertTrue(out.toUpperCase().contains("LEFT JOIN"), out);
+  }
+
+  @Test
+  @DisplayName("a sub-query inside a parenthesized group is filtered (collector reaches into it)")
+  void subqueryInsideParenthesizedGroupFiltered() {
+    String out =
+        inspect("SELECT * FROM (documents d JOIN (SELECT * FROM findings) s ON s.doc_id = d.id)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(findings.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("the rewritten parenthesized group is valid, re-parsable SQL")
+  void parenthesizedGroupOutputIsValidSql() {
+    String out =
+        inspector.inspect("SELECT * FROM (documents d JOIN findings f ON f.doc_id = d.id)");
+    assertDoesNotThrow(() -> CCJSqlParserUtil.parse(out));
   }
 
   // --- Sub-queries and CTEs ------------------------------------------------
