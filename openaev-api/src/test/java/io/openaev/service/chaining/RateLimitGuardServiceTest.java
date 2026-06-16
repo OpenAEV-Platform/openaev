@@ -67,7 +67,7 @@ class RateLimitGuardServiceTest {
     @DisplayName("should return true when count is below maxAttempts")
     void should_returnTrue_when_countBelowMax() {
       Workflow workflow = buildWorkflow(true, 5, 60L);
-      when(injectStatusRepository.countTerminalInjectsSince(anyString(), any(Instant.class)))
+      when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
           .thenReturn(4L);
 
       boolean result = rateLimitGuardService.isExecutionAllowed(workflow);
@@ -79,7 +79,7 @@ class RateLimitGuardServiceTest {
     @DisplayName("should return false when count equals maxAttempts")
     void should_returnFalse_when_countEqualsMax() {
       Workflow workflow = buildWorkflow(true, 5, 60L);
-      when(injectStatusRepository.countTerminalInjectsSince(anyString(), any(Instant.class)))
+      when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
           .thenReturn(5L);
 
       boolean result = rateLimitGuardService.isExecutionAllowed(workflow);
@@ -91,7 +91,7 @@ class RateLimitGuardServiceTest {
     @DisplayName("should return false when count exceeds maxAttempts")
     void should_returnFalse_when_countExceedsMax() {
       Workflow workflow = buildWorkflow(true, 3, 120L);
-      when(injectStatusRepository.countTerminalInjectsSince(anyString(), any(Instant.class)))
+      when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
           .thenReturn(10L);
 
       boolean result = rateLimitGuardService.isExecutionAllowed(workflow);

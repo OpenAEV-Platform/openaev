@@ -14,15 +14,20 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class StepEventServiceTest {
@@ -32,9 +37,25 @@ class StepEventServiceTest {
   @Mock private StepRepository stepRepository;
   @Mock private RateLimitGuardService rateLimitGuardService;
   @Mock private StepDelayQueueService stepDelayQueueService;
+  @Mock private QueueChainingService queueChainingService;
+  @Mock private TransactionTemplate transactionTemplate;
   @Mock private ActionStep actionStep;
 
   @InjectMocks private StepEventService stepEventService;
+
+  @SuppressWarnings("unchecked")
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> action = invocation.getArgument(0);
+              action.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+  }
 
   // -- RUN --
 
@@ -228,6 +249,77 @@ class StepEventServiceTest {
       // Assert
       verify(stepRepository).findById(stepId);
       verify(stepService, never()).saveStep(any());
+    }
+  }
+
+  // -- RETRY ON TRANSACTIONAL FAILURE --
+
+  @Nested
+  class RetryOnTransactionalFailure {
+
+    @Test
+    void given_transactionFailure_should_requeue_whenRetryCountBelowMax() throws IOException {
+      // Arrange
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      assertEquals(0, event.getRetryCount());
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(transactionTemplate)
+          .executeWithoutResult(any());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishReadyEvent(event);
+    }
+
+    @Test
+    void given_transactionFailure_should_drop_whenMaxRetriesReached() throws IOException {
+      // Arrange
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(StepEventService.MAX_RETRY_COUNT);
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(transactionTemplate)
+          .executeWithoutResult(any());
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert — event is dropped, not re-queued
+      verify(queueChainingService, never()).republishReadyEvent(any());
+    }
+
+    @Test
+    void given_transactionFailure_andRepublishFails_should_logAndNotThrow() throws IOException {
+      // Arrange
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(transactionTemplate)
+          .executeWithoutResult(any());
+
+      doThrow(new IOException("RabbitMQ down"))
+          .when(queueChainingService)
+          .republishReadyEvent(any());
+
+      // Act — should not throw
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishReadyEvent(event);
     }
   }
 

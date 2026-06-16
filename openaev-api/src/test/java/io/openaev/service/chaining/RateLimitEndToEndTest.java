@@ -12,6 +12,7 @@ import io.openaev.database.repository.StepRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * End-to-end orchestration test for the rate-limit lifecycle.
@@ -45,6 +48,7 @@ class RateLimitEndToEndTest {
   @Mock private StepRepository stepRepository;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
+  @Mock private QueueChainingService queueChainingService;
 
   // -- Real services wired together --
   private RateLimitGuardService rateLimitGuardService;
@@ -59,13 +63,28 @@ class RateLimitEndToEndTest {
   void setUp() {
     rateLimitGuardService = new RateLimitGuardService(injectStatusRepository);
     stepDelayQueueService = new StepDelayQueueService(stepDelayQueueRepository);
+
+    // Create a TransactionTemplate mock that simply executes the callback
+    TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+    lenient()
+        .doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> action = invocation.getArgument(0);
+              action.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+
     stepEventService =
         new StepEventService(
             stepService,
             workflowService,
             stepRepository,
             rateLimitGuardService,
-            stepDelayQueueService);
+            stepDelayQueueService,
+            queueChainingService,
+            transactionTemplate);
 
     // Shared simulation + workflow
     Exercise simulation = new Exercise();
@@ -103,7 +122,7 @@ class RateLimitEndToEndTest {
     // Guard stubs
     when(workflowService.isWorkflowEnded(workflowRun.getId())).thenReturn(false);
     // 3 terminal injects already executed → limit of 3 reached
-    when(injectStatusRepository.countTerminalInjectsSince(
+    when(injectStatusRepository.countLaunchedInjectsSince(
             eq(workflowRun.getSimulation().getId()), any(Instant.class)))
         .thenReturn(3L);
 
@@ -128,6 +147,10 @@ class RateLimitEndToEndTest {
         stepTemplate,
         capturedEntry.getStepTemplate(),
         "Delay queue must reference the TEMPLATE step, not the READY step");
+    assertSame(
+        stepReady1,
+        capturedEntry.getStepReady(),
+        "Delay queue must reference the existing READY step for rate-limit rescheduling");
     assertSame(workflowRun, capturedEntry.getWorkflowRun());
     assertEquals(
         60_000L, capturedEntry.getDelay(), "Delay should be maxTemporalRateSeconds * 1000");
@@ -146,7 +169,7 @@ class RateLimitEndToEndTest {
 
     reset(stepDelayQueueRepository);
     // Still at the limit
-    when(injectStatusRepository.countTerminalInjectsSince(anyString(), any(Instant.class)))
+    when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
         .thenReturn(3L);
 
     // Act — second run attempt
@@ -173,7 +196,7 @@ class RateLimitEndToEndTest {
     Step stepReady3 = buildReadyStep(stepTemplate, workflowRun, secondEntry.getInput());
 
     // Now only 2 terminal injects → under the limit of 3
-    when(injectStatusRepository.countTerminalInjectsSince(anyString(), any(Instant.class)))
+    when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
         .thenReturn(2L);
 
     // Mock the action step execution
@@ -210,7 +233,7 @@ class RateLimitEndToEndTest {
     Step stepReady = buildReadyStep(stepTemplate, workflowRun, null);
 
     when(workflowService.isWorkflowEnded(workflowRun.getId())).thenReturn(false);
-    when(injectStatusRepository.countTerminalInjectsSince(anyString(), any(Instant.class)))
+    when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
         .thenReturn(5L);
 
     // Act — should not throw NPE

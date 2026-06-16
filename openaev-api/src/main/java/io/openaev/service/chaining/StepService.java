@@ -99,21 +99,24 @@ public class StepService {
    * @param input json input for the execution step
    * @return created ready execution steps
    */
+  @Transactional(rollbackFor = Exception.class)
   public List<Step> createReadySteps(
       Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
 
+    // Re-load the step template within this transaction so lazy collections can be initialized.
+    // The parameter may be a detached entity loaded outside any session (e.g. from a Quartz job).
+    Step persistedTemplate =
+        findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
+
     // If no condition mapper and step already executed, we skip the step to avoid to execute it
     // again
-    if (!conditionService.hasConditionMapper(nextStepTemplateToExecute)
-        && isStepAlreadyExecutedOnce(nextStepTemplateToExecute.getId(), workflowRun.getId())) {
+    if (!conditionService.hasConditionMapper(persistedTemplate)
+        && isStepAlreadyExecutedOnce(persistedTemplate.getId(), workflowRun.getId())) {
       return List.of();
     }
 
     ActionStep actionStep =
-        factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
-
-    Step persistedTemplate =
-        findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
+        factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);

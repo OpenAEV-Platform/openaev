@@ -41,12 +41,7 @@ public interface InjectStatusRepository
   @Query(
       "SELECT COUNT(DISTINCT istatus.inject.id) FROM InjectStatus istatus"
           + " WHERE istatus.inject.exercise.id = :simulationId"
-          + " AND istatus.name IN (io.openaev.database.model.ExecutionStatus.EXECUTED,"
-          + " io.openaev.database.model.ExecutionStatus.PARTIAL,"
-          + " io.openaev.database.model.ExecutionStatus.ERROR,"
-          + " io.openaev.database.model.ExecutionStatus.MAYBE_PREVENTED,"
-          + " io.openaev.database.model.ExecutionStatus.MAYBE_PARTIAL_PREVENTED)"
           + " AND istatus.trackingSentDate >= :since")
-  long countTerminalInjectsSince(
+  long countLaunchedInjectsSince(
       @Param("simulationId") String simulationId, @Param("since") Instant since);
 }

@@ -53,6 +53,14 @@ public class StepDelayQueue implements Base {
   private Step stepTemplate;
 
   @ManyToOne
+  @JoinColumn(name = "steps_delay_queue_step_ready_id")
+  @OnDelete(action = OnDeleteAction.CASCADE)
+  @Schema(
+      description =
+          "Existing READY step to re-enqueue (used for rate-limit rescheduling instead of creating a new step)")
+  private Step stepReady;
+
+  @ManyToOne
   @JoinColumn(name = "steps_delay_queue_workflow_run_id")
   @Schema(description = "Workflow run that owns this deferred action")
   @OnDelete(action = OnDeleteAction.CASCADE)

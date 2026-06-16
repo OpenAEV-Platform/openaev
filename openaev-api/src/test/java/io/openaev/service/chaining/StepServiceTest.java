@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.quartz.JobExecutionException;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class StepServiceTest {
@@ -45,6 +46,7 @@ class StepServiceTest {
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
+  private TransactionTemplate transactionTemplate;
 
   private Workflow workflow;
 
@@ -57,7 +59,18 @@ class StepServiceTest {
 
   @BeforeEach
   void setUp() {
-    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService, workflowService);
+    transactionTemplate = mock(TransactionTemplate.class);
+    lenient()
+        .doAnswer(
+            invocation -> {
+              ((java.util.function.Consumer<Object>) invocation.getArgument(0)).accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
+    queueChainingJob =
+        new QueueChainingJob(
+            stepDelayQueueService, stepService, workflowService, transactionTemplate);
     workflow = mock(Workflow.class);
   }
 
@@ -304,9 +317,14 @@ class StepServiceTest {
       void given_nullAction_should_throw() throws Exception {
         // Arrange
         Step nextStepTemplateToExecute = mock(Step.class);
+        Step persistedTemplate = mock(Step.class);
         Workflow workflowRun = mock(Workflow.class);
 
-        when(nextStepTemplateToExecute.getStepAction()).thenReturn(null);
+        String stepId = UUID.randomUUID().toString();
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
+        when(persistedTemplate.getStepAction()).thenReturn(null);
 
         // Act + Assert
         assertThrows(
@@ -314,7 +332,6 @@ class StepServiceTest {
             () ->
                 stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
 
-        verify(stepRepository, never()).findById(anyString());
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any());
         verify(conditionService, never()).saveAllConditions(anyList());
@@ -336,13 +353,13 @@ class StepServiceTest {
         String input = "{\"hello\":\"world\"}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction())
-            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
         doReturn(localActionStep)
             .when(stepService)
             .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
 
-        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
             .thenReturn(Optional.of(persistedTemplate));
 
@@ -382,12 +399,14 @@ class StepServiceTest {
         String input = "{\"x\":1}";
         String stepId = UUID.randomUUID().toString();
 
-        when(nextStepTemplateToExecute.getStepAction())
-            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
             .thenReturn(localActionStep);
 
-        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
+            .thenReturn(Optional.of(persistedTemplate));
 
         Condition c1 = mock(Condition.class);
         Condition c2 = mock(Condition.class);
@@ -402,9 +421,6 @@ class StepServiceTest {
             .thenReturn(Optional.ofNullable(stepReady));
         assertNotNull(stepReady);
         when(stepRepository.save(stepReady)).thenReturn(stepReady);
-
-        when(stepRepository.findByIdAndStatus(any(), eq(StepStatus.TEMPLATE)))
-            .thenReturn(Optional.of(persistedTemplate));
 
         // Act
         List<Step> result =
@@ -443,12 +459,12 @@ class StepServiceTest {
 
         String input = "{\"q\":true}";
         String stepId = UUID.randomUUID().toString();
-        when(nextStepTemplateToExecute.getStepAction())
-            .thenReturn(StepActionClass.INJECT_EXECUTION);
+        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
+        when(persistedTemplate.getId()).thenReturn(stepId);
+        when(persistedTemplate.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
         when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, stepId))
             .thenReturn(localActionStep);
 
-        when(nextStepTemplateToExecute.getId()).thenReturn(stepId);
         when(stepRepository.findByIdAndStatus(stepId, StepStatus.TEMPLATE))
             .thenReturn(Optional.of(persistedTemplate));
 
