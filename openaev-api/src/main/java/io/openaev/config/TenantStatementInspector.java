@@ -90,21 +90,19 @@ public class TenantStatementInspector implements StatementInspector {
   }
 
   private String rewriteInsert(Insert insert) {
-    // An ON CONFLICT DO UPDATE updates an existing (possibly cross-tenant) row; until the
-    // write-side
-    // tenant policy is settled it is refused on a tenant table. DO NOTHING is harmless.
-    if (insert.getConflictAction() != null
-        && insert.getConflictAction().getConflictActionType() == ConflictActionType.DO_UPDATE
+    // An ON CONFLICT DO UPDATE could touch an existing, possibly cross-tenant, row on conflict. It
+    // is guarded the same way as an UPDATE: can_access_tenant is added to the DO UPDATE WHERE, so a
+    // conflicting row outside the scope is left untouched. DO NOTHING needs no guard.
+    var conflict = insert.getConflictAction();
+    if (conflict != null
+        && conflict.getConflictActionType() == ConflictActionType.DO_UPDATE
         && insert.getTable() != null
         && tables.family(insert.getTable().getName()) != TenantTables.Family.NONE) {
-      throw new TenantFilteringException(
-          "INSERT ... ON CONFLICT DO UPDATE on a tenant table not yet covered by tenant filtering");
+      conflict.setWhereExpression(
+          withTenantPredicate(insert.getTable(), conflict.getWhereExpression()));
     }
     // Only the SELECT source (and any sub-query) is filtered. A VALUES insert has no read to
-    // filter;
-    // assigning/validating the target tenant on write is a separate concern (entity listener for
-    // ORM
-    // persists; bulk/native inserts are not covered yet).
+    // filter; validating the target tenant on write is the write-side policy (B3).
     filterContainedSelects(insert);
     return insert.toString();
   }
