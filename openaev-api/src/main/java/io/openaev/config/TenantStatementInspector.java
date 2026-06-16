@@ -1,14 +1,15 @@
 package io.openaev.config;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 
@@ -18,10 +19,10 @@ import org.hibernate.resource.jdbc.spi.StatementInspector;
  * app.current_tenants} scope.
  *
  * <p>Security principle: <b>every</b> reference to a tenant-aware table must be filtered. The
- * inspector wraps the tables of the top-level FROM and joins, and rejects (fail-closed) any
- * statement that references a tenant-aware table anywhere else — a sub-query, a CTE, a join
- * condition — rather than letting it through partially filtered, which would leak rows across
- * tenants. Coverage of those other positions is added over time; until then they are denied.
+ * inspector visits every select in the statement — the top one, joins, sub-queries, CTEs — and
+ * wraps each one's FROM and join tables in a filtered sub-query. Completeness comes from visiting
+ * every select; a statement, FROM or join shape that is not understood is rejected (fail-closed)
+ * rather than passed through unfiltered, which would leak rows across tenants.
  */
 public class TenantStatementInspector implements StatementInspector {
 
@@ -39,64 +40,44 @@ public class TenantStatementInspector implements StatementInspector {
     } catch (Exception e) {
       throw new IllegalStateException("refusing to run SQL that cannot be tenant-filtered", e);
     }
-    if (statement instanceof PlainSelect select) {
-      return rewriteSelect(select);
+    if (statement instanceof Select select) {
+      PlainSelectCollector collector = new PlainSelectCollector();
+      collector.getTables((Statement) select);
+      for (PlainSelect plainSelect : collector.collected) {
+        filterTables(plainSelect);
+      }
+      return select.toString();
     }
     throw new IllegalStateException(
         "statement shape not supported by tenant filtering: "
             + statement.getClass().getSimpleName());
   }
 
-  private String rewriteSelect(PlainSelect select) {
-    rejectUnwrappedTenantReferences(select);
-    FromItem from = select.getFromItem();
-    if (from != null) {
-      select.setFromItem(filterFromItem(from));
+  /** Wraps the FROM and join tenant tables of a single select level. */
+  private void filterTables(PlainSelect select) {
+    if (select.getFromItem() != null) {
+      select.setFromItem(filterFromItem(select.getFromItem()));
     }
     if (select.getJoins() != null) {
       for (Join join : select.getJoins()) {
         join.setRightItem(filterFromItem(join.getRightItem()));
       }
     }
-    return select.toString();
   }
 
   /**
-   * Fails closed if a tenant-aware table is referenced anywhere other than the top-level FROM and
-   * joins (the only positions we wrap) — for example in a sub-query, a CTE or a join condition. The
-   * check compares table nodes by identity, so it does not depend on names or on traversal depth: a
-   * nested reference sharing a name with a filtered table is still caught.
-   */
-  private void rejectUnwrappedTenantReferences(PlainSelect select) {
-    Set<Table> topLevel = Collections.newSetFromMap(new IdentityHashMap<>());
-    if (select.getFromItem() instanceof Table table) {
-      topLevel.add(table);
-    }
-    if (select.getJoins() != null) {
-      for (Join join : select.getJoins()) {
-        if (join.getRightItem() instanceof Table table) {
-          topLevel.add(table);
-        }
-      }
-    }
-    UnwrappedTenantDetector detector = new UnwrappedTenantDetector(topLevel);
-    detector.getTables((Statement) select);
-    if (detector.found) {
-      throw new IllegalStateException("tenant table referenced outside the filtered FROM/joins");
-    }
-  }
-
-  private boolean isTenant(String table) {
-    return tables.family(table) != TenantTables.Family.NONE;
-  }
-
-  /**
-   * Returns the given FROM/JOIN item, wrapped in a tenant-filtered sub-query when it is a
-   * tenant-aware table. Non-tenant tables are returned unchanged; any other shape is rejected.
+   * Wraps a tenant-aware table in a filtered sub-query. Non-tenant tables and nested sub-queries
+   * (filtered on their own, as their own select) are returned unchanged; any other shape is
+   * rejected.
    */
   private FromItem filterFromItem(FromItem item) {
+    if (item instanceof ParenthesedSelect) {
+      return item;
+    }
     if (!(item instanceof Table table)) {
-      throw new IllegalStateException("FROM/JOIN shape not yet covered by tenant filtering");
+      throw new IllegalStateException(
+          "FROM/JOIN shape not yet covered by tenant filtering: "
+              + (item == null ? "null" : item.getClass().getSimpleName()));
     }
     TenantTables.Family family = tables.family(table.getName());
     if (family == TenantTables.Family.NONE) {
@@ -118,24 +99,16 @@ public class TenantStatementInspector implements StatementInspector {
   }
 
   /**
-   * Walks the whole statement and flags any tenant-aware table that is not one of the top-level
-   * FROM/join tables we wrap — i.e. a tenant table reached through a sub-query, CTE or join
-   * condition. Tables are matched by identity, so names and nesting depth are irrelevant.
+   * Collects every {@link PlainSelect} in the statement — top-level and nested — so each one's FROM
+   * and joins can be filtered. Relies on the finder visiting every select node.
    */
-  private final class UnwrappedTenantDetector extends TablesNamesFinder<Void> {
-    private final Set<Table> topLevel;
-    private boolean found = false;
-
-    private UnwrappedTenantDetector(Set<Table> topLevel) {
-      this.topLevel = topLevel;
-    }
+  private static final class PlainSelectCollector extends TablesNamesFinder<Void> {
+    private final List<PlainSelect> collected = new ArrayList<>();
 
     @Override
-    public <S> Void visit(Table table, S context) {
-      if (!topLevel.contains(table) && isTenant(table.getName())) {
-        found = true;
-      }
-      return super.visit(table, context);
+    public <S> Void visit(PlainSelect plainSelect, S context) {
+      collected.add(plainSelect);
+      return super.visit(plainSelect, context);
     }
   }
 }
