@@ -97,4 +97,14 @@ public class ReportService {
   public void deleteReport(@NotBlank final UUID reportId) {
     this.reportRepository.deleteById(reportId);
   }
+
+  /**
+   * Deletes all reports associated with a given exercise.
+   *
+   * @param exerciseId the exercise whose reports should be deleted
+   */
+  public void deleteAllByExerciseId(@NotBlank final String exerciseId) {
+    List<Report> reports = reportsFromExercise(exerciseId);
+    reports.forEach(report -> this.reportRepository.deleteById(UUID.fromString(report.getId())));
+  }
 }

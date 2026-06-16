@@ -47,4 +47,11 @@ public interface GrantRepository
       "UPDATE Grant g SET g.resourceId = :newId WHERE g.resourceId = :currentId AND g.grantResourceType = :resourceType")
   int updateGrantResourceIdAndType(
       String currentId, String newId, Grant.GRANT_RESOURCE_TYPE resourceType);
+
+  @Modifying
+  @Query(
+      "DELETE FROM Grant g WHERE g.resourceId = :resourceId AND g.grantResourceType = :resourceType")
+  void deleteAllByResourceIdAndResourceType(
+      @Param("resourceId") String resourceId,
+      @Param("resourceType") Grant.GRANT_RESOURCE_TYPE resourceType);
 }

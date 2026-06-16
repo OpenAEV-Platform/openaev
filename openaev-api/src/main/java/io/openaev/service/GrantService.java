@@ -104,4 +104,15 @@ public class GrantService {
                         targetResourceType))
             .toList());
   }
+
+  /**
+   * Deletes all grants associated with a specific resource.
+   *
+   * @param resourceId the resource ID whose grants should be deleted
+   * @param resourceType the type of the resource
+   */
+  public void deleteAllByResourceId(
+      @NotBlank String resourceId, @NotNull GRANT_RESOURCE_TYPE resourceType) {
+    grantRepository.deleteAllByResourceIdAndResourceType(resourceId, resourceType);
+  }
 }
