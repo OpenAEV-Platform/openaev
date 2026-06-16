@@ -26,10 +26,6 @@ public class ManagerIntegrationsSyncJob implements Job {
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
       List<String> tenantIds = tenantService.findActiveTenantIds();
-      log.info(
-          "===> ManagerIntegrationsSyncJob: starting sync for {} tenant(s): {}",
-          tenantIds.size(),
-          tenantIds);
       for (String tenantId : tenantIds) {
         try {
           TenantContext.setCurrentTenant(tenantId);
