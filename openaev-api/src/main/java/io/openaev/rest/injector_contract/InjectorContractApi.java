@@ -26,6 +26,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -38,6 +39,7 @@ public class InjectorContractApi extends RestBehavior {
   private final InjectorContractService injectorContractService;
 
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Iterable<RawInjectorsContracts> injectContracts() {
     return injectorContractService.getAllRawInjectContracts();
@@ -65,6 +67,7 @@ public class InjectorContractApi extends RestBehavior {
                         InjectorContractFullOutput.class,
                       })))
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
@@ -87,6 +90,7 @@ public class InjectorContractApi extends RestBehavior {
     INJECTOR_CONTRACT_URL + "/domain-counts",
     TENANT_INJECTOR_CONTRACT_URL + "/domain-counts"
   })
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
@@ -104,6 +108,7 @@ public class InjectorContractApi extends RestBehavior {
     INJECTOR_CONTRACT_URL + "/{injectorContractId}",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
@@ -119,6 +124,7 @@ public class InjectorContractApi extends RestBehavior {
    * @return the created injector contract
    */
   @PostMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract createInjectorContract(
       @Valid @RequestBody InjectorContractAddInput input) {
@@ -136,6 +142,7 @@ public class InjectorContractApi extends RestBehavior {
     INJECTOR_CONTRACT_URL + "/{injectorContractId}",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
@@ -157,6 +164,7 @@ public class InjectorContractApi extends RestBehavior {
     INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}/mapping"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
@@ -179,6 +187,7 @@ public class InjectorContractApi extends RestBehavior {
     INJECTOR_CONTRACT_URL + "/{injectorContractId}",
     TENANT_INJECTOR_CONTRACT_URL + "/{injectorContractId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,

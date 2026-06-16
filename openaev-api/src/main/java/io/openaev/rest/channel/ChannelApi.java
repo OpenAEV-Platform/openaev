@@ -56,12 +56,14 @@ public class ChannelApi extends RestBehavior {
   // -- CHANNELS --
 
   @GetMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
   public Iterable<Channel> channels() {
     return channelRepository.findAll();
   }
 
   @GetMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
@@ -71,6 +73,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
@@ -85,6 +88,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping({CHANNEL_URI + "/{channelId}/logos", TENANT_CHANNEL_URI + "/{channelId}/logos"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
@@ -116,6 +120,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @DeleteMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.DELETE,
@@ -128,6 +133,7 @@ public class ChannelApi extends RestBehavior {
     OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}",
     TENANT_OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -164,6 +170,7 @@ public class ChannelApi extends RestBehavior {
     PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}",
     TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public ChannelReader playerArticles(
@@ -225,6 +232,7 @@ public class ChannelApi extends RestBehavior {
     "/api/exercises/{exerciseId}/articles/{articleId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -405,6 +413,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
   @Operation(summary = "Get the Documents used in a channel")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(

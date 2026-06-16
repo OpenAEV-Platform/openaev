@@ -42,6 +42,7 @@ public class PayloadApi extends RestBehavior {
   private final PayloadMapper payloadMapper;
 
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -49,6 +50,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
@@ -109,6 +111,7 @@ public class PayloadApi extends RestBehavior {
   }
 
   @DeleteMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.DELETE,
@@ -135,6 +138,7 @@ public class PayloadApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
   @Operation(summary = "Get the Documents used in a payload")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The list of Documents used in a payload")
@@ -152,6 +156,7 @@ public class PayloadApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
   @Operation(summary = "Get the Collectors used in a payload remediation")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(

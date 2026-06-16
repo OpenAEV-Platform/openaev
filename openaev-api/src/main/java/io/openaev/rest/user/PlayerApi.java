@@ -54,6 +54,7 @@ public class PlayerApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({PLAYER_URI + "/search", TENANT_PLAYER_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -75,6 +76,7 @@ public class PlayerApi extends RestBehavior {
   }
 
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
@@ -90,6 +92,7 @@ public class PlayerApi extends RestBehavior {
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.DELETE,

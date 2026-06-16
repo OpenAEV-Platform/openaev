@@ -51,12 +51,14 @@ public class AttackPatternApi extends RestBehavior {
   private final KillChainPhaseRepository killChainPhaseRepository;
 
   @GetMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
   public List<RawAttackPatternIndexing> attackPatterns() {
     return attackPatternRepository.rawAll();
   }
 
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public Page<AttackPattern> attackPatterns(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -68,6 +70,7 @@ public class AttackPatternApi extends RestBehavior {
   }
 
   @PostMapping("/search-with-ai")
+  @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
       summary = "Extract Attack Patterns from text or files using AI",
@@ -81,6 +84,7 @@ public class AttackPatternApi extends RestBehavior {
   }
 
   @GetMapping("/{attackPatternId}")
+  @Transactional
   @AccessControl(
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
@@ -103,6 +107,7 @@ public class AttackPatternApi extends RestBehavior {
   }
 
   @GetMapping("/{attackPatternId}/injector_contracts")
+  @Transactional
   @AccessControl(
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
@@ -166,6 +171,7 @@ public class AttackPatternApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -178,6 +184,7 @@ public class AttackPatternApi extends RestBehavior {
   }
 
   @PostMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.attackPatternRepository.findAllById(ids)).stream()

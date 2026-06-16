@@ -35,6 +35,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -176,6 +178,8 @@ public class StreamApi extends RestBehavior {
       produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(
       skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
+  @Transactional(
+      propagation = Propagation.NEVER) // Don't start a transaction for the stream, it will be async
   public ResponseEntity<Flux<Object>> streamFlux() {
     String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
     // Build the database event flux.

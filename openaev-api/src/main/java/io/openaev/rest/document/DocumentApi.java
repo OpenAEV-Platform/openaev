@@ -161,12 +161,14 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public List<RawDocument> documents() {
     return documentRepository.rawAllDocuments();
   }
 
   @PostMapping({DOCUMENT_API + "/search", TENANT_DOCUMENT_API + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -186,6 +188,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}", TENANT_DOCUMENT_API + "/{documentId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
@@ -197,6 +200,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
+  @Transactional
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
@@ -210,6 +214,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @PutMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
+  @Transactional
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.WRITE,
@@ -288,6 +293,7 @@ public class DocumentApi extends RestBehavior {
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/file", TENANT_DOCUMENT_API + "/{documentId}/file"})
+  @Transactional
   @AccessControl(
       resourceId = "#documentId",
       actionPerformed = Action.READ,
@@ -315,6 +321,7 @@ public class DocumentApi extends RestBehavior {
         TENANT_INJECTOR_IMAGES_API + "/id/{injectorId}"
       },
       produces = MediaType.IMAGE_PNG_VALUE)
+  @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getInjectorImageFromId(
       @PathVariable String injectorId) throws IOException {
@@ -356,6 +363,7 @@ public class DocumentApi extends RestBehavior {
         TENANT_COLLECTOR_IMAGES_API + "/id/{collectorId}"
       },
       produces = MediaType.IMAGE_PNG_VALUE)
+  @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getCollectorImageFromId(
       @PathVariable String collectorId) throws IOException {
@@ -378,6 +386,7 @@ public class DocumentApi extends RestBehavior {
         SECURITY_PLATFORM_IMAGES_API + "/id/{assetId}/{theme}",
         TENANT_SECURITY_PLATFORM_IMAGES_API + "/id/{assetId}/{theme}"
       })
+  @Transactional
   @AccessControl(skipRBAC = true)
   public void getSecurityPlatformImageFromId(
       @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
@@ -405,6 +414,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
   @Operation(summary = "Get the channel image")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Channel image"),
@@ -430,6 +440,7 @@ public class DocumentApi extends RestBehavior {
         TENANT_EXECUTOR_IMAGES_API + "/icons/{executorId}"
       },
       produces = MediaType.IMAGE_PNG_VALUE)
+  @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
       throws IOException {
@@ -448,6 +459,7 @@ public class DocumentApi extends RestBehavior {
         TENANT_EXECUTOR_IMAGES_API + "/banners/{executorId}"
       },
       produces = MediaType.IMAGE_PNG_VALUE)
+  @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
       @PathVariable String executorId) throws IOException {
@@ -474,6 +486,7 @@ public class DocumentApi extends RestBehavior {
 
   @LogExecutionTime
   @Operation(summary = "Fetch the entities related to this document id")
+  @Transactional
   @GetMapping({
     DOCUMENT_API + "/{documentId}/relations",
     TENANT_DOCUMENT_API + "/{documentId}/relations"
@@ -498,6 +511,7 @@ public class DocumentApi extends RestBehavior {
 
   // -- EXERCISE & SENARIO--
   @GetMapping({PLAYER_DOCUMENTS_API, TENANT_PLAYER_DOCUMENTS_API})
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
@@ -535,6 +549,7 @@ public class DocumentApi extends RestBehavior {
     PLAYER_DOCUMENTS_API + "/{documentId}/file",
     TENANT_PLAYER_DOCUMENTS_API + "/{documentId}/file"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public void downloadPlayerDocument(

@@ -45,6 +45,7 @@ public class ChallengeApi extends RestBehavior {
   private final DocumentService documentService;
 
   @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
   public Iterable<Challenge> challenges() {
     return fromIterable(challengeRepository.findAll()).stream()
@@ -128,6 +129,7 @@ public class ChallengeApi extends RestBehavior {
   }
 
   @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})
+  @Transactional
   @AccessControl(
       resourceId = "#challengeId",
       actionPerformed = Action.WRITE,
@@ -148,6 +150,7 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHALLENGE)
   @Operation(summary = "Get the Documents used in a challenge")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(

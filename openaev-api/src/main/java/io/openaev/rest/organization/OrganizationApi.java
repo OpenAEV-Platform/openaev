@@ -38,6 +38,7 @@ public class OrganizationApi extends RestBehavior {
   private final OrganizationService organizationService;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Iterable<RawOrganization> organizations() {
     List<RawOrganization> organizations;
@@ -46,6 +47,7 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PostMapping({ORGANIZATION_URI + "/search", TENANT_ORGANIZATION_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -66,6 +68,7 @@ public class OrganizationApi extends RestBehavior {
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.WRITE,
@@ -84,6 +87,7 @@ public class OrganizationApi extends RestBehavior {
     ORGANIZATION_URI + "/{organizationId}",
     TENANT_ORGANIZATION_URI + "/{organizationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#organizationId",
       actionPerformed = Action.DELETE,
@@ -95,6 +99,7 @@ public class OrganizationApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -107,6 +112,7 @@ public class OrganizationApi extends RestBehavior {
   }
 
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.organizationRepository.findAllById(ids)).stream()

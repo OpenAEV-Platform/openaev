@@ -12,6 +12,7 @@ import io.openaev.service.ExerciseExpectationService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,6 +24,7 @@ public class ExerciseExpectationApi extends RestBehavior {
   private final ExerciseExpectationService exerciseExpectationService;
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({
     "/api/exercises/{exerciseId}/expectations",
     TENANT_EXERCISE_URI + "/{exerciseId}/expectations"

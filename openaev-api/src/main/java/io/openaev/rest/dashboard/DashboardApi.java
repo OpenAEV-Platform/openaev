@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,6 +31,7 @@ public class DashboardApi extends RestBehavior {
   private final DashboardService dashboardService;
 
   @PostMapping("/count/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -41,6 +43,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping("/average/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -52,6 +55,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping("/series/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -63,6 +67,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping("/entities/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -77,6 +82,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping("/entities-runtime/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -87,6 +93,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @PostMapping("/attack-paths/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#widgetId",
       actionPerformed = Action.READ,
@@ -99,6 +106,7 @@ public class DashboardApi extends RestBehavior {
   }
 
   @GetMapping("/search/{search}")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<EsSearch> search(@PathVariable final String search) {
     return this.dashboardService.search(search);

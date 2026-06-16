@@ -43,6 +43,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_categories",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -237,6 +238,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -257,6 +259,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -271,6 +274,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -295,6 +299,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_EXERCISE_URL
         + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -362,6 +367,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_answers",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_answers"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -390,6 +396,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     "/api/player/lessons/exercise/{exerciseId}/lessons_categories",
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_categories"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsCategory> playerLessonsCategories(
@@ -413,6 +420,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     "/api/player/lessons/exercise/{exerciseId}/lessons_questions",
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsQuestion> playerLessonsQuestions(
@@ -433,6 +441,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     "/api/player/lessons/exercise/{exerciseId}/lessons_answers",
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_answers"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsAnswer> playerLessonsAnswers(
@@ -464,6 +473,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX
         + "/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public LessonsAnswer createExerciseLessonsQuestion(

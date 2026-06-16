@@ -84,6 +84,7 @@ public class ScenarioApi extends RestBehavior {
   private final PreviewFeatureService previewFeatureService;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenario(@Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
@@ -122,6 +123,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
       @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
@@ -136,6 +138,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
       @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
@@ -146,6 +149,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
@@ -155,6 +159,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> scenarios() {
     return this.scenarioService.scenarios();
@@ -162,6 +167,7 @@ public class ScenarioApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({SCENARIO_URI + "/search", TENANT_SCENARIO_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Page<RawPaginationScenario> scenarios(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -170,6 +176,7 @@ public class ScenarioApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({SCENARIO_URI + "/search-by-id", TENANT_SCENARIO_URI + "/search-by-id"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   @Operation(
       summary = "Get scenarios by their id",
@@ -180,6 +187,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -192,6 +200,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -201,6 +210,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -222,6 +232,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @DeleteMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
@@ -233,6 +244,7 @@ public class ScenarioApi extends RestBehavior {
   // -- TAGS --
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}/tags", TENANT_SCENARIO_URI + "/{scenarioId}/tags"})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -249,6 +261,7 @@ public class ScenarioApi extends RestBehavior {
   // -- EXPORT --
 
   @GetMapping({SCENARIO_URI + "/{scenarioId}/export", TENANT_SCENARIO_URI + "/{scenarioId}/export"})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.SEARCH,
@@ -267,6 +280,7 @@ public class ScenarioApi extends RestBehavior {
   // -- IMPORT --
 
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
     this.importService.handleFileImport(file, null, null);
@@ -274,6 +288,7 @@ public class ScenarioApi extends RestBehavior {
 
   // -- TEAMS --
   @LogExecutionTime
+  @Transactional
   @GetMapping({SCENARIO_URI + "/{scenarioId}/teams", TENANT_SCENARIO_URI + "/{scenarioId}/teams"})
   @AccessControl(
       resourceId = "#scenarioId",
@@ -317,6 +332,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/players",
     TENANT_SCENARIO_URI + "/{scenarioId}/players"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -403,6 +419,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/recurrence",
     TENANT_SCENARIO_URI + "/{scenarioId}/recurrence"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
@@ -421,6 +438,7 @@ public class ScenarioApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -433,6 +451,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @PostMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.scenarioRepository.findAllById(ids)).stream()
@@ -441,6 +460,7 @@ public class ScenarioApi extends RestBehavior {
   }
 
   @GetMapping({SCENARIO_URI + "/category/options", TENANT_SCENARIO_URI + "/category/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> categoryOptionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -472,6 +492,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/exercise/running",
     TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
@@ -502,6 +523,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/check-rules",
     TENANT_SCENARIO_URI + "/{scenarioId}/check-rules"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -533,6 +555,7 @@ public class ScenarioApi extends RestBehavior {
       summary =
           "Get asset groups. Can only be called if the user has access to the given scenario.",
       description = "Get all asset groups used by injects for a given scenario")
+  @Transactional
   public List<AssetGroup> assetGroups(@PathVariable String scenarioId) {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
   }
@@ -541,6 +564,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/asset-groups/find",
     TENANT_SCENARIO_URI + "/{scenarioId}/asset-groups/find"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -566,6 +590,7 @@ public class ScenarioApi extends RestBehavior {
   @Operation(
       summary = "Get channels. Can only be called if the user has access to the given scenario.",
       description = "Get all channels used by articles for a given scenario")
+  @Transactional
   public Iterable<Channel> channels(@PathVariable String scenarioId) {
     return this.channelService.channelsForScenario(scenarioId);
   }
@@ -581,6 +606,7 @@ public class ScenarioApi extends RestBehavior {
   @Operation(
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints used by injects for a given scenario")
+  @Transactional
   public List<Endpoint> endpoints(@PathVariable String scenarioId) {
     return this.endpointService.endpointsForScenario(scenarioId);
   }
@@ -589,6 +615,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/endpoints/find",
     TENANT_SCENARIO_URI + "/{scenarioId}/endpoints/find"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -614,6 +641,7 @@ public class ScenarioApi extends RestBehavior {
   @Operation(
       summary = "Get documents. Can only be called if the user has access to the given scenario.",
       description = "Get all documents used by injects for a given scenario")
+  @Transactional
   public List<Document> documents(@PathVariable String scenarioId) {
     return this.documentService.documentsForScenario(scenarioId);
   }

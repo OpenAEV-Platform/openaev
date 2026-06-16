@@ -40,12 +40,14 @@ public class KillChainPhaseApi extends RestBehavior {
   private final KillChainPhaseRepository killChainPhaseRepository;
 
   @GetMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Iterable<KillChainPhase> killChainPhases() {
     return killChainPhaseRepository.findAll();
   }
 
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Page<KillChainPhase> killChainPhases(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -57,6 +59,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @GetMapping("/{killChainPhaseId}")
+  @Transactional
   @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.READ,
@@ -132,6 +135,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @DeleteMapping("/{killChainPhaseId}")
+  @Transactional
   @AccessControl(
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.DELETE,
@@ -143,6 +147,7 @@ public class KillChainPhaseApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -155,6 +160,7 @@ public class KillChainPhaseApi extends RestBehavior {
   }
 
   @PostMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.killChainPhaseRepository.findAllById(ids)).stream()

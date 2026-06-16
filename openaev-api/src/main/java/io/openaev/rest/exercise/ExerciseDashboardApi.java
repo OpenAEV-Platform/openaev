@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,6 +39,7 @@ public class ExerciseDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Operation(summary = "Find the dashboard linked to a Simulation")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The dashboard"),
@@ -52,6 +54,7 @@ public class ExerciseDashboardApi {
     EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/count/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -68,6 +71,7 @@ public class ExerciseDashboardApi {
     EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/average/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -84,6 +88,7 @@ public class ExerciseDashboardApi {
     EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/series/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -100,6 +105,7 @@ public class ExerciseDashboardApi {
     EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -115,6 +121,7 @@ public class ExerciseDashboardApi {
     EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/entities-runtime/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -131,6 +138,7 @@ public class ExerciseDashboardApi {
     EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}",
     TENANT_EXERCISE_URI + "/{simulationId}/dashboard/attack-paths/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,

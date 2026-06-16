@@ -95,6 +95,7 @@ public class SimulationChallengeApi extends RestBehavior {
     "/api/player/simulations/{simulationId}/documents",
     TENANT_PREFIX + "/player/simulations/{simulationId}/documents"
   })
+  @Transactional
   @UrlAccessControl(userId = "#userId")
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
@@ -120,6 +121,7 @@ public class SimulationChallengeApi extends RestBehavior {
     "/api/observer/simulations/{simulationId}/challenges",
     TENANT_PREFIX + "/observer/simulations/{simulationId}/challenges"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -143,6 +145,7 @@ public class SimulationChallengeApi extends RestBehavior {
     "/api/player/simulations/{simulationId}/challenges",
     TENANT_PREFIX + "/player/simulations/{simulationId}/challenges"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public SimulationChallengesReader playerChallenges(

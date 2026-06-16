@@ -38,6 +38,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -71,6 +72,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -89,6 +91,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -104,6 +107,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -117,6 +121,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -163,6 +168,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -193,6 +199,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

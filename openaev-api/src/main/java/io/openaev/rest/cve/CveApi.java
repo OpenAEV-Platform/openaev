@@ -42,12 +42,14 @@ public class CveApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Search CVEs")
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.VULNERABILITY)
   public Page<CveSimple> searchCves(@Valid @RequestBody SearchPaginationInput input) {
     return vulnerabilityService.searchVulnerabilities(input).map(cveMapper::toCveSimple);
   }
 
   @Operation(summary = "Get a CVE by ID", description = "Fetches detailed CVE info by ID")
+  @Transactional
   @GetMapping("/{cveId}")
   @AccessControl(
       resourceId = "#cveId",
@@ -60,6 +62,7 @@ public class CveApi extends RestBehavior {
   @Operation(
       summary = "Get a CVE by external ID",
       description = "Fetches detailed CVE info by external CVE ID")
+  @Transactional
   @GetMapping("/external-id/{externalId}")
   @AccessControl(
       resourceId = "#externalId",
@@ -80,6 +83,7 @@ public class CveApi extends RestBehavior {
   @Operation(summary = "Bulk insert CVEs")
   @LogExecutionTime
   @PostMapping("/bulk")
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.VULNERABILITY)
   public void bulkInsertCVEsForCollector(@Valid @RequestBody @NotNull CVEBulkInsertInput input) {
     this.vulnerabilityService.bulkUpsertVulnerabilities(
