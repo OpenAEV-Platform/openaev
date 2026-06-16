@@ -28,8 +28,8 @@ const getOsPlatform = (): string => {
  */
 test.describe('Multi-tenancy — agent on new tenant', () => {
   test.skip(
-      Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
-      'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
+    Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE,
+    'Requires OPENAEV_APPLICATION_LICENSE in CI (fork PRs may not expose license)',
   );
   let newTenantId: string | null = null;
   let hostname: string;
