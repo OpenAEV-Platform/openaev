@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -188,7 +189,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       // Audit logging is async (@Async): wait for the required lifecycle events first.
       verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
           .dispatch(
-              org.mockito.ArgumentMatchers.<LogEvent>argThat(
+              ArgumentMatchers.<LogEvent>argThat(
                   event ->
                       event != null
                           && requestUrlContains(event, "/scenarios/" + scenarioId + "/injects")
@@ -197,7 +198,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
 
       verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
           .dispatch(
-              org.mockito.ArgumentMatchers.<LogEvent>argThat(
+              ArgumentMatchers.<LogEvent>argThat(
                   event ->
                       event != null
                           && requestUrlContains(
@@ -207,7 +208,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
 
       verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
           .dispatch(
-              org.mockito.ArgumentMatchers.<LogEvent>argThat(
+              ArgumentMatchers.<LogEvent>argThat(
                   event -> event != null && "status_change".equals(event.getEventScope())),
               any());
 
@@ -293,7 +294,6 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
         && event.getRequestMetadata().getUrl().contains(pathFragment);
   }
 
-  @SuppressWarnings("unchecked")
   /**
    * Validates inject output correlation in audit context_data: inject id and owning scenario id.
    */
@@ -312,7 +312,6 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
         && scenarioId.equals(String.valueOf(outputMap.get("inject_scenario")));
   }
 
-  @SuppressWarnings("unchecked")
   /** Validates team association output in audit context_data for /teams/replace events. */
   private static boolean hasTeamAssociationOutput(
       LogEvent event, String teamId, String scenarioId) {
