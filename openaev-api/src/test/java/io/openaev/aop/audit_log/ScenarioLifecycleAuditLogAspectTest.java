@@ -1,6 +1,5 @@
 package io.openaev.aop.audit_log;
 
-import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -19,10 +18,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.scenario.form.ScenarioInput;
+import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.service.LogService;
+import io.openaev.utils.fixtures.InjectInputFixture;
+import io.openaev.utils.fixtures.ScenarioInputFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Collection;
@@ -56,6 +64,7 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @MockitoBean
   private ExpectationsExpirationManagerCollector expectationsExpirationManagerCollector;
@@ -88,34 +97,26 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
     void given_scenarioLifecycleActions_should_logChildCreateAndStatusChangeEvents()
         throws Exception {
       // Arrange
+      // Register built-in injector under the active mock user context for deterministic tenant
+      // scope.
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+      openaevInjectorIntegrationFactory.registerConnectorForTenant(
+          TenantContext.getCurrentTenant());
+
+      // Arrange
       // Ensure the email injector contract exists in the current tenant for inject creation.
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      String emailInjectorContractId = EmailContract.EMAIL_DEFAULT;
 
       // Generate unique names to avoid collisions with existing test data.
-      String scenarioName = "audit-scenario-" + System.currentTimeMillis();
-      String teamName = "audit-team-" + System.currentTimeMillis();
+      ScenarioInput scenarioInput =
+          ScenarioInputFixture.createAuditScenarioInput(
+              "audit-scenario-" + System.currentTimeMillis());
 
       // 1) Create scenario.
       String createScenarioResponse =
           mvc.perform(
                   post(SCENARIO_URI)
-                      .content(
-                          asJsonString(
-                              Map.ofEntries(
-                                  Map.entry("scenario_name", scenarioName),
-                                  Map.entry("scenario_category", "attack-scenario"),
-                                  Map.entry("scenario_main_focus", "incident-response"),
-                                  Map.entry("scenario_severity", "high"),
-                                  Map.entry("scenario_subtitle", ""),
-                                  Map.entry("scenario_description", ""),
-                                  Map.entry("scenario_tags", List.of()),
-                                  Map.entry("scenario_external_reference", ""),
-                                  Map.entry("scenario_external_url", ""),
-                                  Map.entry("scenario_mail_from", "openaev-dev@test.io"),
-                                  Map.entry(
-                                      "scenario_mails_reply_to", List.of("openaev-dev@test.io")),
-                                  Map.entry("scenario_message_header", "SIMULATION HEADER"),
-                                  Map.entry("scenario_message_footer", "SIMULATION FOOTER"))))
+                      .content(asJsonString(scenarioInput))
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -128,18 +129,14 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       String scenarioId = JsonPath.read(createScenarioResponse, "$.scenario_id");
 
       // 2) Create inject in that scenario.
+      InjectInput injectInput =
+          InjectInputFixture.createAuditInjectInput(
+              "audit-inject-" + System.currentTimeMillis(), emailInjectorContractId);
+
       String createInjectResponse =
           mvc.perform(
                   post(SCENARIO_URI + "/{scenarioId}/injects", scenarioId)
-                      .content(
-                          asJsonString(
-                              Map.of(
-                                  "inject_title",
-                                  "audit-inject-" + System.currentTimeMillis(),
-                                  "inject_injector_contract",
-                                  EMAIL_DEFAULT,
-                                  "inject_depends_duration",
-                                  0)))
+                      .content(asJsonString(injectInput))
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -152,17 +149,13 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       String injectId = JsonPath.read(createInjectResponse, "$.inject_id");
 
       // 3) Create a standalone team.
+      TeamCreateInput teamInput =
+          TeamFixture.createAuditTeamInput("audit-team-" + System.currentTimeMillis());
+
       String createTeamResponse =
           mvc.perform(
                   post(TEAM_URI)
-                      .content(
-                          asJsonString(
-                              Map.of(
-                                  "team_name", teamName,
-                                  "team_tags", List.of(),
-                                  "team_exercises", List.of(),
-                                  "team_scenarios", List.of(),
-                                  "team_contextual", false)))
+                      .content(asJsonString(teamInput))
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -191,8 +184,34 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
       // Assert
       // Capture audit events emitted through dispatcher transport.
       ArgumentCaptor<LogEvent> eventCaptor = ArgumentCaptor.forClass(LogEvent.class);
-      // Wait for all lifecycle dispatches from this scenario flow to be emitted.
-      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(5))
+
+      // Audit logging is async (@Async): wait for the required lifecycle events first.
+      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
+          .dispatch(
+              org.mockito.ArgumentMatchers.<LogEvent>argThat(
+                  event ->
+                      event != null
+                          && requestUrlContains(event, "/scenarios/" + scenarioId + "/injects")
+                          && hasInjectOutput(event, injectId, scenarioId)),
+              any());
+
+      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
+          .dispatch(
+              org.mockito.ArgumentMatchers.<LogEvent>argThat(
+                  event ->
+                      event != null
+                          && requestUrlContains(
+                              event, "/scenarios/" + scenarioId + "/teams/replace")
+                          && hasTeamAssociationOutput(event, teamId, scenarioId)),
+              any());
+
+      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeastOnce())
+          .dispatch(
+              org.mockito.ArgumentMatchers.<LogEvent>argThat(
+                  event -> event != null && "status_change".equals(event.getEventScope())),
+              any());
+
+      verify(auditLogTransportDispatcherUtils, timeout(5000).atLeast(3))
           .dispatch(eventCaptor.capture(), any());
 
       // Keep only events that belong to this scenario lifecycle.
@@ -203,8 +222,8 @@ class ScenarioLifecycleAuditLogAspectTest extends IntegrationTest {
               .toList();
 
       // All collected lifecycle events must be mutation events.
-      assertThat(lifecycleEvents).isNotEmpty();
       assertThat(lifecycleEvents)
+          .isNotEmpty()
           .allSatisfy(event -> assertThat(event.getEventType()).isEqualTo("mutation"));
 
       // Detect inject lifecycle event by request URL + output payload correlation.

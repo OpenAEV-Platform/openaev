@@ -37,6 +37,16 @@ public class TeamFixture {
     return teamCreateInput;
   }
 
+  public static TeamCreateInput createAuditTeamInput(String teamName) {
+    TeamCreateInput teamCreateInput = new TeamCreateInput();
+    teamCreateInput.setName(teamName);
+    teamCreateInput.setTagIds(List.of());
+    teamCreateInput.setExerciseIds(List.of());
+    teamCreateInput.setScenarioIds(List.of());
+    teamCreateInput.setContextual(false);
+    return teamCreateInput;
+  }
+
   public static Team getTeam(final User user) {
     return getTeam(user, TEAM_NAME, false); // Call the other method with default value
   }
