@@ -118,6 +118,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       }
     }
     setFieldValues(defaults);
+    setFieldLinks({});
   };
 
   const handleFieldValueChange = (fieldKey: string, value: string) => {
