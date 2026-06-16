@@ -73,6 +73,7 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
           onClick={handleOpen}
           disabled={switching}
           dense
+          data-testid="tenant-switcher"
           sx={theme => ({
             height: 35,
             paddingRight: theme.spacing(0.25),
