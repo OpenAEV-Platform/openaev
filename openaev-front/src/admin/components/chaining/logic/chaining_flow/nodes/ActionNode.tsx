@@ -4,7 +4,8 @@ import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo, type MouseEvent, useState } from 'react';
 
-import { useFormatter } from '../../../../../components/i18n';
+import { useFormatter } from '../../../../../../components/i18n';
+import { ACTION_WIDTH } from '../../logic-flow-helpers';
 
 export type ActionNodeData = Node<{
   label: string;
@@ -40,28 +41,61 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
   return (
     <div
       style={{
-        border: `1px solid ${theme.palette.primary.main}50`,
-        borderRadius: 8,
-        padding: '12px 16px',
-        background: `${theme.palette.primary.main}14`,
-        minWidth: 180,
-        textAlign: 'center',
+        borderRadius: theme.spacing(1),
+        padding: theme.spacing(1),
+        background: theme.palette.background.default,
+        width: ACTION_WIDTH,
         position: 'relative',
       }}
     >
-      <Handle type="target" position={Position.Top} />
-      <IconButton
-        size="small"
-        onClick={handleMenuOpen}
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{
+          background: 'transparent',
+          border: 'none',
+        }}
+      />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing(1),
+      }}
+      >
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+        }}
+        >
+          <TerminalOutlined sx={{ color: theme.palette.primary.main }} />
+          <Typography variant="body2" color="text.secondary" sx={{ userSelect: 'none' }}>
+            -
+          </Typography>
+        </div>
+        <IconButton
+          size="small"
+          onClick={handleMenuOpen}
+        >
+          <MoreVert sx={{
+            fontSize: 18,
+            color: theme.palette.primary.main,
+          }}
+          />
+        </IconButton>
+      </div>
+      <Typography
+        variant="body2"
+        fontWeight={500}
         sx={{
-          position: 'absolute',
-          top: 4,
-          right: 4,
-          padding: '2px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
       >
-        <MoreVert sx={{ fontSize: 16 }} />
-      </IconButton>
+        {data.label}
+      </Typography>
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -80,34 +114,14 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
           <ListItemText>{t('Delete')}</ListItemText>
         </MenuItem>
       </Menu>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        justifyContent: 'center',
-      }}
-      >
-        <TerminalOutlined sx={{
-          color: theme.palette.primary.main,
-          fontSize: 20,
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{
+          background: 'transparent',
+          border: 'none',
         }}
-        />
-        <Typography variant="body2" fontWeight={600}>
-          {data.label}
-        </Typography>
-      </div>
-      {data.injectorContract && (
-        <Typography
-          variant="caption"
-          sx={{
-            color: 'text.secondary',
-            mt: 0.5,
-            display: 'block',
-          }}
-        >
-          {data.injectorContract}
-        </Typography>
-      )}
+      />
     </div>
   );
 };
