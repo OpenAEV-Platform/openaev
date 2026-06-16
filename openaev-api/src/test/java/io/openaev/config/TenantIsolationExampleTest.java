@@ -13,17 +13,15 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * End-to-end proof that the tenant filter actually isolates rows when wired. With the inspector
- * activated for {@code tags} ({@link ExampleTenantStatementInspector}), the same query returns
- * different rows depending only on the transaction's {@code app.current_tenants} scope: a tenant
- * sees its own rows, never another's, and an empty scope sees nothing (fail-closed). This exercises
- * the whole chain against PostgreSQL — set_config, the SQL rewrite, {@code can_access_tenant}, and
- * real execution — so it proves correctness, not just that a guard is present.
+ * End-to-end proof that the tenant filter actually isolates rows when wired. The real inspector is
+ * activated for {@code tags} through the production wiring ({@code openaev.tenant.active-tables}),
+ * so the same query returns different rows depending only on the transaction's {@code
+ * app.current_tenants} scope: a tenant sees its own rows, never another's, and an empty scope sees
+ * nothing (fail-closed). This exercises the whole chain against PostgreSQL (set_config, the SQL
+ * rewrite, {@code can_access_tenant}, and real execution), so it proves correctness, not just that
+ * a guard is present.
  */
-@SpringBootTest(
-    properties =
-        "spring.jpa.properties.hibernate.session_factory.statement_inspector="
-            + "io.openaev.config.ExampleTenantStatementInspector")
+@SpringBootTest(properties = "openaev.tenant.active-tables=tags")
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
