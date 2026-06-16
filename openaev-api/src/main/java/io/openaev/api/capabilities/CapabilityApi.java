@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.List;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +20,7 @@ public class CapabilityApi {
       description =
           "Returns the hierarchical tree of all capabilities. "
               + "Optionally filter by scope (PLATFORM or TENANT).")
+  @Transactional(readOnly = true)
   @GetMapping
   public ResponseEntity<List<CapabilityOutput>> getCapabilities(
       @RequestParam(required = false) CapabilityScope scope) {

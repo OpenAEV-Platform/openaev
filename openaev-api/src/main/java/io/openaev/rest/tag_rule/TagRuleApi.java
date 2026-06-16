@@ -52,6 +52,7 @@ public class TagRuleApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get TagRule by Id", summary = "Get TagRule")
+  @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The TagRule")})
   public TagRuleOutput findTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId) {
@@ -62,6 +63,7 @@ public class TagRuleApi extends RestBehavior {
   @GetMapping({TagRuleApi.TAG_RULE_URI, TENANT_TAG_RULE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TAG_RULE)
   @Operation(description = "Get All TagRules", summary = "Get TagRules")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The list of all TagRules")})
   public List<TagRuleOutput> tags() {
@@ -123,6 +125,7 @@ public class TagRuleApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({TagRuleApi.TAG_RULE_URI + "/search", TENANT_TAG_RULE_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG_RULE)
   @Operation(
       description = "Search TagRules corresponding to search criteria",

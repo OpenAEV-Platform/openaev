@@ -40,6 +40,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -73,6 +74,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -91,6 +93,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -106,6 +109,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -119,6 +123,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -165,6 +170,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -195,6 +201,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,

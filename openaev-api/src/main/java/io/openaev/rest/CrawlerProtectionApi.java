@@ -14,6 +14,7 @@ import org.springframework.core.Ordered;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,6 +46,7 @@ public class CrawlerProtectionApi {
 
   // -- robots.txt: disallow all crawlers on every path
   @GetMapping(path = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
+  @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<String> robotsTxt() {
     return ResponseEntity.ok()
@@ -54,6 +56,7 @@ public class CrawlerProtectionApi {
 
   // -- sitemap.xml: return an empty sitemap to discourage indexing
   @GetMapping(path = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
+  @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<String> sitemapXml() {
     return ResponseEntity.ok()

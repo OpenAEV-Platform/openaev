@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -48,6 +49,7 @@ public class TenantSettingsApi extends RestBehavior {
   @Operation(
       summary = "Get tenant settings",
       description = "Return the tenant settings with optional platform fallback")
+  @Transactional(readOnly = true)
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The tenant settings"))
   public TenantSettingsOutput findSettings(@PathVariable String tenantId) {
     return tenantSettingsService.findSettings(tenantId);
@@ -56,6 +58,7 @@ public class TenantSettingsApi extends RestBehavior {
   // -- UPDATE --
 
   @PutMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(
@@ -70,6 +73,7 @@ public class TenantSettingsApi extends RestBehavior {
   // -- THEME --
 
   @PutMapping("/theme/light")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(
       summary = "Update tenant light theme",
@@ -82,6 +86,7 @@ public class TenantSettingsApi extends RestBehavior {
   }
 
   @PutMapping("/theme/dark")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(
       summary = "Update tenant dark theme",
@@ -100,12 +105,14 @@ public class TenantSettingsApi extends RestBehavior {
   @Operation(
       summary = "Get tenant home dashboard",
       description = "Return the home dashboard configured for this tenant")
+  @Transactional(readOnly = true)
   public ResponseEntity<CustomDashboard> homeDashboard(@PathVariable String tenantId) {
     return ResponseEntity.ok(
         customDashboardTenantService.findTenantHomeDashboard(tenantId).orElse(null));
   }
 
   @PostMapping("/home-dashboard/count/{widgetId}")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget count")
@@ -117,6 +124,7 @@ public class TenantSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/average/{widgetId}")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget average")
@@ -128,6 +136,7 @@ public class TenantSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/series/{widgetId}")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget series")
@@ -139,6 +148,7 @@ public class TenantSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/entities/{widgetId}")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities")
@@ -150,6 +160,7 @@ public class TenantSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/entities-runtime/{widgetId}")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities runtime")
@@ -161,6 +172,7 @@ public class TenantSettingsApi extends RestBehavior {
   }
 
   @PostMapping("/home-dashboard/attack-paths/{widgetId}")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget attack paths")

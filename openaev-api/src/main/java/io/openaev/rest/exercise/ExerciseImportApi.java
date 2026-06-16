@@ -110,6 +110,7 @@ public class ExerciseImportApi extends RestBehavior {
         TENANT_EXERCISE_URI + "/{simulationId}/injects/import"
       },
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.WRITE,

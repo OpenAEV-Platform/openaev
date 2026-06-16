@@ -56,6 +56,7 @@ public class AtomicTestingApi extends RestBehavior {
   // some api use inject as resource type because they are actually used to retrieve inject data for
   // simulation and AT
   @LogExecutionTime
+  @Transactional(readOnly = true)
   @GetMapping("/{injectId}")
   @AccessControl(
       resourceId = "#injectId",
@@ -66,6 +67,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(readOnly = true)
   @GetMapping("/{injectId}/payload")
   @AccessControl(
       resourceId = "#injectId",
@@ -96,6 +98,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @DeleteMapping("/{injectId}")
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
@@ -105,6 +108,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")
+  @Transactional
   @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.DUPLICATE,
@@ -115,6 +119,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/launch")
+  @Transactional
   @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
@@ -125,6 +130,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/relaunch")
+  @Transactional
   @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
@@ -135,6 +141,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -155,6 +162,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Operation(
       summary = "Get the agents injects expectations from an inject, asset and expectation type")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -180,6 +188,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Operation(
       summary =
           "Fetch target expectations with merged results across all occurrences of each expectation type")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -221,6 +230,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   @Operation(summary = "Get the Collectors used in an atomic testing remediation")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -234,6 +244,7 @@ public class AtomicTestingApi extends RestBehavior {
   @PostMapping(
       path = "/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
       @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {

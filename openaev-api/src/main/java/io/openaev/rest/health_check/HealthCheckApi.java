@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,10 +41,12 @@ public class HealthCheckApi extends RestBehavior {
   }
 
   @GetMapping(HEALTH_CHECK_URI)
-  @AccessControl(skipRBAC = true) // No RBAC check for health check endpoint
+  @AccessControl(skipRBAC = true)
+  // No RBAC check for health check endpoint
   @Operation(
       summary = "Run an healthcheck ",
       description = "Tries to connect to dependencies (DB/Minio/RabbitMQ)")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Service is healthy"),

@@ -25,6 +25,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -50,6 +51,7 @@ public class TenantUserApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public UserOutput create(@Valid @RequestBody UserInput input) {
     return tenantUserService.createOrAttach(input);
   }
@@ -57,6 +59,7 @@ public class TenantUserApi extends RestBehavior {
   // -- READ --
 
   @Operation(summary = "Get tenant user by ID")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.READ,
@@ -69,11 +72,13 @@ public class TenantUserApi extends RestBehavior {
   @Operation(summary = "Find users by IDs")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
   @PostMapping("/find")
+  @Transactional
   public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
     return tenantUserService.find(userIds);
   }
 
   @Operation(summary = "List users")
+  @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
@@ -86,6 +91,7 @@ public class TenantUserApi extends RestBehavior {
   @Operation(summary = "Search tenant users")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
   @PostMapping("/search")
+  @Transactional
   public Page<UserOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantUserService.search(searchPaginationInput);
@@ -99,6 +105,7 @@ public class TenantUserApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER)
   @PutMapping("/{userId}")
+  @Transactional
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
   }
@@ -112,6 +119,7 @@ public class TenantUserApi extends RestBehavior {
       resourceType = ResourceType.USER)
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Transactional
   public void delete(@PathVariable String userId) {
     tenantUserService.detach(userId);
   }

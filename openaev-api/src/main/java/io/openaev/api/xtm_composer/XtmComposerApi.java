@@ -59,6 +59,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Check if XtmComposer is reachable and registered in OpenAEV",
       description = "Returns true if XtmComposer is reachable, false otherwise")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public boolean isXtmComposerReachable() {
     try {
@@ -73,6 +74,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Get all connector instances managed by xtm-composer",
       description = "Retrieve all connector instances managed by xtm-composer")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
@@ -82,6 +84,7 @@ public class XtmComposerApi extends RestBehavior {
 
   @PutMapping(
       value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/status")
+  @Transactional
   @Operation(
       summary = "Update connector instance status",
       description = "Update the status of a specific connector instance")
@@ -97,6 +100,7 @@ public class XtmComposerApi extends RestBehavior {
 
   @PostMapping(
       value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/logs")
+  @Transactional
   @Operation(
       summary = "Received connector instance logs",
       description = "Receive logs from connector instances")
@@ -114,6 +118,7 @@ public class XtmComposerApi extends RestBehavior {
       value =
           XTMCOMPOSER_URI
               + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/health-check")
+  @Transactional
   @Operation(
       summary = "Health check of connector instance",
       description = "Receive health check of connector instances from xtm composer")

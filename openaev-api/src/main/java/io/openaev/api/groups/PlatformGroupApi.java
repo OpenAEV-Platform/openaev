@@ -18,6 +18,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -37,6 +38,7 @@ public class PlatformGroupApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public PlatformGroupOutput create(@Valid @RequestBody PlatformGroupInput input) {
     return toOutput(
         platformGroupService.createPlatformGroup(
@@ -46,6 +48,7 @@ public class PlatformGroupApi extends RestBehavior {
   // -- READ --
 
   @Operation(summary = "Get platform group by ID")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.READ,
@@ -62,12 +65,14 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @PostMapping("/search")
+  @Transactional
   public Page<PlatformGroupOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return platformGroupService.search(searchPaginationInput).map(PlatformGroupMapper::toOutput);
   }
 
   @Operation(summary = "Get user IDs for a platform group")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.READ,
@@ -79,6 +84,7 @@ public class PlatformGroupApi extends RestBehavior {
   }
 
   @Operation(summary = "Get platform role IDs for a platform group")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#platformGroupId",
       actionPerformed = Action.READ,
@@ -98,6 +104,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}")
+  @Transactional
   public PlatformGroupOutput update(
       @PathVariable String platformGroupId, @Valid @RequestBody PlatformGroupInput input) {
     return toOutput(
@@ -112,6 +119,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}/users")
+  @Transactional
   public List<String> updateUsers(
       @PathVariable String platformGroupId,
       @Valid @RequestBody PlatformGroupUpdateUsersInput input) {
@@ -125,6 +133,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @PutMapping("/{platformGroupId}/platform-roles")
+  @Transactional
   public Set<String> updatePlatformRoles(
       @PathVariable String platformGroupId,
       @Valid @RequestBody PlatformGroupUpdateRolesInput input) {
@@ -141,6 +150,7 @@ public class PlatformGroupApi extends RestBehavior {
       isEnterpriseEdition = true)
   @DeleteMapping("/{platformGroupId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Transactional
   public void delete(@PathVariable String platformGroupId) {
     platformGroupService.deletePlatformGroup(platformGroupId);
   }

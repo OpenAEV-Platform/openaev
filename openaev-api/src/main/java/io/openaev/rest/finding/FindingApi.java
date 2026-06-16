@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,6 +27,7 @@ public class FindingApi extends RestBehavior {
   // -- CRUD --
 
   @GetMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
@@ -35,6 +37,7 @@ public class FindingApi extends RestBehavior {
   }
 
   @PostMapping({FINDING_URI, TENANT_FINDING_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> createFinding(
       @RequestBody @Valid @NotNull final FindingInput input) {
@@ -43,6 +46,7 @@ public class FindingApi extends RestBehavior {
   }
 
   @PutMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.WRITE,
@@ -57,6 +61,7 @@ public class FindingApi extends RestBehavior {
   }
 
   @DeleteMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.DELETE,

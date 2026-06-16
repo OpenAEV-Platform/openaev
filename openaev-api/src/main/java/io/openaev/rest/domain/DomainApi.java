@@ -32,6 +32,7 @@ public class DomainApi extends RestBehavior {
 
   @LogExecutionTime
   @Operation(summary = "Search Domains")
+  @Transactional(readOnly = true)
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
   public List<Domain> domains() {
@@ -39,6 +40,7 @@ public class DomainApi extends RestBehavior {
   }
 
   @Operation(summary = "Get a Domain by ID", description = "Fetches detailed Domain info by ID")
+  @Transactional(readOnly = true)
   @GetMapping("/{domainId}")
   @AccessControl(
       resourceId = "#domainId",
@@ -60,6 +62,7 @@ public class DomainApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping("/options")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -67,6 +70,7 @@ public class DomainApi extends RestBehavior {
   }
 
   @PostMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
     return domainService.findAllAsOptionsById(ids);

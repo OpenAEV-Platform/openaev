@@ -55,6 +55,7 @@ public class TagApi extends RestBehavior {
   // -- READ --
 
   @Operation(summary = "Get tags", description = "Get the list of tags")
+  @Transactional(readOnly = true)
   @GetMapping({TAG_URI, TENANT_TAG_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public Iterable<Tag> tags() {
@@ -63,6 +64,7 @@ public class TagApi extends RestBehavior {
 
   @Operation(summary = "Search tags", description = "Search tags corresponding to the criteria")
   @PostMapping({TAG_URI + "/search", TENANT_TAG_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public Page<Tag> tags(@RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return tagService.search(searchPaginationInput);
@@ -86,6 +88,7 @@ public class TagApi extends RestBehavior {
   // -- DELETE --
 
   @Operation(summary = "Delete tag")
+  @Transactional
   @DeleteMapping({TAG_URI + "/{tagId}", TENANT_TAG_URI + "/{tagId}"})
   @AccessControl(
       resourceId = "#tagId",
@@ -98,6 +101,7 @@ public class TagApi extends RestBehavior {
   // -- OPTIONS --
 
   @Operation(summary = "Search tags by text")
+  @Transactional(readOnly = true)
   @GetMapping({TAG_URI + "/options", TENANT_TAG_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public List<FilterUtilsJpa.Option> optionsByName(
@@ -108,6 +112,7 @@ public class TagApi extends RestBehavior {
 
   @Operation(summary = "Search tags by ids")
   @PostMapping({TAG_URI + "/options", TENANT_TAG_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return tagService.optionsById(ids);

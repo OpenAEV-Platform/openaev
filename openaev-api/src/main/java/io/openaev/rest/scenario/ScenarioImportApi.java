@@ -110,6 +110,7 @@ public class ScenarioImportApi extends RestBehavior {
         TENANT_SCENARIO_URI + "/{scenarioId}/injects/import"
       },
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

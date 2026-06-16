@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -36,12 +37,14 @@ public class TenantGroupApi extends RestBehavior {
 
   @Operation(summary = "Create a tenant group")
   @PostMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
   public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.createGroup(input);
   }
 
   @PostMapping("/{groupId}/grants")
+  @Transactional
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
@@ -53,6 +56,7 @@ public class TenantGroupApi extends RestBehavior {
   // -- READ --
 
   @GetMapping("/{groupId}")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.READ,
@@ -63,6 +67,7 @@ public class TenantGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
   public Page<Group> groups(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantGroupService.search(searchPaginationInput);
@@ -72,6 +77,7 @@ public class TenantGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PutMapping("/{groupId}/users")
+  @Transactional
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
@@ -83,6 +89,7 @@ public class TenantGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PutMapping("/{groupId}/roles")
+  @Transactional
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
@@ -102,6 +109,7 @@ public class TenantGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PutMapping("/{groupId}/information")
+  @Transactional
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
@@ -114,6 +122,7 @@ public class TenantGroupApi extends RestBehavior {
   // -- DELETE --
 
   @LogExecutionTime
+  @Transactional
   @DeleteMapping("/{groupId}/grants/{grantId}")
   @AccessControl(
       resourceId = "#groupId",
@@ -124,6 +133,7 @@ public class TenantGroupApi extends RestBehavior {
   }
 
   @DeleteMapping("/{groupId}")
+  @Transactional
   @AccessControl(
       resourceId = "#groupId",
       actionPerformed = Action.DELETE,
