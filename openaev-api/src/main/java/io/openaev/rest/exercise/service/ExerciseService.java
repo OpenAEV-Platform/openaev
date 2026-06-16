@@ -129,7 +129,6 @@ public class ExerciseService {
   private final InjectRepository injectRepository;
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
-  private final LogRepository logRepository;
   private final LessonsService lessonsService;
   private final UrlAccessTokenService urlAccessTokenService;
 
@@ -146,8 +145,6 @@ public class ExerciseService {
   private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
-
-  private final io.openaev.rest.report.service.ReportService reportService;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -551,64 +548,14 @@ public class ExerciseService {
   }
 
   /**
-   * Delete a simulation and all its relationships.
+   * Delete a simulation
    *
    * @param simulationId ID of the simulation to delete
    */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteById(String simulationId) throws ChainingException {
+  @Transactional
+  public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
-
-    // 1. Delete workflow states and workflows (FK: workflow/state -> exercise)
-    workflowService.deleteWorkflowStatesBySimulationId(simulationId);
-    workflowService
-        .findWorkflowRunBySimulationId(simulationId)
-        .forEach(w -> workflowService.deleteWorkflow(w.getId()));
-    workflowService
-        .findWorkflowTemplateBySimulationId(simulationId)
-        .ifPresent(w -> workflowService.deleteWorkflow(w.getId()));
-
-    // 2. Revoke URL access tokens (FK: token -> exercise)
-    urlAccessTokenService.revokeAllForExercise(simulationId);
-
-    // 3. Delete reports (FK via reports_exercises join table)
-    reportService.deleteAllByExerciseId(simulationId);
-
-    // 4. Reset and delete injects (FK: inject -> exercise, plus inject sub-entities)
-    injectService.resetInjectByExerciseId(simulationId);
-    List<Inject> injects = injectService.findBySimulationId(simulationId);
-    injectService.deleteAll(injects);
-
-    // 5. Delete pauses (FK: pause -> exercise, no cascade)
-    pauseExerciseService.deleteAllPauseByExerciseId(simulationId);
-
-    // 6. Delete logs (FK: log -> exercise, no cascade)
-    logRepository.deleteAllByExerciseId(simulationId);
-
-    // 7. Delete articles (FK: article -> exercise, no cascade)
-    articleRepository.deleteAllByExerciseId(simulationId);
-
-    // 8. Delete grants (grant_resource references exercise, read-only join — no cascade)
-    grantService.deleteAllByResourceId(simulationId, SIMULATION);
-
-    // 9. Delete the exercise
-    // JPA cascade handles: teamUsers, objectives, lessonsCategories, variables
-    // JPA ownership handles: ManyToMany join tables (teams, tags, documents), ElementCollection
     exerciseRepository.deleteById(simulationId);
-
-    // 10. Schedule MinIO file cleanup (after commit to avoid cleanup on rollback)
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            try {
-              fileService.deleteDirectory(simulationId);
-            } catch (Exception e) {
-              log.error("Failed to delete directory for exercise {}", simulationId, e);
-            }
-          }
-        });
-
     log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 

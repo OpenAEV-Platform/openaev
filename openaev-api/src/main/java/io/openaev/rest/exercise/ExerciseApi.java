@@ -564,7 +564,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
-  public void deleteExercise(@PathVariable String exerciseId) throws ChainingException {
+  public void deleteExercise(@PathVariable String exerciseId) {
     exerciseService.deleteById(exerciseId);
   }
 
