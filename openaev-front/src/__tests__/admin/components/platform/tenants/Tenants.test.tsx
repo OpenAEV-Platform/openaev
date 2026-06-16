@@ -81,6 +81,7 @@ vi.mock('../../../../../admin/components/platform/tenants/tenants.queryable', ()
 
 import Tenants from '../../../../../admin/components/platform/tenants/Tenants';
 
+// Validates that the Tenants page renders or hides UI based on permissions and feature-flag state.
 describe('Tenants', () => {
   beforeEach(() => {
     mockCan.mockReturnValue(true);
