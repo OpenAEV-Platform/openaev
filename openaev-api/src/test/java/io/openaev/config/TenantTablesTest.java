@@ -57,6 +57,42 @@ class TenantTablesTest {
         IllegalStateException.class, () -> TenantTables.fromEntities(List.of(NoTableTenant.class)));
   }
 
+  // --- restrictTo: the activation allowlist --------------------------------
+
+  private static final TenantTables MODEL =
+      new TenantTables(Set.of("documents", "findings"), Set.of("groups"));
+
+  @Test
+  @DisplayName("an empty allowlist leaves no table active")
+  void restrictToEmptyAllowlistActivatesNothing() {
+    TenantTables active = MODEL.restrictTo(Set.of());
+    assertTrue(active.strict().isEmpty());
+    assertTrue(active.dualScope().isEmpty());
+  }
+
+  @Test
+  @DisplayName("only the allowlisted tables stay active, keeping their family")
+  void restrictToKeepsAllowlistedTablesAndFamily() {
+    TenantTables active = MODEL.restrictTo(Set.of("documents", "groups"));
+    assertEquals(Set.of("documents"), active.strict());
+    assertEquals(Set.of("groups"), active.dualScope());
+    assertEquals(TenantTables.Family.NONE, active.family("findings"));
+  }
+
+  @Test
+  @DisplayName("the allowlist is matched case-insensitively")
+  void restrictToIsCaseInsensitive() {
+    assertEquals(
+        TenantTables.Family.STRICT, MODEL.restrictTo(Set.of("DOCUMENTS")).family("documents"));
+  }
+
+  @Test
+  @DisplayName("an allowlist entry that is not a known tenant table fails fast")
+  void restrictToRejectsUnknownTable() {
+    assertThrows(
+        IllegalArgumentException.class, () -> MODEL.restrictTo(Set.of("not_a_tenant_table")));
+  }
+
   /** A tenant-aware entity missing its {@code @Table} mapping. */
   static final class NoTableTenant implements TenantBase {
     @Override
