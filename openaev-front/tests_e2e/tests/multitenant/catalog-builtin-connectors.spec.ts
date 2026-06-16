@@ -85,23 +85,27 @@ test.describe('Multi-tenancy — built-in connectors', () => {
     await page.goto(tenantUrl('/admin/integrations/injectors', newTenantId!));
     await injectorsListPage.waitForLoad();
 
-    for (const injectorName of BUILTIN_INJECTORS) {
-      await expect(
-        page.locator('.MuiCard-root').filter({ hasText: injectorName }).first(),
-        `Expected built-in injector "${injectorName}" to be visible`,
-      ).toBeVisible({ timeout: TIMEOUT });
-    }
+    await Promise.all(
+      BUILTIN_INJECTORS.map(async (injectorName) => {
+        await expect(
+          page.locator('.MuiCard-root').filter({ hasText: injectorName }).first(),
+          `Expected built-in injector "${injectorName}" to be visible`,
+        ).toBeVisible({ timeout: TIMEOUT });
+      }),
+    );
 
     // ─── Verify built-in collectors ───
     await page.goto(tenantUrl('/admin/integrations/collectors', newTenantId!));
     await page.waitForURL('**/integrations/collectors**');
 
-    for (const collectorName of BUILTIN_COLLECTORS) {
-      await expect(
-        page.locator('.MuiCard-root').filter({ hasText: collectorName }).first(),
-        `Expected built-in collector "${collectorName}" to be visible`,
-      ).toBeVisible({ timeout: TIMEOUT });
-    }
+    await Promise.all(
+      BUILTIN_COLLECTORS.map(async (collectorName) => {
+        await expect(
+          page.locator('.MuiCard-root').filter({ hasText: collectorName }).first(),
+          `Expected built-in collector "${collectorName}" to be visible`,
+        ).toBeVisible({ timeout: TIMEOUT });
+      }),
+    );
 
     // ─── Verify executors page is accessible ───
     await page.goto(tenantUrl('/admin/integrations/executors', newTenantId!));

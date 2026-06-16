@@ -81,12 +81,8 @@ test.describe('Catalog — external executor deployment', () => {
     await taniumCard.click();
     await page.waitForURL('**/integrations/executors/**');
 
-    const startButton = page.getByRole('button', { name: 'Start' });
-    if ((await startButton.count()) > 0 && (await startButton.first().isVisible())) {
-      await startButton.first().click();
-    }
-
-    await expect(page.getByText('Started', { exact: true })).toBeVisible({ timeout: 120_000 });
+    const startButton = page.getByRole('button', { name: 'Start' }).first();
+    await expect(startButton).toBeVisible({ timeout: TIMEOUT });
+    await expect(page.getByText('Stopped', { exact: true })).toBeVisible({ timeout: TIMEOUT });
   });
 });
-

@@ -139,4 +139,3 @@ test.describe('Catalog — multi-tenancy isolation', () => {
     await expect(page.getByText(NMAP_INJECTOR_NAME)).toBeHidden();
   });
 });
-

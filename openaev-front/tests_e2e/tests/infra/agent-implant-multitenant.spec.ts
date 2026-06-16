@@ -154,4 +154,3 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await expect(page.getByText(new RegExp(`"stdout":".*${echoToken}`))).toBeVisible();
   });
 });
-

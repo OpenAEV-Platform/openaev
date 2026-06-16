@@ -31,4 +31,3 @@ class AgentInstallPage {
 }
 
 export default AgentInstallPage;
-

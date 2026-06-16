@@ -51,4 +51,3 @@ class ThreatArsenalHelper {
 }
 
 export default ThreatArsenalHelper;
-
