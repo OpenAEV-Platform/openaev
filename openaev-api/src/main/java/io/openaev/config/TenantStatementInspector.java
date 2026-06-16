@@ -2,14 +2,17 @@ package io.openaev.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 
@@ -18,11 +21,12 @@ import org.hibernate.resource.jdbc.spi.StatementInspector;
  * can_access_tenant}, keeping a transaction limited to the tenants in its {@code
  * app.current_tenants} scope.
  *
- * <p>Security principle: <b>every</b> reference to a tenant-aware table must be filtered. The
- * inspector visits every select in the statement — the top one, joins, sub-queries, CTEs — and
- * wraps each one's FROM and join tables in a filtered sub-query. Completeness comes from visiting
- * every select; a statement, FROM or join shape that is not understood is rejected (fail-closed)
- * rather than passed through unfiltered, which would leak rows across tenants.
+ * <p>Security principle: <b>every</b> reference to a tenant-aware table must be filtered. SELECT
+ * tables (FROM, joins, sub-queries, CTEs) are wrapped in a filtered sub-query; the target of an
+ * UPDATE or DELETE gets the filter added to its WHERE (a written table cannot be wrapped).
+ * Completeness comes from visiting every select; a statement, FROM or join shape that is not
+ * understood is rejected (fail-closed) rather than passed through unfiltered, which would leak rows
+ * across tenants.
  */
 public class TenantStatementInspector implements StatementInspector {
 
@@ -38,19 +42,54 @@ public class TenantStatementInspector implements StatementInspector {
     try {
       statement = CCJSqlParserUtil.parse(sql);
     } catch (Exception e) {
-      throw new IllegalStateException("refusing to run SQL that cannot be tenant-filtered", e);
+      throw new TenantFilteringException("refusing to run SQL that cannot be tenant-filtered", e);
     }
     if (statement instanceof Select select) {
-      PlainSelectCollector collector = new PlainSelectCollector();
-      collector.getTables((Statement) select);
-      for (PlainSelect plainSelect : collector.collected) {
-        filterTables(plainSelect);
-      }
+      filterContainedSelects(select);
       return select.toString();
     }
-    throw new IllegalStateException(
+    if (statement instanceof Update update) {
+      return rewriteUpdate(update);
+    }
+    if (statement instanceof Delete delete) {
+      return rewriteDelete(delete);
+    }
+    throw new TenantFilteringException(
         "statement shape not supported by tenant filtering: "
             + statement.getClass().getSimpleName());
+  }
+
+  private String rewriteUpdate(Update update) {
+    if (update.getFromItem() != null
+        || notEmpty(update.getJoins())
+        || notEmpty(update.getStartJoins())) {
+      throw new TenantFilteringException(
+          "UPDATE ... FROM/JOIN not yet covered by tenant filtering");
+    }
+    filterContainedSelects(update);
+    update.setWhere(withTenantPredicate(update.getTable(), update.getWhere()));
+    return update.toString();
+  }
+
+  private String rewriteDelete(Delete delete) {
+    if (notEmpty(delete.getUsingList())
+        || notEmpty(delete.getJoins())
+        || notEmpty(delete.getTables())) {
+      throw new TenantFilteringException(
+          "DELETE ... USING/JOIN not yet covered by tenant filtering");
+    }
+    filterContainedSelects(delete);
+    delete.setWhere(withTenantPredicate(delete.getTable(), delete.getWhere()));
+    return delete.toString();
+  }
+
+  /** Wraps the FROM and join tables of every select contained in the statement. */
+  private void filterContainedSelects(Statement statement) {
+    PlainSelectCollector collector = new PlainSelectCollector();
+    collector.getTables(statement);
+    for (PlainSelect plainSelect : collector.collected) {
+      filterTables(plainSelect);
+    }
   }
 
   /** Wraps the FROM and join tenant tables of a single select level. */
@@ -75,7 +114,7 @@ public class TenantStatementInspector implements StatementInspector {
       return item;
     }
     if (!(item instanceof Table table)) {
-      throw new IllegalStateException(
+      throw new TenantFilteringException(
           "FROM/JOIN shape not yet covered by tenant filtering: "
               + (item == null ? "null" : item.getClass().getSimpleName()));
     }
@@ -83,7 +122,7 @@ public class TenantStatementInspector implements StatementInspector {
     if (family == TenantTables.Family.NONE) {
       return table;
     }
-    String ref = table.getAlias() != null ? table.getAlias().getName() : table.getName();
+    String ref = reference(table);
     String call =
         family == TenantTables.Family.DUAL
             ? "can_access_tenant(" + ref + ".tenant_id, true)"
@@ -96,6 +135,34 @@ public class TenantStatementInspector implements StatementInspector {
     } catch (Exception e) {
       throw new IllegalStateException("failed to build tenant-filtered subquery", e);
     }
+  }
+
+  /**
+   * Adds {@code can_access_tenant} on the written table to a WHERE clause (the table itself cannot
+   * be wrapped). A write never reaches platform rows from a tenant scope — {@code allow_platform}
+   * is not passed — pending the platform-write policy.
+   */
+  private Expression withTenantPredicate(Table target, Expression existing) {
+    if (target == null || tables.family(target.getName()) == TenantTables.Family.NONE) {
+      return existing;
+    }
+    String call = "can_access_tenant(" + reference(target) + ".tenant_id)";
+    // Explicit parentheses keep precedence when the existing WHERE is an OR. A WHERE we cannot
+    // re-parse is refused (fail-closed) rather than left unfiltered.
+    String combined = existing == null ? call : "(" + existing + ") AND (" + call + ")";
+    try {
+      return CCJSqlParserUtil.parseCondExpression(combined);
+    } catch (Exception e) {
+      throw new TenantFilteringException("could not add the tenant filter to the WHERE clause", e);
+    }
+  }
+
+  private static String reference(Table table) {
+    return table.getAlias() != null ? table.getAlias().getName() : table.getName();
+  }
+
+  private static boolean notEmpty(List<?> list) {
+    return list != null && !list.isEmpty();
   }
 
   /**
