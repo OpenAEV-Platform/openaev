@@ -37,7 +37,7 @@ const TenantCreate: FunctionComponent<Props> = ({ onCreate }) => {
 
         const createdTenant = result.entities.tenants[result.result];
         onCreate(createdTenant);
-        await reloadUserTenants(createdTenant.tenant_id);
+        await reloadUserTenants();
 
         return result;
       } finally {
