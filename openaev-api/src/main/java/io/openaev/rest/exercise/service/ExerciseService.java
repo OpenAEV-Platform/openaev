@@ -552,7 +552,6 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
-  @Transactional
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
