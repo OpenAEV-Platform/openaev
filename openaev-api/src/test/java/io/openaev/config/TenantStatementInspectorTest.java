@@ -17,6 +17,8 @@ class TenantStatementInspectorTest {
     return inspector.inspect(sql).replaceAll("\\s+", " ").trim();
   }
 
+  // --- Single table --------------------------------------------------------
+
   @Test
   @DisplayName("wraps a strict tenant table with can_access_tenant on its tenant_id")
   void strictTableIsFiltered() {
@@ -34,14 +36,7 @@ class TenantStatementInspectorTest {
   @Test
   @DisplayName("a non-tenant table is left untouched")
   void nonTenantTableUntouched() {
-    String sql = "SELECT * FROM users u WHERE u.id = ?";
-    assertFalse(inspect(sql).toLowerCase().contains("can_access_tenant"));
-  }
-
-  @Test
-  @DisplayName("unparseable SQL is rejected (fail-closed)")
-  void unparseableFailsClosed() {
-    assertThrows(RuntimeException.class, () -> inspector.inspect("NOT SQL AT ALL ;;;"));
+    assertFalse(inspect("SELECT * FROM users u WHERE u.id = ?").contains("can_access_tenant"));
   }
 
   @Test
@@ -60,6 +55,8 @@ class TenantStatementInspectorTest {
     String out = inspect("SELECT * FROM documents WHERE id = ?");
     assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
   }
+
+  // --- Joins ---------------------------------------------------------------
 
   @Test
   @DisplayName("an inner join filters both tenant tables")
@@ -93,77 +90,125 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
   }
 
+  // --- Sub-queries and CTEs ------------------------------------------------
+
   @Test
-  @DisplayName("a tenant table in a WHERE sub-query is rejected (fail-closed)")
-  void whereSubqueryOnAnotherTenantTableFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            inspector.inspect(
-                "SELECT * FROM documents d WHERE d.x IN (SELECT f.x FROM findings f)"));
+  @DisplayName("a WHERE sub-query on another tenant table is filtered too")
+  void whereSubqueryFiltersBothTables() {
+    String out = inspect("SELECT * FROM documents d WHERE d.x IN (SELECT f.x FROM findings f)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a same-named tenant table in a sub-query is rejected (fail-closed)")
-  void whereSubqueryOnSameTenantTableFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            inspector.inspect("SELECT * FROM documents d WHERE d.x IN (SELECT x FROM documents)"));
+  @DisplayName("a WHERE sub-query on the same tenant table is filtered at both levels")
+  void whereSubquerySameTableFiltered() {
+    String out = inspect("SELECT * FROM documents d WHERE d.x IN (SELECT x FROM documents)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a tenant table in a CTE is rejected (fail-closed)")
-  void cteOnTenantTableFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () -> inspector.inspect("WITH c AS (SELECT * FROM findings) SELECT * FROM documents"));
+  @DisplayName("a tenant table in a CTE is filtered")
+  void cteFiltered() {
+    String out = inspect("WITH c AS (SELECT * FROM findings) SELECT * FROM documents");
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(findings.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a CTE on a same-named tenant table is rejected (fail-closed)")
-  void sameNameCteFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () -> inspector.inspect("WITH c AS (SELECT * FROM documents) SELECT * FROM documents d"));
+  @DisplayName("a CTE on a same-named tenant table is filtered at both levels")
+  void sameNameCteFiltered() {
+    String out = inspect("WITH c AS (SELECT * FROM documents) SELECT * FROM documents d");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a sub-query on a non-tenant table is allowed; the main table stays filtered")
-  void nonTenantSubqueryAllowed() {
-    String out = inspect("SELECT * FROM documents d WHERE d.user_id IN (SELECT u.id FROM users u)");
+  @DisplayName("a scalar tenant sub-query in the select list is filtered")
+  void scalarSelectSubqueryFiltered() {
+    String out = inspect("SELECT d.id, (SELECT count(*) FROM findings f) AS n FROM documents d");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query in a join condition is filtered")
+  void joinConditionSubqueryFiltered() {
+    String out =
+        inspect(
+            "SELECT * FROM documents d JOIN users u ON u.id = d.user_id"
+                + " AND u.id IN (SELECT f.user_id FROM findings f)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertFalse(out.contains("can_access_tenant(u."), out);
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query inside a UNION is filtered")
+  void unionSubqueryFiltered() {
+    String out =
+        inspect(
+            "SELECT * FROM documents d WHERE d.x IN"
+                + " (SELECT a FROM findings f UNION SELECT b FROM findings f2)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f2.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a FROM-derived table is filtered on its inner table")
+  void fromDerivedTableFiltered() {
+    String out = inspect("SELECT * FROM (SELECT * FROM documents d) x WHERE x.id = ?");
     assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a scalar tenant sub-query in the select list is rejected (fail-closed)")
-  void scalarSelectSubqueryFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            inspector.inspect(
-                "SELECT d.id, (SELECT count(*) FROM findings f) AS n FROM documents d"));
+  @DisplayName("a tenant table in an EXISTS sub-query is filtered")
+  void existsSubqueryFiltered() {
+    String out =
+        inspect(
+            "SELECT * FROM documents d WHERE EXISTS (SELECT 1 FROM findings f WHERE f.x = d.x)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a tenant sub-query in a join condition is rejected (fail-closed)")
-  void joinConditionSubqueryFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            inspector.inspect(
-                "SELECT * FROM documents d JOIN users u ON u.id = d.user_id"
-                    + " AND u.id IN (SELECT f.user_id FROM findings f)"));
+  @DisplayName("a FROM-derived UNION filters both inner branches")
+  void fromDerivedUnionFiltered() {
+    String out =
+        inspect("SELECT * FROM (SELECT * FROM documents d UNION SELECT * FROM findings f) x");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a tenant sub-query inside a UNION is rejected (fail-closed)")
-  void unionSubqueryFailsClosed() {
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            inspector.inspect(
-                "SELECT * FROM documents d WHERE d.x IN"
-                    + " (SELECT a FROM findings f UNION SELECT b FROM findings f2)"));
+  @DisplayName("a top-level UNION filters both branches")
+  void topLevelUnionFiltered() {
+    String out = inspect("SELECT * FROM documents d UNION SELECT * FROM findings f");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a sub-query on a non-tenant table is left untouched; the main table stays filtered")
+  void nonTenantSubqueryUntouched() {
+    String out = inspect("SELECT * FROM documents d WHERE d.user_id IN (SELECT u.id FROM users u)");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertFalse(out.contains("can_access_tenant(u."), out);
+  }
+
+  // --- Fail-closed ---------------------------------------------------------
+
+  @Test
+  @DisplayName("unparseable SQL is rejected (fail-closed)")
+  void unparseableFailsClosed() {
+    assertThrows(RuntimeException.class, () -> inspector.inspect("NOT SQL AT ALL ;;;"));
+  }
+
+  @Test
+  @DisplayName("a non-select statement is rejected (fail-closed)")
+  void updateFailsClosed() {
+    assertThrows(RuntimeException.class, () -> inspector.inspect("UPDATE documents SET x = 1"));
   }
 }
