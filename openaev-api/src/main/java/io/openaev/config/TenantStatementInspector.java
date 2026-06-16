@@ -1,7 +1,11 @@
 package io.openaev.config;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Table;
@@ -34,13 +38,36 @@ import org.hibernate.resource.jdbc.spi.StatementInspector;
 public class TenantStatementInspector implements StatementInspector {
 
   private final TenantTables tables;
+  private final Pattern activeTablePattern;
 
   public TenantStatementInspector(TenantTables tables) {
     this.tables = tables;
+    this.activeTablePattern = buildActiveTablePattern(tables);
+  }
+
+  /**
+   * Matches any active table name on identifier boundaries (so {@code asset} does not match inside
+   * {@code asset_groups}). Null when no table is active, which keeps the inspector inert. Hibernate
+   * always emits the physical table name, so a statement touching an active table always contains
+   * that name, which is what lets the gate below skip everything else without missing a row.
+   */
+  private static Pattern buildActiveTablePattern(TenantTables tables) {
+    Set<String> names = new HashSet<>();
+    names.addAll(tables.strict());
+    names.addAll(tables.dualScope());
+    if (names.isEmpty()) {
+      return null;
+    }
+    String alternation = names.stream().map(Pattern::quote).collect(Collectors.joining("|"));
+    return Pattern.compile(
+        "(?<![A-Za-z0-9_])(" + alternation + ")(?![A-Za-z0-9_])", Pattern.CASE_INSENSITIVE);
   }
 
   @Override
   public String inspect(String sql) {
+    if (sql == null || activeTablePattern == null || !activeTablePattern.matcher(sql).find()) {
+      return sql;
+    }
     Statement statement;
     try {
       statement = CCJSqlParserUtil.parse(sql);
