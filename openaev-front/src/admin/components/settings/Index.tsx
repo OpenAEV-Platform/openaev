@@ -2,8 +2,10 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
+import NoAccess from '../../../utils/permissions/NoAccess';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import Tenants from '../platform/tenants/Tenants';
 import Organizations from '../teams/Organizations';
 import AttackPatterns from './attack_patterns/AttackPatterns';
@@ -20,6 +22,8 @@ import Users from './users/Users';
 import Vulnerabilities from './vulnerabilities/Vulnerabilities';
 
 const Index = () => {
+  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
+
   return (
     <Routes>
       <Route path="" element={<Navigate to="parameters" replace={true} />} />
@@ -32,14 +36,18 @@ const Index = () => {
       <Route
         path="security/tenants"
         element={(
-          <ProtectedRoute
-            checks={[{
-              action: ACTIONS.ACCESS,
-              subject: SUBJECTS.TENANTS,
-            }]}
-            requireEE
-            Component={errorWrapper(Tenants)()}
-          />
+          isMultiTenancyEnabled
+            ? (
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.TENANTS,
+                  }]}
+                  requireEE
+                  Component={errorWrapper(Tenants)()}
+                />
+              )
+            : <NoAccess />
         )}
       />
       <Route path="security/policies" element={errorWrapper(Policies)()} />

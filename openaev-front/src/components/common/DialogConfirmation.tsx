@@ -15,6 +15,10 @@ interface DialogConfirmationProps {
   richContent?: React.ReactNode;
 }
 
+const isPromiseLike = (value: unknown): value is Promise<void> => {
+  return !!value && typeof (value as Promise<void>).then === 'function';
+};
+
 const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   open = false,
   handleClose,
@@ -32,9 +36,28 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
   }, [open]);
 
   const handleLoadingAndSubmit = () => {
-    if (handleSubmit) {
-      setLoading(true);
-      handleSubmit(() => setLoading(false));
+    if (!handleSubmit) return;
+
+    setLoading(true);
+    const resetLoading = () => setLoading(false);
+
+    try {
+      const result = handleSubmit(resetLoading);
+
+      if (isPromiseLike(result)) {
+        result.finally(resetLoading);
+        return;
+      }
+
+      // Legacy callback-style submitters control when loading must stop.
+      if (handleSubmit.length > 0) {
+        return;
+      }
+
+      resetLoading();
+    } catch (error) {
+      resetLoading();
+      throw error;
     }
   };
 
