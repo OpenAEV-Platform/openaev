@@ -402,12 +402,69 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("can_access_tenant(findings.tenant_id)"), out);
   }
 
+  // --- Activation gate: only statements touching an active table are inspected ---
+
+  @Test
+  @DisplayName("an empty allowlist inspects nothing, even unparseable SQL")
+  void emptyAllowlistInspectsNothing() {
+    TenantStatementInspector inactive =
+        new TenantStatementInspector(new TenantTables(Set.of(), Set.of()));
+    assertEquals("NOT SQL AT ALL ;;;", inactive.inspect("NOT SQL AT ALL ;;;"));
+    assertEquals(
+        "SELECT * FROM documents d WHERE d.id = ?",
+        inactive.inspect("SELECT * FROM documents d WHERE d.id = ?"));
+  }
+
+  @Test
+  @DisplayName("a statement touching no active table is returned verbatim, not re-serialized")
+  void noActiveTableReturnedVerbatim() {
+    String sql = "SELECT   *   FROM users u WHERE u.id = ?";
+    assertEquals(sql, inspector.inspect(sql));
+  }
+
+  @Test
+  @DisplayName("unparseable SQL touching no active table passes through (no fail-close)")
+  void unparseableWithoutActiveTablePassesThrough() {
+    String sql = "@@@ not valid sql audit_log ;;;";
+    assertEquals(sql, inspector.inspect(sql));
+  }
+
+  @Test
+  @DisplayName("a table name is matched on word boundaries, not as a substring")
+  void tableNameMatchedOnWordBoundary() {
+    TenantStatementInspector onAsset =
+        new TenantStatementInspector(new TenantTables(Set.of("asset"), Set.of()));
+    String sql = "SELECT * FROM asset_groups ag WHERE ag.id = ?";
+    assertEquals(sql, onAsset.inspect(sql));
+  }
+
+  @Test
+  @DisplayName("the gate fires on a quoted identifier and the table is still filtered")
+  void quotedIdentifierIsFiltered() {
+    String out = inspect("SELECT * FROM \"documents\" d WHERE d.id = ?");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("the gate fires on a schema-qualified name and the table is still filtered")
+  void schemaQualifiedNameIsFiltered() {
+    String out = inspect("SELECT * FROM public.documents d WHERE d.id = ?");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("null SQL is returned as-is, never an NPE")
+  void nullSqlReturnedAsIs() {
+    assertNull(inspector.inspect(null));
+  }
+
   // --- Fail-closed ---------------------------------------------------------
 
   @Test
-  @DisplayName("unparseable SQL is rejected (fail-closed)")
-  void unparseableFailsClosed() {
-    assertThrows(TenantFilteringException.class, () -> inspector.inspect("NOT SQL AT ALL ;;;"));
+  @DisplayName("unparseable SQL that touches an active table is rejected (fail-closed)")
+  void unparseableTouchingActiveTableFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class, () -> inspector.inspect("NOT SQL AT ALL documents ;;;"));
   }
 
   @Test

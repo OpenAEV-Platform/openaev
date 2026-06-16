@@ -68,8 +68,16 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
         .collect(Collectors.toUnmodifiableSet());
   }
 
+  /** Strips the surrounding double quotes an SQL dialect may put around an identifier. */
+  private static String unquote(String name) {
+    if (name.length() >= 2 && name.startsWith("\"") && name.endsWith("\"")) {
+      return name.substring(1, name.length() - 1);
+    }
+    return name;
+  }
+
   public Family family(String table) {
-    String name = table.toLowerCase(Locale.ROOT);
+    String name = unquote(table).toLowerCase(Locale.ROOT);
     // Prefer STRICT on a (very unlikely) conflict: hiding platform rows is safer than exposing
     // them.
     if (strict.contains(name)) {
