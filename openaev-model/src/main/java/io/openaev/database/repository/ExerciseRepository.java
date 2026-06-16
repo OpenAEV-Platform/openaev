@@ -29,6 +29,10 @@ public interface ExerciseRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  @Modifying
+  @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)
+  void deleteById(@Param("simulationId") String simulationId);
+
   /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(value = "select e from Exercise e where e.status = 'SCHEDULED' and e.start <= :start")
   List<Exercise> findAllShouldBeInRunningState(@Param("start") Instant start);
