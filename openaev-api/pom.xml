@@ -286,10 +286,12 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
+        <!-- Must match the version Spring Data JPA uses (declared provided/optional there),
+             otherwise its native-query handling breaks at startup. -->
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
-            <version>5.1</version>
+            <version>5.2</version>
         </dependency>
     </dependencies>
 
@@ -379,6 +381,13 @@
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <!-- jsqlparser ships a huge generated parser JaCoCo cannot instrument
+                                 (MethodTooLargeException); excluding it keeps the class loadable. -->
+                            <excludes>
+                                <exclude>net/sf/jsqlparser/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>report</id>
