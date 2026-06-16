@@ -18,7 +18,17 @@ vi.mock('../../../../../utils/permissions/permissionsContext', async () => {
   const AbilityContext = React.createContext({ can: mockCan } as { can: (action: string, subject: string) => boolean });
   return {
     AbilityContext,
-    Can: ({ children }: { children: ReactNode }) => <>{children}</>,
+    Can: ({
+      I,
+      a,
+      this: resource,
+      children,
+    }: {
+      I: string;
+      a: string;
+      this?: unknown;
+      children: ReactNode;
+    }) => (mockCan(I, a, resource as string) ? <>{children}</> : null),
   };
 });
 
@@ -82,7 +92,7 @@ describe('Tenants', () => {
     cleanup();
   });
 
-  it('shows NoAccess when MULTI_TENANCY feature flag is disabled', () => {
+  it('renders tenants page even when MULTI_TENANCY feature flag is disabled (route handles access gate)', () => {
     // Arrange
     mockIsFeatureEnabled.mockReturnValue(false);
 
@@ -90,10 +100,11 @@ describe('Tenants', () => {
     render(<Tenants />);
 
     // Assert
-    expect(screen.getByTestId('no-access')).toBeDefined();
+    expect(screen.getByText('Platform / Tenants management')).toBeDefined();
+    expect(screen.getByTestId('pagination-component')).toBeDefined();
   });
 
-  it('shows NoAccess when user cannot access tenants', () => {
+  it('hides tenant creation when user cannot manage tenants', () => {
     // Arrange
     mockCan.mockReturnValue(false);
 
@@ -101,7 +112,8 @@ describe('Tenants', () => {
     render(<Tenants />);
 
     // Assert
-    expect(screen.getByTestId('no-access')).toBeDefined();
+    expect(screen.queryByTestId('tenant-create')).toBeNull();
+    expect(screen.getByText('Platform / Tenants management')).toBeDefined();
   });
 
   it('renders tenants page when feature is enabled and user has access', () => {
