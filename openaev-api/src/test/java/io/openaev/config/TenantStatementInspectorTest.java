@@ -363,13 +363,43 @@ class TenantStatementInspectorTest {
   }
 
   @Test
-  @DisplayName("an INSERT ... ON CONFLICT DO UPDATE on a tenant table is rejected (fail-closed)")
-  void insertOnConflictDoUpdateFailsClosed() {
-    assertThrows(
-        TenantFilteringException.class,
-        () ->
-            inspector.inspect(
-                "INSERT INTO documents (id, x) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET x = 2"));
+  @DisplayName(
+      "ON CONFLICT DO UPDATE on a tenant table is guarded (a cross-tenant row stays untouched)")
+  void insertOnConflictDoUpdateGuarded() {
+    String out =
+        inspect("INSERT INTO documents (id, x) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET x = 2");
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("ON CONFLICT DO UPDATE keeps an existing DO UPDATE WHERE and adds the tenant guard")
+  void insertOnConflictDoUpdateKeepsExistingWhere() {
+    String out =
+        inspect(
+            "INSERT INTO documents (id, x) VALUES (1, 2)"
+                + " ON CONFLICT (id) DO UPDATE SET x = 2 WHERE documents.x < 5");
+    assertTrue(out.contains("documents.x < 5"), out);
+    assertTrue(out.contains("can_access_tenant(documents.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("ON CONFLICT DO UPDATE on a non-tenant table is left untouched")
+  void insertOnConflictDoUpdateNonTenantUntouched() {
+    String out =
+        inspect("INSERT INTO users (id, x) VALUES (1, 2) ON CONFLICT (id) DO UPDATE SET x = 2");
+    assertFalse(out.contains("can_access_tenant"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "the refactored finding upsert (ON CONFLICT DO UPDATE ... RETURNING) parses and is guarded")
+  void findingUpsertWithReturningGuarded() {
+    String out =
+        inspect(
+            "INSERT INTO findings (finding_id, finding_value, tenant_id) VALUES (?, ?, ?)"
+                + " ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)"
+                + " DO UPDATE SET finding_name = EXCLUDED.finding_name RETURNING finding_id");
+    assertTrue(out.contains("can_access_tenant(findings.tenant_id)"), out);
   }
 
   // --- Fail-closed ---------------------------------------------------------
