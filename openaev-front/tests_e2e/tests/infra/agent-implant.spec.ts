@@ -10,6 +10,7 @@ import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestin
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { tenantUrl } from '../../utils/url';
+import { AUTH_FILE } from '../../utils/constants';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
 
@@ -34,7 +35,7 @@ test.describe('Agent implant registration', () => {
 
     // Create an authenticated page to navigate the UI
     const context = await browser.newContext({
-      storageState: 'tests_e2e/.auth/user.json',
+      storageState: AUTH_FILE,
       baseURL: APP_URL,
     });
     const page = await context.newPage();
