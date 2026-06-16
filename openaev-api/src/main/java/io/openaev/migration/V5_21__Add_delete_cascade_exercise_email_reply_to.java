@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_20__Add_delete_cascade_exercise_email_reply_to extends BaseJavaMigration {
+public class V5_21__Add_delete_cascade_exercise_email_reply_to extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
