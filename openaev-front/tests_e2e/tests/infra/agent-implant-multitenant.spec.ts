@@ -8,6 +8,7 @@ import { test } from '../../fixtures';
 import AgentInstallPage from '../../model/agents/AgentInstallPage';
 import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
+import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { AUTH_FILE, TIMEOUT } from '../../utils/constants';
@@ -57,12 +58,19 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
       'Enterprise Edition / multi-tenancy must be enabled.',
     ).toBeVisible({ timeout: TIMEOUT });
     await tenantsPage.openCreateDrawer();
-    await tenantsPage.fillTenantName(`Tenant Agent E2E ${Date.now()}`);
+    const tenantName = `Tenant Agent E2E ${Date.now()}`;
+    await tenantsPage.fillTenantName(tenantName);
     await tenantsPage.submitCreate();
+
+    const tenantSwitcher = new TenantSwitcherComponent(page);
+    await tenantSwitcher.openSwitcher('Default');
+    await expect(tenantSwitcher.popoverTenantItems.filter({ hasText: tenantName })).toHaveCount(1);
+    await tenantSwitcher.selectTenantByName(tenantName);
     await page.waitForURL(
       url => !url.toString().includes(DEFAULT_TENANT_UUID),
       { timeout: TIMEOUT },
     );
+
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const segments = new URL(page.url()).pathname.split('/').filter(Boolean);
     newTenantId = segments.find(s => uuidPattern.test(s) && s !== DEFAULT_TENANT_UUID) ?? null;
