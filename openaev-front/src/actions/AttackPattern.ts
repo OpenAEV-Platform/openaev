@@ -21,12 +21,15 @@ export const searchAttackPatterns = (paginationInput: SearchPaginationInput) => 
   return simplePostCall(uri, data);
 };
 
-export const searchAttackPatternsWithAIWebservice = (files: File[], text: string) => {
+export const searchAttackPatternsWithAIWebservice = (files: File[], text: string, agentSlug?: string) => {
   const formData = new FormData();
   files.forEach((file) => {
     formData.append('files', file);
   });
   formData.append('text', text);
+  if (agentSlug) {
+    formData.append('agent_slug', agentSlug);
+  }
   return simplePostCall(`${ATTACK_PATTERN_URI}/search-with-ai`, formData);
 };
 

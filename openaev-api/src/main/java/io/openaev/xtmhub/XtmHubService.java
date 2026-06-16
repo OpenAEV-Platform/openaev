@@ -4,6 +4,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
@@ -37,6 +38,7 @@ public class XtmHubService {
   private final XtmHubClient xtmHubClient;
   private final XtmHubEmailService xtmHubEmailService;
   private final TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
+  private final TenantRepository tenantRepository;
 
   public Optional<TenantXtmHubRegistration> getRegistration() {
     return tenantXtmHubRegistrationRepository.findByTenantId(TenantContext.getCurrentTenant());
@@ -59,6 +61,8 @@ public class XtmHubService {
   public void autoRegister(@NotBlank final String token) {
     PlatformSettings settings = platformSettingsService.findSettings();
     Long usersCount = userService.globalCount();
+    String tenantId = TenantContext.getCurrentTenant();
+    String tenantName = tenantRepository.findById(tenantId).map(Tenant::getName).orElse(tenantId);
     if (!xtmHubClient.autoRegister(
         token,
         LicenseUtils.computeXtmHubContractLevel(settings.getPlatformLicense()),
@@ -66,7 +70,8 @@ public class XtmHubService {
         settings.getPlatformName(),
         settings.getPlatformBaseUrl(),
         settings.getPlatformVersion(),
-        TenantContext.getCurrentTenant(),
+        tenantId,
+        tenantName,
         usersCount)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Failed to register the platform on XtmHub");
@@ -115,10 +120,11 @@ public class XtmHubService {
     Map<String, TenantRegistrationDetails> tenants = new HashMap<>();
     for (TenantXtmHubRegistration registration : registrations) {
       String tenantId = registration.getTenant().getId();
+      String tenantName = registration.getTenant().getName();
       tenants.put(
           tenantId,
           new TenantRegistrationDetails(
-              registration.getToken(), tenantSettingsService.buildTenantUrl(tenantId)));
+              registration.getToken(), tenantSettingsService.buildTenantUrl(tenantId), tenantName));
     }
 
     Map<String, XtmHubConnectivityStatus> statuses =
@@ -166,6 +172,7 @@ public class XtmHubService {
   private ConnectivityCheckResult checkConnectivityStatus(
       PlatformSettings settings, TenantXtmHubRegistration registration) {
     String url = tenantSettingsService.buildTenantUrl(TenantContext.getCurrentTenant());
+    String tenantName = registration.getTenant().getName();
 
     XtmHubConnectivityStatus status =
         xtmHubClient.refreshRegistrationStatusSingleTenant(
@@ -173,7 +180,8 @@ public class XtmHubService {
             settings.getPlatformVersion(),
             registration.getToken(),
             url,
-            TenantContext.getCurrentTenant());
+            TenantContext.getCurrentTenant(),
+            tenantName);
 
     LocalDateTime lastCheck = parseLastConnectivityCheck(registration);
 

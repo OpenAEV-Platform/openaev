@@ -107,7 +107,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
 
   const onUseArianeClick = () => {
     if (!isEnterpriseEdition) {
-      setEEFeatureDetectedInfo(t('Ariane AI'));
+      setEEFeatureDetectedInfo(t('XTM One AI'));
       openEnterpriseEditionDialog();
     } else {
       setOpenArianeAIAssistantDialog(true);
@@ -240,7 +240,7 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
                 startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
                 endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
               >
-                {t('Use Ariane')}
+                {t('Use XTM One')}
               </Button>
               <Button
                 variant="outlined"

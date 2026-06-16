@@ -10,7 +10,7 @@ import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
-import { DEFAULT_TENANT_UUID } from '../../../../../utils/url-helper';
+import { getCurrentTenantId } from '../../../../../utils/url-helper';
 import GradientButton from '../../../common/GradientButton';
 import XtmHubConfirmationDialog from './XtmHubConfirmationDialog';
 import XtmHubProcessDialog from './XtmHubProcessDialog';
@@ -48,7 +48,7 @@ const XtmHubTab: React.FC = () => {
 
   const isRegistered = registration?.tenant_xtmhub_registration_status === 'REGISTERED';
   const platformIdentifiers = {
-    tenant_id: currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID,
+    tenant_id: getCurrentTenantId(),
     platform_id: settings?.platform_id ?? '',
   };
   const platformInformation = {
@@ -58,6 +58,7 @@ const XtmHubTab: React.FC = () => {
     platform_title: settings?.platform_name ?? 'OpenAEV Platform',
     platform_contract: isEnterpriseEdition ? 'EE' : 'CE',
     platform_version: settings?.platform_version ?? '',
+    tenant_name: currentUserTenant?.tenant_name ?? '',
   };
   const queryPlatformIdentifiers = new URLSearchParams(
     platformIdentifiers,

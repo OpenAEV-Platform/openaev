@@ -23,8 +23,9 @@ const EETooltip = ({
   const [openEnableAI, setOpenEnableAI] = useState(false);
   const [openConfigAI, setOpenConfigAI] = useState(false);
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const { enabled, configured } = useAI();
-  if (isEnterpriseEdition && (!forAi || (forAi && enabled && configured))) {
+  const { enabled, configured, xtmOneConfigured } = useAI();
+  const aiConfigured = configured || xtmOneConfigured;
+  if (isEnterpriseEdition && (!forAi || (forAi && enabled && aiConfigured))) {
     return <Tooltip title={title ? t(title) : undefined}>{children}</Tooltip>;
   }
   if (isEnterpriseEdition && forAi && !enabled) {
@@ -60,7 +61,7 @@ const EETooltip = ({
       </>
     );
   }
-  if (isEnterpriseEdition && forAi && !configured) {
+  if (isEnterpriseEdition && forAi && !aiConfigured) {
     return (
       <>
         <Tooltip title={title ? t(title) : undefined}>

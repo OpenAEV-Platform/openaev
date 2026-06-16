@@ -18,7 +18,6 @@ services:
     restart: unless-stopped
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openaev"]
       interval: 10s
@@ -46,7 +45,7 @@ services:
   # RabbitMQ message queue with management UI (default credentials: guest/guest)
   openaev-dev-rabbitmq:
     container_name: openaev-dev-rabbitmq
-    image: rabbitmq:4.2-management
+    image: rabbitmq:4.3-management
     restart: unless-stopped
     volumes:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
@@ -105,20 +104,35 @@ services:
     ports:
       - "5433:5432"
     restart: unless-stopped
-    volumes:
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "openaev"]
       interval: 10s
       timeout: 5s
       retries: 5
+  # Test MinIO object storage (S3-compatible)
+  openaev-test-minio:
+    container_name: openaev-test-minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    ports:
+      - "11000:9000"
+      - "11001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
   # Development OpenSearch (alternative to Elasticsearch, persistent storage)
   # NOTE: OpenSearch and Elasticsearch both use port 9200 by default internally.
   # OpenSearch is mapped to external port 9202 to avoid conflicts.
   # You typically only need to run one search engine at a time.
   openaev-dev-opensearch:
     container_name: openaev-dev-opensearch
-    image: opensearchproject/opensearch:3.5.0
+    image: opensearchproject/opensearch:3.6.0
     volumes:
       - osdata:/usr/share/opensearch/data
       - ossnapshots:/usr/share/opensearch/snapshots
@@ -211,7 +225,7 @@ services:
   # RSA key generator & XTM Composer (needed only for injector integration testing)
   rsa-key-generator:
     container_name: rsa-key-generator
-    image: alpine/openssl:3.5.5
+    image: alpine/openssl:3.5.6
     volumes:
       - rsakeys:/keys
     entrypoint: [ "/bin/ash" ]

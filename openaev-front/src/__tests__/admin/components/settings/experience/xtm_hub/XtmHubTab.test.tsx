@@ -9,15 +9,17 @@ import { type PlatformSettings, type TenantOutput, type User } from '../../../..
 import type * as EnvironmentModule from '../../../../../../utils/Environment';
 import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../../utils/Environment';
 import { UserContext, type UserContextType } from '../../../../../../utils/hooks/useAuth';
+import type * as UrlHelperModule from '../../../../../../utils/url-helper';
 
 // -- MODULE MOCKS --
 
-const { mockOpenTab, mockCloseTab, mockFocusTab, mockDispatch, mockNotifySuccess } = vi.hoisted(() => ({
+const { mockOpenTab, mockCloseTab, mockFocusTab, mockDispatch, mockNotifySuccess, mockGetCurrentTenantId } = vi.hoisted(() => ({
   mockOpenTab: vi.fn(),
   mockCloseTab: vi.fn(),
   mockFocusTab: vi.fn(),
   mockDispatch: vi.fn(),
   mockNotifySuccess: vi.fn(),
+  mockGetCurrentTenantId: vi.fn(() => 'tenant-abc'),
 }));
 
 vi.mock('../../../../../../utils/hooks/useExternalTab', () => ({
@@ -46,6 +48,14 @@ vi.mock('../../../../../../utils/Environment', async (importOriginal) => {
       ...original.MESSAGING$,
       notifySuccess: mockNotifySuccess,
     },
+  };
+});
+
+vi.mock('../../../../../../utils/url-helper', async (importOriginal) => {
+  const original = await importOriginal<typeof UrlHelperModule>();
+  return {
+    ...original,
+    getCurrentTenantId: mockGetCurrentTenantId,
   };
 });
 
@@ -174,6 +184,7 @@ const buildRegistrationParams = (overrides: Record<string, string> = {}) =>
     platform_title: DEFAULT_SETTINGS.platform_name!,
     platform_contract: 'EE',
     platform_version: DEFAULT_SETTINGS.platform_version!,
+    tenant_name: TENANT.tenant_name,
     ...overrides,
   });
 
@@ -197,6 +208,8 @@ describe('XtmHubTab', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    // Restore default mock implementations after each test
+    mockGetCurrentTenantId.mockImplementation(() => 'tenant-abc');
     // Ensure the demo mode mock is reset between tests
     vi.mocked(isDemoInstance).mockReturnValue(false);
   });
@@ -384,6 +397,7 @@ describe('XtmHubTab', () => {
       });
 
       it('platform_url uses the default tenant uuid when no tenant is set', () => {
+        mockGetCurrentTenantId.mockReturnValueOnce(DEFAULT_TENANT_UUID);
         renderXtmHubTab({
           registrationStatus: null,
           currentUserTenant: null,
