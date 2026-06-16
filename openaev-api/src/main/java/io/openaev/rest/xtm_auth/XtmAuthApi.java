@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,6 +33,7 @@ public class XtmAuthApi extends RestBehavior {
       description =
           "Returns the public key(s) used to verify JWTs emitted by this OpenAEV instance. "
               + "Standard JWKS format with OKP/Ed25519 keys.")
+  @Transactional(readOnly = true)
   @ApiResponse(responseCode = "200", description = "JWKS payload")
   @LogExecutionTime
   public JwksOutput jwks() {

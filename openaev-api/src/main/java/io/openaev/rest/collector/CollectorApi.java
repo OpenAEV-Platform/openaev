@@ -48,6 +48,7 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
+  @Transactional(readOnly = true)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -85,6 +86,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -102,6 +104,7 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
+  @Transactional(readOnly = true)
   public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
   }

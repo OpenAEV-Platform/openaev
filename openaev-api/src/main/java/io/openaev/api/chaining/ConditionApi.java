@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -49,6 +50,7 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public EventOutput create(@Valid @RequestBody EventInput input) {
     return toOutput(conditionService.createConditionTree(input));
   }
@@ -57,6 +59,7 @@ public class ConditionApi extends RestBehavior {
   @Operation(
       summary = "Get a condition tree by root ID",
       description = "Retrieves a condition tree by its root condition ID")
+  @Transactional(readOnly = true)
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Condition tree found"),
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
@@ -73,6 +76,7 @@ public class ConditionApi extends RestBehavior {
   @Operation(
       summary = "Get condition trees by workflow",
       description = "Lists all root conditions for a given workflow")
+  @Transactional(readOnly = true)
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Condition trees retrieved")})
   @AccessControl(
       resourceId = "#workflowId",
@@ -100,6 +104,7 @@ public class ConditionApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CONDITION)
   @PutMapping("/{conditionId}")
+  @Transactional
   public EventOutput update(
       @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
     return toOutput(conditionService.updateConditionTree(conditionId, input));
@@ -120,6 +125,7 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.CONDITION)
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Transactional
   public void delete(@PathVariable String conditionId) {
     conditionService.deleteConditionTree(conditionId);
   }

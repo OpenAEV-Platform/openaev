@@ -18,6 +18,7 @@ import io.openaev.service.ChallengeService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,6 +41,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
+  @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
@@ -62,6 +64,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   }
 
   @GetMapping("/api/observer/scenarios/{scenarioId}/challenges")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

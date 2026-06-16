@@ -68,6 +68,7 @@ public class MapperApi extends RestBehavior {
   private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
 
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
   public Page<RawPaginationImportMapper> getImportMapper(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -77,6 +78,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @GetMapping("/{mapperId}")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.READ,
@@ -88,6 +90,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
   public ImportMapper createImportMapper(
       @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
@@ -95,6 +98,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping(value = "/export")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   public void exportMappers(
       @RequestBody @Valid final ExportMapperInput exportMapperInput, HttpServletResponse response) {
@@ -124,6 +128,7 @@ public class MapperApi extends RestBehavior {
 
   @Operation(description = "Export all datas from a specific target (endpoint,...)")
   @PostMapping(value = "/export/csv")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
   public void exportMappersCsv(
@@ -134,6 +139,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/import")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   public void importMappers(@RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
@@ -147,6 +153,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.DUPLICATE,
@@ -157,6 +164,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PutMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.WRITE,
@@ -168,6 +176,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @DeleteMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.DELETE,

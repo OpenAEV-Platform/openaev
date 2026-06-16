@@ -46,6 +46,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations")
+  @Transactional(readOnly = true)
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -55,6 +56,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PostMapping("/api/mitigations/search")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -69,6 +71,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations/{mitigationId}")
+  @Transactional(readOnly = true)
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -92,6 +95,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations/{mitigationId}/attack_patterns")
+  @Transactional(readOnly = true)
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -103,6 +107,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PutMapping("/api/mitigations/{mitigationId}")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -167,6 +172,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @DeleteMapping("/api/mitigations/{mitigationId}")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC

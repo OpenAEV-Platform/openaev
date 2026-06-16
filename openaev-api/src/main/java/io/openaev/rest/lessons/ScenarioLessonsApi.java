@@ -36,6 +36,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_categories",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -196,6 +197,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_questions"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -216,6 +218,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -230,6 +233,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -254,6 +258,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     TENANT_SCENARIO_URI
         + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

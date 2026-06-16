@@ -66,6 +66,7 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/login")
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
   public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
@@ -115,6 +116,7 @@ public class UserApi extends RestBehavior {
       })
   @PostMapping("/api/reset")
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
@@ -134,6 +136,7 @@ public class UserApi extends RestBehavior {
       })
   @PostMapping("/api/reset/{token}")
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
@@ -145,6 +148,7 @@ public class UserApi extends RestBehavior {
   @Operation(
       description = "Validate that the reset token does exist",
       summary = "Check reset token")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(

@@ -45,6 +45,7 @@ public class SecurityPlatformApi {
   private final DocumentService documentService;
 
   @GetMapping({SECURITY_PLATFORM_URI, TENANT_SECURITY_PLATFORM_URI})
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SECURITY_PLATFORM)
   public Iterable<SecurityPlatform> securityPlatforms() {
     return securityPlatformRepository.findAll();
@@ -123,6 +124,7 @@ public class SecurityPlatformApi {
     SECURITY_PLATFORM_URI + "/{securityPlatformId}",
     TENANT_SECURITY_PLATFORM_URI + "/{securityPlatformId}"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#securityPlatformId",
       actionPerformed = Action.READ,
@@ -135,6 +137,7 @@ public class SecurityPlatformApi {
   }
 
   @PostMapping({SECURITY_PLATFORM_URI + "/search", TENANT_SECURITY_PLATFORM_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public Page<SecurityPlatform> securityPlatforms(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -193,6 +196,7 @@ public class SecurityPlatformApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SECURITY_PLATFORM)
   @Operation(summary = "Get the Documents used in a security platform")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -204,6 +208,7 @@ public class SecurityPlatformApi {
   }
 
   @GetMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -213,6 +218,7 @@ public class SecurityPlatformApi {
   }
 
   @PostMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()

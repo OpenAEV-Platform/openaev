@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,6 +28,7 @@ public class OpenCTIApi {
 
   @Operation(
       summary = "Retrieve the latest exercise by external reference ID (example: a report ID")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(

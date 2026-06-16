@@ -126,6 +126,7 @@ public class SimulationInjectApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional(readOnly = true)
   @GetMapping({
     EXERCISE_URI + "/{exerciseId}/injects",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects"
@@ -174,6 +175,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -188,6 +190,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -201,6 +204,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/communications"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -253,6 +257,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.CREATE,
@@ -325,6 +330,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/activation"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -340,6 +346,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/trigger"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -369,6 +376,7 @@ public class SimulationInjectApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,

@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -55,6 +56,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
               + INJECT_EXPECTATION_TRACES_URI
               + "/bulk")
   @PostMapping()
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
       @Valid @RequestBody InjectExpectationTraceInput input) {
@@ -91,6 +93,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
       })
   @LogExecutionTime
   @PostMapping("/bulk")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
       @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
@@ -102,6 +105,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   }
 
   @Operation(summary = "Get inject expectation traces from collector")
+  @Transactional(readOnly = true)
   @GetMapping()
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
@@ -119,6 +123,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   }
 
   @Operation(summary = "Get inject expectation traces' count")
+  @Transactional(readOnly = true)
   @GetMapping("/count")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public long getAlertLinksNumber(

@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,6 +35,7 @@ public class TenantApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public TenantOutput create(@Valid @RequestBody TenantInput input)
       throws DependenciesManagerException {
     return toOutput(tenantService.create(TenantMapper.fromInput(null, input)));
@@ -44,6 +46,7 @@ public class TenantApi extends RestBehavior {
   @Operation(
       summary = "Get tenant by ID",
       description = "Retrieves a tenant by its unique identifier")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.READ,
@@ -64,6 +67,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @PostMapping("/search")
+  @Transactional
   public Page<TenantOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantService.search(searchPaginationInput);
@@ -78,6 +82,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @PutMapping("/{tenantId}")
+  @Transactional
   public TenantOutput update(@PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
 
     return toOutput(tenantService.update(tenantId, input));
@@ -94,6 +99,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @PostMapping("/{tenantId}/reactivate")
+  @Transactional
   public TenantOutput reactivate(@PathVariable String tenantId) {
     return toOutput(tenantService.reactivate(tenantId));
   }
@@ -106,6 +112,7 @@ public class TenantApi extends RestBehavior {
           "Marks a tenant as deleted. Data is preserved for 30 days."
               + " An admin can reactivate the tenant within this grace period."
               + " After 30 days, the tenant and all associated data are permanently removed.")
+  @Transactional
   @AccessControl(
       resourceId = "#tenantId",
       actionPerformed = Action.DELETE,

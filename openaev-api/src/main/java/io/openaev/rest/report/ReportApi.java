@@ -33,6 +33,7 @@ public class ReportApi extends RestBehavior {
   private final InjectService injectService;
 
   @GetMapping({REPORT_URI + "/{reportId}", TENANT_REPORT_URI + "/{reportId}"})
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#reportId",
       actionPerformed = Action.READ,
@@ -50,6 +51,7 @@ public class ReportApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Operation(summary = "Get a Report from a simulation")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Report returned"),
@@ -66,6 +68,7 @@ public class ReportApi extends RestBehavior {
     "/api/exercises/{exerciseId}/reports",
     TENANT_EXERCISE_URI + "/{exerciseId}/reports"
   })
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,

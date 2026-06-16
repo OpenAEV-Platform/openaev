@@ -61,6 +61,7 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations",
       description =
           "Retrieves inject expectations of agents installed on an asset. If an expiration time is provided, it will return all expectations not expired within this timeframe independently of their results. Otherwise, it will return all expectations without any result.")
+  @Transactional(readOnly = true)
   @GetMapping({INJECTS_EXPECTATIONS_URI, TENANT_INJECTS_EXPECTATIONS_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
@@ -86,6 +87,7 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source",
       description =
           "Retrieves inject expectations that have not seen any result yet of agents installed on an asset for a given source ID.")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/{sourceId}",
     TENANT_INJECTS_EXPECTATIONS_URI + "/{sourceId}"
@@ -105,6 +107,7 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source",
       description =
           "Retrieves inject expectations of agents installed on an asset for a given source ID.")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}",
     TENANT_INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}"
@@ -133,6 +136,7 @@ public class ExpectationApi extends RestBehavior {
     INJECTS_EXPECTATIONS_URI + "/prevention",
     TENANT_INJECTS_EXPECTATIONS_URI + "/prevention"
   })
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectPreventionExpectationsNotFilled() {
     return injectExpectationService.preventionExpectationsNotFill().stream().toList();
@@ -142,6 +146,7 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source and type Prevention",
       description =
           "Retrieves inject expectations of agents installed on an asset for a given source ID and type Prevention.")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}",
     TENANT_INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}"
@@ -156,6 +161,7 @@ public class ExpectationApi extends RestBehavior {
     INJECTS_EXPECTATIONS_URI + "/detection",
     TENANT_INJECTS_EXPECTATIONS_URI + "/detection"
   })
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectation> getInjectDetectionExpectationsNotFilled() {
     return injectExpectationService.detectionExpectationsNotFill().stream().toList();
@@ -165,6 +171,7 @@ public class ExpectationApi extends RestBehavior {
       summary = "Get Inject Expectations for a Specific Source and type Detection",
       description =
           "Retrieves inject expectations of agents installed on an asset for a given source ID and type detection.")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}",
     TENANT_INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}"
@@ -202,6 +209,7 @@ public class ExpectationApi extends RestBehavior {
   }
 
   @Operation(summary = "Get available expectations for an inject by injector contract id")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECTS_EXPECTATIONS_URI + "/available",
     TENANT_INJECTS_EXPECTATIONS_URI + "/available"

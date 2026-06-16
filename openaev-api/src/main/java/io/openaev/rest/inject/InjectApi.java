@@ -131,6 +131,7 @@ public class InjectApi extends RestBehavior {
   // -- INJECTS --
 
   @GetMapping({INJECT_URI + "/{injectId}", TENANT_INJECT_URI + "/{injectId}"})
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -141,6 +142,7 @@ public class InjectApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({INJECT_URI + "/search/export", TENANT_INJECT_URI + "/search/export"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
       @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
@@ -164,6 +166,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping({INJECT_URI + "/export", TENANT_INJECT_URI + "/export"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
@@ -207,6 +210,7 @@ public class InjectApi extends RestBehavior {
     INJECT_URI + "/{injectId}/inject_export",
     TENANT_INJECT_URI + "/{injectId}/inject_export"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -263,6 +267,7 @@ public class InjectApi extends RestBehavior {
         INJECT_URI + "/{injectId}/targets/{targetType}/search",
         TENANT_INJECT_URI + "/{injectId}/targets/{targetType}/search"
       })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -292,6 +297,7 @@ public class InjectApi extends RestBehavior {
    * @param searchText Additional filter on target label
    */
   @Operation(summary = "Get filter values options from possible targets by target type and inject")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -348,6 +354,7 @@ public class InjectApi extends RestBehavior {
         INJECT_URI + "/targets/{targetType}/options",
         TENANT_INJECT_URI + "/targets/{targetType}/options"
       })
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptionsById(
       @PathVariable String targetType, @RequestBody final List<String> ids) {
@@ -365,6 +372,7 @@ public class InjectApi extends RestBehavior {
     INJECT_URI + "/execution/reception/{injectId}",
     TENANT_INJECT_URI + "/execution/reception/{injectId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -381,6 +389,7 @@ public class InjectApi extends RestBehavior {
     INJECT_URI + "/execution/callback/{injectId}",
     TENANT_INJECT_URI + "/execution/callback/{injectId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -395,6 +404,7 @@ public class InjectApi extends RestBehavior {
     INJECT_URI + "/execution/{agentId}/callback/{injectId}",
     TENANT_INJECT_URI + "/execution/{agentId}/callback/{injectId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -452,6 +462,8 @@ public class InjectApi extends RestBehavior {
       summary = "Get the payload ready to be executed",
       description =
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
+  // TODO XFO: it should be readOnly since it's a GetMapping, however the method is doing updates
+  @Transactional
   public Payload getExecutablePayloadInject(
       @PathVariable @NotBlank final String injectId, @PathVariable @NotBlank final String agentId)
       throws Exception {
@@ -507,6 +519,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @GetMapping({INJECT_URI + "/next", TENANT_INJECT_URI + "/next"})
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
     return injectRepository.findAll(InjectSpecification.next()).stream()
@@ -567,6 +580,7 @@ public class InjectApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({INJECT_URI + "/findings/options", TENANT_INJECT_URI + "/findings/options"})
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
       @RequestParam(required = false) final String searchText,
@@ -576,6 +590,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @PostMapping({INJECT_URI + "/options", TENANT_INJECT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.injectRepository.findAllById(ids)).stream()
@@ -611,6 +626,7 @@ public class InjectApi extends RestBehavior {
   @Operation(
       description =
           "Get ExecutionTraces from a specific inject and target (asset, agent, team, player)")
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/execution-traces", TENANT_INJECT_URI + "/execution-traces"})
   @AccessControl(
       resourceId = "#injectId",
@@ -626,6 +642,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get InjectStatus with global execution traces")
+  @Transactional(readOnly = true)
   @GetMapping({INJECT_URI + "/status", TENANT_INJECT_URI + "/status"})
   @AccessControl(
       resourceId = "#injectId",
@@ -638,6 +655,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get detection remediation by inject based on the payload definition")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECT_URI + "/detection-remediations/{injectId}",
     TENANT_INJECT_URI + "/detection-remediations/{injectId}"
@@ -653,6 +671,7 @@ public class InjectApi extends RestBehavior {
   }
 
   @Operation(description = "Get documents by inject and payload id")
+  @Transactional(readOnly = true)
   @GetMapping({
     INJECT_URI + "/{injectId}/payload/{payloadId}/documents",
     TENANT_INJECT_URI + "/{injectId}/payload/{payloadId}/documents"

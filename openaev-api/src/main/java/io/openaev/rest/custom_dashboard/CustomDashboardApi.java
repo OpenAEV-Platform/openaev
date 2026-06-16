@@ -22,6 +22,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,6 +40,7 @@ public class CustomDashboardApi extends RestBehavior {
   // -- CRUD --
 
   @PostMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
       @RequestBody @Valid @NotNull final CustomDashboardInput input) {
@@ -48,12 +50,14 @@ public class CustomDashboardApi extends RestBehavior {
   }
 
   @GetMapping
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<List<CustomDashboardOutput>> customDashboards() {
     return ResponseEntity.ok(this.customDashboardService.customDashboards());
   }
 
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Page<CustomDashboard>> customDashboards(
       @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput) {
@@ -61,6 +65,7 @@ public class CustomDashboardApi extends RestBehavior {
   }
 
   @GetMapping("/{customDashboardId}")
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#customDashboardId",
       actionPerformed = Action.READ,
@@ -71,6 +76,7 @@ public class CustomDashboardApi extends RestBehavior {
   }
 
   @PutMapping("/{customDashboardId}")
+  @Transactional
   @AccessControl(
       resourceId = "#customDashboardId",
       actionPerformed = Action.WRITE,
@@ -86,6 +92,7 @@ public class CustomDashboardApi extends RestBehavior {
   }
 
   @DeleteMapping("/{customDashboardId}")
+  @Transactional
   @AccessControl(
       resourceId = "#customDashboardId",
       actionPerformed = Action.DELETE,
@@ -100,6 +107,7 @@ public class CustomDashboardApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping("/options")
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -107,6 +115,7 @@ public class CustomDashboardApi extends RestBehavior {
   }
 
   @PostMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return this.customDashboardService.findAllByIdsAsOptions(ids);
@@ -118,6 +127,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @Operation(summary = "Get the dashboard used in a resource")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "Dashboard used in the resource")})
   public List<FilterUtilsJpa.Option> optionsByResourceId(

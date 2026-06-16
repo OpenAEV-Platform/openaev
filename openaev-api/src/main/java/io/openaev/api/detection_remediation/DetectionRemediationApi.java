@@ -22,6 +22,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -36,6 +37,7 @@ public class DetectionRemediationApi {
       TENANT_PREFIX + "/detection-remediations/ai";
 
   @Operation(summary = "Get the status of the remediation-detection web service")
+  @Transactional(readOnly = true)
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -78,6 +80,7 @@ public class DetectionRemediationApi {
     DETECTION_REMEDIATION_URI + "/rules/{collectorType}",
     TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
   })
+  @Transactional
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
@@ -151,6 +154,7 @@ public class DetectionRemediationApi {
     DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
     TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"
   })
+  @Transactional
   public ResponseEntity<DetectionRemediationOutput>
       postRuleDetectionRemediationByInjectIdAndCollectorType(
           @PathVariable @NotBlank String injectId,

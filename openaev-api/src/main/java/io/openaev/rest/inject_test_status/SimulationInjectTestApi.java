@@ -44,6 +44,7 @@ public class SimulationInjectTestApi extends RestBehavior {
     "/api/exercise/{simulationId}/injects/test",
     TENANT_PREFIX + "/exercise/{simulationId}/injects/test"
   })
+  @Transactional
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION,
@@ -59,6 +60,7 @@ public class SimulationInjectTestApi extends RestBehavior {
     EXERCISE_URI + "/{simulationId}/injects/test/search",
     TENANT_EXERCISE_URI + "/{simulationId}/injects/test/search"
   })
+  @Transactional
   @AccessControl(
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION,
