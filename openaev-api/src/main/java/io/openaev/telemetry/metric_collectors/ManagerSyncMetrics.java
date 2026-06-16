@@ -68,4 +68,3 @@ public class ManagerSyncMetrics {
     syncErrors.add(1, Attributes.of(TENANT_ID_KEY, tenantId));
   }
 }
-
