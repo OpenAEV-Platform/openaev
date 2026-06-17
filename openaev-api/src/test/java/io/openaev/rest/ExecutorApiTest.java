@@ -588,7 +588,7 @@ public class ExecutorApiTest extends IntegrationTest {
 
       // -------- Assert --------
       List<String> executorIds = JsonPath.read(response, "$[*].executor_id");
-      assertThat(executorIds.stream().noneMatch(executorInTenantXId::equals)).isTrue();
+      assertThat(executorIds).doesNotContain(executorInTenantXId);
     }
 
     @Test

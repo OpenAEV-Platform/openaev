@@ -695,7 +695,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -------- Assert --------
       List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
-      assertThat(injectorIds.stream().noneMatch(input.getId()::equals)).isTrue();
+      assertThat(injectorIds).doesNotContain(input.getId());
     }
 
     @Test
