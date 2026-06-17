@@ -343,19 +343,54 @@ function getBaseCommand(node: AttackPathNode): string {
 
 /**
  * Full command string shown in the Terminal tab.
- * node_arguments already includes the target IP/host, so we just concatenate:
- *   <base_cmd> <node_arguments>
- * If no arguments: <base_cmd> <target>
- * If node_command is already set, use it verbatim.
+ *
+ * Priority:
+ *  1. node_command  — verbatim if set
+ *  2. node_arguments — prepend base executable
+ *  3. Synthesize from available fields (ip, hostname, credentials, payload module)
  */
 export function synthesizeCommand(node: AttackPathNode): string {
   if (node.node_command) return node.node_command;
   const base = getBaseCommand(node);
+
+  // If explicit arguments are present, they already contain the target
   if (node.node_arguments) {
     return `${base} ${node.node_arguments}`;
   }
+
+  // Synthesize from available data
+  const parts: string[] = [base];
   const target = node.node_ip ?? node.node_hostname ?? '';
-  return [base, target].filter(Boolean).join(' ');
+  if (target) parts.push(target);
+
+  // Add credential flags if available
+  if (node.node_credentials_found?.length) {
+    const cred = node.node_credentials_found[0];
+    const colonIdx = cred.indexOf(':');
+    if (colonIdx > 0) {
+      const user = cred.slice(0, colonIdx);
+      const pass = cred.slice(colonIdx + 1);
+      // NTLM hash detection (32-char hex or LM:NT format)
+      const isHash = /^[0-9a-f]{32}$/i.test(pass) || /^[0-9a-f]{32}:[0-9a-f]{32}$/i.test(pass) || pass.includes('aad3b435');
+      parts.push(`-u "${user}"`);
+      parts.push(isHash ? `-H "${pass}"` : `-p "${pass}"`);
+    }
+  } else if (node.node_user_privileges) {
+    const match = node.node_user_privileges.match(/^([^\s(→\n]+)/);
+    if (match) parts.push(`-u "${match[1]}"`);
+  }
+
+  // Add module from payload name (e.g. "netexec – SMB credential spray" → no module)
+  // but "netexec – gpp_password" → -M gpp_password
+  if (node.node_payload_name) {
+    const sep = node.node_payload_name.split(/\s[–-]\s/);
+    const mod = sep[1]?.trim();
+    if (mod && !mod.toLowerCase().includes('spray') && !mod.toLowerCase().includes('scan') && !mod.toLowerCase().includes('discovery')) {
+      parts.push(`-M ${mod}`);
+    }
+  }
+
+  return parts.join(' ');
 }
 
 export interface ArgEntry { key: string; value: string; sensitive: boolean }
