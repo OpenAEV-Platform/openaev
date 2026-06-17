@@ -574,7 +574,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
-  // TODO XFO missing @Transactional, but test hangs if adding it (see #44f7c443)
+  @Transactional
   public void deleteExercise(@PathVariable String exerciseId) {
     exerciseService.deleteById(exerciseId);
   }
