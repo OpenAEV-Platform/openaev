@@ -326,7 +326,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    List<InjectExpectation> agentExpectations =
+    List<BaseInjectExpectation> agentExpectations =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
@@ -340,7 +340,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
         agentExpectations.stream()
             .collect(
                 Collectors.toMap(
-                    InjectExpectation::getId,
+                    BaseInjectExpectation::getId,
                     expectation ->
                         InjectExpectationUpdateInput.builder()
                             .collectorId(savedCollector.getId())
@@ -358,7 +358,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     // -- ASSERT --
     // Agent level: every expectation carries the collector result and a success score, exactly as
     // the per-item computeTechnicalExpectation path would have produced
-    List<InjectExpectation> updatedAgentExpectations =
+    List<BaseInjectExpectation> updatedAgentExpectations =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
@@ -377,7 +377,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
 
     // Parent propagation: the asset and asset group expectations are recomputed once per distinct
     // parent and end up successful since all their children succeeded
-    Map<String, List<InjectExpectation>> parents =
+    Map<String, List<BaseInjectExpectation>> parents =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())

@@ -117,17 +117,17 @@ public final class ExpectationResultBuilder {
   // -- BUILD --
 
   public static void addResult(
-      @NotNull final BaseInjectExpectation BaseInjectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationUpdateInput input,
       @NotNull final String resultMsg) {
     // Ensure results list is mutable (JSON deserialization may produce an immutable list)
-    if (!(BaseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
-      BaseInjectExpectation.setResults(
-          new java.util.ArrayList<>(BaseInjectExpectation.getResults()));
+    if (!(baseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
+      baseInjectExpectation.setResults(
+          new java.util.ArrayList<>(baseInjectExpectation.getResults()));
     }
 
     InjectExpectationResult existing =
-        findResultBySourceId(BaseInjectExpectation.getResults(), input.getSourceId());
+        findResultBySourceId(baseInjectExpectation.getResults(), input.getSourceId());
     if (existing != null) {
       existing.setResult(resultMsg);
       existing.setScore(input.getScore());
@@ -143,25 +143,25 @@ public final class ExpectationResultBuilder {
               .date(now().toString())
               .score(input.getScore())
               .build();
-      BaseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.getResults().add(existing);
     }
   }
 
   public static void addResult(
-      @NotNull final BaseInjectExpectation BaseInjectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final InjectExpectationUpdateInput input,
       @NotNull final Collector collector) {
     final double score =
-        InjectExpectationUtils.computeScore(BaseInjectExpectation, input.getIsSuccess());
+        InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
 
     // Ensure results list is mutable (JSON deserialization may produce an immutable list)
-    if (!(BaseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
-      BaseInjectExpectation.setResults(
-          new java.util.ArrayList<>(BaseInjectExpectation.getResults()));
+    if (!(baseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
+      baseInjectExpectation.setResults(
+          new java.util.ArrayList<>(baseInjectExpectation.getResults()));
     }
 
     InjectExpectationResult existing =
-        findResultBySourceId(BaseInjectExpectation.getResults(), collector.getId());
+        findResultBySourceId(baseInjectExpectation.getResults(), collector.getId());
 
     if (existing != null) {
       existing.setResult(input.getResult());
@@ -183,7 +183,7 @@ public final class ExpectationResultBuilder {
               .score(score)
               .metadata(input.getMetadata())
               .build();
-      BaseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.getResults().add(existing);
     }
   }
 
@@ -217,9 +217,9 @@ public final class ExpectationResultBuilder {
   }
 
   public static InjectExpectationResult buildForMediaPressure(
-      @NotNull final BaseInjectExpectation BaseInjectExpectation) {
+      @NotNull final BaseInjectExpectation baseInjectExpectation) {
     return buildForMediaPressure(
-        Instant.now().toString(), BaseInjectExpectation.getExpectedScore());
+        Instant.now().toString(), baseInjectExpectation.getExpectedScore());
   }
 
   public static InjectExpectationResult buildDefaultForMediaPressure() {

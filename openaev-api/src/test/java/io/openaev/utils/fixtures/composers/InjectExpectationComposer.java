@@ -11,45 +11,45 @@ public class InjectExpectationComposer extends ComposerBase<BaseInjectExpectatio
   @Autowired private InjectExpectationRepository injectExpectationRepository;
 
   public class Composer extends InnerComposerBase<BaseInjectExpectation> {
-    private final BaseInjectExpectation BaseInjectExpectation;
+    private final BaseInjectExpectation baseInjectExpectation;
     private Optional<AssetGroupComposer.Composer> assetGroupComposer = Optional.empty();
     private Optional<TeamComposer.Composer> teamComposer = Optional.empty();
     private Optional<UserComposer.Composer> userComposer = Optional.empty();
     private Optional<EndpointComposer.Composer> endpointComposer = Optional.empty();
     private Optional<AgentComposer.Composer> agentComposer = Optional.empty();
 
-    public Composer(BaseInjectExpectation BaseInjectExpectation) {
-      this.BaseInjectExpectation = BaseInjectExpectation;
+    public Composer(BaseInjectExpectation baseInjectExpectation) {
+      this.baseInjectExpectation = baseInjectExpectation;
     }
 
     public Composer withTeam(TeamComposer.Composer teamComposer) {
       this.teamComposer = Optional.of(teamComposer);
-      this.BaseInjectExpectation.setTeam(teamComposer.get());
+      this.baseInjectExpectation.setTeam(teamComposer.get());
       return this;
     }
 
     public Composer withUser(UserComposer.Composer userComposer) {
       this.userComposer = Optional.of(userComposer);
-      this.BaseInjectExpectation.setUser(userComposer.get());
+      this.baseInjectExpectation.setUser(userComposer.get());
       return this;
     }
 
     public Composer withAssetGroup(AssetGroupComposer.Composer assetGroupComposer) {
       this.assetGroupComposer = Optional.of(assetGroupComposer);
-      this.BaseInjectExpectation.setAssetGroup(assetGroupComposer.get());
+      this.baseInjectExpectation.setAssetGroup(assetGroupComposer.get());
       return this;
     }
 
     public Composer withEndpoint(EndpointComposer.Composer endpointComposer) {
       this.endpointComposer = Optional.of(endpointComposer);
-      this.BaseInjectExpectation.setAsset(endpointComposer.get());
+      this.baseInjectExpectation.setAsset(endpointComposer.get());
       return this;
     }
 
     public Composer withAgent(AgentComposer.Composer agentComposer) {
       this.agentComposer = Optional.of(agentComposer);
-      this.BaseInjectExpectation.setAgent(agentComposer.get());
-      this.BaseInjectExpectation.setAsset(agentComposer.get().getAsset());
+      this.baseInjectExpectation.setAgent(agentComposer.get());
+      this.baseInjectExpectation.setAsset(agentComposer.get().getAsset());
       return this;
     }
 
@@ -60,7 +60,7 @@ public class InjectExpectationComposer extends ComposerBase<BaseInjectExpectatio
       agentComposer.ifPresent(AgentComposer.Composer::persist);
       teamComposer.ifPresent(TeamComposer.Composer::persist);
       userComposer.ifPresent(UserComposer.Composer::persist);
-      injectExpectationRepository.save(BaseInjectExpectation);
+      injectExpectationRepository.save(baseInjectExpectation);
       return this;
     }
 
@@ -71,18 +71,18 @@ public class InjectExpectationComposer extends ComposerBase<BaseInjectExpectatio
       agentComposer.ifPresent(AgentComposer.Composer::delete);
       teamComposer.ifPresent(TeamComposer.Composer::delete);
       userComposer.ifPresent(UserComposer.Composer::delete);
-      injectExpectationRepository.delete(BaseInjectExpectation);
+      injectExpectationRepository.delete(baseInjectExpectation);
       return this;
     }
 
     @Override
     public BaseInjectExpectation get() {
-      return this.BaseInjectExpectation;
+      return this.baseInjectExpectation;
     }
   }
 
-  public Composer forExpectation(BaseInjectExpectation BaseInjectExpectation) {
-    generatedItems.add(BaseInjectExpectation);
-    return new Composer(BaseInjectExpectation);
+  public Composer forExpectation(BaseInjectExpectation baseInjectExpectation) {
+    generatedItems.add(baseInjectExpectation);
+    return new Composer(baseInjectExpectation);
   }
 }
