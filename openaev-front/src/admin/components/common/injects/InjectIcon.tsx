@@ -37,13 +37,9 @@ const InjectIcon: FunctionComponent<Props> = ({
   const theme = useTheme();
   const fontSize = size || 'medium';
 
-  const { injectors } = useHelper((helper: InjectorHelper) => ({
-    injectors: helper.getInjectorsIncludingPending(),
-  }));
+  const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({
-    collectors: helper.getCollectorsIncludingPending(),
-  }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
 
   const resolvedInjectorId = (injectors as Injector[])?.find(
     (inj: Injector) => inj.injector_type === type,

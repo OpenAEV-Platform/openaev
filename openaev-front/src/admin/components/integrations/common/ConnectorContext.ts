@@ -56,7 +56,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     list: '/admin/integrations/injectors',
     detail: (id: string) => `/admin/integrations/injectors/${id}`,
   },
-  logoUrl: ( injectorId: string) => buildTenantApiPath(`/api/images/injectors/id/${injectorId}`),
+  logoUrl: (injectorId: string) => buildTenantApiPath(`/api/images/injectors/id/${injectorId}`),
   normalizeSingle: data => ({
     id: data?.injector_id,
     name: data?.injector_name,
@@ -106,7 +106,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     list: '/admin/integrations/executors',
     detail: (id: string) => `/admin/integrations/executors/${id}`,
   },
-  logoUrl: (injectorId:string) => buildTenantApiPath(`/api/images/executors/icons/id/i${injectorId}`),
+  logoUrl: (injectorId: string) => buildTenantApiPath(`/api/images/executors/icons/id/i${injectorId}`),
   normalizeSingle: data => ({
     id: data?.executor_id,
     name: data?.executor_name,
