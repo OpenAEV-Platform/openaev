@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.fixtures.OrganizationFixture;
@@ -53,7 +54,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setEmail(existingUser.getEmail());
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result.getId()).isEqualTo(existingUser.getId());
@@ -73,7 +74,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setEmail(existingUser.getEmail());
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result.getFirstname()).isEqualTo("newName");
@@ -94,7 +95,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setTagIds(List.of(tag.getId()));
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result.getTags()).extracting(Tag::getId).contains(tag.getId());
@@ -115,7 +116,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setTagIds(List.of(tag.getId()));
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result.getId()).isEqualTo(existingUser.getId());
@@ -140,7 +141,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setOrganizationId(newOrg.getId());
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result.getOrganization().getId()).isEqualTo(newOrg.getId());
@@ -164,7 +165,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setFirstname("ExistingPlayer");
 
       // Act
-      User result = playerService.createPlayer(playerInput);
+      User result = playerService.createPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result.getId()).isEqualTo(existingUser.getId());
@@ -181,7 +182,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setLastname("Test");
 
       // Act
-      User result = playerService.createPlayer(playerInput);
+      User result = playerService.createPlayer(playerInput, Tenant.DEFAULT_TENANT_UUID);
 
       // Assert
       assertThat(result).isNotNull();

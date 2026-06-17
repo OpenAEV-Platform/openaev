@@ -11,7 +11,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -28,6 +27,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
@@ -57,8 +57,9 @@ public class PlayerService {
   private final UserRepository userRepository;
   private final UserService userService;
 
-  public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
-    Specification<User> tenantSpec = inTenant(TenantContext.getCurrentTenant());
+  public Page<PlayerOutput> playerPagination(
+      @NotNull SearchPaginationInput searchPaginationInput, @NotBlank String tenantId) {
+    Specification<User> tenantSpec = inTenant(tenantId);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
     playersFunction =
@@ -108,15 +109,15 @@ public class PlayerService {
     return new PageImpl<>(players, pageable, total);
   }
 
-  public User createPlayer(@Valid @RequestBody PlayerInput input) {
+  public User createPlayer(@Valid @RequestBody PlayerInput input, @NotBlank String tenantId) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
-      tenantUserService.attachToTenant(userId, TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(userId, tenantId);
       // Reload user after @Modifying queries cleared the persistence context
       return userRepository
-          .findByIdAndTenantId(userId, TenantContext.getCurrentTenant())
+          .findByIdAndTenantId(userId, tenantId)
           .orElseThrow();
     }
     User user = new User();
@@ -126,11 +127,11 @@ public class PlayerService {
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
     userService.createUserToken(savedUser);
-    tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantUserService.attachToTenant(savedUser.getId(), tenantId);
     return savedUser;
   }
 
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
+  public User upsertPlayer(@Valid @RequestBody PlayerInput input, @NotBlank String tenantId) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
@@ -159,7 +160,7 @@ public class PlayerService {
             updateRelation(
                 input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
       }
-      tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(existingUser.getId(), tenantId);
       return userRepository.save(existingUser);
     } else {
       User newUser = new User();
@@ -171,7 +172,7 @@ public class PlayerService {
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
       userService.createUserToken(savedUser);
-      tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(savedUser.getId(), tenantId);
       return savedUser;
     }
   }

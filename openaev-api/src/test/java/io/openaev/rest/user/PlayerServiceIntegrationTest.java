@@ -1,9 +1,9 @@
 package io.openaev.rest.user;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
@@ -49,12 +49,12 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     user.setOrganization(organization);
     user.setTags(Set.of(tag1, tag2));
     User savedUser = userRepository.save(user);
-    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(savedUser.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     User userWithoutOrg = UserFixture.getUser("Jane", "Doe", "noorg@test.com");
     userWithoutOrg.setTags(Set.of(tag1));
     User savedUserWithoutOrg = userRepository.save(userWithoutOrg);
-    tenantRepository.addUserToTenant(savedUserWithoutOrg.getId(), TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(savedUserWithoutOrg.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setPage(0);
@@ -63,7 +63,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     input.setSorts(List.of(new SortField("user_email", null, null)));
 
     // EXECUTE
-    Page<PlayerOutput> result = playerService.playerPagination(input);
+    Page<PlayerOutput> result = playerService.playerPagination(input, Tenant.DEFAULT_TENANT_UUID);
 
     // ASSERT
     Assertions.assertNotNull(result);
@@ -96,7 +96,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     user.setLastname("Player");
     user.setTags(Set.of(tag));
     User savedUser = userRepository.save(user);
-    tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantRepository.addUserToTenant(savedUser.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     SearchPaginationInput input = new SearchPaginationInput();
     input.setPage(0);
@@ -105,7 +105,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     input.setSorts(List.of(new SortField("user_email", null, null)));
 
     // When
-    Page<PlayerOutput> result = playerService.playerPagination(input);
+    Page<PlayerOutput> result = playerService.playerPagination(input, Tenant.DEFAULT_TENANT_UUID);
 
     // Then
     Assertions.assertNotNull(result);

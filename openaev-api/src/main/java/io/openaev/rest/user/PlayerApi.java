@@ -59,21 +59,22 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-    return this.playerService.playerPagination(searchPaginationInput);
+    return this.playerService.playerPagination(
+        searchPaginationInput, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
-    return playerService.createPlayer(input);
+    return playerService.createPlayer(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
-    return playerService.upsertPlayer(input);
+    return playerService.upsertPlayer(input, TenantContext.getCurrentTenant());
   }
 
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
