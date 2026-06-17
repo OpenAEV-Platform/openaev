@@ -104,28 +104,32 @@ const ConnectorList = () => {
       />
       <div className="clearfix" />
       <Grid container={true} spacing={3} style={{ marginTop: theme.spacing(2) }}>
-        {sortedConnectors.map((connector: ConnectorOutput) => (
-          <Grid key={connector.id} size={{ xs: 4 }}>
-            <ConnectorCard
-              connector={{
-                connectorName: connector.name,
-                connectorType: connectorType.toUpperCase() as CatalogConnector['catalog_connector_type'],
-                connectorLogoName: connector.type,
-                connectorLogoUrl: connector?.isExisting ? logoUrl(connector.id) : (connector.catalog?.catalog_connector_logo_url && buildTenantApiPath(`/api/images/catalog/connectors/logos/${connector.catalog?.catalog_connector_logo_url}`)),
-                connectorDescription: connector.catalog?.catalog_connector_short_description,
-                lastUpdatedAt: connector.updatedAt,
-                isVerified: connector.isVerified,
-                connectorUseCases: [],
-                isExternal: connector.isExternal,
-                connectorCurrentStatus: connector.connectorInstance ? connector.connectorInstance.connector_instance_current_status : null,
-              }}
-              onMigrateBtnClick={canMigrate(connector) ? e => onMigrateBtnClick(e, connector) : undefined}
-              cardActionUrl={routes.detail(connector.id)}
-              isNotClickable={connector.catalog === null && connectorType !== 'injector'}
-              showStatusOrLastUpdatedAt
-            />
-          </Grid>
-        ))}
+        {sortedConnectors.map((connector: ConnectorOutput) => {
+          // Executors store images by type (not UUID); injectors/collectors use UUID.
+          const logoKey = connectorType === 'executor' ? (connector.type ?? '') : (connector.id ?? '');
+          return (
+            <Grid key={connector.id} size={{ xs: 4 }}>
+              <ConnectorCard
+                connector={{
+                  connectorName: connector.name,
+                  connectorType: connectorType.toUpperCase() as CatalogConnector['catalog_connector_type'],
+                  connectorLogoName: connector.type,
+                  connectorLogoUrl: connector?.isExisting ? logoUrl(logoKey) : (connector.catalog?.catalog_connector_logo_url && buildTenantApiPath(`/api/images/catalog/connectors/logos/${connector.catalog?.catalog_connector_logo_url}`)),
+                  connectorDescription: connector.catalog?.catalog_connector_short_description,
+                  lastUpdatedAt: connector.updatedAt,
+                  isVerified: connector.isVerified,
+                  connectorUseCases: [],
+                  isExternal: connector.isExternal,
+                  connectorCurrentStatus: connector.connectorInstance ? connector.connectorInstance.connector_instance_current_status : null,
+                }}
+                onMigrateBtnClick={canMigrate(connector) ? e => onMigrateBtnClick(e, connector) : undefined}
+                cardActionUrl={routes.detail(connector.id)}
+                isNotClickable={connector.catalog === null && connectorType !== 'injector'}
+                showStatusOrLastUpdatedAt
+              />
+            </Grid>
+          );
+        })}
         <CreateConnectorInstanceDrawer
           open={createInstanceDrawer.open}
           catalogConnectorId={selectedCatalogConnector ? selectedCatalogConnector.catalog_connector_id : ''}
