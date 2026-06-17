@@ -144,7 +144,7 @@ public class SimulationChallengeApi extends RestBehavior {
     TENANT_PREFIX + "/player/simulations/{simulationId}/challenges"
   })
   @AccessControl(skipRBAC = true)
-  @UrlAccessControl(userId = "#userId")
+  @UrlAccessControl(exerciseId = "#simulationId", userId = "#userId")
   public SimulationChallengesReader playerChallenges(
       @PathVariable String simulationId, @RequestParam Optional<String> userId) {
     final User user = impersonateUser(userRepository, userId);

@@ -1,36 +1,43 @@
 package io.openaev.rest;
 
+import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_COOKIE_NAME;
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
+import static io.openaev.utils.fixtures.UrlAccessTokenFixture.DEFAULT_RAW_TOKEN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.user.form.player.PlayerInput;
-import io.openaev.utils.fixtures.OrganizationFixture;
-import io.openaev.utils.fixtures.PlayerFixture;
-import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.Cookie;
+import java.text.MessageFormat;
 import java.util.List;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +53,337 @@ class PlayerApiTest extends IntegrationTest {
   @Autowired private OrganizationRepository organizationRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private UserRepository userRepository;
+  @MockitoBean private PreviewFeatureService mockPreviewFeatureService;
+
+  @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private LessonsCategoryComposer lessonsCategoryComposer;
+  @Autowired private LessonsQuestionsComposer lessonsQuestionsComposer;
+  @Autowired private UserComposer userComposer;
+  @Autowired private UrlAccessTokenComposer urlAccessTokenComposer;
+  @Autowired private LessonsAnswersComposer lessonsAnswersComposer;
+
+  @Autowired private EntityManager entityManager;
+
+  @Nested
+  @DisplayName("Player Lessons API")
+  class PlayerLessonsApi {
+    @BeforeEach
+    void before() {
+      when(mockPreviewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
+          .thenReturn(true);
+
+      exerciseComposer.reset();
+      lessonsCategoryComposer.reset();
+      lessonsQuestionsComposer.reset();
+      userComposer.reset();
+      urlAccessTokenComposer.reset();
+      lessonsAnswersComposer.reset();
+    }
+
+    private record PlayerApiObjectWrappers(
+        ExerciseComposer.Composer simulationWrapper, UserComposer.Composer userWrapper) {}
+
+    private PlayerApiObjectWrappers getExerciseWrapper() {
+      UserComposer.Composer userWrapper =
+          userComposer.forUser(UserFixture.getUserWithDefaultEmail());
+      ExerciseComposer.Composer simulationWrapper =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withLessonCategory(
+                  lessonsCategoryComposer
+                      .forLessonsCategory(LessonsCategoryFixture.createDefaultLessonsCategory())
+                      .withLessonsQuestion(
+                          lessonsQuestionsComposer
+                              .forLessonsQuestion(
+                                  LessonsQuestionFixture.createDefaultLessonsQuestion())
+                              .withAnswer(
+                                  lessonsAnswersComposer
+                                      .forLessonsAnswer(LessonsAnswerFixture.createLessonsAnswer())
+                                      .withUser(userWrapper))))
+              .persist();
+      return new PlayerApiObjectWrappers(simulationWrapper, userWrapper);
+    }
+
+    @Nested
+    @DisplayName("Lessons Questions API")
+    class LessonsQuestionsApi {
+      private final String urlMask = "/api/player/lessons/exercise/{0}/lessons_questions";
+
+      private String getUrl(String simulationId) {
+        return MessageFormat.format(urlMask, simulationId);
+      }
+
+      private String getUrl(String simulationId, String userId) {
+        return MessageFormat.format(
+            "{0}?userId={1}", MessageFormat.format(urlMask, simulationId), userId);
+      }
+
+      @Nested
+      @DisplayName("With no URL access control cookie")
+      class WithNoUrlAccessControlCookie {
+        @Test
+        @DisplayName("Given no specific userId on the query string, throw Unauthorised")
+        public void given_noSpecificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(wrappers.simulationWrapper().get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Given specific userId on the query string, throw Unauthorised")
+        public void given_specificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(
+                          wrappers.simulationWrapper().get().getId(),
+                          wrappers.userWrapper().get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+      }
+
+      @Nested
+      @DisplayName("With invalid URL access control cookie")
+      class WithInvalidUrlAccessControlCookie {
+        @Test
+        @DisplayName("Given no specific userId on the query string, throw Unauthorised")
+        public void given_noSpecificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(wrappers.simulationWrapper().get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, "bad cookie"))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Given specific userId on the query string, throw Unauthorised")
+        public void given_specificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(
+                          wrappers.simulationWrapper().get().getId(),
+                          wrappers.userWrapper().get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, "bad cookie"))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+      }
+
+      @Nested
+      @DisplayName("With valid URL access control cookie")
+      class WithValidUrlAccessControlCookie {
+
+        private UrlAccessTokenComposer.Composer createUrlAccessToken(
+            Exercise simulation, User user, String url) {
+          return urlAccessTokenComposer.forToken(
+              UrlAccessTokenFixture.createValidToken(simulation, user, url));
+        }
+
+        @Test
+        @DisplayName("Given no specific userId on the query string, 200 OK")
+        public void given_noSpecificUserIdOnTheQueryString_200OK() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          String url = getUrl(wrappers.simulationWrapper().get().getId());
+          createUrlAccessToken(
+                  wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+              .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(url)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("Given specific userId on the query string, 200 OK")
+        public void given_specificUserIdOnTheQueryString_200OK() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          String url = getUrl(wrappers.simulationWrapper().get().getId());
+          createUrlAccessToken(
+                  wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+              .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(url)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+        }
+      }
+    }
+
+    @Nested
+    @DisplayName("Lessons Answers API")
+    class LessonsAnswersApi {
+      private final String urlMask = "/api/player/lessons/exercise/{0}/lessons_answers";
+
+      private String getUrl(String simulationId) {
+        return MessageFormat.format(urlMask, simulationId);
+      }
+
+      private String getUrl(String simulationId, String userId) {
+        return MessageFormat.format(
+            "{0}?userId={1}", MessageFormat.format(urlMask, simulationId), userId);
+      }
+
+      @Nested
+      @DisplayName("With no URL access control cookie")
+      class WithNoUrlAccessControlCookie {
+        @Test
+        @DisplayName("Given no specific userId on the query string, throw Unauthorised")
+        public void given_noSpecificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(wrappers.simulationWrapper().get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Given specific userId on the query string, throw Unauthorised")
+        public void given_specificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          UserComposer.Composer userWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(wrappers.simulationWrapper().get().getId(), userWrapper.get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+      }
+
+      @Nested
+      @DisplayName("With invalid URL access control cookie")
+      class WithInvalidUrlAccessControlCookie {
+        @Test
+        @DisplayName("Given no specific userId on the query string, throw Unauthorised")
+        public void given_noSpecificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(wrappers.simulationWrapper().get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, "bad cookie"))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("Given specific userId on the query string, throw Unauthorised")
+        public void given_specificUserIdOnTheQueryString_throw401() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          UserComposer.Composer userWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(getUrl(wrappers.simulationWrapper().get().getId(), userWrapper.get().getId()))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, "bad cookie"))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isUnauthorized());
+        }
+      }
+
+      @Nested
+      @DisplayName("With valid URL access control cookie")
+      class WithValidUrlAccessControlCookie {
+
+        private UrlAccessTokenComposer.Composer createUrlAccessToken(
+            Exercise simulation, User user, String url) {
+          return urlAccessTokenComposer.forToken(
+              UrlAccessTokenFixture.createValidToken(simulation, user, url));
+        }
+
+        @Test
+        @DisplayName("Given no specific userId on the query string, 200 OK")
+        public void given_noSpecificUserIdOnTheQueryString_200OK() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          String url = getUrl(wrappers.simulationWrapper().get().getId());
+          createUrlAccessToken(
+                  wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+              .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(url)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("Given specific userId on the query string, 200 OK")
+        public void given_specificUserIdOnTheQueryString_200OK() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          String url = getUrl(wrappers.simulationWrapper().get().getId());
+          createUrlAccessToken(
+                  wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+              .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          mvc.perform(
+                  get(url)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk());
+        }
+      }
+    }
+  }
 
   @DisplayName("Given valid player input, should create a player successfully")
   @Test
