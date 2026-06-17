@@ -38,6 +38,7 @@ const Chat = lazy(() => import('./chat/Chat'));
 const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
+const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
 
 const useStyles = makeStyles()(() => ({
   scheduling: {
@@ -54,6 +55,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   const location = useLocation();
   const { classes } = useStyles();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const isAttackPathMockEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
@@ -115,7 +117,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       marginBottom: 2,
                     }}
                   >
-                    {isChainingFeatureEnabled && exercise.exercise_workflow_id
+                    {((isChainingFeatureEnabled && exercise.exercise_workflow_id) || isAttackPathMockEnabled)
                       ? (
                           <Tabs value={tabValue}>
                             <Tab
@@ -141,6 +143,12 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                               to={`/admin/simulations/${exercise.exercise_id}/animation`}
                               value={`/admin/simulations/${exercise.exercise_id}/animation`}
                               label={t('Animation')}
+                            />
+                            <Tab
+                              component={Link}
+                              to={`/admin/simulations/${exercise.exercise_id}/attack_path`}
+                              value={`/admin/simulations/${exercise.exercise_id}/attack_path`}
+                              label={t('Attack Path')}
                             />
                           </Tabs>
                         )
@@ -221,6 +229,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
                       <Route path="scope" element={errorWrapper(SimulationScope)()} />
                       <Route path="logic" element={errorWrapper(SimulationLogic)()} />
+                      <Route path="attack_path" element={errorWrapper(SimulationAttackPath)()} />
                       {/* Not found */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
