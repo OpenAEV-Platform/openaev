@@ -73,28 +73,30 @@ public class TenantStatementInspector implements StatementInspector {
     if (sql == null || activeTablePattern == null || !activeTablePattern.matcher(sql).find()) {
       return sql;
     }
-    Statement statement;
     try {
-      statement = CCJSqlParserUtil.parse(sql);
+      Statement statement = CCJSqlParserUtil.parse(sql);
+      if (statement instanceof Select select) {
+        filterContainedSelects(select);
+        return select.toString();
+      }
+      if (statement instanceof Update update) {
+        return rewriteUpdate(update);
+      }
+      if (statement instanceof Delete delete) {
+        return rewriteDelete(delete);
+      }
+      if (statement instanceof Insert insert) {
+        return rewriteInsert(insert);
+      }
+      throw new TenantFilteringException(
+          "statement shape not supported by tenant filtering: "
+              + statement.getClass().getSimpleName());
+    } catch (TenantFilteringException e) {
+      throw e;
     } catch (Exception e) {
-      throw new TenantFilteringException("refusing to run SQL that cannot be tenant-filtered", e);
+      // Any parse or rewrite failure is refused, never passed through unfiltered (fail-closed).
+      throw new TenantFilteringException("refusing SQL the tenant filter could not process", e);
     }
-    if (statement instanceof Select select) {
-      filterContainedSelects(select);
-      return select.toString();
-    }
-    if (statement instanceof Update update) {
-      return rewriteUpdate(update);
-    }
-    if (statement instanceof Delete delete) {
-      return rewriteDelete(delete);
-    }
-    if (statement instanceof Insert insert) {
-      return rewriteInsert(insert);
-    }
-    throw new TenantFilteringException(
-        "statement shape not supported by tenant filtering: "
-            + statement.getClass().getSimpleName());
   }
 
   private String rewriteUpdate(Update update) {

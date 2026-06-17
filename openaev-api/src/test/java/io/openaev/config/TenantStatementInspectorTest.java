@@ -485,6 +485,36 @@ class TenantStatementInspectorTest {
     assertNull(inspector.inspect(null));
   }
 
+  // --- finding repository statements (T5a Part B) --------------------------
+
+  @Test
+  @DisplayName("the old modifying CTE on findings fails closed (why it was split)")
+  void modifyingCteOnFindingsFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () ->
+            inspector.inspect(
+                "WITH x AS (INSERT INTO findings (finding_id) VALUES (?) RETURNING finding_id)"
+                    + " SELECT finding_id FROM x"));
+  }
+
+  @Test
+  @DisplayName("the split finding_assets insert passes (join table, not tenant-scoped)")
+  void findingAssetsInsertPasses() {
+    String sql =
+        "INSERT INTO findings_assets (finding_id, asset_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+    assertEquals(sql, inspector.inspect(sql));
+  }
+
+  @Test
+  @DisplayName("the split finding_tags insert ... select passes (join table, not tenant-scoped)")
+  void findingTagsInsertSelectPasses() {
+    String sql =
+        "INSERT INTO findings_tags (finding_id, tag_id)"
+            + " SELECT ?, tag_id FROM unnest(CAST(? AS varchar[])) AS tag_id ON CONFLICT DO NOTHING";
+    assertEquals(sql, inspector.inspect(sql));
+  }
+
   // --- Fail-closed ---------------------------------------------------------
 
   @Test
