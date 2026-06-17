@@ -113,7 +113,10 @@ public class InjectOutput {
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @ArraySchema(
-      schema = @Schema(implementation = String.class, description = "Expectation of the inject"))
+      schema =
+          @Schema(
+              implementation = InjectExpectationOutput.class,
+              description = "Expectation of the inject"))
   private List<InjectExpectationOutput> expectations = new ArrayList<>();
 
   @JsonProperty("listened")
