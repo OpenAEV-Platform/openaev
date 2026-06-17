@@ -10,7 +10,7 @@ import io.openaev.database.audit.EntityDiffContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
-import io.openaev.utils.ObjectDiffUtils;
+import io.openaev.utils.object.ObjectDiffUtils;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;

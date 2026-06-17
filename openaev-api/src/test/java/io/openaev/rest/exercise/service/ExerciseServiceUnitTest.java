@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -422,9 +424,36 @@ class ExerciseServiceUnitTest {
     }
 
     @Test
-    void deleteById_shouldDelegate() {
-      mockedExerciseService.deleteById("id");
-      verify(exerciseRepository).deleteById("id");
+    void deleteById_shouldCheckTenantAndDelegate() {
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class);
+          MockedStatic<SessionHelper> sh = mockStatic(SessionHelper.class)) {
+        // Arrange
+        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
+        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(true);
+        OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
+        when(principal.getId()).thenReturn("user-1");
+        sh.when(SessionHelper::currentUser).thenReturn(principal);
+
+        // Act
+        mockedExerciseService.deleteById("id");
+
+        // Assert
+        verify(exerciseRepository).existsByIdAndTenantId("id", "tenant-1");
+        verify(exerciseRepository).deleteById("id");
+      }
+    }
+
+    @Test
+    void deleteById_shouldThrowWhenExerciseNotInTenant() {
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        // Arrange
+        tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
+        when(exerciseRepository.existsByIdAndTenantId("id", "tenant-1")).thenReturn(false);
+
+        // Act & Assert
+        assertThrows(ElementNotFoundException.class, () -> mockedExerciseService.deleteById("id"));
+        verify(exerciseRepository, never()).deleteById(anyString());
+      }
     }
   }
 

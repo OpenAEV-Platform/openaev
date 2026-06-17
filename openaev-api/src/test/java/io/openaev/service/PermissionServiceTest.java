@@ -15,9 +15,14 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -32,14 +37,40 @@ import org.springframework.web.bind.annotation.RequestMethod;
 public class PermissionServiceTest extends IntegrationTest {
   private static final String RESOURCE_ID = "resourceid";
   private static final String USER_ID = "userid";
+  private static final String SIMULATION_ID = "simulationId";
+  private static final String CONDITION_WORKFLOW_ID = "conditionWorkflowId";
 
   @Mock private GrantService grantService;
   @Mock private InjectService injectService;
   @Mock private NotificationRuleService notificationRuleService;
   @Mock private ObjectiveRepository objectiveRepository;
   @Mock private EvaluationRepository evaluationRepository;
+  @Mock private WorkflowService workflowService;
+  @Mock private StepService stepService;
+  @Mock private ConditionService conditionService;
+  @Mock private InjectorContractService injectorContractService;
 
   @InjectMocks private PermissionService permissionService;
+
+  @BeforeEach
+  public void setupChainingMocks() {
+    Exercise simulation = mock(Exercise.class);
+    when(simulation.getId()).thenReturn(SIMULATION_ID);
+
+    Workflow workflow = mock(Workflow.class);
+    when(workflow.getSimulation()).thenReturn(simulation);
+    when(workflow.getScenario()).thenReturn(null);
+    when(workflowService.findById(RESOURCE_ID)).thenReturn(workflow);
+
+    Step step = mock(Step.class);
+    when(step.getWorkflow()).thenReturn(workflow);
+    when(stepService.findById(RESOURCE_ID)).thenReturn(step);
+
+    Condition condition = mock(Condition.class);
+    when(condition.getWorkflowId()).thenReturn(CONDITION_WORKFLOW_ID);
+    when(conditionService.findConditionRootById(RESOURCE_ID)).thenReturn(condition);
+    when(workflowService.findById(CONDITION_WORKFLOW_ID)).thenReturn(workflow);
+  }
 
   @Test
   public void test_hasPermission_WHEN_admin() {
@@ -389,9 +420,11 @@ public class PermissionServiceTest extends IntegrationTest {
   }
 
   @Test
-  public void test_hasPermission_delete_workflow_step_WHEN_has_delete_assessment() {
+  public void test_hasPermission_delete_workflow_step_WHEN_has_manage_assessment() {
+    // DELETE on workflow/step/condition maps to WRITE on the parent (simulation/scenario),
+    // so MANAGE_ASSESSMENT (which grants WRITE on simulation/scenario) is required.
     User user = getUser(USER_ID, false);
-    user.setGroups(List.of(getGroup(Capability.DELETE_ASSESSMENT)));
+    user.setGroups(List.of(getGroup(Capability.MANAGE_ASSESSMENT)));
     assertTrue(
         permissionService.hasPermission(
             user, Optional.empty(), RESOURCE_ID, ResourceType.WORKFLOW, Action.DELETE));
@@ -403,7 +436,88 @@ public class PermissionServiceTest extends IntegrationTest {
             user, Optional.empty(), RESOURCE_ID, ResourceType.CONDITION, Action.DELETE));
   }
 
+  public void given_workflowWithParentSimulation_should_allowAccessWhenGranted() {
+    String workflowId = "workflowId";
+    String simulationId = "simulationId";
+
+    Exercise simulation = mock(Exercise.class);
+    when(simulation.getId()).thenReturn(simulationId);
+
+    Workflow workflow = mock(Workflow.class);
+    when(workflow.getSimulation()).thenReturn(simulation);
+    when(workflow.getScenario()).thenReturn(null);
+    when(workflowService.findById(workflowId)).thenReturn(workflow);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasReadGrant(simulationId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), workflowId, ResourceType.WORKFLOW, Action.READ));
+
+    when(grantService.hasWriteGrant(simulationId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), workflowId, ResourceType.WORKFLOW, Action.WRITE));
+  }
+
   @Test
+  public void given_stepWithParentScenarioViaWorkflow_should_allowAccessWhenGranted() {
+    String stepId = "stepId";
+    String scenarioId = "scenarioId";
+
+    Scenario scenario = mock(Scenario.class);
+    when(scenario.getId()).thenReturn(scenarioId);
+
+    Workflow workflow = mock(Workflow.class);
+    when(workflow.getSimulation()).thenReturn(null);
+    when(workflow.getScenario()).thenReturn(scenario);
+
+    Step step = mock(Step.class);
+    when(step.getWorkflow()).thenReturn(workflow);
+    when(stepService.findById(stepId)).thenReturn(step);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasReadGrant(scenarioId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), stepId, ResourceType.STEP, Action.READ));
+
+    when(grantService.hasWriteGrant(scenarioId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), stepId, ResourceType.STEP, Action.WRITE));
+  }
+
+  @Test
+  public void given_conditionWithParentSimulationViaWorkflow_should_allowAccessWhenGranted() {
+    String conditionId = "conditionId";
+    String workflowId = "workflowId";
+    String simulationId = "simulationId";
+
+    Exercise simulation = mock(Exercise.class);
+    when(simulation.getId()).thenReturn(simulationId);
+
+    Workflow workflow = mock(Workflow.class);
+    when(workflow.getSimulation()).thenReturn(simulation);
+    when(workflow.getScenario()).thenReturn(null);
+
+    Condition condition = mock(Condition.class);
+    when(condition.getWorkflowId()).thenReturn(workflowId);
+    when(conditionService.findConditionRootById(conditionId)).thenReturn(condition);
+    when(workflowService.findById(workflowId)).thenReturn(workflow);
+
+    User user = getUser(USER_ID, false);
+    when(grantService.hasReadGrant(simulationId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), conditionId, ResourceType.CONDITION, Action.READ));
+
+    when(grantService.hasWriteGrant(simulationId, user)).thenReturn(true);
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), conditionId, ResourceType.CONDITION, Action.WRITE));
+  }
+
   public void test_hasPermission_create_notificationRule_WHEN_has_read_grant_on_scenario() {
     // Given: a user with a READ grant on the parent scenario
     String scenarioId = "scenario-123";

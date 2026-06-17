@@ -29,7 +29,6 @@ import {
 const Tenants = () => {
   // Standard hooks
   const { t } = useFormatter();
-
   const {
     tenants,
     setTenantList,

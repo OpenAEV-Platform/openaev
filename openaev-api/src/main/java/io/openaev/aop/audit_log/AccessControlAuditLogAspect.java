@@ -79,7 +79,6 @@ public class AccessControlAuditLogAspect {
     }
 
     Object result = null;
-    Map<String, EntityDiffContext.EntitySnapshot> snapshots = null;
 
     try {
       result = joinPoint.proceed();
@@ -87,24 +86,18 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            // Capture snapshots on the servlet thread before any async handoff.
-            snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            logAccessControlEvent(
-                joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           } else if (isActionActive) {
-            // Capture snapshots on the servlet thread before any async handoff.
-            snapshots = captureEntitySnapshots();
             String eventScope = LogUtils.getEventScope(action);
             String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-            logAccessControlEvent(
-                joinPoint, accessControl, eventScope, eventStatus, errorNode, snapshots);
+            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           }
         } catch (Exception e) {
           log.warn(LOG_ERROR_MSG, e);
@@ -115,14 +108,11 @@ public class AccessControlAuditLogAspect {
 
     if (isActive && isActionActive) {
       try {
-        // Capture snapshots on the servlet thread before any async handoff.
-        snapshots = captureEntitySnapshots();
         String eventScope = LogUtils.getEventScope(action);
         String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
 
-        logAccessControlEvent(
-            joinPoint, accessControl, eventScope, eventStatus, resultNode, snapshots);
+        logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
@@ -136,14 +126,16 @@ public class AccessControlAuditLogAspect {
       AccessControl accessControl,
       String eventScope,
       String eventStatus,
-      JsonNode outputNode,
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots) {
+      JsonNode outputNode) {
     try {
       String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
       JsonNode inputNode = getInputNode(joinPoint, eventScope);
       JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
+
+      // Capture snapshots on the servlet thread before any async handoff.
+      Map<String, EntityDiffContext.EntitySnapshot> snapshots = captureEntitySnapshots();
 
       BiConsumer<Boolean, Throwable> logCompletion =
           (success, throwable) -> {

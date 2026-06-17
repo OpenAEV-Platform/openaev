@@ -12,9 +12,9 @@ import {
 } from '@mui/material';
 import { type FunctionComponent, useMemo, useState } from 'react';
 
-import { useFormatter } from '../../../../components/i18n';
-import useArgumentTypes from '../../threat_arsenal/form/useArgumentTypes';
-import { CONDITION_KEY_TYPES } from './forms/MapperConditionRow';
+import { useFormatter } from '../../../../../components/i18n';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
+import { CONDITION_KEY_TYPES } from '../forms/MapperConditionRow';
 
 export interface FieldLink {
   outputType: string;

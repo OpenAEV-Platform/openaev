@@ -70,7 +70,10 @@ public class StepApi {
     @ApiResponse(responseCode = "200", description = "Step template found"),
     @ApiResponse(responseCode = "404", description = "Step template not found")
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#stepId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.STEP)
   @GetMapping("/{stepId}")
   public StepOutput findById(@PathVariable String stepId) {
     return toOutput(stepService.findStepTemplateById(stepId));
@@ -78,7 +81,10 @@ public class StepApi {
 
   @Operation(summary = "List step templates by workflow")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Step templates retrieved")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW)
   @GetMapping(params = "workflow_id")
   public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
@@ -94,7 +100,10 @@ public class StepApi {
     @ApiResponse(responseCode = "400", description = "Invalid input"),
     @ApiResponse(responseCode = "404", description = "Step template not found")
   })
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#stepId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.STEP)
   @PutMapping("/{stepId}")
   public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
@@ -109,8 +118,9 @@ public class StepApi {
     @ApiResponse(responseCode = "404", description = "Step template not found")
   })
   @AccessControl(
+      resourceId = "#stepId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+      resourceType = ResourceType.STEP)
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteStep(@PathVariable String stepId) {

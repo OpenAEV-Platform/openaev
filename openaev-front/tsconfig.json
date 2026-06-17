@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    // we can target ESNext as Vite handles transpilation and browser compat
+    "target": "ESNext",
     "lib": [
       "dom",
       "dom.iterable",

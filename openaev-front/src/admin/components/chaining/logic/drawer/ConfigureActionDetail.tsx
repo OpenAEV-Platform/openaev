@@ -11,21 +11,22 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
-import Drawer from '../../../../components/common/Drawer';
-import TextFieldController from '../../../../components/fields/TextFieldController';
-import { useFormatter } from '../../../../components/i18n';
-import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../utils/api-types';
-import type { ContractElement } from '../../../../utils/api-types-custom';
-import { zodImplement } from '../../../../utils/Zod';
-import DrawerBreadcrumb from './DrawerBreadcrumb';
+import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
+import Drawer from '../../../../../components/common/Drawer';
+import TextFieldController from '../../../../../components/fields/TextFieldController';
+import { useFormatter } from '../../../../../components/i18n';
+import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
+import type { ContractElement } from '../../../../../utils/api-types-custom';
+import { zodImplement } from '../../../../../utils/Zod';
+import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
+import { type ActionDetailData } from '../types';
 import InjectDataFieldItem, { type FieldLink } from './InjectDataFieldItem';
-import { type ActionDetailData } from './types';
 
 interface ConfigureActionDetailProps {
   open: boolean;
   action: ThreatArsenalAction | null;
   validAssets: ScopeAssetOutput[];
+  initialData?: ActionDetailData;
   onClose: () => void;
   onBack: () => void;
   onBackToRoot: () => void;
@@ -38,6 +39,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   open,
   action,
   validAssets,
+  initialData,
   onClose,
   onBack,
   onBackToRoot,
@@ -71,29 +73,33 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   // Reset state when action changes
   useEffect(() => {
     if (action) {
-      const label = action.action_labels ? tPick(action.action_labels) : '';
+      const label = initialData?.inject_title
+        ?? (action.action_labels ? tPick(action.action_labels) : '');
       reset({ inject_title: label });
-      setFieldValues({});
-      setFieldLinks({});
-      setContractFields([]);
+      setFieldValues(initialData?.inject_content ?? {});
+      setFieldLinks(initialData?.inject_field_links ?? {});
+      setContractFields(initialData?.contract_fields ?? []);
 
       // Fetch injector contract content
+      const contractId = initialData?.inject_injector_contract ?? action.injector_contract_id;
       setLoadingContract(true);
-      directFetchInjectorContract(action.injector_contract_id)
+      directFetchInjectorContract(contractId)
         .then((res: { data: { injector_contract_content?: string } }) => {
           if (res.data?.injector_contract_content) {
             try {
               const parsed = JSON.parse(res.data.injector_contract_content);
               const fields = (parsed.fields ?? []) as ContractElement[];
               setContractFields(fields);
-              // Set default values
-              const defaults: Record<string, unknown> = {};
-              for (const field of fields) {
-                if (field.defaultValue !== undefined && field.defaultValue !== null) {
-                  defaults[field.key] = field.defaultValue;
+              // Set default values only if no initialData was provided
+              if (!initialData?.inject_content) {
+                const defaults: Record<string, unknown> = {};
+                for (const field of fields) {
+                  if (field.defaultValue !== undefined && field.defaultValue !== null) {
+                    defaults[field.key] = field.defaultValue;
+                  }
                 }
+                setFieldValues(defaults);
               }
-              setFieldValues(defaults);
             } catch {
               setContractFields([]);
             }
@@ -102,7 +108,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
         .catch(() => setContractFields([]))
         .finally(() => setLoadingContract(false));
     }
-  }, [action]);
+  }, [action, initialData]);
 
   const handleResetDefaults = () => {
     const defaults: Record<string, unknown> = {};
@@ -112,6 +118,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       }
     }
     setFieldValues(defaults);
+    setFieldLinks({});
   };
 
   const handleFieldValueChange = (fieldKey: string, value: string) => {
@@ -225,8 +232,8 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               >
                 {validAssets.map(asset => (
                   <Chip
-                    key={asset.asset_id}
-                    label={asset.asset_name}
+                    key={asset.asset_id ?? ''}
+                    label={asset.asset_name ?? ''}
                     size="small"
                     variant="filled"
                   />

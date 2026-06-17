@@ -553,7 +553,9 @@ public class ExerciseService {
    * @param simulationId ID of the simulation to delete
    */
   public void deleteById(String simulationId) {
+    existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -618,6 +620,8 @@ public class ExerciseService {
       fileService.deleteDirectory(exerciseId);
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
+        // DELETE workflow states
+        workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
@@ -664,7 +668,7 @@ public class ExerciseService {
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete injects
+        // End WORKFLOW + STEP + delete injects + delete workflow states
         List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
         if (!run.isEmpty()) {
           List<Step> stepsToUpdate = new ArrayList<>();
@@ -677,6 +681,7 @@ public class ExerciseService {
               });
           stepService.saveSteps(stepsToUpdate);
           workflowService.saveAll(run);
+          workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
           List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
           this.injectRepository.deleteAll(injects);
         }
@@ -698,7 +703,10 @@ public class ExerciseService {
     // 3. RESET LESSONS ANSWERS
     lessonsService.resetLessonsAnswer(exercise.getId());
 
-    // 4. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
+    // 4. CLEAR WORKFLOW STATES
+    workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
+
+    // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
           @Override
@@ -711,7 +719,7 @@ public class ExerciseService {
           }
         });
 
-    // 5. RESET EXERCISE DATES
+    // 6. RESET EXERCISE DATES
     exercise.setStart(null);
     exercise.setEnd(null);
     exercise.setCurrentPause(null);
