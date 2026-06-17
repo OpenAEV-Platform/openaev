@@ -9,12 +9,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface FindingRepository
@@ -51,45 +50,49 @@ public interface FindingRepository
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  // The finding upsert, its asset link and its tag links used to be one modifying CTE
+  // (WITH ... INSERT ... RETURNING), which JSQLParser cannot parse, so the tenant inspector would
+  // fail-close on it. They are split into three parseable statements run together in one
+  // transaction by FindingWriter (REQUIRES_NEW). The transaction boundary lives in the API layer,
+  // not here.
+
   @Query(
       value =
           """
-        WITH inserted_finding AS (
-          INSERT INTO findings
-            (finding_id, finding_field, finding_type, finding_value,
-             finding_labels, finding_inject_id, finding_name, tenant_id)
-          VALUES
-            (gen_random_uuid(), :findingField, :findingType, :findingValue,
-             :findingLabels, :findingInjectId, :findingName, :tenantId)
-          ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-          DO UPDATE SET finding_name = EXCLUDED.finding_name
-          RETURNING finding_id
-        ),
-        inserted_asset AS (
-          INSERT INTO findings_assets (finding_id, asset_id)
-          SELECT finding_id, :assetId
-          FROM inserted_finding
-          ON CONFLICT DO NOTHING
-        ),
-        inserted_tags AS (
-          INSERT INTO findings_tags (finding_id, tag_id)
-          SELECT finding_id, tag_id
-          FROM inserted_finding
-          CROSS JOIN unnest(CAST(:tagIds AS varchar[])) AS tag_id
-          ON CONFLICT DO NOTHING
-        )
-        SELECT finding_id FROM inserted_finding
+        INSERT INTO findings
+          (finding_id, finding_field, finding_type, finding_value,
+           finding_labels, finding_inject_id, finding_name, tenant_id)
+        VALUES
+          (gen_random_uuid(), :findingField, :findingType, :findingValue,
+           :findingLabels, :findingInjectId, :findingName, :tenantId)
+        ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
+        DO UPDATE SET finding_name = EXCLUDED.finding_name
+        RETURNING finding_id
         """,
       nativeQuery = true)
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  String saveCompleteFinding(
+  String upsertFinding(
       @Param("findingField") String findingField,
       @Param("findingType") String findingType,
       @Param("findingValue") String findingValue,
       @Param("findingLabels") String[] findingLabels,
       @Param("findingInjectId") String injectId,
       @Param("findingName") String name,
-      @Param("assetId") String assetId,
-      @Param("tagIds") String[] tagIds,
       @Param("tenantId") String tenantId);
+
+  @Modifying
+  @Query(
+      value =
+          "INSERT INTO findings_assets (finding_id, asset_id) VALUES (:findingId, :assetId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void insertFindingAsset(@Param("findingId") String findingId, @Param("assetId") String assetId);
+
+  @Modifying
+  @Query(
+      value =
+          "INSERT INTO findings_tags (finding_id, tag_id)"
+              + " SELECT :findingId, tag_id FROM unnest(CAST(:tagIds AS varchar[])) AS tag_id"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
 }
