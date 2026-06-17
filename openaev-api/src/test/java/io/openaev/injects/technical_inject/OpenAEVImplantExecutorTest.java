@@ -106,19 +106,21 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
   private static Stream<Arguments> expectationTypeProvider() {
     return Stream.of(
         Arguments.of(
-            "detection", InjectExpectation.EXPECTATION_TYPE.DETECTION, CollectorsUtils.CROWDSTRIKE),
+            "detection",
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            CollectorsUtils.CROWDSTRIKE),
         Arguments.of(
             "vulnerability",
-            InjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+            BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
             EXPECTATIONS_VULNERABILITY_COLLECTOR_ID));
   }
 
   @ParameterizedTest(
       name =
-          "givenTechnicalInjectWith{0}Expectation_shouldComputeInjectExpectationAndInjectExpectationResult")
+          "givenTechnicalInjectWith{0}Expectation_shouldComputeBaseInjectExpectationAndInjectExpectationResult")
   @MethodSource("expectationTypeProvider")
   void givenExpectation_shouldComputeInjectExpectationAndInjectExpectationResult(
-      String name, InjectExpectation.EXPECTATION_TYPE type, String expectedSourceId)
+      String name, BaseInjectExpectation.EXPECTATION_TYPE type, String expectedSourceId)
       throws Exception {
 
     // -- PREPARE --
@@ -152,29 +154,30 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for asset group - 1 for the endpoint - 1 per agent
-    List<InjectExpectation> injectExpectationList =
+    List<BaseInjectExpectation> injectExpectationList =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, injectExpectationList.size());
-    List<InjectExpectation> assetGroupExpectations =
+    List<BaseInjectExpectation> assetGroupExpectations =
         injectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
-    List<InjectExpectation> endpointExpectations =
+    List<BaseInjectExpectation> endpointExpectations =
         injectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, endpointExpectations.size());
-    List<InjectExpectation> agentExpectations =
+    List<BaseInjectExpectation> agentExpectations =
         injectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(2, agentExpectations.size());
 
-    // InjectExpectation.results.result should be set to null for all existing security platforms at
+    // BaseInjectExpectation.results.result should be set to null for all existing security
+    // platforms at
     // the agent level only.
     assertTrue(assetGroupExpectations.getFirst().getResults().isEmpty());
     assertTrue(endpointExpectations.getFirst().getResults().isEmpty());

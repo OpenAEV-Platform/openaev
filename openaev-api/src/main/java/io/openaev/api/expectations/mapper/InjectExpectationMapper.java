@@ -61,6 +61,6 @@ public final class InjectExpectationMapper {
       return expectation.getAssetGroup().getId();
     }
     throw new IllegalStateException(
-        "InjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
+        "BaseInjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
   }
 }

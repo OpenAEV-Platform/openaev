@@ -4,8 +4,8 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 
 @Entity
-@DiscriminatorValue("DOCUMENT")
-public class DocumentInjectExpectation extends InjectExpectation {
+@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.DOCUMENT)
+public class DocumentInjectExpectation extends BaseInjectExpectation {
 
   public DocumentInjectExpectation() {
     setType(EXPECTATION_TYPE.DOCUMENT);

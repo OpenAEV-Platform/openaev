@@ -12,9 +12,10 @@ public class InjectExpectationFixture {
 
   static Double EXPECTED_SCORE = 100.0;
 
-  public static InjectExpectation createExpectationWithTypeAndStatus(
-      InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
-    InjectExpectation expectation = new InjectExpectation();
+  public static BaseInjectExpectation createExpectationWithTypeAndStatus(
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      BaseInjectExpectation.EXPECTATION_STATUS status) {
+    BaseInjectExpectation expectation = new BaseInjectExpectation();
     expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
     expectation.setType(type);
     expectation.setExpectedScore(EXPECTED_SCORE);
@@ -28,75 +29,75 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
-  public static InjectExpectation createPreventionInjectExpectation(
+  public static BaseInjectExpectation createPreventionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    InjectExpectation injectExpectation = new InjectExpectation();
-    injectExpectation.setInject(inject);
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.PREVENTION);
-    injectExpectation.setAgent(agent);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    return injectExpectation;
+    BaseInjectExpectation BaseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation.setInject(inject);
+    BaseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
+    BaseInjectExpectation.setAgent(agent);
+    BaseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
+    BaseInjectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return BaseInjectExpectation;
   }
 
-  public static InjectExpectation createDetectionInjectExpectation(
+  public static BaseInjectExpectation createDetectionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    InjectExpectation injectExpectation = createDefaultDetectionInjectExpectation();
-    injectExpectation.setInject(inject);
-    injectExpectation.setAgent(agent);
-    return injectExpectation;
+    BaseInjectExpectation BaseInjectExpectation = createDefaultDetectionInjectExpectation();
+    BaseInjectExpectation.setInject(inject);
+    BaseInjectExpectation.setAgent(agent);
+    return BaseInjectExpectation;
   }
 
-  public static InjectExpectation createVulnerabilityInjectExpectation(
+  public static BaseInjectExpectation createVulnerabilityInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    InjectExpectation injectExpectation = new InjectExpectation();
-    injectExpectation.setInject(inject);
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY);
-    injectExpectation.setAgent(agent);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    return injectExpectation;
+    BaseInjectExpectation BaseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation.setInject(inject);
+    BaseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY);
+    BaseInjectExpectation.setAgent(agent);
+    BaseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
+    BaseInjectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return BaseInjectExpectation;
   }
 
-  public static InjectExpectation createManualInjectExpectation(Team team, Inject inject) {
-    InjectExpectation injectExpectation = new InjectExpectation();
-    injectExpectation.setInject(inject);
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
-    injectExpectation.setTeam(team);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
-    return injectExpectation;
+  public static BaseInjectExpectation createManualInjectExpectation(Team team, Inject inject) {
+    BaseInjectExpectation BaseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation.setInject(inject);
+    BaseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
+    BaseInjectExpectation.setTeam(team);
+    BaseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
+    BaseInjectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
+    return BaseInjectExpectation;
   }
 
-  public static InjectExpectation createArticleInjectExpectation(Team team, Inject inject) {
-    InjectExpectation injectExpectation = new InjectExpectation();
-    injectExpectation.setInject(inject);
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.ARTICLE);
-    injectExpectation.setTeam(team);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
-    return injectExpectation;
+  public static BaseInjectExpectation createArticleInjectExpectation(Team team, Inject inject) {
+    BaseInjectExpectation BaseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation.setInject(inject);
+    BaseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE);
+    BaseInjectExpectation.setTeam(team);
+    BaseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
+    BaseInjectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
+    return BaseInjectExpectation;
   }
 
-  public static InjectExpectation createManualInjectExpectationWithExercise(
+  public static BaseInjectExpectation createManualInjectExpectationWithExercise(
       Team team, Inject inject, Exercise exercise, String expectationName) {
-    InjectExpectation injectExpectation = new InjectExpectation();
-    injectExpectation.setInject(inject);
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
-    injectExpectation.setTeam(team);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
-    injectExpectation.setExercise(exercise);
-    injectExpectation.setName(expectationName);
-    return injectExpectation;
+    BaseInjectExpectation BaseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation.setInject(inject);
+    BaseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
+    BaseInjectExpectation.setTeam(team);
+    BaseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
+    BaseInjectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
+    BaseInjectExpectation.setExercise(exercise);
+    BaseInjectExpectation.setName(expectationName);
+    return BaseInjectExpectation;
   }
 
-  public static InjectExpectation createDefaultDetectionInjectExpectation() {
-    InjectExpectation injectExpectation = new InjectExpectation();
-    injectExpectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
-    injectExpectation.setExpectedScore(EXPECTED_SCORE);
-    injectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    return injectExpectation;
+  public static BaseInjectExpectation createDefaultDetectionInjectExpectation() {
+    BaseInjectExpectation BaseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
+    BaseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
+    BaseInjectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return BaseInjectExpectation;
   }
 
   public static InjectExpectationUpdateInput getInjectExpectationUpdateInput(

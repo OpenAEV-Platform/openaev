@@ -1,13 +1,16 @@
 package io.openaev.collectors.expectations_expiration_manager.service;
 
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.*;
+import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeFailedMessage;
+import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeSuccessMessage;
+import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.isExpired;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
+import static io.openaev.utils.ExpectationUtils.isAgentExpectation;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -39,10 +42,10 @@ public class ExpectationsExpirationManagerService {
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
     // Get all the expectations we will update (max of 10k)
-    Page<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
+    Page<BaseInjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
     // We're making a loop on 10 calls max to avoid staying in an infinite loop
     for (int i = 1; i < 10 && expectations.getTotalElements() > 0; i++) {
-      List<InjectExpectation> updated = new ArrayList<>();
+      List<BaseInjectExpectation> updated = new ArrayList<>();
       this.processAgentExpectations(expectations.toList(), collector);
       this.processRemainingExpectations(expectations.toList(), collector, updated);
 
@@ -56,10 +59,10 @@ public class ExpectationsExpirationManagerService {
 
   // -- PRIVATE --
   private void processAgentExpectations(
-      @NotNull final List<InjectExpectation> expectations, @NotNull final Collector collector) {
-    List<InjectExpectation> expiredExpectations = new ArrayList<>();
+      @NotNull final List<BaseInjectExpectation> expectations, @NotNull final Collector collector) {
+    List<BaseInjectExpectation> expiredExpectations = new ArrayList<>();
     Map<String, InjectExpectationUpdateInput> inputsById = new LinkedHashMap<>();
-    for (InjectExpectation expectation : expectations) {
+    for (BaseInjectExpectation expectation : expectations) {
       if (!ExpectationUtils.isAgentExpectation(expectation) || !isExpired(expectation)) {
         continue;
       }
@@ -83,10 +86,10 @@ public class ExpectationsExpirationManagerService {
   }
 
   private void processRemainingExpectations(
-      @NotNull final List<InjectExpectation> expectations,
+      @NotNull final List<BaseInjectExpectation> expectations,
       @NotNull final Collector collector,
-      @NotNull final List<InjectExpectation> updated) {
-    List<InjectExpectation> remainingExpectations =
+      @NotNull final List<BaseInjectExpectation> updated) {
+    List<BaseInjectExpectation> remainingExpectations =
         expectations.stream().filter(exp -> exp.getScore() == null).toList();
     remainingExpectations.forEach(
         expectation -> {

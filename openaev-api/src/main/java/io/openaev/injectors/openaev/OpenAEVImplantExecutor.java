@@ -162,7 +162,7 @@ public class OpenAEVImplantExecutor extends Injector {
                                       expectations.stream()
                                           .filter(
                                               prevExpectation ->
-                                                  InjectExpectation.EXPECTATION_TYPE.PREVENTION
+                                                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION
                                                       == prevExpectation.type())
                                           .anyMatch(
                                               prevExpectation ->
@@ -194,7 +194,7 @@ public class OpenAEVImplantExecutor extends Injector {
                                       expectations.stream()
                                           .filter(
                                               detExpectation ->
-                                                  InjectExpectation.EXPECTATION_TYPE.DETECTION
+                                                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
                                                       == detExpectation.type())
                                           .anyMatch(
                                               detExpectation ->
@@ -225,7 +225,8 @@ public class OpenAEVImplantExecutor extends Injector {
                                       expectations.stream()
                                           .filter(
                                               vulExpectation ->
-                                                  InjectExpectation.EXPECTATION_TYPE.VULNERABILITY
+                                                  BaseInjectExpectation.EXPECTATION_TYPE
+                                                          .VULNERABILITY
                                                       == vulExpectation.type())
                                           .anyMatch(
                                               vulExpectation ->
@@ -257,7 +258,7 @@ public class OpenAEVImplantExecutor extends Injector {
                                       expectations.stream()
                                           .filter(
                                               manExpectation ->
-                                                  InjectExpectation.EXPECTATION_TYPE.MANUAL
+                                                  BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
                                                       == manExpectation.type())
                                           .anyMatch(
                                               manExpectation ->

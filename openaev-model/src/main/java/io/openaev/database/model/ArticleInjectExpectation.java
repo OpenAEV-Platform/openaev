@@ -4,7 +4,7 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 
 @Entity
-@DiscriminatorValue("ARTICLE")
+@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.ARTICLE)
 public class ArticleInjectExpectation extends TableTopInjectExpectation {
 
   public ArticleInjectExpectation() {

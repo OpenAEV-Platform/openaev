@@ -66,16 +66,16 @@ public class SecurityCoverageSendJobServiceTest extends IntegrationTest {
                         injectExpectationComposer
                             .forExpectation(
                                 InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                    InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                                    InjectExpectation.EXPECTATION_STATUS.PENDING))
+                                    BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                                    BaseInjectExpectation.EXPECTATION_STATUS.PENDING))
                             .withEndpoint(
                                 endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
                     .withExpectation(
                         injectExpectationComposer
                             .forExpectation(
                                 InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                    InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                                    InjectExpectation.EXPECTATION_STATUS.PENDING))
+                                    BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                                    BaseInjectExpectation.EXPECTATION_STATUS.PENDING))
                             .withEndpoint(
                                 endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
     ;

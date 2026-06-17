@@ -1,6 +1,6 @@
 package io.openaev.model.expectation;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.DETECTION;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
 
 import io.openaev.database.model.*;
 import io.openaev.model.Expectation;
@@ -64,7 +64,7 @@ public class DetectionExpectation implements Expectation {
   private DetectionExpectation() {}
 
   @Override
-  public InjectExpectation.EXPECTATION_TYPE type() {
+  public BaseInjectExpectation.EXPECTATION_TYPE type() {
     return DETECTION;
   }
 

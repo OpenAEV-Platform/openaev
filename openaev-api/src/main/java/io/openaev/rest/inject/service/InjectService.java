@@ -1391,7 +1391,7 @@ public class InjectService {
    * @return distinct security platforms
    */
   public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
-    Stream<InjectExpectation> allInjectExpectationsStream =
+    Stream<BaseInjectExpectation> allInjectExpectationsStream =
         extractInjectExpectationsFromInjects(injects);
     Set<String> assetIds =
         extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);

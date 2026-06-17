@@ -889,11 +889,11 @@ class InjectServiceTest {
 
     ObjectNode expectationDetection = mapper.createObjectNode();
     expectationDetection.put(
-        "expectation_type", InjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
+        "expectation_type", BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
 
     ObjectNode expectationPrevention = mapper.createObjectNode();
     expectationPrevention.put(
-        "expectation_type", InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
+        "expectation_type", BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
 
     ArrayNode expectationsArray = mapper.createArrayNode();
     expectationsArray.add(expectationDetection);

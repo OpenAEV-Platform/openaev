@@ -29,7 +29,6 @@ import org.hibernate.annotations.UuidGenerator;
 @Table(name = "injects_expectations")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "inject_expectation_type", discriminatorType = DiscriminatorType.STRING)
-@DiscriminatorValue("TEXT")
 @EntityListeners(ModelBaseListener.class)
 public class BaseInjectExpectation implements Base, Cloneable {
 
@@ -72,6 +71,21 @@ public class BaseInjectExpectation implements Base, Cloneable {
     PREVENTION,
     DETECTION,
     VULNERABILITY
+  }
+
+  public static final class ExpectationTypeString {
+    private ExpectationTypeString() {
+      // Private constructor to prevent instantiation
+    }
+
+    public static final String TEXT = "TEXT";
+    public static final String DOCUMENT = "DOCUMENT";
+    public static final String ARTICLE = "ARTICLE";
+    public static final String CHALLENGE = "CHALLENGE";
+    public static final String MANUAL = "MANUAL";
+    public static final String PREVENTION = "PREVENTION";
+    public static final String DETECTION = "DETECTION";
+    public static final String VULNERABILITY = "VULNERABILITY";
   }
 
   public enum EXPECTATION_STATUS {
@@ -223,8 +237,7 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Schema(implementation = String.class)
   private AssetGroup assetGroup;
 
-  // endregion
-
+  @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "article_id")
   @JsonSerialize(using = MonoIdSerializer.class)
@@ -232,12 +245,15 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Schema(implementation = String.class)
   private Article article;
 
+  @Setter
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "challenge_id")
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_challenge")
   @Schema(implementation = String.class)
   private Challenge challenge;
+
+  // endregion
 
   @OneToMany(
       mappedBy = "injectExpectation",
@@ -246,6 +262,24 @@ public class BaseInjectExpectation implements Base, Cloneable {
       fetch = FetchType.LAZY)
   @JsonProperty("inject_expectation_traces")
   private List<InjectExpectationTrace> traces = new ArrayList<>();
+
+  public String getSuccessLabel() {
+    return switch (type) {
+      case DETECTION -> "Detected";
+      case PREVENTION -> "Prevented";
+      case VULNERABILITY -> "Not vulnerable";
+      default -> "Successful";
+    };
+  }
+
+  public String getFailureLabel() {
+    return switch (type) {
+      case DETECTION -> "Not Detected";
+      case PREVENTION -> "Not Prevented";
+      case VULNERABILITY -> "Vulnerable";
+      default -> "Failed";
+    };
+  }
 
   public void setArticle(Article article) {
     this.type = EXPECTATION_TYPE.ARTICLE;
@@ -285,24 +319,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
     this.assetGroup = assetGroup;
   }
 
-  public String getSuccessLabel() {
-    return switch (type) {
-      case DETECTION -> "Detected";
-      case PREVENTION -> "Prevented";
-      case VULNERABILITY -> "Not vulnerable";
-      default -> "Successful";
-    };
-  }
-
-  public String getFailureLabel() {
-    return switch (type) {
-      case DETECTION -> "Not Detected";
-      case PREVENTION -> "Not Prevented";
-      case VULNERABILITY -> "Vulnerable";
-      default -> "Failed";
-    };
-  }
-
   public boolean isUserHasAccess(User user) {
     if (getExercise() != null) {
       return getExercise().isUserHasAccess(user);
@@ -312,16 +328,16 @@ public class BaseInjectExpectation implements Base, Cloneable {
 
   @JsonProperty("target_id")
   public String getTargetId() {
-    if (user != null) {
-      return user.getId();
-    } else if (team != null) {
-      return team.getId();
-    } else if (agent != null) {
-      return agent.getId();
-    } else if (asset != null) {
-      return asset.getId();
-    } else if (assetGroup != null) {
-      return assetGroup.getId();
+    if (getUser() != null) {
+      return getUser().getId();
+    } else if (getTeam() != null) {
+      return getTeam().getId();
+    } else if (getAgent() != null) {
+      return getAgent().getId();
+    } else if (getAsset() != null) {
+      return getAsset().getId();
+    } else if (getAssetGroup() != null) {
+      return getAssetGroup().getId();
     } else {
       throw new IllegalStateException(
           "InjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");

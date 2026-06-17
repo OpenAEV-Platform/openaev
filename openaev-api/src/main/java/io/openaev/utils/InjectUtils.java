@@ -265,7 +265,7 @@ public class InjectUtils {
    * @param inject the inject to get expectations from
    * @return a list of expectations matching the inject's direct targets
    */
-  public List<InjectExpectation> getPrimaryExpectations(Inject inject) {
+  public List<BaseInjectExpectation> getPrimaryExpectations(Inject inject) {
     List<String> firstIds = new ArrayList<>();
 
     firstIds.addAll(inject.getTeams().stream().map(Team::getId).toList());
@@ -378,7 +378,7 @@ public class InjectUtils {
    * @param injects to retrive all inject expectations
    * @return a stream of all retrieve inject expectations
    */
-  public static Stream<InjectExpectation> extractInjectExpectationsFromInjects(
+  public static Stream<BaseInjectExpectation> extractInjectExpectationsFromInjects(
       List<Inject> injects) {
     return injects.stream().flatMap(inject -> inject.getExpectations().stream());
   }

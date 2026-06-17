@@ -53,7 +53,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
   private Collector savedCollector;
   private Inject savedInject;
-  private InjectExpectation savedInjectExpectation;
+  private BaseInjectExpectation savedInjectExpectation;
   private Asset savedAsset;
   private SecurityPlatform savedSecurityPlatform;
   private InjectExpectationTrace savedInjectExpectationTrace1;
@@ -86,7 +86,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     i.setAssets(List.of(savedAsset));
     savedInject = injectRepository.save(i);
 
-    InjectExpectation ie =
+    BaseInjectExpectation ie =
         InjectExpectationFixture.createDetectionInjectExpectation(savedInject, null);
     ie.setAsset(savedAsset);
     savedInjectExpectation = injectExpectationRepository.save(ie);

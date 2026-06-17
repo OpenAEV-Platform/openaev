@@ -1,8 +1,8 @@
 package io.openaev.utils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.expectation.ExpectationType;
 import jakarta.validation.constraints.NotNull;
@@ -27,7 +27,7 @@ import java.util.function.BiFunction;
  *
  * <p>This is a utility class and cannot be instantiated.
  *
- * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.database.model.BaseInjectExpectation
  * @see io.openaev.expectation.ExpectationType
  */
 public class InjectExpectationResultUtils {
@@ -40,7 +40,8 @@ public class InjectExpectationResultUtils {
    * <p>Uses the provided score extraction function to calculate normalized scores for each
    * expectation type category (Prevention, Detection, Vulnerability, Human Response).
    *
-   * @param <T> the type of expectation objects (InjectExpectation or RawInjectExpectationIndexing)
+   * @param <T> the type of expectation objects (BaseInjectExpectation or
+   *     RawInjectExpectationIndexing)
    * @param expectations the list of expectations to process
    * @param getScores function to extract normalized scores for given expectation types
    * @return a list of expectation results grouped by type with aggregated scores
@@ -156,25 +157,25 @@ public class InjectExpectationResultUtils {
    * @return a list of normalized score values (null for pending expectations)
    */
   public static List<Double> getScores(
-      final List<EXPECTATION_TYPE> types, final List<InjectExpectation> expectations) {
+      final List<EXPECTATION_TYPE> types, final List<BaseInjectExpectation> expectations) {
     return expectations.stream()
         .filter(e -> types.contains(e.getType()))
         .map(
-            injectExpectation -> {
-              if (injectExpectation.getScore() == null) {
+            BaseInjectExpectation -> {
+              if (BaseInjectExpectation.getScore() == null) {
                 return null;
               }
-              if (injectExpectation.getTeam() != null) {
-                if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
+              if (BaseInjectExpectation.getTeam() != null) {
+                if (BaseInjectExpectation.getScore() >= BaseInjectExpectation.getExpectedScore()) {
                   return 1.0;
                 } else {
                   return 0.0;
                 }
               } else {
-                if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
+                if (BaseInjectExpectation.getScore() >= BaseInjectExpectation.getExpectedScore()) {
                   return 1.0;
                 }
-                if (injectExpectation.getScore() == 0) {
+                if (BaseInjectExpectation.getScore() == 0) {
                   return 0.0;
                 }
                 return 0.5;
@@ -199,7 +200,7 @@ public class InjectExpectationResultUtils {
     if (scores.isEmpty()) {
       return Optional.of(
           new ExpectationResultsByType(
-              type, InjectExpectation.EXPECTATION_STATUS.UNKNOWN, Collections.emptyList()));
+              type, BaseInjectExpectation.EXPECTATION_STATUS.UNKNOWN, Collections.emptyList()));
     }
     OptionalDouble avgResponse = calculateAverageFromExpectations(scores);
     if (avgResponse.isPresent()) {
@@ -209,16 +210,16 @@ public class InjectExpectationResultUtils {
     }
     return Optional.of(
         new ExpectationResultsByType(
-            type, InjectExpectation.EXPECTATION_STATUS.PENDING, getResultDetail(type, scores)));
+            type, BaseInjectExpectation.EXPECTATION_STATUS.PENDING, getResultDetail(type, scores)));
   }
 
-  public static InjectExpectation.EXPECTATION_STATUS getResult(final OptionalDouble avg) {
+  public static BaseInjectExpectation.EXPECTATION_STATUS getResult(final OptionalDouble avg) {
     Double avgAsDouble = avg.getAsDouble();
     return avgAsDouble == 0.0
-        ? InjectExpectation.EXPECTATION_STATUS.FAILED
+        ? BaseInjectExpectation.EXPECTATION_STATUS.FAILED
         : (avgAsDouble == 1.0
-            ? InjectExpectation.EXPECTATION_STATUS.SUCCESS
-            : InjectExpectation.EXPECTATION_STATUS.PARTIAL);
+            ? BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS
+            : BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
   }
 
   /**
@@ -272,7 +273,7 @@ public class InjectExpectationResultUtils {
    */
   public record ExpectationResultsByType(
       @NotNull ExpectationType type,
-      @NotNull InjectExpectation.EXPECTATION_STATUS avgResult,
+      @NotNull BaseInjectExpectation.EXPECTATION_STATUS avgResult,
       @NotNull List<ResultDistribution> distribution) {
     @JsonIgnore
     public double getSuccessRate() {

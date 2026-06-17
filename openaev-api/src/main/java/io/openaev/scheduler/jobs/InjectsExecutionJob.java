@@ -96,8 +96,8 @@ public class InjectsExecutionJob implements Job {
           ExecutionStatus.EXECUTING,
           ExecutionStatus.PENDING);
 
-  private final List<InjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
-      List.of(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+  private final List<BaseInjectExpectation.EXPECTATION_STATUS> expectationStatusesSuccess =
+      List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
 
   private final WorkflowService workflowService;
   private final HealthCheckUtils healthCheckUtils;
@@ -258,7 +258,7 @@ public class InjectsExecutionJob implements Job {
                           if (jsonNode
                               .get("expectation_type")
                               .asText()
-                              .equals(InjectExpectation.EXPECTATION_TYPE.MANUAL.name())) {
+                              .equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.name())) {
                             return jsonNode.get("expectation_name").asText().toLowerCase();
                           }
                           return jsonNode.get("expectation_type").asText().toLowerCase();
@@ -338,25 +338,25 @@ public class InjectsExecutionJob implements Job {
                   && !ExecutionStatus.ERROR.equals(parent.getStatus().get().getName())
                   && !executionStatusesNotReady.contains(parent.getStatus().get().getName()));
 
-          List<InjectExpectation> expectations =
+          List<BaseInjectExpectation> expectations =
               injectExpectationRepository.findAllForExerciseAndInject(exerciseId, parent.getId());
           expectations.forEach(
-              injectExpectation -> {
+              expectation -> {
                 String name =
-                    StringUtils.capitalize(injectExpectation.getType().toString().toLowerCase());
-                if (injectExpectation.getType().equals(InjectExpectation.EXPECTATION_TYPE.MANUAL)) {
-                  name = injectExpectation.getName();
+                    StringUtils.capitalize(expectation.getType().toString().toLowerCase());
+                if (expectation.getType().equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)) {
+                  name = expectation.getName();
                 }
-                if (InjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(injectExpectation.getType())
-                    || InjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
-                        injectExpectation.getType())) {
-                  if (injectExpectation.getUser() == null && injectExpectation.getScore() != null) {
+                if (BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(expectation.getType())
+                    || BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
+                        expectation.getType())) {
+                  if (expectation.getUser() == null && expectation.getScore() != null) {
                     mapCondition.put(
-                        name, injectExpectation.getScore() >= injectExpectation.getExpectedScore());
+                        name, expectation.getScore() >= expectation.getExpectedScore());
                   }
                 } else {
                   mapCondition.put(
-                      name, expectationStatusesSuccess.contains(injectExpectation.getResponse()));
+                      name, expectationStatusesSuccess.contains(expectation.getResponse()));
                 }
               });
         });

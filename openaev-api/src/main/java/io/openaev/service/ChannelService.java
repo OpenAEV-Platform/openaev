@@ -101,7 +101,7 @@ public class ChannelService {
       channelReader.setChannelArticles(publishedArticles);
       // Fulfill article expectations
       List<Inject> finalInjects = injects;
-      List<InjectExpectation> expectationExecutions =
+      List<BaseInjectExpectation> expectationExecutions =
           publishedArticles.stream()
               .flatMap(
                   article ->
@@ -139,18 +139,18 @@ public class ChannelService {
     List<String> articleIds =
         publishedArticles.stream().map(Article::getId).toList(); // Articles with the same channel
     // Find all expectations linked to teams' user, channel and exercise
-    List<InjectExpectation> channelExpectations =
+    List<BaseInjectExpectation> channelExpectations =
         injectExpectationExecutionRepository.findChannelExpectations(
             injectIds, teamIds, articleIds);
-    List<InjectExpectation> parentExpectations =
+    List<BaseInjectExpectation> parentExpectations =
         channelExpectations.stream().filter(exp -> exp.getUser() == null).toList();
-    Map<Team, List<InjectExpectation>> playerByTeam =
+    Map<Team, List<BaseInjectExpectation>> playerByTeam =
         channelExpectations.stream()
             .filter(exp -> exp.getUser() != null)
-            .collect(Collectors.groupingBy(InjectExpectation::getTeam));
+            .collect(Collectors.groupingBy(BaseInjectExpectation::getTeam));
 
     // Depending on type of validation, we process the parent expectations:
-    List<InjectExpectation> toUpdate =
+    List<BaseInjectExpectation> toUpdate =
         ExpectationUtils.processByValidationType(
             isaNewExpectationResult, channelExpectations, parentExpectations, playerByTeam);
     injectExpectationExecutionRepository.saveAll(toUpdate);
