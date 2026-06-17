@@ -146,7 +146,7 @@ public class ChallengeApi extends RestBehavior {
       @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
       throws InputValidationException {
     validateUUID(challengeId);
-    return challengeService.tryChallenge(challengeId, input);
+    return challengeService.tryChallenge(challengeId, input, TenantContext.getCurrentTenant());
   }
 
   @GetMapping({

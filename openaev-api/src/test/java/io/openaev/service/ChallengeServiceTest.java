@@ -70,7 +70,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(Optional.of(challenge));
 
     // EXECUTE
-    ChallengeResult result = challengeService.tryChallenge("test", input);
+    ChallengeResult result = challengeService.tryChallenge("test", input, "test-tenant");
 
     // VERIFY
     assertNotNull(result);
@@ -95,7 +95,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(Optional.of(challenge));
 
     // EXECUTE
-    ChallengeResult result = challengeService.tryChallenge("test", input);
+    ChallengeResult result = challengeService.tryChallenge("test", input, "test-tenant");
 
     // VERIFY
     assertNotNull(result);
@@ -120,7 +120,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(Optional.of(challenge));
 
     // EXECUTE
-    ChallengeResult result = challengeService.tryChallenge("test", input);
+    ChallengeResult result = challengeService.tryChallenge("test", input, "test-tenant");
 
     // VERIFY
     assertNotNull(result);
@@ -145,7 +145,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(Optional.of(challenge));
 
     // EXECUTE
-    ChallengeResult result = challengeService.tryChallenge("test", input);
+    ChallengeResult result = challengeService.tryChallenge("test", input, "test-tenant");
 
     // VERIFY
     assertNotNull(result);
@@ -170,7 +170,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(Optional.of(challenge));
 
     // EXECUTE
-    ChallengeResult result = challengeService.tryChallenge("test", input);
+    ChallengeResult result = challengeService.tryChallenge("test", input, "test-tenant");
 
     // VERIFY
     assertNotNull(result);
@@ -195,7 +195,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(Optional.of(challenge));
 
     // EXECUTE
-    ChallengeResult result = challengeService.tryChallenge("test", input);
+    ChallengeResult result = challengeService.tryChallenge("test", input, "test-tenant");
 
     // VERIFY
     assertNotNull(result);
@@ -294,7 +294,7 @@ public class ChallengeServiceTest extends IntegrationTest {
 
     // EXECUTE
     SimulationChallengesReader reader =
-        challengeService.validateChallenge("test", "test", input, user);
+        challengeService.validateChallenge("test", "test", input, user, "test-tenant");
 
     // VERIFY
     assertNotNull(reader);
@@ -352,7 +352,7 @@ public class ChallengeServiceTest extends IntegrationTest {
 
     // EXECUTE
     SimulationChallengesReader reader =
-        challengeService.validateChallenge("test", "test", input, user);
+        challengeService.validateChallenge("test", "test", input, user, "test-tenant");
 
     // VERIFY
     assertNotNull(reader);

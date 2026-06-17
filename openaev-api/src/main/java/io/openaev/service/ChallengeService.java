@@ -9,7 +9,6 @@ import static io.openaev.utils.challenge.ChallengeExpectationUtils.buildChalleng
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -86,10 +85,11 @@ public class ChallengeService {
     return resolveChallenges(injects).toList();
   }
 
-  public ChallengeResult tryChallenge(String challengeId, ChallengeTryInput input) {
+  public ChallengeResult tryChallenge(
+      String challengeId, ChallengeTryInput input, @NotBlank String tenantId) {
     Challenge challenge =
         challengeRepository
-            .findByIdAndTenantId(challengeId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(challengeId, tenantId)
             .orElseThrow(() -> new ElementNotFoundException("Challenge not found"));
     for (ChallengeFlag flag : challenge.getFlags()) {
       if (checkFlag(flag, input.getValue())) {
@@ -147,8 +147,9 @@ public class ChallengeService {
   }
 
   public SimulationChallengesReader validateChallenge(
-      String exerciseId, String challengeId, ChallengeTryInput input, User user) {
-    ChallengeResult challengeResult = tryChallenge(challengeId, input);
+      String exerciseId, String challengeId, ChallengeTryInput input, User user,
+      @NotBlank String tenantId) {
+    ChallengeResult challengeResult = tryChallenge(challengeId, input, tenantId);
     if (challengeResult.isResult()) {
       // Success: Find and update the user's expectations and challenge attempt
       List<InjectExpectation> playerExpectations =
