@@ -10,8 +10,5 @@ RUN set -eux; \
 WORKDIR /opt/openaev
 COPY openaev-build/openaev-api.jar ./
 
-RUN mkdir -p /opt/openaev/logs && chown -R 1001:0 /opt/openaev
-USER 1001
-
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]
