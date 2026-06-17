@@ -205,7 +205,7 @@ public class CalderaExecutorServiceTest {
       calderaExecutorContextService.injectorExecutorAbilities.put(injector.getId(), ability);
 
       // Act
-      calderaExecutorContextService.launchExecutorSubprocess(inject, endpoint, agent);
+      calderaExecutorContextService.launchExecutorSubprocess(inject, endpoint, agent, "token");
 
       // Assert
       verify(client).exploit(eq("base64"), eq("agentExtRef"), eq("abilityId"), any());

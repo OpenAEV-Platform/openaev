@@ -14,6 +14,6 @@ public class InjectTestStatusFixture {
   }
 
   public static InjectTestStatus createSuccessInjectStatus() {
-    return createInjectTestStatus(ExecutionStatus.SUCCESS);
+    return createInjectTestStatus(ExecutionStatus.EXECUTED);
   }
 }

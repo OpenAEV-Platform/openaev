@@ -318,9 +318,8 @@ export const storeHelper = state => ({
   getExerciseLessonsAnswers: exerciseId => entities('lessonsanswers', state).filter(
     l => l.get('lessons_answer_exercise') === exerciseId,
   ),
-  getExerciseUserLessonsAnswers: (exerciseId, userId) => entities('lessonsanswers', state).filter(
-    l => l.get('lessons_answer_exercise') === exerciseId
-      && l.get('lessons_answer_user') === userId,
+  getExerciseUserLessonsAnswers: exerciseId => entities('lessonsanswers', state).filter(
+    l => l.get('lessons_answer_exercise') === exerciseId,
   ),
   isExercise: id => !maps('exercises', state)?.get(id)?.isEmpty(),
   getExerciseReports: exerciseId => entities('reports', state).filter(l => l.get('report_exercise') === exerciseId),

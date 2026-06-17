@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -21,49 +22,36 @@ public class ThreadPoolTaskLoggerConfig {
   private ThreadPoolTaskExecutor createBaseExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
-    // TODO: find a better way to configure this variables dynamically - maybe through properties
-    // file.
+    // TODO AUDIT: find a better way to configure this variables dynamically - maybe through
+    // properties file.
 
     executor.setCorePoolSize(10);
     executor.setMaxPoolSize(50);
     executor.setQueueCapacity(1000);
-    executor.setThreadNamePrefix("AuditLogger-");
+    executor.setThreadNamePrefix("TaskLogger-");
 
     return executor;
   }
 
-  @Bean(name = "accessControlAuditLoggerExecutor")
+  @Bean(name = "taskLoggerExecutor")
   public Executor contextAwareExecutor() {
     ThreadPoolTaskExecutor executor = createBaseExecutor();
 
     executor.setTaskDecorator(
         runnable -> {
-          // CAPTURE REQUEST HEADERS AND IP, REQUEST URI and BODY (PARENT THREAD)
+          // CAPTURE REQUEST (PARENT THREAD)
           var requestAttributes = RequestContextHolder.getRequestAttributes();
           HttpServletRequest request =
               requestAttributes instanceof ServletRequestAttributes attrs
                   ? attrs.getRequest()
                   : null;
-          Map<String, String> headers;
-          String remoteAddress, method, url;
-
-          if (request != null) {
-            headers = HttpReqRespUtils.extractHeaders(request);
-            remoteAddress = request.getRemoteAddr();
-            method = request.getMethod();
-
-            url = request.getRequestURL().toString();
-          } else {
-            headers = null;
-            remoteAddress = method = url = null;
-          }
 
           // CAPTURE LOGs CONTEXT
           var mdcContext = MDC.getCopyOfContextMap();
 
           // CAPTURE AUTHENTICATION CONTEXT (PARENT THREAD)
           var originalSecurityContext = SecurityContextHolder.getContext();
-          var authentication = originalSecurityContext.getAuthentication();
+          Authentication authentication = originalSecurityContext.getAuthentication();
 
           SecurityContext securityContextCopy =
               SecurityContextHolder.createEmptyContext(); // SAFE COPY (IMPORTANT)
@@ -75,12 +63,14 @@ public class ThreadPoolTaskLoggerConfig {
           // CAPTURE LOCALE CONTEXT (PARENT THREAD)
           var localeContext = LocaleContextHolder.getLocaleContext();
 
+          // CREATE REQUEST CONTEXT HOLDER DATA WITH REQUEST HEADERS AND IP, REQUEST URI...
+          ThreadRequestContextHolder.RequestContextData rcd =
+              buildThreadRequestContextHolder(request, authentication);
+
           return () -> {
             try {
               // STORE HEADERS AND REMOTE ADDRESS
-              ThreadRequestContextHolder.setRequestContextData(
-                  new ThreadRequestContextHolder.RequestContextData(
-                      headers, remoteAddress, method, url));
+              ThreadRequestContextHolder.setRequestContextData(rcd);
 
               // RESTORE MDC
               if (mdcContext != null) {
@@ -112,10 +102,36 @@ public class ThreadPoolTaskLoggerConfig {
     return executor;
   }
 
+  public static ThreadRequestContextHolder.RequestContextData buildThreadRequestContextHolder(
+      HttpServletRequest request, Authentication authentication) {
+    Map<String, String> headers;
+    String remoteAddress, method, url, sessionId;
+
+    if (request != null) {
+      headers = HttpReqRespUtils.extractHeaders(request);
+      remoteAddress = request.getRemoteAddr();
+      method = request.getMethod();
+      url = request.getRequestURL().toString();
+      var session = request.getSession(false);
+      sessionId = session != null ? session.getId() : null;
+    } else {
+      headers = null;
+      remoteAddress = method = url = sessionId = null;
+    }
+
+    return new ThreadRequestContextHolder.RequestContextData(
+        headers, remoteAddress, method, url, sessionId, authentication);
+  }
+
   public static class ThreadRequestContextHolder {
 
     public record RequestContextData(
-        Map<String, String> headers, String remoteAddress, String method, String url) {}
+        Map<String, String> headers,
+        String remoteAddress,
+        String method,
+        String url,
+        String sessionId,
+        Authentication authentication) {}
 
     private static final ThreadLocal<Map<String, Object>> CONTEXT = new ThreadLocal<>();
 

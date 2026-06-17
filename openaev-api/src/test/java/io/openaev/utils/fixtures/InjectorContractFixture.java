@@ -60,7 +60,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -73,7 +73,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      emailInjectorIntegrationFactory.registerConnectorForTenant();
+      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -402,7 +402,7 @@ public class InjectorContractFixture {
       return injectorContract.get();
     }
     try {
-      manualInjectorIntegrationFactory.registerConnectorForTenant();
+      manualInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
       return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);

@@ -11,5 +11,5 @@ export interface ExercisesHelper {
   getExerciseLessonsCategories: (exerciseId: string) => LessonsCategory[];
   getExerciseLessonsQuestions: (exerciseId: string) => LessonsQuestion[];
   getExerciseLessonsAnswers: (exerciseId: string) => LessonsAnswer[];
-  getExerciseUserLessonsAnswers: (exerciseId: string, userId: string) => LessonsAnswer[];
+  getExerciseUserLessonsAnswers: (exerciseId: string) => LessonsAnswer[];
 }

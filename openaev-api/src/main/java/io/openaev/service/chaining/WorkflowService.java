@@ -29,6 +29,8 @@ import org.springframework.util.CollectionUtils;
 @Service
 public class WorkflowService {
 
+  public static final long DEFAULT_TIMEOUT_SECONDS = 3600L;
+
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
@@ -65,6 +67,13 @@ public class WorkflowService {
                         + workflowId));
   }
 
+  public Workflow findById(@NotBlank final String workflowId) {
+    return this.workflowRepository
+        .findById(workflowId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Workflow not found with id: " + workflowId));
+  }
+
   /**
    * Returns the TEMPLATE workflow for the given ID with its scope-rules collection eagerly
    * initialized, so the caller can safely read the collection after the session closes (e.g. inside
@@ -98,6 +107,7 @@ public class WorkflowService {
             .simulation(simulation)
             .rateLimitEnabled(false)
             .timeoutEnabled(false)
+            .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
     workflowRepository.save(workflow);
@@ -116,6 +126,7 @@ public class WorkflowService {
             .scenario(scenario)
             .rateLimitEnabled(false)
             .timeoutEnabled(false)
+            .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
     workflowRepository.save(workflow);
@@ -444,6 +455,15 @@ public class WorkflowService {
    */
   public void deleteWorkflow(String workflowId) {
     workflowRepository.deleteById(workflowId);
+  }
+
+  /**
+   * Deletes all workflow states associated with workflows of the given simulation.
+   *
+   * @param simulationId the ID of the simulation whose workflow states should be cleared
+   */
+  public void deleteWorkflowStatesBySimulationId(String simulationId) {
+    workflowStateService.deleteAllBySimulationId(simulationId);
   }
 
   // -- Configuration Update --

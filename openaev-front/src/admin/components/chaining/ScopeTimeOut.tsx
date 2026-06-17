@@ -25,7 +25,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
   const theme = useTheme();
 
   const timeoutEnabled = workflowConfiguration?.workflow_configuration_timeout_enabled ?? false;
-  const totalSeconds = workflowConfiguration?.workflow_configuration_timeout_seconds ?? 5400;
+  const totalSeconds = workflowConfiguration?.workflow_configuration_timeout_seconds ?? 3600;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
 

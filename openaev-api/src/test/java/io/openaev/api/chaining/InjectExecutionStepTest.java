@@ -96,7 +96,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectExecuted.setId("INJECT-ID");
 
     ExecutionTrace executionTrace = new ExecutionTrace();
-    executionTrace.setStatus(ExecutionTraceStatus.SUCCESS);
+    executionTrace.setStatus(ExecutionTraceStatus.EXECUTED);
 
     Agent agent = AgentFixture.createDefaultAgentService();
 
@@ -607,5 +607,70 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectorContract.setImportAvailable(false);
 
     return injectorContract;
+  }
+
+  @Test
+  public void given_conditionWithKeySubtype_should_includeKeySubtypeInStepInput()
+      throws JsonProcessingException, ChainingException {
+    // Arrange
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .keyType(ConditionKeyType.Credentials)
+            .keySubtype(ConditionKeySubtype.USERNAME)
+            .key("expectations")
+            .value("output.message.credentials")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    // Act
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    // Assert
+    assertEquals(
+        ConditionKeyType.Credentials.name(),
+        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+    assertEquals(
+        ConditionKeySubtype.USERNAME.name(),
+        StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
+  }
+
+  @Test
+  public void given_conditionWithoutKeySubtype_should_haveNullKeySubtypeInStepInput()
+      throws JsonProcessingException, ChainingException {
+    // Arrange
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .keyType(ConditionKeyType.IPv4)
+            .key("target_ip")
+            .value("output.message.ip")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    // Act
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    // Assert
+    assertEquals(
+        ConditionKeyType.IPv4.name(),
+        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+    assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
   }
 }

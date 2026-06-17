@@ -19,9 +19,13 @@ public record ExecutionProcessingContext(
     InjectExecutionInput input,
     Map<String, Endpoint> valueTargetedAssetsMap) {
 
-  /** Returns true if the execution status is SUCCESS. */
+  /** Returns true if the execution status is a successful value (legacy or renamed). */
   public boolean isSuccess() {
-    return ExecutionTraceStatus.SUCCESS.toString().equals(input.getStatus());
+    try {
+      return ExecutionTraceStatus.fromName(input.getStatus()).isSuccess();
+    } catch (IllegalArgumentException e) {
+      return false;
+    }
   }
 
   /** Returns true if the execution is for an injector (not agent). */

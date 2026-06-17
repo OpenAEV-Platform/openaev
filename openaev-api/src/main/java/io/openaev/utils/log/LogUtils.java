@@ -3,9 +3,15 @@ package io.openaev.utils.log;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AdministrationResourceType;
+import io.openaev.database.model.EventStatus;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.log.form.LogDetailsInput;
+import io.openaev.utils.object.ObjectRedactionUtils;
+import java.util.Arrays;
+import java.util.Set;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 
 /**
@@ -18,8 +24,15 @@ import org.slf4j.Logger;
  */
 public class LogUtils {
 
+  private static final String EVENT_PROVIDER_LOCAL = "local";
+  private static final String EVENT_PROVIDER_SSO = "sso";
   private static final String EVENT_ACCESS_ADMINISTRATION = "administration";
   private static final String EVENT_ACCESS_EXTENDED = "extended";
+
+  private static final Set<String> ADMIN_RESOURCE_TYPES =
+      Arrays.stream(AdministrationResourceType.values())
+          .map(Enum::name)
+          .collect(Collectors.toUnmodifiableSet());
 
   private LogUtils() {}
 
@@ -91,26 +104,30 @@ public class LogUtils {
    */
   public static String buildStatusChangeMessage(
       JsonNode input, String entityTypeName, String displayName) {
+    String dn = displayName != null && !displayName.isBlank() ? " `" + displayName + "`" : "";
+
     if (input == null) {
-      return "changes status of " + entityTypeName + " `" + displayName + "`";
+      return "changes status of " + entityTypeName + dn;
     }
     if (input.has("exercise_status")) {
       String newStatus = input.get("exercise_status").asText().toLowerCase();
-      return "changes status of "
-          + entityTypeName
-          + " `"
-          + displayName
-          + "` to `"
-          + newStatus
-          + "`";
+      return "changes status of " + entityTypeName + dn + " to `" + newStatus + "`";
     }
     if (input.has("action") && "launch".equals(input.get("action").asText())) {
-      return "launches " + entityTypeName + " `" + displayName + "`";
+      return "launches " + entityTypeName + dn;
     }
     if (input.has("scenario_recurrence")) {
-      return "updates recurrence of " + entityTypeName + " `" + displayName + "`";
+      return "updates recurrence of " + entityTypeName + dn;
     }
-    return "changes status of " + entityTypeName + " `" + displayName + "`";
+    return "changes status of " + entityTypeName + dn;
+  }
+
+  public static String buildRequestLogMessage(
+      String eventScope, String entityTypeName, String displayName) {
+    return eventScope
+        + "s "
+        + entityTypeName
+        + (displayName != null && !displayName.isBlank() ? " `" + displayName + "`" : "");
   }
 
   public static String buildAuthLogMessage(String eventScope, String eventStatus, String provider) {
@@ -128,6 +145,20 @@ public class LogUtils {
     return message;
   }
 
+  /**
+   * Build an expired log message
+   *
+   * @param sessionDurationSeconds the duration in seconds
+   * @param expiryReason the expiry reason
+   * @return a message giving information on the expiration of the session
+   */
+  public static String buildSessionExpiredLogMessage(
+      long sessionDurationSeconds, String expiryReason) {
+    return String.format(
+        "Session expired: active for %ds, then expired due to %s",
+        sessionDurationSeconds, expiryReason.replace("_", " "));
+  }
+
   public static String getEventScope(Action action) {
     return switch (action) {
       case CREATE -> "create";
@@ -136,17 +167,44 @@ public class LogUtils {
       case LAUNCH -> "status_change";
       case DUPLICATE -> "duplicate";
       case READ, SEARCH -> "read";
+      case LOGIN -> "login";
+      case LOGOUT -> "logout";
+      case UNAUTHORIZED -> "unauthorized";
+      default -> "unknown";
+    };
+  }
+
+  public static String getEventType(EventType type) {
+    return switch (type) {
+      case MUTATION -> "mutation";
+      case AUTHENTICATION -> "authentication";
+      default -> "unknown";
+    };
+  }
+
+  public static String getEventStatus(EventStatus status) {
+    return switch (status) {
+      case SUCCESS -> "success";
+      case ERROR -> "error";
       default -> "unknown";
     };
   }
 
   public static String getEventAccess(ResourceType resourceType) {
-    try {
-      AdministrationResourceType.valueOf(resourceType.name());
-      return EVENT_ACCESS_ADMINISTRATION;
-    } catch (IllegalArgumentException e) {
+    if (resourceType == null) {
       return EVENT_ACCESS_EXTENDED;
     }
+    return ADMIN_RESOURCE_TYPES.contains(resourceType.name())
+        ? EVENT_ACCESS_ADMINISTRATION
+        : EVENT_ACCESS_EXTENDED;
+  }
+
+  public static String getAuthEventProviderLocal() {
+    return EVENT_PROVIDER_LOCAL;
+  }
+
+  public static String getAuthEventProviderSSO() {
+    return EVENT_PROVIDER_SSO;
   }
 
   public static String getAuthEventAccess() {
@@ -171,7 +229,7 @@ public class LogUtils {
         }) {
       JsonNode node = snapshot.get(field);
       if (node != null && node.isTextual()) {
-        return node.asText();
+        return (String) ObjectRedactionUtils.redactFieldValue(node.asText(), field);
       }
     }
     return null;

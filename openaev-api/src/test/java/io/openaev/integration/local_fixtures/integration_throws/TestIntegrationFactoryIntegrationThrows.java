@@ -40,7 +40,7 @@ public class TestIntegrationFactoryIntegrationThrows extends IntegrationFactory 
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             THROWING_INTEGRATION_ID, this.getClassName(), ConnectorType.INJECTOR));

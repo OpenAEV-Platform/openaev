@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Exercise;
@@ -35,7 +36,7 @@ public class MailingService {
   private final ManagerFactory managerFactory;
 
   public void sendEmail(
-      String subject, String body, List<User> users, Optional<Exercise> exercise) {
+      String subject, String body, List<User> users, Optional<Exercise> exercise, String tenantId) {
     EmailContent emailContent = new EmailContent();
     emailContent.setSubject(subject);
     emailContent.setBody(body);
@@ -77,13 +78,32 @@ public class MailingService {
                   new ExecutableInject(false, true, inject, userInjectContexts);
               io.openaev.executors.Injector executor =
                   managerFactory
-                      .getManager()
+                      .getManager(tenantId)
                       .requestInjectorExecutorByType(injectorContract.getFirstInjector().getType());
               executor.executeInjection(injection);
             });
   }
 
+  public void sendEmail(
+      String subject, String body, List<User> users, Optional<Exercise> exercise) {
+    String tenantId = exercise.map(ex -> ex.getTenant().getId()).orElse(DEFAULT_TENANT_UUID);
+    sendEmail(subject, body, users, exercise, tenantId);
+  }
+
   public void sendEmail(String subject, String body, List<User> users) {
-    sendEmail(subject, body, users, Optional.empty());
+    sendEmail(subject, body, users, Optional.empty(), DEFAULT_TENANT_UUID);
+  }
+
+  /**
+   * Sends an email in the context of a specific tenant (e.g., notifications). The tenantId is used
+   * to resolve the correct email integration from the per-tenant Manager.
+   *
+   * @param subject email subject
+   * @param body email body
+   * @param users recipients
+   * @param tenantId the tenant whose email integration to use
+   */
+  public void sendEmail(String subject, String body, List<User> users, String tenantId) {
+    sendEmail(subject, body, users, Optional.empty(), tenantId);
   }
 }

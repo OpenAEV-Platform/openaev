@@ -1,3 +1,0 @@
-PyYAML
-requests
-git+https://github.com/OpenAEV-Platform/release.git@main

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { addInjectForScenario, bulkDeleteInjectsSimple, bulkUpdateInjectSimple, deleteInjectScenario, fetchScenarioInjects, updateInjectActivationForScenario, updateInjectForScenario } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/scenario-inject-test-actions';
@@ -13,7 +13,9 @@ const injectContextForScenario = (scenario: Scenario) => {
   const dispatch = useAppDispatch();
   const [injects, setInjects] = useState<InjectOutputType[]>([]);
 
-  return {
+  // This object is the value of InjectContext.Provider wrapping the whole scenario
+  // area: keep its identity stable so consumers don't re-render on unrelated updates.
+  return useMemo(() => ({
     injects,
     setInjects,
     searchInjects(input: SearchPaginationInput): Promise<{ data: Page<InjectOutputType> }> {
@@ -81,7 +83,7 @@ const injectContextForScenario = (scenario: Scenario) => {
         data: result.data,
       }));
     },
-  };
+  }), [dispatch, injects, scenario?.scenario_id]);
 };
 
 export default injectContextForScenario;

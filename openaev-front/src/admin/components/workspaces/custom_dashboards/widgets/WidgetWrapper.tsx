@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import usePaginationState from '../../../../../components/common/queryable/pagination/usePaginationState';
 import ErrorBoundary from '../../../../../components/ErrorBoundary';
@@ -20,7 +20,7 @@ import WidgetViz from './WidgetViz';
 interface WidgetWrapperProps {
   widget: Widget;
   fullscreen: boolean;
-  setFullscreen: (fullscreen: boolean) => void;
+  setFullscreen: (widgetId: string, fullscreen: boolean) => void;
   idToResize: string | null;
   handleWidgetUpdate: (widget: Widget) => void;
   handleWidgetDelete: (widgetId: string) => void;
@@ -65,7 +65,7 @@ const WidgetWrapper = ({
         handleChangePagination: () => {},
       };
 
-  const WIDGET_CONFIG: Record<string, WidgetFetchConfig> = {
+  const widgetConfig = useMemo<Record<string, WidgetFetchConfig>>(() => ({
     'attack-path': {
       vizType: WidgetVizDataType.ATTACK_PATHS,
       fetchFn: fetchAttackPaths,
@@ -83,12 +83,12 @@ const WidgetWrapper = ({
       vizType: WidgetVizDataType.ENTITIES,
       fetchFn: fetchEntities,
     },
-  };
+  }), [fetchAttackPaths, fetchCount, fetchAverage, fetchEntities, theme]);
 
-  const DEFAULT_CONFIG: WidgetFetchConfig = {
+  const defaultConfig = useMemo<WidgetFetchConfig>(() => ({
     vizType: WidgetVizDataType.SERIES,
     fetchFn: fetchSeries,
-  };
+  }), [fetchSeries]);
 
   // Use ref to track if component is mounted
   const isMountedRef = useRef(true);
@@ -104,9 +104,11 @@ const WidgetWrapper = ({
       setErrorMessage('');
 
       const params = buildParams(customDashboardParameters);
-      const config = WIDGET_CONFIG[widget.widget_type] ?? DEFAULT_CONFIG;
+      const config = widgetConfig[widget.widget_type] ?? defaultConfig;
 
-      config.fetchFn(widget.widget_id, params, pagination).then((response) => {
+      try {
+        const response = await config.fetchFn(widget.widget_id, params, pagination);
+        if (!isMountedRef.current) return;
         if (response.data) {
           setVizData({
             type: config.vizType,
@@ -115,12 +117,12 @@ const WidgetWrapper = ({
               : response.data,
           } as WidgetVizData);
         }
-      }).catch((error) => {
+      } catch (error) {
         if (!isMountedRef.current) return;
-        setErrorMessage(error.message);
-      });
+        setErrorMessage((error as Error).message);
+      }
     },
-    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters],
+    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig],
   );
 
   useEffect(() => {
@@ -135,6 +137,11 @@ const WidgetWrapper = ({
       }
     });
   }, [fetchWidgetData]);
+
+  const handleSetFullscreen = useCallback(
+    (fs: boolean) => setFullscreen(widget.widget_id, fs),
+    [setFullscreen, widget.widget_id],
+  );
 
   const handleMouseDown = (e: SyntheticEvent) => e.stopPropagation();
   const handleTouchStart = (e: SyntheticEvent) => e.stopPropagation();
@@ -155,7 +162,7 @@ const WidgetWrapper = ({
     >
       <WidgetTitle
         widget={widget}
-        setFullscreen={setFullscreen}
+        setFullscreen={handleSetFullscreen}
         handleWidgetUpdate={handleWidgetUpdate}
         handleWidgetDelete={handleWidgetDelete}
         readOnly={readOnly}
@@ -174,7 +181,7 @@ const WidgetWrapper = ({
               <WidgetViz
                 widget={widget}
                 fullscreen={fullscreen}
-                setFullscreen={setFullscreen}
+                setFullscreen={handleSetFullscreen}
                 vizData={vizData}
                 errorMessage={errorMessage}
                 onPaginationChange={onPaginationChange}

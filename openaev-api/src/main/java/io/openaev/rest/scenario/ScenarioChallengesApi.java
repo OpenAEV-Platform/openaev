@@ -4,6 +4,7 @@ import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
@@ -40,6 +41,7 @@ public class ScenarioChallengesApi extends RestBehavior {
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
       @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
     Optional<Scenario> scenarioOpt =

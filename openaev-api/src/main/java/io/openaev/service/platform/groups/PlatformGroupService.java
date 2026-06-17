@@ -109,6 +109,9 @@ public class PlatformGroupService {
 
   public void deletePlatformGroup(@NotBlank final String groupId) {
     Group group = findById(groupId);
-    groupRepository.deleteByIdNative(group.getId());
+    // Clear bidirectional associations before delete to avoid TransientObjectException
+    // (User entities in the persistence context would otherwise still reference the removed Group)
+    group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
+    groupRepository.delete(group);
   }
 }

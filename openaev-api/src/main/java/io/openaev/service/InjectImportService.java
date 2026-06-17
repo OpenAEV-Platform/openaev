@@ -230,7 +230,7 @@ public class InjectImportService {
                                   compositeId.setTeamId(team.getId());
                                   compositeId.setUserId(user.getId());
                                   boolean exists =
-                                      exerciseTeamUserRepository.findById(compositeId).isPresent();
+                                      exerciseTeamUserRepository.existsById(compositeId);
 
                                   if (!exists) {
                                     ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
@@ -275,7 +275,7 @@ public class InjectImportService {
                                   compositeId.setTeamId(team.getId());
                                   compositeId.setUserId(user.getId());
                                   boolean exists =
-                                      scenarioTeamUserRepository.findById(compositeId).isPresent();
+                                      scenarioTeamUserRepository.existsById(compositeId);
 
                                   if (!exists) {
                                     ScenarioTeamUser scenarioTeamUser = new ScenarioTeamUser();

@@ -13,6 +13,10 @@ export const searchThreatArsenalActions = (paginationInput: InjectorContractSear
   return simplePostCall(`${THREAT_ARSENAL_URI}/search`, paginationInput);
 };
 
+export const searchNonTabletopThreatArsenalActions = (paginationInput: InjectorContractSearchPaginationInput) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/search/non-tabletop`, paginationInput);
+};
+
 export const addThreatArsenalAction = (data: ThreatArsenalActionCreateInput) => {
   return simplePostCall(THREAT_ARSENAL_URI, data, {}, true, true);
 };

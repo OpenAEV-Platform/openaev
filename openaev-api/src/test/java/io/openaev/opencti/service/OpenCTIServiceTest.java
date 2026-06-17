@@ -495,7 +495,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user.get().getEmail())
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
-        assertThat(user.get().getGroups().stream().map(Group::getId).toList())
+        assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
 
@@ -538,7 +538,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user.get().getEmail())
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
-        assertThat(user.get().getGroups().stream().map(Group::getId).toList())
+        assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
     }
@@ -693,7 +693,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user.get().getEmail())
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
-        assertThat(user.get().getGroups().stream().map(Group::getId).toList())
+        assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
 
@@ -736,7 +736,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
         assertThat(user.get().getEmail())
             .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
-        assertThat(user.get().getGroups().stream().map(Group::getId).toList())
+        assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
       }
     }

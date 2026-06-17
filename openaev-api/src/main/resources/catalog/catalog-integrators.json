@@ -40,6 +40,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "description": "ID of the collector.",
                         "type": "string"
@@ -143,6 +149,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "openaev_microsoft_entra",
                         "description": "Collector unique identifier",
@@ -239,6 +251,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -344,6 +362,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "openaev_microsoft_defender",
                         "description": "Collector unique identifier",
@@ -438,6 +462,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -541,6 +571,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -661,6 +697,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "openaev_atomic_red_team",
                         "description": "Collector unique identifier",
@@ -735,6 +777,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -840,6 +888,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "openaev_nvd_nist_cve",
                         "description": "Collector unique identifier",
@@ -933,6 +987,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "openaev_mitre_attack",
                         "description": "Collector unique identifier",
@@ -1007,6 +1067,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "OPENAEV_URL_PREFIX": {
@@ -1093,6 +1159,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -1196,6 +1268,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "INJECTOR_ID": {
                         "description": "A unique UUIDv4 identifier for this injector instance.",
                         "type": "string"
@@ -1270,6 +1348,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "INJECTOR_ID": {
@@ -1353,6 +1437,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "INJECTOR_ID": {
                         "description": "A unique UUIDv4 identifier for this injector instance.",
                         "type": "string"
@@ -1427,6 +1517,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "INJECTOR_ID": {
@@ -1505,6 +1601,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "sentinelone--0b13e3f7-5c9e-46f5-acc4-33032e9b4921",
                         "description": "A unique UUIDv4 identifier for this collector instance.",
@@ -1568,6 +1670,11 @@
                         "default": false,
                         "description": "Enable deep visibility search for SentinelOne threat searches.",
                         "type": "boolean"
+                    },
+                    "SENTINELONE_DISABLE_STRICT_END_DATE": {
+                        "default": false,
+                        "description": "Disable strict end date enforcement (do not ignore expectations missing an end date).",
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -1612,6 +1719,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -1734,6 +1847,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "COLLECTOR_ID": {
                         "default": "openaev_aws_resources",
                         "description": "Collector unique identifier",
@@ -1833,6 +1952,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "INJECTOR_ID": {
@@ -1947,6 +2072,12 @@
                         "description": "The token for the OpenAEV platform.",
                         "type": "string"
                     },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
                     "INJECTOR_ID": {
                         "description": "A unique UUIDv4 identifier for this injector instance.",
                         "type": "string"
@@ -2020,6 +2151,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
@@ -2133,6 +2270,12 @@
                     },
                     "OPENAEV_TOKEN": {
                         "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
                         "type": "string"
                     },
                     "INJECTOR_ID": {

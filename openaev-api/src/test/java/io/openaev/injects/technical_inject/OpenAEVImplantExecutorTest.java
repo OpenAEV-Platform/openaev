@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.collectors.utils.CollectorsUtils;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
@@ -127,7 +128,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     io.openaev.executors.Injector openAEVImplantExecutor =
         new OpenAEVImplantExecutor(
             injectorContext, assetGroupService, injectExpectationService, injectService);

@@ -64,7 +64,7 @@ class InjectorExecutionProcessingHandlerTest {
 
     // Case 2: Action is NOT complete
     InjectExecutionInput inputWrongAction =
-        buildInput(ExecutionTraceStatus.SUCCESS, InjectExecutionAction.command_execution, "{}");
+        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.command_execution, "{}");
     assertTrue(
         handler
             .processContext(
@@ -187,7 +187,7 @@ class InjectorExecutionProcessingHandlerTest {
     return new ExecutionProcessingContext(
         inject,
         null,
-        buildInput(ExecutionTraceStatus.SUCCESS, InjectExecutionAction.complete, json),
+        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.complete, json),
         Map.of());
   }
 

@@ -11,4 +11,6 @@ public interface WorkflowStateRepository extends JpaRepository<WorkflowState, St
       String stepTemplateId, String workflowExecutionId);
 
   WorkflowState findByStepTemplateIsNullAndWorkflowExecutionId(String id);
+
+  void deleteAllByWorkflowExecution_Simulation_Id(String simulationId);
 }

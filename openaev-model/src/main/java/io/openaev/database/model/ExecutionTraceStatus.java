@@ -5,8 +5,8 @@ import java.util.Set;
 public enum ExecutionTraceStatus {
 
   // -- Success status --
-  SUCCESS,
-  SUCCESS_WITH_CLEANUP_FAIL,
+  EXECUTED,
+  EXECUTED_WITH_CLEANUP_FAILURE,
   WARNING,
   ACCESS_DENIED,
 
@@ -51,7 +51,14 @@ public enum ExecutionTraceStatus {
 
   /** Trace statuses that indicate a successful execution. */
   public static final Set<ExecutionTraceStatus> SUCCESS_STATUSES =
-      Set.of(SUCCESS, SUCCESS_WITH_CLEANUP_FAIL, WARNING, ACCESS_DENIED);
+      Set.of(EXECUTED, EXECUTED_WITH_CLEANUP_FAILURE, WARNING, ACCESS_DENIED);
+
+  public static ExecutionTraceStatus fromName(String status) {
+    if ("SUCCESS".equalsIgnoreCase(status)) {
+      return EXECUTED;
+    }
+    return ExecutionTraceStatus.valueOf(status);
+  }
 
   public boolean isError() {
     return ERROR_STATUSES.contains(this);

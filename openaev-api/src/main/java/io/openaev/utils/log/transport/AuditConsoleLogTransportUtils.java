@@ -1,13 +1,13 @@
 package io.openaev.utils.log.transport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.AuditLogProperties;
+import io.openaev.database.model.LogTransport;
 import io.openaev.engine.model.log.LogEvent;
 import io.openaev.utils.log.LogUtils;
 import java.util.logging.Level;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -20,9 +20,12 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AuditConsoleLogTransportUtils implements AuditLogTransportUtils {
 
-  @Getter
-  @Value("${openaev.audit-logs.console.enabled:false}")
-  private boolean enabled;
+  private final AuditLogProperties auditLogProperties;
+
+  @Override
+  public boolean isEnabled() {
+    return auditLogProperties.isTransportEnabled(LogTransport.CONSOLE);
+  }
 
   private final ObjectMapper objectMapper;
 

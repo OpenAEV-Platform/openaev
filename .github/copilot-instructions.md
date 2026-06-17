@@ -53,29 +53,29 @@ ignore unless your changes touch these.
 
 ## Continuous Integration
 
-### Drone CI Pipeline
-
-Primary CI runs on every push:
+CI runs on GitHub Actions (see `.github/workflows/`):
 
 1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
-**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see `.drone.yml` for exact versions)
+**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see workflow files for exact versions)
 
-### GitHub Actions
+### Key Workflows
 
+- **core-ci.yml**: Primary CI pipeline (backend + frontend + e2e)
+- **nightly-ci.yml**: Nightly extended test suite
 - **test-feature-branch.yml**: Docker image build (Alpine Linux)
 - **codeql.yml**: Security scanning (weekly + main push)
-- **pr-title-check-worker.yml**: Conventional Commits validation
+- **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
 
 ### Root Files
 
 - `pom.xml` - Parent Maven POM
-- `.drone.yml` - Primary CI/CD pipeline
+- `.github/workflows/` - CI/CD pipelines (GitHub Actions)
 - `docker-compose.yml` - Dev services (in `openaev-dev/`)
 - `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
 
@@ -127,16 +127,15 @@ openaev-front/
 **ALL commit messages MUST follow Conventional Commits format:**
 
 ```
-[<context>] <type>(<scope>?): <short description> (#<issue-number>?)
+<type>(<scope>)?: <short description> (#<issue-number>)?
 ```
 
 **Examples:**
 
-- `[backend] feat(auth): add JWT authentication (#123)`
-- `[frontend] fix(ui): resolve button alignment issue`
-- `[docs] chore: update README with setup instructions`
+- `feat(auth): add JWT authentication (#123)`
+- `fix(ui): resolve button alignment issue`
+- `chore: update README with setup instructions`
 
-**Context values**: `backend`, `frontend`, `tools`, `agent`, `docs`, `[collector-name]`
 **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## Key Commands Reference
@@ -234,3 +233,47 @@ Examples:
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
 9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
+
+
+<!-- filigran-conventions:start -->
+## Commit, PR & issue conventions
+
+All commits, pull requests and issues in this repository follow the
+[Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+specification with a GitHub issue reference:
+
+```
+type(scope?)!?: description (#issue)
+```
+
+- Types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`,
+  `build`, `ci`, `revert`.
+- The description starts with a lowercase letter and has no trailing period;
+  preserve acronyms and proper nouns.
+- The old `[backend]` / `[frontend]` bracket prefixes are discontinued — use a
+  Conventional Commits scope instead.
+- Pull request titles **must** end with the related issue reference, e.g.
+  `(#1234)`, and every pull request must be linked to an issue.
+- Sign your commits.
+
+When generating commit messages, PR titles or issue titles, always follow this
+convention. See [`.github/LABELS.md`](.github/LABELS.md) for the full title and
+label taxonomy.
+<!-- filigran-conventions:end -->
+
+
+<!-- filigran-model-policy:start -->
+## GitHub Copilot model usage
+
+To keep token consumption under control, pick the model that matches the task:
+
+- **Opus 4.6** — reserve for complex work: deep reasoning, large refactors,
+  architecture design, tricky debugging. It is significantly more
+  token-expensive, so it is not the daily driver.
+- **Sonnet / Gemini / GPT** — default for everyday tasks: autocomplete, small
+  fixes, quick questions, code explanations.
+
+We have a limited token budget — being mindful of the model you pick makes a
+real difference at scale. Think of Opus as a specialist you call in when you
+really need it.
+<!-- filigran-model-policy:end -->

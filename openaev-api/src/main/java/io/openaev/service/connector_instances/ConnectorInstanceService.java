@@ -3,9 +3,12 @@ package io.openaev.service.connector_instances;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TENANT_ID;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -16,11 +19,13 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Session;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +47,7 @@ public class ConnectorInstanceService {
 
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
+  private final EntityManager entityManager;
 
   public ConnectorInstanceService(
       ObjectMapper objectMapper,
@@ -53,6 +59,7 @@ public class ConnectorInstanceService {
       CollectorRepository collectorRepository,
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
+      EntityManager entityManager,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
@@ -64,6 +71,7 @@ public class ConnectorInstanceService {
     this.collectorRepository = collectorRepository;
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
+    this.entityManager = entityManager;
     this.managerFactory = managerFactory;
   }
 
@@ -94,10 +102,10 @@ public class ConnectorInstanceService {
    * @return the list of connector instances in memory
    */
   public List<ConnectorInstanceInMemory> getConnectorInstancesInMemoryByConnectorType(
-      ConnectorType connectorType) {
+      ConnectorType connectorType, String tenantId) {
     List<ConnectorInstanceInMemory> instancesInMemory = new ArrayList<>();
     try {
-      Manager manager = this.managerFactory.getManager();
+      Manager manager = this.managerFactory.getManager(tenantId);
       instancesInMemory =
           manager.getSpawnedIntegrations().keySet().stream()
               .filter(ConnectorInstanceInMemory.class::isInstance)
@@ -112,6 +120,23 @@ public class ConnectorInstanceService {
       log.error("Failed to get executor connector instances in memory", e);
     }
     return instancesInMemory;
+  }
+
+  /**
+   * Retrieves all connector instances in memory for a specific connector type, using the current
+   * tenant from the request context.
+   *
+   * <p>TODO: migrate all callers to {@link
+   * #getConnectorInstancesInMemoryByConnectorType(ConnectorType, String)} once tenant propagation
+   * is fully in place.
+   *
+   * @param connectorType the type of connector to filter by
+   * @return the list of connector instances in memory for the current tenant
+   */
+  public List<ConnectorInstanceInMemory> getConnectorInstancesInMemoryByConnectorType(
+      ConnectorType connectorType) {
+    return getConnectorInstancesInMemoryByConnectorType(
+        connectorType, TenantContext.getCurrentTenant());
   }
 
   /**
@@ -182,8 +207,18 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Finds a connector instance by its ID.
+   * Retrieves all connector instances for a specific tenant, bypassing the Hibernate tenant filter.
+   * This method is intended for background contexts (e.g. Manager initialization) where the filter
+   * may not be active.
    *
+   * @param tenantId the tenant ID to filter by
+   * @return the list of connector instances for the given tenant
+   */
+  public List<ConnectorInstancePersisted> connectorInstancesByTenantId(String tenantId) {
+    return connectorInstanceRepository.findAllByTenantId(tenantId);
+  }
+
+  /**
    * @param id the connector instance id to search for
    * @return the connector instance matching the ID
    * @throws EntityNotFoundException if no connector instance is found with the given ID
@@ -191,7 +226,27 @@ public class ConnectorInstanceService {
   public ConnectorInstancePersisted connectorInstanceById(String id)
       throws EntityNotFoundException {
     return connectorInstanceRepository
-        .findById(id)
+        .findWithGraphById(id)
+        .orElseThrow(
+            () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
+  }
+
+  /**
+   * Finds a connector instance by ID, bypassing the Hibernate tenant filter.
+   *
+   * <p>Use only for platform-level operations (e.g. XtmComposer callbacks) where the request is not
+   * scoped to a specific tenant and the instance must be found regardless of the current tenant
+   * context. Native queries bypass the Hibernate {@code tenantFilter}.
+   *
+   * @param id the connector instance ID to search for
+   * @return the connector instance matching the ID
+   * @throws EntityNotFoundException if no connector instance is found with the given ID
+   */
+  public ConnectorInstancePersisted connectorInstanceByIdIgnoringTenantFilter(String id)
+      throws EntityNotFoundException {
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
+    return connectorInstanceRepository
+        .findWithGraphById(id)
         .orElseThrow(
             () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
   }
@@ -253,7 +308,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted updateCurrentStatus(
       String connectorInstanceId, ConnectorInstance.CURRENT_STATUS_TYPE newCurrentStatus) {
-    ConnectorInstancePersisted instance = this.connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance =
+        this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
     instance.setCurrentStatus(newCurrentStatus);
     return (ConnectorInstancePersisted) this.save(instance);
   }
@@ -298,13 +354,21 @@ public class ConnectorInstanceService {
                 () ->
                     new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
 
-    if (managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance) != null) {
+    if (managerFactory
+            .getManager(connectorInstance.getTenant().getId())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+        != null) {
       // Setting the status to stopping and immediately calling initialize to effectively stop the
       // integration
       try {
         connectorInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
         this.save(connectorInstance);
-        managerFactory.getManager().getSpawnedIntegrations().get(connectorInstance).initialise();
+        managerFactory
+            .getManager(connectorInstance.getTenant().getId())
+            .getSpawnedIntegrations()
+            .get(connectorInstance)
+            .initialise();
       } catch (Exception e) {
         log.error("Could not stop the connector id {} before delete", id, e);
         throw new ConnectorStatusException(
@@ -472,7 +536,10 @@ public class ConnectorInstanceService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
     return createConfiguration(
-        "OPENAEV_TOKEN", objectMapper.getNodeFactory().textNode(token.getValue()), false, instance);
+        OPENAEV_KEY_TOKEN,
+        objectMapper.getNodeFactory().textNode(token.getValue()),
+        false,
+        instance);
   }
 
   private ConnectorInstanceConfiguration createContainerIdConfiguration(
@@ -484,6 +551,12 @@ public class ConnectorInstanceService {
         instance);
   }
 
+  private ConnectorInstanceConfiguration createTenantIdConfiguration(
+      ConnectorInstancePersisted instance, String tenantId) {
+    return createConfiguration(
+        OPENAEV_KEY_TENANT_ID, objectMapper.getNodeFactory().textNode(tenantId), false, instance);
+  }
+
   /**
    * Creates a connector instance from a catalog connector.
    *
@@ -493,7 +566,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     ConnectorInstancePersisted newInstance =
         buildNewConnectorInstanceFromCatalog(catalogConnectorWithConfigMap.catalogConnector());
     List<ConnectorInstanceConfiguration> configurations =
@@ -502,6 +576,7 @@ public class ConnectorInstanceService {
 
     // Add OpenAEV token
     configurations.add(createTokenConfiguration(newInstance));
+    configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
         .noneMatch(
@@ -578,7 +653,8 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted patchConnectorInstanceHealthCheck(
       String connectorInstanceId, ConnectorInstanceHealthInput input) {
-    ConnectorInstancePersisted instance = this.connectorInstanceById(connectorInstanceId);
+    ConnectorInstancePersisted instance =
+        this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
 
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
@@ -589,7 +665,7 @@ public class ConnectorInstanceService {
 
   public ConnectorInstance refresh(ConnectorInstance instance) {
     if (instance instanceof ConnectorInstancePersisted) {
-      return connectorInstanceRepository.findById(instance.getId()).orElse(null);
+      return connectorInstanceRepository.findWithGraphById(instance.getId()).orElse(null);
     }
     return instance;
   }

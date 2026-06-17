@@ -1,8 +1,12 @@
 package io.openaev.xtmone;
 
+import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
+
+import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.settings.TenantSettingsService;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ public class XtmOneService {
   private final XtmOneConfig config;
   private final XtmOneClient client;
   private final PlatformSettingsService platformSettingsService;
+  private final TenantSettingsService tenantSettingsService;
   private final EnterpriseEditionService eeService;
 
   private static final List<Map<String, String>> DEFAULT_INTENTS =
@@ -83,8 +88,17 @@ public class XtmOneService {
       String version = platformSettingsService.getPlatformVersion();
       String platformUrl =
           settings.getPlatformBaseUrl() != null ? settings.getPlatformBaseUrl() : "";
+      // The platform name is stored per-tenant (Settings → Parameters), but
+      // PlatformSettings#getPlatformName only reads the platform-level (tenant-null) value, so a
+      // rename would never reach XTM One. Resolve it the same way the UI does (tenant override →
+      // platform fallback → default). This runs on a background scheduler thread with no request
+      // scope, so resolve against the default tenant explicitly rather than relying on the
+      // (possibly stale) TenantContext ThreadLocal.
       String platformName =
-          settings.getPlatformName() != null ? settings.getPlatformName() : "OpenAEV Platform";
+          tenantSettingsService.resolveSettingValue(Tenant.DEFAULT_TENANT_UUID, PLATFORM_NAME);
+      if (platformName == null || platformName.isBlank()) {
+        platformName = PLATFORM_NAME.defaultValue();
+      }
 
       config.setPlatformUrl(platformUrl);
       config.setPlatformVersion(version != null ? version : "");

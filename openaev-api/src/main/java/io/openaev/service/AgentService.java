@@ -38,6 +38,11 @@ public class AgentService {
     return agentRepository.findByExecutorId(executorId);
   }
 
+  public List<Agent> getAgentsByExecutorIdAndTenantId(
+      @NotBlank String executorId, @NotBlank String tenantId) {
+    return agentRepository.findByExecutorIdAndTenantId(executorId, tenantId);
+  }
+
   public Agent createOrUpdateAgent(@NotNull final Agent agent) {
     return this.agentRepository.save(agent);
   }

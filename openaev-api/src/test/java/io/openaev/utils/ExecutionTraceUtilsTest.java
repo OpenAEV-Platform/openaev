@@ -88,30 +88,30 @@ class ExecutionTraceUtilsTest {
 
     @Test
     @DisplayName(
-        "Given execution success and cleanup error should return SUCCESS_WITH_CLEANUP_FAIL")
+        "Given execution success and cleanup error should return EXECUTED_WITH_CLEANUP_FAILURE")
     void given_execution_success_and_cleanup_error_should_return_success_with_cleanup_fail() {
       // -- ARRANGE --
       List<ExecutionTrace> traces =
-          List.of(buildTrace(SUCCESS, EXECUTION), buildTrace(ERROR, CLEANUP_EXECUTION));
+          List.of(buildTrace(EXECUTED, EXECUTION), buildTrace(ERROR, CLEANUP_EXECUTION));
 
       // -- ACT --
       ExecutionTraceStatus result = ExecutionTraceUtils.computeAgentTraceStatus(traces);
 
       // -- ASSERT --
-      assertThat(result).isEqualTo(SUCCESS_WITH_CLEANUP_FAIL);
+      assertThat(result).isEqualTo(EXECUTED_WITH_CLEANUP_FAILURE);
     }
 
     @Test
-    @DisplayName("Given all success should return SUCCESS")
+    @DisplayName("Given all success should return EXECUTED")
     void given_all_success_should_return_success() {
       // -- ARRANGE --
-      List<ExecutionTrace> traces = List.of(buildTrace(SUCCESS, EXECUTION));
+      List<ExecutionTrace> traces = List.of(buildTrace(EXECUTED, EXECUTION));
 
       // -- ACT --
       ExecutionTraceStatus result = ExecutionTraceUtils.computeAgentTraceStatus(traces);
 
       // -- ASSERT --
-      assertThat(result).isEqualTo(SUCCESS);
+      assertThat(result).isEqualTo(EXECUTED);
     }
 
     @Test

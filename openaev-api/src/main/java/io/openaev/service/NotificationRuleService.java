@@ -11,6 +11,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.ImageUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,12 +22,14 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Session;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
 public class NotificationRuleService {
+  private final EntityManager entityManager;
   private final NotificationRuleRepository notificationRuleRepository;
 
   private final UserService userService;
@@ -104,6 +107,8 @@ public class NotificationRuleService {
       @NotNull final String resourceId,
       @NotNull final NotificationRuleTrigger trigger,
       @NotNull final Map<String, String> data) {
+    // Disable tenant filter — notification rules must be found cross-tenant
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     List<NotificationRule> rules =
         notificationRuleRepository.findNotificationRuleByResourceAndTrigger(resourceId, trigger);
     // TODO extract this logic from this method
@@ -141,7 +146,7 @@ public class NotificationRuleService {
 
       for (NotificationRule rule : tenantRules) {
         if (NotificationRuleType.EMAIL.equals(rule.getType())) {
-          emailNotificationService.sendNotification(rule, tenantData);
+          emailNotificationService.sendNotification(rule, tenantData, tenantId);
         }
       }
     }

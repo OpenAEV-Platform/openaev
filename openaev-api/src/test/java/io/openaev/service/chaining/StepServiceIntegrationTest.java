@@ -92,7 +92,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     injectExecuted.setId("INJECT-ID");
 
     ExecutionTrace executionTrace = new ExecutionTrace();
-    executionTrace.setStatus(ExecutionTraceStatus.SUCCESS);
+    executionTrace.setStatus(ExecutionTraceStatus.EXECUTED);
 
     Agent agent = AgentFixture.createDefaultAgentService();
 

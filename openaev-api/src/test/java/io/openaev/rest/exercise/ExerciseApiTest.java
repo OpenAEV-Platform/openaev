@@ -597,6 +597,64 @@ public class ExerciseApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Delete simulation")
+  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT, Capability.MANAGE_ASSESSMENT})
+  class DeleteSimulation {
+
+    @Test
+    @DisplayName("Should delete exercise and cascade related data")
+    void given_existingExercise_should_deleteExerciseAndCascadeRelatedData() throws Exception {
+      // Arrange
+      User user = userRepository.save(UserFixture.getUser("Del", "USER", "del-user@fake.email"));
+      USER_IDS.add(user.getId());
+
+      Team team = teamRepository.save(TeamFixture.getTeam(user, "DelTeam", false));
+      TEAM_IDS.add(team.getId());
+
+      Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
+      exercise.setTeams(List.of(team));
+      exercise.setReplyTos(List.of("reply@test.com"));
+      Exercise exerciseSaved = exerciseRepository.save(exercise);
+      EXERCISE_IDS.add(exerciseSaved.getId());
+
+      ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
+      exerciseTeamUser.setExercise(exerciseSaved);
+      exerciseTeamUser.setTeam(team);
+      exerciseTeamUser.setUser(user);
+      exerciseTeamUserRepository.save(exerciseTeamUser);
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(delete(EXERCISE_URI + "/" + exerciseSaved.getId()).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert
+      assertFalse(
+          exerciseRepository.findById(exerciseSaved.getId()).isPresent(),
+          "Exercise should be deleted");
+      assertTrue(
+          exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseSaved.getId())).isEmpty(),
+          "Exercise team users should be cascade-deleted");
+    }
+
+    @Test
+    @DisplayName("Should return 404 when exercise does not exist")
+    void given_nonExistentExercise_should_returnNotFound() throws Exception {
+      // Arrange
+      String nonExistentId = UUID.randomUUID().toString();
+
+      // Act & Assert
+      mvc.perform(delete(EXERCISE_URI + "/" + nonExistentId).with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
   @DisplayName("Inject check")
   @WithMockUser(isAdmin = true)
   @Transactional
@@ -979,6 +1037,267 @@ public class ExerciseApiTest extends IntegrationTest {
               .getStatus();
 
       // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Enabling team players in exercise from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notEnablePlayersInExerciseFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create exercise in tenant X
+      CreateExerciseInput exerciseInput = new CreateExerciseInput();
+      exerciseInput.setName("TeamPlayer Isolation Exercise");
+
+      String exerciseResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(exerciseInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(exerciseResponse, "$.exercise_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — enable team players from tenant X using team from tenant Y --------
+      ExerciseTeamPlayersEnableInput playersInput = new ExerciseTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/exercises/"
+                          + exerciseId
+                          + "/teams/"
+                          + teamId
+                          + "/players/enable")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Adding team players in exercise from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notAddPlayersInExerciseFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create exercise in tenant X
+      CreateExerciseInput exerciseInput = new CreateExerciseInput();
+      exerciseInput.setName("AddPlayer Isolation Exercise");
+
+      String exerciseResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(exerciseInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(exerciseResponse, "$.exercise_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant AddTeam");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — add players from tenant X using team from tenant Y --------
+      ExerciseTeamPlayersEnableInput playersInput = new ExerciseTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/exercises/"
+                          + exerciseId
+                          + "/teams/"
+                          + teamId
+                          + "/players/add")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Removing team players in exercise from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notRemovePlayersInExerciseFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create exercise in tenant X
+      CreateExerciseInput exerciseInput = new CreateExerciseInput();
+      exerciseInput.setName("RemovePlayer Isolation Exercise");
+
+      String exerciseResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/exercises")
+                      .content(asJsonString(exerciseInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String exerciseId = JsonPath.read(exerciseResponse, "$.exercise_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant RemoveTeam");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — remove players from tenant X using team from tenant Y --------
+      ExerciseTeamPlayersEnableInput playersInput = new ExerciseTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/exercises/"
+                          + exerciseId
+                          + "/teams/"
+                          + teamId
+                          + "/players/remove")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
   }

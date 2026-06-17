@@ -58,7 +58,7 @@ public class InjectStatusService {
     // build status
     InjectStatus injectStatus = new InjectStatus();
     injectStatus.setInject(inject);
-    injectStatus.setName(ExecutionStatus.valueOf(input.getStatus()));
+    injectStatus.setName(ExecutionStatus.fromName(input.getStatus()));
     // Save status for inject
     inject.setStatus(injectStatus);
     return injectRepository.save(inject);
@@ -163,7 +163,7 @@ public class InjectStatusService {
     }
 
     ExecutionTraceAction executionAction = convertExecutionAction(input.getAction());
-    ExecutionTraceStatus traceStatus = ExecutionTraceStatus.valueOf(input.getStatus());
+    ExecutionTraceStatus traceStatus = ExecutionTraceStatus.fromName(input.getStatus());
 
     ExecutionTrace base =
         new ExecutionTrace(

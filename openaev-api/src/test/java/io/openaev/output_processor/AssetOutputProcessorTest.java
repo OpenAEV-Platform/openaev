@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
@@ -37,6 +38,9 @@ class AssetOutputProcessorTest {
     contractOutputContext = mock(ContractOutputContext.class);
 
     Inject inject = mock(Inject.class);
+    Tenant tenant = mock(Tenant.class);
+    when(inject.getTenant()).thenReturn(tenant);
+    when(tenant.getId()).thenReturn("tenant-id");
     when(executionContext.inject()).thenReturn(inject);
     when(tagService.findOrCreateTagsFromNames(any())).thenReturn(Set.of());
   }
@@ -148,7 +152,7 @@ class AssetOutputProcessorTest {
         """);
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
-    when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
+    when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.empty());
     when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
 
     processor.process(executionContext, contractOutputContext, node);
@@ -167,7 +171,7 @@ class AssetOutputProcessorTest {
         """);
     Endpoint existing = mock(Endpoint.class);
     when(existing.getId()).thenReturn("existing-id");
-    when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.of(existing));
+    when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.of(existing));
 
     processor.process(executionContext, contractOutputContext, node);
 
@@ -185,7 +189,7 @@ class AssetOutputProcessorTest {
         """);
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
-    when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
+    when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.empty());
     when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
     when(tagService.findOrCreateTagsFromNames(any())).thenReturn(Set.of());
 
@@ -206,7 +210,7 @@ class AssetOutputProcessorTest {
         """);
     Endpoint created = mock(Endpoint.class);
     when(created.getId()).thenReturn("endpoint-id");
-    when(endpointService.findExistingEndpoint(any())).thenReturn(Optional.empty());
+    when(endpointService.findExistingEndpoint(any(), any())).thenReturn(Optional.empty());
     when(endpointService.createEndpoint(any(EndpointInput.class))).thenReturn(created);
 
     processor.process(executionContext, contractOutputContext, node);

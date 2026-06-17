@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
@@ -263,6 +264,117 @@ public class XtmOneClient {
     return null;
   }
 
+  /**
+   * Lists the current user's platform-chat conversations (chatbot history menu). Returns the raw
+   * upstream payload ({@code {"conversations": [...]}}) or null on failure — the chatbot history
+   * menu degrades to an empty state.
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> listChatSessions() {
+    if (!config.isConfigured()) {
+      return null;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet = chatGetBuilder("/api/v1/platform/chat/sessions", jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            log.warn("[XTM One] List sessions failed: HTTP {}", response.getCode());
+            return null;
+          });
+    } catch (Exception e) {
+      log.warn("[XTM One] List sessions error: ", e);
+    }
+    return null;
+  }
+
+  /**
+   * Removes a conversation from the chatbot history (archived upstream). Returns true when the
+   * upstream accepted the deletion.
+   */
+  public boolean deleteChatSession(String conversationId) {
+    if (!config.isConfigured()) {
+      return false;
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      // URLEncoder targets query strings ('+' for spaces) — normalize to %20 for a path segment
+      // (same approach as DocumentService.encodeFileName).
+      String encodedConversationId =
+          URLEncoder.encode(conversationId, StandardCharsets.UTF_8).replace("+", "%20");
+      HttpDelete httpDelete =
+          new HttpDelete(
+              config.getUrl() + "/api/v1/platform/chat/sessions/" + encodedConversationId);
+      addChatHeaders(httpDelete, jwt);
+      httpDelete.setConfig(
+          RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpDelete,
+          response -> {
+            if (response.getCode() == 204 || response.getCode() == 200) {
+              return true;
+            }
+            log.warn("[XTM One] Delete session failed: HTTP {}", response.getCode());
+            return false;
+          });
+    } catch (Exception e) {
+      log.warn("[XTM One] Delete session error: ", e);
+    }
+    return false;
+  }
+
+  /**
+   * Injects a mid-run steering message into the conversation's running agent loop. Upstream status
+   * codes are propagated as {@link ResponseStatusException} — the chatbot rolls back its optimistic
+   * bubble on any non-2xx (e.g. 409 when no response is currently being generated).
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> steerChatMessage(String content, String conversationId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      body.put("content", content);
+      body.put("conversation_id", conversationId);
+      String json = objectMapper.writeValueAsString(body);
+
+      HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages/steer", jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            // Preserve the upstream status code (the chatbot distinguishes 409 "no run
+            // active" from other failures) — mapUpstreamError would collapse it to 503.
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      // httpClient.execute wraps the handler's RuntimeException — unwrap a
+      // propagated upstream error before falling back to a generic 500.
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Steer message error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while steering", e);
+    }
+  }
+
   @SuppressWarnings("unchecked")
   public String uploadChatFile(String conversationId, MultipartFile file) {
     if (!config.isConfigured()) {
@@ -310,6 +422,55 @@ public class XtmOneClient {
   }
 
   /**
+   * An agent-generated file fetched from XTM One, buffered in memory together with the upstream
+   * content headers so the API layer can relay it to the browser.
+   */
+  public record DownloadedFile(byte[] content, String contentType, String contentDisposition) {}
+
+  /**
+   * Downloads an agent-generated file from XTM One on behalf of the current user.
+   *
+   * <p>The XTM One JWT is minted server-side from the current OpenAEV user, so the browser only
+   * ever authenticates against OpenAEV — it never logs in to XTM One. The file is buffered in
+   * memory (chat-generated files are small and capped upstream) and returned with the upstream
+   * {@code Content-Type} / {@code Content-Disposition} headers for the API layer to relay.
+   *
+   * @param fileId the XTM One file attachment id (validated as a UUID by the caller)
+   * @return the downloaded file bytes + content headers
+   */
+  public DownloadedFile downloadChatFile(String fileId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet = chatGetBuilder("/api/v1/chat/files/" + fileId + "/download", jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(2)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() != 200) {
+              throw mapUpstreamError(response);
+            }
+            String contentType =
+                response.getEntity() != null ? response.getEntity().getContentType() : null;
+            var cdHeader = response.getFirstHeader("Content-Disposition");
+            String contentDisposition = cdHeader != null ? cdHeader.getValue() : null;
+            byte[] content = EntityUtils.toByteArray(response.getEntity());
+            return new DownloadedFile(content, contentType, contentDisposition);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      log.warn("[XTM One] Download chat file error, fileId={}.", fileId, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] File download failed", e);
+    }
+  }
+
+  /**
    * Streams a chat message response from XTM One. The provided consumer receives the SSE input
    * stream and is responsible for reading it. The HTTP client and stream are automatically closed
    * when the consumer returns or throws.
@@ -321,6 +482,27 @@ public class XtmOneClient {
    */
   public void streamChatMessage(
       String content, String conversationId, String agentSlug, StreamConsumer streamConsumer) {
+    streamChatMessage(content, conversationId, agentSlug, null, streamConsumer);
+  }
+
+  /**
+   * Streams a chat message response from XTM One, forwarding an optional arbitrary page/application
+   * {@code context} object so the agent is aware of where the user is (e.g. the current URL). The
+   * context shape is decided by the caller (today the embedded chatbot sends {@code {"url": ...}});
+   * it is omitted from the upstream body when {@code null} or empty.
+   *
+   * @param content message content
+   * @param conversationId optional conversation ID
+   * @param agentSlug optional agent slug
+   * @param context optional host page/application context (forwarded verbatim)
+   * @param streamConsumer callback that receives the SSE {@link InputStream}
+   */
+  public void streamChatMessage(
+      String content,
+      String conversationId,
+      String agentSlug,
+      Map<String, Object> context,
+      StreamConsumer streamConsumer) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] Chat message skipped: not configured");
       return;
@@ -331,6 +513,7 @@ public class XtmOneClient {
       body.put("content", content);
       if (conversationId != null) body.put("conversation_id", conversationId);
       if (agentSlug != null) body.put("agent_slug", agentSlug);
+      if (context != null && !context.isEmpty()) body.put("context", context);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);
@@ -458,6 +641,23 @@ public class XtmOneClient {
     int code = response.getCode();
     String detail = readUpstreamDetail(response);
     HttpStatus status = code == 429 ? HttpStatus.TOO_MANY_REQUESTS : HttpStatus.SERVICE_UNAVAILABLE;
+    String reason = detail.isBlank() ? "[XTM One] HTTP " + code : detail;
+    return new ResponseStatusException(status, reason);
+  }
+
+  /**
+   * Maps an upstream non-200 HTTP response to a {@link ResponseStatusException} carrying the
+   * upstream status code as-is (unknown codes fall back to {@code BAD_GATEWAY}). Used where the
+   * caller semantically relies on the exact code — e.g. mid-run steering, where 409 means "no
+   * response is currently being generated" and triggers the chatbot's optimistic-bubble rollback.
+   */
+  private ResponseStatusException mapUpstreamErrorPreservingStatus(ClassicHttpResponse response) {
+    int code = response.getCode();
+    String detail = readUpstreamDetail(response);
+    HttpStatus status = HttpStatus.resolve(code);
+    if (status == null) {
+      status = HttpStatus.BAD_GATEWAY;
+    }
     String reason = detail.isBlank() ? "[XTM One] HTTP " + code : detail;
     return new ResponseStatusException(status, reason);
   }

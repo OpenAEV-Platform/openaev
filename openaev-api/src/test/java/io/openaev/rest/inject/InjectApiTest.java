@@ -26,11 +26,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Executor;
 import io.openaev.injector_contract.ContractTargetedProperty;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.atomic_testing.form.ExecutionTraceOutput;
@@ -134,11 +136,13 @@ class InjectApiTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -364,7 +368,7 @@ class InjectApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+    assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
     ArgumentCaptor<ExecutableInject> executableInjectCaptor =
         ArgumentCaptor.forClass(ExecutableInject.class);
     verify(executor).execute(executableInjectCaptor.capture());
@@ -505,7 +509,7 @@ class InjectApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-    assertEquals("SUCCESS", JsonPath.read(response, "$.status_name"));
+    assertEquals("EXECUTED", JsonPath.read(response, "$.status_name"));
   }
 
   // -- BULK DELETE --
@@ -1110,7 +1114,7 @@ class InjectApiTest extends IntegrationTest {
         assertEquals(ExecutionStatus.PENDING, injectStatusSaved.getName());
         assertEquals(1, injectStatusSaved.getTraces().size());
         assertEquals(
-            ExecutionTraceStatus.SUCCESS, injectStatusSaved.getTraces().getFirst().getStatus());
+            ExecutionTraceStatus.EXECUTED, injectStatusSaved.getTraces().getFirst().getStatus());
         assertEquals(
             ExecutionTraceAction.EXECUTION, injectStatusSaved.getTraces().getFirst().getAction());
         assertEquals(logMessage, injectStatusSaved.getTraces().getFirst().getMessage());
@@ -1308,9 +1312,9 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should compute agent status as SUCCESS")
+      @DisplayName("Should compute agent status as EXECUTED")
       void shouldComputeAgentStatusAsSuccess() throws Exception {
-        testAgentStatusFunction("SUCCESS", "WARNING", ExecutionTraceStatus.SUCCESS);
+        testAgentStatusFunction("SUCCESS", "WARNING", ExecutionTraceStatus.EXECUTED);
       }
 
       @Test
@@ -1322,9 +1326,9 @@ class InjectApiTest extends IntegrationTest {
       }
 
       @Test
-      @DisplayName("Should compute agent status as SUCCESS for ACCESS_DENIED")
+      @DisplayName("Should compute agent status as EXECUTED for ACCESS_DENIED")
       void shouldComputeAgentStatusAsSuccessForAccessDenied() throws Exception {
-        testAgentStatusFunction("SUCCESS", "ACCESS_DENIED", ExecutionTraceStatus.SUCCESS);
+        testAgentStatusFunction("SUCCESS", "ACCESS_DENIED", ExecutionTraceStatus.EXECUTED);
       }
     }
 
@@ -1396,9 +1400,18 @@ class InjectApiTest extends IntegrationTest {
 
       // Deduplication
 
-      @Test
+      /** Wraps stdout content in the expected JSON envelope used by the implant callback. */
+      private InjectExecutionInput buildStdoutInput(String stdoutContent) {
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage("{\"stdout\":\"" + stdoutContent + "\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+        return input;
+      }
+
       @DisplayName(
           "Should consolidate duplicate CVE findings when structured output contains multiple entries with the same id")
+      @Test
       void shouldConsolidateDuplicateCveFindingsWhenStructuredOutputContainsDuplicates()
           throws Exception {
         // -- PREPARE --
@@ -2049,7 +2062,7 @@ class InjectApiTest extends IntegrationTest {
           "Should not create IPv4 findings when raw output contains no valid IPv4 addresses")
       void shouldNotCreateIPv4FindingsWhenRawOutputContainsNoValidIPv4Addresses() throws Exception {
         // -- PREPARE --
-        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$0");
+        RegexGroup ipv4Group = OutputParserFixture.getRegexGroup("ipv4", "$1");
         ContractOutputElement ipv4Element =
             OutputParserFixture.getContractOutputElement(
                 ContractOutputType.IPv4,
@@ -2061,7 +2074,6 @@ class InjectApiTest extends IntegrationTest {
         Inject ipv4Inject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        // 999.x.x.x is not a valid IPv4, the processor's validate() rejects it
         InjectExecutionInput input = buildStdoutInput("host 999.999.999.999 is unknown");
 
         // -- EXECUTE --
@@ -2688,8 +2700,12 @@ class InjectApiTest extends IntegrationTest {
         Inject vulnInject = (Inject) setup[0];
         String agentId = (String) setup[1];
 
-        String rawOutput = "VULN: EternalBlue EXPLOITABLE\\nVULN: BlueKeep PATCHED\\n";
-        InjectExecutionInput input = buildStdoutInput(rawOutput);
+        InjectExecutionInput input = new InjectExecutionInput();
+        // Input uses "VULN: <name> <status>" format to match the regex VULN:\s*(\S+)\s+(\S+)
+        // which captures name=$1 and status=$2. toFindingValue() returns "name [status]".
+        input.setMessage("{\"stdout\":\"VULN: EternalBlue critical\\nVULN: BlueKeep high\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
 
         // -- EXECUTE --
         performCallbackRequest(agentId, vulnInject.getId(), input);
@@ -3047,9 +3063,11 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
         List<Endpoint> endpointsB =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetB");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetB", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals(1, endpointsB.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
@@ -3139,7 +3157,8 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
       }
@@ -3269,7 +3288,8 @@ class InjectApiTest extends IntegrationTest {
             .until(
                 () -> {
                   List<Endpoint> endpointsA =
-                      endpointRepository.findByExternalReference("https://shodan.io/.../assetA");
+                      endpointRepository.findByExternalReference(
+                          "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
                   return endpointsA.isEmpty();
                 });
       }
@@ -3341,7 +3361,8 @@ class InjectApiTest extends IntegrationTest {
         entityManager.clear();
 
         List<Endpoint> endpointsA =
-            endpointRepository.findByExternalReference("https://shodan.io/.../assetC");
+            endpointRepository.findByExternalReference(
+                "https://shodan.io/.../assetC", TenantContext.getCurrentTenant());
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());
@@ -3410,7 +3431,7 @@ class InjectApiTest extends IntegrationTest {
           .when(Option.IGNORING_ARRAY_ORDER)
           .inPath("[*].execution_status")
           .isArray()
-          .contains(ExecutionTraceStatus.INFO, ExecutionTraceStatus.SUCCESS);
+          .contains(ExecutionTraceStatus.INFO, ExecutionTraceStatus.EXECUTED);
     }
 
     @Test

@@ -486,9 +486,17 @@ public class ScenarioService {
     this.scenarioRepository.saveAll(scenarios);
   }
 
+  /** Validates that the scenario exists for the current tenant. Throws if not found. */
+  public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
+    if (!this.scenarioRepository.existsByIdAndTenantId(
+        scenarioId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+  }
+
+  @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotBlank final String scenarioId) {
-    // Verify scenario belongs to current tenant before deleting
-    scenario(scenarioId);
+    existsByIdAndTenantId(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -765,7 +773,10 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
     Team savedTeam = teamRepository.save(team);
@@ -776,7 +787,10 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 

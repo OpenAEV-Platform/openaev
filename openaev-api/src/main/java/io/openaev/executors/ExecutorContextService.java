@@ -18,8 +18,8 @@ public abstract class ExecutorContextService {
    * @param agent concerned by the attack
    * @throws AgentException if problem
    */
-  public abstract void launchExecutorSubprocess(Inject inject, Endpoint assetEndpoint, Agent agent)
-      throws AgentException;
+  public abstract void launchExecutorSubprocess(
+      Inject inject, Endpoint assetEndpoint, Agent agent, String token) throws AgentException;
 
   /**
    * To use when possible for better performance, launch one attack for X agents, used by
@@ -32,5 +32,5 @@ public abstract class ExecutorContextService {
    * @throws InterruptedException if problem
    */
   public abstract List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus);
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token);
 }

@@ -186,6 +186,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertEquals(WorkflowStatus.TEMPLATE, workflowTemplate.getStatus());
       assertNull(
           workflowTemplate.getSimulation(), "The Workflow TEMPLATE must not have a simulation");
+      // Timeout defaults must be set on creation
+      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertEquals(
+          WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+          workflowTemplate.getTimeoutSeconds(),
+          "Timeout seconds must default to DEFAULT_TIMEOUT_SECONDS");
     }
 
     // -------------------------------------------------------------------------
@@ -622,6 +628,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertNull(
           workflowTemplate.getScenario(),
           "Template workflow for simulation must not link scenario");
+      // Timeout defaults must be set on creation
+      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertEquals(
+          WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+          workflowTemplate.getTimeoutSeconds(),
+          "Timeout seconds must default to DEFAULT_TIMEOUT_SECONDS");
     }
 
     @Test

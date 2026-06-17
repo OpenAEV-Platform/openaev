@@ -18,6 +18,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -443,6 +444,91 @@ class WorkflowApiTest extends IntegrationTest {
             .findFirst()
             .orElseThrow();
     assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, assetGroupRule.getValueType());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Workflow Configuration should use default timeout when timeoutSeconds is omitted from JSON")
+  void updateWorkflowConfiguration_shouldUseDefaultTimeoutWhenOmitted() throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+
+    // JSON payload without workflow_configuration_timeout_seconds
+    String jsonWithoutTimeout =
+        """
+        {
+          "workflow_configuration_rate_limit_enabled": false,
+          "workflow_configuration_timeout_enabled": true,
+          "workflow_configuration_safe_mode_enabled": true
+        }
+        """;
+
+    // -- EXECUTE --
+    String response =
+        mockMvc
+            .perform(
+                put(workflowConfigurationUri(workflow.getId()))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(jsonWithoutTimeout)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT -- timeoutSeconds must fall back to DEFAULT_TIMEOUT_SECONDS (3600)
+    JsonNode body = new ObjectMapper().readTree(response);
+    assertEquals(
+        WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+        body.get("workflow_configuration_timeout_seconds").asLong(),
+        "Omitted timeoutSeconds should default to DEFAULT_TIMEOUT_SECONDS");
+
+    Workflow saved = workflowRepository.findById(workflow.getId()).orElseThrow();
+    assertEquals(WorkflowService.DEFAULT_TIMEOUT_SECONDS, saved.getTimeoutSeconds());
+  }
+
+  @Test
+  @DisplayName(
+      "Update Workflow Configuration should use default timeout when timeoutSeconds is explicit null in JSON")
+  void updateWorkflowConfiguration_shouldUseDefaultTimeoutWhenExplicitNull() throws Exception {
+    // -- PREPARE --
+    Workflow workflow = createTemplateWorkflow();
+
+    // JSON payload with explicit null for timeout_seconds
+    String jsonWithNullTimeout =
+        """
+        {
+          "workflow_configuration_rate_limit_enabled": false,
+          "workflow_configuration_timeout_enabled": true,
+          "workflow_configuration_timeout_seconds": null,
+          "workflow_configuration_safe_mode_enabled": true
+        }
+        """;
+
+    // -- EXECUTE --
+    String response =
+        mockMvc
+            .perform(
+                put(workflowConfigurationUri(workflow.getId()))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(jsonWithNullTimeout)
+                    .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT -- @JsonSetter(nulls = Nulls.SKIP) should keep the default
+    JsonNode body = new ObjectMapper().readTree(response);
+    assertEquals(
+        WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+        body.get("workflow_configuration_timeout_seconds").asLong(),
+        "Explicit null timeoutSeconds should default to DEFAULT_TIMEOUT_SECONDS");
+
+    Workflow saved = workflowRepository.findById(workflow.getId()).orElseThrow();
+    assertEquals(WorkflowService.DEFAULT_TIMEOUT_SECONDS, saved.getTimeoutSeconds());
   }
 
   // -- Helpers --

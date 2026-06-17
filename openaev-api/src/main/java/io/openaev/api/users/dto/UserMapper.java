@@ -3,6 +3,7 @@ package io.openaev.api.users.dto;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
+import io.openaev.execution.ProtectUser;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,6 +20,24 @@ public class UserMapper {
   /** Maps a User entity to output with tenant information (platform-scoped APIs only). */
   public static UserOutput toPlatformOutput(User user) {
     return toOutput(user, true);
+  }
+
+  /**
+   * Maps a ProtectUser class to User entity.
+   *
+   * @param protectUser to map
+   * @return mapped User
+   */
+  public static User fromProtectUser(ProtectUser protectUser) {
+    User user = new User();
+    user.setId(protectUser.getId());
+    user.setEmail(protectUser.getEmail());
+    user.setFirstname(protectUser.getFirstname());
+    user.setLastname(protectUser.getLastname());
+    user.setLang(protectUser.getLang());
+    user.setPgpKey(protectUser.getPgpKey());
+    user.setPhone(protectUser.getPhone());
+    return user;
   }
 
   private static UserOutput toOutput(User user, boolean includeTenants) {

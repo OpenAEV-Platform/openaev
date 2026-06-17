@@ -9,6 +9,8 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
@@ -23,6 +25,8 @@ import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -48,7 +52,11 @@ public class MeApi extends RestBehavior {
 
   @GetMapping("/api/logout")
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<Object> logout() {
+  public ResponseEntity<Object> logout(HttpServletRequest request) {
+    HttpSession session = request.getSession(false);
+    if (session != null) {
+      session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
+    }
     return ResponseEntity.ok().build();
   }
 
@@ -61,7 +69,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/profile")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updateProfile(@Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
@@ -76,7 +85,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/information")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
@@ -89,7 +99,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PutMapping(ME_URI + "/password")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
       throws InputValidationException {
     User user =
@@ -105,7 +116,8 @@ public class MeApi extends RestBehavior {
   }
 
   @PostMapping(ME_URI + "/token/refresh")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackOn = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
     User user =

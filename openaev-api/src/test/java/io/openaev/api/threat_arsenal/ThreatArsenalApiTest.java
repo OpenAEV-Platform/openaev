@@ -17,11 +17,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.collectors.utils.CollectorsUtils;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -34,6 +36,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -59,6 +62,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private InjectorRepository injectorRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private DomainComposer domainComposer;
@@ -75,7 +79,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant();
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tagComposer.reset();
@@ -556,6 +560,166 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                 "action_tags", tag.get().getId(), Filters.FilterOperator.contains);
         default -> PaginationFixture.getDefault().build();
       };
+    }
+
+    @Test
+    @DisplayName("Searching non-tabletop threat arsenal should exclude email injector contracts")
+    void given_nonTabletopSearch_should_excludeEmailInjectorContracts() throws Exception {
+      // Arrange
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — email contracts (tabletop) must not be returned
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      // We created 2 payload-based (non-tabletop) contracts + possibly pre-existing non-tabletop
+      assertTrue(
+          totalElements >= 2, "Expected at least 2 non-tabletop results but got " + totalElements);
+
+      // Verify no email injector ID appears in the results
+      List<List<String>> injectorIds = JsonPath.read(response, "$.content[*].action_injectors");
+      for (List<String> ids : injectorIds) {
+        assertFalse(
+            ids.contains(emailInjectorId),
+            "Non-tabletop search should not include email injector contracts");
+      }
+    }
+
+    @Test
+    @DisplayName("Searching non-tabletop threat arsenal should exclude all tabletop injector types")
+    void given_nonTabletopSearch_should_excludeAllTabletopInjectorTypes() throws Exception {
+      // Arrange — create contracts for each tabletop type (SMS, challenge, channel)
+      Injector smsInjector =
+          injectorRepository.save(
+              InjectorFixture.createInjector(
+                  UUID.randomUUID().toString(), "OVH SMS", "openaev_ovh_sms"));
+      Injector challengeInjector =
+          injectorRepository.save(
+              InjectorFixture.createInjector(
+                  UUID.randomUUID().toString(), "Challenge", "openaev_challenge"));
+      Injector channelInjector =
+          injectorRepository.save(
+              InjectorFixture.createInjector(
+                  UUID.randomUUID().toString(), "Channel", "openaev_channel"));
+
+      injectorContractComposer
+          .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+          .withInjector(smsInjector)
+          .withDomain(domain1)
+          .persist();
+      injectorContractComposer
+          .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+          .withInjector(challengeInjector)
+          .withDomain(domain1)
+          .persist();
+      injectorContractComposer
+          .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+          .withInjector(channelInjector)
+          .withDomain(domain1)
+          .persist();
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — none of the tabletop injector IDs should appear
+      List<List<String>> injectorIds = JsonPath.read(response, "$.content[*].action_injectors");
+      List<String> tabletopInjectorIds =
+          List.of(
+              emailInjectorId,
+              smsInjector.getId(),
+              challengeInjector.getId(),
+              channelInjector.getId());
+      for (List<String> ids : injectorIds) {
+        for (String tabletopId : tabletopInjectorIds) {
+          assertFalse(
+              ids.contains(tabletopId),
+              "Non-tabletop search should not include tabletop injector " + tabletopId);
+        }
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "Searching non-tabletop threat arsenal with domain filter should return only matching non-tabletop contracts")
+    void given_nonTabletopSearchWithDomainFilter_should_returnFilteredResults() throws Exception {
+      // Arrange
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "action_domains", domain2.get().getId(), Filters.FilterOperator.contains);
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — only domain2 payload-based (non-tabletop) contract should be returned
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      assertTrue(
+          totalElements >= 1,
+          "Expected at least 1 non-tabletop result for domain2 but got " + totalElements);
+
+      // Verify no email injector ID appears in the results
+      List<List<String>> injectorIds = JsonPath.read(response, "$.content[*].action_injectors");
+      for (List<String> ids : injectorIds) {
+        assertFalse(
+            ids.contains(emailInjectorId),
+            "Non-tabletop search with domain filter should not include email injector contracts");
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "Searching non-tabletop threat arsenal with tag filter should return only matching non-tabletop contracts")
+    void given_nonTabletopSearchWithTagFilter_should_returnFilteredResults() throws Exception {
+      // Arrange
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithAndOperator(
+              "action_tags", tag.get().getId(), Filters.FilterOperator.contains);
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — tag1 is only on an email injector contract, so non-tabletop should return 0
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      assertEquals(
+          0, totalElements, "Tag filter for email-only tag should return 0 non-tabletop results");
     }
   }
 
