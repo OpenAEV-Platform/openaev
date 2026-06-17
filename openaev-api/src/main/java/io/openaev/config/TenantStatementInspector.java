@@ -7,18 +7,23 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.ConflictActionType;
 import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.select.Values;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
@@ -141,10 +146,80 @@ public class TenantStatementInspector implements StatementInspector {
       conflict.setWhereExpression(
           withTenantPredicate(insert.getTable(), conflict.getWhereExpression()));
     }
-    // Only the SELECT source (and any sub-query) is filtered. A VALUES insert has no read to
-    // filter; validating the target tenant on write is the write-side policy (B3).
+    // An INSERT ... SELECT into a tenant table must write only in-scope tenant_id values; the
+    // inserted tenant_id is validated against the scope. VALUES inserts cannot be distinguished
+    // from
+    // ORM-generated ones at the SQL level, so their tenant assignment stays an application concern.
+    Select source = insert.getSelect();
+    if (insert.getTable() != null
+        && tables.family(insert.getTable().getName()) != TenantTables.Family.NONE
+        && source != null
+        && !(source instanceof Values)) {
+      validateInsertSelectTenant(insert, source);
+    }
+    // The SELECT source (and any sub-query) is read-filtered like any select.
     filterContainedSelects(insert);
     return insert.toString();
+  }
+
+  /**
+   * Adds {@code can_access_tenant} on the written {@code tenant_id} to the source SELECT of an
+   * {@code INSERT ... SELECT} into a tenant table, so only rows whose tenant_id is in scope are
+   * inserted (a write, so no {@code allow_platform}). Anything that cannot be mapped to a single
+   * projected expression (no column list, no {@code tenant_id} column, a {@code SELECT *}, or a
+   * non-plain source) is refused, which also refuses an omitted tenant_id (a platform-row write).
+   */
+  private void validateInsertSelectTenant(Insert insert, Select select) {
+    ExpressionList<Column> columns = insert.getColumns();
+    if (!(select instanceof PlainSelect source) || columns == null) {
+      throw new TenantFilteringException(
+          "INSERT ... SELECT into a tenant table needs an explicit column list and a plain SELECT");
+    }
+    int tenantIdx = -1;
+    for (int i = 0; i < columns.size(); i++) {
+      String name = columns.get(i).getColumnName();
+      if (name != null && name.replace("\"", "").equalsIgnoreCase("tenant_id")) {
+        tenantIdx = i;
+        break;
+      }
+    }
+    if (tenantIdx < 0) {
+      throw new TenantFilteringException(
+          "INSERT ... SELECT into a tenant table must set tenant_id in scope");
+    }
+    List<SelectItem<?>> items = source.getSelectItems();
+    if (items == null || tenantIdx >= items.size()) {
+      throw new TenantFilteringException(
+          "INSERT ... SELECT: tenant_id cannot be mapped to a projected expression");
+    }
+    for (SelectItem<?> item : items) {
+      if (item.getExpression() instanceof AllColumns) {
+        throw new TenantFilteringException(
+            "INSERT ... SELECT * into a tenant table cannot validate the written tenant_id");
+      }
+    }
+    Expression tenantExpr = items.get(tenantIdx).getExpression();
+    // The expression is referenced a second time in the WHERE. A bind parameter cannot be: the
+    // inspector must not change the placeholder count, or positional binding breaks. Refuse it.
+    if (tenantExpr.toString().contains("?")) {
+      throw new TenantFilteringException(
+          "INSERT ... SELECT: a bind-parameter tenant_id cannot be validated by rewriting");
+    }
+    source.setWhere(combineCall(source.getWhere(), "can_access_tenant(" + tenantExpr + ")"));
+  }
+
+  /**
+   * ANDs a {@code can_access_tenant(...)} call into an existing WHERE, or returns it alone.
+   * Explicit parentheses keep precedence when the existing WHERE is an OR; a WHERE we cannot
+   * re-parse is refused (fail-closed) rather than left unfiltered.
+   */
+  private Expression combineCall(Expression existing, String call) {
+    String combined = existing == null ? call : "(" + existing + ") AND (" + call + ")";
+    try {
+      return CCJSqlParserUtil.parseCondExpression(combined);
+    } catch (Exception e) {
+      throw new TenantFilteringException("could not add the tenant filter to the WHERE clause", e);
+    }
   }
 
   /** Wraps the FROM and join tables of every select contained in the statement. */
@@ -232,15 +307,7 @@ public class TenantStatementInspector implements StatementInspector {
     if (table == null || tables.family(table.getName()) == TenantTables.Family.NONE) {
       return existing;
     }
-    String call = tenantCall(table, read);
-    // Explicit parentheses keep precedence when the existing WHERE is an OR. A WHERE we cannot
-    // re-parse is refused (fail-closed) rather than left unfiltered.
-    String combined = existing == null ? call : "(" + existing + ") AND (" + call + ")";
-    try {
-      return CCJSqlParserUtil.parseCondExpression(combined);
-    } catch (Exception e) {
-      throw new TenantFilteringException("could not add the tenant filter to the WHERE clause", e);
-    }
+    return combineCall(existing, tenantCall(table, read));
   }
 
   private String tenantCall(Table table, boolean read) {

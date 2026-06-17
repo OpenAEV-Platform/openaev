@@ -107,6 +107,26 @@ class TenantIsolationExampleTest {
   }
 
   @Test
+  @DisplayName("INSERT ... SELECT into a tenant table writes only in-scope rows")
+  void insertSelectRunsUnderScope() {
+    setScope(TENANT_A);
+    assertEquals(1, copyTag(TAG_A, "copy-of-a"), "a tag the scope can read and own is copied");
+    assertEquals(
+        0, copyTag(TAG_B, "copy-of-b"), "tenant B's tag is neither readable nor writable from A");
+  }
+
+  private int copyTag(String sourceId, String newId) {
+    return entityManager
+        .createNativeQuery(
+            "INSERT INTO tags (tag_id, tag_name, tag_created_at, tag_updated_at, tenant_id)"
+                + " SELECT :newId, :newId, now(), now(), t.tenant_id"
+                + " FROM tags t WHERE t.tag_id = :src")
+        .setParameter("newId", newId)
+        .setParameter("src", sourceId)
+        .executeUpdate();
+  }
+
+  @Test
   @DisplayName("SQL the filter cannot parse is refused on an active table (fail-closed)")
   void unparseableOnActiveTableIsRefused() {
     setScope(TENANT_A);
