@@ -5,15 +5,17 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.model.Document;
-import io.openaev.database.model.Exercise;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.export.Mixins;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
+import io.openaev.service.chaining.WorkflowService;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -32,32 +34,63 @@ public class ExportService {
   @Resource private ChallengeService challengeService;
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
+  @Resource private WorkflowService workflowService;
 
-  public String getZipFileName(Exercise exercise, int exportOptionsMask) {
-    String infos =
-        "("
-            + (ExportOptions.has(ExportOptions.WITH_TEAMS, exportOptionsMask)
-                ? "with_teams"
-                : "no_teams")
-            + " & "
-            + (ExportOptions.has(ExportOptions.WITH_PLAYERS, exportOptionsMask)
-                ? "with_players"
-                : "no_players")
-            + " & "
-            + (ExportOptions.has(ExportOptions.WITH_VARIABLE_VALUES, exportOptionsMask)
-                ? "with_variable_values"
-                : "no_variable_values")
-            + ")";
+  public String getZipFileName(
+      Exercise exercise, int exportOptionsMask, boolean isChaining, boolean isWithScopeDefinition) {
+    String infos;
+    if (isChaining) {
+      infos =
+          "("
+              + (ExportOptions.has(ExportOptions.WITH_VARIABLE_VALUES, exportOptionsMask)
+                  ? "with_variable_values"
+                  : "no_variable_values")
+              + " & "
+              + (isWithScopeDefinition ? "with_scope_definition" : "no_scope_definition")
+              + ")";
+    } else {
+      infos =
+          "("
+              + (ExportOptions.has(ExportOptions.WITH_TEAMS, exportOptionsMask)
+                  ? "with_teams"
+                  : "no_teams")
+              + " & "
+              + (ExportOptions.has(ExportOptions.WITH_PLAYERS, exportOptionsMask)
+                  ? "with_players"
+                  : "no_players")
+              + " & "
+              + (ExportOptions.has(ExportOptions.WITH_VARIABLE_VALUES, exportOptionsMask)
+                  ? "with_variable_values"
+                  : "no_variable_values")
+              + ")";
+    }
     return (exercise.getName() + "_" + now().toString()) + "_" + infos + ".zip";
   }
 
-  public byte[] exportExerciseToZip(Exercise exercise, int exportOptionsMask) throws IOException {
+  public byte[] exportExerciseToZip(
+      Exercise exercise, int exportOptionsMask, boolean isWithScopeDefinition) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
     ExerciseFileExport importExport =
         ExerciseFileExport.fromExercise(
                 exercise, objectMapper, this.challengeService, this.articleService)
             .withOptions(exportOptionsMask);
+
+    // Choose workflow mixin based on scope definition option
+    objectMapper.addMixIn(
+        Workflow.class,
+        isWithScopeDefinition
+            ? Mixins.WorkflowExport.class
+            : Mixins.WorkflowExportWithoutScope.class);
+
+    // Add workflow (chaining) if present — scope definition is optional
+    Optional<Workflow> workflowOpt =
+        workflowService.findWorkflowTemplateBySimulationIdForExport(exercise.getId());
+    workflowOpt.ifPresent(
+        workflow -> {
+          WorkflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          importExport.setWorkflow(workflow);
+        });
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     ZipOutputStream zipExport = new ZipOutputStream(outputStream);

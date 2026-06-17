@@ -411,6 +411,40 @@ public class WorkflowService {
   }
 
   /**
+   * Finds the workflow template for a scenario without throwing on multiple workflows. Used for
+   * export where we simply want the template if it exists.
+   *
+   * @param scenarioId the ID of the scenario
+   * @return the workflow template wrapped in an Optional, or empty if not found
+   */
+  @Transactional(readOnly = true)
+  public Optional<Workflow> findWorkflowTemplateByScenarioIdForExport(String scenarioId) {
+    List<Workflow> workflows =
+        this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(workflows.getFirst());
+  }
+
+  /**
+   * Finds the workflow template for a simulation without throwing. Used for export.
+   *
+   * @param simulationId the ID of the simulation
+   * @return the workflow template wrapped in an Optional, or empty if not found
+   */
+  @Transactional(readOnly = true)
+  public Optional<Workflow> findWorkflowTemplateBySimulationIdForExport(String simulationId) {
+    List<Workflow> workflows =
+        this.workflowRepository.findAllBySimulation_IdAndStatus(
+            simulationId, WorkflowStatus.TEMPLATE);
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(workflows.getFirst());
+  }
+
+  /**
    * Finds the workflow template for a simulation.
    *
    * @param simulationId the ID of the simulation

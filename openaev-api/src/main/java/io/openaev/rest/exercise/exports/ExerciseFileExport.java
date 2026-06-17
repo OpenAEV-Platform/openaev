@@ -247,6 +247,9 @@ public class ExerciseFileExport extends FileExportBase {
     return variables;
   }
 
+  @JsonProperty("exercise_workflow")
+  private Workflow workflow;
+
   @JsonIgnore
   public List<String> getAllDocumentIds() {
     List<String> documentIds = new ArrayList<>();

@@ -85,6 +85,9 @@ public class V1_DataImporter implements Importer {
   private final PayloadCreationService payloadCreationService;
   private final CollectorTypeRepository collectorTypeRepository;
   private final DomainService domainService;
+  private final io.openaev.service.chaining.WorkflowService workflowService;
+  private final io.openaev.service.chaining.StepService chainingStepService;
+  private final io.openaev.service.chaining.ConditionService chainingConditionService;
 
   private final InjectorContractContentUtils injectorContractContentUtils;
 
@@ -225,6 +228,7 @@ public class V1_DataImporter implements Importer {
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
     importInjects(importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
     importVariables(importNode, savedExercise, savedScenario, baseIds);
+    importWorkflow(importNode, prefix, savedExercise, savedScenario);
   }
 
   // -- TAGS --
@@ -1705,6 +1709,287 @@ public class V1_DataImporter implements Importer {
                   Variable variableSaved = this.variableRepository.save(variable);
                   baseIds.put(id, variableSaved);
                 }));
+  }
+
+  // -- WORKFLOW (CHAINING) --
+
+  private void importWorkflow(
+      JsonNode importNode, String prefix, Exercise savedExercise, Scenario savedScenario) {
+    // Check for workflow node in both scenario and exercise exports
+    String workflowKey = prefix.equals("scenario_") ? "scenario_workflow" : "exercise_workflow";
+    JsonNode workflowNode = importNode.get(workflowKey);
+    if (workflowNode == null || workflowNode.isNull() || workflowNode.isEmpty()) {
+      return;
+    }
+
+    try {
+      // Create the workflow
+      Workflow workflow = new Workflow();
+      workflow.setStatus(WorkflowStatus.TEMPLATE);
+      workflow.setVersion(
+          workflowNode.has("workflow_version") ? workflowNode.get("workflow_version").asInt(1) : 1);
+      workflow.setEdited(false);
+
+      // Configuration
+      workflow.setRateLimitEnabled(
+          workflowNode.has("workflow_rate_limit_enabled")
+              && workflowNode.get("workflow_rate_limit_enabled").asBoolean());
+      if (workflowNode.has("workflow_max_attempts")
+          && !workflowNode.get("workflow_max_attempts").isNull()) {
+        workflow.setMaxAttempts(workflowNode.get("workflow_max_attempts").asInt());
+      }
+      if (workflowNode.has("workflow_max_temporal_rate_seconds")
+          && !workflowNode.get("workflow_max_temporal_rate_seconds").isNull()) {
+        workflow.setMaxTemporalRateSeconds(
+            workflowNode.get("workflow_max_temporal_rate_seconds").asLong());
+      }
+      workflow.setTimeoutEnabled(
+          workflowNode.has("workflow_timeout_enabled")
+              && workflowNode.get("workflow_timeout_enabled").asBoolean());
+      if (workflowNode.has("workflow_timeout_seconds")
+          && !workflowNode.get("workflow_timeout_seconds").isNull()) {
+        workflow.setTimeoutSeconds(workflowNode.get("workflow_timeout_seconds").asLong());
+      }
+      workflow.setSafeModeEnabled(
+          workflowNode.has("workflow_safe_mode_enabled")
+              && workflowNode.get("workflow_safe_mode_enabled").asBoolean());
+
+      // Associate with scenario or simulation
+      if (savedScenario != null) {
+        workflow.setScenario(savedScenario);
+      } else if (savedExercise != null) {
+        workflow.setSimulation(savedExercise);
+      }
+
+      // Import scope rules
+      if (workflowNode.has("workflow_scope_rules")) {
+        List<WorkflowScopeRule> scopeRules = new ArrayList<>();
+        for (JsonNode ruleNode : workflowNode.get("workflow_scope_rules")) {
+          WorkflowScopeRule rule =
+              WorkflowScopeRule.builder()
+                  .selectedMode(
+                      ruleNode.has("workflow_scope_rule_selected_mode")
+                              && !ruleNode.get("workflow_scope_rule_selected_mode").isNull()
+                          ? ScopeRuleSelectedMode.valueOf(
+                              ruleNode.get("workflow_scope_rule_selected_mode").asText())
+                          : null)
+                  .ruleSource(
+                      ruleNode.has("workflow_scope_rule_source")
+                              && !ruleNode.get("workflow_scope_rule_source").isNull()
+                          ? ScopeRuleSource.valueOf(
+                              ruleNode.get("workflow_scope_rule_source").asText())
+                          : null)
+                  .ruleValue(
+                      ruleNode.has("workflow_scope_rule_value")
+                          ? ruleNode.get("workflow_scope_rule_value").asText()
+                          : null)
+                  .valueType(
+                      ruleNode.has("workflow_scope_rule_value_type")
+                              && !ruleNode.get("workflow_scope_rule_value_type").isNull()
+                          ? ScopeRuleValueType.valueOf(
+                              ruleNode.get("workflow_scope_rule_value_type").asText())
+                          : null)
+                  .workflow(workflow)
+                  .build();
+          scopeRules.add(rule);
+        }
+        workflow.setWorkflowScopeRules(scopeRules);
+      }
+
+      // Import scope variables
+      if (workflowNode.has("workflow_scope_variables")) {
+        List<ScopeVariable> scopeVariables = new ArrayList<>();
+        for (JsonNode varNode : workflowNode.get("workflow_scope_variables")) {
+          ScopeVariable scopeVar =
+              ScopeVariable.builder()
+                  .key(
+                      varNode.has("scope_variable_key")
+                          ? varNode.get("scope_variable_key").asText()
+                          : null)
+                  .type(
+                      varNode.has("scope_variable_type")
+                              && !varNode.get("scope_variable_type").isNull()
+                          ? ArgumentType.valueOf(varNode.get("scope_variable_type").asText())
+                          : null)
+                  .value(
+                      varNode.has("scope_variable_value")
+                          ? varNode.get("scope_variable_value").asText()
+                          : null)
+                  .description(
+                      varNode.has("scope_variable_description")
+                          ? varNode.get("scope_variable_description").asText()
+                          : null)
+                  .workflow(workflow)
+                  .build();
+          scopeVariables.add(scopeVar);
+        }
+        workflow.setWorkflowScopeVariables(scopeVariables);
+      }
+
+      // Save the workflow first
+      workflowService.saveAll(List.of(workflow));
+
+      // Import steps and conditions
+      if (workflowNode.has("workflow_steps")) {
+        importWorkflowSteps(workflowNode.get("workflow_steps"), workflow);
+      }
+    } catch (Exception e) {
+      log.warn("Failed to import workflow (chaining): {}", e.getMessage(), e);
+    }
+  }
+
+  private void importWorkflowSteps(JsonNode stepsNode, Workflow workflow) {
+    // Map from original step ID to new Step
+    Map<String, Step> stepIdMap = new LinkedHashMap<>();
+
+    // First pass: create all steps
+    for (JsonNode stepNode : stepsNode) {
+      String originalStepId = stepNode.has("step_id") ? stepNode.get("step_id").asText() : null;
+
+      Step step =
+          Step.builder()
+              .stepAction(
+                  stepNode.has("step_action_class") && !stepNode.get("step_action_class").isNull()
+                      ? StepActionClass.valueOf(stepNode.get("step_action_class").asText())
+                      : null)
+              .output(
+                  stepNode.has("step_output") && !stepNode.get("step_output").isNull()
+                      ? stepNode.get("step_output").asText()
+                      : null)
+              .outputParser(
+                  stepNode.has("step_output_parser") && !stepNode.get("step_output_parser").isNull()
+                      ? stepNode.get("step_output_parser").asText()
+                      : null)
+              .input(
+                  stepNode.has("step_input") && !stepNode.get("step_input").isNull()
+                      ? stepNode.get("step_input").asText()
+                      : null)
+              .data(
+                  stepNode.has("step_data") && !stepNode.get("step_data").isNull()
+                      ? stepNode.get("step_data").asText()
+                      : null)
+              .limitExecution(
+                  stepNode.has("step_limit_execution")
+                      ? stepNode.get("step_limit_execution").asInt(0)
+                      : 0)
+              .conditionExecuted(
+                  stepNode.has("step_condition_executed")
+                          && !stepNode.get("step_condition_executed").isNull()
+                      ? stepNode.get("step_condition_executed").asText()
+                      : null)
+              .status(StepStatus.TEMPLATE)
+              .workflow(workflow)
+              .build();
+
+      step = chainingStepService.saveStep(step);
+
+      if (originalStepId != null) {
+        stepIdMap.put(originalStepId, step);
+      }
+    }
+
+    // Second pass: create conditions for each step
+    for (JsonNode stepNode : stepsNode) {
+      String originalStepId = stepNode.has("step_id") ? stepNode.get("step_id").asText() : null;
+      Step step = originalStepId != null ? stepIdMap.get(originalStepId) : null;
+      if (step == null || !stepNode.has("step_conditions")) {
+        continue;
+      }
+
+      JsonNode conditionsNode = stepNode.get("step_conditions");
+      if (conditionsNode == null || conditionsNode.isNull() || !conditionsNode.isArray()) {
+        continue;
+      }
+
+      // Map from original condition ID to new Condition
+      Map<String, Condition> conditionIdMap = new LinkedHashMap<>();
+
+      // First, create all conditions without parent references
+      List<JsonNode> conditionNodes = new ArrayList<>();
+      for (JsonNode condNode : conditionsNode) {
+        conditionNodes.add(condNode);
+      }
+
+      // Sort: roots first, then children (so parent is always created before child)
+      conditionNodes.sort(
+          (a, b) -> {
+            boolean aHasParent =
+                a.has("condition_parent_id") && !a.get("condition_parent_id").isNull();
+            boolean bHasParent =
+                b.has("condition_parent_id") && !b.get("condition_parent_id").isNull();
+            return Boolean.compare(aHasParent, bHasParent);
+          });
+
+      for (JsonNode condNode : conditionNodes) {
+        String originalCondId =
+            condNode.has("condition_id") ? condNode.get("condition_id").asText() : null;
+        String parentId =
+            condNode.has("condition_parent_id") && !condNode.get("condition_parent_id").isNull()
+                ? condNode.get("condition_parent_id").asText()
+                : null;
+        String stepFromId =
+            condNode.has("condition_step_from_id")
+                    && !condNode.get("condition_step_from_id").isNull()
+                ? condNode.get("condition_step_from_id").asText()
+                : null;
+        boolean isRoot =
+            condNode.has("condition_is_root") && condNode.get("condition_is_root").asBoolean();
+
+        Step stepFrom = stepFromId != null ? stepIdMap.get(stepFromId) : null;
+        Condition parentCondition = parentId != null ? conditionIdMap.get(parentId) : null;
+
+        Condition condition =
+            Condition.builder()
+                .workflowId(workflow.getId())
+                .key(
+                    condNode.has("condition_key") && !condNode.get("condition_key").isNull()
+                        ? condNode.get("condition_key").asText()
+                        : null)
+                .keyType(
+                    condNode.has("condition_key_type")
+                            && !condNode.get("condition_key_type").isNull()
+                        ? ConditionKeyType.valueOf(condNode.get("condition_key_type").asText())
+                        : null)
+                .keySubtype(
+                    condNode.has("condition_key_subtype")
+                            && !condNode.get("condition_key_subtype").isNull()
+                        ? ConditionKeySubtype.valueOf(
+                            condNode.get("condition_key_subtype").asText())
+                        : null)
+                .type(
+                    condNode.has("condition_type") && !condNode.get("condition_type").isNull()
+                        ? ConditionType.valueOf(condNode.get("condition_type").asText())
+                        : null)
+                .mappingType(
+                    condNode.has("condition_mapping_type")
+                            && !condNode.get("condition_mapping_type").isNull()
+                        ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
+                        : null)
+                .value(
+                    condNode.has("condition_value") && !condNode.get("condition_value").isNull()
+                        ? condNode.get("condition_value").asText()
+                        : null)
+                .name(
+                    condNode.has("condition_name") && !condNode.get("condition_name").isNull()
+                        ? condNode.get("condition_name").asText()
+                        : null)
+                .description(
+                    condNode.has("condition_description")
+                            && !condNode.get("condition_description").isNull()
+                        ? condNode.get("condition_description").asText()
+                        : null)
+                .conditionParent(parentCondition)
+                .stepFrom(stepFrom)
+                .build();
+
+        chainingConditionService.linkToStep(condition, step, isRoot);
+        condition = chainingConditionService.saveCondition(condition);
+
+        if (originalCondId != null) {
+          conditionIdMap.put(originalCondId, condition);
+        }
+      }
+    }
   }
 
   private String getNodeValue(JsonNode importNode) {

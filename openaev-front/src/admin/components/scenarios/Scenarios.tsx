@@ -241,7 +241,7 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+                        actions={['Duplicate', 'Export', 'Delete']}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

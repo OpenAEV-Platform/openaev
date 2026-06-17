@@ -36,6 +36,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
@@ -509,6 +510,7 @@ public class ScenarioService {
       final boolean isWithTeams,
       final boolean isWithPlayers,
       final boolean isWithVariableValues,
+      final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
@@ -672,6 +674,24 @@ public class ScenarioService {
     scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
     objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
 
+    // Add Workflow (chaining) if present — scope definition is optional
+    Optional<Workflow> workflowOpt =
+        workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+    workflowOpt.ifPresent(
+        workflow -> {
+          WorkflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          scenarioFileExport.setWorkflow(workflow);
+        });
+    objectMapper.addMixIn(
+        Workflow.class,
+        isWithScopeDefinition
+            ? Mixins.WorkflowExport.class
+            : Mixins.WorkflowExportWithoutScope.class);
+    objectMapper.addMixIn(WorkflowScopeRule.class, Mixins.WorkflowScopeRuleExport.class);
+    objectMapper.addMixIn(ScopeVariable.class, Mixins.ScopeVariableExport.class);
+    objectMapper.addMixIn(Step.class, Mixins.StepExport.class);
+    objectMapper.addMixIn(Condition.class, Mixins.ConditionExport.class);
+
     // Add Attackpattern and kill chain phases
     objectMapper.addMixIn(KillChainPhase.class, Mixins.KillChainPhase.class);
     objectMapper.addMixIn(AttackPattern.class, Mixins.AttackPattern.class);
@@ -690,14 +710,25 @@ public class ScenarioService {
         .forEach(attackPattern -> Hibernate.initialize(attackPattern.getKillChainPhases()));
 
     // Build the response
-    String infos =
-        "("
-            + (isWithTeams ? "with_teams" : "no_teams")
-            + " & "
-            + (isWithPlayers ? "with_players" : "no_players")
-            + " & "
-            + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
-            + ")";
+    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    String infos;
+    if (isChaining) {
+      infos =
+          "("
+              + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
+              + " & "
+              + (isWithScopeDefinition ? "with_scope_definition" : "no_scope_definition")
+              + ")";
+    } else {
+      infos =
+          "("
+              + (isWithTeams ? "with_teams" : "no_teams")
+              + " & "
+              + (isWithPlayers ? "with_players" : "no_players")
+              + " & "
+              + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
+              + ")";
+    }
 
     String zipName = (scenario.getName() + "_" + now().toString()) + "_" + infos + ".zip";
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
