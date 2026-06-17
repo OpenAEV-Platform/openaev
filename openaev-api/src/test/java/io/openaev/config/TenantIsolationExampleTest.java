@@ -77,21 +77,46 @@ class TenantIsolationExampleTest {
   }
 
   @Test
-  @DisplayName(
-      "a statement shape the filter cannot cover is refused on an active table (fail-closed)")
-  void unsupportedShapeOnActiveTableIsRefused() {
+  @DisplayName("UPDATE ... FROM runs under the scope and touches only in-scope rows")
+  void updateFromRunsUnderScope() {
+    setScope(TENANT_A);
+    int updated =
+        entityManager
+            .createNativeQuery(
+                "UPDATE tags t SET tag_name = 'x' FROM tags s"
+                    + " WHERE s.tag_id = t.tag_id AND t.tag_id IN (:a, :b)")
+            .setParameter("a", TAG_A)
+            .setParameter("b", TAG_B)
+            .executeUpdate();
+    assertEquals(1, updated, "only tenant A's tag is in scope for both the target and the source");
+  }
+
+  @Test
+  @DisplayName("DELETE ... USING runs under the scope and touches only in-scope rows")
+  void deleteUsingRunsUnderScope() {
+    setScope(TENANT_A);
+    int deleted =
+        entityManager
+            .createNativeQuery(
+                "DELETE FROM tags t USING tags s"
+                    + " WHERE s.tag_id = t.tag_id AND t.tag_id IN (:a, :b)")
+            .setParameter("a", TAG_A)
+            .setParameter("b", TAG_B)
+            .executeUpdate();
+    assertEquals(1, deleted, "only tenant A's tag is in scope for both the target and the source");
+  }
+
+  @Test
+  @DisplayName("SQL the filter cannot parse is refused on an active table (fail-closed)")
+  void unparseableOnActiveTableIsRefused() {
     setScope(TENANT_A);
     Throwable thrown =
         assertThrows(
             Exception.class,
-            () ->
-                entityManager
-                    .createNativeQuery(
-                        "DELETE FROM tags t USING tenants x WHERE x.tenant_id = t.tenant_id")
-                    .executeUpdate());
+            () -> entityManager.createNativeQuery("GARBAGE NOT SQL tags ;;;").executeUpdate());
     assertTrue(
         causedByTenantFiltering(thrown),
-        "an un-filterable shape must fail closed via TenantFilteringException, got: " + thrown);
+        "an un-filterable statement must fail closed via TenantFilteringException, got: " + thrown);
   }
 
   private static boolean causedByTenantFiltering(Throwable thrown) {
