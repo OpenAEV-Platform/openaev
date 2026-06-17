@@ -42,7 +42,7 @@ RUN set -eux; \
 WORKDIR /opt/openaev
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 
-RUN mkdir -p /opt/openaev/logs && chown 1001:0 /opt/openaev/logs
+RUN mkdir -p /opt/openaev/logs && chown -R 1001:0 /opt/openaev
 USER 1001
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
