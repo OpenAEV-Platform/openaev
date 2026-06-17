@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Verifies that the {@code TxCtx} passed to a {@code @Transactional} method is written into the
@@ -46,6 +47,20 @@ class TenantScopeTransactionAspectIntegrationTest {
   @DisplayName("a method without a TxCtx parameter leaves the setting untouched")
   void withoutTxCtxParameterTheSettingIsUntouched() {
     assertEquals("", probe.currentScopeWithoutContext());
+  }
+
+  // --- ordering guard (T6.1): the aspect must run inside the transaction ---
+
+  @Test
+  @DisplayName(
+      "ordering guard (T6.1): the scope is set inside an active transaction, not before BEGIN")
+  void scopeIsAppliedInsideTheTransaction() {
+    String[] state = probe.scopeWithinActiveTransaction(TxCtx.forTenant("t1"));
+    assertEquals("true", state[0], "a real transaction must be active when the scope is read");
+    // An empty scope here means the aspect ran before BEGIN: set_config(..., true) landed in a
+    // throwaway auto-commit and never reached this transaction. That is the ordering regression
+    // T6.1 must prevent, whatever mechanism is chosen (lock -> transaction -> scope).
+    assertEquals("t1", state[1], "the scope must be visible inside the transaction");
   }
 
   // --- load-bearing assumption: applied inside the tx, for every propagation ---
@@ -132,6 +147,13 @@ class TenantScopeTransactionAspectIntegrationTest {
     @Transactional
     public String currentScope(TxCtx ctx) {
       return readScope(entityManager);
+    }
+
+    /** Reports both whether a real transaction is active and the scope visible inside it. */
+    @Transactional
+    public String[] scopeWithinActiveTransaction(TxCtx ctx) {
+      boolean active = TransactionSynchronizationManager.isActualTransactionActive();
+      return new String[] {String.valueOf(active), readScope(entityManager)};
     }
 
     @Transactional
