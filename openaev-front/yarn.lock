@@ -5386,15 +5386,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.4.9":
-  version: 3.4.9
-  resolution: "dompurify@npm:3.4.9"
+"dompurify@npm:3.4.10":
+  version: 3.4.10
+  resolution: "dompurify@npm:3.4.10"
   dependencies:
     "@types/trusted-types": "npm:^2.0.7"
   dependenciesMeta:
     "@types/trusted-types":
       optional: true
-  checksum: 10c0/e03d88d5959dcaae172357002d74e47e66fc6685cac8928fe4b02982f7b4051e2b8ff70279e4e6fb13be112c0e5cae11439ab960c06c487cb91a3c1a18baed49
+  checksum: 10c0/6ffbc564c09ae11f9e1ab97040d556f8fafb0a5221248fca02539378d442f4fbe737ebb72dd34309c46896f1093714622895cc6815a7a57599c4511e30e234ae
   languageName: node
   linkType: hard
 
@@ -6461,16 +6461,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"form-data@npm:4.0.5":
-  version: 4.0.5
-  resolution: "form-data@npm:4.0.5"
+"form-data@npm:4.0.6":
+  version: 4.0.6
+  resolution: "form-data@npm:4.0.6"
   dependencies:
     asynckit: "npm:^0.4.0"
     combined-stream: "npm:^1.0.8"
     es-set-tostringtag: "npm:^2.1.0"
-    hasown: "npm:^2.0.2"
-    mime-types: "npm:^2.1.12"
-  checksum: 10c0/dd6b767ee0bbd6d84039db12a0fa5a2028160ffbfaba1800695713b46ae974a5f6e08b3356c3195137f8530dcd9dfcb5d5ae1eeff53d0db1e5aad863b619ce3b
+    hasown: "npm:^2.0.4"
+    mime-types: "npm:^2.1.35"
+  checksum: 10c0/43947a77bf0ff45c6ceed789778982d47a3f3e720a74b71721174ebf3310a5f1a8be1d6b38a3ee3688e8a18a2c4273073ec0844cd37efda3eaf46d41c9c318ff
   languageName: node
   linkType: hard
 
@@ -6937,6 +6937,15 @@ __metadata:
   dependencies:
     function-bind: "npm:^1.1.2"
   checksum: 10c0/f5eb28c3fd0d3e4facd821c1eeee3836c37b70ab0b0fc532e8a39976e18fef43652415dadc52f8c7a5ff6d5ac93b7bef128789aa6f90f4e9b9a9083dce74ab38
+  languageName: node
+  linkType: hard
+
+"hasown@npm:^2.0.4":
+  version: 2.0.4
+  resolution: "hasown@npm:2.0.4"
+  dependencies:
+    function-bind: "npm:^1.1.2"
+  checksum: 10c0/2d8de939e270b70618f8cebb69746620db10617dbb495bc66ddad326955ea24d3ca4af133aff3eb7c1853e0218f867bc2b050ec26fe02e3aea58f880ffc5e506
   languageName: node
   linkType: hard
 
@@ -8104,13 +8113,13 @@ __metadata:
   linkType: hard
 
 "js-yaml@npm:^4.1.0, js-yaml@npm:^4.1.1":
-  version: 4.1.1
-  resolution: "js-yaml@npm:4.1.1"
+  version: 4.2.0
+  resolution: "js-yaml@npm:4.2.0"
   dependencies:
     argparse: "npm:^2.0.1"
   bin:
     js-yaml: bin/js-yaml.js
-  checksum: 10c0/561c7d7088c40a9bb53cc75becbfb1df6ae49b34b5e6e5a81744b14ae8667ec564ad2527709d1a6e7d5e5fa6d483aa0f373a50ad98d42fde368ec4a190d4fae7
+  checksum: 10c0/1916456c118746603b067d74bbcbb0445d9a1d5e474ad4ae775e7b20525bed902e01d9d97dd0c81fcd8d4f596162309d0eb057f4aa38f3e9647f14075e9dea45
   languageName: node
   linkType: hard
 
@@ -9253,7 +9262,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mime-types@npm:^2.1.12, mime-types@npm:~2.1.34":
+"mime-types@npm:^2.1.35, mime-types@npm:~2.1.34":
   version: 2.1.35
   resolution: "mime-types@npm:2.1.35"
   dependencies:
@@ -9903,7 +9912,7 @@ __metadata:
     cross-env: "npm:10.1.0"
     d3-hierarchy: "npm:3.1.2"
     date-fns: "npm:4.4.0"
-    dompurify: "npm:3.4.9"
+    dompurify: "npm:3.4.10"
     esbuild: "npm:0.28.0"
     eslint: "npm:9.39.4"
     eslint-import-resolver-next: "npm:0.6.0"
@@ -9935,7 +9944,7 @@ __metadata:
     monocart-coverage-reports: "npm:2.12.12"
     monocart-reporter: "npm:2.11.2"
     normalizr: "npm:3.6.2"
-    pdfmake: "npm:0.3.10"
+    pdfmake: "npm:0.3.11"
     prop-types: "npm:15.8.1"
     qs: "npm:6.15.2"
     ramda: "npm:0.32.0"
@@ -9947,7 +9956,7 @@ __metadata:
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.3"
-    react-hook-form: "npm:7.78.0"
+    react-hook-form: "npm:7.79.0"
     react-intl: "npm:10.1.13"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.3.0"
@@ -10171,9 +10180,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pdfkit@npm:^0.19.0":
-  version: 0.19.0
-  resolution: "pdfkit@npm:0.19.0"
+"pdfkit@npm:^0.19.1":
+  version: 0.19.1
+  resolution: "pdfkit@npm:0.19.1"
   dependencies:
     "@noble/ciphers": "npm:^1.0.0"
     "@noble/hashes": "npm:^1.6.0"
@@ -10181,18 +10190,18 @@ __metadata:
     js-md5: "npm:^0.8.3"
     linebreak: "npm:^1.1.0"
     png-js: "npm:^1.1.0"
-  checksum: 10c0/45aca68c1e69104937a5762b4ecff4ef1ce14534e3d46748db37d3bfb2dfe3e0363c4c347f896f7e41833084daf5e43c3777ef902968469acb772832e0901cc9
+  checksum: 10c0/1483b07842f5ca184e8834cbf6bb9cb1eeef3664505aa9a47488181db134fe3f97ebef395144e9f60a92a752afc5e4251fce118a79c414beea50d5d2a604346a
   languageName: node
   linkType: hard
 
-"pdfmake@npm:0.3.10":
-  version: 0.3.10
-  resolution: "pdfmake@npm:0.3.10"
+"pdfmake@npm:0.3.11":
+  version: 0.3.11
+  resolution: "pdfmake@npm:0.3.11"
   dependencies:
     linebreak: "npm:^1.1.0"
-    pdfkit: "npm:^0.19.0"
+    pdfkit: "npm:^0.19.1"
     xmldoc: "npm:^2.0.3"
-  checksum: 10c0/d7a64a017102db3b325644346b83f7eda744c4019f3bbcbd9bea76722cfc7d3682d0a915bd99cc8acf815293d061c3d96d0fbf2ebfff4be4d60a5266f67f0324
+  checksum: 10c0/ecea71cdc143036af23ad3aff4dafcf260345b5a001763901574160316439ab09ee54516034a37edfcd3fd99112578838593a82a760b970eaf4cb81d41b2cdd1
   languageName: node
   linkType: hard
 
@@ -10600,12 +10609,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:7.78.0":
-  version: 7.78.0
-  resolution: "react-hook-form@npm:7.78.0"
+"react-hook-form@npm:7.79.0":
+  version: 7.79.0
+  resolution: "react-hook-form@npm:7.79.0"
   peerDependencies:
     react: ^16.8.0 || ^17 || ^18 || ^19
-  checksum: 10c0/53835398cfcc87a72309532cceb1442e0591d31549ba8ceee592bb169eb16057f52d1bc7ffe6ba46838f3395774be13ec7f15ba2ea902cdbe315cd95fd07e37e
+  checksum: 10c0/d34edf52766b911dd8c7f583ab7345bca60a352ae96cd8cb82e808e7875c36de21b2d4ee0afc40f693e1d98f0b3d6b47929cb873ca39d3b7b54a56cef6a5cb6d
   languageName: node
   linkType: hard
 
