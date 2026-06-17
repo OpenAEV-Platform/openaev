@@ -11,6 +11,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.annotation.processor.SuppressTransactionalCheck;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
@@ -574,7 +575,8 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
-  // TODO XFO missing @Transactional, but test hangs if adding it (see #44f7c443)
+  @SuppressTransactionalCheck // Native DELETE + ON DELETE CASCADE deadlocks with @Transactional,
+  // see #44f7c443
   public void deleteExercise(@PathVariable String exerciseId) {
     exerciseService.deleteById(exerciseId);
   }

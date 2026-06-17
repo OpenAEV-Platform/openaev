@@ -22,6 +22,11 @@ abstract class AbstractTransactionalRule extends AbstractProcessor {
   }
 
   @Override
+  public Set<String> getSupportedOptions() {
+    return Set.of(getClass().getName());
+  }
+
+  @Override
   public final boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     if (isEnabled()) {
       doProcess(annotations, roundEnv);

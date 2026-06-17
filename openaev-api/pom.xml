@@ -47,6 +47,12 @@
     <dependencies>
         <dependency>
             <groupId>io.openaev</groupId>
+            <artifactId>openaev-annotation-processor</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
             <version>2.260615.0</version>
         </dependency>
@@ -310,7 +316,7 @@
                     <compilerArgs>
                         <arg>-Aio.openaev.annotation.processor.NoRepositoryRule=true</arg>
                         <arg>-Aio.openaev.annotation.processor.NoJakartaTransactionalRule=false</arg>
-                        <arg>-Aio.openaev.annotation.processor.EndpointTransactionalRule=false</arg>
+                        <arg>-Aio.openaev.annotation.processor.EndpointTransactionalRule=true</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>

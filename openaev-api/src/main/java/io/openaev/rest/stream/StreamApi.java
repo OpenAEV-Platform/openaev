@@ -82,9 +82,6 @@ public class StreamApi extends RestBehavior {
           ResourceType.CONNECTOR_INSTANCE_LOG);
 
   @Async("streamExecutor")
-  @jakarta.transaction
-      .Transactional // this doesn't work with Spring @Transactional, annotation processing order is
-  // not the same ?
   @TransactionalEventListener
   public void listenDatabaseUpdate(BaseEvent event) {
     if (RESOURCES_STREAM_EXCLUSION.contains(event.getInstance().getResourceType())

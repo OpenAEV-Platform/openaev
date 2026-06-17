@@ -38,6 +38,9 @@ public class EndpointTransactionalRule extends AbstractTransactionalRule {
           "org.springframework.transaction.annotation.Transactional",
           "jakarta.transaction.Transactional");
 
+  private static final String SUPPRESS_ANNOTATION =
+      "io.openaev.annotation.processor.SuppressTransactionalCheck";
+
   @Override
   protected void doProcess(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     for (TypeElement annotation : annotations) {
@@ -46,6 +49,19 @@ public class EndpointTransactionalRule extends AbstractTransactionalRule {
           continue;
         }
         ExecutableElement method = (ExecutableElement) element;
+
+        boolean isSuppressed =
+            method.getAnnotationMirrors().stream()
+                .anyMatch(
+                    am ->
+                        ((TypeElement) am.getAnnotationType().asElement())
+                            .getQualifiedName()
+                            .toString()
+                            .equals(SUPPRESS_ANNOTATION));
+        if (isSuppressed) {
+          continue;
+        }
+
         boolean hasTransactional =
             method.getAnnotationMirrors().stream()
                 .anyMatch(
@@ -62,7 +78,8 @@ public class EndpointTransactionalRule extends AbstractTransactionalRule {
               .printMessage(
                   Diagnostic.Kind.ERROR,
                   String.format(
-                      "REST endpoint '%s' must be annotated with @Transactional",
+                      "REST endpoint '%s' must be annotated with @Transactional"
+                          + " (or @SuppressTransactionalCheck if intentionally omitted)",
                       method.getSimpleName()),
                   method);
         }
