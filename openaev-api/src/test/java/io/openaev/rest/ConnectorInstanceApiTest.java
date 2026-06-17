@@ -7,7 +7,6 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.*;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
@@ -1131,21 +1130,15 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -------- Act + Assert --------
-      int response =
-          mvc.perform(
-                  get("/api/tenants/"
-                          + tenantY.getId()
-                          + "/connector-instances/"
-                          + connectorInstance.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentLength();
-
-      assertThat(response).isZero();
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
     }
 
     @Test
@@ -1206,22 +1199,16 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -------- Act + Assert --------
-      int response =
-          mvc.perform(
-                  get("/api/tenants/"
-                          + tenantY.getId()
-                          + "/connector-instances/"
-                          + connectorInstance.getId()
-                          + "/configurations")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentLength();
-
-      assertThat(response).isZero();
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId()
+                      + "/configurations")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
     }
   }
 }
