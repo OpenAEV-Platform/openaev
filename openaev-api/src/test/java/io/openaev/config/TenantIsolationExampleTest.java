@@ -4,15 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.utilstest.RabbitMQTestListener;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * End-to-end proof that the tenant filter actually isolates rows when wired. The real inspector is
@@ -24,24 +19,18 @@ import org.springframework.transaction.annotation.Transactional;
  * a guard is present.
  */
 @SpringBootTest(properties = "openaev.tenant.active-tables=tags")
-@TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
-    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
-@Transactional
 @DisplayName("Tenant isolation — end-to-end example on the tags table")
-class TenantIsolationExampleTest {
+class TenantIsolationExampleTest extends TenantIsolationIntegrationTest {
 
   private static final String TENANT_A = "example-tenant-a";
   private static final String TENANT_B = "example-tenant-b";
   private static final String TAG_A = "example-tag-a";
   private static final String TAG_B = "example-tag-b";
 
-  @Autowired private EntityManager entityManager;
-
   @BeforeEach
   void seedTwoTenantsWithOneTagEach() {
-    insertTenant(TENANT_A);
-    insertTenant(TENANT_B);
+    seedTenant(TENANT_A);
+    seedTenant(TENANT_B);
     insertTag(TAG_A, TENANT_A);
     insertTag(TAG_B, TENANT_B);
   }
@@ -50,30 +39,32 @@ class TenantIsolationExampleTest {
   @DisplayName("the active scope alone decides which tenant's rows a query returns")
   void scopeControlsRowVisibility() {
     setScope("");
-    assertEquals(0, visibleExampleTags(), "no scope must see nothing (fail-closed)");
+    assertEquals(0, visibleTags(), "no scope must see nothing (fail-closed)");
 
     setScope(TENANT_A);
-    assertEquals(1, visibleExampleTags(), "tenant A sees only its own tag");
-    assertEquals(TAG_A, theOnlyVisibleTag(), "and it is tenant A's tag, not B's");
+    assertEquals(1, visibleTags(), "tenant A sees only its own tag");
+    assertEquals(
+        TAG_A, onlyVisible("tags", "tag_id", TAG_A, TAG_B), "and it is tenant A's, not B's");
 
     setScope(TENANT_B);
-    assertEquals(1, visibleExampleTags(), "tenant B sees only its own tag");
-    assertEquals(TAG_B, theOnlyVisibleTag(), "and it is tenant B's tag, not A's");
+    assertEquals(1, visibleTags(), "tenant B sees only its own tag");
+    assertEquals(
+        TAG_B, onlyVisible("tags", "tag_id", TAG_A, TAG_B), "and it is tenant B's, not A's");
 
     setScope(TENANT_A + "," + TENANT_B);
-    assertEquals(2, visibleExampleTags(), "a multi-tenant scope sees both");
+    assertEquals(2, visibleTags(), "a multi-tenant scope sees both");
   }
 
   @Test
   @DisplayName("a write under one scope cannot reach another tenant's row")
   void scopeProtectsWrites() {
     setScope(TENANT_A);
-    assertEquals(0, deleteTag(TAG_B), "tenant A must not be able to delete tenant B's tag");
-    assertEquals(1, deleteTag(TAG_A), "tenant A can delete its own tag");
+    assertEquals(0, deleteRow("tags", "tag_id", TAG_B), "A must not delete B's tag");
+    assertEquals(1, deleteRow("tags", "tag_id", TAG_A), "A can delete its own tag");
 
     setScope(TENANT_B);
-    assertEquals(1, visibleExampleTags(), "tenant B's row is intact and still its own");
-    assertEquals(TAG_B, theOnlyVisibleTag());
+    assertEquals(1, visibleTags(), "tenant B's row is intact and still its own");
+    assertEquals(TAG_B, onlyVisible("tags", "tag_id", TAG_A, TAG_B));
   }
 
   @Test
@@ -115,17 +106,6 @@ class TenantIsolationExampleTest {
         0, copyTag(TAG_B, "copy-of-b"), "tenant B's tag is neither readable nor writable from A");
   }
 
-  private int copyTag(String sourceId, String newId) {
-    return entityManager
-        .createNativeQuery(
-            "INSERT INTO tags (tag_id, tag_name, tag_created_at, tag_updated_at, tenant_id)"
-                + " SELECT :newId, :newId, now(), now(), t.tenant_id"
-                + " FROM tags t WHERE t.tag_id = :src")
-        .setParameter("newId", newId)
-        .setParameter("src", sourceId)
-        .executeUpdate();
-  }
-
   @Test
   @DisplayName("SQL the filter cannot parse is refused on an active table (fail-closed)")
   void unparseableOnActiveTableIsRefused() {
@@ -139,6 +119,21 @@ class TenantIsolationExampleTest {
         "an un-filterable statement must fail closed via TenantFilteringException, got: " + thrown);
   }
 
+  private int visibleTags() {
+    return countVisible("tags", "tag_id", TAG_A, TAG_B);
+  }
+
+  private int copyTag(String sourceId, String newId) {
+    return entityManager
+        .createNativeQuery(
+            "INSERT INTO tags (tag_id, tag_name, tag_created_at, tag_updated_at, tenant_id)"
+                + " SELECT :newId, :newId, now(), now(), t.tenant_id"
+                + " FROM tags t WHERE t.tag_id = :src")
+        .setParameter("newId", newId)
+        .setParameter("src", sourceId)
+        .executeUpdate();
+  }
+
   private static boolean causedByTenantFiltering(Throwable thrown) {
     for (Throwable cause = thrown; cause != null; cause = cause.getCause()) {
       if (cause instanceof TenantFilteringException) {
@@ -146,51 +141,6 @@ class TenantIsolationExampleTest {
       }
     }
     return false;
-  }
-
-  private int deleteTag(String id) {
-    return entityManager
-        .createNativeQuery("DELETE FROM tags WHERE tag_id = :id")
-        .setParameter("id", id)
-        .executeUpdate();
-  }
-
-  private void setScope(String scope) {
-    entityManager
-        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
-        .setParameter("scope", scope)
-        .getSingleResult();
-  }
-
-  /**
-   * Count of the two seeded tags visible under the current scope — the query is tenant-filtered.
-   */
-  private int visibleExampleTags() {
-    Number count =
-        (Number)
-            entityManager
-                .createNativeQuery("SELECT count(*) FROM tags WHERE tag_id IN (:a, :b)")
-                .setParameter("a", TAG_A)
-                .setParameter("b", TAG_B)
-                .getSingleResult();
-    return count.intValue();
-  }
-
-  private String theOnlyVisibleTag() {
-    return (String)
-        entityManager
-            .createNativeQuery("SELECT tag_id FROM tags WHERE tag_id IN (:a, :b)")
-            .setParameter("a", TAG_A)
-            .setParameter("b", TAG_B)
-            .getSingleResult();
-  }
-
-  private void insertTenant(String id) {
-    entityManager
-        .createNativeQuery("INSERT INTO tenants (tenant_id, tenant_name) VALUES (:id, :name)")
-        .setParameter("id", id)
-        .setParameter("name", id)
-        .executeUpdate();
   }
 
   private void insertTag(String id, String tenantId) {
