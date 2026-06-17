@@ -45,7 +45,7 @@ public interface InjectExpectationRepository
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
-  List<InjectExpectation> findAgentExpectationsNotFilledForSource(
+  List<BaseInjectExpectation> findAgentExpectationsNotFilledForSource(
       @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
 
   @Query(
@@ -57,7 +57,7 @@ public interface InjectExpectationRepository
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
-  List<InjectExpectation> findAgentExpectationsNotFilled(
+  List<BaseInjectExpectation> findAgentExpectationsNotFilled(
       @Param("type") String type, @Param("limit") int limit);
 
   @Query(
@@ -70,7 +70,7 @@ public interface InjectExpectationRepository
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
-  List<InjectExpectation> findAgentExpectationsNotFilledForSourceCreatedAfter(
+  List<BaseInjectExpectation> findAgentExpectationsNotFilledForSourceCreatedAfter(
       @Param("type") String type,
       @Param("sourceId") String sourceId,
       @Param("createdAfter") Instant createdAfter,
@@ -86,7 +86,7 @@ public interface InjectExpectationRepository
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
-  List<InjectExpectation> findAgentExpectationsNotFilledCreatedAfter(
+  List<BaseInjectExpectation> findAgentExpectationsNotFilledCreatedAfter(
       @Param("type") String type,
       @Param("createdAfter") Instant createdAfter,
       @Param("limit") int limit);
@@ -99,7 +99,7 @@ public interface InjectExpectationRepository
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
-  List<InjectExpectation> findExpectationsNotFilledForSource(
+  List<BaseInjectExpectation> findExpectationsNotFilledForSource(
       @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
 
   @Query(
@@ -110,7 +110,7 @@ public interface InjectExpectationRepository
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
-  List<InjectExpectation> findExpectationsNotFilled(
+  List<BaseInjectExpectation> findExpectationsNotFilled(
       @Param("type") String type, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")

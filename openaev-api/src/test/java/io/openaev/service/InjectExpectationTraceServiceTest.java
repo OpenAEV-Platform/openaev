@@ -28,7 +28,6 @@ class InjectExpectationTraceServiceTest {
   @InjectMocks private InjectExpectationTraceService injectExpectationTraceService;
 
   private InjectExpectationTrace injectExpectationTrace;
-  private BaseInjectExpectation BaseInjectExpectation;
   private SecurityPlatform securityPlatform;
   private String injectExpectationId;
   private String securityPlatformId;
@@ -40,15 +39,15 @@ class InjectExpectationTraceServiceTest {
     securityPlatformId = UUID.randomUUID().toString();
     expectationResultSourceType = "TYPE";
 
-    BaseInjectExpectation = new BaseInjectExpectation();
-    BaseInjectExpectation.setId(injectExpectationId);
+    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
+    baseInjectExpectation.setId(injectExpectationId);
 
     securityPlatform = new SecurityPlatform();
     securityPlatform.setId(securityPlatformId);
 
     injectExpectationTrace = new InjectExpectationTrace();
     injectExpectationTrace.setId(UUID.randomUUID().toString());
-    injectExpectationTrace.setInjectExpectation(BaseInjectExpectation);
+    injectExpectationTrace.setInjectExpectation(baseInjectExpectation);
     injectExpectationTrace.setSecurityPlatform(securityPlatform);
     injectExpectationTrace.setAlertDate(Instant.now());
     injectExpectationTrace.setAlertLink("http://test-link.com");

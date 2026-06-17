@@ -863,11 +863,11 @@ class ExpectationApiTest extends IntegrationTest {
   // MVC CALL
 
   private void callUpdateInjectExpectation(
-      @NotNull final BaseInjectExpectation BaseInjectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final InjectExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
-            put(INJECTS_EXPECTATIONS_URI + "/" + BaseInjectExpectation.getId())
+            put(INJECTS_EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
@@ -876,11 +876,11 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   private void callUpdateInjectExpectationFromUI(
-      @NotNull final BaseInjectExpectation BaseInjectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
-            put(EXPECTATIONS_URI + "/" + BaseInjectExpectation.getId())
+            put(EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
@@ -889,13 +889,13 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   private void callDeleteInjectExpectationFromUI(
-      @NotNull final BaseInjectExpectation BaseInjectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI
                     + "/"
-                    + BaseInjectExpectation.getId()
+                    + baseInjectExpectation.getId()
                     + "/"
                     + expectationUpdateInput.getSourceId()
                     + "/delete")
