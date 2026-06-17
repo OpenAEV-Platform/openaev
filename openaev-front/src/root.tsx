@@ -65,8 +65,13 @@ const Root = () => {
     if (logged && me) {
       dispatch(fetchPlatformParameters());
       dispatch(fetchTenantSettings());
-      dispatch(fetchInjectors());
-      dispatch(fetchCollectors());
+      // Only fetch tenant-scoped data once the URL contains a valid tenant segment.
+      // Without this guard, buildTenantApiPath() falls back to DEFAULT_TENANT_UUID
+      // and populates the store with IDs from the wrong tenant.
+      if (extractTenantFromUrl()) {
+        dispatch(fetchInjectors());
+        dispatch(fetchCollectors());
+      }
     } else if (logged === null) {
       dispatch(fetchPublicPlatformParameters());
     }

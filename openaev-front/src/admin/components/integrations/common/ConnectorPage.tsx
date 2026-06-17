@@ -23,8 +23,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
-  const { logoUrl } = useContext(ConnectorContext);
+  const { logoUrl, connectorType } = useContext(ConnectorContext);
   const createInstanceDrawer = useDialog();
+
+  // Executors store images by type (not UUID); injectors/collectors use UUID.
+  const connectorLogoKey = connectorType === 'executor' ? (connector?.type ?? '') : (connector?.id ?? '');
 
   const onCloseCreateInstanceDrawer = () => {
     createInstanceDrawer.handleClose();
@@ -62,7 +65,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
           connectorName: connector?.name || catalogConnector?.catalog_connector_title,
           connectorType: catalogConnector?.catalog_connector_type,
           connectorLogoName: connector?.type || catalogConnector?.catalog_connector_slug,
-          connectorLogoUrl: instance ? buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`) : logoUrl(connector?.id),
+          // Executors store images by type (not UUID); injectors/collectors use UUID.
+          connectorLogoUrl: instance
+            ? buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`)
+            : logoUrl(connectorLogoKey),
           connectorDescription: catalogConnector?.catalog_connector_description,
           isExternal: catalogConnector?.catalog_connector_manager_supported,
           isVerified: instance != null,

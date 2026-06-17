@@ -32,7 +32,7 @@ export interface ConnectorContextType<T> {
   connectorCatalog?: CatalogConnectorOutput;
   connector?: ConnectorOutput;
   connectorInstance?: ConnectorInstanceOutput;
-  logoUrl: (injectorId: string) => string;
+  logoUrl: (_type: string) => string;
   apiRequest: {
     fetchAll: () => (dispatch: Dispatch) => Promise<T[]>;
     fetchSingle: (id: string) => (dispatch: Dispatch) => Promise<T>;
