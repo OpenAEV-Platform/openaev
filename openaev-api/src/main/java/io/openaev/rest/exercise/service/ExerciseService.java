@@ -553,7 +553,9 @@ public class ExerciseService {
    * @param simulationId ID of the simulation to delete
    */
   public void deleteById(String simulationId) {
+    existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 
   @Transactional(rollbackFor = Exception.class)

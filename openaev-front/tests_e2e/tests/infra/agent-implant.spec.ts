@@ -4,12 +4,12 @@ import os from 'node:os';
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
+import AgentInstallPage from '../../model/agents/AgentInstallPage';
 import EndpointListPage from '../../model/assets/EndpointListPage';
 import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
-import LeftMenuComponent from '../../model/LeftMenuComponent';
-import ThreatArsenalFormComponent from '../../model/threat-arsenals/ThreatArsenalFormComponent';
-import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
+import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { AUTH_FILE } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -35,47 +35,25 @@ test.describe('Agent implant registration', () => {
 
     // Create an authenticated page to navigate the UI
     const context = await browser.newContext({
-      storageState: 'tests_e2e/.auth/user.json',
+      storageState: AUTH_FILE,
       baseURL: APP_URL,
     });
     const page = await context.newPage();
 
-    let installCommand: string;
-
-    // Navigate to the agents page and open the first executor (OpenAEV Agent)
+    // ─── Install the agent ───
     await page.goto(tenantUrl('/admin/agents'));
-    await page.waitForURL('**/agents**');
-    await page.getByRole('button', { name: /Install/i }).first().click();
+    const agentInstallPage = new AgentInstallPage(page);
+    await agentInstallPage.waitForLoad();
+    let installCommand = await agentInstallPage.getInstallCommand(platform);
 
-    // Select the platform matching the current OS
-    await page.getByText(`Install ${platform} agent`).click();
-
-    // Grab the install command from the <pre> block
-    const preBlock = page.locator('pre').first();
-    await expect(preBlock).not.toBeEmpty();
-    installCommand = (await preBlock.textContent())!;
-
-    // Create the threat arsenal payload (Command Line for the current platform)
+    // ─── Create the threat arsenal payload ───
     await page.goto(tenantUrl('/admin'));
-    const leftMenu = new LeftMenuComponent(page);
-    await leftMenu.goToThreatArsenal();
-
-    const threatArsenalList = new ThreatArsenalListPage(page);
-    await threatArsenalList.waitForLoad();
-    await threatArsenalList.openCreateThreatArsenal();
-
-    const threatArsenalForm = new ThreatArsenalFormComponent(page);
-    await threatArsenalForm.nameField.fill(payloadName);
-    await threatArsenalForm.selectDomain('Endpoint');
-    await threatArsenalForm.switchToCommandsTab();
-    await threatArsenalForm.selectCommandType('Command Line');
-    await threatArsenalForm.selectPlatform(platform);
-    const executor = platform === 'Windows' ? 'PowerShell' : 'Bash';
-    await threatArsenalForm.selectExecutor(executor);
-    await threatArsenalForm.commandField.fill(`echo ${echoToken}`);
-    await threatArsenalForm.switchToGeneralTab();
-    await threatArsenalForm.save();
-    await expect(page.getByText('The element has been successfully created')).toBeVisible();
+    const threatArsenalHelper = new ThreatArsenalHelper(page);
+    await threatArsenalHelper.createCommandLinePayload({
+      name: payloadName,
+      command: `echo ${echoToken}`,
+      platform,
+    });
 
     await context.close();
 
