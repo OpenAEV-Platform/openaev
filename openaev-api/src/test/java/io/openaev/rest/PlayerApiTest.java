@@ -6,6 +6,7 @@ import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.PlayerFixture.PLAYER_FIXTURE_FIRSTNAME;
 import static io.openaev.utils.fixtures.UrlAccessTokenFixture.DEFAULT_RAW_TOKEN;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -81,10 +82,14 @@ class PlayerApiTest extends IntegrationTest {
     }
 
     private record PlayerApiObjectWrappers(
-        ExerciseComposer.Composer simulationWrapper, UserComposer.Composer userWrapper) {}
+        ExerciseComposer.Composer simulationWrapper,
+        UserComposer.Composer userWrapper,
+        UserComposer.Composer otherUserWrapper) {}
 
     private PlayerApiObjectWrappers getExerciseWrapper() {
       UserComposer.Composer userWrapper =
+          userComposer.forUser(UserFixture.getUserWithDefaultEmail());
+      UserComposer.Composer otherUserWrapper =
           userComposer.forUser(UserFixture.getUserWithDefaultEmail());
       ExerciseComposer.Composer simulationWrapper =
           exerciseComposer
@@ -99,9 +104,13 @@ class PlayerApiTest extends IntegrationTest {
                               .withAnswer(
                                   lessonsAnswersComposer
                                       .forLessonsAnswer(LessonsAnswerFixture.createLessonsAnswer())
-                                      .withUser(userWrapper))))
+                                      .withUser(userWrapper))
+                              .withAnswer(
+                                  lessonsAnswersComposer
+                                      .forLessonsAnswer(LessonsAnswerFixture.createLessonsAnswer())
+                                      .withUser(otherUserWrapper))))
               .persist();
-      return new PlayerApiObjectWrappers(simulationWrapper, userWrapper);
+      return new PlayerApiObjectWrappers(simulationWrapper, userWrapper, otherUserWrapper);
     }
 
     @Nested
@@ -226,7 +235,9 @@ class PlayerApiTest extends IntegrationTest {
         @DisplayName("Given specific userId on the query string, 200 OK")
         public void given_specificUserIdOnTheQueryString_200OK() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
-          String url = getUrl(wrappers.simulationWrapper().get().getId());
+          String url =
+              getUrl(
+                  wrappers.simulationWrapper().get().getId(), wrappers.userWrapper().get().getId());
           createUrlAccessToken(
                   wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
               .persist();
@@ -280,13 +291,13 @@ class PlayerApiTest extends IntegrationTest {
         @DisplayName("Given specific userId on the query string, throw Unauthorised")
         public void given_specificUserIdOnTheQueryString_throw401() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
-          UserComposer.Composer userWrapper =
-              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
           entityManager.flush();
           entityManager.clear();
 
           mvc.perform(
-                  get(getUrl(wrappers.simulationWrapper().get().getId(), userWrapper.get().getId()))
+                  get(getUrl(
+                          wrappers.simulationWrapper().get().getId(),
+                          wrappers.userWrapper().get().getId()))
                       .contentType(MediaType.APPLICATION_JSON)
                       .accept(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -317,13 +328,13 @@ class PlayerApiTest extends IntegrationTest {
         @DisplayName("Given specific userId on the query string, throw Unauthorised")
         public void given_specificUserIdOnTheQueryString_throw401() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
-          UserComposer.Composer userWrapper =
-              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
           entityManager.flush();
           entityManager.clear();
 
           mvc.perform(
-                  get(getUrl(wrappers.simulationWrapper().get().getId(), userWrapper.get().getId()))
+                  get(getUrl(
+                          wrappers.simulationWrapper().get().getId(),
+                          wrappers.userWrapper().get().getId()))
                       .contentType(MediaType.APPLICATION_JSON)
                       .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, "bad cookie"))
                       .accept(MediaType.APPLICATION_JSON)
@@ -343,43 +354,247 @@ class PlayerApiTest extends IntegrationTest {
         }
 
         @Test
-        @DisplayName("Given no specific userId on the query string, 200 OK")
+        @DisplayName(
+            "Given user A has no answers, pass User A cookie and no id query string, then empty response")
         public void given_noSpecificUserIdOnTheQueryString_200OK() throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
           String url = getUrl(wrappers.simulationWrapper().get().getId());
-          createUrlAccessToken(
-                  wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+          createUrlAccessToken(wrappers.simulationWrapper().get(), extraUserWrapper.get(), url)
               .persist();
           entityManager.flush();
           entityManager.clear();
 
-          mvc.perform(
-                  get(url)
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk());
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString).isEqualTo("[]");
         }
 
         @Test
-        @DisplayName("Given specific userId on the query string, 200 OK")
-        public void given_specificUserIdOnTheQueryString_200OK() throws Exception {
+        @DisplayName(
+            "Given user A has answers, pass User A cookie and no id query string, then all answers in response belong to user A")
+        public void given_noSpecificUserIdOnTheQueryStringButExistingAnswers_200OK()
+            throws Exception {
           PlayerApiObjectWrappers wrappers = getExerciseWrapper();
           String url = getUrl(wrappers.simulationWrapper().get().getId());
-          createUrlAccessToken(
-                  wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+          UrlAccessTokenComposer.Composer tokenWrapper =
+              createUrlAccessToken(
+                      wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+                  .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString)
+              .isArray()
+              .allSatisfy(
+                  node -> {
+                    assertThatJson(node)
+                        .node("lessons_answer_user")
+                        .isEqualTo(tokenWrapper.get().getUser().getId());
+                  });
+        }
+
+        @Test
+        @DisplayName(
+            "Given user A has no answers, pass User A cookie and User A id query string, then empty response")
+        public void given_specificOtherUserIdOnTheQueryString_200OK() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+          String url =
+              getUrl(wrappers.simulationWrapper().get().getId(), extraUserWrapper.get().getId());
+          createUrlAccessToken(wrappers.simulationWrapper().get(), extraUserWrapper.get(), url)
               .persist();
           entityManager.flush();
           entityManager.clear();
 
-          mvc.perform(
-                  get(url)
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk());
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString).isEqualTo("[]");
+        }
+
+        @Test
+        @DisplayName(
+            "Given user A has no answers, user B has answers, pass User A cookie and User B id query string, then empty response")
+        public void given_specificSameUserIdOnTheQueryString_200OK() throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+          String url =
+              getUrl(
+                  wrappers.simulationWrapper().get().getId(), wrappers.userWrapper().get().getId());
+          createUrlAccessToken(wrappers.simulationWrapper().get(), extraUserWrapper.get(), url)
+              .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString).isEqualTo("[]");
+        }
+
+        @Test
+        @DisplayName(
+            "Given user A has answers, pass User A cookie and User A id query string, then all answers in response belong to user A")
+        public void given_specificSameUserIdOnTheQueryStringAndCorrespondingCookie_200OK()
+            throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          String url =
+              getUrl(
+                  wrappers.simulationWrapper().get().getId(), wrappers.userWrapper().get().getId());
+          UrlAccessTokenComposer.Composer tokenWrapper =
+              createUrlAccessToken(
+                      wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+                  .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString)
+              .isArray()
+              .allSatisfy(
+                  node -> {
+                    assertThatJson(node)
+                        .node("lessons_answer_user")
+                        .isEqualTo(tokenWrapper.get().getUser().getId());
+                  });
+        }
+
+        @Test
+        @DisplayName(
+            "Given user A has answers, user B has no answers, pass User A cookie and User B id query string, then all answers in response belong to user A")
+        public void given_specificOtherUserIdOnTheQueryStringAndDifferentUserCookie_200OK()
+            throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          // create extra user
+          UserComposer.Composer extraUserWrapper =
+              userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist();
+          String url =
+              getUrl(wrappers.simulationWrapper().get().getId(), extraUserWrapper.get().getId());
+          UrlAccessTokenComposer.Composer tokenWrapper =
+              createUrlAccessToken(
+                      wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+                  .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString)
+              .isArray()
+              .allSatisfy(
+                  node -> {
+                    assertThatJson(node)
+                        .node("lessons_answer_user")
+                        .isEqualTo(tokenWrapper.get().getUser().getId());
+                  });
+        }
+
+        @Test
+        @DisplayName(
+            "Given user A has answers, user B also has answers, pass User A cookie and User B id query string, then all answers in response belong to user A")
+        public void
+            given_specificOtherUserIdOnTheQueryStringAndDifferentUserCookieWithAnswers_200OK()
+                throws Exception {
+          PlayerApiObjectWrappers wrappers = getExerciseWrapper();
+          String url =
+              getUrl(
+                  wrappers.simulationWrapper().get().getId(),
+                  wrappers.otherUserWrapper().get().getId());
+          UrlAccessTokenComposer.Composer tokenWrapper =
+              createUrlAccessToken(
+                      wrappers.simulationWrapper().get(), wrappers.userWrapper().get(), url)
+                  .persist();
+          entityManager.flush();
+          entityManager.clear();
+
+          String responseString =
+              mvc.perform(
+                      get(url)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .cookie(new Cookie(URL_ACCESS_COOKIE_NAME, DEFAULT_RAW_TOKEN))
+                          .accept(MediaType.APPLICATION_JSON)
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          assertThatJson(responseString)
+              .isArray()
+              .allSatisfy(
+                  node -> {
+                    assertThatJson(node)
+                        .node("lessons_answer_user")
+                        .isEqualTo(tokenWrapper.get().getUser().getId());
+                  });
         }
       }
     }
