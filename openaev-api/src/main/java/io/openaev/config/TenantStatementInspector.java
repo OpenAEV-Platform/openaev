@@ -93,26 +93,39 @@ public class TenantStatementInspector implements StatementInspector {
   }
 
   private String rewriteUpdate(Update update) {
-    if (update.getFromItem() != null
-        || notEmpty(update.getJoins())
-        || notEmpty(update.getStartJoins())) {
-      throw new TenantFilteringException(
-          "UPDATE ... FROM/JOIN not yet covered by tenant filtering");
+    // A target-side join (UPDATE t JOIN ... SET ...) is a shape we do not cover yet.
+    if (notEmpty(update.getStartJoins())) {
+      throw new TenantFilteringException("UPDATE ... <target join> not yet covered");
     }
     filterContainedSelects(update);
+    // The FROM read sources are wrapped in a filtered sub-query, exactly like a SELECT's FROM.
+    if (update.getFromItem() != null) {
+      update.setFromItem(filterFromItem(update.getFromItem()));
+    }
+    if (update.getJoins() != null) {
+      for (Join join : update.getJoins()) {
+        join.setRightItem(filterFromItem(join.getRightItem()));
+      }
+    }
     update.setWhere(withTenantPredicate(update.getTable(), update.getWhere()));
     return update.toString();
   }
 
   private String rewriteDelete(Delete delete) {
-    if (notEmpty(delete.getUsingList())
-        || notEmpty(delete.getJoins())
-        || notEmpty(delete.getTables())) {
-      throw new TenantFilteringException(
-          "DELETE ... USING/JOIN not yet covered by tenant filtering");
+    // Multi-target delete or an explicit join is a shape we do not cover yet.
+    if (notEmpty(delete.getTables()) || notEmpty(delete.getJoins())) {
+      throw new TenantFilteringException("DELETE ... <multi-target or join> not yet covered");
     }
     filterContainedSelects(delete);
-    delete.setWhere(withTenantPredicate(delete.getTable(), delete.getWhere()));
+    // The USING list is typed List<Table>, so it cannot be wrapped in a sub-query like a FROM; each
+    // tenant read source is filtered through the WHERE instead.
+    Expression where = withTenantPredicate(delete.getTable(), delete.getWhere());
+    if (delete.getUsingList() != null) {
+      for (Table using : delete.getUsingList()) {
+        where = combineTenantFilter(using, where, true);
+      }
+    }
+    delete.setWhere(where);
     return delete.toString();
   }
 
@@ -179,17 +192,20 @@ public class TenantStatementInspector implements StatementInspector {
           "FROM/JOIN shape not yet covered by tenant filtering: "
               + (item == null ? "null" : item.getClass().getSimpleName()));
     }
-    TenantTables.Family family = tables.family(table.getName());
-    if (family == TenantTables.Family.NONE) {
+    if (tables.family(table.getName()) == TenantTables.Family.NONE) {
       return table;
     }
     String ref = reference(table);
-    String call =
-        family == TenantTables.Family.DUAL
-            ? "can_access_tenant(" + ref + ".tenant_id, true)"
-            : "can_access_tenant(" + ref + ".tenant_id)";
     String wrapped =
-        "(SELECT * FROM " + table.getName() + " " + ref + " WHERE " + call + ") AS " + ref;
+        "(SELECT * FROM "
+            + table.getName()
+            + " "
+            + ref
+            + " WHERE "
+            + tenantCall(table, true)
+            + ")"
+            + " AS "
+            + ref;
     try {
       Statement dummy = CCJSqlParserUtil.parse("SELECT * FROM " + wrapped);
       return ((PlainSelect) dummy).getFromItem();
@@ -204,10 +220,19 @@ public class TenantStatementInspector implements StatementInspector {
    * is not passed — pending the platform-write policy.
    */
   private Expression withTenantPredicate(Table target, Expression existing) {
-    if (target == null || tables.family(target.getName()) == TenantTables.Family.NONE) {
+    return combineTenantFilter(target, existing, false);
+  }
+
+  /**
+   * Adds {@code can_access_tenant} on a table to a WHERE clause (the table itself cannot be
+   * wrapped). A read on a dual-scope table also lets platform rows through; a write never does, so
+   * {@code allow_platform} is passed only for read sources.
+   */
+  private Expression combineTenantFilter(Table table, Expression existing, boolean read) {
+    if (table == null || tables.family(table.getName()) == TenantTables.Family.NONE) {
       return existing;
     }
-    String call = "can_access_tenant(" + reference(target) + ".tenant_id)";
+    String call = tenantCall(table, read);
     // Explicit parentheses keep precedence when the existing WHERE is an OR. A WHERE we cannot
     // re-parse is refused (fail-closed) rather than left unfiltered.
     String combined = existing == null ? call : "(" + existing + ") AND (" + call + ")";
@@ -216,6 +241,13 @@ public class TenantStatementInspector implements StatementInspector {
     } catch (Exception e) {
       throw new TenantFilteringException("could not add the tenant filter to the WHERE clause", e);
     }
+  }
+
+  private String tenantCall(Table table, boolean read) {
+    String ref = reference(table);
+    return read && tables.family(table.getName()) == TenantTables.Family.DUAL
+        ? "can_access_tenant(" + ref + ".tenant_id, true)"
+        : "can_access_tenant(" + ref + ".tenant_id)";
   }
 
   private static String reference(Table table) {

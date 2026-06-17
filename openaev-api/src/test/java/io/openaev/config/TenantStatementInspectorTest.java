@@ -467,19 +467,69 @@ class TenantStatementInspectorTest {
         TenantFilteringException.class, () -> inspector.inspect("NOT SQL AT ALL documents ;;;"));
   }
 
+  // --- UPDATE ... FROM / DELETE ... USING (multi-table) --------------------
+
   @Test
-  @DisplayName("an UPDATE ... FROM is rejected (fail-closed)")
-  void updateFromFailsClosed() {
-    assertThrows(
-        TenantFilteringException.class,
-        () -> inspector.inspect("UPDATE documents d SET x = 1 FROM findings f WHERE f.id = d.fid"));
+  @DisplayName("UPDATE ... FROM filters the target (write) and the read source")
+  void updateFromFiltersTargetAndSource() {
+    String out = inspect("UPDATE documents d SET x = 1 FROM findings f WHERE f.id = d.fid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
   }
 
   @Test
-  @DisplayName("a DELETE ... USING is rejected (fail-closed)")
-  void deleteUsingFailsClosed() {
-    assertThrows(
-        TenantFilteringException.class,
-        () -> inspector.inspect("DELETE FROM documents d USING findings f WHERE f.id = d.fid"));
+  @DisplayName("UPDATE ... FROM filters every read source (comma list -> joins)")
+  void updateFromFiltersEverySource() {
+    String out =
+        inspect(
+            "UPDATE documents d SET x = 1 FROM findings f, groups g"
+                + " WHERE f.id = d.fid AND g.id = d.gid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName("UPDATE ... FROM lets a dual-scope read source see platform rows")
+  void updateFromDualSourceAllowsPlatform() {
+    String out = inspect("UPDATE documents d SET x = 1 FROM groups g WHERE g.id = d.gid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName("UPDATE ... FROM leaves a non-tenant read source untouched")
+  void updateFromNonTenantSourceUntouched() {
+    String out = inspect("UPDATE documents d SET x = 1 FROM users u WHERE u.id = d.uid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertFalse(out.contains("can_access_tenant(u"), out);
+  }
+
+  @Test
+  @DisplayName("DELETE ... USING filters the target (write) and the read source")
+  void deleteUsingFiltersTargetAndSource() {
+    String out = inspect("DELETE FROM documents d USING findings f WHERE f.id = d.fid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("DELETE ... USING lets a dual-scope read source see platform rows")
+  void deleteUsingDualSourceAllowsPlatform() {
+    String out = inspect("DELETE FROM documents d USING groups g WHERE g.id = d.gid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName("DELETE ... USING filters every read source")
+  void deleteUsingFiltersEverySource() {
+    String out =
+        inspect(
+            "DELETE FROM documents d USING findings f, groups g"
+                + " WHERE f.id = d.fid AND g.id = d.gid");
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
   }
 }
