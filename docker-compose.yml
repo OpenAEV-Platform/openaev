@@ -1,0 +1,217 @@
+services:
+
+  # ──────────────────────────────────────────────
+  # INFRASTRUCTURE
+  # ──────────────────────────────────────────────
+
+  openaev-pgsql:
+    container_name: openaev-pgsql
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: openaev
+      POSTGRES_PASSWORD: openaev
+      POSTGRES_DB: openaev
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openaev -d openaev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  openaev-minio:
+    container_name: openaev-minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    ports:
+      - "10000:9000"
+      - "10001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  openaev-rabbitmq:
+    container_name: openaev-rabbitmq
+    image: rabbitmq:4.2-management
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  openaev-elasticsearch:
+    container_name: openaev-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - xpack.ml.enabled=false
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms2G -Xmx2G -XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+      - "CLI_JAVA_OPTS=-XX:+IgnoreUnrecognizedVMOptions -XX:UseSVE=0"
+    restart: unless-stopped
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # ──────────────────────────────────────────────
+  # OPENAEV APPLICATION
+  # ──────────────────────────────────────────────
+
+  openaev:
+    container_name: openaev
+    build:
+      context: ./openaev
+      dockerfile: Dockerfile
+    image: openaev-local:latest
+    ports:
+      - "8080:8080"
+    environment:
+      # Admin account
+      OPENAEV_ADMIN_EMAIL: user@openaev.io
+      OPENAEV_ADMIN_PASSWORD: pass
+      OPENAEV_ADMIN_TOKEN: 7d3259e5-2f02-4fac-a00a-2bad5c589032
+      OPENAEV_ADMIN_ENCRYPTION_KEY: PoC-EncKey-2026
+      OPENAEV_ADMIN_ENCRYPTION_SALT: PoCSalt1
+      # PostgreSQL
+      SPRING_DATASOURCE_URL: jdbc:postgresql://openaev-pgsql:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      # Elasticsearch
+      ENGINE_ENGINE_SELECTOR: elk
+      ENGINE_URL: http://openaev-elasticsearch:9200
+      # MinIO
+      MINIO_ENDPOINT: openaev-minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      # RabbitMQ
+      OPENAEV_RABBITMQ_HOSTNAME: openaev-rabbitmq
+      OPENAEV_RABBITMQ_PORT: "5672"
+      OPENAEV_RABBITMQ_USER: guest
+      OPENAEV_RABBITMQ_PASS: guest
+      # General
+      OPENAEV_BASE_URL: http://localhost:8080
+      OPENAEV_ENABLED_DEV_FEATURES: "*"
+      LOGGING_LEVEL_ROOT: info
+      LOGGING_LEVEL_IO_OPENAEV: info
+      # Elasticsearch Spring client config (for actuator health check)
+      SPRING_ELASTICSEARCH_URIS: http://openaev-elasticsearch:9200
+      # Disable mail (not needed for PoC)
+      SPRING_MAIL_HOST: localhost
+      SPRING_MAIL_PORT: "1025"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+    depends_on:
+      openaev-pgsql:
+        condition: service_healthy
+      openaev-elasticsearch:
+        condition: service_healthy
+      openaev-rabbitmq:
+        condition: service_healthy
+      openaev-minio:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # ──────────────────────────────────────────────
+  # DEMO SEED (runs once after app is healthy)
+  # ──────────────────────────────────────────────
+
+  openaev-seed:
+    container_name: openaev-seed
+    image: python:3.11-alpine
+    volumes:
+      - ./seed:/seed:ro
+    command: python3 /seed/seed_exercises.py http://openaev:8080
+    depends_on:
+      openaev:
+        condition: service_healthy
+    restart: "no"
+
+  # ──────────────────────────────────────────────
+  # NMAP INJECTOR
+  # ──────────────────────────────────────────────
+
+  injector-nmap:
+    container_name: injector-nmap
+    build:
+      context: ./injectors/nmap
+      dockerfile: Dockerfile
+      additional_contexts:
+        injector_common: ./injectors/injector_common
+      args:
+        PYOAEV_GIT_BRANCH_OVERRIDE: release/current
+    image: openaev-injector-nmap-local:latest
+    environment:
+      OPENAEV_URL: http://openaev:8080
+      OPENAEV_TOKEN: 7d3259e5-2f02-4fac-a00a-2bad5c589032
+      OPENAEV_TENANT_ID: "2cffad3a-0001-4078-b0e2-ef74274022c3"
+      INJECTOR_ID: f1a2b3c4-d5e6-7890-abcd-ef1234567890
+      INJECTOR_NAME: Nmap
+      INJECTOR_LOG_LEVEL: info
+    depends_on:
+      openaev:
+        condition: service_started
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────
+  # NETEXEC INJECTOR
+  # ──────────────────────────────────────────────
+
+  injector-netexec:
+    container_name: injector-netexec
+    build:
+      context: ./injectors/netexec
+      dockerfile: Dockerfile
+      additional_contexts:
+        injector_common: ./injectors/injector_common
+      args:
+        PYOAEV_GIT_BRANCH_OVERRIDE: release/current
+    image: openaev-injector-netexec-local:latest
+    environment:
+      OPENAEV_URL: http://openaev:8080
+      OPENAEV_TOKEN: 7d3259e5-2f02-4fac-a00a-2bad5c589032
+      OPENAEV_TENANT_ID: "2cffad3a-0001-4078-b0e2-ef74274022c3"
+      INJECTOR_ID: e7025667-93b5-4ddc-926f-d38b87a92e75
+      INJECTOR_NAME: NetExec
+      INJECTOR_LOG_LEVEL: info
+    depends_on:
+      openaev:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    driver: local
+  esdata:
+    driver: local
