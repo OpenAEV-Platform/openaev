@@ -326,10 +326,45 @@ class TenantStatementInspectorTest {
   // --- INSERT --------------------------------------------------------------
 
   @Test
-  @DisplayName("an INSERT ... SELECT filters its source query")
+  @DisplayName("an INSERT ... SELECT into a non-tenant table still filters its source query")
   void insertSelectFiltersSource() {
-    String out = inspect("INSERT INTO documents (id, x) SELECT f.id, f.x FROM findings f");
+    String out = inspect("INSERT INTO users (id, x) SELECT f.id, f.x FROM findings f");
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "INSERT ... SELECT into a tenant table validates the written tenant_id and filters the source")
+  void insertSelectIntoTenantValidatesWriteAndFiltersSource() {
+    String out = inspect("INSERT INTO documents (tenant_id, x) SELECT f.dest, f.x FROM findings f");
+    assertTrue(out.contains("can_access_tenant(f.dest)"), out); // written tenant_id, validated
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out); // source read, filtered
+    assertTrue(out.contains("INSERT INTO documents"), out);
+    assertFalse(out.contains("can_access_tenant(documents"), out); // target not wrapped
+  }
+
+  @Test
+  @DisplayName("INSERT ... SELECT into a tenant table without tenant_id is refused (fail-closed)")
+  void insertSelectIntoTenantWithoutTenantIdFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO documents (id, x) SELECT u.id, u.x FROM users u"));
+  }
+
+  @Test
+  @DisplayName("INSERT ... SELECT * into a tenant table is refused (tenant_id not mappable)")
+  void insertSelectStarIntoTenantFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO documents (tenant_id, x) SELECT * FROM users u"));
+  }
+
+  @Test
+  @DisplayName("INSERT ... SELECT with a bind-parameter tenant_id is refused (would break binding)")
+  void insertSelectBindParameterTenantFailsClosed() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO documents (tenant_id, x) SELECT ?, u.x FROM users u"));
   }
 
   @Test
@@ -344,14 +379,6 @@ class TenantStatementInspectorTest {
   void insertValuesSubqueryFiltered() {
     String out = inspect("INSERT INTO documents (id) VALUES ((SELECT max(f.x) FROM findings f))");
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
-  }
-
-  @Test
-  @DisplayName("the INSERT target table is left intact (not wrapped)")
-  void insertTargetStaysIntact() {
-    String out = inspect("INSERT INTO documents (id, x) SELECT f.id, f.x FROM findings f");
-    assertTrue(out.contains("INSERT INTO documents"), out);
-    assertFalse(out.contains("can_access_tenant(documents"), out);
   }
 
   @Test
