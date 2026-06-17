@@ -320,8 +320,8 @@ const ResultTab: FunctionComponent<{ node: AttackPathNode; prevNode: AttackPathN
 
 // ── Terminal tab helpers ──────────────────────────────────────────────────────
 
-export function synthesizeCommand(node: AttackPathNode): string {
-  if (node.node_command) return node.node_command;
+/** Returns the base executable name from the payload (e.g. "netexec smb", "nmap"). */
+function getBaseCommand(node: AttackPathNode): string {
   const payload = (node.node_payload_name ?? node.node_label ?? '').toLowerCase();
   if (payload.includes('nmap')) return 'nmap';
   if (payload.includes('netexec') || payload.includes('nxc')) {
@@ -341,38 +341,71 @@ export function synthesizeCommand(node: AttackPathNode): string {
   return node.node_payload_name ?? node.node_label ?? 'unknown';
 }
 
+/**
+ * Full command string shown in the Terminal tab:
+ *   <base_cmd> <target> <node_arguments>
+ * If node_command is already set, use it verbatim.
+ */
+export function synthesizeCommand(node: AttackPathNode): string {
+  if (node.node_command) return node.node_command;
+  const base = getBaseCommand(node);
+  const target = node.node_ip ?? node.node_hostname ?? '';
+  const args = node.node_arguments ?? '';
+  return [base, target, args].filter(Boolean).join(' ');
+}
+
 export interface ArgEntry { key: string; value: string; sensitive: boolean }
 
+/** Flags whose values should be masked (password-style). Context-sensitive: not masked for nmap. */
+function isSensitiveFlag(flag: string, node: AttackPathNode): boolean {
+  const payload = (node.node_payload_name ?? '').toLowerCase();
+  const isNmap = payload.includes('nmap');
+  // nmap uses -p for ports — never mask
+  if (isNmap) return false;
+  return ['-p', '-P', '--password', '--pass', '--hash', '-H'].includes(flag);
+}
+
+/**
+ * Parses node_arguments into structured key/value pairs for the Arguments section.
+ * Only shows what was actually passed as input arguments — nothing inferred.
+ */
 export function synthesizeArguments(node: AttackPathNode): ArgEntry[] {
+  if (!node.node_arguments) return [];
+
+  const str = node.node_arguments;
   const args: ArgEntry[] = [];
 
-  if (node.node_ip) args.push({ key: 'ip', value: node.node_ip, sensitive: false });
+  // Tokenize respecting double-quoted and single-quoted values
+  const tokens = str.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [];
 
-  // Credentials from node_credentials_found (masked password)
-  if (node.node_credentials_found?.length) {
-    for (const cred of node.node_credentials_found.slice(0, 2)) {
-      const colonIdx = cred.indexOf(':');
-      if (colonIdx > 0) {
-        args.push({ key: 'username', value: cred.slice(0, colonIdx), sensitive: false });
-        args.push({ key: 'password', value: '••••••••', sensitive: true });
+  let i = 0;
+  while (i < tokens.length) {
+    const tok = tokens[i];
+
+    if (tok.startsWith('-')) {
+      if (tok.includes('=')) {
+        // --key=value form
+        const eq = tok.indexOf('=');
+        const key = tok.slice(0, eq);
+        const val = tok.slice(eq + 1).replace(/^["']|["']$/g, '');
+        const sensitive = isSensitiveFlag(key, node);
+        args.push({ key, value: sensitive ? '••••••••' : val, sensitive });
+      } else if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
+        // -flag value form
+        const key = tok;
+        const val = tokens[i + 1].replace(/^["']|["']$/g, '');
+        const sensitive = isSensitiveFlag(key, node);
+        args.push({ key, value: sensitive ? '••••••••' : val, sensitive });
+        i++;
       } else {
-        args.push({ key: 'credential', value: '••••••••', sensitive: true });
+        // standalone flag (e.g. -sS, -sV, --ntds)
+        args.push({ key: tok, value: '', sensitive: false });
       }
     }
-  } else if (node.node_user_privileges) {
-    // Extract user from "DOMAIN\user (role)" or "user → root"
-    const match = node.node_user_privileges.match(/^([^\s(→\n]+)/);
-    if (match) args.push({ key: 'username', value: match[1], sensitive: false });
-  }
+    // positional args (IPs, hostnames) are already shown in the Command line — skip here
 
-  // Module from payload (after " – " separator)
-  if (node.node_payload_name) {
-    const parts = node.node_payload_name.split(/\s[–-]\s/);
-    if (parts[1]) args.push({ key: 'module', value: parts[1].trim(), sensitive: false });
+    i++;
   }
-
-  // Explicit arguments override
-  if (node.node_arguments) args.push({ key: 'arguments', value: node.node_arguments, sensitive: false });
 
   return args;
 }
