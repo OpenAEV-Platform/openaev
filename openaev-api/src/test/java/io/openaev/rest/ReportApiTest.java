@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -150,7 +151,7 @@ public class ReportApiTest extends IntegrationTest {
     void updateReportForExercise() throws Exception {
       // -- PREPARE --
       report.setExercise(exercise);
-      when(reportService.report(any())).thenReturn(report);
+      when(reportService.report(any(UUID.class), any())).thenReturn(report);
       when(reportService.updateReport(any(Report.class), any(ReportInput.class)))
           .thenReturn(report);
 
@@ -170,7 +171,7 @@ public class ReportApiTest extends IntegrationTest {
 
       // -- ASSERT --
       report.setName("fake");
-      verify(reportService).report(UUID.fromString(report.getId()));
+      verify(reportService).report(eq(UUID.fromString(report.getId())), any());
       verify(reportService).updateReport(report, reportInput);
       assertNotNull(response);
       assertEquals(JsonPath.read(response, "$.report_id"), report.getId());
@@ -189,7 +190,7 @@ public class ReportApiTest extends IntegrationTest {
       injectCommentInput.setInjectId(inject.getId());
       injectCommentInput.setComment("Comment test");
 
-      when(reportService.report(any())).thenReturn(report);
+      when(reportService.report(any(UUID.class), any())).thenReturn(report);
       when(injectService.inject(any())).thenReturn(inject);
       when(reportService.updateReportInjectComment(
               any(Report.class), any(Inject.class), any(ReportInjectCommentInput.class)))
@@ -214,7 +215,7 @@ public class ReportApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -- ASSERT --
-      verify(reportService).report(UUID.fromString(report.getId()));
+      verify(reportService).report(eq(UUID.fromString(report.getId())), any());
       verify(injectService).inject(inject.getId());
       verify(reportService).updateReportInjectComment(report, inject, injectCommentInput);
       assertNotNull(response);
@@ -225,7 +226,7 @@ public class ReportApiTest extends IntegrationTest {
     void deleteReportForExercise() throws Exception {
       // -- PREPARE --
       report.setExercise(exercise);
-      when(reportService.report(any())).thenReturn(report);
+      when(reportService.report(any(UUID.class), any())).thenReturn(report);
 
       // -- EXECUTE --
       mvc.perform(
@@ -237,7 +238,7 @@ public class ReportApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      verify(reportService, times(1)).deleteReport(UUID.fromString(report.getId()));
+      verify(reportService, times(1)).deleteReport(eq(UUID.fromString(report.getId())), any());
     }
   }
 

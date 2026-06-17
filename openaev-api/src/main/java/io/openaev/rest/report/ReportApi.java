@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Report;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -39,7 +40,7 @@ public class ReportApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Report report(@PathVariable String reportId) {
-    return this.reportService.report(UUID.fromString(reportId));
+    return this.reportService.report(UUID.fromString(reportId), TenantContext.getCurrentTenant());
   }
 
   @GetMapping({
@@ -61,7 +62,8 @@ public class ReportApi extends RestBehavior {
       })
   public Report reportFromSimulationExercise(
       @PathVariable String simulationId, @PathVariable String reportId) {
-    return this.reportService.reportFromSimulation(simulationId, UUID.fromString(reportId));
+    return this.reportService.reportFromSimulation(
+        simulationId, UUID.fromString(reportId), TenantContext.getCurrentTenant());
   }
 
   @GetMapping({
@@ -107,7 +109,8 @@ public class ReportApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String reportId,
       @Valid @RequestBody ReportInjectCommentInput input) {
-    Report report = this.reportService.report(UUID.fromString(reportId));
+    Report report =
+        this.reportService.report(UUID.fromString(reportId), TenantContext.getCurrentTenant());
     assert exerciseId.equals(report.getExercise().getId());
     Inject inject = this.injectService.inject(input.getInjectId());
     assert exerciseId.equals(inject.getExercise().getId());
@@ -127,7 +130,8 @@ public class ReportApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String reportId,
       @Valid @RequestBody ReportInput input) {
-    Report report = this.reportService.report(UUID.fromString(reportId));
+    Report report =
+        this.reportService.report(UUID.fromString(reportId), TenantContext.getCurrentTenant());
     assert exerciseId.equals(report.getExercise().getId());
     return this.reportService.updateReport(report, input);
   }
@@ -142,8 +146,9 @@ public class ReportApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseReport(@PathVariable String exerciseId, @PathVariable String reportId) {
-    Report report = this.reportService.report(UUID.fromString(reportId));
+    String tenantId = TenantContext.getCurrentTenant();
+    Report report = this.reportService.report(UUID.fromString(reportId), tenantId);
     assert exerciseId.equals(report.getExercise().getId());
-    this.reportService.deleteReport(UUID.fromString(reportId));
+    this.reportService.deleteReport(UUID.fromString(reportId), tenantId);
   }
 }

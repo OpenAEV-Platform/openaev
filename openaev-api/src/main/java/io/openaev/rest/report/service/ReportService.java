@@ -2,7 +2,6 @@ package io.openaev.rest.report.service;
 
 import static java.time.Instant.now;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Report;
 import io.openaev.database.model.ReportInformation;
@@ -25,9 +24,9 @@ import org.springframework.stereotype.Service;
 public class ReportService {
   private final ReportRepository reportRepository;
 
-  public Report report(@NotNull final UUID reportId) {
+  public Report report(@NotNull final UUID reportId, @NotBlank final String tenantId) {
     return this.reportRepository
-        .findByIdAndTenantId(reportId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(reportId, tenantId)
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -37,12 +36,15 @@ public class ReportService {
    *
    * @param simulationId
    * @param reportId
+   * @param tenantId
    * @return
    */
   public Report reportFromSimulation(
-      @NotBlank final String simulationId, @NotNull final UUID reportId) {
+      @NotBlank final String simulationId,
+      @NotNull final UUID reportId,
+      @NotBlank final String tenantId) {
     return this.reportRepository
-        .findByIdAndExercise_IdAndTenantId(reportId, simulationId, TenantContext.getCurrentTenant())
+        .findByIdAndExercise_IdAndTenantId(reportId, simulationId, tenantId)
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -100,9 +102,9 @@ public class ReportService {
     return this.reportRepository.save(report);
   }
 
-  public void deleteReport(@NotBlank final UUID reportId) {
+  public void deleteReport(@NotNull final UUID reportId, @NotBlank final String tenantId) {
     // Verify the report belongs to the current tenant before deleting
-    report(reportId);
+    report(reportId, tenantId);
     this.reportRepository.deleteById(reportId);
   }
 }
