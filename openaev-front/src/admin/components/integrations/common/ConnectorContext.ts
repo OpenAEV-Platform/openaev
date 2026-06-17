@@ -106,7 +106,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     list: '/admin/integrations/executors',
     detail: (id: string) => `/admin/integrations/executors/${id}`,
   },
-  logoUrl: (injectorId: string) => buildTenantApiPath(`/api/images/executors/icons/id/i${injectorId}`),
+  logoUrl: (type: string) => buildTenantApiPath(`/api/images/executors/icons/${type}`),
   normalizeSingle: data => ({
     id: data?.executor_id,
     name: data?.executor_name,
