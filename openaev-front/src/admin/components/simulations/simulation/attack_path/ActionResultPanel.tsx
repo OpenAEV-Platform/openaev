@@ -342,16 +342,20 @@ function getBaseCommand(node: AttackPathNode): string {
 }
 
 /**
- * Full command string shown in the Terminal tab:
- *   <base_cmd> <target> <node_arguments>
+ * Full command string shown in the Terminal tab.
+ * node_arguments already includes the target IP/host, so we just concatenate:
+ *   <base_cmd> <node_arguments>
+ * If no arguments: <base_cmd> <target>
  * If node_command is already set, use it verbatim.
  */
 export function synthesizeCommand(node: AttackPathNode): string {
   if (node.node_command) return node.node_command;
   const base = getBaseCommand(node);
+  if (node.node_arguments) {
+    return `${base} ${node.node_arguments}`;
+  }
   const target = node.node_ip ?? node.node_hostname ?? '';
-  const args = node.node_arguments ?? '';
-  return [base, target, args].filter(Boolean).join(' ');
+  return [base, target].filter(Boolean).join(' ');
 }
 
 export interface ArgEntry { key: string; value: string; sensitive: boolean }
