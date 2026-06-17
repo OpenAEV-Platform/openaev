@@ -133,11 +133,8 @@ public class ExpectationBuilderService {
    * @return a configured manual expectation
    */
   public Expectation buildManualExpectation() {
-    Expectation expectation =
-        buildExpectation(
-            MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
-    expectation.setMultiSelectable(true);
-    return expectation;
+    return buildExpectation(
+        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime(), true);
   }
 
   /**
@@ -156,14 +153,21 @@ public class ExpectationBuilderService {
    * @param type the expectation type
    * @param name the display name
    * @param expirationTime the expiration time in seconds
+   * @param multiSelectable whether the expectation can be added multiple times to the same inject
    * @return a configured expectation
    */
-  private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
+  private Expectation buildExpectation(
+      EXPECTATION_TYPE type, String name, long expirationTime, boolean multiSelectable) {
     Expectation expectation = new Expectation();
     expectation.setType(type);
     expectation.setName(name);
     expectation.setScore(DEFAULT_EXPECTATION_SCORE);
     expectation.setExpirationTime(expirationTime);
+    expectation.setMultiSelectable(multiSelectable);
     return expectation;
+  }
+
+  private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
+    return buildExpectation(type, name, expirationTime, false);
   }
 }

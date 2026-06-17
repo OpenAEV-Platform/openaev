@@ -7,6 +7,7 @@ import io.openaev.model.inject.form.Expectation;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 
@@ -47,7 +48,7 @@ public class ContractExpectations extends ContractCardinalityElement {
    * @return a configured ContractExpectations instance
    */
   public static ContractExpectations expectationsField() {
-    return new ContractExpectations(List.of(), List.of());
+    return new ContractExpectations(Collections.emptyList(), Collections.emptyList());
   }
 
   /**

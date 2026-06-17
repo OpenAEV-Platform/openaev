@@ -26,15 +26,15 @@ import CommunicationForm from './CommunicationForm';
 
 const useStyles = makeStyles()(theme => ({
   container: {
-    margin: '0 0 50px 0',
-    padding: '0 200px 0 0',
+    margin: theme.spacing(0, 0, 6.25, 0),
+    padding: theme.spacing(0, 25, 0, 0),
   },
   section: { marginTop: 0 },
   mailsSection: { marginTop: theme.spacing(5) },
   replyAction: { marginBottom: theme.spacing(2.5) },
   paper: {
     position: 'relative',
-    padding: '20px 20px 0 20px',
+    padding: theme.spacing(2.5, 2.5, 0, 2.5),
     overflow: 'hidden',
     height: '100%',
   },
