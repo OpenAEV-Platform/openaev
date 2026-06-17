@@ -2,13 +2,14 @@ package io.openaev.processor.datapack;
 
 import io.openaev.database.model.Tenant;
 import io.openaev.processor.MigrationProcessingResult;
+import io.openaev.processor.Processable;
 import io.openaev.service.DataPackService;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
-public abstract class DataPack {
+public abstract class DataPack implements Processable {
   private final DataPackService dataPackService;
 
   protected DataPack(DataPackService dataPackService) {
@@ -17,8 +18,9 @@ public abstract class DataPack {
 
   protected abstract boolean doProcess();
 
-  @Getter private final String packId = this.getClass().getCanonicalName();
+  @Getter private final String packId = getProcessableId();
 
+  @Override
   @Transactional(rollbackFor = Exception.class)
   public MigrationProcessingResult process(Tenant tenant) {
     return dataPackService

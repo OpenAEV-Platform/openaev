@@ -1,7 +1,6 @@
-package io.openaev.datapack.packs;
+package io.openaev.processor.datapack;
 
 import io.openaev.context.TenantContext;
-import io.openaev.datapack.DataPack;
 import io.openaev.service.DataPackService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import lombok.extern.slf4j.Slf4j;

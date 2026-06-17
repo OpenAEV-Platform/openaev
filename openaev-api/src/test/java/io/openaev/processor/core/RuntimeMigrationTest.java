@@ -32,7 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Java migrations")
-class JavaMigrationTest {
+class RuntimeMigrationTest {
 
   // ── V20260420_Migrate_rabbitmq_queues ──────────────────────────────────────
 
@@ -400,19 +400,19 @@ class JavaMigrationTest {
 
   @Nested
   @DisplayName("JavaMigration — base process() logic")
-  class JavaMigrationBase {
+  class RuntimeMigrationBase {
 
     @Mock private DataPackService dataPackService;
 
     private boolean doMigrateResult;
-    private JavaMigration migration;
+    private RuntimeMigration migration;
     private Tenant tenant;
 
     @BeforeEach
     void setUp() {
       doMigrateResult = true;
       migration =
-          new JavaMigration(dataPackService) {
+          new RuntimeMigration(dataPackService) {
             @Override
             protected boolean doMigrate() {
               return doMigrateResult;

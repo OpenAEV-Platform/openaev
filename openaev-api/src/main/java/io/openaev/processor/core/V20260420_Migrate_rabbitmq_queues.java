@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Slf4j
-public class V20260420_Migrate_rabbitmq_queues extends JavaMigration {
+public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
 
   private static final String LEGACY_PREFIX = "openbas";
 

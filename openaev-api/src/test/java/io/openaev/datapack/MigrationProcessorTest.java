@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-public class DataPackProcessorTest extends IntegrationTest {
+public class MigrationProcessorTest extends IntegrationTest {
   @Autowired private DataPackService dataPackService;
   @Autowired private TestDataPack testDataPack;
   @Autowired private TagRepository tagRepository;

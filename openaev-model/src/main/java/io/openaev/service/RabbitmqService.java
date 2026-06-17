@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -23,8 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -70,6 +69,7 @@ public class RabbitmqService {
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
+  private final HttpClient httpClient = HttpClient.newHttpClient();
 
   // -- CONFIGURATION --
 
@@ -423,7 +423,7 @@ public class RabbitmqService {
 
   // -- MANAGEMENT API --
 
-  private static final Pattern NAME_PATTERN = Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"");
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   /**
    * Lists all queue names from the RabbitMQ management API that start with the given prefix.
@@ -476,12 +476,12 @@ public class RabbitmqService {
           HttpRequest.newBuilder().uri(uri).header("Authorization", authHeader).GET().build();
 
       HttpResponse<String> response =
-          HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
       if (response.statusCode() == 200) {
-        Matcher matcher = NAME_PATTERN.matcher(response.body());
-        while (matcher.find()) {
-          String name = matcher.group(1);
+        JsonNode root = MAPPER.readTree(response.body());
+        for (JsonNode node : root) {
+          String name = node.path("name").asText("");
           if (name.startsWith(prefix)) {
             result.add(name);
           }
