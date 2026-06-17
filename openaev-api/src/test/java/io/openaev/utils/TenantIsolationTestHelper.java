@@ -86,19 +86,28 @@ public class TenantIsolationTestHelper {
     Tenant tenant = createTenantWithCurrentUser(name);
     User user = testUserHolder.get();
 
-    // Create a role with the requested capabilities using fixture + composer
-    TenantRoleComposer.Composer roleComposer =
-        tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities));
+    // The role and group composers resolve the tenant via TenantContext.getCurrentTenant().
+    // TenantService.create() no longer switches the context automatically, so we do it here
+    // to ensure the role and group are scoped to the newly created tenant.
+    String previousTenantId = TenantContext.getCurrentTenant();
+    TenantContext.setCurrentTenant(tenant.getId());
+    try {
+      // Create a role with the requested capabilities using fixture + composer
+      TenantRoleComposer.Composer roleComposer =
+          tenantRoleComposer.forRole(TenantRoleFixture.getRole(capabilities));
 
-    // Create a group in the new tenant, assign the role and the user using fixture + composer
-    var group = TenantGroupFixture.getGroup();
-    group.setUsers(List.of(user));
-    tenantGroupComposer.forGroup(group).withRole(roleComposer).persist();
+      // Create a group in the new tenant, assign the role and the user using fixture + composer
+      var group = TenantGroupFixture.getGroup();
+      group.setUsers(List.of(user));
+      tenantGroupComposer.forGroup(group).withRole(roleComposer).persist();
 
-    // Flush to DB and clear persistence context so that subsequent user loads
-    // (e.g., userService.currentUser()) see the new group/role/capabilities
-    entityManager.flush();
-    entityManager.clear();
+      // Flush to DB and clear persistence context so that subsequent user loads
+      // (e.g., userService.currentUser()) see the new group/role/capabilities
+      entityManager.flush();
+      entityManager.clear();
+    } finally {
+      TenantContext.setCurrentTenant(previousTenantId);
+    }
 
     return tenant;
   }
