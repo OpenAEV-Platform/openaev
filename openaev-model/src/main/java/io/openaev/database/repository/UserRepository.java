@@ -27,7 +27,10 @@ public interface UserRepository
 
   Optional<User> findByEmailIgnoreCase(String email);
 
-  List<User> findAllByEmailInIgnoreCase(List<String> emails);
+  @Query(
+      "SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE LOWER(u.email) IN :emails AND t.id = :tenantId")
+  List<User> findAllByEmailInIgnoreCaseAndTenantId(
+      @Param("emails") List<String> emails, @Param("tenantId") String tenantId);
 
   @Override
   @Query(
