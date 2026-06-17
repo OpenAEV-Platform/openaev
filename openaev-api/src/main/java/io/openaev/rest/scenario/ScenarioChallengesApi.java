@@ -14,6 +14,7 @@ import io.openaev.rest.challenge.response.ScenarioChallengesReader;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChallengeService;
 import java.util.List;
 import java.util.Optional;
@@ -43,7 +44,8 @@ public class ScenarioChallengesApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
+      @PathVariable String scenarioId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);

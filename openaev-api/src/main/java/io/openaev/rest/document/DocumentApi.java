@@ -23,6 +23,7 @@ import io.openaev.rest.document.form.DocumentUpdateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -547,7 +548,8 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
+      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
@@ -588,7 +590,7 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String documentId,
       @RequestParam Optional<String> userId,
       HttpServletResponse response)
-      throws IOException {
+      throws IOException, AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());

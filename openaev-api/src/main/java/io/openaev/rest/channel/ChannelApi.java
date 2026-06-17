@@ -18,6 +18,7 @@ import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -169,7 +170,8 @@ public class ChannelApi extends RestBehavior {
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,
-      @RequestParam Optional<String> userId) {
+      @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
     if (user.getId().equals(ANONYMOUS)) {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");

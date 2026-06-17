@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChallengeService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -80,7 +81,7 @@ public class SimulationChallengeApi extends RestBehavior {
       @PathVariable String challengeId,
       @Valid @RequestBody ChallengeTryInput input,
       @RequestParam Optional<String> userId)
-      throws InputValidationException {
+      throws InputValidationException, AuthenticationError {
     validateUUID(exerciseId);
     validateUUID(challengeId);
 
@@ -95,16 +96,14 @@ public class SimulationChallengeApi extends RestBehavior {
     "/api/player/simulations/{simulationId}/documents",
     TENANT_PREFIX + "/player/simulations/{simulationId}/documents"
   })
-  @UrlAccessControl(userId = "#userId")
+  @UrlAccessControl(exerciseId = "#simulationId", userId = "#userId")
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
-      @PathVariable String simulationId, @RequestParam Optional<String> userId) {
+      @PathVariable String simulationId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
     if (exerciseOpt.isPresent()) {
       if (!exerciseOpt.get().isUserHasAccess(user)
           && !exerciseOpt.get().getUsers().contains(user)) {
@@ -146,11 +145,9 @@ public class SimulationChallengeApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#simulationId", userId = "#userId")
   public SimulationChallengesReader playerChallenges(
-      @PathVariable String simulationId, @RequestParam Optional<String> userId) {
+      @PathVariable String simulationId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
     return challengeService.playerChallenges(simulationId, user);
   }
 }
