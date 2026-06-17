@@ -10,8 +10,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.expectation.ExpectationType;
@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
  * content, raw database queries, and entity objects. Handles the complex logic of building
  * expectation result aggregations by type.
  *
- * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.database.model.BaseInjectExpectation
  * @see io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType
  */
 @Slf4j
@@ -63,7 +63,8 @@ public class InjectExpectationMapper {
   public <T> List<ExpectationResultsByType> extractExpectationResults(
       ObjectNode injectContent,
       List<T> expectations,
-      BiFunction<List<InjectExpectation.EXPECTATION_TYPE>, List<T>, List<Double>> scoreExtractor) {
+      BiFunction<List<BaseInjectExpectation.EXPECTATION_TYPE>, List<T>, List<Double>>
+          scoreExtractor) {
     List<ExpectationResultsByType> expectationResultByTypes =
         getExpectationResultByTypes(expectations, scoreExtractor);
 
@@ -108,7 +109,8 @@ public class InjectExpectationMapper {
   }
 
   /**
-   * Build InjectExpectationResultsByAttackPattern from InjectExpectation related to attackPatterns
+   * Build InjectExpectationResultsByAttackPattern from BaseInjectExpectation related to
+   * attackPatterns
    *
    * @param attackPattern
    * @param injects
@@ -124,8 +126,9 @@ public class InjectExpectationMapper {
                     inject -> {
                       // Use primary expectations, fall back to all expectations when primary is
                       // empty (e.g. only agent-level expectations exist) to compute real scores
-                      List<InjectExpectation> primary = injectUtils.getPrimaryExpectations(inject);
-                      List<InjectExpectation> expectations =
+                      List<BaseInjectExpectation> primary =
+                          injectUtils.getPrimaryExpectations(inject);
+                      List<BaseInjectExpectation> expectations =
                           primary.isEmpty() ? new ArrayList<>(inject.getExpectations()) : primary;
 
                       InjectExpectationResultsByAttackPattern.InjectExpectationResultsByType
@@ -172,7 +175,7 @@ public class InjectExpectationMapper {
    * @return List of ExpectationResultsByType
    */
   public List<ExpectationResultsByType> extractExpectationResultByTypes(
-      Set<String> injectIds, List<InjectExpectation> expectations) {
+      Set<String> injectIds, List<BaseInjectExpectation> expectations) {
 
     if (expectations != null && !expectations.isEmpty()) {
       return getExpectationResultByTypes(expectations, InjectExpectationResultUtils::getScores);

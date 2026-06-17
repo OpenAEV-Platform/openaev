@@ -4,7 +4,7 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 
 @Entity
-@DiscriminatorValue("PREVENTION")
+@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.PREVENTION)
 public class PreventionInjectExpectation extends TechnicalInjectExpectation {
 
   public PreventionInjectExpectation() {

@@ -1,6 +1,6 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,7 +17,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InjectExpectationRepository
-    extends CrudRepository<InjectExpectation, String>, JpaSpecificationExecutor<InjectExpectation> {
+    extends CrudRepository<BaseInjectExpectation, String>,
+        JpaSpecificationExecutor<BaseInjectExpectation> {
 
   // JSON predicates over inject_expectation_results: a result "fills" the expectation when its
   // result text is non-empty. Keys are the Java property names serialized by JsonType (camelCase).
@@ -29,7 +30,7 @@ public interface InjectExpectationRepository
           + "WHERE COALESCE(r->>'result', '') <> '') ";
 
   @NotNull
-  Optional<InjectExpectation> findById(@NotNull String id);
+  Optional<BaseInjectExpectation> findById(@NotNull String id);
 
   // -- COLLECTOR-POLLED "NOT FILLED" QUERIES --
   // These used to load the entire expectation table for a type and filter in Java; the
@@ -153,17 +154,17 @@ public interface InjectExpectationRepository
       @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
-  List<InjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);
+  List<BaseInjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);
 
   @Query(value = "select i from InjectExpectation i where i.inject.id = :injectId")
-  List<InjectExpectation> findAllByInjectId(@Param("injectId") @NotBlank final String injectId);
+  List<BaseInjectExpectation> findAllByInjectId(@Param("injectId") @NotBlank final String injectId);
 
   @Query(
       value =
           "SELECT i.* FROM injects_expectations i "
               + "WHERE i.exercise_id = :exerciseId AND i.inject_id = :injectId",
       nativeQuery = true)
-  List<InjectExpectation> findAllForExerciseAndInject(
+  List<BaseInjectExpectation> findAllForExerciseAndInject(
       @Param("exerciseId") @NotBlank final String exerciseId,
       @Param("injectId") @NotBlank final String injectId);
 
@@ -171,14 +172,14 @@ public interface InjectExpectationRepository
       value =
           "select i from InjectExpectation i where i.exercise.id = :exerciseId "
               + "and i.type = 'CHALLENGE' and i.user.id = :userId ")
-  List<InjectExpectation> findChallengeExpectationsByExerciseAndUser(
+  List<BaseInjectExpectation> findChallengeExpectationsByExerciseAndUser(
       @Param("exerciseId") String exerciseId, @Param("userId") String userId);
 
   @Query(
       value =
           "select i from InjectExpectation i where i.user.id = :userId and i.exercise.id = :exerciseId "
               + "and i.challenge.id = :challengeId and i.type = 'CHALLENGE' ")
-  List<InjectExpectation> findByUserAndExerciseAndChallenge(
+  List<BaseInjectExpectation> findByUserAndExerciseAndChallenge(
       @Param("userId") String userId,
       @Param("exerciseId") String exerciseId,
       @Param("challengeId") String challengeId);
@@ -187,7 +188,7 @@ public interface InjectExpectationRepository
       value =
           "select i from InjectExpectation i where i.inject.id in (:injectIds) "
               + "and i.article.id in (:articlesIds) and i.team.id in (:teamIds) and i.type = 'ARTICLE'")
-  List<InjectExpectation> findChannelExpectations(
+  List<BaseInjectExpectation> findChannelExpectations(
       @Param("injectIds") List<String> injectIds,
       @Param("teamIds") List<String> teamIds,
       @Param("articlesIds") List<String> articlesIds);
@@ -200,7 +201,7 @@ public interface InjectExpectationRepository
               + "where i.inject.id = :injectId "
               + "and i.user.id = :playerId "
               + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllByInjectAndPlayer(
+  List<BaseInjectExpectation> findAllByInjectAndPlayer(
       @Param("injectId") @NotBlank final String injectId,
       @Param("playerId") @NotBlank final String playerId);
 
@@ -208,7 +209,7 @@ public interface InjectExpectationRepository
   @Query(
       value =
           "select i from InjectExpectation i where i.inject.id = :injectId and i.team.id = :teamId and i.user is null")
-  List<InjectExpectation> findAllByInjectAndTeam(
+  List<BaseInjectExpectation> findAllByInjectAndTeam(
       @Param("injectId") @NotBlank final String injectId,
       @Param("teamId") @NotBlank final String teamId);
 
@@ -220,7 +221,7 @@ public interface InjectExpectationRepository
               + "WHERE i.inject.id = :injectId "
               + "AND i.agent.id = :agentId "
               + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllByInjectAndAgent(
+  List<BaseInjectExpectation> findAllByInjectAndAgent(
       @Param("injectId") @NotBlank String injectId, @Param("agentId") @NotBlank String agentId);
 
   @Query(
@@ -230,7 +231,7 @@ public interface InjectExpectationRepository
               + "AND i.asset.id = :assetId "
               + "AND i.agent IS NULL "
               + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllByInjectAndAsset(
+  List<BaseInjectExpectation> findAllByInjectAndAsset(
       @Param("injectId") @NotBlank String injectId, @Param("assetId") @NotBlank String assetId);
 
   @Query(
@@ -241,10 +242,10 @@ public interface InjectExpectationRepository
               + "AND i.type = :expectationType "
               + "AND i.agent IS NOT NULL "
               + "ORDER BY i.type, i.createdAt")
-  List<InjectExpectation> findAllWithAgentsByInjectAndAsset(
+  List<BaseInjectExpectation> findAllWithAgentsByInjectAndAsset(
       @Param("injectId") @NotBlank String injectId,
       @Param("assetId") @NotBlank String assetId,
-      @Param("expectationType") @NotBlank InjectExpectation.EXPECTATION_TYPE expectationType);
+      @Param("expectationType") @NotBlank BaseInjectExpectation.EXPECTATION_TYPE expectationType);
 
   @Query(
       value =
@@ -253,7 +254,7 @@ public interface InjectExpectationRepository
               + "AND i.assetGroup.id = :assetGroupId "
               + "AND i.asset IS NULL "
               + "AND i.agent IS NULL ")
-  List<InjectExpectation> findAllByInjectAndAssetGroup(
+  List<BaseInjectExpectation> findAllByInjectAndAssetGroup(
       @Param("injectId") @NotBlank final String injectId,
       @Param("assetGroupId") @NotBlank final String assetGroupId);
 
@@ -309,7 +310,8 @@ public interface InjectExpectationRepository
   @Query(
       value =
           "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
-  List<InjectExpectation> findAllForGlobalScoreByInjects(@Param("injectIds") Set<String> injectIds);
+  List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
+      @Param("injectIds") Set<String> injectIds);
 
   @Modifying
   @Query(

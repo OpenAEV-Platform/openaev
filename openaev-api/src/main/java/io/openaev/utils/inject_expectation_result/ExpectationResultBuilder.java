@@ -6,8 +6,8 @@ import static io.openaev.service.InjectExpectationService.COLLECTOR;
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -70,7 +70,7 @@ public final class ExpectationResultBuilder {
    */
   public static Double computeScore(
       @NotNull final List<InjectExpectationResult> results,
-      @NotNull final InjectExpectation expectation) {
+      @NotNull final BaseInjectExpectation expectation) {
     final Double expectedScore = expectation.getExpectedScore();
     if (expectedScore == null) {
       return null;
@@ -117,16 +117,17 @@ public final class ExpectationResultBuilder {
   // -- BUILD --
 
   public static void addResult(
-      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final BaseInjectExpectation BaseInjectExpectation,
       @NotNull final ExpectationUpdateInput input,
       @NotNull final String resultMsg) {
     // Ensure results list is mutable (JSON deserialization may produce an immutable list)
-    if (!(injectExpectation.getResults() instanceof java.util.ArrayList)) {
-      injectExpectation.setResults(new java.util.ArrayList<>(injectExpectation.getResults()));
+    if (!(BaseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
+      BaseInjectExpectation.setResults(
+          new java.util.ArrayList<>(BaseInjectExpectation.getResults()));
     }
 
     InjectExpectationResult existing =
-        findResultBySourceId(injectExpectation.getResults(), input.getSourceId());
+        findResultBySourceId(BaseInjectExpectation.getResults(), input.getSourceId());
     if (existing != null) {
       existing.setResult(resultMsg);
       existing.setScore(input.getScore());
@@ -142,24 +143,25 @@ public final class ExpectationResultBuilder {
               .date(now().toString())
               .score(input.getScore())
               .build();
-      injectExpectation.getResults().add(existing);
+      BaseInjectExpectation.getResults().add(existing);
     }
   }
 
   public static void addResult(
-      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final BaseInjectExpectation BaseInjectExpectation,
       @NotNull final InjectExpectationUpdateInput input,
       @NotNull final Collector collector) {
     final double score =
-        InjectExpectationUtils.computeScore(injectExpectation, input.getIsSuccess());
+        InjectExpectationUtils.computeScore(BaseInjectExpectation, input.getIsSuccess());
 
     // Ensure results list is mutable (JSON deserialization may produce an immutable list)
-    if (!(injectExpectation.getResults() instanceof java.util.ArrayList)) {
-      injectExpectation.setResults(new java.util.ArrayList<>(injectExpectation.getResults()));
+    if (!(BaseInjectExpectation.getResults() instanceof java.util.ArrayList)) {
+      BaseInjectExpectation.setResults(
+          new java.util.ArrayList<>(BaseInjectExpectation.getResults()));
     }
 
     InjectExpectationResult existing =
-        findResultBySourceId(injectExpectation.getResults(), collector.getId());
+        findResultBySourceId(BaseInjectExpectation.getResults(), collector.getId());
 
     if (existing != null) {
       existing.setResult(input.getResult());
@@ -181,12 +183,12 @@ public final class ExpectationResultBuilder {
               .score(score)
               .metadata(input.getMetadata())
               .build();
-      injectExpectation.getResults().add(existing);
+      BaseInjectExpectation.getResults().add(existing);
     }
   }
 
   public static void deleteResult(
-      @NotNull final InjectExpectation expectation, @NotBlank final String sourceId) {
+      @NotNull final BaseInjectExpectation expectation, @NotBlank final String sourceId) {
     expectation.setResults(
         expectation.getResults().stream().filter(r -> !sourceId.equals(r.getSourceId())).toList());
 
@@ -215,8 +217,9 @@ public final class ExpectationResultBuilder {
   }
 
   public static InjectExpectationResult buildForMediaPressure(
-      @NotNull final InjectExpectation injectExpectation) {
-    return buildForMediaPressure(Instant.now().toString(), injectExpectation.getExpectedScore());
+      @NotNull final BaseInjectExpectation BaseInjectExpectation) {
+    return buildForMediaPressure(
+        Instant.now().toString(), BaseInjectExpectation.getExpectedScore());
   }
 
   public static InjectExpectationResult buildDefaultForMediaPressure() {

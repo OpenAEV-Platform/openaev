@@ -3,9 +3,9 @@ package io.openaev.injects.manual;
 import static org.mockito.Mockito.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Injection;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.InjectorContext;
@@ -41,7 +41,7 @@ public class ManualExecutorTest extends IntegrationTest {
     expectation.setExpectationGroup(false);
     expectation.setName("Expectation 1");
     expectation.setDescription("Expectation 1");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
+    expectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
     expectation.setScore(80D);
     expectation.setExpirationTime(Instant.now().toEpochMilli());
     ManualContent manualContent = new ManualContent();

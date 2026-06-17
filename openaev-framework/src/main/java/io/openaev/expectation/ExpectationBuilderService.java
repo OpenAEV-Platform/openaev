@@ -1,8 +1,8 @@
 package io.openaev.expectation;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.model.inject.form.Expectation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

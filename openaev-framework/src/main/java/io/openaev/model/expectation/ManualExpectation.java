@@ -1,6 +1,6 @@
 package io.openaev.model.expectation;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;

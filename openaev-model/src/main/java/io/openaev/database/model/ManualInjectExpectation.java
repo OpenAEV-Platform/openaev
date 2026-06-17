@@ -4,8 +4,8 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 
 @Entity
-@DiscriminatorValue("MANUAL")
-public class ManualInjectExpectation extends TableTopInjectExpectation {
+@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.MANUAL)
+public class ManualInjectExpectation extends TechnicalInjectExpectation {
 
   public ManualInjectExpectation() {
     setType(EXPECTATION_TYPE.MANUAL);

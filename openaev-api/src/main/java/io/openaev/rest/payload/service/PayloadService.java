@@ -232,10 +232,10 @@ public class PayloadService {
         domains);
   }
 
-  private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
+  private ContractExpectations expectations(BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
     List<Expectation> predefined = new ArrayList<>();
     if (expectationTypes != null) {
-      for (InjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
+      for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
           case TEXT ->
               predefined.add(
@@ -323,7 +323,7 @@ public class PayloadService {
    */
   private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
     expectation.setMultiSelectable(
-        InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+        BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
     return expectation;
   }
 
@@ -483,9 +483,9 @@ public class PayloadService {
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     fileDrop.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
     FileDrop saved = payloadRepository.save(fileDrop);
@@ -538,9 +538,9 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
 
     dynamicDnsResolutionPayload.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
     DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);

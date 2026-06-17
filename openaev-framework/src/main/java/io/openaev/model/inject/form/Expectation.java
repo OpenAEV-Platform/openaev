@@ -1,7 +1,7 @@
 package io.openaev.model.inject.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import lombok.Data;
 
 /**
@@ -24,7 +24,7 @@ public class Expectation {
 
   /** The type of expectation to create. */
   @JsonProperty("expectation_type")
-  private InjectExpectation.EXPECTATION_TYPE type;
+  private BaseInjectExpectation.EXPECTATION_TYPE type;
 
   /** Display name for this expectation. */
   @JsonProperty("expectation_name")

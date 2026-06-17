@@ -116,16 +116,16 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     injectExpectationComposer
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
                 .withExpectation(
                     injectExpectationComposer
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
       }
@@ -147,8 +147,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     injectExpectationComposer
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                InjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
-                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+                                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
       }
