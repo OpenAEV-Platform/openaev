@@ -42,6 +42,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -87,6 +88,9 @@ public class EndpointService {
   @Resource private OpenAEVConfig openAEVConfig;
 
   private final EndpointMapper endpointMapper;
+
+  /** Cache of raw install/upgrade script templates keyed by platform/script name. */
+  private final Map<String, String> agentScriptTemplateCache = new ConcurrentHashMap<>();
 
   private final ServiceAccountPrivilegeService privilegeService;
 
@@ -701,15 +705,51 @@ public class EndpointService {
       String serviceNameOrPrefix,
       String tenantId)
       throws IOException {
-    String extension =
-        switch (platform.toLowerCase()) {
-          case "windows" -> "ps1";
-          case "linux", "macos" -> "sh";
-          default -> throw new UnsupportedOperationException("");
+    // Validate the platform and map it to a fixed directory plus script extension. Mapping to
+    // literal values (rather than reusing the raw platform string) keeps user-controlled data out
+    // of the resource path resolved in loadAgentScriptTemplate (avoids java/path-injection).
+    String platformDir =
+        switch (platform.toLowerCase(Locale.ROOT)) {
+          case "windows" -> "windows";
+          case "linux" -> "linux";
+          case "macos" -> "macos";
+          default ->
+              throw new UnsupportedOperationException("Unsupported agent platform: " + platform);
         };
+    String extension = "windows".equals(platformDir) ? "ps1" : "sh";
+
+    // Cache the raw script template per platform/script: the content only depends on static
+    // configuration (origin + version), and this method is called from the agent-registration
+    // transaction - without the cache every registration could trigger an HTTP download from
+    // JFrog while holding the DB transaction open
+    String cacheKey = platformDir + "/" + file;
+    String template = agentScriptTemplateCache.get(cacheKey);
+    if (template == null) {
+      template = loadAgentScriptTemplate(platformDir, file, extension);
+      agentScriptTemplateCache.put(cacheKey, template);
+    }
+
+    if (installationDir == null) {
+      installationDir = "";
+    }
+
+    return template
+        .replace("${OPENAEV_URL}", openAEVConfig.getBaseUrlForAgent())
+        .replace("${OPENAEV_TOKEN}", adminToken)
+        .replace(
+            "${OPENAEV_UNSECURED_CERTIFICATE}",
+            String.valueOf(openAEVConfig.isUnsecuredCertificate()))
+        .replace("${OPENAEV_WITH_PROXY}", String.valueOf(openAEVConfig.isWithProxy()))
+        .replace("${OPENAEV_SERVICE_NAME}", serviceNameOrPrefix)
+        .replace("${OPENAEV_INSTALL_DIR}", installationDir)
+        .replace("${OPENAEV_TENANT_ID}", tenantId);
+  }
+
+  private String loadAgentScriptTemplate(String platformDir, String file, String extension)
+      throws IOException {
     InputStream in = null;
     String filename;
-    String resourcePath = "/openaev-agent/" + platform.toLowerCase() + "/";
+    String resourcePath = "/openaev-agent/" + platformDir + "/";
 
     if (agentBinaryOrigin.equals("local")) { // if we want the local binaries
       filename = file + "-" + version + "." + extension;
@@ -723,21 +763,9 @@ public class EndpointService {
       throw new UnsupportedOperationException(
           "Agent installer version " + agentBinaryVersion + " not found");
     }
-
-    if (installationDir == null) {
-      installationDir = "";
+    try (InputStream stream = in) {
+      return IOUtils.toString(stream, StandardCharsets.UTF_8);
     }
-
-    return IOUtils.toString(in, StandardCharsets.UTF_8)
-        .replace("${OPENAEV_URL}", openAEVConfig.getBaseUrlForAgent())
-        .replace("${OPENAEV_TOKEN}", adminToken)
-        .replace(
-            "${OPENAEV_UNSECURED_CERTIFICATE}",
-            String.valueOf(openAEVConfig.isUnsecuredCertificate()))
-        .replace("${OPENAEV_WITH_PROXY}", String.valueOf(openAEVConfig.isWithProxy()))
-        .replace("${OPENAEV_SERVICE_NAME}", serviceNameOrPrefix)
-        .replace("${OPENAEV_INSTALL_DIR}", installationDir)
-        .replace("${OPENAEV_TENANT_ID}", tenantId);
   }
 
   public String generateServiceNameOrPrefix(

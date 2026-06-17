@@ -19,8 +19,98 @@ import org.springframework.stereotype.Repository;
 public interface InjectExpectationRepository
     extends CrudRepository<InjectExpectation, String>, JpaSpecificationExecutor<InjectExpectation> {
 
+  // JSON predicates over inject_expectation_results: a result "fills" the expectation when its
+  // result text is non-empty. Keys are the Java property names serialized by JsonType (camelCase).
+  String RESULTS_HAS_NO_RESULT_FOR_SOURCE =
+      "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(e.inject_expectation_results::jsonb) r "
+          + "WHERE r->>'sourceId' = :sourceId AND COALESCE(r->>'result', '') <> '') ";
+  String RESULTS_HAS_NO_RESULT_AT_ALL =
+      "NOT EXISTS (SELECT 1 FROM jsonb_array_elements(e.inject_expectation_results::jsonb) r "
+          + "WHERE COALESCE(r->>'result', '') <> '') ";
+
   @NotNull
   Optional<InjectExpectation> findById(@NotNull String id);
+
+  // -- COLLECTOR-POLLED "NOT FILLED" QUERIES --
+  // These used to load the entire expectation table for a type and filter in Java; the
+  // source/result filtering is now pushed into SQL and the result set is bounded.
+
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND e.agent_id IS NOT NULL "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findAgentExpectationsNotFilledForSource(
+      @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
+
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND e.agent_id IS NOT NULL "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_AT_ALL
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findAgentExpectationsNotFilled(
+      @Param("type") String type, @Param("limit") int limit);
+
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND e.agent_id IS NOT NULL AND e.asset_id IS NOT NULL "
+              + "AND e.inject_expectation_created_at >= :createdAfter "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findAgentExpectationsNotFilledForSourceCreatedAfter(
+      @Param("type") String type,
+      @Param("sourceId") String sourceId,
+      @Param("createdAfter") Instant createdAfter,
+      @Param("limit") int limit);
+
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND e.agent_id IS NOT NULL AND e.asset_id IS NOT NULL "
+              + "AND e.inject_expectation_created_at >= :createdAfter "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_AT_ALL
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findAgentExpectationsNotFilledCreatedAfter(
+      @Param("type") String type,
+      @Param("createdAfter") Instant createdAfter,
+      @Param("limit") int limit);
+
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findExpectationsNotFilledForSource(
+      @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
+
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_AT_ALL
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findExpectationsNotFilled(
+      @Param("type") String type, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
   List<InjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);

@@ -21,6 +21,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -190,6 +192,7 @@ public class User implements Base {
       name = "users_groups",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "group_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonIgnore
   @Getter(NONE)
   private List<Group> groups = new ArrayList<>();

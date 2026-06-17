@@ -1,8 +1,8 @@
 import { Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import Chart from 'react-apexcharts';
 
+import Chart from '../../../../components/Chart';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { areaChartOptions } from '../../../../utils/Charts';

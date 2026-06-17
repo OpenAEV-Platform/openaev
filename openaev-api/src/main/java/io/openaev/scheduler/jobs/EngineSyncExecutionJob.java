@@ -13,7 +13,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -24,8 +23,11 @@ public class EngineSyncExecutionJob implements Job {
   private final EngineService engineService;
   private final EngineContext engineContext;
 
+  // Deliberately NOT @Transactional: bulkProcessing wraps ES/OpenSearch network bulk calls, and
+  // its repository reads/writes manage their own short transactions. A job-level transaction only
+  // held a DB connection open for the duration of the indexing (and never covered the parallel
+  // worker threads anyway).
   @Override
-  @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     List<EsModel<EsBase>> models = engineContext.getModels();
