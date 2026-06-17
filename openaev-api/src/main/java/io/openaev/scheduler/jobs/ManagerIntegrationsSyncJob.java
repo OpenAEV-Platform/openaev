@@ -39,17 +39,20 @@ public class ManagerIntegrationsSyncJob implements Job {
           TenantContext.clearCurrentTenant();
           long tenantDuration = System.currentTimeMillis() - tenantStart;
           if (tenantDuration > EXECUTION_TIME_THRESHOLD) {
-            log.warn(
-                "==> managerFactory.getManager(tenantId).monitorIntegrations() for tenant '{}' took {} ms (>500ms threshold)",
-                tenantId,
-                tenantDuration);
+            // TODO to clean
+            log.error(
+                "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! managerFactory.getManager(tenantId).monitorIntegrations() for tenant "
+                    + tenantId
+                    + " took ms (>500ms threshold)"
+                    + tenantDuration);
           }
         }
       }
       long jobDuration = System.currentTimeMillis() - jobStart;
       if (jobDuration > EXECUTION_TIME_THRESHOLD) {
-        log.warn(
-            "==> ManagerIntegrationsSyncJob.execute took {} ms (>500ms threshold)", jobDuration);
+        log.error(
+            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ManagerIntegrationsSyncJob.execute took ms (>500ms threshold)"
+                + jobDuration);
       }
     } catch (Exception e) {
       throw new JobExecutionException(e);

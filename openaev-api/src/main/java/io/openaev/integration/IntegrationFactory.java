@@ -42,6 +42,7 @@ public abstract class IntegrationFactory {
       try {
         Integration integration = this.spawn(connectorInstance);
         integration.initialise();
+        log.error("???????????????????????????? Initialise " + integration);
         list.add(integration);
       } catch (Exception e) {
         log.error(
