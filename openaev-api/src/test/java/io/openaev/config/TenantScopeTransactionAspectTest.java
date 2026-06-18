@@ -18,11 +18,22 @@ class TenantScopeTransactionAspectTest {
 
   private static final String SET_CONFIG_SQL =
       "SELECT set_config('app.current_tenants', :scope, true)";
+  private static final String CURRENT_SETTING_SQL =
+      "SELECT coalesce(current_setting('app.current_tenants', true), '')";
 
   private static JoinPoint joinPointWith(Object... args) {
     JoinPoint joinPoint = mock(JoinPoint.class);
     when(joinPoint.getArgs()).thenReturn(args);
     return joinPoint;
+  }
+
+  // Before setting a scope the aspect reads the current one (nesting guard); with none set yet it
+  // reads back empty and proceeds. The guard's own behaviour is covered against a real database in
+  // TenantScopeTransactionAspectIntegrationTest.
+  private static void stubEmptyCurrentScope(EntityManager entityManager) {
+    Query currentScope = mock(Query.class);
+    when(entityManager.createNativeQuery(CURRENT_SETTING_SQL)).thenReturn(currentScope);
+    when(currentScope.getSingleResult()).thenReturn("");
   }
 
   // --- no scope: the connection must never be touched ----------------------
@@ -59,6 +70,7 @@ class TenantScopeTransactionAspectTest {
   @DisplayName("a TxCtx argument: set_config is issued with the scope bound as a parameter")
   void txCtxArgumentIssuesSetConfig() {
     EntityManager entityManager = mock(EntityManager.class);
+    stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(query);
     when(query.setParameter("scope", "t1")).thenReturn(query);
@@ -75,6 +87,7 @@ class TenantScopeTransactionAspectTest {
   @DisplayName("a missing TxCtx: set_config is issued with an empty scope (fail-closed)")
   void missingTxCtxIssuesEmptyScope() {
     EntityManager entityManager = mock(EntityManager.class);
+    stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(query);
     when(query.setParameter("scope", "")).thenReturn(query);
@@ -88,6 +101,7 @@ class TenantScopeTransactionAspectTest {
   @DisplayName("several TxCtx arguments: the first one wins")
   void firstTxCtxWins() {
     EntityManager entityManager = mock(EntityManager.class);
+    stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
     when(entityManager.createNativeQuery(SET_CONFIG_SQL)).thenReturn(query);
     when(query.setParameter("scope", "a")).thenReturn(query);
