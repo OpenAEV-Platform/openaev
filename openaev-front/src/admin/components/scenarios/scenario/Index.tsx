@@ -26,7 +26,7 @@ import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExp
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import { MOCK_CHAINING_SCENARIO_IDS, MOCK_SCENARIO_LIST } from '../../simulations/simulation/attack_path/mockAttackPathData';
+import { IS_ATTACK_PATH_POC, MOCK_CHAINING_SCENARIO_IDS, MOCK_SCENARIO_LIST } from '../../simulations/simulation/attack_path/mockAttackPathData';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
 import injectContextForScenario from './ScenarioContext';
@@ -52,7 +52,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const location = useLocation();
   const theme = useTheme();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const isAttackPathMockEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
+  const isAttackPathMockEnabled = IS_ATTACK_PATH_POC;
   const permissionsContext: PermissionsContextType = {
     permissions: useScenarioPermissions(scenario.scenario_id),
     inherited_context: INHERITED_CONTEXT.SCENARIO,
