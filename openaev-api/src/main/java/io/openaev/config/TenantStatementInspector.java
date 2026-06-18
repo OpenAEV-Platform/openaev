@@ -290,12 +290,20 @@ public class TenantStatementInspector implements StatementInspector {
             + ")"
             + " AS "
             + ref;
+    Statement dummy;
     try {
-      Statement dummy = CCJSqlParserUtil.parse("SELECT * FROM " + wrapped);
-      return ((PlainSelect) dummy).getFromItem();
+      dummy = CCJSqlParserUtil.parse("SELECT * FROM " + wrapped);
     } catch (Exception e) {
       throw new IllegalStateException("failed to build tenant-filtered subquery", e);
     }
+    // wrapped is always a plain SELECT, but guard the cast: a non-plain result fails with a clear
+    // message instead of a raw ClassCastException (fail-closed by the inspector either way).
+    if (dummy instanceof PlainSelect plain) {
+      return plain.getFromItem();
+    }
+    throw new IllegalStateException(
+        "expected a plain select when building the tenant-filtered subquery, got "
+            + dummy.getClass().getSimpleName());
   }
 
   /**
