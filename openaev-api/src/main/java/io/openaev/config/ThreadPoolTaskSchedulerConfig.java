@@ -39,4 +39,17 @@ public class ThreadPoolTaskSchedulerConfig {
     executor.initialize();
     return executor;
   }
+
+  /** Dedicated executor for manager integrations tenant sync dispatches. */
+  @Bean(name = "managerIntegrationsExecutor")
+  public Executor managerIntegrationsExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(5);
+    executor.setMaxPoolSize(10);
+    executor.setQueueCapacity(200);
+    executor.setThreadNamePrefix("ManagerIntegrations-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    executor.initialize();
+    return executor;
+  }
 }

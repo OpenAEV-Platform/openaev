@@ -108,6 +108,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
 
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
+    long start = System.currentTimeMillis();
     log.error("XXXXXXXXXXXXXXXXXXXXXXXXXX register challenge for tenantId " + tenantId);
     injectorService.registerBuiltinInjector(
         tenantId,
@@ -120,5 +121,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
         null,
         false,
         List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
+    long time = System.currentTimeMillis() - start;
+    log.error("XXXXXXXXXXXXXXXXXXXXXXXXXX register challenge timeout " + time);
   }
 }
