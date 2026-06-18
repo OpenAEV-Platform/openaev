@@ -2,6 +2,9 @@ package io.openaev.aop;
 
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
@@ -30,6 +33,11 @@ import org.springframework.stereotype.Component;
  * begun: a transaction-local setting written before BEGIN would land in a throwaway auto-commit and
  * never reach the method. The integration test pins this down for the propagations the application
  * actually uses (REQUIRED, REQUIRES_NEW, read-only).
+ *
+ * <p>Within one transaction the scope is set once. A nested {@code @Transactional} method that
+ * would <em>change</em> an already-set scope is refused (a programming error), while one that
+ * repeats the same set of tenants is tolerated. A nested method that needs a different scope must
+ * open a {@code REQUIRES_NEW} transaction.
  */
 @Aspect
 @Component
@@ -48,9 +56,37 @@ public class TenantScopeTransactionAspect {
     if (ctx == null) {
       return;
     }
+    String desired = ctx.toGuc();
+    String current = currentScope();
+    if (!current.isEmpty()) {
+      // A scope is the set of tenants it grants, not its textual order, so compare as sets.
+      if (tenants(current).equals(tenants(desired))) {
+        return;
+      }
+      throw new IllegalStateException(
+          ("Tenant scope '%s' is already set for this transaction; method '%s' tried to change it to"
+                  + " '%s'. A nested @Transactional method must not redefine the scope; pass the same"
+                  + " TxCtx or open a REQUIRES_NEW transaction.")
+              .formatted(current, joinPoint.getSignature().toShortString(), desired));
+    }
+    setScope(desired);
+  }
+
+  private static Set<String> tenants(String guc) {
+    return guc.isEmpty() ? Set.of() : new HashSet<>(Arrays.asList(guc.split(",")));
+  }
+
+  private String currentScope() {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .getSingleResult();
+  }
+
+  private void setScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
-        .setParameter("scope", ctx.toGuc())
+        .setParameter("scope", scope)
         .getSingleResult();
   }
 
