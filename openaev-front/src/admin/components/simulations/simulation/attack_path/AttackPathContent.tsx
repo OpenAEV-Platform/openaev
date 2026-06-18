@@ -30,8 +30,15 @@ import AttackPathStatsComponent from './AttackPathStats';
 import EndpointDetailDialog from './EndpointDetailDialog';
 import ActionResultPanel from './ActionResultPanel';
 import FindingsDrawer, { type DrawerFilter } from './FindingsDrawer';
+import AttackPathGraphV7 from './AttackPathGraphV7';
 
 export const MOCK_VARIANTS: AttackPathVariant[] = [
+  {
+    variant_id: 'variant-7',
+    variant_name: 'Variant 7 – Multi-Agent View',
+    variant_type: 'v7' as AttackPathVariantType,
+    variant_description: 'Flat organic layout with per-endpoint agent badges (Palo Alto, SentinelOne, OpenAEV). Finding items show which agent discovered them. Execution feed shows agent info per run.',
+  },
   {
     variant_id: 'variant-1',
     variant_name: 'Variant 1 – Annotated Path Map',
@@ -159,7 +166,7 @@ const AttackPathContent: FunctionComponent<AttackPathContentProps> = ({
   // Register variants into context on mount, clean up on unmount
   useEffect(() => {
     setVariants(MOCK_VARIANTS);
-    setSelectedVariantId(MOCK_VARIANTS.find((v) => v.variant_type === 'v6')?.variant_id ?? MOCK_VARIANTS[0].variant_id);
+    setSelectedVariantId(MOCK_VARIANTS.find((v) => v.variant_type === 'v7')?.variant_id ?? MOCK_VARIANTS[0].variant_id);
     return () => setVariants([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -350,7 +357,8 @@ const AttackPathContent: FunctionComponent<AttackPathContentProps> = ({
   const selectedEndpointNode = selectedEndpointId
     ? (enrichedNodes.find((n) => n.node_id === selectedEndpointId) ?? null)
     : null;
-  const isV6Variant = activeVariant.variant_type === 'v4u' || activeVariant.variant_type === 'v4u2' || activeVariant.variant_type === 'v4u3' || activeVariant.variant_type === 'v4u4' || activeVariant.variant_type === 'v4u5' || activeVariant.variant_type === 'v6';
+  const isV6Variant = activeVariant.variant_type === 'v4u' || activeVariant.variant_type === 'v4u2' || activeVariant.variant_type === 'v4u3' || activeVariant.variant_type === 'v4u4' || activeVariant.variant_type === 'v4u5' || activeVariant.variant_type === 'v6' || activeVariant.variant_type === 'v7';
+  const isV7 = activeVariant.variant_type === 'v7';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height, overflow: 'hidden' }}>

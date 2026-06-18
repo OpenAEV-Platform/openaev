@@ -43,6 +43,7 @@ export const MOCK_SCENARIO_5EP: AttackPathData = {
       node_subnet: '192.168.10.0/24',
       node_is_entry_point: true,
       node_is_pivot: true,
+      node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's1-ep02',
@@ -58,6 +59,7 @@ export const MOCK_SCENARIO_5EP: AttackPathData = {
       node_zone: 'Finance LAN',
       node_subnet: '192.168.10.0/24',
       node_is_pivot: true,
+      node_agents: ['palo_alto', 'openaev'],
     },
     {
       node_id: 's1-ep03',
@@ -72,6 +74,7 @@ export const MOCK_SCENARIO_5EP: AttackPathData = {
       node_credentials_found: ['Administrator:$krb5tgs$23$*svc_mssql*DOMAIN.LOCAL*...'],
       node_zone: 'Domain',
       node_subnet: '192.168.1.0/24',
+      node_agents: ['openaev'],
     },
     {
       node_id: 's1-ep04',
@@ -84,6 +87,7 @@ export const MOCK_SCENARIO_5EP: AttackPathData = {
       node_zone: 'Finance LAN',
       node_subnet: '192.168.10.0/24',
       node_untouched: true,
+      node_agents: ['sentinel_one'],
     },
     {
       node_id: 's1-ep05',
@@ -95,6 +99,7 @@ export const MOCK_SCENARIO_5EP: AttackPathData = {
       node_status: 'prevented',
       node_zone: 'Finance LAN',
       node_subnet: '192.168.10.0/24',
+      node_agents: ['palo_alto', 'sentinel_one', 'openaev'],
     },
 
     // ── ACTION nodes ──────────────────────────────────────────────────────────
@@ -108,6 +113,7 @@ export const MOCK_SCENARIO_5EP: AttackPathData = {
       node_arguments: '--script=default,version --host-timeout=30s 192.168.10.101',
       node_executed_at: '2025-01-15T08:02:11Z',
       node_ip: '192.168.10.101',
+      node_agent: 'openaev',
       node_expectations: [{ expectation_id: 'e1', expectation_type: 'DETECTION', expectation_status: 'FAILED', expectation_score: 0, expectation_expected_score: 100 }],
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for FINANCE-WS-01 (192.168.10.101)
@@ -130,6 +136,7 @@ Nmap done: 1 IP address (1 host up) scanned in 2.34 seconds`,
       node_payload_name: 'netexec – SMB enum_av',
       node_executed_at: '2025-01-15T08:04:33Z',
       node_ip: '192.168.10.101',
+      node_agent: 'sentinel_one',
       node_terminal_output: `SMB   192.168.10.101  445    FINANCE-WS-01  [*] Windows 10.0 Build 19041 x64 (name:FINANCE-WS-01) (domain:CORP) (signing:True) (SMBv1:False)
 SMB   192.168.10.101  445    FINANCE-WS-01  [+] CORP\\jsmith:Passw0rd! (Pwn3d!)
 SMB   192.168.10.101  445    FINANCE-WS-01  [*] Enumerating AV solutions...
@@ -147,6 +154,7 @@ SMB   192.168.10.101  445    FINANCE-WS-01  [+] Endpoint is unprotected`,
       node_arguments: '-u "jsmith" -p "Passw0rd!" -M gpp_password',
       node_executed_at: '2025-01-15T08:07:45Z',
       node_ip: '192.168.10.101',
+      node_agent: 'openaev',
       node_credentials_found: ['jsmith:Passw0rd!', 'svc_backup:Backup@2024'],
       node_expectations: [{ expectation_id: 'e2', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }],
       node_terminal_output: `[*] Searching for Group Policy Preferences files...
@@ -176,6 +184,7 @@ SMB   192.168.10.101  445    FINANCE-WS-01  [+] Endpoint is unprotected`,
       node_arguments: '-u "svc_backup" -H "aad3b435b51404eeaad3b435b51404ee:<NTLM>" --shares -M spider_plus',
       node_executed_at: '2025-01-15T08:12:01Z',
       node_ip: '192.168.10.10',
+      node_agent: 'palo_alto',
       node_user_privileges: 'DOMAIN\\svc_backup (Service Account)',
       node_accessed_files: ['\\\\FILE-SRV-01\\Finance\\Payroll_2024.xlsx', '\\\\FILE-SRV-01\\HR\\Contracts\\'],
       node_terminal_output: `SMB   192.168.10.10   445    FILE-SRV-01    [*] Windows Server 2019 Build 17763 x64 (name:FILE-SRV-01) (domain:CORP) (signing:True) (SMBv1:False)
@@ -199,6 +208,7 @@ SMB   192.168.10.10   445    FILE-SRV-01    [+] Downloading: \\\\FILE-SRV-01\\HR
       node_payload_name: 'netexec – WMI command exec',
       node_executed_at: '2025-01-15T08:15:22Z',
       node_ip: '192.168.10.10',
+      node_agent: 'openaev',
       node_terminal_output: `WMI   192.168.10.10   135    FILE-SRV-01    [*] Connecting via WMI to 192.168.10.10
 WMI   192.168.10.10   135    FILE-SRV-01    [+] CORP\\svc_backup:Backup@2024 Auth OK
 WMI   192.168.10.10   135    FILE-SRV-01    [*] Executing: cmd.exe /c whoami /all
@@ -227,6 +237,7 @@ WMI   192.168.10.10   135    FILE-SRV-01    [+] Agent deployed successfully — 
       node_payload_name: 'netexec – LDAP Kerberoasting',
       node_executed_at: '2025-01-15T08:19:55Z',
       node_ip: '192.168.1.5',
+      node_agent: 'openaev',
       node_credentials_found: ['$krb5tgs$23$*svc_mssql*DOMAIN.LOCAL*...'],
       node_terminal_output: `LDAP  192.168.1.5     389    DC-01          [*] Querying DC-01 for Kerberoastable accounts
 LDAP  192.168.1.5     389    DC-01          [+] Found 3 kerberoastable accounts
@@ -246,6 +257,7 @@ $krb5tgs$23$*svc_mssql*CORP.LOCAL*svc_mssql/DC-01.corp.local*a34b8f2c19e4...
       node_payload_name: 'netexec – SSH brute force',
       node_executed_at: '2025-01-15T08:22:10Z',
       node_ip: '192.168.10.20',
+      node_agent: 'palo_alto',
       node_expectations: [{ expectation_id: 'e3', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }],
       node_terminal_output: `[*] Starting SSH brute force on 192.168.10.20:22
 [*] Trying admin:admin ... FAILED
@@ -265,6 +277,7 @@ $krb5tgs$23$*svc_mssql*CORP.LOCAL*svc_mssql/DC-01.corp.local*a34b8f2c19e4...
       node_payload_name: 'netexec – SMB spray',
       node_executed_at: '2024-11-15T08:25:00Z',
       node_user_privileges: 'DOMAIN\\svc_backup → DOMAIN\\Administrator',
+      node_agent: 'sentinel_one',
       node_accessed_files: ['C:\\Windows\\NTDS\\ntds.dit'],
       node_credentials_found: ['Administrator:$HASH$ntlm...'],
       node_hostname: 'Multiple endpoints',
@@ -281,6 +294,7 @@ $krb5tgs$23$*svc_mssql*CORP.LOCAL*svc_mssql/DC-01.corp.local*a34b8f2c19e4...
       node_payload_name: 'nmap – TCP SYN Scan (Finance LAN)',
       node_executed_at: '2025-01-15T07:58:00Z',
       node_ip: '192.168.10.0/24',
+      node_agent: 'openaev',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-01-15 07:58 UTC
 Nmap scan report for 192.168.10.10 (FILE-SRV-01)
 Host is up (0.0009s latency).
@@ -313,6 +327,50 @@ PORT    STATE SERVICE
 
 Nmap done: 254 IP addresses (4 hosts up) scanned in 19.7 seconds`,
     },
+    // ── Multi-agent demo: same Nmap scan on FINANCE-WS-01 from SentinelOne agent ──
+    // This consecutive same-payload run demonstrates the multi-agent feed grouping.
+    {
+      node_id: 's1-a01-s1',
+      node_type: 'ACTION',
+      node_label: 'Nmap TCP SYN Scan',
+      node_status: 'undetected',
+      node_payload_name: 'nmap – TCP SYN Scan',
+      node_command: 'nmap -sS -sV -T4 -p 135,139,445,3389,5985',
+      node_arguments: '--script=default,version --host-timeout=30s 192.168.10.101',
+      node_executed_at: '2025-01-15T08:02:35Z',
+      node_ip: '192.168.10.101',
+      node_hostname: 'FINANCE-WS-01',
+      node_agent: 'sentinel_one',
+      node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
+Nmap scan report for FINANCE-WS-01 (192.168.10.101)
+Host is up (0.0011s latency).
+PORT     STATE SERVICE
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+445/tcp  open  microsoft-ds
+3389/tcp open  ms-wbt-server
+5985/tcp open  wsman
+Nmap done: 1 IP address (1 host up) scanned in 1.98 seconds`,
+    },
+    // ── Multi-agent demo: same SMB pass-the-hash on FILE-SRV-01 from OpenAEV agent ──
+    {
+      node_id: 's1-a04-oa',
+      node_type: 'ACTION',
+      node_label: 'SMB Pass-the-Hash Lateral',
+      node_status: 'undetected',
+      node_payload_name: 'netexec – SMB pass-the-hash',
+      node_command: 'netexec smb 192.168.10.10',
+      node_arguments: '-u "svc_backup" -H "aad3b435b51404eeaad3b435b51404ee:<NTLM>" --shares -M spider_plus',
+      node_executed_at: '2025-01-15T08:12:30Z',
+      node_ip: '192.168.10.10',
+      node_hostname: 'FILE-SRV-01',
+      node_agent: 'openaev',
+      node_user_privileges: 'DOMAIN\\svc_backup (Service Account)',
+      node_terminal_output: `SMB   192.168.10.10   445    FILE-SRV-01    [*] Windows Server 2019 (name:FILE-SRV-01) (domain:CORP)
+SMB   192.168.10.10   445    FILE-SRV-01    [+] CORP\\svc_backup:<NTLM_HASH> (Pwn3d!)
+SMB   192.168.10.10   445    FILE-SRV-01    [*] Enumerating shares...
+SMB   192.168.10.10   445    FILE-SRV-01    [+] Finance READ,WRITE`,
+    },
   ],
 
   attack_path_edges: [
@@ -341,6 +399,11 @@ Nmap done: 254 IP addresses (4 hosts up) scanned in 19.7 seconds`,
     { edge_id: 's1-nmap-bulk-ep03', edge_source: 's1-a-nmap-bulk', edge_target: 's1-ep03', edge_type: 'asset_link' },
     { edge_id: 's1-nmap-bulk-ep04', edge_source: 's1-a-nmap-bulk', edge_target: 's1-ep04', edge_type: 'asset_link' },
     { edge_id: 's1-nmap-bulk-ep05', edge_source: 's1-a-nmap-bulk', edge_target: 's1-ep05', edge_type: 'asset_link' },
+    // Multi-agent demo edges
+    { edge_id: 's1-a01s1-chain', edge_source: 's1-a01', edge_target: 's1-a01-s1', edge_type: 'chain_flow' },
+    { edge_id: 's1-a01s1-ep01', edge_source: 's1-a01-s1', edge_target: 's1-ep01', edge_type: 'asset_link' },
+    { edge_id: 's1-a04oa-chain', edge_source: 's1-a04', edge_target: 's1-a04-oa', edge_type: 'chain_flow' },
+    { edge_id: 's1-a04oa-ep02', edge_source: 's1-a04-oa', edge_target: 's1-ep02', edge_type: 'asset_link' },
   ],
 
   attack_path_stats: {

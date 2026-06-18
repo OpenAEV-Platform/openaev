@@ -2,6 +2,7 @@ import {
   AccountTreeOutlined,
   BugReportOutlined,
   Close as CloseIcon,
+  ContentCopy as CopyIcon,
   DevicesOutlined,
   FolderOpenOutlined,
   GroupOutlined,
@@ -10,17 +11,20 @@ import {
   PersonOutlined,
   ScheduleOutlined,
   ShieldOutlined,
+  SmartToyOutlined,
   WarningAmberOutlined,
 } from '@mui/icons-material';
-import { Box, Chip, Divider, Drawer, IconButton, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Chip, Divider, Drawer, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import React, { type FunctionComponent, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import {
   type AttackPathExpectation,
   type AttackPathNode,
+  AGENT_META,
   getNodeStatus,
   STATUS_COLORS,
+  statusDisplayLabel,
 } from './attackPathUtils';
 
 interface ActionResultPanelProps {
@@ -462,14 +466,42 @@ const BOX_STYLE: React.CSSProperties = {
 const TerminalTab: FunctionComponent<{ node: AttackPathNode }> = ({ node }) => {
   const command = synthesizeCommand(node);
   const args    = synthesizeArguments(node);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(command).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
 
   return (
     <div style={{ padding: '12px 16px 16px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Command box */}
       <div style={BOX_STYLE}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-          Command
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 1 }}>
+            Command
+          </div>
+          <Tooltip title={copied ? 'Copied!' : 'Copy command'} placement="top">
+            <IconButton
+              size="small"
+              onClick={handleCopy}
+              sx={{
+                padding: '2px 6px',
+                borderRadius: 1,
+                color: copied ? '#39d353' : 'rgba(255,255,255,0.4)',
+                '&:hover': { color: '#fff', backgroundColor: 'rgba(255,255,255,0.08)' },
+                transition: 'color 0.2s',
+                fontSize: 11,
+                gap: '4px',
+              }}
+            >
+              <CopyIcon sx={{ fontSize: 13 }} />
+              <span style={{ fontSize: 10, fontWeight: 600 }}>{copied ? 'Copied' : 'Copy'}</span>
+            </IconButton>
+          </Tooltip>
         </div>
         <div style={{
           fontFamily: '"JetBrains Mono", "Fira Code", monospace',
@@ -663,10 +695,27 @@ const ActionResultPanel: FunctionComponent<ActionResultPanelProps> = ({ node, al
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
             <WarningAmberOutlined sx={{ fontSize: 12, color: '#ff9800' }} />
             <Typography variant="caption" sx={{ color: '#ff9800', fontSize: 10 }}>
-              {t('Undetected — no artifacts captured')}
+              {t('Unprevented — no artifacts captured')}
             </Typography>
           </Box>
         )}
+        {/* Agent badge */}
+        {node.node_agent && (() => {
+          const meta = AGENT_META[node.node_agent];
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <SmartToyOutlined style={{ fontSize: 12, opacity: 0.45 }} />
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: meta.color,
+                background: meta.bg, border: `1px solid ${meta.color}55`,
+                borderRadius: 4, padding: '1px 7px',
+              }}>
+                {meta.abbr}
+              </span>
+              <span style={{ fontSize: 10, opacity: 0.6 }}>{meta.name}</span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Tabs ───────────────────────────────────────── */}

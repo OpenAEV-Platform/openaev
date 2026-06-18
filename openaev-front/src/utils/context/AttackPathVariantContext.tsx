@@ -1,6 +1,6 @@
 import { createContext, type FunctionComponent, type ReactNode, useContext, useState } from 'react';
 
-export type AttackPathVariantType = 'action' | 'endpoint' | 'v1' | 'v2' | 'v3' | 'v4' | 'v4u' | 'v4u2' | 'v4u3' | 'v4u4' | 'v4u5' | 'v5' | 'v6';
+export type AttackPathVariantType = 'action' | 'endpoint' | 'v1' | 'v2' | 'v3' | 'v4' | 'v4u' | 'v4u2' | 'v4u3' | 'v4u4' | 'v4u5' | 'v5' | 'v6' | 'v7';
 
 export interface AttackPathVariant {
   variant_id: string;

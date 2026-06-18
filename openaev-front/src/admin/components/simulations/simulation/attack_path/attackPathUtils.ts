@@ -42,6 +42,11 @@ export interface AttackPathNode {
   node_ports_found?: string[];    // e.g. ['22/tcp open ssh OpenSSH 8.9p1', '80/tcp open http nginx 1.24']
   node_users_found?: string[];    // e.g. ['CORP\\Administrator', 'CORP\\jsmith']
   node_cves_found?: string[];     // e.g. ['CVE-2021-44228 (Log4Shell) - CRITICAL']
+  // Agent information (Variant-7+)
+  /** The specific agent that ran this ACTION node */
+  node_agent?: AgentType;
+  /** All agents installed on this ASSET node */
+  node_agents?: AgentType[];
 }
 
 export interface AttackPathEdge {
@@ -112,11 +117,27 @@ export interface AttackPathData {
 
 export type AttackStepStatus = 'prevented' | 'detected' | 'undetected' | 'pending';
 
+/** Human-readable display label for a status value. 'undetected' is shown as 'Unprevented'. */
+export function statusDisplayLabel(status: AttackStepStatus | string): string {
+  if (status === 'undetected') return 'Unprevented';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
 export const STATUS_COLORS: Record<AttackStepStatus, { fill: string; stroke: string; bg: string }> = {
   prevented: { fill: '#4caf50', stroke: '#388e3c', bg: 'rgba(76, 175, 80, 0.12)' },
   detected: { fill: '#ff9800', stroke: '#f57c00', bg: 'rgba(255, 152, 0, 0.12)' },
   undetected: { fill: '#f44336', stroke: '#d32f2f', bg: 'rgba(244, 67, 54, 0.12)' },
   pending: { fill: '#9e9e9e', stroke: '#757575', bg: 'rgba(158, 158, 158, 0.12)' },
+};
+
+// -- Agent types (Variant-7+) --
+
+export type AgentType = 'palo_alto' | 'sentinel_one' | 'openaev';
+
+export const AGENT_META: Record<AgentType, { name: string; abbr: string; color: string; bg: string }> = {
+  palo_alto:    { name: 'Palo Alto Agent',   abbr: 'PA', color: '#fa6400', bg: 'rgba(250,100,0,0.15)' },
+  sentinel_one: { name: 'SentinelOne Agent', abbr: 'S1', color: '#7c3aed', bg: 'rgba(124,58,237,0.15)' },
+  openaev:      { name: 'OpenAEV Agent',     abbr: 'OA', color: '#14b8a6', bg: 'rgba(20,184,166,0.15)' },
 };
 
 export function getNodeStatus(node: AttackPathNode): AttackStepStatus {

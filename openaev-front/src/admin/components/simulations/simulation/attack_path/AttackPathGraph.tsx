@@ -29,6 +29,7 @@ import AttackPathGraphV4U4 from './AttackPathGraphV4U4';
 import AttackPathGraphV4U5 from './AttackPathGraphV4U5';
 import AttackPathGraphV5 from './AttackPathGraphV5';
 import AttackPathGraphV6 from './AttackPathGraphV6';
+import AttackPathGraphV7 from './AttackPathGraphV7';
 
 interface AttackPathGraphProps {
   nodes: AttackPathNode[];
@@ -264,7 +265,26 @@ const AttackPathGraph: FunctionComponent<AttackPathGraphProps> = ({
         selectedActionNodeId={selectedNodeId}
         onNodeClick={(assetId) => {
           onSelectNode(assetId ?? null);
-          // No onEndpointDetail here — drawer opens via tooltip Details button
+        }}
+        onDetailClick={onEndpointDetail}
+        onPathClick={onPathClick}
+        onLegendPathSelect={onLegendPathSelect}
+        selectedPathId={selectedPathId}
+        externalFocusRequest={externalFocusRequest}
+      />
+    );
+  }
+
+  // V7: multi-agent view — same layout as V6 + agent badges on endpoints and findings
+  if (variantType === 'v7') {
+    return (
+      <AttackPathGraphV7
+        nodes={nodes}
+        edges={edges}
+        paths={attackPathDefinitions ?? []}
+        selectedActionNodeId={selectedNodeId}
+        onNodeClick={(assetId) => {
+          onSelectNode(assetId ?? null);
         }}
         onDetailClick={onEndpointDetail}
         onPathClick={onPathClick}

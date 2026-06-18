@@ -8,13 +8,16 @@ import {
   KeyboardTabOutlined,
   PersonOutlined,
   ScheduleOutlined,
+  SmartToyOutlined,
 } from '@mui/icons-material';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 import {
   type AttackPathNode,
+  AGENT_META,
   getNodeStatus,
   STATUS_COLORS,
+  statusDisplayLabel,
 } from './attackPathUtils';
 
 interface AttackPathFeedProps {
@@ -178,7 +181,7 @@ const ActionCard: FunctionComponent<{
         <div style={{ marginTop: 8, borderTop: `1px solid ${colors.fill}30`, paddingTop: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <Chip
-              label={status.charAt(0).toUpperCase() + status.slice(1)}
+              label={statusDisplayLabel(status)}
               size="small"
               sx={{ height: 18, fontSize: 10, fontWeight: 700, backgroundColor: `${colors.fill}22`, color: colors.fill }}
             />
@@ -187,10 +190,29 @@ const ActionCard: FunctionComponent<{
                 {node.node_payload_name}
               </span>
             )}
+            {node.node_agent && (() => {
+              const meta = AGENT_META[node.node_agent];
+              return (
+                <Tooltip title={meta.name} placement="top">
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, color: meta.color,
+                    background: meta.bg, border: `1px solid ${meta.color}55`,
+                    borderRadius: 3, padding: '1px 5px', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', gap: 3,
+                  }}>
+                    <SmartToyOutlined style={{ fontSize: 9 }} />{meta.abbr}
+                  </span>
+                </Tooltip>
+              );
+            })()}
           </div>
           {(node.node_hostname || node.node_ip) && (
             <DetailRow icon={<ComputerOutlined style={{ fontSize: 12 }} />} label={t('Endpoint')} value={[node.node_hostname, node.node_ip].filter(Boolean).join(' · ')} mono color="#64b5f6" />
           )}
+          {node.node_agent && (() => {
+            const meta = AGENT_META[node.node_agent];
+            return <DetailRow icon={<SmartToyOutlined style={{ fontSize: 12 }} />} label={t('Agent')} value={meta.name} color={meta.color} />;
+          })()}
           {node.node_user_privileges && (
             <DetailRow icon={<PersonOutlined style={{ fontSize: 12 }} />} label={t('User / Privileges')} value={node.node_user_privileges} color="#ff9800" />
           )}
