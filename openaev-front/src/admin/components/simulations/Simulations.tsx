@@ -16,7 +16,7 @@ import { isFeatureEnabled } from '../../../utils/utils';
 import ImportUploaderExercise from './ImportUploaderExercise';
 import ExerciseCreation from './simulation/ExerciseCreation';
 import ExercisePopover from './simulation/ExercisePopover';
-import { MOCK_CHAINING_EXERCISE_IDS, MOCK_EXERCISE_LIST } from './simulation/attack_path/mockAttackPathData';
+import { IS_ATTACK_PATH_POC, MOCK_CHAINING_EXERCISE_IDS, MOCK_EXERCISE_LIST } from './simulation/attack_path/mockAttackPathData';
 import SimulationList from './SimulationList';
 
 const Simulations = () => {
@@ -26,15 +26,14 @@ const Simulations = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const isAttackPathMockEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
 
-  // Merge mock exercises at the top of the list when PoC mode is active
+  // Merge mock exercises at the top of the list in PoC mode
   const mergedExercises = useMemo<ExerciseSimple[]>(() => {
-    if (!isAttackPathMockEnabled) return exercises;
+    if (!IS_ATTACK_PATH_POC) return exercises;
     const existingIds = new Set(exercises.map(e => e.exercise_id));
     const mockEntries = MOCK_EXERCISE_LIST.filter(me => !existingIds.has(me.exercise_id)) as unknown as ExerciseSimple[];
     return [...mockEntries, ...exercises];
-  }, [exercises, isAttackPathMockEnabled]);
+  }, [exercises]);
   // Filters
   const availableFilterNames = [
     'exercise_kill_chain_phases',
@@ -67,7 +66,7 @@ const Simulations = () => {
 
   const secondaryAction = (exercise: ExerciseSimple) => {
     const isMock = MOCK_CHAINING_EXERCISE_IDS.has(exercise.exercise_id);
-    const isChaining = (isChainingFeatureEnabled || isAttackPathMockEnabled)
+    const isChaining = (isChainingFeatureEnabled || IS_ATTACK_PATH_POC)
       && (!!(exercise as unknown as Record<string, unknown>).exercise_workflow_id || isMock);
     return (
       <ExercisePopover
