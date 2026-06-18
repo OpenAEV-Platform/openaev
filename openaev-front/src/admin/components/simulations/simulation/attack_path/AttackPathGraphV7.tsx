@@ -998,6 +998,13 @@ const AttackPathGraphV7: FunctionComponent<Props> = ({
     setExpandedConnections(new Set());
   }, [selectedPathId]);
 
+  // Auto-expand all clusters when clusters are first computed so agent badges
+  // on individual endpoints are immediately visible in V7 view.
+  useEffect(() => {
+    if (!endpointClusters || endpointClusters.length === 0) return;
+    setExpandedClusters(new Set(endpointClusters.map(c => c.id)));
+  }, [endpointClusters]);
+
   // Clear focused endpoint when its cluster is collapsed or path changes
   useEffect(() => {
     if (!focusedEndpointId) return;
