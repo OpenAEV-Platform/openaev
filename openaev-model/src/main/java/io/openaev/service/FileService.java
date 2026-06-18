@@ -86,7 +86,7 @@ public class FileService {
    * @param path the directory path within the platform space
    * @param name the filename
    * @param data the input stream containing the file data
-   * @return the full platform path of the uploaded file
+   * @return the object key within the platform namespace (without the "platform/" prefix)
    * @throws Exception if the upload fails
    */
   public String uploadCatalogLogo(String path, String name, InputStream data) throws Exception {
