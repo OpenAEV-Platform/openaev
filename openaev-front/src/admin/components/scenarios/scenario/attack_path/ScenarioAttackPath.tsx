@@ -12,6 +12,7 @@ import { MenuItem, Select, Typography } from '@mui/material';
 import { isFeatureEnabled } from '../../../../../utils/utils';
 import { useFormatter } from '../../../../../components/i18n';
 import {
+  IS_ATTACK_PATH_POC,
   SCENARIO_SIMULATIONS_MAP,
 } from '../../../simulations/simulation/attack_path/mockAttackPathData';
 import AttackPathContent from '../../../simulations/simulation/attack_path/AttackPathContent';
@@ -29,7 +30,7 @@ const ScenarioAttackPath: FunctionComponent = () => {
   const { scenarioId } = useParams<{ scenarioId: string }>();
   const navigate = useNavigate();
 
-  if (!isFeatureEnabled('CHAINING_ATTACK_PATH')) return null;
+  if (!IS_ATTACK_PATH_POC) return null;
 
   // Sort newest first, auto-select the latest
   const rawList = SCENARIO_SIMULATIONS_MAP[scenarioId ?? ''] ?? FALLBACK_SIMS;
