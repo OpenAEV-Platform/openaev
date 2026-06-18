@@ -323,7 +323,18 @@ public interface ExerciseRepository
   /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(
       value =
-          "WITH exercise_data AS ("
+          "WITH changed_exercises AS ("
+              + "SELECT DISTINCT candidate.exercise_id FROM ("
+              + "SELECT ex.exercise_id FROM exercises ex WHERE ex.exercise_updated_at > :from "
+              + "UNION "
+              + "SELECT inj.inject_exercise FROM injects inj WHERE inj.inject_updated_at > :from AND inj.inject_exercise IS NOT NULL "
+              + "UNION "
+              + "SELECT inj.inject_exercise FROM injects inj "
+              + "JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract "
+              + "WHERE ic.injector_contract_updated_at > :from AND inj.inject_exercise IS NOT NULL"
+              + ") candidate"
+              + "), "
+              + "exercise_data AS ("
               + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
               + "GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as exercise_injects_updated_at, "
               + "array_agg(DISTINCT et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags, "
@@ -332,6 +343,7 @@ public interface ExerciseRepository
               + "array_agg(DISTINCT iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as exercise_asset_groups, "
               + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as exercise_platforms "
               + "FROM exercises ex "
+              + "JOIN changed_exercises ce ON ex.exercise_id = ce.exercise_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN exercises_teams ete ON ete.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
@@ -342,7 +354,6 @@ public interface ExerciseRepository
               + "GROUP BY ex.exercise_id, ex.exercise_name, ex.exercise_created_at, ex.exercise_updated_at"
               + ") "
               + "SELECT * FROM exercise_data ed "
-              + "WHERE ed.exercise_injects_updated_at > :from "
               + "ORDER BY ed.exercise_injects_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
   List<RawSimulationIndexing> findForIndexing(
