@@ -1411,6 +1411,22 @@ const AttackPathGraphV7: FunctionComponent<Props> = ({
       style={{ position: 'relative', width: '100%', height, overflow: 'hidden' }}
       onClick={() => { setSelectedFindingId(null); }}
     >
+      {/* V7 mode indicator — fixed overlay top-left */}
+      <div style={{
+        position: 'absolute', top: 10, left: 10, zIndex: 10, pointerEvents: 'none',
+        display: 'flex', gap: 6, alignItems: 'center',
+        background: 'rgba(10,14,25,0.85)', border: '1px solid rgba(255,255,255,0.15)',
+        borderRadius: 8, padding: '5px 10px',
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>🤖 Multi-Agent View</span>
+        {Object.entries(AGENT_META).map(([key, m]) => (
+          <span key={key} style={{
+            fontSize: 10, fontWeight: 800, color: m.color,
+            background: m.bg, border: `1px solid ${m.color}55`,
+            borderRadius: 4, padding: '1px 6px',
+          }}>{m.abbr} {m.name}</span>
+        ))}
+      </div>
       <svg
         ref={svgRef}
         width="100%" height="100%"
@@ -1659,17 +1675,18 @@ const AttackPathGraphV7: FunctionComponent<Props> = ({
                     <text x={ifx} y={ify + 11} textAnchor="middle" fontSize={6}
                       fill="#fff" fontWeight={600}
                       style={{ userSelect: 'none', pointerEvents: 'none' }}>{item.label}</text>
-                    {/* Agent badge — small colored dot in top-right of finding circle (V7) */}
+                    {/* Agent badge — pill at top-right of finding circle (V7) */}
                     {item.agentType && (() => {
                       const agentMeta = AGENT_META[item.agentType];
                       const radius = FINDING_R + (isSelected ? 4 : 0);
-                      const br = radius * 0.55;
-                      const bx = ifx + radius * 0.7;
-                      const by = ify - radius * 0.7;
+                      const pw = 18; const ph = 11;
+                      const bx = ifx + radius * 0.65;
+                      const by = ify - radius * 0.65;
                       return (
                         <g style={{ pointerEvents: 'none' }}>
-                          <circle cx={bx} cy={by} r={br} fill={agentMeta.color} stroke="rgba(10,14,25,1)" strokeWidth={1.2} />
-                          <text x={bx} y={by + 3.5} textAnchor="middle" fontSize={5.5} fontWeight={800} fill="#fff"
+                          <rect x={bx - pw / 2} y={by - ph / 2} width={pw} height={ph}
+                            rx={ph / 2} fill={agentMeta.color} stroke="rgba(10,14,25,1)" strokeWidth={1.2} />
+                          <text x={bx} y={by + 4} textAnchor="middle" fontSize={7} fontWeight={800} fill="#fff"
                             style={{ userSelect: 'none' }}>{agentMeta.abbr}</text>
                         </g>
                       );
@@ -1938,6 +1955,16 @@ const AttackPathGraphV7: FunctionComponent<Props> = ({
                 <circle cx={cx} cy={cy} r={NODE_R + 12}
                   fill={`${nodeColor}12`} stroke={nodeColor} strokeWidth={1.5} strokeOpacity={0.45} />
               )}
+              {/* Primary agent colored ring (V7) — drawn behind the main circle */}
+              {(asset.node_agents ?? []).length > 0 && (() => {
+                const primaryAgent = (asset.node_agents ?? [])[0];
+                const m = AGENT_META[primaryAgent];
+                return (
+                  <circle cx={cx} cy={cy} r={NODE_R + 4} fill="none"
+                    stroke={m.color} strokeWidth={3} strokeOpacity={0.7}
+                    style={{ pointerEvents: 'none' }} />
+                );
+              })()}
               {/* Main node — handles both drag and click */}
               <circle cx={cx} cy={cy} r={NODE_R}
                 fill="rgba(14,18,32,0.92)" stroke={nodeColor} strokeWidth={2.5}
@@ -1992,20 +2019,23 @@ const AttackPathGraphV7: FunctionComponent<Props> = ({
                   stroke="#fff" strokeWidth={1.2} strokeOpacity={0.5}
                   style={{ pointerEvents: 'none' }} />
               )}
-              {/* Agent badges below node label (V7) */}
+              {/* Agent badges below node label (V7) — pill shaped, clearly visible */}
               {(asset.node_agents ?? []).length > 0 && (
                 <g style={{ pointerEvents: 'none' }}>
                   {(asset.node_agents ?? []).map((agentType, ai, arr) => {
                     const agentMeta = AGENT_META[agentType];
                     const total = arr.length;
-                    const spacing = 14;
+                    const pillW = 22;
+                    const pillH = 13;
+                    const spacing = pillW + 4;
                     const startX = cx - ((total - 1) * spacing) / 2;
                     const bx = startX + ai * spacing;
-                    const by = cy + NODE_R + 10;
+                    const by = cy + NODE_R + 14;
                     return (
                       <g key={agentType}>
-                        <circle cx={bx} cy={by} r={6} fill={agentMeta.color} stroke="rgba(10,14,25,0.9)" strokeWidth={1} />
-                        <text x={bx} y={by + 3} textAnchor="middle" fontSize={5} fontWeight={800} fill="#fff"
+                        <rect x={bx - pillW / 2} y={by - pillH / 2} width={pillW} height={pillH}
+                          rx={pillH / 2} fill={agentMeta.color} stroke="rgba(10,14,25,0.9)" strokeWidth={1.2} />
+                        <text x={bx} y={by + 4} textAnchor="middle" fontSize={7} fontWeight={800} fill="#fff"
                           style={{ userSelect: 'none' }}>{agentMeta.abbr}</text>
                       </g>
                     );
