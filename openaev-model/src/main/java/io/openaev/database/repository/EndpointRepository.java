@@ -121,7 +121,6 @@ public interface EndpointRepository
   @Query(
       value =
           "WITH changed_assets AS ("
-              + "SELECT DISTINCT candidate.asset_id FROM ("
               + "SELECT a.asset_id FROM assets a WHERE a.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
               + "' AND a.asset_updated_at > :from "
@@ -151,7 +150,6 @@ public interface EndpointRepository
               + "JOIN assets a ON fa.asset_id = a.asset_id AND a.asset_type = '"
               + AssetType.Values.ENDPOINT_TYPE
               + "' WHERE f.finding_updated_at > :from"
-              + ") candidate"
               + "), "
               + "endpoint_data AS ("
               + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "

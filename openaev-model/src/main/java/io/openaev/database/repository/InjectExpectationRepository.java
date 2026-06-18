@@ -294,7 +294,6 @@ public interface InjectExpectationRepository
       value =
           """
     WITH changed_expectations AS (
-      SELECT DISTINCT candidate.inject_expectation_id FROM (
         SELECT ie.inject_expectation_id FROM injects_expectations ie
           WHERE ie.inject_expectation_updated_at > :from
         UNION
@@ -306,7 +305,6 @@ public interface InjectExpectationRepository
           JOIN injects i ON i.inject_id = ie.inject_id
           JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
           WHERE ic.injector_contract_updated_at > :from
-      ) candidate
     ),
     inject_expectation_data AS (
       SELECT

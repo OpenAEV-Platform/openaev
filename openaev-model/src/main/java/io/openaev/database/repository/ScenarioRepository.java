@@ -46,7 +46,6 @@ public interface ScenarioRepository
   @Query(
       value =
           "WITH changed_scenarios AS ("
-              + "SELECT DISTINCT candidate.scenario_id FROM ("
               + "SELECT s.scenario_id FROM scenarios s WHERE s.scenario_updated_at > :from "
               + "UNION "
               + "SELECT inj.inject_scenario FROM injects inj WHERE inj.inject_updated_at > :from AND inj.inject_scenario IS NOT NULL "
@@ -54,7 +53,6 @@ public interface ScenarioRepository
               + "SELECT inj.inject_scenario FROM injects inj "
               + "JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract "
               + "WHERE ic.injector_contract_updated_at > :from AND inj.inject_scenario IS NOT NULL"
-              + ") candidate"
               + "), "
               + "scenario_data AS ("
               + "SELECT s.scenario_id, s.scenario_name, s.scenario_recurrence, s.scenario_created_at,s.tenant_id, "

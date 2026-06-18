@@ -324,7 +324,6 @@ public interface ExerciseRepository
   @Query(
       value =
           "WITH changed_exercises AS ("
-              + "SELECT DISTINCT candidate.exercise_id FROM ("
               + "SELECT ex.exercise_id FROM exercises ex WHERE ex.exercise_updated_at > :from "
               + "UNION "
               + "SELECT inj.inject_exercise FROM injects inj WHERE inj.inject_updated_at > :from AND inj.inject_exercise IS NOT NULL "
@@ -332,7 +331,6 @@ public interface ExerciseRepository
               + "SELECT inj.inject_exercise FROM injects inj "
               + "JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract "
               + "WHERE ic.injector_contract_updated_at > :from AND inj.inject_exercise IS NOT NULL"
-              + ") candidate"
               + "), "
               + "exercise_data AS ("
               + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
