@@ -151,68 +151,42 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     return null;
   }
 
-  const chatPanelProps = {
-    mode,
-    onClose,
-    onModeChange,
-    topOffset,
-    backendType: 'rest' as const,
-    apiBaseUrl: '/api/xtmone/chat',
-    apiEndpoints: {
-      agents: '/agents',
-      messages: '/messages',
-      sessions: '/sessions',
-      upload: '/upload',
-      download: '/files',
-    },
-    user: { firstName },
-    disableFileManagement: false,
-    t,
-    accentColor,
-    logoIcon,
-    agentDashboardUrl: xtmOneUrl || undefined,
-    promptSuggestions,
-    pageContext,
-    resizable: mode === 'sidebar',
-    onWidthChange,
-    onResizeStart,
-    onResizeEnd,
-  };
+	const chatPanelProps = {
+		mode,
+		onClose,
+		onModeChange,
+		topOffset,
+		backendType: 'rest' as const,
+		apiBaseUrl: '/api/xtmone/chat',
+		apiEndpoints: {
+			agents: '/agents',
+			messages: '/messages',
+			// Mid-run steering — must be set explicitly because the chatbot
+			// default ('/chat/messages/steer') assumes XTM One-style paths,
+			// while the OpenAEV proxy exposes '/messages/steer' relative to
+			// its '/api/xtmone/chat' base.
+			steer: '/messages/steer',
+			sessions: '/sessions',
+			upload: '/upload',
+			download: '/files',
+		},
+		user: { firstName },
+		disableFileManagement: false,
+		t,
+		accentColor,
+		logoIcon,
+		agentDashboardUrl: xtmOneUrl || undefined,
+		promptSuggestions,
+		pageContext,
+		resizable: mode === 'sidebar',
+		onWidthChange,
+		onResizeStart,
+		onResizeEnd,
+		onTaskComplete: (_title: string, body: string) => MESSAGING$.notifySuccess(body),
+	};
 
   return createPortal(
-    <ChatPanel
-      mode={mode}
-      onClose={onClose}
-      onModeChange={onModeChange}
-      topOffset={topOffset}
-      backendType="rest"
-      apiBaseUrl="/api/xtmone/chat"
-      apiEndpoints={{
-        agents: '/agents',
-        messages: '/messages',
-        // Mid-run steering — must be set explicitly because the chatbot
-        // default ('/chat/messages/steer') assumes XTM One-style paths,
-        // while the OpenAEV proxy exposes '/messages/steer' relative to
-        // its '/api/xtmone/chat' base.
-        steer: '/messages/steer',
-        sessions: '/sessions',
-        upload: '/upload',
-        download: '/files',
-      }}
-      user={{ firstName }}
-      disableFileManagement={false}
-      t={t}
-      accentColor={accentColor}
-      logoIcon={logoIcon}
-      agentDashboardUrl={xtmOneUrl || undefined}
-      promptSuggestions={promptSuggestions}
-      pageContext={pageContext}
-      resizable={mode === 'sidebar'}
-      onWidthChange={onWidthChange}
-      onResizeStart={onResizeStart}
-      onResizeEnd={onResizeEnd}
-      onTaskComplete={(_title, body) => MESSAGING$.notifySuccess(body)}
-    />,
+    <ChatPanel {...chatPanelProps} />,
     container,
   );
 };
