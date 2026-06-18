@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.rest.mapper.form.ExportMapperInput;
 import io.openaev.rest.mapper.form.ImportMapperAddInput;
 import io.openaev.rest.mapper.form.ImportMapperUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -20,6 +21,7 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
@@ -176,6 +178,27 @@ class ImportMapperHttpIsolationTest extends IntegrationTest {
     mvc.perform(delete(MAPPER_BY_ID, tenantA, mapperB).with(csrf()))
         .andExpect(status().is2xxSuccessful());
     assertEquals(1L, rawCount(mapperB), "B's mapper must survive tenant A's delete attempt");
+  }
+
+  @Test
+  @DisplayName(
+      "under tenant A's path: export returns A's mapper and skips B's even if B's id is asked")
+  void exportUnderTenantAReturnsOnlyA() throws Exception {
+    ExportMapperInput input = new ExportMapperInput();
+    input.setName("export-test");
+    input.setIdsToExport(List.of(mapperA, mapperB));
+    String response =
+        mvc.perform(
+                post("/api/tenants/{tenantId}/mappers/export", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertTrue(response.contains("mapper-a"), "A's mapper must be in A's export");
+    assertFalse(response.contains("mapper-b"), "B's mapper must not be in A's export");
   }
 
   private static ImportMapperUpdateInput updateInput(String name) {
