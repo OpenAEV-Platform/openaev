@@ -29,9 +29,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.List;
@@ -42,7 +40,7 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -298,21 +296,19 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public void downloadDocument(@PathVariable String documentId, HttpServletResponse response)
-      throws IOException {
+  public ResponseEntity<InputStreamResource> downloadDocument(@PathVariable String documentId) {
     Document document = documentService.document(documentId);
 
     String encodedFilename = DocumentService.encodeFileName(document.getName());
-
-    response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encodedFilename);
-    response.addHeader(HttpHeaders.CONTENT_TYPE, document.getType());
-    response.setStatus(HttpServletResponse.SC_OK);
-    try (InputStream fileStream =
+    InputStream in =
         fileService
             .getFile(document)
-            .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
-      fileStream.transferTo(response.getOutputStream());
-    }
+            .orElseThrow(() -> new ElementNotFoundException("File not found"));
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + encodedFilename)
+        .header(HttpHeaders.CONTENT_TYPE, document.getType())
+        .body(new InputStreamResource(in));
   }
 
   @GetMapping(
@@ -323,38 +319,39 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getInjectorImageFromId(
-      @PathVariable String injectorId) throws IOException {
+  public @ResponseBody ResponseEntity<InputStreamResource> getInjectorImageFromId(
+      @PathVariable String injectorId) {
     Injector injector =
         this.injectorRepository
             .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
-    Optional<InputStream> fileStream =
-        fileService.getInjectorImage(injector.getType(), injector.isExternal());
-    if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
-    }
-    return null;
+
+    return fileService
+        .getInjectorImage(injector.getType(), injector.isExternal())
+        .map(
+            inputStream ->
+                ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .body(new InputStreamResource(inputStream)))
+        .orElse(null);
   }
 
-  public void downloadCollectorImage(
-      @PathVariable String collectorType, HttpServletResponse response) throws IOException {
-    response.addHeader(
-        HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png");
-    response.addHeader(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE);
-    response.setStatus(HttpServletResponse.SC_OK);
+  public ResponseEntity<InputStreamResource> downloadCollectorImage(
+      @PathVariable String collectorType) {
     Collector collector =
         this.collectorRepository
             .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
-    try (InputStream fileStream =
+
+    InputStream in =
         fileService
             .getCollectorImage(collectorType, collector.isExternal())
-            .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
-      fileStream.transferTo(response.getOutputStream());
-    }
+            .orElseThrow(() -> new ElementNotFoundException("File not found"));
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png")
+        .contentType(MediaType.IMAGE_PNG)
+        .body(new InputStreamResource(in));
   }
 
   @GetMapping(
@@ -365,20 +362,21 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getCollectorImageFromId(
-      @PathVariable String collectorId) throws IOException {
+  public @ResponseBody ResponseEntity<InputStreamResource> getCollectorImageFromId(
+      @PathVariable String collectorId) {
     Collector collector =
         this.collectorRepository
             .findById(collectorId)
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
     Optional<InputStream> fileStream =
         fileService.getCollectorImage(collector.getType(), collector.isExternal());
-    if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
-    }
-    return null;
+    return fileStream
+        .map(
+            inputStream ->
+                ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .body(new InputStreamResource(inputStream)))
+        .orElse(null);
   }
 
   @GetMapping(
@@ -388,19 +386,18 @@ public class DocumentApi extends RestBehavior {
       })
   @Transactional
   @AccessControl(skipRBAC = true)
-  public void getSecurityPlatformImageFromId(
-      @PathVariable String assetId, @PathVariable String theme, HttpServletResponse response)
-      throws IOException {
+  public ResponseEntity<InputStreamResource> getSecurityPlatformImageFromId(
+      @PathVariable String assetId, @PathVariable String theme) {
     SecurityPlatform securityPlatform =
         this.securityPlatformRepository
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      downloadDocument(securityPlatform.getLogoDark().getId(), response);
+      return downloadDocument(securityPlatform.getLogoDark().getId());
     } else if (securityPlatform.getLogoLight() != null) {
-      downloadDocument(securityPlatform.getLogoLight().getId(), response);
+      return downloadDocument(securityPlatform.getLogoLight().getId());
     } else {
-      downloadCollectorImage("openaev_fake_detector", response);
+      return downloadCollectorImage("openaev_fake_detector");
     }
   }
 
@@ -420,17 +417,16 @@ public class DocumentApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Channel image"),
         @ApiResponse(responseCode = "404", description = "Channel not found")
       })
-  public void getChannelImageFromId(
-      @PathVariable String channelId, @PathVariable String theme, HttpServletResponse response)
-      throws IOException {
+  public ResponseEntity<InputStreamResource> getChannelImageFromId(
+      @PathVariable String channelId, @PathVariable String theme) {
     Channel channel = channelService.channel(channelId);
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      downloadDocument(channel.getLogoDark().getId(), response);
+      return downloadDocument(channel.getLogoDark().getId());
     } else if (channel.getLogoLight() != null) {
-      downloadDocument(channel.getLogoLight().getId(), response);
+      return downloadDocument(channel.getLogoLight().getId());
     } else {
-      downloadCollectorImage("openaev_fake_detector", response);
+      return downloadCollectorImage("openaev_fake_detector");
     }
   }
 
@@ -442,15 +438,16 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getExecutorIconImage(@PathVariable String executorId)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getExecutorIconImage(executorId, false);
-    if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
-    }
-    return null;
+  public @ResponseBody ResponseEntity<InputStreamResource> getExecutorIconImage(
+      @PathVariable String executorId) {
+    return fileService
+        .getExecutorIconImage(executorId, false)
+        .map(
+            inputStream ->
+                ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .body(new InputStreamResource(inputStream)))
+        .orElse(null);
   }
 
   @GetMapping(
@@ -461,15 +458,16 @@ public class DocumentApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getExecutorBannerImage(
-      @PathVariable String executorId) throws IOException {
-    Optional<InputStream> fileStream = fileService.getExecutorBannerImage(executorId, false);
-    if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
-    }
-    return null;
+  public @ResponseBody ResponseEntity<InputStreamResource> getExecutorBannerImage(
+      @PathVariable String executorId) {
+    return fileService
+        .getExecutorBannerImage(executorId, false)
+        .map(
+            inputStream ->
+                ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .body(new InputStreamResource(inputStream)))
+        .orElse(null);
   }
 
   private List<Document> getExercisePlayerDocuments(Exercise exercise) {
@@ -552,12 +550,10 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
-  public void downloadPlayerDocument(
+  public ResponseEntity<InputStreamResource> downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
-      @RequestParam Optional<String> userId,
-      HttpServletResponse response)
-      throws IOException {
+      @RequestParam Optional<String> userId) {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
@@ -570,7 +566,7 @@ public class DocumentApi extends RestBehavior {
       throw new UnsupportedOperationException("User must be logged or dynamic player is required");
     }
 
-    Document document = null;
+    Optional<Document> document = Optional.empty();
     if (exerciseOpt.isPresent()) {
       if (!exerciseOpt.get().isUserHasAccess(user)
           && !exerciseOpt.get().getUsers().contains(user)) {
@@ -579,8 +575,7 @@ public class DocumentApi extends RestBehavior {
       document =
           getExercisePlayerDocuments(exerciseOpt.get()).stream()
               .filter(doc -> doc.getId().equals(documentId))
-              .findFirst()
-              .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+              .findFirst();
     } else if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
           && !scenarioOpt.get().getUsers().contains(user)) {
@@ -589,21 +584,16 @@ public class DocumentApi extends RestBehavior {
       document =
           getScenarioPlayerDocuments(scenarioOpt.get()).stream()
               .filter(doc -> doc.getId().equals(documentId))
-              .findFirst()
-              .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+              .findFirst();
     }
 
-    if (document != null) {
-      response.addHeader(
-          HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + document.getName());
-      response.addHeader(HttpHeaders.CONTENT_TYPE, document.getType());
-      response.setStatus(HttpServletResponse.SC_OK);
-      try (InputStream fileStream =
-          fileService
-              .getFile(document)
-              .orElseThrow(() -> new ElementNotFoundException("File not found"))) {
-        fileStream.transferTo(response.getOutputStream());
-      }
-    }
+    Document doc = document.orElseThrow(() -> new ElementNotFoundException("File not found"));
+    InputStream in =
+        fileService.getFile(doc).orElseThrow(() -> new ElementNotFoundException("File not found"));
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + doc.getName())
+        .header(HttpHeaders.CONTENT_TYPE, doc.getType())
+        .body(new InputStreamResource(in));
   }
 }
