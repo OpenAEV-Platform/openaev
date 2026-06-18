@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -128,6 +129,24 @@ class TxCtxArgumentResolverIntegrationTest extends IntegrationTest {
   void requiredSelectorOutsideRightsIsForbidden() throws Exception {
     mvc.perform(get("/api/test/txctx/required/scope").header("X-Tenant-Ids", "tenant-not-mine"))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @DisplayName("the response varies by X-Tenant-Ids when the header can influence the scope")
+  void varyHeaderIsSetWhenTheHeaderCanInfluenceScope() throws Exception {
+    String vary = mvc.perform(get(NO_PATH)).andReturn().getResponse().getHeader("Vary");
+    assertTrue(
+        vary != null && vary.contains("X-Tenant-Ids"),
+        "a header-scoped response must carry Vary: X-Tenant-Ids, got: " + vary);
+  }
+
+  @Test
+  @DisplayName("the response does not vary by X-Tenant-Ids when the path pins the tenant")
+  void varyHeaderIsNotSetWhenPathPinsTheTenant() throws Exception {
+    String vary = mvc.perform(get(WITH_PATH, tenantA)).andReturn().getResponse().getHeader("Vary");
+    assertTrue(
+        vary == null || !vary.contains("X-Tenant-Ids"),
+        "a path-scoped response must not claim to vary by the ignored header, got: " + vary);
   }
 
   private static String sorted(String... ids) {

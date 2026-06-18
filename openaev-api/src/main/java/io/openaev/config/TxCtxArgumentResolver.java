@@ -4,6 +4,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
 import io.openaev.service.tenants.TenantService;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -64,6 +66,9 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
     if (pathTenant != null && !pathTenant.isBlank()) {
       return Set.of(pathTenant.trim());
     }
+    // No path tenant: the X-Tenant-Ids header can influence the scope, so the response must vary by
+    // it. A shared cache must never serve one tenant's response to another for the same URL.
+    markVaryByTenantHeader(webRequest);
     String header = webRequest.getHeader(TENANT_IDS_HEADER);
     if (header != null && !header.isBlank()) {
       return Arrays.stream(header.split(","))
@@ -72,6 +77,13 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
           .collect(Collectors.toCollection(LinkedHashSet::new));
     }
     return Set.of();
+  }
+
+  private void markVaryByTenantHeader(NativeWebRequest webRequest) {
+    HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
+    if (response != null) {
+      response.addHeader(HttpHeaders.VARY, TENANT_IDS_HEADER);
+    }
   }
 
   @SuppressWarnings("unchecked")
