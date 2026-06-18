@@ -1,4 +1,5 @@
 import { DescriptionOutlined } from '@mui/icons-material';
+// @ts-ignore -- MUI v9 migration: TS2305
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';

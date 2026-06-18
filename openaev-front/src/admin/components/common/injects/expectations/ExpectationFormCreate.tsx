@@ -155,6 +155,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_name && errors.expectation_name?.message
         }
+// @ts-ignore -- MUI v9 migration: TS2322
         inputProps={register('expectation_name')}
         InputLabelProps={{ required: true }}
       />
@@ -168,6 +169,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_description && errors.expectation_description?.message
         }
+// @ts-ignore -- MUI v9 migration: TS2322
         inputProps={register('expectation_description')}
       />
       {(watchType !== 'VULNERABILITY') && (

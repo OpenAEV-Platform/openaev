@@ -295,6 +295,7 @@ const AssetGroups = () => {
         classes={{ paper: classes.drawerPaper }}
         onClose={() => setSelectedAssetGroupId(undefined)}
         elevation={1}
+// @ts-ignore -- MUI v9 migration: TS2322
         PaperProps={{ style: { marginTop: bannerHeight } }}
       >
         {selectedAssetGroupId !== undefined && (

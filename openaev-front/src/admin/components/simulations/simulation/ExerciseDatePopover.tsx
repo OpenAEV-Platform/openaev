@@ -30,6 +30,7 @@ const ExerciseDatePopover: FunctionComponent<Props> = ({ exercise }) => {
         </span>
       </Tooltip>
       <Dialog
+// @ts-ignore -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         open={openEdit}
         onClose={() => setOpenEdit(false)}

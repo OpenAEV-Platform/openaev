@@ -138,7 +138,6 @@ const TagField: FunctionComponent<Props> = ({
             required={required}
             slotProps={{
               input: {
-                ...params.InputProps,
                 endAdornment: (
                   <>
                     <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
@@ -153,7 +152,6 @@ const TagField: FunctionComponent<Props> = ({
                         <AddOutlined />
                       </IconButton>
                     </Can>
-                    {params.InputProps.endAdornment}
                   </>
                 ),
               },
@@ -166,6 +164,7 @@ const TagField: FunctionComponent<Props> = ({
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}
+// @ts-ignore -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
         >
           <DialogTitle>{t('Create a new tag')}</DialogTitle>

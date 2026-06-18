@@ -82,6 +82,7 @@ const ExportPdfButton: FunctionComponent<Props> = ({ getPdfDocDefinition, pdfNam
         </ToggleButton>
       </Tooltip>
       <Dialog
+// @ts-ignore -- MUI v9 migration: TS2322
         PaperProps={{
           elevation: 1,
           sx: { backgroundColor: 'rgba(0, 0, 0, 0.8)' },

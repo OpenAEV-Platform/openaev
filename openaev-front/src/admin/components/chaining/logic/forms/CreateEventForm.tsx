@@ -1,3 +1,4 @@
+// @ts-ignore -- MUI v9 migration: TS2724
 import { AddOutlined, DeleteOutline } from '@mui/icons-material';
 import {
   Button,

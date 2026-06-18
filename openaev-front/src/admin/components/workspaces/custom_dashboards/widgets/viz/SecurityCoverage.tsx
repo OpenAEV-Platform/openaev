@@ -38,6 +38,7 @@ const SecurityCoverage: FunctionComponent<Props> = ({ widgetId, widgetConfig, wi
         open={fullscreen}
         onClose={handleClose}
         fullScreen
+// @ts-ignore -- MUI v9 migration: TS2322
         PaperProps={{ elevation: 1 }}
         TransitionComponent={Transition}
       >

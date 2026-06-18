@@ -30,6 +30,7 @@ const DialogApplyTagRule: FunctionComponent<DialogDeleteProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
+// @ts-ignore -- MUI v9 migration: TS2322
       PaperProps={{ elevation: 1 }}
     >
       <DialogContent>

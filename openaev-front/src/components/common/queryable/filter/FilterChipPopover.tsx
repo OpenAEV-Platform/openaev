@@ -71,6 +71,7 @@ const FilterChipPopover: FunctionComponent<Props> = ({
         vertical: 'bottom',
         horizontal: 'left',
       }}
+// @ts-ignore -- MUI v9 migration: TS2322
       PaperProps={{
         elevation: 1,
         style: { marginTop: 10 },

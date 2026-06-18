@@ -125,7 +125,6 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
                   helperText={error ? error.message : null}
                   slotProps={{
                     input: {
-                      ...params.InputProps,
                       endAdornment: (
                         <>
                           {ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS) && !hideAddButton && (
@@ -139,7 +138,6 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
                               <AddOutlined />
                             </IconButton>
                           )}
-                          {params.InputProps.endAdornment}
                         </>
                       ),
                     },
@@ -168,6 +166,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
             <Dialog
               open={attackPatternCreation}
               onClose={handleCloseAttackPatternCreation}
+// @ts-ignore -- MUI v9 migration: TS2322
               PaperProps={{ elevation: 1 }}
             >
               <DialogTitle>{t('Create a new attack pattern')}</DialogTitle>

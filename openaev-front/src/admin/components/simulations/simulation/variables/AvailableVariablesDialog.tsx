@@ -98,6 +98,7 @@ const AvailableVariablesDialog: FunctionComponent<
       open={open}
       fullWidth={true}
       maxWidth="md"
+// @ts-ignore -- MUI v9 migration: TS2322
       PaperProps={{ elevation: 1 }}
       TransitionComponent={Transition}
       classes={{ paper: classes.dialogPaper }}

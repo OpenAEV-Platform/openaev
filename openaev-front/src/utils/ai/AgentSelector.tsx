@@ -45,14 +45,14 @@ const AgentSelector: FunctionComponent<AgentSelectorProps> = ({
           variant="outlined"
           size="small"
           placeholder={noAgents ? t('No agent available') : t('Select agent')}
-          InputProps={{
-            ...params.InputProps,
-            endAdornment: (
-              <>
-                {loading ? <CircularProgress color="inherit" size={16} /> : null}
-                {params.InputProps.endAdornment}
-              </>
-            ),
+          slotProps={{
+            input: {
+              endAdornment: (
+                <>
+                  {loading ? <CircularProgress color="inherit" size={16} /> : null}
+                </>
+              ),
+            },
           }}
         />
       )}

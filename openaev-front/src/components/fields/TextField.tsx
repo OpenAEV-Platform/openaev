@@ -25,7 +25,7 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
   maxLength: _maxLength,
   ...props
 }: TextFieldProps<TFieldValues>) => {
-  const fieldName = (props.inputProps as { name?: string } | undefined)?.name;
+  const fieldName = (props.slotProps?.input as { name?: string } | undefined)?.name;
   const watchedValue = useWatch({
     // `name` is keyed off the underlying form so we widen here; runtime safety is enforced by the
     // `disabled` flag below (we only subscribe when both a control and a name are available).
