@@ -454,25 +454,25 @@ SMB   192.168.10.10   445    FILE-SRV-01    [+] Finance READ,WRITE`,
 export const MOCK_SCENARIO_15EP: AttackPathData = {
   attack_path_nodes: [
     // ── ASSET nodes ──────────────────────────────────────────────────────────
-    { node_id: 's2-ep01', node_type: 'ASSET', node_label: 'WEB-SRV-01', node_hostname: 'WEB-SRV-01', node_ip: '10.0.1.10', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root (privesc)', node_accessed_files: ['/var/www/html/config.php', '/etc/passwd'], node_credentials_found: ['tomcat:s3cr3t@dm1n'], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_entry_point: true, node_is_pivot: true },
-    { node_id: 's2-ep02', node_type: 'ASSET', node_label: 'MAIL-SRV-01', node_hostname: 'MAIL-SRV-01', node_ip: '10.0.1.15', node_platform: 'Debian 10 (Buster)', node_status: 'detected', node_user_privileges: 'www-data (partial)', node_zone: 'DMZ', node_subnet: '10.0.1.0/24' },
-    { node_id: 's2-ep03', node_type: 'ASSET', node_label: 'VPN-GW-01', node_hostname: 'VPN-GW-01', node_ip: '10.0.1.5', node_platform: 'CentOS 7', node_status: 'undetected', node_user_privileges: 'vpnuser → root', node_accessed_files: ['/etc/openvpn/server.conf', '/home/vpnuser/.ssh/authorized_keys'], node_credentials_found: [], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_pivot: true },
-    { node_id: 's2-ep04', node_type: 'ASSET', node_label: 'CORP-WS-01', node_hostname: 'CORP-WS-01', node_ip: '10.0.10.101', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\acct.harris (User)', node_accessed_files: ['C:\\Finance\\Q3_Report.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true },
-    { node_id: 's2-ep05', node_type: 'ASSET', node_label: 'CORP-WS-02', node_hostname: 'CORP-WS-02', node_ip: '10.0.10.102', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\hr.miller (User)', node_accessed_files: [], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 's2-ep06', node_type: 'ASSET', node_label: 'CORP-WS-03', node_hostname: 'CORP-WS-03', node_ip: '10.0.10.103', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\it.chen (Local Admin)', node_accessed_files: ['C:\\Users\\it.chen\\Desktop\\server_passwords.kdbx'], node_credentials_found: ['CORP\\svc_deploy:Deploy2024!'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 's2-ep07', node_type: 'ASSET', node_label: 'CORP-WS-04', node_hostname: 'CORP-WS-04', node_ip: '10.0.10.104', node_platform: 'Windows 10 Pro', node_status: 'detected', node_user_privileges: 'CORP\\mgmt.jones (User)', node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 's2-ep08', node_type: 'ASSET', node_label: 'CORP-WS-05', node_hostname: 'CORP-WS-05', node_ip: '10.0.10.105', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.taylor (User)', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 's2-ep09', node_type: 'ASSET', node_label: 'PRINT-SRV-01', node_hostname: 'PRINT-SRV-01', node_ip: '10.0.10.20', node_platform: 'Windows Server 2016', node_status: 'undetected', node_user_privileges: 'CORP\\svc_print (Service Account)', node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'], node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true },
-    { node_id: 's2-ep10', node_type: 'ASSET', node_label: 'APP-SRV-01', node_hostname: 'APP-SRV-01', node_ip: '10.0.20.10', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_accessed_files: ['/opt/app/config/db.conf', '/opt/app/logs/app.log'], node_credentials_found: ['mysql_root:R00tM3@Prod'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_is_pivot: true },
-    { node_id: 's2-ep11', node_type: 'ASSET', node_label: 'DB-SRV-01', node_hostname: 'DB-SRV-01', node_ip: '10.0.20.15', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'mysql → root', node_accessed_files: ['/var/lib/mysql/', '/etc/mysql/mysql.conf.d/mysqld.cnf'], node_credentials_found: ['SA:Admin@123', 'app_user:AppPass2024'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24' },
-    { node_id: 's2-ep12', node_type: 'ASSET', node_label: 'AD-01 (DC)', node_hostname: 'AD-01', node_ip: '10.0.20.5', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_accessed_files: [], node_credentials_found: ['CORP\\Administrator:$HASH$...', 'All 347 domain accounts extracted (NTDS.dit)'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24' },
-    { node_id: 's2-ep13', node_type: 'ASSET', node_label: 'JUMP-HOST-01', node_hostname: 'JUMP-HOST-01', node_ip: '10.0.30.10', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'CORP\\svc_jumphost (Admin)', node_accessed_files: [], node_credentials_found: [], node_zone: 'Domain', node_subnet: '10.0.30.0/24' },
-    { node_id: 's2-ep14', node_type: 'ASSET', node_label: 'MGMT-WS-01', node_hostname: 'MGMT-WS-01', node_ip: '10.0.30.101', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\mgmt.admin (Domain Admin)', node_accessed_files: ['C:\\Users\\mgmt.admin\\Documents\\network_map.vsd'], node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!'], node_zone: 'Domain', node_subnet: '10.0.30.0/24' },
-    { node_id: 's2-ep15', node_type: 'ASSET', node_label: 'BACKUP-01', node_hostname: 'BACKUP-01', node_ip: '10.0.30.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Domain', node_subnet: '10.0.30.0/24' },
+    { node_id: 's2-ep01', node_type: 'ASSET', node_label: 'WEB-SRV-01', node_hostname: 'WEB-SRV-01', node_ip: '10.0.1.10', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root (privesc)', node_accessed_files: ['/var/www/html/config.php', '/etc/passwd'], node_credentials_found: ['tomcat:s3cr3t@dm1n'], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_entry_point: true, node_is_pivot: true, node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 's2-ep02', node_type: 'ASSET', node_label: 'MAIL-SRV-01', node_hostname: 'MAIL-SRV-01', node_ip: '10.0.1.15', node_platform: 'Debian 10 (Buster)', node_status: 'detected', node_user_privileges: 'www-data (partial)', node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_agents: ['openaev'], },
+    { node_id: 's2-ep03', node_type: 'ASSET', node_label: 'VPN-GW-01', node_hostname: 'VPN-GW-01', node_ip: '10.0.1.5', node_platform: 'CentOS 7', node_status: 'undetected', node_user_privileges: 'vpnuser → root', node_accessed_files: ['/etc/openvpn/server.conf', '/home/vpnuser/.ssh/authorized_keys'], node_credentials_found: [], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 's2-ep04', node_type: 'ASSET', node_label: 'CORP-WS-01', node_hostname: 'CORP-WS-01', node_ip: '10.0.10.101', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\acct.harris (User)', node_accessed_files: ['C:\\Finance\\Q3_Report.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 's2-ep05', node_type: 'ASSET', node_label: 'CORP-WS-02', node_hostname: 'CORP-WS-02', node_ip: '10.0.10.102', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\hr.miller (User)', node_accessed_files: [], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's2-ep06', node_type: 'ASSET', node_label: 'CORP-WS-03', node_hostname: 'CORP-WS-03', node_ip: '10.0.10.103', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\it.chen (Local Admin)', node_accessed_files: ['C:\\Users\\it.chen\\Desktop\\server_passwords.kdbx'], node_credentials_found: ['CORP\\svc_deploy:Deploy2024!'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['palo_alto'], },
+    { node_id: 's2-ep07', node_type: 'ASSET', node_label: 'CORP-WS-04', node_hostname: 'CORP-WS-04', node_ip: '10.0.10.104', node_platform: 'Windows 10 Pro', node_status: 'detected', node_user_privileges: 'CORP\\mgmt.jones (User)', node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's2-ep08', node_type: 'ASSET', node_label: 'CORP-WS-05', node_hostname: 'CORP-WS-05', node_ip: '10.0.10.105', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.taylor (User)', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['palo_alto'], },
+    { node_id: 's2-ep09', node_type: 'ASSET', node_label: 'PRINT-SRV-01', node_hostname: 'PRINT-SRV-01', node_ip: '10.0.10.20', node_platform: 'Windows Server 2016', node_status: 'undetected', node_user_privileges: 'CORP\\svc_print (Service Account)', node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'], node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 's2-ep10', node_type: 'ASSET', node_label: 'APP-SRV-01', node_hostname: 'APP-SRV-01', node_ip: '10.0.20.10', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_accessed_files: ['/opt/app/config/db.conf', '/opt/app/logs/app.log'], node_credentials_found: ['mysql_root:R00tM3@Prod'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 's2-ep11', node_type: 'ASSET', node_label: 'DB-SRV-01', node_hostname: 'DB-SRV-01', node_ip: '10.0.20.15', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'mysql → root', node_accessed_files: ['/var/lib/mysql/', '/etc/mysql/mysql.conf.d/mysqld.cnf'], node_credentials_found: ['SA:Admin@123', 'app_user:AppPass2024'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's2-ep12', node_type: 'ASSET', node_label: 'AD-01 (DC)', node_hostname: 'AD-01', node_ip: '10.0.20.5', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_accessed_files: [], node_credentials_found: ['CORP\\Administrator:$HASH$...', 'All 347 domain accounts extracted (NTDS.dit)'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 's2-ep13', node_type: 'ASSET', node_label: 'JUMP-HOST-01', node_hostname: 'JUMP-HOST-01', node_ip: '10.0.30.10', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'CORP\\svc_jumphost (Admin)', node_accessed_files: [], node_credentials_found: [], node_zone: 'Domain', node_subnet: '10.0.30.0/24', node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 's2-ep14', node_type: 'ASSET', node_label: 'MGMT-WS-01', node_hostname: 'MGMT-WS-01', node_ip: '10.0.30.101', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\mgmt.admin (Domain Admin)', node_accessed_files: ['C:\\Users\\mgmt.admin\\Documents\\network_map.vsd'], node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!'], node_zone: 'Domain', node_subnet: '10.0.30.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's2-ep15', node_type: 'ASSET', node_label: 'BACKUP-01', node_hostname: 'BACKUP-01', node_ip: '10.0.30.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Domain', node_subnet: '10.0.30.0/24', node_agents: ['palo_alto', 'sentinel_one'], },
 
     // ── ACTION nodes ──────────────────────────────────────────────────────────
     // Phase 1 – External Recon & Initial Foothold
-    { node_id: 's2-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:00:00Z', node_ip: '10.0.1.10',
+    { node_id: 's2-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:00:00Z', node_agent: 'openaev', node_ip: '10.0.1.10',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for WEB-SRV-01 (10.0.1.10)
 Host is up (0.0008s latency).
@@ -484,7 +484,7 @@ PORT     STATE  SERVICE      VERSION
 8443/tcp open   ssl/https-alt
 Nmap done: 1 IP address (1 host up) scanned in 3.12 seconds`,
       node_ports_found:['22/tcp open ssh OpenSSH 7.9p1', '80/tcp open http Apache 2.4.51', '443/tcp open ssl/https Apache 2.4.51', '8080/tcp open http Tomcat 9.0.54', '8443/tcp open ssl/https-alt'] },
-    { node_id: 's2-a02', node_type: 'ACTION', node_label: 'Nuclei Log4Shell RCE', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-44228', node_executed_at: '2025-02-10T06:03:22Z', node_ip: '10.0.1.10', node_user_privileges: 'www-data', node_accessed_files: ['/var/www/html/config.php'],
+    { node_id: 's2-a02', node_type: 'ACTION', node_label: 'Nuclei Log4Shell RCE', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-44228', node_executed_at: '2025-02-10T06:03:22Z', node_agent: 'sentinel_one', node_ip: '10.0.1.10', node_user_privileges: 'www-data', node_accessed_files: ['/var/www/html/config.php'],
       node_terminal_output: `[INF] nuclei - Fast and customizable vulnerability scanner
 [INF] Using Nuclei Engine 3.1.0
 [INF] Templates loaded: CVE-2021-44228 (Log4Shell RCE)
@@ -497,7 +497,7 @@ Nmap done: 1 IP address (1 host up) scanned in 3.12 seconds`,
 [+] Privesc via CVE-2021-3156 (sudo heap overflow)... root achieved
 [+] Reading /var/www/html/config.php — DB credentials extracted`,
       node_cves_found:['CVE-2021-44228 (Log4Shell JNDI RCE) - CRITICAL', 'CVE-2021-3156 (sudo heap overflow privesc) - HIGH'] },
-    { node_id: 's2-a03', node_type: 'ACTION', node_label: 'SSH Credential Brute-Force', node_status: 'detected', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2025-02-10T06:06:11Z', node_ip: '10.0.1.15',
+    { node_id: 's2-a03', node_type: 'ACTION', node_label: 'SSH Credential Brute-Force', node_status: 'detected', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2025-02-10T06:06:11Z', node_agent: 'palo_alto', node_ip: '10.0.1.15',
       node_terminal_output: `[*] Starting SSH brute force on MAIL-SRV-01 (10.0.1.15:22)
 [*] Trying root:root ... FAILED (0.3s)
 [*] Trying admin:admin ... FAILED (0.3s)
@@ -506,7 +506,7 @@ Nmap done: 1 IP address (1 host up) scanned in 3.12 seconds`,
 [!] SIEM Alert: Multiple failed SSH logins from 10.0.1.10 — rule SSH_BRUTEFORCE triggered
 [-] IP 10.0.1.10 blocked by firewall rule 403
 [-] Attack DETECTED and partially mitigated` },
-    { node_id: 's2-a04', node_type: 'ACTION', node_label: 'SSH Credential Spray', node_status: 'undetected', node_payload_name: 'netexec – SSH credential spray', node_executed_at: '2025-02-10T06:09:45Z', node_ip: '10.0.1.5', node_user_privileges: 'vpnuser',
+    { node_id: 's2-a04', node_type: 'ACTION', node_label: 'SSH Credential Spray', node_status: 'undetected', node_payload_name: 'netexec – SSH credential spray', node_executed_at: '2025-02-10T06:09:45Z', node_agent: 'sentinel_one', node_ip: '10.0.1.5', node_user_privileges: 'vpnuser',
       node_terminal_output: `SSH   10.0.1.5       22     VPN-GW-01      [*] Credential spray with config.php extracted credentials
 SSH   10.0.1.5       22     VPN-GW-01      [+] tomcat:s3cr3t@dm1n ... SUCCESS
 SSH   10.0.1.5       22     VPN-GW-01      [+] Session established as vpnuser@VPN-GW-01
@@ -515,7 +515,7 @@ SSH   10.0.1.5       22     VPN-GW-01      [*] sudo -l: (ALL:ALL) NOPASSWD: /sbi
 SSH   10.0.1.5       22     VPN-GW-01      [+] Pivoting via OpenVPN into corporate network 10.0.10.0/24` },
 
     // Phase 2 – Internal Network Recon
-    { node_id: 's2-a05', node_type: 'ACTION', node_label: 'Nmap Internal Network Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP Connect Scan', node_executed_at: '2025-02-10T06:14:01Z', node_ip: '10.0.10.0/24',
+    { node_id: 's2-a05', node_type: 'ACTION', node_label: 'Nmap Internal Network Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP Connect Scan', node_executed_at: '2025-02-10T06:14:01Z', node_agent: 'openaev', node_ip: '10.0.10.0/24',
       node_terminal_output: `Starting Nmap 7.94 — scanning 10.0.10.0/24
 Host: 10.0.10.101 (CORP-WS-01)  Ports: 135,139,445,3389
 Host: 10.0.10.102 (CORP-WS-02)  Ports: 135,139,445,3389
@@ -525,7 +525,7 @@ Host: 10.0.10.105 (CORP-WS-05)  Ports: 135,139,445,3389
 Host: 10.0.10.20  (PRINT-SRV-01) Ports: 135,139,445,9100
 Nmap done: 254 IP addresses (6 hosts up) scanned in 12.7 seconds`,
       node_ports_found:['135/tcp open msrpc', '139/tcp open netbios-ssn', '445/tcp open microsoft-ds', '3389/tcp open ms-wbt-server RDP'] },
-    { node_id: 's2-a06', node_type: 'ACTION', node_label: 'SMB AV Enumeration', node_status: 'undetected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2025-02-10T06:16:30Z', node_ip: '10.0.10.103',
+    { node_id: 's2-a06', node_type: 'ACTION', node_label: 'SMB AV Enumeration', node_status: 'undetected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2025-02-10T06:16:30Z', node_agent: 'sentinel_one', node_ip: '10.0.10.103',
       node_terminal_output: `SMB   10.0.10.103  445    CORP-WS-03  [*] Windows 10.0 Build 19041 (domain:CORP)
 SMB   10.0.10.103  445    CORP-WS-03  [+] CORP\\it.chen:Deploy2024! (Pwn3d!)
 SMB   10.0.10.103  445    CORP-WS-03  [*] AV: Windows Defender (disabled — policy override)
@@ -533,28 +533,28 @@ SMB   10.0.10.103  445    CORP-WS-03  [+] Local admin group: CORP\\it.chen, CORP
 SMB   10.0.10.103  445    CORP-WS-03  [+] Workstation fully accessible` },
 
     // Phase 3 – Workstation Lateral Movement
-    { node_id: 's2-a07', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-02-10T06:20:00Z', node_ip: '10.0.10.101',
+    { node_id: 's2-a07', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-02-10T06:20:00Z', node_agent: 'palo_alto', node_ip: '10.0.10.101',
       node_terminal_output: `SMB   10.0.10.101  445    CORP-WS-01  [+] CORP\\acct.harris:<HASH> (Pwn3d!)
 SMB   10.0.10.101  445    CORP-WS-01  [*] Spidering C:\\Finance\\ ...
 SMB   10.0.10.101  445    CORP-WS-01  [+] Found: C:\\Finance\\Q3_Report.xlsx (44KB)
 SMB   10.0.10.101  445    CORP-WS-01  [+] Exfiltrated 1 file (44 KB)` },
-    { node_id: 's2-a08', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-02-10T06:22:15Z', node_ip: '10.0.10.102',
+    { node_id: 's2-a08', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-02-10T06:22:15Z', node_agent: 'openaev', node_ip: '10.0.10.102',
       node_terminal_output: `SMB   10.0.10.102  445    CORP-WS-02  [+] CORP\\hr.miller:<HASH> (Pwn3d!)
 SMB   10.0.10.102  445    CORP-WS-02  [*] No sensitive files found in accessible shares
 SMB   10.0.10.102  445    CORP-WS-02  [+] Credential cache extracted via lsass dump` },
-    { node_id: 's2-a09', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-04)', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-02-10T06:24:33Z', node_ip: '10.0.10.104',
+    { node_id: 's2-a09', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-04)', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-02-10T06:24:33Z', node_agent: 'openaev', node_ip: '10.0.10.104',
       node_terminal_output: `SMB   10.0.10.104  445    CORP-WS-04  [*] Attempting pass-the-hash...
 SMB   10.0.10.104  445    CORP-WS-04  [+] Auth partial — session created but restricted
 [!] DETECTION: Microsoft Defender ATP detected lateral movement from 10.0.10.103
 [!] SIEM Alert: SMB_LATERAL_MOVEMENT — rule triggered on CORP-WS-04
 [*] Attack detected — limited access achieved before containment` },
-    { node_id: 's2-a10', node_type: 'ACTION', node_label: 'WMI Remote Exec (WS-05)', node_status: 'undetected', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2025-02-10T06:26:45Z', node_ip: '10.0.10.105', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx'],
+    { node_id: 's2-a10', node_type: 'ACTION', node_label: 'WMI Remote Exec (WS-05)', node_status: 'undetected', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2025-02-10T06:26:45Z', node_agent: 'palo_alto', node_ip: '10.0.10.105', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx'],
       node_terminal_output: `WMI   10.0.10.105  135    CORP-WS-05  [+] CORP\\fin.taylor:<HASH> Auth OK
 WMI   10.0.10.105  135    CORP-WS-05  [*] Executing: cmd.exe /c dir C:\\Finance\\
 WMI   10.0.10.105  135    CORP-WS-05  [+] Found C:\\Finance\\Payroll_2024.xlsx (1.2 MB)
 WMI   10.0.10.105  135    CORP-WS-05  [*] Executing: xcopy C:\\Finance\\Payroll_2024.xlsx \\\\10.0.10.103\\C$\\Temp\\
 WMI   10.0.10.105  135    CORP-WS-05  [+] File exfiltrated successfully` },
-    { node_id: 's2-a11', node_type: 'ACTION', node_label: 'SMB Spider+ File Enum', node_status: 'undetected', node_payload_name: 'netexec – SMB spider_plus', node_executed_at: '2025-02-10T06:29:12Z', node_ip: '10.0.10.20', node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'], node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'],
+    { node_id: 's2-a11', node_type: 'ACTION', node_label: 'SMB Spider+ File Enum', node_status: 'undetected', node_payload_name: 'netexec – SMB spider_plus', node_executed_at: '2025-02-10T06:29:12Z', node_agent: 'palo_alto', node_ip: '10.0.10.20', node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'], node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'],
       node_terminal_output: `SMB   10.0.10.20   445    PRINT-SRV-01  [+] CORP\\svc_print:<HASH> (Pwn3d!)
 SMB   10.0.10.20   445    PRINT-SRV-01  [*] Spider+ scanning all shares...
 SMB   10.0.10.20   445    PRINT-SRV-01  [+] C:\\Windows\\System32\\spool\\drivers\\ — 47 files indexed
@@ -563,7 +563,7 @@ SMB   10.0.10.20   445    PRINT-SRV-01  [+] Found credentials in printer config 
 SMB   10.0.10.20   445    PRINT-SRV-01  [+] Credential added to store` },
 
     // Phase 4 – Server Farm Breach
-    { node_id: 's2-a12', node_type: 'ACTION', node_label: 'SSH Credential Reuse (APP)', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-02-10T06:33:00Z', node_ip: '10.0.20.10', node_accessed_files: ['/opt/app/config/db.conf'], node_credentials_found: ['mysql_root:R00tM3@Prod'],
+    { node_id: 's2-a12', node_type: 'ACTION', node_label: 'SSH Credential Reuse (APP)', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-02-10T06:33:00Z', node_agent: 'palo_alto', node_ip: '10.0.20.10', node_accessed_files: ['/opt/app/config/db.conf'], node_credentials_found: ['mysql_root:R00tM3@Prod'],
       node_terminal_output: `SSH   10.0.20.10   22     APP-SRV-01    [+] appuser:s3cr3t@dm1n (from WEB-SRV-01 config) — SUCCESS
 SSH   10.0.20.10   22     APP-SRV-01    [*] id: uid=1002(appuser) gid=1002(appuser)
 SSH   10.0.20.10   22     APP-SRV-01    [*] cat /opt/app/config/db.conf
@@ -572,13 +572,13 @@ user=mysql_root
 pass=R00tM3@Prod
 database=production
 SSH   10.0.20.10   22     APP-SRV-01    [+] Database credentials extracted` },
-    { node_id: 's2-a13', node_type: 'ACTION', node_label: 'MSSQL SA Login Attempt', node_status: 'detected', node_payload_name: 'netexec – MSSQL exec', node_executed_at: '2025-02-10T06:36:22Z', node_ip: '10.0.20.15',
+    { node_id: 's2-a13', node_type: 'ACTION', node_label: 'MSSQL SA Login Attempt', node_status: 'detected', node_payload_name: 'netexec – MSSQL exec', node_executed_at: '2025-02-10T06:36:22Z', node_agent: 'palo_alto', node_ip: '10.0.20.15',
       node_terminal_output: `MSSQL 10.0.20.15   1433   DB-SRV-01     [*] Trying SA login with extracted credentials
 MSSQL 10.0.20.15   1433   DB-SRV-01     [*] SA:Admin@123 ... partial
 [!] DETECTION: SQL Server Audit log triggered — failed elevated login attempt
 [!] SIEM Alert: DB_PRIVESC_ATTEMPT from 10.0.20.10 to 10.0.20.15
 MSSQL 10.0.20.15   1433   DB-SRV-01     [*] Attack detected before xp_cmdshell execution` },
-    { node_id: 's2-a14', node_type: 'ACTION', node_label: 'SSH Root Privilege Escalation', node_status: 'undetected', node_payload_name: 'netexec – SSH privesc', node_executed_at: '2025-02-10T06:39:05Z', node_ip: '10.0.20.15', node_user_privileges: 'mysql → root', node_accessed_files: ['/var/lib/mysql/'],
+    { node_id: 's2-a14', node_type: 'ACTION', node_label: 'SSH Root Privilege Escalation', node_status: 'undetected', node_payload_name: 'netexec – SSH privesc', node_executed_at: '2025-02-10T06:39:05Z', node_agent: 'palo_alto', node_ip: '10.0.20.15', node_user_privileges: 'mysql → root', node_accessed_files: ['/var/lib/mysql/'],
       node_terminal_output: `SSH   10.0.20.15   22     DB-SRV-01     [+] mysql_root:R00tM3@Prod — SUCCESS
 SSH   10.0.20.15   22     DB-SRV-01     [*] Escalating via CVE-2022-0847 (Dirty Pipe)
 SSH   10.0.20.15   22     DB-SRV-01     [+] Root shell obtained: uid=0(root)
@@ -586,7 +586,7 @@ SSH   10.0.20.15   22     DB-SRV-01     [*] Dumping MySQL: mysqldump -u root -pR
 SSH   10.0.20.15   22     DB-SRV-01     [+] Exfiltrated: /var/lib/mysql/ (4.7 GB dump initiated)` },
 
     // Phase 5 – Domain Compromise
-    { node_id: 's2-a15', node_type: 'ACTION', node_label: 'LDAP Kerberoasting', node_status: 'undetected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2025-02-10T06:43:11Z', node_ip: '10.0.20.5', node_credentials_found: ['$krb5tgs$23$*svc_mssql*...'],
+    { node_id: 's2-a15', node_type: 'ACTION', node_label: 'LDAP Kerberoasting', node_status: 'undetected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2025-02-10T06:43:11Z', node_agent: 'sentinel_one', node_ip: '10.0.20.5', node_credentials_found: ['$krb5tgs$23$*svc_mssql*...'],
       node_terminal_output: `LDAP  10.0.20.5    389    AD-01          [*] Querying AD-01 for Kerberoastable service accounts
 LDAP  10.0.20.5    389    AD-01          [+] Found 5 kerberoastable accounts
 LDAP  10.0.20.5    389    AD-01          svc_mssql@CORP.LOCAL (RC4, crackable)
@@ -596,13 +596,13 @@ LDAP  10.0.20.5    389    AD-01          [+] TGS tickets saved: ./kerberoast/
 $krb5tgs$23$*svc_mssql*CORP.LOCAL*[RC4_HASH_TRUNCATED]
 [*] Hashcat offline crack estimated: ~2 hours on RTX 4090`,
       node_users_found:['CORP\\Administrator', 'CORP\\svc_mssql', 'CORP\\svc_print', 'CORP\\acct.harris', 'CORP\\it.chen', 'CORP\\fin.taylor', 'CORP\\svc_backup'] },
-    { node_id: 's2-a16', node_type: 'ACTION', node_label: 'SMB Backup Operator Abuse', node_status: 'detected', node_payload_name: 'netexec – SMB backup_operator', node_executed_at: '2025-02-10T06:46:30Z', node_ip: '10.0.20.5',
+    { node_id: 's2-a16', node_type: 'ACTION', node_label: 'SMB Backup Operator Abuse', node_status: 'detected', node_payload_name: 'netexec – SMB backup_operator', node_executed_at: '2025-02-10T06:46:30Z', node_agent: 'openaev', node_ip: '10.0.20.5',
       node_terminal_output: `SMB   10.0.20.5    445    AD-01          [*] Attempting Backup Operator privilege abuse
 SMB   10.0.20.5    445    AD-01          [*] Mounting C$ via backup operator rights...
 [!] DETECTION: Windows Security Event ID 4624/4672 — special privilege assigned
 [!] SIEM Correlation: DC_PRIVESC sequence detected — alert escalated to SOC
 [-] Backup operator abuse detected before NTDS.dit copy completed` },
-    { node_id: 's2-a17', node_type: 'ACTION', node_label: 'SMB NTDS.dit Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB secretsdump', node_executed_at: '2025-02-10T06:49:50Z', node_ip: '10.0.20.5', node_credentials_found: ['CORP\\Administrator:$HASH$...', 'All 347 domain accounts extracted'],
+    { node_id: 's2-a17', node_type: 'ACTION', node_label: 'SMB NTDS.dit Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB secretsdump', node_executed_at: '2025-02-10T06:49:50Z', node_agent: 'palo_alto', node_ip: '10.0.20.5', node_credentials_found: ['CORP\\Administrator:$HASH$...', 'All 347 domain accounts extracted'],
       node_terminal_output: `SMB   10.0.20.5    445    AD-01          [+] CORP\\Administrator:<HASH> (Domain Admin) Auth OK
 SMB   10.0.20.5    445    AD-01          [*] Running secretsdump remotely via VSS shadow copy
 SMB   10.0.20.5    445    AD-01          [+] NTDS.dit dump completed: 347 accounts
@@ -613,18 +613,18 @@ CORP\\svc_backup:1106:...[HASH]
 SMB   10.0.20.5    445    AD-01          [+] Golden Ticket material acquired (krbtgt hash)` },
 
     // Phase 6 – Management Zone
-    { node_id: 's2-a18', node_type: 'ACTION', node_label: 'RDP Admin Login', node_status: 'undetected', node_payload_name: 'netexec – RDP login', node_executed_at: '2025-02-10T06:53:00Z', node_ip: '10.0.30.10', node_user_privileges: 'CORP\\svc_jumphost (Admin)',
+    { node_id: 's2-a18', node_type: 'ACTION', node_label: 'RDP Admin Login', node_status: 'undetected', node_payload_name: 'netexec – RDP login', node_executed_at: '2025-02-10T06:53:00Z', node_agent: 'palo_alto', node_ip: '10.0.30.10', node_user_privileges: 'CORP\\svc_jumphost (Admin)',
       node_terminal_output: `RDP   10.0.30.10   3389   JUMP-HOST-01  [+] CORP\\Administrator:<HASH> pass-the-hash — SUCCESS
 RDP   10.0.30.10   3389   JUMP-HOST-01  [*] Remote desktop session established
 RDP   10.0.30.10   3389   JUMP-HOST-01  [*] Host is jump server — multiple RDP sessions visible
 RDP   10.0.30.10   3389   JUMP-HOST-01  [+] Credential cache harvested via Mimikatz` },
-    { node_id: 's2-a19', node_type: 'ACTION', node_label: 'WMI Coerce Relay', node_status: 'detected', node_payload_name: 'netexec – WMI coerce_plus', node_executed_at: '2025-02-10T06:56:15Z', node_ip: '10.0.30.101',
+    { node_id: 's2-a19', node_type: 'ACTION', node_label: 'WMI Coerce Relay', node_status: 'detected', node_payload_name: 'netexec – WMI coerce_plus', node_executed_at: '2025-02-10T06:56:15Z', node_agent: 'openaev', node_ip: '10.0.30.101',
       node_terminal_output: `WMI   10.0.30.101  135    MGMT-WS-01    [*] Attempting NTLM coercion relay
 WMI   10.0.30.101  135    MGMT-WS-01    [*] Triggering PrinterBug (MS-RPRN) authentication coerce
 [!] DETECTION: Unusual WMI RPC call pattern detected by EDR
 [!] SIEM Alert: NTLM_RELAY_ATTEMPT from 10.0.30.10 — investigation triggered
 [-] Relay intercepted by network-level MitM detection` },
-    { node_id: 's2-a20', node_type: 'ACTION', node_label: 'SMB GPP Autologin Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB gpp_autologin', node_executed_at: '2025-02-10T06:58:40Z', node_ip: '10.0.30.101', node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!'],
+    { node_id: 's2-a20', node_type: 'ACTION', node_label: 'SMB GPP Autologin Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB gpp_autologin', node_executed_at: '2025-02-10T06:58:40Z', node_agent: 'palo_alto', node_ip: '10.0.30.101', node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!'],
       node_terminal_output: `SMB   10.0.30.101  445    MGMT-WS-01    [+] CORP\\Administrator:<HASH> (Pwn3d!)
 SMB   10.0.30.101  445    MGMT-WS-01    [*] Searching for AutoLogon credentials in registry
 SMB   10.0.30.101  445    MGMT-WS-01    [+] HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon
@@ -634,14 +634,14 @@ SMB   10.0.30.101  445    MGMT-WS-01    [+] HKLM\\SOFTWARE\\Microsoft\\Windows N
 SMB   10.0.30.101  445    MGMT-WS-01    [+] Plaintext credential extracted!` },
 
     // Phase 7 – Backup Server (blocked)
-    { node_id: 's2-a21', node_type: 'ACTION', node_label: 'SSH Root Login Attempt', node_status: 'prevented', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-02-10T07:01:20Z', node_ip: '10.0.30.20',
+    { node_id: 's2-a21', node_type: 'ACTION', node_label: 'SSH Root Login Attempt', node_status: 'prevented', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-02-10T07:01:20Z', node_agent: 'openaev', node_ip: '10.0.30.20',
       node_terminal_output: `SSH   10.0.30.20   22     BACKUP-01     [*] Attempting SSH with extracted credentials
 SSH   10.0.30.20   22     BACKUP-01     [*] CORP\\mgmt.admin:Sup3rS3cr3t! ... FAILED
 SSH   10.0.30.20   22     BACKUP-01     [*] root:root ... FAILED
 [!] PREVENTION: SSH access from management network blocked by firewall policy
 [!] Segment 10.0.30.0/24 → 10.0.30.20 restricted (backup isolation rule)
 [-] Attack PREVENTED — network segmentation policy enforced` },
-    { node_id: 's2-a22', node_type: 'ACTION', node_label: 'NFS Mount Probe', node_status: 'prevented', node_payload_name: 'netexec – NFS mount', node_executed_at: '2025-02-10T07:02:55Z', node_ip: '10.0.30.20',
+    { node_id: 's2-a22', node_type: 'ACTION', node_label: 'NFS Mount Probe', node_status: 'prevented', node_payload_name: 'netexec – NFS mount', node_executed_at: '2025-02-10T07:02:55Z', node_agent: 'openaev', node_ip: '10.0.30.20',
       node_terminal_output: `[*] Probing NFS exports on BACKUP-01 (10.0.30.20)
 [*] showmount -e 10.0.30.20
 clnt_create: RPC: Port mapper failure - Timed out
@@ -650,7 +650,7 @@ clnt_create: RPC: Port mapper failure - Timed out
 [-] NFS mount attempt PREVENTED — host firewall blocked connection` },
 
     // Bonus nmap scans — create intersection data for V4.3 (ports + credentials in same endpoints)
-    { node_id: 's2-a23', node_type: 'ACTION', node_label: 'Nmap Print Server Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:28:00Z', node_ip: '10.0.10.20',
+    { node_id: 's2-a23', node_type: 'ACTION', node_label: 'Nmap Print Server Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:28:00Z', node_agent: 'openaev', node_ip: '10.0.10.20',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for PRINT-SRV-01 (10.0.10.20)
 Host is up (0.0005s latency).
@@ -660,7 +660,7 @@ PORT     STATE  SERVICE        VERSION
 445/tcp  open   microsoft-ds   Windows Server 2016
 9100/tcp open   jetdirect      HP JetDirect
 Nmap done: 1 IP address (1 host up) scanned in 1.82 seconds` },
-    { node_id: 's2-a24', node_type: 'ACTION', node_label: 'Nmap App Server Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:32:00Z', node_ip: '10.0.20.10',
+    { node_id: 's2-a24', node_type: 'ACTION', node_label: 'Nmap App Server Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:32:00Z', node_agent: 'openaev', node_ip: '10.0.20.10',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for APP-SRV-01 (10.0.20.10)
 Host is up (0.0006s latency).
@@ -670,7 +670,7 @@ PORT     STATE  SERVICE     VERSION
 3306/tcp open   mysql       MySQL 8.0.32
 8080/tcp open   http-proxy  Nginx 1.20
 Nmap done: 1 IP address (1 host up) scanned in 2.11 seconds` },
-    { node_id: 's2-a25', node_type: 'ACTION', node_label: 'Nmap Domain Controller Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:41:00Z', node_ip: '10.0.20.5',
+    { node_id: 's2-a25', node_type: 'ACTION', node_label: 'Nmap Domain Controller Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:41:00Z', node_agent: 'openaev', node_ip: '10.0.20.5',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for AD-01 (10.0.20.5)
 Host is up (0.0004s latency).
@@ -683,7 +683,7 @@ PORT     STATE  SERVICE       VERSION
 636/tcp  open   ldapssl       Microsoft Active Directory LDAP
 3268/tcp open   globalcatLDAP Microsoft Windows Active Directory
 Nmap done: 1 IP address (1 host up) scanned in 1.94 seconds` },
-    { node_id: 's2-a26', node_type: 'ACTION', node_label: 'Nmap Mgmt Workstation Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:55:00Z', node_ip: '10.0.30.101',
+    { node_id: 's2-a26', node_type: 'ACTION', node_label: 'Nmap Mgmt Workstation Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-02-10T06:55:00Z', node_agent: 'openaev', node_ip: '10.0.30.101',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for MGMT-WS-01 (10.0.30.101)
 Host is up (0.0007s latency).
@@ -702,6 +702,7 @@ Nmap done: 1 IP address (1 host up) scanned in 1.55 seconds` },
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (multi-subnet)',
       node_executed_at: '2025-02-10T06:01:00Z',
+      node_agent: 'openaev',
       node_ip: '10.0.0.0/8',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-02-10 06:01 UTC
 Nmap scan report for 10.0.1.15 (MAIL-SRV-01)
@@ -918,176 +919,176 @@ export const MOCK_SCENARIO_50EP: AttackPathData = {
     // ── ASSET nodes (50) ──────────────────────────────────────────────────────
 
     // DMZ Zone
-    { node_id: 's3-dmz-web-01', node_type: 'ASSET', node_label: 'DMZ-WEB-01', node_hostname: 'DMZ-WEB-01', node_ip: '203.0.113.10', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/html/config.php', '/etc/passwd', '/root/.ssh/id_rsa'], node_credentials_found: ['db_user:Prod@123'], node_zone: 'DMZ', node_subnet: '203.0.113.0/24', node_is_entry_point: true, node_is_pivot: true },
-    { node_id: 's3-dmz-web-02', node_type: 'ASSET', node_label: 'DMZ-WEB-02', node_hostname: 'DMZ-WEB-02', node_ip: '203.0.113.11', node_platform: 'Debian 11 (Bullseye)', node_status: 'detected', node_user_privileges: 'www-data (partial)', node_zone: 'DMZ', node_subnet: '203.0.113.0/24' },
-    { node_id: 's3-dmz-web-03', node_type: 'ASSET', node_label: 'DMZ-WEB-03', node_hostname: 'DMZ-WEB-03', node_ip: '203.0.113.12', node_platform: 'CentOS 8', node_status: 'undetected', node_user_privileges: 'apache → root', node_accessed_files: ['/etc/httpd/conf/httpd.conf'], node_zone: 'DMZ', node_subnet: '203.0.113.0/24' },
-    { node_id: 's3-dmz-mail-01', node_type: 'ASSET', node_label: 'DMZ-MAIL-01', node_hostname: 'DMZ-MAIL-01', node_ip: '203.0.113.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'undetected', node_user_privileges: 'postfix → root', node_accessed_files: ['/var/mail/', '/etc/postfix/main.cf'], node_zone: 'DMZ', node_subnet: '203.0.113.0/24' },
-    { node_id: 's3-dmz-ftp-01', node_type: 'ASSET', node_label: 'DMZ-FTP-01', node_hostname: 'DMZ-FTP-01', node_ip: '203.0.113.30', node_platform: 'Ubuntu 18.04 LTS', node_status: 'prevented', node_zone: 'DMZ', node_subnet: '203.0.113.0/24' },
+    { node_id: 's3-dmz-web-01', node_type: 'ASSET', node_label: 'DMZ-WEB-01', node_hostname: 'DMZ-WEB-01', node_ip: '203.0.113.10', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/html/config.php', '/etc/passwd', '/root/.ssh/id_rsa'], node_credentials_found: ['db_user:Prod@123'], node_zone: 'DMZ', node_subnet: '203.0.113.0/24', node_is_entry_point: true, node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 's3-dmz-web-02', node_type: 'ASSET', node_label: 'DMZ-WEB-02', node_hostname: 'DMZ-WEB-02', node_ip: '203.0.113.11', node_platform: 'Debian 11 (Bullseye)', node_status: 'detected', node_user_privileges: 'www-data (partial)', node_zone: 'DMZ', node_subnet: '203.0.113.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's3-dmz-web-03', node_type: 'ASSET', node_label: 'DMZ-WEB-03', node_hostname: 'DMZ-WEB-03', node_ip: '203.0.113.12', node_platform: 'CentOS 8', node_status: 'undetected', node_user_privileges: 'apache → root', node_accessed_files: ['/etc/httpd/conf/httpd.conf'], node_zone: 'DMZ', node_subnet: '203.0.113.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-dmz-mail-01', node_type: 'ASSET', node_label: 'DMZ-MAIL-01', node_hostname: 'DMZ-MAIL-01', node_ip: '203.0.113.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'undetected', node_user_privileges: 'postfix → root', node_accessed_files: ['/var/mail/', '/etc/postfix/main.cf'], node_zone: 'DMZ', node_subnet: '203.0.113.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's3-dmz-ftp-01', node_type: 'ASSET', node_label: 'DMZ-FTP-01', node_hostname: 'DMZ-FTP-01', node_ip: '203.0.113.30', node_platform: 'Ubuntu 18.04 LTS', node_status: 'prevented', node_zone: 'DMZ', node_subnet: '203.0.113.0/24', node_agents: ['sentinel_one', 'openaev'], },
 
     // Perimeter
-    { node_id: 's3-peri-proxy-01', node_type: 'ASSET', node_label: 'PERI-PROXY-01', node_hostname: 'PERI-PROXY-01', node_ip: '10.0.0.2', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'proxy → root', node_accessed_files: ['/etc/squid/squid.conf'], node_zone: 'Perimeter', node_subnet: '10.0.0.0/24', node_is_pivot: true },
-    { node_id: 's3-peri-proxy-02', node_type: 'ASSET', node_label: 'PERI-PROXY-02', node_hostname: 'PERI-PROXY-02', node_ip: '10.0.0.3', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'proxy → root', node_zone: 'Perimeter', node_subnet: '10.0.0.0/24' },
-    { node_id: 's3-peri-fw-01', node_type: 'ASSET', node_label: 'PERI-FW-01', node_hostname: 'PERI-FW-01', node_ip: '10.0.0.1', node_platform: 'pfSense 2.7', node_status: 'prevented', node_zone: 'Perimeter', node_subnet: '10.0.0.0/24' },
+    { node_id: 's3-peri-proxy-01', node_type: 'ASSET', node_label: 'PERI-PROXY-01', node_hostname: 'PERI-PROXY-01', node_ip: '10.0.0.2', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'proxy → root', node_accessed_files: ['/etc/squid/squid.conf'], node_zone: 'Perimeter', node_subnet: '10.0.0.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 's3-peri-proxy-02', node_type: 'ASSET', node_label: 'PERI-PROXY-02', node_hostname: 'PERI-PROXY-02', node_ip: '10.0.0.3', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'proxy → root', node_zone: 'Perimeter', node_subnet: '10.0.0.0/24', node_agents: ['openaev'], },
+    { node_id: 's3-peri-fw-01', node_type: 'ASSET', node_label: 'PERI-FW-01', node_hostname: 'PERI-FW-01', node_ip: '10.0.0.1', node_platform: 'pfSense 2.7', node_status: 'prevented', node_zone: 'Perimeter', node_subnet: '10.0.0.0/24', node_agents: ['sentinel_one'], },
 
     // Executive Zone
-    { node_id: 's3-exec-ws-01', node_type: 'ASSET', node_label: 'EXEC-WS-01', node_hostname: 'EXEC-WS-01', node_ip: '10.0.5.101', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\ceo.anderson (User)', node_accessed_files: ['C:\\Users\\ceo.anderson\\Documents\\Board_Strategy_2025.docx'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24' },
-    { node_id: 's3-exec-ws-02', node_type: 'ASSET', node_label: 'EXEC-WS-02', node_hostname: 'EXEC-WS-02', node_ip: '10.0.5.102', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\cfo.baker (User)', node_accessed_files: ['C:\\Finance\\M&A_Plans_Confidential.xlsx'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24' },
-    { node_id: 's3-exec-ws-03', node_type: 'ASSET', node_label: 'EXEC-WS-03', node_hostname: 'EXEC-WS-03', node_ip: '10.0.5.103', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\cto.chen (User)', node_credentials_found: ['CORP\\svc_admin:Admin@Prod!'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_is_pivot: true },
-    { node_id: 's3-exec-ws-04', node_type: 'ASSET', node_label: 'EXEC-WS-04', node_hostname: 'EXEC-WS-04', node_ip: '10.0.5.104', node_platform: 'Windows 11 Pro', node_status: 'detected', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24' },
-    { node_id: 's3-exec-ws-05', node_type: 'ASSET', node_label: 'EXEC-WS-05', node_hostname: 'EXEC-WS-05', node_ip: '10.0.5.105', node_platform: 'Windows 11 Pro', node_status: 'pending', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_untouched: true },
-    { node_id: 's3-exec-printer-01', node_type: 'ASSET', node_label: 'EXEC-PRINTER-01', node_hostname: 'EXEC-PRINTER-01', node_ip: '10.0.5.20', node_platform: 'Windows Server 2016', node_status: 'undetected', node_user_privileges: 'CORP\\svc_print', node_accessed_files: ['C:\\Windows\\System32\\spool\\'], node_credentials_found: ['CORP\\svc_mssql:Sql#2024'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24' },
-    { node_id: 's3-exec-laptop-01', node_type: 'ASSET', node_label: 'EXEC-LAPTOP-01', node_hostname: 'EXEC-LAPTOP-01', node_ip: '10.0.5.150', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\vp.sales (User)', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24' },
-    { node_id: 's3-exec-mac-01', node_type: 'ASSET', node_label: 'EXEC-MAC-01', node_hostname: 'EXEC-MAC-01', node_ip: '10.0.5.160', node_platform: 'macOS Ventura 13.6', node_status: 'undetected', node_user_privileges: 'localadmin', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24' },
+    { node_id: 's3-exec-ws-01', node_type: 'ASSET', node_label: 'EXEC-WS-01', node_hostname: 'EXEC-WS-01', node_ip: '10.0.5.101', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\ceo.anderson (User)', node_accessed_files: ['C:\\Users\\ceo.anderson\\Documents\\Board_Strategy_2025.docx'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_agents: ['openaev'], },
+    { node_id: 's3-exec-ws-02', node_type: 'ASSET', node_label: 'EXEC-WS-02', node_hostname: 'EXEC-WS-02', node_ip: '10.0.5.102', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\cfo.baker (User)', node_accessed_files: ['C:\\Finance\\M&A_Plans_Confidential.xlsx'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-exec-ws-03', node_type: 'ASSET', node_label: 'EXEC-WS-03', node_hostname: 'EXEC-WS-03', node_ip: '10.0.5.103', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\cto.chen (User)', node_credentials_found: ['CORP\\svc_admin:Admin@Prod!'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 's3-exec-ws-04', node_type: 'ASSET', node_label: 'EXEC-WS-04', node_hostname: 'EXEC-WS-04', node_ip: '10.0.5.104', node_platform: 'Windows 11 Pro', node_status: 'detected', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_agents: ['palo_alto'], },
+    { node_id: 's3-exec-ws-05', node_type: 'ASSET', node_label: 'EXEC-WS-05', node_hostname: 'EXEC-WS-05', node_ip: '10.0.5.105', node_platform: 'Windows 11 Pro', node_status: 'pending', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_untouched: true, node_agents: ['openaev'], },
+    { node_id: 's3-exec-printer-01', node_type: 'ASSET', node_label: 'EXEC-PRINTER-01', node_hostname: 'EXEC-PRINTER-01', node_ip: '10.0.5.20', node_platform: 'Windows Server 2016', node_status: 'undetected', node_user_privileges: 'CORP\\svc_print', node_accessed_files: ['C:\\Windows\\System32\\spool\\'], node_credentials_found: ['CORP\\svc_mssql:Sql#2024'], node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-exec-laptop-01', node_type: 'ASSET', node_label: 'EXEC-LAPTOP-01', node_hostname: 'EXEC-LAPTOP-01', node_ip: '10.0.5.150', node_platform: 'Windows 11 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\vp.sales (User)', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_agents: ['palo_alto'], },
+    { node_id: 's3-exec-mac-01', node_type: 'ASSET', node_label: 'EXEC-MAC-01', node_hostname: 'EXEC-MAC-01', node_ip: '10.0.5.160', node_platform: 'macOS Ventura 13.6', node_status: 'undetected', node_user_privileges: 'localadmin', node_zone: 'Exec Zone', node_subnet: '10.0.5.0/24', node_agents: ['palo_alto'], },
 
     // Engineering Zone
-    { node_id: 's3-eng-ws-01', node_type: 'ASSET', node_label: 'ENG-WS-01', node_hostname: 'ENG-WS-01', node_ip: '10.0.10.101', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\eng.dev01 (User)', node_accessed_files: ['C:\\dev\\api\\src\\config.json'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24' },
-    { node_id: 's3-eng-ws-02', node_type: 'ASSET', node_label: 'ENG-WS-02', node_hostname: 'ENG-WS-02', node_ip: '10.0.10.102', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\eng.dev02 (User)', node_credentials_found: ['gitlab_token:glpat-xxxx'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24' },
-    { node_id: 's3-eng-ws-03', node_type: 'ASSET', node_label: 'ENG-WS-03', node_hostname: 'ENG-WS-03', node_ip: '10.0.10.103', node_platform: 'Windows 10 Enterprise', node_status: 'detected', node_zone: 'Engineering', node_subnet: '10.0.10.0/24' },
-    { node_id: 's3-eng-ws-04', node_type: 'ASSET', node_label: 'ENG-WS-04', node_hostname: 'ENG-WS-04', node_ip: '10.0.10.104', node_platform: 'Windows 10 Enterprise', node_status: 'pending', node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_untouched: true },
-    { node_id: 's3-eng-ws-05', node_type: 'ASSET', node_label: 'ENG-WS-05', node_hostname: 'ENG-WS-05', node_ip: '10.0.10.105', node_platform: 'Windows 10 Enterprise', node_status: 'pending', node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_untouched: true },
-    { node_id: 's3-eng-build-01', node_type: 'ASSET', node_label: 'ENG-BUILD-01', node_hostname: 'ENG-BUILD-01', node_ip: '10.0.10.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'undetected', node_user_privileges: 'jenkins → root', node_accessed_files: ['/var/jenkins_home/config.xml', '/etc/jenkins/credentials.xml'], node_credentials_found: ['jenkins_admin:Jenkins@2024'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_is_pivot: true },
-    { node_id: 's3-eng-deploy-01', node_type: 'ASSET', node_label: 'ENG-DEPLOY-01', node_hostname: 'ENG-DEPLOY-01', node_ip: '10.0.10.21', node_platform: 'Ubuntu 22.04 LTS', node_status: 'undetected', node_user_privileges: 'deploy → root', node_accessed_files: ['/etc/kubernetes/admin.conf'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24' },
+    { node_id: 's3-eng-ws-01', node_type: 'ASSET', node_label: 'ENG-WS-01', node_hostname: 'ENG-WS-01', node_ip: '10.0.10.101', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\eng.dev01 (User)', node_accessed_files: ['C:\\dev\\api\\src\\config.json'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-eng-ws-02', node_type: 'ASSET', node_label: 'ENG-WS-02', node_hostname: 'ENG-WS-02', node_ip: '10.0.10.102', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\eng.dev02 (User)', node_credentials_found: ['gitlab_token:glpat-xxxx'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_agents: ['openaev'], },
+    { node_id: 's3-eng-ws-03', node_type: 'ASSET', node_label: 'ENG-WS-03', node_hostname: 'ENG-WS-03', node_ip: '10.0.10.103', node_platform: 'Windows 10 Enterprise', node_status: 'detected', node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-eng-ws-04', node_type: 'ASSET', node_label: 'ENG-WS-04', node_hostname: 'ENG-WS-04', node_ip: '10.0.10.104', node_platform: 'Windows 10 Enterprise', node_status: 'pending', node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_untouched: true, node_agents: ['palo_alto'], },
+    { node_id: 's3-eng-ws-05', node_type: 'ASSET', node_label: 'ENG-WS-05', node_hostname: 'ENG-WS-05', node_ip: '10.0.10.105', node_platform: 'Windows 10 Enterprise', node_status: 'pending', node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_untouched: true, node_agents: ['palo_alto'], },
+    { node_id: 's3-eng-build-01', node_type: 'ASSET', node_label: 'ENG-BUILD-01', node_hostname: 'ENG-BUILD-01', node_ip: '10.0.10.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'undetected', node_user_privileges: 'jenkins → root', node_accessed_files: ['/var/jenkins_home/config.xml', '/etc/jenkins/credentials.xml'], node_credentials_found: ['jenkins_admin:Jenkins@2024'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 's3-eng-deploy-01', node_type: 'ASSET', node_label: 'ENG-DEPLOY-01', node_hostname: 'ENG-DEPLOY-01', node_ip: '10.0.10.21', node_platform: 'Ubuntu 22.04 LTS', node_status: 'undetected', node_user_privileges: 'deploy → root', node_accessed_files: ['/etc/kubernetes/admin.conf'], node_zone: 'Engineering', node_subnet: '10.0.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
 
     // Finance Zone
-    { node_id: 's3-fin-ws-01', node_type: 'ASSET', node_label: 'FIN-WS-01', node_hostname: 'FIN-WS-01', node_ip: '10.0.15.101', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.acct01 (User)', node_accessed_files: ['C:\\Finance\\Annual_Report_2024.xlsx'], node_zone: 'Finance', node_subnet: '10.0.15.0/24' },
-    { node_id: 's3-fin-ws-02', node_type: 'ASSET', node_label: 'FIN-WS-02', node_hostname: 'FIN-WS-02', node_ip: '10.0.15.102', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.acct02 (User)', node_zone: 'Finance', node_subnet: '10.0.15.0/24' },
-    { node_id: 's3-fin-ws-03', node_type: 'ASSET', node_label: 'FIN-WS-03', node_hostname: 'FIN-WS-03', node_ip: '10.0.15.103', node_platform: 'Windows 10 Pro', node_status: 'pending', node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_untouched: true },
-    { node_id: 's3-fin-ws-04', node_type: 'ASSET', node_label: 'FIN-WS-04', node_hostname: 'FIN-WS-04', node_ip: '10.0.15.104', node_platform: 'Windows 10 Pro', node_status: 'pending', node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_untouched: true },
-    { node_id: 's3-fin-erp-01', node_type: 'ASSET', node_label: 'FIN-ERP-01', node_hostname: 'FIN-ERP-01', node_ip: '10.0.15.10', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'CORP\\svc_erp (Service Account)', node_accessed_files: ['D:\\ERP\\data\\financial_records.mdb'], node_credentials_found: ['erp_sa:Erp@Corp2024'], node_zone: 'Finance', node_subnet: '10.0.15.0/24' },
-    { node_id: 's3-fin-reporting-01', node_type: 'ASSET', node_label: 'FIN-REPORTING-01', node_hostname: 'FIN-REPORTING-01', node_ip: '10.0.15.11', node_platform: 'Windows Server 2019', node_status: 'detected', node_user_privileges: 'CORP\\svc_reporting (partial)', node_zone: 'Finance', node_subnet: '10.0.15.0/24' },
+    { node_id: 's3-fin-ws-01', node_type: 'ASSET', node_label: 'FIN-WS-01', node_hostname: 'FIN-WS-01', node_ip: '10.0.15.101', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.acct01 (User)', node_accessed_files: ['C:\\Finance\\Annual_Report_2024.xlsx'], node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_agents: ['openaev'], },
+    { node_id: 's3-fin-ws-02', node_type: 'ASSET', node_label: 'FIN-WS-02', node_hostname: 'FIN-WS-02', node_ip: '10.0.15.102', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.acct02 (User)', node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-fin-ws-03', node_type: 'ASSET', node_label: 'FIN-WS-03', node_hostname: 'FIN-WS-03', node_ip: '10.0.15.103', node_platform: 'Windows 10 Pro', node_status: 'pending', node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_untouched: true, node_agents: ['sentinel_one'], },
+    { node_id: 's3-fin-ws-04', node_type: 'ASSET', node_label: 'FIN-WS-04', node_hostname: 'FIN-WS-04', node_ip: '10.0.15.104', node_platform: 'Windows 10 Pro', node_status: 'pending', node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_untouched: true, node_agents: ['openaev'], },
+    { node_id: 's3-fin-erp-01', node_type: 'ASSET', node_label: 'FIN-ERP-01', node_hostname: 'FIN-ERP-01', node_ip: '10.0.15.10', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'CORP\\svc_erp (Service Account)', node_accessed_files: ['D:\\ERP\\data\\financial_records.mdb'], node_credentials_found: ['erp_sa:Erp@Corp2024'], node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_agents: ['openaev'], },
+    { node_id: 's3-fin-reporting-01', node_type: 'ASSET', node_label: 'FIN-REPORTING-01', node_hostname: 'FIN-REPORTING-01', node_ip: '10.0.15.11', node_platform: 'Windows Server 2019', node_status: 'detected', node_user_privileges: 'CORP\\svc_reporting (partial)', node_zone: 'Finance', node_subnet: '10.0.15.0/24', node_agents: ['sentinel_one', 'openaev'], },
 
     // Server Farm – Web/API
-    { node_id: 's3-srv-web-01', node_type: 'ASSET', node_label: 'SRV-WEB-01', node_hostname: 'SRV-WEB-01', node_ip: '10.0.20.11', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/app/config/database.yml'], node_zone: 'Server Farm', node_subnet: '10.0.20.0/24' },
-    { node_id: 's3-srv-web-02', node_type: 'ASSET', node_label: 'SRV-WEB-02', node_hostname: 'SRV-WEB-02', node_ip: '10.0.20.12', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_untouched: true },
-    { node_id: 's3-srv-web-03', node_type: 'ASSET', node_label: 'SRV-WEB-03', node_hostname: 'SRV-WEB-03', node_ip: '10.0.20.13', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_untouched: true },
-    { node_id: 's3-srv-api-01', node_type: 'ASSET', node_label: 'SRV-API-01', node_hostname: 'SRV-API-01', node_ip: '10.0.20.21', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_accessed_files: ['/opt/api/config/production.yml'], node_credentials_found: ['redis_pass:R3dis@Prod'], node_zone: 'Server Farm', node_subnet: '10.0.20.0/24' },
-    { node_id: 's3-srv-api-02', node_type: 'ASSET', node_label: 'SRV-API-02', node_hostname: 'SRV-API-02', node_ip: '10.0.20.22', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_zone: 'Server Farm', node_subnet: '10.0.20.0/24' },
+    { node_id: 's3-srv-web-01', node_type: 'ASSET', node_label: 'SRV-WEB-01', node_hostname: 'SRV-WEB-01', node_ip: '10.0.20.11', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/app/config/database.yml'], node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 's3-srv-web-02', node_type: 'ASSET', node_label: 'SRV-WEB-02', node_hostname: 'SRV-WEB-02', node_ip: '10.0.20.12', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_untouched: true, node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-srv-web-03', node_type: 'ASSET', node_label: 'SRV-WEB-03', node_hostname: 'SRV-WEB-03', node_ip: '10.0.20.13', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_untouched: true, node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 's3-srv-api-01', node_type: 'ASSET', node_label: 'SRV-API-01', node_hostname: 'SRV-API-01', node_ip: '10.0.20.21', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_accessed_files: ['/opt/api/config/production.yml'], node_credentials_found: ['redis_pass:R3dis@Prod'], node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 's3-srv-api-02', node_type: 'ASSET', node_label: 'SRV-API-02', node_hostname: 'SRV-API-02', node_ip: '10.0.20.22', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_zone: 'Server Farm', node_subnet: '10.0.20.0/24', node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
 
     // Databases
-    { node_id: 's3-db-mssql-01', node_type: 'ASSET', node_label: 'DB-MSSQL-01', node_hostname: 'DB-MSSQL-01', node_ip: '10.0.21.10', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'sa (SQL Admin)', node_accessed_files: ['D:\\MSSQL\\DATA\\ProductionDB.mdf'], node_credentials_found: ['sa:Admin@123', 'app_db:AppDB@2024'], node_zone: 'Databases', node_subnet: '10.0.21.0/24' },
-    { node_id: 's3-db-oracle-01', node_type: 'ASSET', node_label: 'DB-ORACLE-01', node_hostname: 'DB-ORACLE-01', node_ip: '10.0.21.11', node_platform: 'Oracle Linux 8', node_status: 'undetected', node_user_privileges: 'oracle → root', node_accessed_files: ['/u01/app/oracle/oradata/'], node_credentials_found: ['SYS:Change_on_install'], node_zone: 'Databases', node_subnet: '10.0.21.0/24' },
-    { node_id: 's3-db-pg-01', node_type: 'ASSET', node_label: 'DB-PG-01', node_hostname: 'DB-PG-01', node_ip: '10.0.21.12', node_platform: 'Ubuntu 22.04 LTS', node_status: 'detected', node_zone: 'Databases', node_subnet: '10.0.21.0/24' },
-    { node_id: 's3-db-redis-01', node_type: 'ASSET', node_label: 'DB-REDIS-01', node_hostname: 'DB-REDIS-01', node_ip: '10.0.21.13', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_untouched: true },
-    { node_id: 's3-db-mongo-01', node_type: 'ASSET', node_label: 'DB-MONGO-01', node_hostname: 'DB-MONGO-01', node_ip: '10.0.21.14', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_untouched: true },
+    { node_id: 's3-db-mssql-01', node_type: 'ASSET', node_label: 'DB-MSSQL-01', node_hostname: 'DB-MSSQL-01', node_ip: '10.0.21.10', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'sa (SQL Admin)', node_accessed_files: ['D:\\MSSQL\\DATA\\ProductionDB.mdf'], node_credentials_found: ['sa:Admin@123', 'app_db:AppDB@2024'], node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's3-db-oracle-01', node_type: 'ASSET', node_label: 'DB-ORACLE-01', node_hostname: 'DB-ORACLE-01', node_ip: '10.0.21.11', node_platform: 'Oracle Linux 8', node_status: 'undetected', node_user_privileges: 'oracle → root', node_accessed_files: ['/u01/app/oracle/oradata/'], node_credentials_found: ['SYS:Change_on_install'], node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's3-db-pg-01', node_type: 'ASSET', node_label: 'DB-PG-01', node_hostname: 'DB-PG-01', node_ip: '10.0.21.12', node_platform: 'Ubuntu 22.04 LTS', node_status: 'detected', node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's3-db-redis-01', node_type: 'ASSET', node_label: 'DB-REDIS-01', node_hostname: 'DB-REDIS-01', node_ip: '10.0.21.13', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_untouched: true, node_agents: ['sentinel_one'], },
+    { node_id: 's3-db-mongo-01', node_type: 'ASSET', node_label: 'DB-MONGO-01', node_hostname: 'DB-MONGO-01', node_ip: '10.0.21.14', node_platform: 'Ubuntu 20.04 LTS', node_status: 'pending', node_zone: 'Databases', node_subnet: '10.0.21.0/24', node_untouched: true, node_agents: ['sentinel_one', 'openaev'], },
 
     // Management Zone
-    { node_id: 's3-mgmt-dc-01', node_type: 'ASSET', node_label: 'MGMT-DC-01', node_hostname: 'MGMT-DC-01', node_ip: '10.0.30.5', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_accessed_files: [], node_credentials_found: ['All 1,247 domain accounts (NTDS.dit)', 'CORP\\Administrator:$HASH$'], node_zone: 'Management', node_subnet: '10.0.30.0/24', node_is_pivot: true },
-    { node_id: 's3-mgmt-dc-02', node_type: 'ASSET', node_label: 'MGMT-DC-02', node_hostname: 'MGMT-DC-02', node_ip: '10.0.30.6', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_credentials_found: ['CORP\\svc_backup:Backup@2024!'], node_zone: 'Management', node_subnet: '10.0.30.0/24' },
-    { node_id: 's3-mgmt-ca-01', node_type: 'ASSET', node_label: 'MGMT-CA-01', node_hostname: 'MGMT-CA-01', node_ip: '10.0.30.10', node_platform: 'Windows Server 2022', node_status: 'detected', node_user_privileges: 'CORP\\svc_ca (partial)', node_zone: 'Management', node_subnet: '10.0.30.0/24' },
-    { node_id: 's3-mgmt-jump-01', node_type: 'ASSET', node_label: 'MGMT-JUMP-01', node_hostname: 'MGMT-JUMP-01', node_ip: '10.0.30.20', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'CORP\\svc_jumphost (Local Admin)', node_zone: 'Management', node_subnet: '10.0.30.0/24' },
-    { node_id: 's3-mgmt-siem-01', node_type: 'ASSET', node_label: 'MGMT-SIEM-01', node_hostname: 'MGMT-SIEM-01', node_ip: '10.0.30.50', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Management', node_subnet: '10.0.30.0/24' },
+    { node_id: 's3-mgmt-dc-01', node_type: 'ASSET', node_label: 'MGMT-DC-01', node_hostname: 'MGMT-DC-01', node_ip: '10.0.30.5', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_accessed_files: [], node_credentials_found: ['All 1,247 domain accounts (NTDS.dit)', 'CORP\\Administrator:$HASH$'], node_zone: 'Management', node_subnet: '10.0.30.0/24', node_is_pivot: true, node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-mgmt-dc-02', node_type: 'ASSET', node_label: 'MGMT-DC-02', node_hostname: 'MGMT-DC-02', node_ip: '10.0.30.6', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_credentials_found: ['CORP\\svc_backup:Backup@2024!'], node_zone: 'Management', node_subnet: '10.0.30.0/24', node_agents: ['openaev'], },
+    { node_id: 's3-mgmt-ca-01', node_type: 'ASSET', node_label: 'MGMT-CA-01', node_hostname: 'MGMT-CA-01', node_ip: '10.0.30.10', node_platform: 'Windows Server 2022', node_status: 'detected', node_user_privileges: 'CORP\\svc_ca (partial)', node_zone: 'Management', node_subnet: '10.0.30.0/24', node_agents: ['palo_alto'], },
+    { node_id: 's3-mgmt-jump-01', node_type: 'ASSET', node_label: 'MGMT-JUMP-01', node_hostname: 'MGMT-JUMP-01', node_ip: '10.0.30.20', node_platform: 'Windows Server 2019', node_status: 'undetected', node_user_privileges: 'CORP\\svc_jumphost (Local Admin)', node_zone: 'Management', node_subnet: '10.0.30.0/24', node_agents: ['sentinel_one'], },
+    { node_id: 's3-mgmt-siem-01', node_type: 'ASSET', node_label: 'MGMT-SIEM-01', node_hostname: 'MGMT-SIEM-01', node_ip: '10.0.30.50', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Management', node_subnet: '10.0.30.0/24', node_agents: ['sentinel_one'], },
 
     // Remote VPN (untouched – beyond attack range)
-    { node_id: 's3-vpn-remote-01', node_type: 'ASSET', node_label: 'VPN-REMOTE-01', node_hostname: 'VPN-REMOTE-01', node_ip: '172.16.0.101', node_platform: 'Windows 10 Pro', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true },
-    { node_id: 's3-vpn-remote-02', node_type: 'ASSET', node_label: 'VPN-REMOTE-02', node_hostname: 'VPN-REMOTE-02', node_ip: '172.16.0.102', node_platform: 'macOS Sonoma 14', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true },
-    { node_id: 's3-vpn-remote-03', node_type: 'ASSET', node_label: 'VPN-REMOTE-03', node_hostname: 'VPN-REMOTE-03', node_ip: '172.16.0.103', node_platform: 'Windows 11 Pro', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true },
-    { node_id: 's3-vpn-remote-04', node_type: 'ASSET', node_label: 'VPN-REMOTE-04', node_hostname: 'VPN-REMOTE-04', node_ip: '172.16.0.104', node_platform: 'Ubuntu 22.04 LTS', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true },
+    { node_id: 's3-vpn-remote-01', node_type: 'ASSET', node_label: 'VPN-REMOTE-01', node_hostname: 'VPN-REMOTE-01', node_ip: '172.16.0.101', node_platform: 'Windows 10 Pro', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true, node_agents: ['palo_alto'], },
+    { node_id: 's3-vpn-remote-02', node_type: 'ASSET', node_label: 'VPN-REMOTE-02', node_hostname: 'VPN-REMOTE-02', node_ip: '172.16.0.102', node_platform: 'macOS Sonoma 14', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true, node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 's3-vpn-remote-03', node_type: 'ASSET', node_label: 'VPN-REMOTE-03', node_hostname: 'VPN-REMOTE-03', node_ip: '172.16.0.103', node_platform: 'Windows 11 Pro', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true, node_agents: ['openaev'], },
+    { node_id: 's3-vpn-remote-04', node_type: 'ASSET', node_label: 'VPN-REMOTE-04', node_hostname: 'VPN-REMOTE-04', node_ip: '172.16.0.104', node_platform: 'Ubuntu 22.04 LTS', node_status: 'pending', node_zone: 'Remote VPN', node_subnet: '172.16.0.0/24', node_untouched: true, node_agents: ['openaev'], },
 
     // Backup / DR (untouched – isolated segment)
-    { node_id: 's3-backup-nfs-01', node_type: 'ASSET', node_label: 'BACKUP-NFS-01', node_hostname: 'BACKUP-NFS-01', node_ip: '10.0.40.10', node_platform: 'FreeBSD 14', node_status: 'pending', node_zone: 'Backup/DR', node_subnet: '10.0.40.0/24', node_untouched: true },
-    { node_id: 's3-backup-tape-01', node_type: 'ASSET', node_label: 'BACKUP-TAPE-01', node_hostname: 'BACKUP-TAPE-01', node_ip: '10.0.40.20', node_platform: 'Windows Server 2016', node_status: 'pending', node_zone: 'Backup/DR', node_subnet: '10.0.40.0/24', node_untouched: true },
+    { node_id: 's3-backup-nfs-01', node_type: 'ASSET', node_label: 'BACKUP-NFS-01', node_hostname: 'BACKUP-NFS-01', node_ip: '10.0.40.10', node_platform: 'FreeBSD 14', node_status: 'pending', node_zone: 'Backup/DR', node_subnet: '10.0.40.0/24', node_untouched: true, node_agents: ['openaev'], },
+    { node_id: 's3-backup-tape-01', node_type: 'ASSET', node_label: 'BACKUP-TAPE-01', node_hostname: 'BACKUP-TAPE-01', node_ip: '10.0.40.20', node_platform: 'Windows Server 2016', node_status: 'pending', node_zone: 'Backup/DR', node_subnet: '10.0.40.0/24', node_untouched: true, node_agents: ['sentinel_one', 'openaev'], },
 
     // ── ACTION nodes (40) ──────────────────────────────────────────────────────
 
     // Phase 1 – External Recon & DMZ Foothold (8 actions)
-    { node_id: 's3-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-03-05T03:00:00Z', node_ip: '203.0.113.10',
+    { node_id: 's3-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2025-03-05T03:00:00Z', node_agent: 'openaev', node_ip: '203.0.113.10',
       node_terminal_output: `Nmap scan report for DMZ-WEB-01 (203.0.113.10)\nHOST: up | Ports: 22,80,443,8080,8443 open\nNmap done: 1 IP in 2.8s`,
       node_ports_found:['22/tcp open ssh OpenSSH 8.4p1', '80/tcp open http Apache 2.4.51', '443/tcp open ssl/https Apache 2.4.51', '8080/tcp open http Tomcat 9.0.54'] },
-    { node_id: 's3-a02', node_type: 'ACTION', node_label: 'Nuclei Log4Shell RCE', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-44228', node_executed_at: '2025-03-05T03:03:10Z', node_ip: '203.0.113.10', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/html/config.php', '/root/.ssh/id_rsa'],
+    { node_id: 's3-a02', node_type: 'ACTION', node_label: 'Nuclei Log4Shell RCE', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-44228', node_executed_at: '2025-03-05T03:03:10Z', node_agent: 'sentinel_one', node_ip: '203.0.113.10', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/html/config.php', '/root/.ssh/id_rsa'],
       node_terminal_output: `[CVE-2021-44228] [critical] http://203.0.113.10:8080/login\n[+] JNDI callback from 203.0.113.10 — RCE confirmed\n[+] whoami: www-data → sudo privesc → root\n[+] /root/.ssh/id_rsa extracted (RSA 4096)`,
       node_cves_found:['CVE-2021-44228 (Log4Shell JNDI Injection) - CRITICAL', 'CVE-2021-45046 (Log4j2 Deserialization RCE) - CRITICAL'] },
-    { node_id: 's3-a03', node_type: 'ACTION', node_label: 'Nuclei ProxyShell CVE', node_status: 'detected', node_payload_name: 'nuclei – CVE-2021-34473', node_executed_at: '2025-03-05T03:06:22Z', node_ip: '203.0.113.11',
+    { node_id: 's3-a03', node_type: 'ACTION', node_label: 'Nuclei ProxyShell CVE', node_status: 'detected', node_payload_name: 'nuclei – CVE-2021-34473', node_executed_at: '2025-03-05T03:06:22Z', node_agent: 'sentinel_one', node_ip: '203.0.113.11',
       node_terminal_output: `[CVE-2021-34473] [critical] https://203.0.113.11/autodiscover/\n[!] DETECTION: WAF blocked exploit payload\n[!] Alert: EXCHANGE_PROXYSHELL attempt detected by WAF rule 1044\n[-] Attack detected before code execution` },
-    { node_id: 's3-a04', node_type: 'ACTION', node_label: 'NetExec FTP Brute-Force', node_status: 'prevented', node_payload_name: 'netexec – FTP brute force', node_executed_at: '2025-03-05T03:08:45Z', node_ip: '203.0.113.30',
+    { node_id: 's3-a04', node_type: 'ACTION', node_label: 'NetExec FTP Brute-Force', node_status: 'prevented', node_payload_name: 'netexec – FTP brute force', node_executed_at: '2025-03-05T03:08:45Z', node_agent: 'palo_alto', node_ip: '203.0.113.30',
       node_terminal_output: `FTP   203.0.113.30  21     DMZ-FTP-01    [*] Trying anonymous:anonymous ... FAILED\nFTP   203.0.113.30  21     DMZ-FTP-01    [*] Trying admin:admin123 ... FAILED\n[!] PREVENTION: fail2ban triggered after 2 attempts — IP banned` },
-    { node_id: 's3-a05', node_type: 'ACTION', node_label: 'NetExec SSH Mail Relay', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:11:30Z', node_ip: '203.0.113.20', node_user_privileges: 'postfix → root',
+    { node_id: 's3-a05', node_type: 'ACTION', node_label: 'NetExec SSH Mail Relay', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:11:30Z', node_agent: 'palo_alto', node_ip: '203.0.113.20', node_user_privileges: 'postfix → root',
       node_terminal_output: `SSH   203.0.113.20  22     DMZ-MAIL-01   [+] postfix:s3cr3t@dm1n — SUCCESS\nSSH   203.0.113.20  22     DMZ-MAIL-01   [+] Privesc via SUID binary: uid=0(root)\nSSH   203.0.113.20  22     DMZ-MAIL-01   [+] /etc/postfix/main.cf extracted` },
-    { node_id: 's3-a06', node_type: 'ACTION', node_label: 'Nmap FIN Scan (DMZ-WEB-03)', node_status: 'undetected', node_payload_name: 'nmap – FIN Scan', node_executed_at: '2025-03-05T03:14:05Z', node_ip: '203.0.113.12',
+    { node_id: 's3-a06', node_type: 'ACTION', node_label: 'Nmap FIN Scan (DMZ-WEB-03)', node_status: 'undetected', node_payload_name: 'nmap – FIN Scan', node_executed_at: '2025-03-05T03:14:05Z', node_agent: 'openaev', node_ip: '203.0.113.12',
       node_terminal_output: `Nmap FIN scan (evasion) on DMZ-WEB-03 (203.0.113.12)\nPORTs open: 22,80,443,8080\nFirewall: stateless (FIN scan undetected)\nNmap done in 1.9s`,
       node_ports_found:['22/tcp open ssh OpenSSH 7.4p1', '443/tcp open ssl/https Apache 2.4.51', '8443/tcp open ssl/https-alt Roundcube'] },
-    { node_id: 's3-a07', node_type: 'ACTION', node_label: 'NetExec SSH Pivot to Proxy-01', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:17:00Z', node_ip: '10.0.0.2', node_user_privileges: 'proxy → root',
+    { node_id: 's3-a07', node_type: 'ACTION', node_label: 'NetExec SSH Pivot to Proxy-01', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:17:00Z', node_agent: 'sentinel_one', node_ip: '10.0.0.2', node_user_privileges: 'proxy → root',
       node_terminal_output: `SSH   10.0.0.2     22     PERI-PROXY-01 [+] proxy:db_user:Prod@123 (from config) — SUCCESS\nSSH   10.0.0.2     22     PERI-PROXY-01 [+] root via sudo NOPASSWD\n[+] /etc/squid/squid.conf read — internal network routes mapped` },
-    { node_id: 's3-a08', node_type: 'ACTION', node_label: 'NetExec SMB Proxy-02 Relay', node_status: 'undetected', node_payload_name: 'netexec – SMB relay', node_executed_at: '2025-03-05T03:20:11Z', node_ip: '10.0.0.3',
+    { node_id: 's3-a08', node_type: 'ACTION', node_label: 'NetExec SMB Proxy-02 Relay', node_status: 'undetected', node_payload_name: 'netexec – SMB relay', node_executed_at: '2025-03-05T03:20:11Z', node_agent: 'openaev', node_ip: '10.0.0.3',
       node_terminal_output: `SMB   10.0.0.3     445    PERI-PROXY-02 [+] NTLM relay from PERI-PROXY-01 — Auth OK\nSMB   10.0.0.3     445    PERI-PROXY-02 [+] Pwn3d! — shell spawned as proxy user\n[+] Pivoting complete — full perimeter foothold achieved` },
 
     // Phase 2 – Perimeter Breach (2 actions)
-    { node_id: 's3-a09', node_type: 'ACTION', node_label: 'HTTP Admin Panel Probe', node_status: 'detected', node_payload_name: 'http-query – GET /admin', node_executed_at: '2025-03-05T03:23:00Z', node_ip: '10.0.0.1',
+    { node_id: 's3-a09', node_type: 'ACTION', node_label: 'HTTP Admin Panel Probe', node_status: 'detected', node_payload_name: 'http-query – GET /admin', node_executed_at: '2025-03-05T03:23:00Z', node_agent: 'palo_alto', node_ip: '10.0.0.1',
       node_terminal_output: `GET https://10.0.0.1/admin HTTP/1.1\n← 200 OK (pfSense admin panel reachable)\n[!] DETECTION: IDS rule FW_ADMIN_ACCESS triggered\n[!] SIEM Alert: Unauthorized admin panel probe from 10.0.0.2` },
-    { node_id: 's3-a10', node_type: 'ACTION', node_label: 'HTTP Admin Brute-Force', node_status: 'prevented', node_payload_name: 'http-query – POST /login', node_executed_at: '2025-03-05T03:24:30Z', node_ip: '10.0.0.1',
+    { node_id: 's3-a10', node_type: 'ACTION', node_label: 'HTTP Admin Brute-Force', node_status: 'prevented', node_payload_name: 'http-query – POST /login', node_executed_at: '2025-03-05T03:24:30Z', node_agent: 'openaev', node_ip: '10.0.0.1',
       node_terminal_output: `POST https://10.0.0.1/login admin:pfsense ... 401\nPOST https://10.0.0.1/login admin:admin ... 401\n[!] PREVENTION: pfSense lockout after 2 failed attempts\n[!] IP 10.0.0.2 blocked by pfSense anti-lockout rule` },
 
     // Phase 3 – Executive Zone Lateral (8 actions)
-    { node_id: 's3-a11', node_type: 'ACTION', node_label: 'Nmap Internal Exec Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP Connect Scan', node_executed_at: '2025-03-05T03:28:00Z', node_ip: '10.0.5.0/24',
+    { node_id: 's3-a11', node_type: 'ACTION', node_label: 'Nmap Internal Exec Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP Connect Scan', node_executed_at: '2025-03-05T03:28:00Z', node_agent: 'openaev', node_ip: '10.0.5.0/24',
       node_terminal_output: `Nmap scan 10.0.5.0/24 — 8 hosts up\n10.0.5.101 EXEC-WS-01  445,3389 open\n10.0.5.102 EXEC-WS-02  445,3389 open\n10.0.5.103 EXEC-WS-03  445,3389,5985 open\n10.0.5.104 EXEC-WS-04  445 open\n10.0.5.150 EXEC-LAPTOP-01  445,3389 open\nNmap done in 8.4s`,
       node_ports_found:['135/tcp open msrpc', '139/tcp open netbios-ssn', '445/tcp open microsoft-ds', '3389/tcp open ms-wbt-server RDP', '5985/tcp open http WinRM'] },
-    { node_id: 's3-a12', node_type: 'ACTION', node_label: 'SMB AV Enumeration (WS-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2025-03-05T03:31:10Z', node_ip: '10.0.5.102',
+    { node_id: 's3-a12', node_type: 'ACTION', node_label: 'SMB AV Enumeration (WS-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2025-03-05T03:31:10Z', node_agent: 'sentinel_one', node_ip: '10.0.5.102',
       node_terminal_output: `SMB   10.0.5.102  445  EXEC-WS-02  [+] CORP\\cfo.baker:<HASH> (Pwn3d!)\nSMB   10.0.5.102  445  EXEC-WS-02  [*] AV: McAfee ENS — disabled (GPO conflict)\n[+] No active protection — fully accessible` },
-    { node_id: 's3-a13', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:34:20Z', node_ip: '10.0.5.101', node_accessed_files: ['C:\\Users\\ceo.anderson\\Documents\\Board_Strategy_2025.docx'],
+    { node_id: 's3-a13', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:34:20Z', node_agent: 'openaev', node_ip: '10.0.5.101', node_accessed_files: ['C:\\Users\\ceo.anderson\\Documents\\Board_Strategy_2025.docx'],
       node_terminal_output: `SMB   10.0.5.101  445  EXEC-WS-01  [+] CORP\\ceo.anderson:<HASH> (Pwn3d!)\n[+] Board_Strategy_2025.docx (1.8 MB) — exfiltrated\n[+] M&A acquisition targets document found` },
-    { node_id: 's3-a14', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:36:45Z', node_ip: '10.0.5.102', node_accessed_files: ['C:\\Finance\\M&A_Plans_Confidential.xlsx'],
+    { node_id: 's3-a14', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:36:45Z', node_agent: 'sentinel_one', node_ip: '10.0.5.102', node_accessed_files: ['C:\\Finance\\M&A_Plans_Confidential.xlsx'],
       node_terminal_output: `SMB   10.0.5.102  445  EXEC-WS-02  [+] CORP\\cfo.baker:<HASH> (Pwn3d!)\n[+] M&A_Plans_Confidential.xlsx (3.2 MB) — exfiltrated\n[!] HIGH VALUE: M&A financial projections accessed` },
-    { node_id: 's3-a15', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-03)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:39:00Z', node_ip: '10.0.5.103', node_credentials_found: ['CORP\\svc_admin:Admin@Prod!'],
+    { node_id: 's3-a15', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-03)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:39:00Z', node_agent: 'palo_alto', node_ip: '10.0.5.103', node_credentials_found: ['CORP\\svc_admin:Admin@Prod!'],
       node_terminal_output: `SMB   10.0.5.103  445  EXEC-WS-03  [+] CORP\\cto.chen:<HASH> (Pwn3d!)\n[+] server_creds.kdbx found — cracked with hashcat\n[+] svc_admin:Admin@Prod! extracted` },
-    { node_id: 's3-a16', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-04)', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:41:30Z', node_ip: '10.0.5.104',
+    { node_id: 's3-a16', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (WS-04)', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:41:30Z', node_agent: 'sentinel_one', node_ip: '10.0.5.104',
       node_terminal_output: `SMB   10.0.5.104  445  EXEC-WS-04  [*] Attempting PtH...\n[!] DETECTION: CrowdStrike EDR detected PtH lateral movement\n[!] Alert: LATERAL_MOVEMENT_PtH from EXEC-WS-03 to EXEC-WS-04\n[-] Session terminated by EDR` },
-    { node_id: 's3-a17', node_type: 'ACTION', node_label: 'RDP Login (Exec Laptop)', node_status: 'undetected', node_payload_name: 'netexec – RDP login', node_executed_at: '2025-03-05T03:44:00Z', node_ip: '10.0.5.150',
+    { node_id: 's3-a17', node_type: 'ACTION', node_label: 'RDP Login (Exec Laptop)', node_status: 'undetected', node_payload_name: 'netexec – RDP login', node_executed_at: '2025-03-05T03:44:00Z', node_agent: 'openaev', node_ip: '10.0.5.150',
       node_terminal_output: `RDP   10.0.5.150  3389  EXEC-LAPTOP-01  [+] CORP\\vp.sales:Admin@Prod! — SUCCESS\n[+] VPN connected — remote work laptop accessed\n[+] Email client with executive communications found` },
-    { node_id: 's3-a18', node_type: 'ACTION', node_label: 'SSH Login (Exec Mac)', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:46:20Z', node_ip: '10.0.5.160',
+    { node_id: 's3-a18', node_type: 'ACTION', node_label: 'SSH Login (Exec Mac)', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:46:20Z', node_agent: 'openaev', node_ip: '10.0.5.160',
       node_terminal_output: `SSH   10.0.5.160  22  EXEC-MAC-01  [+] localadmin:Admin@Prod! — SUCCESS\n[+] macOS keychain unlocked — corporate certs found\n[+] id: uid=0 (sudo ALL)` },
 
     // Phase 4 – Engineering Zone (5 actions)
-    { node_id: 's3-a19', node_type: 'ACTION', node_label: 'SMB Spider+ (Printer)', node_status: 'undetected', node_payload_name: 'netexec – SMB spider_plus', node_executed_at: '2025-03-05T03:50:00Z', node_ip: '10.0.5.20', node_credentials_found: ['CORP\\svc_mssql:Sql#2024'],
+    { node_id: 's3-a19', node_type: 'ACTION', node_label: 'SMB Spider+ (Printer)', node_status: 'undetected', node_payload_name: 'netexec – SMB spider_plus', node_executed_at: '2025-03-05T03:50:00Z', node_agent: 'openaev', node_ip: '10.0.5.20', node_credentials_found: ['CORP\\svc_mssql:Sql#2024'],
       node_terminal_output: `SMB   10.0.5.20   445  EXEC-PRINTER-01  [+] CORP\\svc_print:<HASH> (Pwn3d!)\n[+] Printer config XML: svc_mssql:Sql#2024\n[+] Spool drivers directory indexed (47 files)` },
-    { node_id: 's3-a20', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Eng-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:53:15Z', node_ip: '10.0.10.101',
+    { node_id: 's3-a20', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Eng-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:53:15Z', node_agent: 'openaev', node_ip: '10.0.10.101',
       node_terminal_output: `SMB   10.0.10.101  445  ENG-WS-01  [+] CORP\\eng.dev01:<HASH> (Pwn3d!)\n[+] C:\\dev\\api\\src\\config.json — DB connection strings found\n[+] Azure DevOps PAT token detected in config` },
-    { node_id: 's3-a21', node_type: 'ACTION', node_label: 'SSH Build Server Exploit', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:56:30Z', node_ip: '10.0.10.20', node_accessed_files: ['/var/jenkins_home/config.xml'], node_credentials_found: ['jenkins_admin:Jenkins@2024'],
+    { node_id: 's3-a21', node_type: 'ACTION', node_label: 'SSH Build Server Exploit', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:56:30Z', node_agent: 'sentinel_one', node_ip: '10.0.10.20', node_accessed_files: ['/var/jenkins_home/config.xml'], node_credentials_found: ['jenkins_admin:Jenkins@2024'],
       node_terminal_output: `SSH   10.0.10.20  22  ENG-BUILD-01  [+] jenkins:Jenkins@2024 — SUCCESS\n[+] Jenkins admin panel: /var/jenkins_home/config.xml parsed\n[+] All pipeline credentials extracted (9 secrets)\n[+] Pipeline injection payload deployed to build #482` },
-    { node_id: 's3-a22', node_type: 'ACTION', node_label: 'SSH Deploy Server Pivot', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:59:00Z', node_ip: '10.0.10.21', node_accessed_files: ['/etc/kubernetes/admin.conf'],
+    { node_id: 's3-a22', node_type: 'ACTION', node_label: 'SSH Deploy Server Pivot', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T03:59:00Z', node_agent: 'palo_alto', node_ip: '10.0.10.21', node_accessed_files: ['/etc/kubernetes/admin.conf'],
       node_terminal_output: `SSH   10.0.10.21  22  ENG-DEPLOY-01  [+] deploy:Jenkins@2024 (reuse) — SUCCESS\n[+] /etc/kubernetes/admin.conf — Kubernetes cluster admin token\n[+] kubectl access: 3 namespaces, 47 pods visible` },
-    { node_id: 's3-a23', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Eng-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:01:45Z', node_ip: '10.0.10.102', node_credentials_found: ['gitlab_token:glpat-xxxx'],
+    { node_id: 's3-a23', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Eng-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:01:45Z', node_agent: 'palo_alto', node_ip: '10.0.10.102', node_credentials_found: ['gitlab_token:glpat-xxxx'],
       node_terminal_output: `SMB   10.0.10.102  445  ENG-WS-02  [+] CORP\\eng.dev02:<HASH> (Pwn3d!)\n[+] .env file: GITLAB_TOKEN=glpat-xxxxxxxxxxxx\n[+] Source code repos (47) now accessible` },
 
     // Phase 5 – Finance Zone (4 actions)
-    { node_id: 's3-a24', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Fin-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:05:00Z', node_ip: '10.0.15.101', node_accessed_files: ['C:\\Finance\\Annual_Report_2024.xlsx'],
+    { node_id: 's3-a24', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Fin-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:05:00Z', node_agent: 'sentinel_one', node_ip: '10.0.15.101', node_accessed_files: ['C:\\Finance\\Annual_Report_2024.xlsx'],
       node_terminal_output: `SMB   10.0.15.101  445  FIN-WS-01  [+] CORP\\fin.acct01:<HASH> (Pwn3d!)\n[+] Annual_Report_2024.xlsx (2.1 MB) — exfiltrated\n[+] Pre-release financial data accessed` },
-    { node_id: 's3-a25', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Fin-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:07:20Z', node_ip: '10.0.15.102',
+    { node_id: 's3-a25', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash (Fin-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:07:20Z', node_agent: 'openaev', node_ip: '10.0.15.102',
       node_terminal_output: `SMB   10.0.15.102  445  FIN-WS-02  [+] CORP\\fin.acct02:<HASH> (Pwn3d!)\n[*] No sensitive files in accessible shares\n[+] Credential cache harvested` },
-    { node_id: 's3-a26', node_type: 'ACTION', node_label: 'SMB ERP Server Access', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:10:00Z', node_ip: '10.0.15.10', node_accessed_files: ['D:\\ERP\\data\\financial_records.mdb'], node_credentials_found: ['erp_sa:Erp@Corp2024'],
+    { node_id: 's3-a26', node_type: 'ACTION', node_label: 'SMB ERP Server Access', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T04:10:00Z', node_agent: 'openaev', node_ip: '10.0.15.10', node_accessed_files: ['D:\\ERP\\data\\financial_records.mdb'], node_credentials_found: ['erp_sa:Erp@Corp2024'],
       node_terminal_output: `SMB   10.0.15.10  445  FIN-ERP-01  [+] CORP\\svc_erp:Erp@Corp2024 — SUCCESS\n[+] D:\\ERP\\data\\financial_records.mdb (892 MB) — initiated download\n[+] 5 years of financial transaction records exfiltrated` },
-    { node_id: 's3-a27', node_type: 'ACTION', node_label: 'MSSQL Reporting Server', node_status: 'detected', node_payload_name: 'netexec – MSSQL exec', node_executed_at: '2025-03-05T04:13:00Z', node_ip: '10.0.15.11',
+    { node_id: 's3-a27', node_type: 'ACTION', node_label: 'MSSQL Reporting Server', node_status: 'detected', node_payload_name: 'netexec – MSSQL exec', node_executed_at: '2025-03-05T04:13:00Z', node_agent: 'sentinel_one', node_ip: '10.0.15.11',
       node_terminal_output: `MSSQL 10.0.15.11  1433  FIN-REPORTING-01  [*] Trying erp_sa:Erp@Corp2024\n[!] DETECTION: SQL audit log — elevated login from unknown IP\n[!] SIEM Alert: DB_SUSPICIOUS_LOGIN\n[-] Account locked after detection` },
 
     // Phase 6 – Server Farm Breach (5 actions)
-    { node_id: 's3-a28', node_type: 'ACTION', node_label: 'SSH Web Server Access', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:17:00Z', node_ip: '10.0.20.11',
+    { node_id: 's3-a28', node_type: 'ACTION', node_label: 'SSH Web Server Access', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:17:00Z', node_agent: 'palo_alto', node_ip: '10.0.20.11',
       node_terminal_output: `SSH   10.0.20.11  22  SRV-WEB-01  [+] deploy:Jenkins@2024 (reuse) — SUCCESS\n[+] /var/www/app/config/database.yml parsed\n[+] PostgreSQL connection string extracted` },
-    { node_id: 's3-a29', node_type: 'ACTION', node_label: 'SSH API-01 Credential Reuse', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:20:15Z', node_ip: '10.0.20.21', node_credentials_found: ['redis_pass:R3dis@Prod'],
+    { node_id: 's3-a29', node_type: 'ACTION', node_label: 'SSH API-01 Credential Reuse', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:20:15Z', node_agent: 'openaev', node_ip: '10.0.20.21', node_credentials_found: ['redis_pass:R3dis@Prod'],
       node_terminal_output: `SSH   10.0.20.21  22  SRV-API-01  [+] appuser:Admin@Prod! — SUCCESS\n[+] /opt/api/config/production.yml: redis_password=R3dis@Prod\n[+] Redis cache accessible — session tokens extractable` },
-    { node_id: 's3-a30', node_type: 'ACTION', node_label: 'SSH API-02 Lateral Move', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:23:00Z', node_ip: '10.0.20.22',
+    { node_id: 's3-a30', node_type: 'ACTION', node_label: 'SSH API-02 Lateral Move', node_status: 'undetected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:23:00Z', node_agent: 'palo_alto', node_ip: '10.0.20.22',
       node_terminal_output: `SSH   10.0.20.22  22  SRV-API-02  [+] appuser:Admin@Prod! — SUCCESS\n[+] Cluster API-02 fully compromised\n[+] Internal service mesh credentials found in environment` },
-    { node_id: 's3-a31', node_type: 'ACTION', node_label: 'MSSQL SA Login + Exec', node_status: 'undetected', node_payload_name: 'netexec – MSSQL exec', node_executed_at: '2025-03-05T04:26:30Z', node_ip: '10.0.21.10', node_credentials_found: ['sa:Admin@123', 'app_db:AppDB@2024'],
+    { node_id: 's3-a31', node_type: 'ACTION', node_label: 'MSSQL SA Login + Exec', node_status: 'undetected', node_payload_name: 'netexec – MSSQL exec', node_executed_at: '2025-03-05T04:26:30Z', node_agent: 'sentinel_one', node_ip: '10.0.21.10', node_credentials_found: ['sa:Admin@123', 'app_db:AppDB@2024'],
       node_terminal_output: `MSSQL 10.0.21.10  1433  DB-MSSQL-01  [+] sa:Admin@123 — SUCCESS\nMSSQL 10.0.21.10  1433  DB-MSSQL-01  [*] xp_cmdshell enabled\nMSSQL 10.0.21.10  1433  DB-MSSQL-01  [+] exec xp_cmdshell 'whoami': nt authority\\system\n[+] ProductionDB.mdf: 14 GB table data accessible` },
-    { node_id: 's3-a32', node_type: 'ACTION', node_label: 'Oracle TNS Listener Exploit', node_status: 'undetected', node_payload_name: 'netexec – SSH privesc', node_executed_at: '2025-03-05T04:29:45Z', node_ip: '10.0.21.11', node_credentials_found: ['SYS:Change_on_install'],
+    { node_id: 's3-a32', node_type: 'ACTION', node_label: 'Oracle TNS Listener Exploit', node_status: 'undetected', node_payload_name: 'netexec – SSH privesc', node_executed_at: '2025-03-05T04:29:45Z', node_agent: 'sentinel_one', node_ip: '10.0.21.11', node_credentials_found: ['SYS:Change_on_install'],
       node_terminal_output: `[*] Oracle TNS listener on 10.0.21.11:1521\n[+] SYS:Change_on_install (default credential) — SUCCESS\n[+] oracle@DB-ORACLE-01 → uid=0 via SUID oracle binary\n[+] /u01/app/oracle/oradata/ accessible (full DB)` },
 
     // Phase 7 – Domain Compromise (4 actions)
-    { node_id: 's3-a33', node_type: 'ACTION', node_label: 'LDAP Kerberoasting (DC-01)', node_status: 'undetected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2025-03-05T04:34:00Z', node_ip: '10.0.30.5', node_credentials_found: ['$krb5tgs$23$*...', 'All 1,247 domain accounts'],
+    { node_id: 's3-a33', node_type: 'ACTION', node_label: 'LDAP Kerberoasting (DC-01)', node_status: 'undetected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2025-03-05T04:34:00Z', node_agent: 'sentinel_one', node_ip: '10.0.30.5', node_credentials_found: ['$krb5tgs$23$*...', 'All 1,247 domain accounts'],
       node_terminal_output: `LDAP  10.0.30.5  389  MGMT-DC-01  [*] Kerberoasting query — 12 accounts found\n[+] TGS tickets: 12 hashes saved\n[+] Offline crack: svc_mssql cracked in 47min (Hashcat -m 13100)\n[+] Service account creds → DA path escalation`,
       node_users_found:['CORP\\Administrator', 'CORP\\krbtgt', 'CORP\\svc_mssql', 'CORP\\svc_deploy', 'CORP\\svc_erp', 'CORP\\svc_backup', 'CORP\\mgmt.admin', 'CORP\\fin.taylor'] },
-    { node_id: 's3-a34', node_type: 'ACTION', node_label: 'SMB NTDS.dit Dump (DC-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB secretsdump', node_executed_at: '2025-03-05T04:37:20Z', node_ip: '10.0.30.5',
+    { node_id: 's3-a34', node_type: 'ACTION', node_label: 'SMB NTDS.dit Dump (DC-01)', node_status: 'undetected', node_payload_name: 'netexec – SMB secretsdump', node_executed_at: '2025-03-05T04:37:20Z', node_agent: 'sentinel_one', node_ip: '10.0.30.5',
       node_terminal_output: `SMB   10.0.30.5  445  MGMT-DC-01  [+] CORP\\Administrator (Domain Admin) — secretsdump\n[+] NTDS.dit dump: 1,247 accounts extracted via VSS\n[+] krbtgt hash acquired — Golden Ticket possible\n[+] All domain credentials compromised` },
-    { node_id: 's3-a35', node_type: 'ACTION', node_label: 'SMB Backup Op (DC-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB backup_operator', node_executed_at: '2025-03-05T04:40:05Z', node_ip: '10.0.30.6', node_credentials_found: ['CORP\\svc_backup:Backup@2024!'],
+    { node_id: 's3-a35', node_type: 'ACTION', node_label: 'SMB Backup Op (DC-02)', node_status: 'undetected', node_payload_name: 'netexec – SMB backup_operator', node_executed_at: '2025-03-05T04:40:05Z', node_agent: 'palo_alto', node_ip: '10.0.30.6', node_credentials_found: ['CORP\\svc_backup:Backup@2024!'],
       node_terminal_output: `SMB   10.0.30.6  445  MGMT-DC-02  [+] Backup Operator abuse — shadow copy created\n[+] NTDS.dit + SYSTEM hive exfiltrated from DC-02\n[+] svc_backup:Backup@2024! extracted from NTDS` },
-    { node_id: 's3-a36', node_type: 'ACTION', node_label: 'LDAP ADCS CA Enum', node_status: 'detected', node_payload_name: 'netexec – LDAP adcs', node_executed_at: '2025-03-05T04:43:10Z', node_ip: '10.0.30.10',
+    { node_id: 's3-a36', node_type: 'ACTION', node_label: 'LDAP ADCS CA Enum', node_status: 'detected', node_payload_name: 'netexec – LDAP adcs', node_executed_at: '2025-03-05T04:43:10Z', node_agent: 'openaev', node_ip: '10.0.30.10',
       node_terminal_output: `LDAP  10.0.30.10  389  MGMT-CA-01  [*] Enumerating ADCS certificate templates\n[!] DETECTION: LDAP query anomaly detected by MDI\n[!] Alert: ADCS_ENUM from non-admin account — SOC alerted\n[-] CA enumeration detected, further access restricted` },
 
     // Phase 8 – Management Zone (4 actions)
-    { node_id: 's3-a37', node_type: 'ACTION', node_label: 'RDP Jump Host Login', node_status: 'undetected', node_payload_name: 'netexec – RDP login', node_executed_at: '2025-03-05T04:47:00Z', node_ip: '10.0.30.20',
+    { node_id: 's3-a37', node_type: 'ACTION', node_label: 'RDP Jump Host Login', node_status: 'undetected', node_payload_name: 'netexec – RDP login', node_executed_at: '2025-03-05T04:47:00Z', node_agent: 'openaev', node_ip: '10.0.30.20',
       node_terminal_output: `RDP   10.0.30.20  3389  MGMT-JUMP-01  [+] CORP\\Administrator (Golden Ticket) — SUCCESS\n[+] Jump server accessed — multiple active admin sessions found\n[+] Credential harvesting from RDP session manager cache` },
-    { node_id: 's3-a38', node_type: 'ACTION', node_label: 'PG Database Dump Attempt', node_status: 'detected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:49:30Z', node_ip: '10.0.21.12',
+    { node_id: 's3-a38', node_type: 'ACTION', node_label: 'PG Database Dump Attempt', node_status: 'detected', node_payload_name: 'netexec – SSH login', node_executed_at: '2025-03-05T04:49:30Z', node_agent: 'openaev', node_ip: '10.0.21.12',
       node_terminal_output: `SSH   10.0.21.12  22  DB-PG-01  [*] postgres:Admin@Prod! ... partial access\n[!] DETECTION: PostgreSQL audit log — pg_hba.conf rejected remote SA login\n[!] SIEM Alert: DB_UNAUTHORIZED_ACCESS\n[-] PostgreSQL auth policy blocked access` },
-    { node_id: 's3-a39', node_type: 'ACTION', node_label: 'WMI SIEM Tampering', node_status: 'prevented', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2025-03-05T04:52:00Z', node_ip: '10.0.30.50',
+    { node_id: 's3-a39', node_type: 'ACTION', node_label: 'WMI SIEM Tampering', node_status: 'prevented', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2025-03-05T04:52:00Z', node_agent: 'openaev', node_ip: '10.0.30.50',
       node_terminal_output: `WMI   10.0.30.50  135  MGMT-SIEM-01  [*] Attempting WMI to disable SIEM logging\n[!] PREVENTION: WMI access to SIEM host blocked by host firewall\n[!] SIEM self-protection rule: WMI_TO_SIEM_HOST denied\n[-] SIEM tampering PREVENTED — all logs intact` },
-    { node_id: 's3-a40', node_type: 'ACTION', node_label: 'SMB Eng-03 Hash Spray', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:44:50Z', node_ip: '10.0.10.103',
+    { node_id: 's3-a40', node_type: 'ACTION', node_label: 'SMB Eng-03 Hash Spray', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2025-03-05T03:44:50Z', node_agent: 'sentinel_one', node_ip: '10.0.10.103',
       node_terminal_output: `SMB   10.0.10.103  445  ENG-WS-03  [*] PtH lateral attempt from ENG-WS-02\n[!] DETECTION: CrowdStrike blocked PtH authentication\n[!] Alert: SMB_LATERAL_MOVEMENT — quarantine initiated\n[-] Access denied` },
     // Nmap bulk discovery — covers all endpoints not reached by existing scans
     {
@@ -1097,6 +1098,7 @@ export const MOCK_SCENARIO_50EP: AttackPathData = {
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (full network)',
       node_executed_at: '2025-03-05T02:55:00Z',
+      node_agent: 'openaev',
       node_ip: '0.0.0.0/0',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-03-05 02:55 UTC
 Nmap scan report for 203.0.113.10 (DMZ-WEB-01)
@@ -1529,20 +1531,20 @@ Nmap done: 254 IP addresses (50 hosts up) scanned in 87.3 seconds`,
 // ─────────────────────────────────────────────────────────────────────────────
 export const MOCK_SCENARIO_5EP_RUN2: AttackPathData = {
   attack_path_nodes: [
-    { node_id: 'r2-ep01', node_type: 'ASSET', node_label: 'FINANCE-WS-01', node_hostname: 'FINANCE-WS-01', node_ip: '192.168.10.101', node_platform: 'Windows 10', node_status: 'detected', node_user_privileges: 'DOMAIN\\jsmith (User)', node_accessed_files: ['C:\\Users\\jsmith\\Documents\\budget_Q4.xlsx'], node_credentials_found: ['jsmith:Passw0rd!'], node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_is_entry_point: true, node_is_pivot: true },
-    { node_id: 'r2-ep02', node_type: 'ASSET', node_label: 'FILE-SRV-01', node_hostname: 'FILE-SRV-01', node_ip: '192.168.10.10', node_platform: 'Windows Server 2019', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24' },
-    { node_id: 'r2-ep03', node_type: 'ASSET', node_label: 'DC-01', node_hostname: 'DC-01', node_ip: '192.168.1.5', node_platform: 'Windows Server 2022', node_status: 'detected', node_zone: 'Domain', node_subnet: '192.168.1.0/24' },
-    { node_id: 'r2-ep04', node_type: 'ASSET', node_label: 'DEV-MAC-02', node_hostname: 'DEV-MAC-02', node_ip: '192.168.10.150', node_platform: 'macOS Sonoma 14.4', node_status: 'pending', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_untouched: true },
-    { node_id: 'r2-ep05', node_type: 'ASSET', node_label: 'BACKUP-LX-01', node_hostname: 'BACKUP-LX-01', node_ip: '192.168.10.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24' },
+    { node_id: 'r2-ep01', node_type: 'ASSET', node_label: 'FINANCE-WS-01', node_hostname: 'FINANCE-WS-01', node_ip: '192.168.10.101', node_platform: 'Windows 10', node_status: 'detected', node_user_privileges: 'DOMAIN\\jsmith (User)', node_accessed_files: ['C:\\Users\\jsmith\\Documents\\budget_Q4.xlsx'], node_credentials_found: ['jsmith:Passw0rd!'], node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_is_entry_point: true, node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 'r2-ep02', node_type: 'ASSET', node_label: 'FILE-SRV-01', node_hostname: 'FILE-SRV-01', node_ip: '192.168.10.10', node_platform: 'Windows Server 2019', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 'r2-ep03', node_type: 'ASSET', node_label: 'DC-01', node_hostname: 'DC-01', node_ip: '192.168.1.5', node_platform: 'Windows Server 2022', node_status: 'detected', node_zone: 'Domain', node_subnet: '192.168.1.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 'r2-ep04', node_type: 'ASSET', node_label: 'DEV-MAC-02', node_hostname: 'DEV-MAC-02', node_ip: '192.168.10.150', node_platform: 'macOS Sonoma 14.4', node_status: 'pending', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_untouched: true, node_agents: ['palo_alto'], },
+    { node_id: 'r2-ep05', node_type: 'ASSET', node_label: 'BACKUP-LX-01', node_hostname: 'BACKUP-LX-01', node_ip: '192.168.10.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_agents: ['sentinel_one'], },
     // Actions
-    { node_id: 'r2-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2026-06-15T08:02:11Z', node_ip: '192.168.10.101', node_terminal_output: 'Nmap scan report for FINANCE-WS-01 (192.168.10.101)\nPORT 445/tcp open microsoft-ds\nNmap done: 1 IP address scanned in 2.34 seconds' },
-    { node_id: 'r2-a02', node_type: 'ACTION', node_label: 'SMB AV Enumeration', node_status: 'undetected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2026-06-15T08:04:33Z', node_ip: '192.168.10.101', node_terminal_output: 'SMB 192.168.10.101 445 FINANCE-WS-01 [+] No AV detected' },
-    { node_id: 'r2-a03', node_type: 'ACTION', node_label: 'SMB GPP Password Dump', node_status: 'detected', node_payload_name: 'netexec – SMB gpp_password', node_executed_at: '2026-06-15T08:07:45Z', node_ip: '192.168.10.101', node_credentials_found: ['jsmith:Passw0rd!', 'svc_backup:Backup@2024'], node_expectations: [{ expectation_id: 'r2e1', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[+] GPP credential dump detected by SIEM — alert triggered\n[!] DETECTION: Windows Event ID 4663 logged' },
-    { node_id: 'r2-a04', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash Lateral', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2026-06-15T08:12:01Z', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r2e2', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Lateral movement alert — EDR blocked pass-the-hash to FILE-SRV-01' },
-    { node_id: 'r2-a05', node_type: 'ACTION', node_label: 'WMI Remote Code Exec', node_status: 'prevented', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2026-06-15T08:15:22Z', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r2e3', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: WMI execution blocked by EDR\n[-] Unable to deploy agent to FILE-SRV-01' },
-    { node_id: 'r2-a06', node_type: 'ACTION', node_label: 'LDAP Kerberoasting', node_status: 'detected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2026-06-15T08:19:55Z', node_ip: '192.168.1.5', node_expectations: [{ expectation_id: 'r2e4', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Kerberoasting attempt detected — SIEM alert KRB_ROAST triggered' },
-    { node_id: 'r2-a07', node_type: 'ACTION', node_label: 'SSH Brute Force', node_status: 'prevented', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2026-06-15T08:22:10Z', node_ip: '192.168.10.20', node_expectations: [{ expectation_id: 'r2e5', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: SSH brute force blocked by Fail2Ban after 2 attempts' },
-    { node_id: 'r2-a-spray', node_type: 'ACTION', node_label: 'Netexec SMB Credential Spray', node_status: 'detected', node_payload_name: 'netexec – SMB spray', node_executed_at: '2026-06-15T08:25:00Z', node_ip: '192.168.10.0/24', node_chain_previous: 'r2-a03', node_expectations: [{ expectation_id: 'r2e6', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[+] Spray attempt detected by SIEM — SOC alerted\n[!] Credential spray from 192.168.10.101 blocked at FILE-SRV-01' },
+    { node_id: 'r2-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2026-06-15T08:02:11Z', node_agent: 'openaev', node_ip: '192.168.10.101', node_terminal_output: 'Nmap scan report for FINANCE-WS-01 (192.168.10.101)\nPORT 445/tcp open microsoft-ds\nNmap done: 1 IP address scanned in 2.34 seconds' },
+    { node_id: 'r2-a02', node_type: 'ACTION', node_label: 'SMB AV Enumeration', node_status: 'undetected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2026-06-15T08:04:33Z', node_agent: 'palo_alto', node_ip: '192.168.10.101', node_terminal_output: 'SMB 192.168.10.101 445 FINANCE-WS-01 [+] No AV detected' },
+    { node_id: 'r2-a03', node_type: 'ACTION', node_label: 'SMB GPP Password Dump', node_status: 'detected', node_payload_name: 'netexec – SMB gpp_password', node_executed_at: '2026-06-15T08:07:45Z', node_agent: 'openaev', node_ip: '192.168.10.101', node_credentials_found: ['jsmith:Passw0rd!', 'svc_backup:Backup@2024'], node_expectations: [{ expectation_id: 'r2e1', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[+] GPP credential dump detected by SIEM — alert triggered\n[!] DETECTION: Windows Event ID 4663 logged' },
+    { node_id: 'r2-a04', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash Lateral', node_status: 'detected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2026-06-15T08:12:01Z', node_agent: 'openaev', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r2e2', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Lateral movement alert — EDR blocked pass-the-hash to FILE-SRV-01' },
+    { node_id: 'r2-a05', node_type: 'ACTION', node_label: 'WMI Remote Code Exec', node_status: 'prevented', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2026-06-15T08:15:22Z', node_agent: 'palo_alto', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r2e3', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: WMI execution blocked by EDR\n[-] Unable to deploy agent to FILE-SRV-01' },
+    { node_id: 'r2-a06', node_type: 'ACTION', node_label: 'LDAP Kerberoasting', node_status: 'detected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2026-06-15T08:19:55Z', node_agent: 'sentinel_one', node_ip: '192.168.1.5', node_expectations: [{ expectation_id: 'r2e4', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Kerberoasting attempt detected — SIEM alert KRB_ROAST triggered' },
+    { node_id: 'r2-a07', node_type: 'ACTION', node_label: 'SSH Brute Force', node_status: 'prevented', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2026-06-15T08:22:10Z', node_agent: 'palo_alto', node_ip: '192.168.10.20', node_expectations: [{ expectation_id: 'r2e5', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: SSH brute force blocked by Fail2Ban after 2 attempts' },
+    { node_id: 'r2-a-spray', node_type: 'ACTION', node_label: 'Netexec SMB Credential Spray', node_status: 'detected', node_payload_name: 'netexec – SMB spray', node_executed_at: '2026-06-15T08:25:00Z', node_agent: 'sentinel_one', node_ip: '192.168.10.0/24', node_chain_previous: 'r2-a03', node_expectations: [{ expectation_id: 'r2e6', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[+] Spray attempt detected by SIEM — SOC alerted\n[!] Credential spray from 192.168.10.101 blocked at FILE-SRV-01' },
     {
       node_id: 'r2-a-nmap-bulk',
       node_type: 'ACTION',
@@ -1550,6 +1552,7 @@ export const MOCK_SCENARIO_5EP_RUN2: AttackPathData = {
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (Finance LAN)',
       node_executed_at: '2026-06-15T08:00:30Z',
+      node_agent: 'openaev',
       node_ip: '192.168.10.0/24',
       node_terminal_output: `Starting Nmap 7.94 at 2026-06-15 08:00 UTC
 Nmap scan report for 192.168.10.10 (FILE-SRV-01)
@@ -1623,20 +1626,20 @@ Nmap done: 254 IP addresses (4 hosts up) scanned in 12.4 seconds`,
 // ─────────────────────────────────────────────────────────────────────────────
 export const MOCK_SCENARIO_5EP_RUN3: AttackPathData = {
   attack_path_nodes: [
-    { node_id: 'r3-ep01', node_type: 'ASSET', node_label: 'FINANCE-WS-01', node_hostname: 'FINANCE-WS-01', node_ip: '192.168.10.101', node_platform: 'Windows 10', node_status: 'detected', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_is_entry_point: true },
-    { node_id: 'r3-ep02', node_type: 'ASSET', node_label: 'FILE-SRV-01', node_hostname: 'FILE-SRV-01', node_ip: '192.168.10.10', node_platform: 'Windows Server 2019', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24' },
-    { node_id: 'r3-ep03', node_type: 'ASSET', node_label: 'DC-01', node_hostname: 'DC-01', node_ip: '192.168.1.5', node_platform: 'Windows Server 2022', node_status: 'prevented', node_zone: 'Domain', node_subnet: '192.168.1.0/24' },
-    { node_id: 'r3-ep04', node_type: 'ASSET', node_label: 'DEV-MAC-02', node_hostname: 'DEV-MAC-02', node_ip: '192.168.10.150', node_platform: 'macOS Sonoma 14.4', node_status: 'pending', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_untouched: true },
-    { node_id: 'r3-ep05', node_type: 'ASSET', node_label: 'BACKUP-LX-01', node_hostname: 'BACKUP-LX-01', node_ip: '192.168.10.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24' },
+    { node_id: 'r3-ep01', node_type: 'ASSET', node_label: 'FINANCE-WS-01', node_hostname: 'FINANCE-WS-01', node_ip: '192.168.10.101', node_platform: 'Windows 10', node_status: 'detected', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_is_entry_point: true, node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 'r3-ep02', node_type: 'ASSET', node_label: 'FILE-SRV-01', node_hostname: 'FILE-SRV-01', node_ip: '192.168.10.10', node_platform: 'Windows Server 2019', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_agents: ['openaev'], },
+    { node_id: 'r3-ep03', node_type: 'ASSET', node_label: 'DC-01', node_hostname: 'DC-01', node_ip: '192.168.1.5', node_platform: 'Windows Server 2022', node_status: 'prevented', node_zone: 'Domain', node_subnet: '192.168.1.0/24', node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 'r3-ep04', node_type: 'ASSET', node_label: 'DEV-MAC-02', node_hostname: 'DEV-MAC-02', node_ip: '192.168.10.150', node_platform: 'macOS Sonoma 14.4', node_status: 'pending', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_untouched: true, node_agents: ['openaev'], },
+    { node_id: 'r3-ep05', node_type: 'ASSET', node_label: 'BACKUP-LX-01', node_hostname: 'BACKUP-LX-01', node_ip: '192.168.10.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Finance LAN', node_subnet: '192.168.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
     // Actions
-    { node_id: 'r3-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2026-07-01T08:02:11Z', node_ip: '192.168.10.101', node_terminal_output: 'Nmap scan report for FINANCE-WS-01 (192.168.10.101)\nHost is up. Limited ports visible (firewall active)' },
-    { node_id: 'r3-a02', node_type: 'ACTION', node_label: 'SMB AV Enumeration', node_status: 'detected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2026-07-01T08:04:33Z', node_ip: '192.168.10.101', node_expectations: [{ expectation_id: 'r3e1', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: SMB enumeration detected by EDR — alert triggered' },
-    { node_id: 'r3-a03', node_type: 'ACTION', node_label: 'SMB GPP Password Dump', node_status: 'prevented', node_payload_name: 'netexec – SMB gpp_password', node_executed_at: '2026-07-01T08:07:45Z', node_ip: '192.168.10.101', node_expectations: [{ expectation_id: 'r3e2', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: GPP credential dump blocked — SYSVOL ACL hardened\n[-] No Groups.xml accessible' },
-    { node_id: 'r3-a04', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash Lateral', node_status: 'prevented', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2026-07-01T08:12:01Z', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r3e3', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: Pass-the-hash blocked — Credential Guard enabled\n[-] NTLMv2 relay attempt failed' },
-    { node_id: 'r3-a05', node_type: 'ACTION', node_label: 'WMI Remote Code Exec', node_status: 'prevented', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2026-07-01T08:15:22Z', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r3e4', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: WMI access blocked — AppLocker policy active' },
-    { node_id: 'r3-a06', node_type: 'ACTION', node_label: 'LDAP Kerberoasting', node_status: 'detected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2026-07-01T08:19:55Z', node_ip: '192.168.1.5', node_expectations: [{ expectation_id: 'r3e5', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Kerberoasting attempt detected — all service accounts use AES256, not crackable' },
-    { node_id: 'r3-a07', node_type: 'ACTION', node_label: 'SSH Brute Force', node_status: 'prevented', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2026-07-01T08:22:10Z', node_ip: '192.168.10.20', node_expectations: [{ expectation_id: 'r3e6', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: SSH brute force blocked — key-based auth only, password disabled' },
-    { node_id: 'r3-a-spray', node_type: 'ACTION', node_label: 'Netexec SMB Credential Spray', node_status: 'prevented', node_payload_name: 'netexec – SMB spray', node_executed_at: '2026-07-01T08:25:00Z', node_ip: '192.168.10.0/24', node_chain_previous: 'r3-a03', node_expectations: [{ expectation_id: 'r3e7', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: Credential spray blocked — account lockout policy triggered after 1 attempt' },
+    { node_id: 'r3-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2026-07-01T08:02:11Z', node_agent: 'openaev', node_ip: '192.168.10.101', node_terminal_output: 'Nmap scan report for FINANCE-WS-01 (192.168.10.101)\nHost is up. Limited ports visible (firewall active)' },
+    { node_id: 'r3-a02', node_type: 'ACTION', node_label: 'SMB AV Enumeration', node_status: 'detected', node_payload_name: 'netexec – SMB enum_av', node_executed_at: '2026-07-01T08:04:33Z', node_agent: 'palo_alto', node_ip: '192.168.10.101', node_expectations: [{ expectation_id: 'r3e1', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: SMB enumeration detected by EDR — alert triggered' },
+    { node_id: 'r3-a03', node_type: 'ACTION', node_label: 'SMB GPP Password Dump', node_status: 'prevented', node_payload_name: 'netexec – SMB gpp_password', node_executed_at: '2026-07-01T08:07:45Z', node_agent: 'sentinel_one', node_ip: '192.168.10.101', node_expectations: [{ expectation_id: 'r3e2', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: GPP credential dump blocked — SYSVOL ACL hardened\n[-] No Groups.xml accessible' },
+    { node_id: 'r3-a04', node_type: 'ACTION', node_label: 'SMB Pass-the-Hash Lateral', node_status: 'prevented', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2026-07-01T08:12:01Z', node_agent: 'sentinel_one', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r3e3', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: Pass-the-hash blocked — Credential Guard enabled\n[-] NTLMv2 relay attempt failed' },
+    { node_id: 'r3-a05', node_type: 'ACTION', node_label: 'WMI Remote Code Exec', node_status: 'prevented', node_payload_name: 'netexec – WMI command exec', node_executed_at: '2026-07-01T08:15:22Z', node_agent: 'openaev', node_ip: '192.168.10.10', node_expectations: [{ expectation_id: 'r3e4', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: WMI access blocked — AppLocker policy active' },
+    { node_id: 'r3-a06', node_type: 'ACTION', node_label: 'LDAP Kerberoasting', node_status: 'detected', node_payload_name: 'netexec – LDAP Kerberoasting', node_executed_at: '2026-07-01T08:19:55Z', node_agent: 'sentinel_one', node_ip: '192.168.1.5', node_expectations: [{ expectation_id: 'r3e5', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Kerberoasting attempt detected — all service accounts use AES256, not crackable' },
+    { node_id: 'r3-a07', node_type: 'ACTION', node_label: 'SSH Brute Force', node_status: 'prevented', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2026-07-01T08:22:10Z', node_agent: 'palo_alto', node_ip: '192.168.10.20', node_expectations: [{ expectation_id: 'r3e6', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: SSH brute force blocked — key-based auth only, password disabled' },
+    { node_id: 'r3-a-spray', node_type: 'ACTION', node_label: 'Netexec SMB Credential Spray', node_status: 'prevented', node_payload_name: 'netexec – SMB spray', node_executed_at: '2026-07-01T08:25:00Z', node_agent: 'openaev', node_ip: '192.168.10.0/24', node_chain_previous: 'r3-a03', node_expectations: [{ expectation_id: 'r3e7', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: Credential spray blocked — account lockout policy triggered after 1 attempt' },
     {
       node_id: 'r3-a-nmap-bulk',
       node_type: 'ACTION',
@@ -1644,6 +1647,7 @@ export const MOCK_SCENARIO_5EP_RUN3: AttackPathData = {
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (Finance LAN)',
       node_executed_at: '2026-07-01T08:00:30Z',
+      node_agent: 'openaev',
       node_ip: '192.168.10.0/24',
       node_terminal_output: `Starting Nmap 7.94 at 2026-07-01 08:00 UTC
 Nmap scan report for 192.168.10.10 (FILE-SRV-01)
@@ -1717,47 +1721,47 @@ Nmap done: 254 IP addresses (4 hosts up) scanned in 12.1 seconds`,
 export const MOCK_SCENARIO_15EP_RUN2: AttackPathData = {
   attack_path_nodes: [
     // ASSET nodes — all 15 endpoints, most fully compromised
-    { node_id: 'apt2-ep01', node_type: 'ASSET', node_label: 'WEB-SRV-01', node_hostname: 'WEB-SRV-01', node_ip: '10.0.1.10', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/html/config.php', '/etc/shadow'], node_credentials_found: ['tomcat:s3cr3t@dm1n', 'root:toor123'], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_entry_point: true, node_is_pivot: true },
-    { node_id: 'apt2-ep02', node_type: 'ASSET', node_label: 'MAIL-SRV-01', node_hostname: 'MAIL-SRV-01', node_ip: '10.0.1.15', node_platform: 'Debian 10', node_status: 'undetected', node_user_privileges: 'root', node_accessed_files: ['/var/mail/', '/etc/postfix/main.cf'], node_credentials_found: ['mail_admin:M@il2024'], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_pivot: true },
-    { node_id: 'apt2-ep03', node_type: 'ASSET', node_label: 'VPN-GW-01', node_hostname: 'VPN-GW-01', node_ip: '10.0.1.5', node_platform: 'CentOS 7', node_status: 'undetected', node_user_privileges: 'vpnuser → root', node_accessed_files: ['/etc/openvpn/server.conf'], node_credentials_found: [], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_pivot: true },
-    { node_id: 'apt2-ep04', node_type: 'ASSET', node_label: 'CORP-WS-01', node_hostname: 'CORP-WS-01', node_ip: '10.0.10.101', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\acct.harris (User)', node_accessed_files: ['C:\\Finance\\Q3_Report.xlsx', 'C:\\Finance\\Contracts\\'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true },
-    { node_id: 'apt2-ep05', node_type: 'ASSET', node_label: 'CORP-WS-02', node_hostname: 'CORP-WS-02', node_ip: '10.0.10.102', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\hr.miller', node_accessed_files: ['C:\\HR\\EmployeeRecords.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 'apt2-ep06', node_type: 'ASSET', node_label: 'CORP-WS-03', node_hostname: 'CORP-WS-03', node_ip: '10.0.10.103', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\it.chen (Local Admin)', node_accessed_files: ['C:\\Users\\it.chen\\Desktop\\server_passwords.kdbx'], node_credentials_found: ['CORP\\svc_deploy:Deploy2024!'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 'apt2-ep07', node_type: 'ASSET', node_label: 'CORP-WS-04', node_hostname: 'CORP-WS-04', node_ip: '10.0.10.104', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\mgmt.jones', node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 'apt2-ep08', node_type: 'ASSET', node_label: 'CORP-WS-05', node_hostname: 'CORP-WS-05', node_ip: '10.0.10.105', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.taylor', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx', 'C:\\Finance\\Budget_2025.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24' },
-    { node_id: 'apt2-ep09', node_type: 'ASSET', node_label: 'PRINT-SRV-01', node_hostname: 'PRINT-SRV-01', node_ip: '10.0.10.20', node_platform: 'Windows Server 2016', node_status: 'undetected', node_user_privileges: 'CORP\\svc_print → CORP\\svc_mssql', node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'], node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true },
-    { node_id: 'apt2-ep10', node_type: 'ASSET', node_label: 'APP-SRV-01', node_hostname: 'APP-SRV-01', node_ip: '10.0.20.10', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_accessed_files: ['/opt/app/config/db.conf', '/etc/passwd', '/etc/shadow'], node_credentials_found: ['mysql_root:R00tM3@Prod', 'app_admin:AppAdmin2024'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_is_pivot: true },
-    { node_id: 'apt2-ep11', node_type: 'ASSET', node_label: 'DB-SRV-01', node_hostname: 'DB-SRV-01', node_ip: '10.0.20.15', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'mysql → root', node_accessed_files: ['/var/lib/mysql/', '/etc/mysql/mysql.conf.d/mysqld.cnf', '/backup/db_dump_2024.sql'], node_credentials_found: ['SA:Admin@123', 'app_user:AppPass2024', 'backup_user:Backup2024'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24' },
-    { node_id: 'apt2-ep12', node_type: 'ASSET', node_label: 'AD-01 (DC)', node_hostname: 'AD-01', node_ip: '10.0.20.5', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_accessed_files: [], node_credentials_found: ['CORP\\Administrator:$HASH$...', 'All 347 domain accounts extracted (NTDS.dit)', 'CORP\\krbtgt:$HASH$ (Golden Ticket possible)'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24' },
-    { node_id: 'apt2-ep13', node_type: 'ASSET', node_label: 'JUMP-HOST-01', node_hostname: 'JUMP-HOST-01', node_ip: '10.0.30.10', node_platform: 'Windows Server 2019', node_status: 'detected', node_user_privileges: 'CORP\\svc_jumphost (Admin)', node_zone: 'Domain', node_subnet: '10.0.30.0/24' },
-    { node_id: 'apt2-ep14', node_type: 'ASSET', node_label: 'MGMT-WS-01', node_hostname: 'MGMT-WS-01', node_ip: '10.0.30.101', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\mgmt.admin (Domain Admin)', node_accessed_files: ['C:\\Users\\mgmt.admin\\Documents\\network_map.vsd', 'C:\\Users\\mgmt.admin\\Desktop\\all_passwords.kdbx'], node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!', 'CORP\\CEO_delegated:Exec2024!'], node_zone: 'Domain', node_subnet: '10.0.30.0/24' },
-    { node_id: 'apt2-ep15', node_type: 'ASSET', node_label: 'BACKUP-01', node_hostname: 'BACKUP-01', node_ip: '10.0.30.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Domain', node_subnet: '10.0.30.0/24' },
+    { node_id: 'apt2-ep01', node_type: 'ASSET', node_label: 'WEB-SRV-01', node_hostname: 'WEB-SRV-01', node_ip: '10.0.1.10', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'www-data → root', node_accessed_files: ['/var/www/html/config.php', '/etc/shadow'], node_credentials_found: ['tomcat:s3cr3t@dm1n', 'root:toor123'], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_entry_point: true, node_is_pivot: true, node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 'apt2-ep02', node_type: 'ASSET', node_label: 'MAIL-SRV-01', node_hostname: 'MAIL-SRV-01', node_ip: '10.0.1.15', node_platform: 'Debian 10', node_status: 'undetected', node_user_privileges: 'root', node_accessed_files: ['/var/mail/', '/etc/postfix/main.cf'], node_credentials_found: ['mail_admin:M@il2024'], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 'apt2-ep03', node_type: 'ASSET', node_label: 'VPN-GW-01', node_hostname: 'VPN-GW-01', node_ip: '10.0.1.5', node_platform: 'CentOS 7', node_status: 'undetected', node_user_privileges: 'vpnuser → root', node_accessed_files: ['/etc/openvpn/server.conf'], node_credentials_found: [], node_zone: 'DMZ', node_subnet: '10.0.1.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 'apt2-ep04', node_type: 'ASSET', node_label: 'CORP-WS-01', node_hostname: 'CORP-WS-01', node_ip: '10.0.10.101', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\acct.harris (User)', node_accessed_files: ['C:\\Finance\\Q3_Report.xlsx', 'C:\\Finance\\Contracts\\'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true, node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 'apt2-ep05', node_type: 'ASSET', node_label: 'CORP-WS-02', node_hostname: 'CORP-WS-02', node_ip: '10.0.10.102', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\hr.miller', node_accessed_files: ['C:\\HR\\EmployeeRecords.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 'apt2-ep06', node_type: 'ASSET', node_label: 'CORP-WS-03', node_hostname: 'CORP-WS-03', node_ip: '10.0.10.103', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\it.chen (Local Admin)', node_accessed_files: ['C:\\Users\\it.chen\\Desktop\\server_passwords.kdbx'], node_credentials_found: ['CORP\\svc_deploy:Deploy2024!'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['openaev'], },
+    { node_id: 'apt2-ep07', node_type: 'ASSET', node_label: 'CORP-WS-04', node_hostname: 'CORP-WS-04', node_ip: '10.0.10.104', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\mgmt.jones', node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['openaev'], },
+    { node_id: 'apt2-ep08', node_type: 'ASSET', node_label: 'CORP-WS-05', node_hostname: 'CORP-WS-05', node_ip: '10.0.10.105', node_platform: 'Windows 10 Pro', node_status: 'undetected', node_user_privileges: 'CORP\\fin.taylor', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx', 'C:\\Finance\\Budget_2025.xlsx'], node_credentials_found: [], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_agents: ['palo_alto'], },
+    { node_id: 'apt2-ep09', node_type: 'ASSET', node_label: 'PRINT-SRV-01', node_hostname: 'PRINT-SRV-01', node_ip: '10.0.10.20', node_platform: 'Windows Server 2016', node_status: 'undetected', node_user_privileges: 'CORP\\svc_print → CORP\\svc_mssql', node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'], node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'], node_zone: 'Corp LAN', node_subnet: '10.0.10.0/24', node_is_pivot: true, node_agents: ['sentinel_one', 'openaev'], },
+    { node_id: 'apt2-ep10', node_type: 'ASSET', node_label: 'APP-SRV-01', node_hostname: 'APP-SRV-01', node_ip: '10.0.20.10', node_platform: 'RHEL 8.6', node_status: 'undetected', node_user_privileges: 'appuser → root', node_accessed_files: ['/opt/app/config/db.conf', '/etc/passwd', '/etc/shadow'], node_credentials_found: ['mysql_root:R00tM3@Prod', 'app_admin:AppAdmin2024'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_is_pivot: true, node_agents: ['palo_alto', 'openaev'], },
+    { node_id: 'apt2-ep11', node_type: 'ASSET', node_label: 'DB-SRV-01', node_hostname: 'DB-SRV-01', node_ip: '10.0.20.15', node_platform: 'Ubuntu 20.04 LTS', node_status: 'undetected', node_user_privileges: 'mysql → root', node_accessed_files: ['/var/lib/mysql/', '/etc/mysql/mysql.conf.d/mysqld.cnf', '/backup/db_dump_2024.sql'], node_credentials_found: ['SA:Admin@123', 'app_user:AppPass2024', 'backup_user:Backup2024'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 'apt2-ep12', node_type: 'ASSET', node_label: 'AD-01 (DC)', node_hostname: 'AD-01', node_ip: '10.0.20.5', node_platform: 'Windows Server 2022', node_status: 'undetected', node_user_privileges: 'CORP\\Administrator (Domain Admin)', node_accessed_files: [], node_credentials_found: ['CORP\\Administrator:$HASH$...', 'All 347 domain accounts extracted (NTDS.dit)', 'CORP\\krbtgt:$HASH$ (Golden Ticket possible)'], node_zone: 'Server VLAN', node_subnet: '10.0.20.0/24', node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 'apt2-ep13', node_type: 'ASSET', node_label: 'JUMP-HOST-01', node_hostname: 'JUMP-HOST-01', node_ip: '10.0.30.10', node_platform: 'Windows Server 2019', node_status: 'detected', node_user_privileges: 'CORP\\svc_jumphost (Admin)', node_zone: 'Domain', node_subnet: '10.0.30.0/24', node_agents: ['palo_alto', 'sentinel_one', 'openaev'], },
+    { node_id: 'apt2-ep14', node_type: 'ASSET', node_label: 'MGMT-WS-01', node_hostname: 'MGMT-WS-01', node_ip: '10.0.30.101', node_platform: 'Windows 10 Enterprise', node_status: 'undetected', node_user_privileges: 'CORP\\mgmt.admin (Domain Admin)', node_accessed_files: ['C:\\Users\\mgmt.admin\\Documents\\network_map.vsd', 'C:\\Users\\mgmt.admin\\Desktop\\all_passwords.kdbx'], node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!', 'CORP\\CEO_delegated:Exec2024!'], node_zone: 'Domain', node_subnet: '10.0.30.0/24', node_agents: ['palo_alto', 'sentinel_one'], },
+    { node_id: 'apt2-ep15', node_type: 'ASSET', node_label: 'BACKUP-01', node_hostname: 'BACKUP-01', node_ip: '10.0.30.20', node_platform: 'Ubuntu 22.04 LTS', node_status: 'prevented', node_zone: 'Domain', node_subnet: '10.0.30.0/24', node_agents: ['palo_alto', 'openaev'], },
     // ACTION nodes (22 total)
-    { node_id: 'apt2-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2026-06-15T06:00:00Z', node_ip: '10.0.1.10', node_terminal_output: 'Starting Nmap 7.94\nNmap scan report for WEB-SRV-01 (10.0.1.10)\n22/tcp open ssh\n80/tcp open http\n443/tcp open https\n8080/tcp open http-proxy',
+    { node_id: 'apt2-a01', node_type: 'ACTION', node_label: 'Nmap TCP SYN Scan', node_status: 'undetected', node_payload_name: 'nmap – TCP SYN Scan', node_executed_at: '2026-06-15T06:00:00Z', node_agent: 'openaev', node_ip: '10.0.1.10', node_terminal_output: 'Starting Nmap 7.94\nNmap scan report for WEB-SRV-01 (10.0.1.10)\n22/tcp open ssh\n80/tcp open http\n443/tcp open https\n8080/tcp open http-proxy',
       node_ports_found:['22/tcp open ssh OpenSSH 8.2p1', '80/tcp open http nginx 1.20.2', '443/tcp open ssl/https nginx 1.20.2', '8080/tcp open http Tomcat 9.0.54', '8443/tcp open ssl/https-alt'] },
-    { node_id: 'apt2-a02', node_type: 'ACTION', node_label: 'Nuclei Log4Shell RCE', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-44228', node_executed_at: '2026-06-15T06:03:22Z', node_ip: '10.0.1.10', node_user_privileges: 'www-data → root', node_terminal_output: '[CVE-2021-44228] [critical] RCE confirmed on WEB-SRV-01\n[+] Shell spawned: root@WEB-SRV-01',
+    { node_id: 'apt2-a02', node_type: 'ACTION', node_label: 'Nuclei Log4Shell RCE', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-44228', node_executed_at: '2026-06-15T06:03:22Z', node_agent: 'sentinel_one', node_ip: '10.0.1.10', node_user_privileges: 'www-data → root', node_terminal_output: '[CVE-2021-44228] [critical] RCE confirmed on WEB-SRV-01\n[+] Shell spawned: root@WEB-SRV-01',
       node_cves_found:['CVE-2021-44228 (Log4Shell JNDI RCE) - CRITICAL'] },
-    { node_id: 'apt2-a03', node_type: 'ACTION', node_label: 'SSH Pivot to MAIL-SRV', node_status: 'undetected', node_payload_name: 'netexec – SSH auth', node_executed_at: '2026-06-15T06:08:00Z', node_ip: '10.0.1.15', node_terminal_output: '[+] SSH 10.0.1.15: root:toor123 (Pwn3d!)\n[+] Full root access on MAIL-SRV-01' },
-    { node_id: 'apt2-a04', node_type: 'ACTION', node_label: 'VPN Config Extraction', node_status: 'undetected', node_payload_name: 'netexec – SSH file exfil', node_executed_at: '2026-06-15T06:12:00Z', node_ip: '10.0.1.5', node_accessed_files: ['/etc/openvpn/server.conf'], node_terminal_output: '[+] VPN config stolen — internal routing exposed\n[+] Connected to Corp LAN as 10.0.10.200' },
-    { node_id: 'apt2-a05', node_type: 'ACTION', node_label: 'Corp LAN Sweep', node_status: 'undetected', node_payload_name: 'nmap – host discovery', node_executed_at: '2026-06-15T06:18:00Z', node_ip: '10.0.10.0/24', node_terminal_output: 'Discovered: CORP-WS-01 through CORP-WS-05, PRINT-SRV-01\n6 active hosts found in Corp LAN' },
-    { node_id: 'apt2-a06', node_type: 'ACTION', node_label: 'SMB Spray Corp WS', node_status: 'detected', node_payload_name: 'netexec – SMB spray', node_executed_at: '2026-06-15T06:22:00Z', node_ip: '10.0.10.0/24', node_expectations: [{ expectation_id: 'apt2e1', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: SMB spray detected but succeeded on CORP-WS-01 and CORP-WS-03\n[+] 2/5 workstations compromised before detection' },
-    { node_id: 'apt2-a07', node_type: 'ACTION', node_label: 'CORP-WS-01 Credential Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB mimikatz', node_executed_at: '2026-06-15T06:28:00Z', node_ip: '10.0.10.101', node_credentials_found: ['CORP\\acct.harris:Finance2024', 'CORP\\svc_deploy:Deploy2024!'], node_terminal_output: '[+] LSASS dump successful on CORP-WS-01\n[+] 2 plaintext credentials extracted' },
-    { node_id: 'apt2-a08', node_type: 'ACTION', node_label: 'CORP-WS-03 KeePass Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB file exfil', node_executed_at: '2026-06-15T06:32:00Z', node_ip: '10.0.10.103', node_accessed_files: ['C:\\Users\\it.chen\\Desktop\\server_passwords.kdbx'], node_credentials_found: ['CORP\\svc_deploy:Deploy2024!'], node_terminal_output: '[+] server_passwords.kdbx downloaded and cracked offline\n[+] 12 server credentials extracted' },
-    { node_id: 'apt2-a09', node_type: 'ACTION', node_label: 'PrintNightmare on PRINT-SRV', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-34527', node_executed_at: '2026-06-15T06:38:00Z', node_ip: '10.0.10.20', node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'], node_terminal_output: '[CVE-2021-34527] PrintNightmare RCE on PRINT-SRV-01\n[+] SYSTEM shell obtained\n[+] svc_mssql credentials extracted from registry',
+    { node_id: 'apt2-a03', node_type: 'ACTION', node_label: 'SSH Pivot to MAIL-SRV', node_status: 'undetected', node_payload_name: 'netexec – SSH auth', node_executed_at: '2026-06-15T06:08:00Z', node_agent: 'sentinel_one', node_ip: '10.0.1.15', node_terminal_output: '[+] SSH 10.0.1.15: root:toor123 (Pwn3d!)\n[+] Full root access on MAIL-SRV-01' },
+    { node_id: 'apt2-a04', node_type: 'ACTION', node_label: 'VPN Config Extraction', node_status: 'undetected', node_payload_name: 'netexec – SSH file exfil', node_executed_at: '2026-06-15T06:12:00Z', node_agent: 'openaev', node_ip: '10.0.1.5', node_accessed_files: ['/etc/openvpn/server.conf'], node_terminal_output: '[+] VPN config stolen — internal routing exposed\n[+] Connected to Corp LAN as 10.0.10.200' },
+    { node_id: 'apt2-a05', node_type: 'ACTION', node_label: 'Corp LAN Sweep', node_status: 'undetected', node_payload_name: 'nmap – host discovery', node_executed_at: '2026-06-15T06:18:00Z', node_agent: 'openaev', node_ip: '10.0.10.0/24', node_terminal_output: 'Discovered: CORP-WS-01 through CORP-WS-05, PRINT-SRV-01\n6 active hosts found in Corp LAN' },
+    { node_id: 'apt2-a06', node_type: 'ACTION', node_label: 'SMB Spray Corp WS', node_status: 'detected', node_payload_name: 'netexec – SMB spray', node_executed_at: '2026-06-15T06:22:00Z', node_agent: 'palo_alto', node_ip: '10.0.10.0/24', node_expectations: [{ expectation_id: 'apt2e1', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: SMB spray detected but succeeded on CORP-WS-01 and CORP-WS-03\n[+] 2/5 workstations compromised before detection' },
+    { node_id: 'apt2-a07', node_type: 'ACTION', node_label: 'CORP-WS-01 Credential Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB mimikatz', node_executed_at: '2026-06-15T06:28:00Z', node_agent: 'palo_alto', node_ip: '10.0.10.101', node_credentials_found: ['CORP\\acct.harris:Finance2024', 'CORP\\svc_deploy:Deploy2024!'], node_terminal_output: '[+] LSASS dump successful on CORP-WS-01\n[+] 2 plaintext credentials extracted' },
+    { node_id: 'apt2-a08', node_type: 'ACTION', node_label: 'CORP-WS-03 KeePass Dump', node_status: 'undetected', node_payload_name: 'netexec – SMB file exfil', node_executed_at: '2026-06-15T06:32:00Z', node_agent: 'palo_alto', node_ip: '10.0.10.103', node_accessed_files: ['C:\\Users\\it.chen\\Desktop\\server_passwords.kdbx'], node_credentials_found: ['CORP\\svc_deploy:Deploy2024!'], node_terminal_output: '[+] server_passwords.kdbx downloaded and cracked offline\n[+] 12 server credentials extracted' },
+    { node_id: 'apt2-a09', node_type: 'ACTION', node_label: 'PrintNightmare on PRINT-SRV', node_status: 'undetected', node_payload_name: 'nuclei – CVE-2021-34527', node_executed_at: '2026-06-15T06:38:00Z', node_agent: 'sentinel_one', node_ip: '10.0.10.20', node_credentials_found: ['CORP\\svc_mssql:Sql@2024Svc'], node_terminal_output: '[CVE-2021-34527] PrintNightmare RCE on PRINT-SRV-01\n[+] SYSTEM shell obtained\n[+] svc_mssql credentials extracted from registry',
       node_cves_found:['CVE-2021-34527 (PrintNightmare Windows Print Spooler RCE) - CRITICAL'] },
-    { node_id: 'apt2-a10', node_type: 'ACTION', node_label: 'App Server SQL Exec', node_status: 'undetected', node_payload_name: 'netexec – MSSQL xp_cmdshell', node_executed_at: '2026-06-15T06:45:00Z', node_ip: '10.0.20.10', node_accessed_files: ['/opt/app/config/db.conf'], node_terminal_output: '[+] MSSQL xp_cmdshell enabled on APP-SRV-01\n[+] OS command execution as SQL service account\n[+] DB credentials found in config' },
-    { node_id: 'apt2-a11', node_type: 'ACTION', node_label: 'MySQL Full DB Dump', node_status: 'undetected', node_payload_name: 'netexec – MSSQL dump', node_executed_at: '2026-06-15T06:52:00Z', node_ip: '10.0.20.15', node_accessed_files: ['/var/lib/mysql/'], node_credentials_found: ['SA:Admin@123', 'app_user:AppPass2024'], node_terminal_output: '[+] Full database dump — 847 tables, 2.3GB exfiltrated\n[+] Customer PII, financial records extracted' },
-    { node_id: 'apt2-a12', node_type: 'ACTION', node_label: 'DC Kerberoasting + DCSync', node_status: 'undetected', node_payload_name: 'netexec – LDAP DCSync', node_executed_at: '2026-06-15T07:00:00Z', node_ip: '10.0.20.5', node_credentials_found: ['CORP\\Administrator:$HASH$...', 'CORP\\krbtgt:$HASH$'], node_terminal_output: '[+] DCSync successful — full NTDS.dit extracted\n[+] 347 domain accounts dumped\n[+] krbtgt hash obtained — Golden Ticket possible' },
-    { node_id: 'apt2-a13', node_type: 'ACTION', node_label: 'CORP-WS-02 WMI Exec', node_status: 'undetected', node_payload_name: 'netexec – WMI exec', node_executed_at: '2026-06-15T07:05:00Z', node_ip: '10.0.10.102', node_terminal_output: '[+] WMI execution on CORP-WS-02\n[+] HR documents accessed' },
-    { node_id: 'apt2-a14', node_type: 'ACTION', node_label: 'CORP-WS-04 Keylogger', node_status: 'detected', node_payload_name: 'netexec – SMB keylogger deploy', node_executed_at: '2026-06-15T07:08:00Z', node_ip: '10.0.10.104', node_expectations: [{ expectation_id: 'apt2e2', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Keylogger binary flagged by AV on CORP-WS-04' },
-    { node_id: 'apt2-a15', node_type: 'ACTION', node_label: 'CORP-WS-05 Finance Exfil', node_status: 'undetected', node_payload_name: 'netexec – SMB file exfil', node_executed_at: '2026-06-15T07:12:00Z', node_ip: '10.0.10.105', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx', 'C:\\Finance\\Budget_2025.xlsx'], node_terminal_output: '[+] Finance documents exfiltrated from CORP-WS-05\n[+] 847MB of financial data sent to C2' },
-    { node_id: 'apt2-a16', node_type: 'ACTION', node_label: 'Jump Host Lateral Move', node_status: 'detected', node_payload_name: 'netexec – SMB lateral', node_executed_at: '2026-06-15T07:18:00Z', node_ip: '10.0.30.10', node_expectations: [{ expectation_id: 'apt2e3', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Unusual RDP session on JUMP-HOST-01 flagged' },
-    { node_id: 'apt2-a17', node_type: 'ACTION', node_label: 'MGMT-WS-01 Full Compromise', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2026-06-15T07:22:00Z', node_ip: '10.0.30.101', node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!', 'CORP\\CEO_delegated:Exec2024!'], node_accessed_files: ['C:\\Users\\mgmt.admin\\Documents\\network_map.vsd'], node_terminal_output: '[+] MGMT-WS-01 fully compromised via pass-the-hash\n[+] Domain Admin credentials in memory\n[+] Complete network map exfiltrated' },
-    { node_id: 'apt2-a18', node_type: 'ACTION', node_label: 'Backup Server SSH', node_status: 'prevented', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2026-06-15T07:28:00Z', node_ip: '10.0.30.20', node_expectations: [{ expectation_id: 'apt2e4', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: SSH access to BACKUP-01 blocked\n[-] Backup server isolated from compromised segments' },
-    { node_id: 'apt2-a19', node_type: 'ACTION', node_label: 'Golden Ticket Forge', node_status: 'undetected', node_payload_name: 'netexec – Kerberos ticket forge', node_executed_at: '2026-06-15T07:35:00Z', node_ip: '10.0.20.5', node_credentials_found: ['Forged TGT for CORP\\Administrator — 10yr validity'], node_terminal_output: '[+] Golden Ticket forged using krbtgt hash\n[+] Persistent access established — ticket valid for 10 years' },
-    { node_id: 'apt2-a20', node_type: 'ACTION', node_label: 'Shadow Copy Delete', node_status: 'undetected', node_payload_name: 'netexec – SMB vssadmin', node_executed_at: '2026-06-15T07:40:00Z', node_ip: '10.0.20.5', node_terminal_output: '[+] All VSS shadow copies deleted on AD-01\n[+] Backup deletion complete — ransomware pre-staging done' },
-    { node_id: 'apt2-a21', node_type: 'ACTION', node_label: 'WMI Persistence Install', node_status: 'undetected', node_payload_name: 'netexec – WMI persistence', node_executed_at: '2026-06-15T07:45:00Z', node_ip: '10.0.10.0/24', node_terminal_output: '[+] WMI event subscription persistence on 5 hosts\n[+] Backdoors survive reboot' },
-    { node_id: 'apt2-a22', node_type: 'ACTION', node_label: 'C2 Data Exfiltration', node_status: 'undetected', node_payload_name: 'http-query – C2 exfil', node_executed_at: '2026-06-15T07:55:00Z', node_ip: '10.0.0.0/8', node_terminal_output: '[+] 14.7GB data exfiltrated to C2 via HTTPS\n[+] Includes: NTDS.dit, all finance docs, HR records, DB dumps\n[+] Exfiltration complete' },
+    { node_id: 'apt2-a10', node_type: 'ACTION', node_label: 'App Server SQL Exec', node_status: 'undetected', node_payload_name: 'netexec – MSSQL xp_cmdshell', node_executed_at: '2026-06-15T06:45:00Z', node_agent: 'sentinel_one', node_ip: '10.0.20.10', node_accessed_files: ['/opt/app/config/db.conf'], node_terminal_output: '[+] MSSQL xp_cmdshell enabled on APP-SRV-01\n[+] OS command execution as SQL service account\n[+] DB credentials found in config' },
+    { node_id: 'apt2-a11', node_type: 'ACTION', node_label: 'MySQL Full DB Dump', node_status: 'undetected', node_payload_name: 'netexec – MSSQL dump', node_executed_at: '2026-06-15T06:52:00Z', node_agent: 'sentinel_one', node_ip: '10.0.20.15', node_accessed_files: ['/var/lib/mysql/'], node_credentials_found: ['SA:Admin@123', 'app_user:AppPass2024'], node_terminal_output: '[+] Full database dump — 847 tables, 2.3GB exfiltrated\n[+] Customer PII, financial records extracted' },
+    { node_id: 'apt2-a12', node_type: 'ACTION', node_label: 'DC Kerberoasting + DCSync', node_status: 'undetected', node_payload_name: 'netexec – LDAP DCSync', node_executed_at: '2026-06-15T07:00:00Z', node_agent: 'openaev', node_ip: '10.0.20.5', node_credentials_found: ['CORP\\Administrator:$HASH$...', 'CORP\\krbtgt:$HASH$'], node_terminal_output: '[+] DCSync successful — full NTDS.dit extracted\n[+] 347 domain accounts dumped\n[+] krbtgt hash obtained — Golden Ticket possible' },
+    { node_id: 'apt2-a13', node_type: 'ACTION', node_label: 'CORP-WS-02 WMI Exec', node_status: 'undetected', node_payload_name: 'netexec – WMI exec', node_executed_at: '2026-06-15T07:05:00Z', node_agent: 'sentinel_one', node_ip: '10.0.10.102', node_terminal_output: '[+] WMI execution on CORP-WS-02\n[+] HR documents accessed' },
+    { node_id: 'apt2-a14', node_type: 'ACTION', node_label: 'CORP-WS-04 Keylogger', node_status: 'detected', node_payload_name: 'netexec – SMB keylogger deploy', node_executed_at: '2026-06-15T07:08:00Z', node_agent: 'openaev', node_ip: '10.0.10.104', node_expectations: [{ expectation_id: 'apt2e2', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Keylogger binary flagged by AV on CORP-WS-04' },
+    { node_id: 'apt2-a15', node_type: 'ACTION', node_label: 'CORP-WS-05 Finance Exfil', node_status: 'undetected', node_payload_name: 'netexec – SMB file exfil', node_executed_at: '2026-06-15T07:12:00Z', node_agent: 'sentinel_one', node_ip: '10.0.10.105', node_accessed_files: ['C:\\Finance\\Payroll_2024.xlsx', 'C:\\Finance\\Budget_2025.xlsx'], node_terminal_output: '[+] Finance documents exfiltrated from CORP-WS-05\n[+] 847MB of financial data sent to C2' },
+    { node_id: 'apt2-a16', node_type: 'ACTION', node_label: 'Jump Host Lateral Move', node_status: 'detected', node_payload_name: 'netexec – SMB lateral', node_executed_at: '2026-06-15T07:18:00Z', node_agent: 'openaev', node_ip: '10.0.30.10', node_expectations: [{ expectation_id: 'apt2e3', expectation_type: 'DETECTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] DETECTION: Unusual RDP session on JUMP-HOST-01 flagged' },
+    { node_id: 'apt2-a17', node_type: 'ACTION', node_label: 'MGMT-WS-01 Full Compromise', node_status: 'undetected', node_payload_name: 'netexec – SMB pass-the-hash', node_executed_at: '2026-06-15T07:22:00Z', node_agent: 'openaev', node_ip: '10.0.30.101', node_credentials_found: ['CORP\\mgmt.admin:Sup3rS3cr3t!', 'CORP\\CEO_delegated:Exec2024!'], node_accessed_files: ['C:\\Users\\mgmt.admin\\Documents\\network_map.vsd'], node_terminal_output: '[+] MGMT-WS-01 fully compromised via pass-the-hash\n[+] Domain Admin credentials in memory\n[+] Complete network map exfiltrated' },
+    { node_id: 'apt2-a18', node_type: 'ACTION', node_label: 'Backup Server SSH', node_status: 'prevented', node_payload_name: 'netexec – SSH brute force', node_executed_at: '2026-06-15T07:28:00Z', node_agent: 'palo_alto', node_ip: '10.0.30.20', node_expectations: [{ expectation_id: 'apt2e4', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }], node_terminal_output: '[!] PREVENTION: SSH access to BACKUP-01 blocked\n[-] Backup server isolated from compromised segments' },
+    { node_id: 'apt2-a19', node_type: 'ACTION', node_label: 'Golden Ticket Forge', node_status: 'undetected', node_payload_name: 'netexec – Kerberos ticket forge', node_executed_at: '2026-06-15T07:35:00Z', node_agent: 'sentinel_one', node_ip: '10.0.20.5', node_credentials_found: ['Forged TGT for CORP\\Administrator — 10yr validity'], node_terminal_output: '[+] Golden Ticket forged using krbtgt hash\n[+] Persistent access established — ticket valid for 10 years' },
+    { node_id: 'apt2-a20', node_type: 'ACTION', node_label: 'Shadow Copy Delete', node_status: 'undetected', node_payload_name: 'netexec – SMB vssadmin', node_executed_at: '2026-06-15T07:40:00Z', node_agent: 'palo_alto', node_ip: '10.0.20.5', node_terminal_output: '[+] All VSS shadow copies deleted on AD-01\n[+] Backup deletion complete — ransomware pre-staging done' },
+    { node_id: 'apt2-a21', node_type: 'ACTION', node_label: 'WMI Persistence Install', node_status: 'undetected', node_payload_name: 'netexec – WMI persistence', node_executed_at: '2026-06-15T07:45:00Z', node_agent: 'palo_alto', node_ip: '10.0.10.0/24', node_terminal_output: '[+] WMI event subscription persistence on 5 hosts\n[+] Backdoors survive reboot' },
+    { node_id: 'apt2-a22', node_type: 'ACTION', node_label: 'C2 Data Exfiltration', node_status: 'undetected', node_payload_name: 'http-query – C2 exfil', node_executed_at: '2026-06-15T07:55:00Z', node_agent: 'palo_alto', node_ip: '10.0.0.0/8', node_terminal_output: '[+] 14.7GB data exfiltrated to C2 via HTTPS\n[+] Includes: NTDS.dit, all finance docs, HR records, DB dumps\n[+] Exfiltration complete' },
     {
       node_id: 'apt2-a-nmap-bulk',
       node_type: 'ACTION',
@@ -1765,6 +1769,7 @@ export const MOCK_SCENARIO_15EP_RUN2: AttackPathData = {
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (corp network)',
       node_executed_at: '2026-06-15T06:30:00Z',
+      node_agent: 'openaev',
       node_ip: '10.0.0.0/8',
       node_terminal_output: `Starting Nmap 7.94 at 2026-06-15 06:30 UTC
 Nmap scan report for 10.0.1.15 (MAIL-SRV-01)
@@ -1956,6 +1961,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_subnet: '172.16.0.0/24',
       node_is_entry_point: true,
       node_is_pivot: true,
+    node_agents: ['palo_alto', 'sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep02',
@@ -1974,6 +1980,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
       node_is_pivot: true,
+    node_agents: ['palo_alto', 'sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep03',
@@ -1986,6 +1993,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_user_privileges: 'CORP\\svc_tomcat (session restricted after detection)',
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
+    node_agents: ['sentinel_one'],
     },
     {
       node_id: 's4-ep04',
@@ -2004,6 +2012,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
       node_is_pivot: true,
+    node_agents: ['palo_alto', 'sentinel_one'],
     },
     {
       node_id: 's4-ep05',
@@ -2022,6 +2031,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_zone: 'Server VLAN',
       node_subnet: '10.10.2.0/24',
       node_is_pivot: true,
+    node_agents: ['palo_alto', 'openaev'],
     },
     {
       node_id: 's4-ep06',
@@ -2033,6 +2043,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_status: 'prevented',
       node_zone: 'Server VLAN',
       node_subnet: '10.10.2.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep07',
@@ -2051,6 +2062,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       ],
       node_zone: 'Domain',
       node_subnet: '10.10.3.0/24',
+    node_agents: ['palo_alto', 'openaev'],
     },
     {
       node_id: 's4-ep08',
@@ -2063,6 +2075,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_zone: 'Server VLAN',
       node_subnet: '10.10.2.0/24',
       node_untouched: true,
+    node_agents: ['palo_alto', 'sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep09',
@@ -2075,6 +2088,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_user_privileges: 'CORP\\hr.thompson (partial, session contained)',
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep10',
@@ -2089,6 +2103,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_credentials_found: ['CORP\\svc_finance:F1nanc3@2024!'],
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep11',
@@ -2100,6 +2115,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_status: 'prevented',
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep12',
@@ -2115,6 +2131,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_credentials_found: ['svc_webapp:W3bApp@Prod!', 'ldap_bind:L3ap@Corp2024'],
       node_zone: 'Server VLAN',
       node_subnet: '10.10.2.0/24',
+    node_agents: ['palo_alto', 'openaev'],
     },
     {
       node_id: 's4-ep13',
@@ -2127,6 +2144,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_user_privileges: 'CORP\\svc_finance (partial read access before detection)',
       node_zone: 'Server VLAN',
       node_subnet: '10.10.2.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep14',
@@ -2138,6 +2156,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_status: 'prevented',
       node_zone: 'Server VLAN',
       node_subnet: '10.10.2.0/24',
+    node_agents: ['palo_alto', 'sentinel_one'],
     },
     {
       node_id: 's4-ep15',
@@ -2153,6 +2172,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_credentials_found: ['CORP\\da.svcadmin:D0m@inAdm1n2024! (confirmed plaintext backup)'],
       node_zone: 'Domain',
       node_subnet: '10.10.3.0/24',
+    node_agents: ['palo_alto', 'sentinel_one'],
     },
     {
       node_id: 's4-ep16',
@@ -2166,6 +2186,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_credentials_found: ['All CORP domain accounts replicated from CORP-DC-01'],
       node_zone: 'Domain',
       node_subnet: '10.10.3.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep17',
@@ -2177,6 +2198,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_status: 'prevented',
       node_zone: 'OT/Monitoring',
       node_subnet: '10.10.4.0/24',
+    node_agents: ['palo_alto'],
     },
     {
       node_id: 's4-ep18',
@@ -2189,6 +2211,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_untouched: true,
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
+    node_agents: ['palo_alto'],
     },
     {
       node_id: 's4-ep19',
@@ -2201,6 +2224,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_untouched: true,
       node_zone: 'Corp LAN',
       node_subnet: '10.10.1.0/24',
+    node_agents: ['sentinel_one', 'openaev'],
     },
     {
       node_id: 's4-ep20',
@@ -2213,6 +2237,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_untouched: true,
       node_zone: 'OT/Monitoring',
       node_subnet: '10.10.4.0/24',
+    node_agents: ['sentinel_one'],
     },
 
     // ── ACTION nodes ──────────────────────────────────────────────────────────
@@ -2227,6 +2252,7 @@ export const MOCK_SCENARIO_APT_DOMAIN: AttackPathData = {
       node_command: 'nmap -sS -sV -T4 -p 22,80,443,8080,8443,8009,3306',
       node_arguments: '--script=default,version --timing=T4 --host-timeout=30s 172.16.0.10',
       node_executed_at: '2025-03-22T07:00:00Z',
+      node_agent: 'openaev',
       node_ip: '172.16.0.10',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-03-22 07:00 UTC
 Nmap scan report for 172.16.0.10
@@ -2256,6 +2282,7 @@ Nmap done: 1 IP address (1 host up) scanned in 4.17 seconds`,
       node_command: 'nmap -sS -sV -T4 -p 135,139,445,3389',
       node_arguments: '--script=smb-security-mode,smb-os-discovery 10.10.1.0/24',
       node_executed_at: '2025-03-22T07:06:00Z',
+      node_agent: 'openaev',
       node_ip: '10.10.1.0/24',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-03-22 07:06 UTC
 Nmap scan report for 10.10.1.50 (DEV-WS-01)
@@ -2297,6 +2324,7 @@ Nmap done: 254 IP addresses (3 hosts up) scanned in 22.4 seconds`,
       node_command: 'nuclei -u http://172.16.0.10:8080/manager/',
       node_arguments: '-t nuclei-templates/cves/2020/CVE-2020-1938.yaml -rate-limit 100 -silent',
       node_executed_at: '2025-03-22T07:04:11Z',
+      node_agent: 'sentinel_one',
       node_ip: '172.16.0.10',
       node_user_privileges: 'www-data → root',
       node_accessed_files: ['/opt/tomcat/conf/tomcat-users.xml', '/var/www/config/db.properties'],
@@ -2337,6 +2365,7 @@ Nmap done: 254 IP addresses (3 hosts up) scanned in 22.4 seconds`,
       node_command: 'netexec smb 10.10.1.0/24',
       node_arguments: '-u "corp\\svc_tomcat" -p "T0mcat@dmin2024" --shares -M spider_plus',
       node_executed_at: '2025-03-22T07:09:33Z',
+      node_agent: 'openaev',
       node_ip: '10.10.1.0/24',
       node_terminal_output: `SMB   10.10.1.1    445              [*] Starting SMB host discovery on 10.10.1.0/24 and 10.10.2.0/24
 SMB   10.10.1.50   445    DEV-WS-01      [*] Windows 10.0 Build 19041 x64 (name:DEV-WS-01) (domain:CORP) (signing:False) (SMBv1:False)
@@ -2358,6 +2387,7 @@ Runtime: 8.3s | 6 hosts up | 3 relay-vulnerable`,
       node_status: 'detected',
       node_payload_name: 'netexec – SMB credential spray',
       node_executed_at: '2025-03-22T07:12:05Z',
+      node_agent: 'openaev',
       node_ip: '10.10.1.50',
       node_hostname: 'DEV-WS-01 + SALES-WS-01',
       node_user_privileges: 'CORP\\svc_tomcat',
@@ -2390,6 +2420,7 @@ Runtime: 3.1s | 2 hosts sprayed | 2 auth successes | 1 DETECTION (SALES-WS-01)`,
       node_status: 'detected',
       node_payload_name: 'netexec – WMI lsassy (comsvcs MiniDump)',
       node_executed_at: '2025-03-22T07:16:48Z',
+      node_agent: 'palo_alto',
       node_ip: '10.10.1.50',
       node_credentials_found: [
         'CORP\\dev.johnson:8f4c3b2a1e6d9f7a3c5b8e2d4f6a9c1e (NTLM)',
@@ -2423,6 +2454,7 @@ WMI   10.10.1.50   135    DEV-WS-01      [*] Copying dump to attacker host via S
       node_status: 'undetected',
       node_payload_name: 'netexec – SMB printnightmare (CVE-2021-1675)',
       node_executed_at: '2025-03-22T07:31:17Z',
+      node_agent: 'openaev',
       node_ip: '10.10.2.20',
       node_user_privileges: 'NT AUTHORITY\\SYSTEM',
       node_accessed_files: ['C:\\Windows\\System32\\spool\\drivers\\'],
@@ -2454,6 +2486,7 @@ SMB   10.10.2.20   445    PRINT-SRV-02   [+] CORP\\svc_print:1108:aad3b435b51404
       node_status: 'prevented',
       node_payload_name: 'netexec – MSSQL SA brute force',
       node_executed_at: '2025-03-22T07:31:22Z',
+      node_agent: 'sentinel_one',
       node_ip: '10.10.2.30',
       node_expectations: [{ expectation_id: 's4-e3', expectation_type: 'PREVENTION', expectation_status: 'SUCCEEDED', expectation_score: 100, expectation_expected_score: 100 }],
       node_terminal_output: `MSSQL 10.10.2.30   1433   MSSQL-SRV-01   [*] Attempting TCP connection to 10.10.2.30:1433...
@@ -2478,6 +2511,7 @@ MSSQL 10.10.2.30   1433   MSSQL-SRV-01   [-] Connection attempt 3/3: TCP timeout
       node_command: 'netexec smb 10.10.1.60',
       node_arguments: '-u "corp\\it.robertson" -H "3e7a9c2f1b4d6e8a0c5f3b7d9e2a4c6f" --shares -M spider_plus',
       node_executed_at: '2025-03-22T07:33:04Z',
+      node_agent: 'sentinel_one',
       node_ip: '10.10.1.60',
       node_user_privileges: 'CORP\\it.robertson (Domain Admin group)',
       node_accessed_files: ['C:\\IT\\Scripts\\dc_backup_creds.txt', 'C:\\Users\\it.robertson\\Desktop\\domain_admin_pass.kdbx'],
@@ -2510,6 +2544,7 @@ SMB   10.10.1.60   445    IT-ADMIN-WS-01 [+] Also found: domain_admin_pass.kdbx 
       node_command: 'netexec ldap 10.10.3.5',
       node_arguments: '-u "corp\\da.svcadmin" -p "D0m@inAdm1n2024!" --ntds drsuapi',
       node_executed_at: '2025-03-22T07:38:51Z',
+      node_agent: 'openaev',
       node_ip: '10.10.3.5',
       node_user_privileges: 'CORP\\Administrator (Domain Admin)',
       node_credentials_found: [
@@ -2540,6 +2575,7 @@ LDAP  10.10.3.5    389    CORP-DC-01     [+] DCSync complete — 284 domain acco
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP Connect Scan (Server VLAN)',
       node_executed_at: '2025-03-22T07:28:00Z',
+      node_agent: 'openaev',
       node_ip: '10.10.2.0/24',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-03-22 07:28 UTC
 [*] Scanning Server VLAN range: 10.10.2.0/24
@@ -2576,6 +2612,7 @@ Nmap done: 254 IP addresses (3 hosts up) scanned in 18.9 seconds`,
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (Corp LAN)',
       node_executed_at: '2025-03-22T07:10:30Z',
+      node_agent: 'openaev',
       node_ip: '10.10.1.0/24',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-03-22 07:10 UTC
 [*] Scanning Corp LAN range: 10.10.1.0/24
@@ -2644,6 +2681,7 @@ Nmap done: 254 IP addresses (7 hosts up) scanned in 22.4 seconds`,
       node_status: 'detected',
       node_payload_name: 'netexec – SMB credential spray (svc_tomcat)',
       node_executed_at: '2025-03-22T07:14:00Z',
+      node_agent: 'openaev',
       node_ip: '10.10.1.70',
       node_hostname: 'HR-WS-01 + FINANCE-WS-01 + MGMT-WS-01',
       node_expectations: [
@@ -2685,6 +2723,7 @@ SMB  10.10.1.90  445  MGMT-WS-01     [-] STATUS: PREVENTED — EDR blocked befor
       node_status: 'undetected',
       node_payload_name: 'netexec – WMI command exec (FINANCE-WS-01)',
       node_executed_at: '2025-03-22T07:17:55Z',
+      node_agent: 'sentinel_one',
       node_ip: '10.10.1.80',
       node_user_privileges: 'CORP\\svc_finance (local admin via token impersonation)',
       node_accessed_files: ['C:\\Finance\\YearEnd_2024.xlsx', 'C:\\Finance\\Payroll_Master.xlsx'],
@@ -2711,6 +2750,7 @@ WMI  10.10.1.80  135  FINANCE-WS-01  [+] STATUS: UNDETECTED — no EDR on this h
       node_status: 'undetected',
       node_payload_name: 'netexec – SSH credential spray (APP-SRV-01)',
       node_executed_at: '2025-03-22T07:25:40Z',
+      node_agent: 'openaev',
       node_ip: '10.10.2.10',
       node_user_privileges: 'appuser → root',
       node_accessed_files: ['/opt/app/config/db.properties', '/opt/app/config/ldap.conf'],
@@ -2739,6 +2779,7 @@ SSH  10.10.2.10  22  APP-SRV-01  [+] STATUS: UNDETECTED — no agent on RHEL hos
       node_status: 'detected',
       node_payload_name: 'netexec – SMB file share access (FILE-SRV-01)',
       node_executed_at: '2025-03-22T07:26:55Z',
+      node_agent: 'sentinel_one',
       node_ip: '10.10.2.40',
       node_expectations: [
         {
@@ -2770,6 +2811,7 @@ SMB  10.10.2.40  445  FILE-SRV-01  [-] STATUS: DETECTED — session terminated b
       node_status: 'prevented',
       node_payload_name: 'netexec – Redis unauthenticated access attempt',
       node_executed_at: '2025-03-22T07:27:45Z',
+      node_agent: 'sentinel_one',
       node_ip: '10.10.2.60',
       node_expectations: [
         {
@@ -2798,6 +2840,7 @@ REDIS  10.10.2.60  6379  REDIS-CACHE-01  [-] Connection refused — TCP/16379 no
       node_status: 'undetected',
       node_payload_name: 'nmap – TCP SYN Scan (Domain subnet)',
       node_executed_at: '2025-03-22T07:33:00Z',
+      node_agent: 'openaev',
       node_ip: '10.10.3.0/24',
       node_terminal_output: `Starting Nmap 7.94 ( https://nmap.org ) at 2025-03-22 07:33 UTC
 Nmap scan report for 10.10.3.5 (CORP-DC-01)
@@ -2834,6 +2877,7 @@ Nmap done: 254 IP addresses (2 hosts up) scanned in 17.8 seconds`,
       node_status: 'undetected',
       node_payload_name: 'netexec – SMB pass-the-hash (JUMP-SRV-01)',
       node_executed_at: '2025-03-22T07:35:22Z',
+      node_agent: 'palo_alto',
       node_ip: '10.10.3.10',
       node_user_privileges: 'CORP\\svc_jumphost → SYSTEM',
       node_accessed_files: ['C:\\JumpAdmin\\bastion_creds_vault.txt'],
@@ -2860,6 +2904,7 @@ SMB  10.10.3.10  445  JUMP-SRV-01  [+] STATUS: UNDETECTED — converging on CORP
       node_status: 'prevented',
       node_payload_name: 'netexec – WMI OT segment access attempt',
       node_executed_at: '2025-03-22T07:40:10Z',
+      node_agent: 'openaev',
       node_ip: '10.10.4.10',
       node_expectations: [
         {
@@ -2891,6 +2936,7 @@ WMI  10.10.4.10  135  MONITORING-01  [-] Connection timed out — TCP/135 not re
       node_status: 'undetected',
       node_payload_name: 'netexec – LDAP DCSync (SECONDARY-DC-01 confirmation)',
       node_executed_at: '2025-03-22T07:43:18Z',
+      node_agent: 'openaev',
       node_ip: '10.10.3.6',
       node_user_privileges: 'CORP\\Administrator (Domain Admin)',
       node_credentials_found: ['All CORP domain accounts replicated from SECONDARY-DC-01'],
@@ -3080,6 +3126,7 @@ export const MOCK_SCENARIO_APT_3EP: AttackPathData = {
       node_status: 'undetected', node_ip: '172.16.0.0/24',
       node_payload_name: 'nmap – TCP SYN Scan (DMZ)',
       node_executed_at: '2026-05-20 07:58:00 UTC',
+      node_agent: 'openaev',
       node_terminal_output: 'Starting Nmap 7.94 at 2026-05-20 07:58 UTC\nNmap scan report for 172.16.0.11 (APP-02)\nHOST: up\n22/tcp  open  ssh\n8080/tcp open  http\n\nNmap scan report for 172.16.0.12 (DB-03)\nHOST: up\n22/tcp  open  ssh\n5432/tcp open  postgresql\n\nNmap done: 3 IP addresses (2 hosts up) scanned in 2.1 seconds',
     },
   ],
@@ -3217,6 +3264,7 @@ export const MOCK_SCENARIO_APT_8EP: AttackPathData = {
       node_status: 'undetected', node_ip: '172.16.0.0/24',
       node_payload_name: 'nmap – TCP SYN Scan (full range)',
       node_executed_at: '2026-05-20 07:58:00 UTC',
+      node_agent: 'openaev',
       node_terminal_output: 'Starting Nmap 7.94 at 2026-05-20 07:58 UTC\nNmap scan report for 172.16.0.11 (APP-02)\nHOST: up\n22/tcp  open  ssh\n445/tcp open  microsoft-ds\n\nNmap scan report for 172.16.0.12 (DB-03)\nHOST: up\n22/tcp  open  ssh\n5432/tcp open  postgresql\n\nNmap scan report for 172.16.0.13 (FILE-04)\nHOST: up\n22/tcp  open  ssh\n2049/tcp open  nfs\n\nNmap scan report for 10.10.1.54 (MAIL-05)\nHOST: up\n25/tcp  open  smtp\n445/tcp open  microsoft-ds\n\nNmap scan report for 10.10.1.55 (JUMP-06)\nHOST: up\n135/tcp open  msrpc\n445/tcp open  microsoft-ds\n3389/tcp open  ms-wbt-server\n\nNmap scan report for 10.10.1.56 (PRINT-07)\nHOST: up\n135/tcp open  msrpc\n9100/tcp open  jetdirect\n\nNmap scan report for 10.10.1.57 (DNS-08)\nHOST: up\n53/tcp  open  domain\n445/tcp open  microsoft-ds\n\nNmap done: 8 IP addresses (7 hosts up) scanned in 4.8 seconds',
     },
   ],
@@ -3724,6 +3772,7 @@ Nmap done: 1 IP address (1 host up) scanned in 2.43 seconds`,
       node_status: 'undetected', node_ip: '172.16.0.0/8',
       node_payload_name: 'nmap – TCP SYN Scan (full network)',
       node_executed_at: '2026-05-20 07:55:00 UTC',
+      node_agent: 'openaev',
       node_terminal_output: `Starting Nmap 7.94 at 2026-05-20 07:55 UTC
 Nmap scan report for 172.16.0.11 (APP-02)
 HOST: up
@@ -4721,6 +4770,7 @@ Nmap done: 1 IP address (1 host up) scanned in 2.43 seconds`,
       node_status: 'undetected', node_ip: '0.0.0.0/0',
       node_payload_name: 'nmap – TCP SYN Scan (full network)',
       node_executed_at: '2026-05-20 07:55:00 UTC',
+      node_agent: 'openaev',
       node_terminal_output: `Starting Nmap 7.94 at 2026-05-20 07:55 UTC
 Nmap scan report for 172.16.0.10 (WEB-01)
 HOST: up
@@ -7639,6 +7689,7 @@ Nmap done: 1 IP address (1 host up) scanned in 2.43 seconds`,
       node_status: 'undetected', node_ip: '0.0.0.0/0',
       node_payload_name: 'nmap – TCP SYN Scan (full network)',
       node_executed_at: '2026-05-20 07:55:00 UTC',
+      node_agent: 'openaev',
       node_terminal_output: `Starting Nmap 7.94 at 2026-05-20 07:55 UTC
 Nmap scan report for 172.16.0.10
 HOST: up
