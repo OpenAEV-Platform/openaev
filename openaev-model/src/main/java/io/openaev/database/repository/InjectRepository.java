@@ -58,6 +58,7 @@ public interface InjectRepository
    */
   @Modifying
   @Query("UPDATE Inject i SET i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
   int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
 
   // -- SIMULATION --
