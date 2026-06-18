@@ -87,7 +87,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
+                              src={buildTenantApiPath(`/api/images/collectors/id/${tab.collector_id}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,
