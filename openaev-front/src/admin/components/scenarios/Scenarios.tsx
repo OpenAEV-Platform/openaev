@@ -25,7 +25,7 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
-import { MOCK_CHAINING_SCENARIO_IDS, MOCK_SCENARIO_LIST } from '../simulations/simulation/attack_path/mockAttackPathData';
+import { IS_ATTACK_PATH_POC, MOCK_CHAINING_SCENARIO_IDS, MOCK_SCENARIO_LIST } from '../simulations/simulation/attack_path/mockAttackPathData';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
@@ -57,7 +57,7 @@ const Scenarios = () => {
   const { isXTMHubAccessible } = useAuth();
 
   const [loading, setLoading] = useState<boolean>(true);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING') || isFeatureEnabled('CHAINING_ATTACK_PATH');
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING') || IS_ATTACK_PATH_POC;
 
   // Headers
   const headers = useMemo(() => [
