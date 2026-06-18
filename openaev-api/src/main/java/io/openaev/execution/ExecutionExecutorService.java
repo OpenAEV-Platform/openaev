@@ -3,6 +3,7 @@ package io.openaev.execution;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
@@ -28,6 +29,7 @@ public class ExecutionExecutorService {
 
   private final ManagerFactory managerFactory;
   private final ExecutionTraceRepository executionTraceRepository;
+  private final InjectStatusRepository injectStatusRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
   private final ConnectorInstanceService connectorInstanceService;
@@ -41,6 +43,10 @@ public class ExecutionExecutorService {
         this.injectService.getAgentsAndAgentlessAssetsByInject(inject);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
+    // Persist the number of agents resolved at launch so the COMPLETE callback path can decide
+    // completion without re-resolving the full asset/agent graph on every callback
+    injectStatus.setExpectedAgentCount(agents.size());
+    injectStatusRepository.save(injectStatus);
     // Manage agentless assets
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
     // Filter inactive and executor-less agents

@@ -104,6 +104,14 @@ public class InjectStatusService {
 
   public boolean isAllInjectAgentsExecuted(Inject inject) {
     int totalCompleteTrace = getCompleteTrace(inject);
+    // Use the agent count persisted at launch when available: it avoids re-resolving the full
+    // asset/agent graph (incl. dynamic asset-group filters) on every COMPLETE callback
+    Integer expectedAgentCount =
+        inject.getStatus().map(InjectStatus::getExpectedAgentCount).orElse(null);
+    if (expectedAgentCount != null) {
+      return totalCompleteTrace >= expectedAgentCount;
+    }
+    // Fallback for injects launched before the expected count was persisted
     List<Agent> agents = this.injectService.getAgentsByInject(inject);
     return agents.size() == totalCompleteTrace;
   }

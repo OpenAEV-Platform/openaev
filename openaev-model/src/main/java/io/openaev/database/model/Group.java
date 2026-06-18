@@ -78,6 +78,7 @@ public class Group implements DualScopeBase {
       inverseJoinColumns = @JoinColumn(name = "role_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_roles")
+  @Fetch(value = FetchMode.SUBSELECT)
   private List<Role> roles = new ArrayList<>();
 
   @ManyToOne

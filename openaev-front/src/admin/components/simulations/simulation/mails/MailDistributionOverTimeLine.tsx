@@ -1,10 +1,10 @@
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
-import Chart from 'react-apexcharts';
 
 import { fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
+import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
