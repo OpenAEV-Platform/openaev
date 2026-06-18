@@ -18,6 +18,17 @@ class TenantStatementInspectorTest {
     return inspector.inspect(sql).replaceAll("\\s+", " ").trim();
   }
 
+  // --- The active-table gate ignores string literals -----------------------
+
+  @Test
+  @DisplayName("a tenant table name only inside a string literal does not trip the gate")
+  void tableNameInStringLiteralDoesNotTripTheGate() {
+    // The statement touches no active table; "documents" appears only inside a literal, and the
+    // statement is not parseable. The gate must not pull it into rewriting and fail-close on it.
+    String sql = "RELOAD CONFIGURATION FOR 'documents' SET something = ON";
+    assertEquals(sql, inspector.inspect(sql));
+  }
+
   // --- Single table --------------------------------------------------------
 
   @Test
