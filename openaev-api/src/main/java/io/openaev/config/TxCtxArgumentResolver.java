@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.exception.TenantSelectorRequiredException;
 import io.openaev.service.tenants.TenantService;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -48,6 +49,9 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
     Set<String> selector = extractSelector(webRequest);
+    if (selector.isEmpty() && parameter.hasParameterAnnotation(RequireTenantSelector.class)) {
+      throw new TenantSelectorRequiredException();
+    }
     Set<String> authorized =
         tenantService.findTenantsByUserId(SessionHelper.currentUser().getId()).stream()
             .map(Tenant::getId)

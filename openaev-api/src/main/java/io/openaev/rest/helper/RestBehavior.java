@@ -163,6 +163,14 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantSelectorRequiredException.class)
+  public ResponseEntity<ErrorMessage> handleTenantSelectorRequiredException(
+      TenantSelectorRequiredException ex) {
+    return new ResponseEntity<>(
+        new ErrorMessage("TENANT_SELECTOR_REQUIRED"), HttpStatus.BAD_REQUEST);
+  }
+
   // -- 401 UNAUTHORIZED --
 
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
