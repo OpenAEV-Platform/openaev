@@ -28,11 +28,11 @@ class TenantNonOrmAccessArchTest {
       noClasses()
           .that()
           .resideOutsideOfPackage("io.openaev.migration..")
-          // Audited exceptions, each a reviewed use of raw JDBC:
+          // Audited exceptions, each a reviewed use of raw JDBC on non-tenant tables only:
           //  - TenantFilteringConfig reads information_schema metadata (no tenant rows);
           //  - InjectExpectationRepositoryHelper writes injects_expectations (a non-tenant table);
-          //  - ExecutionTraceRepositoryHelper writes injects (tenant), the one known gap, to be
-          //    routed through Hibernate before the injects table is activated.
+          //  - ExecutionTraceRepositoryHelper writes execution_traces and injects_statuses
+          //    (non-tenant); its injects update is now routed through Hibernate.
           .and()
           .doNotHaveFullyQualifiedName("io.openaev.config.TenantFilteringConfig")
           .and()
