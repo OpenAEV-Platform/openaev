@@ -388,13 +388,14 @@ public class MapperServiceTest extends IntegrationTest {
     input.setImporters(List.of());
 
     // Act
-    mapperService.importMappers(List.of(input));
+    mapperService.importMappers("tenant-test", List.of(input));
 
     // Assert
     ArgumentCaptor<List<ImportMapper>> captor = ArgumentCaptor.forClass(List.class);
     verify(importMapperRepository).saveAll(captor.capture());
     assertEquals(1, captor.getValue().size());
     assertTrue(captor.getValue().get(0).getName().endsWith(Constants.IMPORTED_OBJECT_NAME_SUFFIX));
+    assertEquals("tenant-test", captor.getValue().get(0).getTenant().getId());
   }
 
   @DisplayName(

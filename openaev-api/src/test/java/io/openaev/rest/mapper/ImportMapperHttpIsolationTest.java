@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +20,7 @@ import io.openaev.rest.mapper.form.ImportMapperUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -225,6 +228,37 @@ class ImportMapperHttpIsolationTest extends IntegrationTest {
   @DisplayName("under tenant A's path: duplicating B's mapper is not found (cross-tenant blocked)")
   void duplicateUnderTenantAOfBMapperIsBlocked() throws Exception {
     mvc.perform(post(MAPPER_BY_ID, tenantA, mapperB).with(csrf())).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("under tenant A's path: imported mappers are attributed to tenant A")
+  void importUnderTenantAIsAttributedToA() throws Exception {
+    mvc.perform(
+            multipart("/api/tenants/{tenantId}/mappers/import", tenantA)
+                .file(mapperFile())
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+    String tenant =
+        (String)
+            entityManager
+                .createNativeQuery(
+                    "SELECT tenant_id FROM import_mappers WHERE mapper_name LIKE 'imported%'")
+                .getSingleResult();
+    assertEquals(tenantA, tenant, "an imported mapper must belong to tenant A");
+  }
+
+  @Test
+  @DisplayName("an import with no tenant selector is refused (a single-tenant scope is required)")
+  void importWithoutSelectorIsRejected() throws Exception {
+    mvc.perform(multipart("/api/mappers/import").file(mapperFile()).with(csrf()))
+        .andExpect(status().isBadRequest());
+  }
+
+  private static MockMultipartFile mapperFile() {
+    String json =
+        "[{\"import_mapper_name\":\"imported\",\"import_mapper_inject_type_column\":\"A\"}]";
+    return new MockMultipartFile(
+        "file", "mappers.json", "application/json", json.getBytes(StandardCharsets.UTF_8));
   }
 
   private static ImportMapperUpdateInput updateInput(String name) {
