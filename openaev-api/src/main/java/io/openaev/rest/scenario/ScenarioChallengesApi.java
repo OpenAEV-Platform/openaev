@@ -1,6 +1,5 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
@@ -49,13 +48,10 @@ public class ScenarioChallengesApi extends RestBehavior {
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
     if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
           && !scenarioOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       return getScenarioPlayerDocuments(scenarioOpt.get());
     } else {

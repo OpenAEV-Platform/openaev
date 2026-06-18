@@ -1,6 +1,5 @@
 package io.openaev.rest.challenge;
 
-import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
@@ -86,9 +85,6 @@ public class SimulationChallengeApi extends RestBehavior {
     validateUUID(challengeId);
 
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
     return challengeService.validateChallenge(exerciseId, challengeId, input, user);
   }
 
@@ -107,7 +103,7 @@ public class SimulationChallengeApi extends RestBehavior {
     if (exerciseOpt.isPresent()) {
       if (!exerciseOpt.get().isUserHasAccess(user)
           && !exerciseOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       return exerciseService.getExercisePlayerDocuments(exerciseOpt.get());
     } else {
