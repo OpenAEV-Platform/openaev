@@ -4,6 +4,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ImportMapper;
@@ -47,7 +48,9 @@ public class ExerciseImportApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
+  // TxCtx scopes the mapper lookup so a cross-tenant mapper is not found. Not used directly.
   public ImportTestSummary dryRunImportXLSFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
@@ -77,7 +80,9 @@ public class ExerciseImportApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Validate and import injects from an xls file")
+  // TxCtx scopes the mapper lookup so a cross-tenant mapper is not found. Not used directly.
   public ImportTestSummary validateImportXLSFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
