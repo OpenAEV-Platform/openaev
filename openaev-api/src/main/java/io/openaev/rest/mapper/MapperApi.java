@@ -176,7 +176,10 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
+  // TxCtx scopes the lookup and the update to the caller's tenants; a mapper outside the scope is
+  // not found, so a cross-tenant write cannot reach it. The handler does not use it directly.
   public ImportMapper updateImportMapper(
+      TxCtx ctx,
       @PathVariable String mapperId,
       @Valid @RequestBody ImportMapperUpdateInput importMapperUpdateInput) {
     return mapperService.updateImportMapper(mapperId, importMapperUpdateInput);
@@ -188,12 +191,10 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.MAPPER)
-  public void deleteImportMapper(@PathVariable String mapperId) {
-    UUID id = UUID.fromString(mapperId);
-    if (!importMapperRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
-      throw new ElementNotFoundException();
-    }
-    importMapperRepository.deleteById(id);
+  // TxCtx scopes the delete to the caller's tenants; a delete outside the scope matches no row and
+  // removes nothing. The handler does not use it directly.
+  public void deleteImportMapper(TxCtx ctx, @PathVariable String mapperId) {
+    importMapperRepository.deleteById(UUID.fromString(mapperId));
   }
 
   @PostMapping("/store")
