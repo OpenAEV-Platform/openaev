@@ -9,6 +9,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
+/**
+ * Base class for tenant-scoped data packs (initial/seed data). Subclasses implement {@link
+ * #doProcess()} which is executed exactly once per tenant (idempotency tracked via {@link
+ * DataPackService}).
+ *
+ * <p>Implementations must follow the {@code V{YYYYMMDD}_Description} naming convention to ensure
+ * correct chronological ordering when mixed with {@link io.openaev.processor.core.RuntimeMigration
+ * RuntimeMigration} instances.
+ */
 public abstract class DataPack implements Processable {
   private final DataPackService dataPackService;
 

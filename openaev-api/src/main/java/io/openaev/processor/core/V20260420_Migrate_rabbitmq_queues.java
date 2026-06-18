@@ -124,8 +124,8 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
   }
 
   /**
-   * Processes a single legacy queue: drains it, tries to find a target, transfers or warns, then
-   * deletes.
+   * Processes a single legacy queue: resolves the target first, then drains and transfers messages.
+   * If no target can be found, the queue is left untouched to avoid data loss.
    */
   private void processLegacyQueue(
       String queue,
@@ -134,6 +134,18 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
       String tenantPrefix,
       Map<String, String> injectorMap) {
     try {
+      // Resolve target BEFORE draining to avoid data loss if no match is found
+      QueueTarget target =
+          resolveTarget(queue, oldPrefix, currentPrefix, tenantPrefix, injectorMap);
+
+      if (target == null) {
+        log.warn(
+            "Could not determine target for legacy queue '{}'. "
+                + "The queue was NOT modified — it needs to be handled manually.",
+            queue);
+        return;
+      }
+
       List<byte[]> messages = rabbitmqService.drainQueue(queue);
 
       if (messages.isEmpty()) {
@@ -142,29 +154,20 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
         return;
       }
 
-      // Try to find the matching new queue
-      QueueTarget target =
-          resolveTarget(queue, oldPrefix, currentPrefix, tenantPrefix, injectorMap);
-
-      if (target != null) {
-        rabbitmqService.publishBatch(target.exchange, target.routingKey, messages);
-        log.info(
-            "Migrated {} messages from '{}' to exchange '{}' (routing key '{}').",
-            messages.size(),
-            queue,
-            target.exchange,
-            target.routingKey);
-        rabbitmqService.safeDeleteQueue(queue);
-      } else {
-        log.warn(
-            "Could not determine target for legacy queue '{}' containing {} messages. "
-                + "The queue was NOT deleted — it may need to be handled manually.",
-            queue,
-            messages.size());
-      }
+      // Ensure target exchange exists before publishing — bean init order is not guaranteed,
+      // so the exchange may not have been declared yet. This is idempotent.
+      rabbitmqService.ensureExchangeExists(target.exchange, target.exchangeType);
+      rabbitmqService.publishBatch(target.exchange, target.routingKey, messages);
+      log.info(
+          "Migrated {} messages from '{}' to exchange '{}' (routing key '{}').",
+          messages.size(),
+          queue,
+          target.exchange,
+          target.routingKey);
+      rabbitmqService.safeDeleteQueue(queue);
     } catch (Exception e) {
       log.warn(
-          "Failed to process legacy queue '{}': {}. It may need to be deleted manually.",
+          "Failed to process legacy queue '{}': {}. It may need to be handled manually.",
           queue,
           e.getMessage());
     }
@@ -202,7 +205,7 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
       if (knownQueue) {
         String newExchange = tenantPrefix + "_amqp." + name + ".exchange";
         String newRoutingKey = tenantPrefix + RabbitmqService.ROUTING_KEY + name;
-        return new QueueTarget(newExchange, newRoutingKey);
+        return new QueueTarget(newExchange, "topic", newRoutingKey);
       }
     }
 
@@ -213,7 +216,7 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
       if (injectorId != null) {
         String newExchange = currentPrefix + RabbitmqService.EXCHANGE_KEY;
         String newRoutingKey = currentPrefix + RabbitmqService.ROUTING_KEY + injectorId;
-        return new QueueTarget(newExchange, newRoutingKey);
+        return new QueueTarget(newExchange, "direct", newRoutingKey);
       }
     }
 
@@ -289,6 +292,6 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
     return expected;
   }
 
-  /** Simple holder for a target exchange and routing key. */
-  private record QueueTarget(String exchange, String routingKey) {}
+  /** Simple holder for a target exchange, its type, and routing key. */
+  private record QueueTarget(String exchange, String exchangeType, String routingKey) {}
 }

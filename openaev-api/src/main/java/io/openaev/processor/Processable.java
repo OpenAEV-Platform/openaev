@@ -14,6 +14,14 @@ public interface Processable {
     return this.getClass().getCanonicalName();
   }
 
+  /**
+   * Returns the simple class name, used for chronological sorting. The convention {@code
+   * V{YYYYMMDD}_Description} ensures correct date-based ordering.
+   */
+  default String getSortKey() {
+    return this.getClass().getSimpleName();
+  }
+
   /** Execute this processable for the given tenant. */
   MigrationProcessingResult process(Tenant tenant);
 }

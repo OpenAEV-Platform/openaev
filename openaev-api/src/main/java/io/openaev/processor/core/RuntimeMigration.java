@@ -9,6 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
+/**
+ * Base class for one-shot tenant-scoped data migrations. Subclasses implement {@link #doMigrate()}
+ * which is executed exactly once per tenant (idempotency tracked via {@link DataPackService}).
+ *
+ * <p>Implementations must follow the {@code V{YYYYMMDD}_Description} naming convention to ensure
+ * correct chronological ordering when mixed with {@link io.openaev.processor.datapack.DataPack
+ * DataPack} instances.
+ */
 public abstract class RuntimeMigration implements Processable {
   private final DataPackService dataPackService;
 

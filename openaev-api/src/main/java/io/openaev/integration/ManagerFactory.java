@@ -4,8 +4,8 @@ import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.database.model.Tenant;
-import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.processor.MigrationProcessor;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -80,6 +80,6 @@ public class ManagerFactory implements DependenciesManager {
 
   @Override
   public List<Class<? extends DependenciesManager>> getPrerequisite() {
-    return List.of(InjectorContractService.class, DataPackProcessor.class);
+    return List.of(InjectorContractService.class, MigrationProcessor.class);
   }
 }

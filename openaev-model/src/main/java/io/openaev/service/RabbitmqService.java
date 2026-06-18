@@ -69,7 +69,8 @@ public class RabbitmqService {
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
-  private final HttpClient httpClient = HttpClient.newHttpClient();
+  private final HttpClient httpClient =
+      HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(30)).build();
 
   // -- CONFIGURATION --
 
@@ -339,31 +340,56 @@ public class RabbitmqService {
   // -- MIGRATION HELPERS --
 
   /**
-   * Drains all messages from a queue using {@code basicGet} and returns them as raw byte arrays.
+   * Drains all messages from a queue using {@code basicGet} with auto-ack and returns them as raw
+   * byte arrays.
    *
-   * <p>Returns an empty list if the queue does not exist.
+   * <p>Returns an empty list if the queue does not exist (AMQP 404). Any other error (connection
+   * failure, permission denied, etc.) is propagated as an exception.
    *
    * @param queueName the full queue name (already prefixed)
-   * @return a list of message bodies
+   * @return a list of message bodies, or empty if the queue does not exist
+   * @throws IOException if a non-404 channel/connection error occurs
+   * @throws TimeoutException if the connection cannot be established
    */
   public List<byte[]> drainQueue(String queueName) throws IOException, TimeoutException {
     List<byte[]> messages = new java.util.ArrayList<>();
-    try (Connection connection = connectionFactory.newConnection();
-        Channel channel = connection.createChannel()) {
-      // Passive declare to check if the queue exists; throws IOException if not
-      try {
-        channel.queueDeclarePassive(queueName);
+    try (Connection connection = connectionFactory.newConnection()) {
+      // Use a separate channel for passive declare — it gets closed on 404
+      try (Channel checkChannel = connection.createChannel()) {
+        checkChannel.queueDeclarePassive(queueName);
       } catch (IOException e) {
-        log.info("Queue '{}' does not exist — nothing to drain.", queueName);
-        return messages;
+        // Only treat as "not found" if the cause is a 404 channel shutdown
+        if (isQueueNotFound(e)) {
+          log.info("Queue '{}' does not exist — nothing to drain.", queueName);
+          return messages;
+        }
+        throw e;
       }
-      com.rabbitmq.client.GetResponse response;
-      while ((response = channel.basicGet(queueName, true)) != null) {
-        messages.add(response.getBody());
+      // Queue exists — drain with a fresh channel
+      try (Channel drainChannel = connection.createChannel()) {
+        com.rabbitmq.client.GetResponse response;
+        while ((response = drainChannel.basicGet(queueName, true)) != null) {
+          messages.add(response.getBody());
+        }
       }
       log.info("Drained {} messages from queue '{}'.", messages.size(), queueName);
     }
     return messages;
+  }
+
+  /**
+   * Checks whether an IOException from queueDeclarePassive is a 404 NOT_FOUND (queue does not
+   * exist) rather than a connection/channel error.
+   */
+  private static boolean isQueueNotFound(IOException e) {
+    Throwable cause = e.getCause();
+    if (cause instanceof com.rabbitmq.client.ShutdownSignalException shutdown) {
+      Object reason = shutdown.getReason();
+      if (reason instanceof com.rabbitmq.client.AMQP.Channel.Close close) {
+        return close.getReplyCode() == 404;
+      }
+    }
+    return false;
   }
 
   /**
@@ -407,6 +433,26 @@ public class RabbitmqService {
   }
 
   /**
+   * Idempotently declares a durable exchange. Used to ensure a target exchange is available before
+   * publishing messages (e.g., during migrations where bean init order is not guaranteed).
+   *
+   * <p>Logs a warning and does not throw if the declaration fails (best-effort). Callers that
+   * require a hard guarantee should catch and handle the warning scenario.
+   *
+   * @param exchangeName the full exchange name
+   * @param type the exchange type ({@code "topic"}, {@code "direct"}, etc.)
+   */
+  public void ensureExchangeExists(String exchangeName, String type) {
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.exchangeDeclare(exchangeName, type, true);
+      log.debug("Ensured exchange '{}' exists (type={}).", exchangeName, type);
+    } catch (Exception e) {
+      log.warn("Could not declare exchange '{}': {}", exchangeName, e.getMessage());
+    }
+  }
+
+  /**
    * Deletes an exchange if it exists. Silently ignores errors (e.g. exchange does not exist).
    *
    * @param exchangeName the full exchange name to delete
@@ -429,7 +475,8 @@ public class RabbitmqService {
    * Lists all queue names from the RabbitMQ management API that start with the given prefix.
    *
    * @param prefix the prefix to filter queue names
-   * @return a list of matching queue names, or an empty list if the API is unreachable
+   * @return a list of matching queue names
+   * @throws IllegalStateException if the management API is unreachable or returns an error
    */
   public List<String> listQueueNamesWithPrefix(String prefix) {
     return listNamesFromManagementApi("queues", prefix);
@@ -439,7 +486,8 @@ public class RabbitmqService {
    * Lists all exchange names from the RabbitMQ management API that start with the given prefix.
    *
    * @param prefix the prefix to filter exchange names
-   * @return a list of matching exchange names, or an empty list if the API is unreachable
+   * @return a list of matching exchange names
+   * @throws IllegalStateException if the management API is unreachable or returns an error
    */
   public List<String> listExchangeNamesWithPrefix(String prefix) {
     return listNamesFromManagementApi("exchanges", prefix);
@@ -448,6 +496,8 @@ public class RabbitmqService {
   /**
    * Queries the RabbitMQ management HTTP API for a list of resources (queues or exchanges) and
    * returns names matching the given prefix.
+   *
+   * @throws IllegalStateException if the API is unreachable or returns a non-200 status
    */
   private List<String> listNamesFromManagementApi(String resource, String prefix) {
     List<String> result = new ArrayList<>();
@@ -487,11 +537,17 @@ public class RabbitmqService {
           }
         }
       } else {
-        log.warn(
-            "RabbitMQ management API returned status {} for {}.", response.statusCode(), resource);
+        throw new IllegalStateException(
+            "RabbitMQ management API returned status "
+                + response.statusCode()
+                + " for "
+                + resource);
       }
+    } catch (IllegalStateException e) {
+      throw e;
     } catch (Exception e) {
-      log.warn("Could not list {} from RabbitMQ management API: {}", resource, e.getMessage());
+      throw new IllegalStateException(
+          "Could not list " + resource + " from RabbitMQ management API: " + e.getMessage(), e);
     }
     return result;
   }

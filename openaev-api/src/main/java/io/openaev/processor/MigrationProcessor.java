@@ -21,6 +21,14 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @Profile("!test")
+/**
+ * Processes all {@link RuntimeMigration} and {@link DataPack} instances for each active tenant at
+ * startup. Migrations and datapacks are merged into a single chronologically-ordered list sorted by
+ * simple class name ({@code V{YYYYMMDD}_Description} convention) and executed sequentially.
+ *
+ * <p>Also implements {@link DependenciesManager} to initialize migrations/datapacks when a new
+ * tenant is created at runtime.
+ */
 public class MigrationProcessor implements DependenciesManager {
   private final List<DataPack> packs;
   private final List<RuntimeMigration> migrations;
@@ -42,10 +50,10 @@ public class MigrationProcessor implements DependenciesManager {
   private void init(List<Tenant> tenants) {
     // Merge migrations and datapacks into a single chronologically-ordered list.
     // Both follow the V{YYYYMMDD}_Description naming convention, so sorting by
-    // processableId (canonical class name) guarantees correct execution order.
+    // simple class name (getSortKey) guarantees correct execution order regardless of package.
     List<Processable> allProcessables =
         Stream.<Processable>concat(migrations.stream(), packs.stream())
-            .sorted(Comparator.comparing(Processable::getProcessableId))
+            .sorted(Comparator.comparing(Processable::getSortKey))
             .toList();
     for (Tenant tenant : tenants) {
       TenantContext.setCurrentTenant(tenant.getId());
