@@ -1,16 +1,23 @@
 package io.openaev.rest.mapper;
 
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +68,24 @@ class ImportMapperHttpIsolationTest extends IntegrationTest {
   void underTenantBPath() throws Exception {
     mvc.perform(get(MAPPER_BY_ID, tenantB, mapperB)).andExpect(status().isOk());
     mvc.perform(get(MAPPER_BY_ID, tenantB, mapperA)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("under tenant A's path: search returns A's mapper and not B's")
+  void searchUnderTenantAReturnsOnlyA() throws Exception {
+    String body = asJsonString(PaginationFixture.getDefault().textSearch("").build());
+    String response =
+        mvc.perform(
+                post("/api/tenants/{tenantId}/mappers/search", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body)
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertTrue(response.contains(mapperA), "A's mapper must appear in A's search results");
+    assertFalse(response.contains(mapperB), "B's mapper must not appear in A's search results");
   }
 
   private String seedMapper(String tenantId, String name) {
