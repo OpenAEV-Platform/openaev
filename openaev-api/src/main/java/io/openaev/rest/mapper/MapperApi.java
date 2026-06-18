@@ -106,8 +106,12 @@ public class MapperApi extends RestBehavior {
   @PostMapping(value = "/export")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
+  // TxCtx scopes the export to the caller's tenants; an id outside the scope resolves to nothing
+  // and is silently skipped. The handler does not use it directly.
   public void exportMappers(
-      @RequestBody @Valid final ExportMapperInput exportMapperInput, HttpServletResponse response) {
+      TxCtx ctx,
+      @RequestBody @Valid final ExportMapperInput exportMapperInput,
+      HttpServletResponse response) {
     try {
       String jsonMappers = mapperService.exportMappers(exportMapperInput.getIdsToExport());
 
