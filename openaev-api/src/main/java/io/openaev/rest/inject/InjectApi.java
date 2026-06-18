@@ -463,7 +463,7 @@ public class InjectApi extends RestBehavior {
       description =
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
   // TODO XFO: it should be readOnly since it's a GetMapping, however the method is doing updates
-  @Transactional
+  @Transactional(readOnly = true)
   public Payload getExecutablePayloadInject(
       @PathVariable @NotBlank final String injectId, @PathVariable @NotBlank final String agentId)
       throws Exception {
