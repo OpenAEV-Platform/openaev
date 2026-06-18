@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.context.TxCtx;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -112,6 +113,48 @@ class TenantScopeTransactionAspectIntegrationTest {
     assertEquals("t1", result[1], "the outer transaction's scope is intact afterwards");
   }
 
+  // --- nesting guard: a scope already set in a transaction must not be changed ---
+
+  @Test
+  @DisplayName("a nested REQUIRED call that would change the scope is refused (nesting guard)")
+  void nestedRequiredWithConflictingScopeIsRefused() {
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                probe.outerThenInnerRequiredWithCtx(TxCtx.forTenant("t1"), TxCtx.forTenant("t2")));
+    assertTrue(
+        thrown.getMessage().contains("t1") && thrown.getMessage().contains("t2"),
+        "the message must name both the existing and the attempted scope, got: "
+            + thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName("a nested REQUIRED call that repeats the same scope is tolerated")
+  void nestedRequiredWithSameScopeIsTolerated() {
+    assertEquals(
+        "t1", probe.outerThenInnerRequiredWithCtx(TxCtx.forTenant("t1"), TxCtx.forTenant("t1")));
+  }
+
+  @Test
+  @DisplayName(
+      "a nested REQUIRED call with the same tenants in another order is tolerated (set, not string)")
+  void nestedRequiredWithSameSetInAnotherOrderIsTolerated() {
+    assertEquals(
+        "t1,t2",
+        probe.outerThenInnerRequiredWithCtx(
+            TxCtx.forTenants(List.of("t1", "t2")), TxCtx.forTenants(List.of("t2", "t1"))));
+  }
+
+  @Test
+  @DisplayName("a nested REQUIRES_NEW call carries its own scope and leaves the outer intact")
+  void nestedRequiresNewWithItsOwnScopeIsIsolated() {
+    String[] result =
+        probe.outerThenInnerRequiresNewWithCtx(TxCtx.forTenant("t1"), TxCtx.forTenant("t2"));
+    assertEquals("t2", result[0], "the new transaction carries its own scope");
+    assertEquals("t1", result[1], "the outer transaction's scope is intact afterwards");
+  }
+
   // --- beans ---------------------------------------------------------------
 
   @TestConfiguration
@@ -188,6 +231,18 @@ class TenantScopeTransactionAspectIntegrationTest {
       String outerAfter = readScope(entityManager);
       return new String[] {inner, outerAfter};
     }
+
+    @Transactional
+    public String outerThenInnerRequiredWithCtx(TxCtx outer, TxCtx inner) {
+      return innerTxBean.readScopeRequiredWithCtx(inner);
+    }
+
+    @Transactional
+    public String[] outerThenInnerRequiresNewWithCtx(TxCtx outer, TxCtx inner) {
+      String innerScope = innerTxBean.readScopeRequiresNewWithCtx(inner);
+      String outerAfter = readScope(entityManager);
+      return new String[] {innerScope, outerAfter};
+    }
   }
 
   /**
@@ -208,6 +263,16 @@ class TenantScopeTransactionAspectIntegrationTest {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String readScopeRequiresNew() {
+      return readScope(entityManager);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public String readScopeRequiredWithCtx(TxCtx ctx) {
+      return readScope(entityManager);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String readScopeRequiresNewWithCtx(TxCtx ctx) {
       return readScope(entityManager);
     }
   }
