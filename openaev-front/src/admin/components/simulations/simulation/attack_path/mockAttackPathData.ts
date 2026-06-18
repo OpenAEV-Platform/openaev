@@ -15,6 +15,13 @@
 
 import type { AttackPathData } from './attackPathUtils';
 
+/**
+ * PoC compile-time flag — always true so mock simulations/scenarios appear
+ * in every deployment without needing the backend feature flag.
+ * Set to false to disable PoC mock data globally.
+ */
+export const IS_ATTACK_PATH_POC = true;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SCENARIO 1 – Finance Department Credential Theft  (5 endpoints, 7 actions)
 // ─────────────────────────────────────────────────────────────────────────────
