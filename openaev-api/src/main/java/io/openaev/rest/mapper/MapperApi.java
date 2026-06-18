@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -84,7 +85,9 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.MAPPER)
-  public ImportMapper getImportMapperById(@PathVariable String mapperId) {
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
+  // to the caller's tenants. The handler does not use it directly.
+  public ImportMapper getImportMapperById(TxCtx ctx, @PathVariable String mapperId) {
     return importMapperRepository
         .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
         .orElseThrow(ElementNotFoundException::new);

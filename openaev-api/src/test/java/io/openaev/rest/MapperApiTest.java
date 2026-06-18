@@ -24,6 +24,7 @@ import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.MapperService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.TxCtxTestArgumentResolver;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -93,7 +94,10 @@ public class MapperApiTest extends IntegrationTest {
     sessionContextField.setAccessible(true);
     sessionContextField.set(mapperApi, objectMapper);
 
-    mvc = MockMvcBuilders.standaloneSetup(mapperApi).build();
+    mvc =
+        MockMvcBuilders.standaloneSetup(mapperApi)
+            .setCustomArgumentResolvers(TxCtxTestArgumentResolver.missing())
+            .build();
   }
 
   // -- SCENARIOS --
