@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,6 +18,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import { IS_ATTACK_PATH_POC, MOCK_CHAINING_EXERCISE_IDS } from './attack_path/mockAttackPathData';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
 import ExerciseDatePopover from './ExerciseDatePopover';
@@ -55,15 +56,12 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   const location = useLocation();
   const { classes } = useStyles();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const isAttackPathMockEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
-  const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
-  // Stable context identities: these providers wrap the whole simulation subtree and a
-  // new value each render forces every consumer (incl. the injects list) to re-render.
-  const permissionsContext: PermissionsContextType = useMemo(() => ({
-    permissions,
+  const isAttackPathMockEnabled = IS_ATTACK_PATH_POC;
+  const permissionsContext: PermissionsContextType = {
+    permissions: useSimulationPermissions(exercise.exercise_id, exercise),
     inherited_context: INHERITED_CONTEXT.SIMULATION,
-  }), [permissions]);
-  const documentContext: DocumentContextType = useMemo(() => ({
+  };
+  const documentContext: DocumentContextType = {
     onInitDocument: () => ({
       document_tags: [],
       document_scenarios: [],
@@ -74,7 +72,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
           }]
         : [],
     }),
-  }), [exercise?.exercise_id, exercise?.exercise_name]);
+  };
 
   let tabValue = location.pathname;
   if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/definition`)) {
@@ -117,7 +115,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       marginBottom: 2,
                     }}
                   >
-                    {((isChainingFeatureEnabled && exercise.exercise_workflow_id) || isAttackPathMockEnabled)
+                    {(isChainingFeatureEnabled && exercise.exercise_workflow_id) || isAttackPathMockEnabled
                       ? (
                           <Tabs value={tabValue}>
                             <Tab
@@ -130,7 +128,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                               component={Link}
                               to={`/admin/simulations/${exercise.exercise_id}/scope`}
                               value={`/admin/simulations/${exercise.exercise_id}/scope`}
-                              label={t('Scope')}
+                              label={t('Scope Definition')}
                             />
                             <Tab
                               component={Link}
@@ -140,9 +138,15 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                             />
                             <Tab
                               component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              value={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              label={t('Animation')}
+                              to={`/admin/simulations/${exercise.exercise_id}/analysis`}
+                              value={`/admin/simulations/${exercise.exercise_id}/analysis`}
+                              label={t('Analysis')}
+                            />
+                            <Tab
+                              component={Link}
+                              to={`/admin/simulations/${exercise.exercise_id}/findings`}
+                              value={`/admin/simulations/${exercise.exercise_id}/findings`}
+                              label={t('Findings')}
                             />
                             <Tab
                               component={Link}
