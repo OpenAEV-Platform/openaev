@@ -1,4 +1,4 @@
-// @ts-ignore -- MUI v9 migration: TS2724
+// @ts-expect-error -- MUI v9 migration: TS2724
 import { CloudUploadOutlined, DeleteOutline } from '@mui/icons-material';
 import { Box, Button, IconButton, Typography } from '@mui/material';
 import { type ChangeEvent, type DragEvent, useRef, useState } from 'react';

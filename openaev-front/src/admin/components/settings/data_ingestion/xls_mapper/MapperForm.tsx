@@ -90,7 +90,7 @@ const MapperForm: FunctionComponent<Props> = ({
           style={{ marginTop: 10 }}
           error={!!methods.formState.errors.import_mapper_name}
           helperText={methods.formState.errors.import_mapper_name?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           inputProps={methods.register('import_mapper_name')}
           InputLabelProps={{ required: true }}
         />

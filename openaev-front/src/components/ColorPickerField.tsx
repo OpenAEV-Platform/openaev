@@ -23,7 +23,7 @@ const ColorPickerField = <TFieldValues extends FieldValues = FieldValues>(props:
   return (
     <>
       <MuiTextField
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">

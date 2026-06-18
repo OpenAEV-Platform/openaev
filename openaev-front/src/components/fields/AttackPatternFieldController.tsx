@@ -166,7 +166,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
             <Dialog
               open={attackPatternCreation}
               onClose={handleCloseAttackPatternCreation}
-// @ts-ignore -- MUI v9 migration: TS2322
+              // @ts-expect-error -- MUI v9 migration: TS2322
               PaperProps={{ elevation: 1 }}
             >
               <DialogTitle>{t('Create a new attack pattern')}</DialogTitle>

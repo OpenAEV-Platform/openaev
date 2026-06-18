@@ -41,7 +41,7 @@ const RegexComponent: FunctionComponent<Props> = ({
             label={t(label)}
             variant="outlined"
             size="small"
-// @ts-ignore -- MUI v9 migration: TS2322
+            // @ts-expect-error -- MUI v9 migration: TS2322
             InputLabelProps={inputLabelProps}
             error={!!error}
             helperText={error?.message}

@@ -337,7 +337,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           agentMode={useXtmOne ? agentMode : null}
         />
         <Dialog
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
           open={openGenMessageOptions}
           onClose={handleCloseGenMessageOptions}
@@ -437,7 +437,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </DialogActions>
         </Dialog>
         <Dialog
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
           open={openGenMediaOptions}
           onClose={handleCloseGenMediaOptions}
@@ -530,7 +530,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </DialogActions>
         </Dialog>
         <Dialog
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
           open={openToneOptions}
           onClose={handleCloseToneOptions}

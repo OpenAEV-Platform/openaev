@@ -148,12 +148,9 @@ const ScenarioField: FunctionComponent<Props> = ({
         onChange={(_, newValue) => onValuesChange?.(newValue)}
         getOptionLabel={option => option.label}
         isOptionEqualToValue={(option, val) => option.id === val.id}
-// @ts-ignore -- MUI v9 migration: TS7006
-// @ts-ignore -- MUI v9 migration: TS7006
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         renderTags={(tagValue, getTagProps) =>
-// @ts-ignore -- MUI v9 migration: TS7006
-// @ts-ignore -- MUI v9 migration: TS7006
+          // @ts-expect-error -- MUI v9 migration: TS7006
           tagValue.map((option, index) => (
             <Chip
               label={option.label}

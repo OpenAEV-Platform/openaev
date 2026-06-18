@@ -157,7 +157,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.logo_url}
         helperText={errors.logo_url && errors.logo_url?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         inputProps={register('logo_url')}
         disabled={canNotManage}
       />
@@ -170,7 +170,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.logo_url_collapsed}
         helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         inputProps={register('logo_url_collapsed')}
         disabled={canNotManage}
       />
@@ -182,7 +182,7 @@ const ThemeForm: FunctionComponent<Props> = ({
         slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.logo_login_url}
         helperText={errors.logo_login_url && errors.logo_login_url?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         inputProps={register('logo_login_url')}
         disabled={canNotManage}
       />

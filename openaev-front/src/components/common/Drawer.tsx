@@ -96,7 +96,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       sx={{ zIndex: 1202 }}
       classes={{ paper: variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf }}
       onClose={handleClose}
-// @ts-ignore -- MUI v9 migration: TS2322
+      // @ts-expect-error -- MUI v9 migration: TS2322
       PaperProps={PaperProps}
       ModalProps={{ disableEnforceFocus }}
     >

@@ -59,7 +59,7 @@ const VariableForm: FunctionComponent<Props> = ({
         label={t('Key')}
         error={!!errors.variable_key}
         helperText={errors.variable_key && errors.variable_key?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         inputProps={register('variable_key')}
       />
       <MuiTextField
@@ -69,7 +69,7 @@ const VariableForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.variable_value}
         helperText={errors.variable_value && errors.variable_value?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         inputProps={register('variable_value')}
       />
       <MuiTextField
@@ -83,7 +83,7 @@ const VariableForm: FunctionComponent<Props> = ({
         helperText={
           errors.variable_description && errors.variable_description?.message
         }
-// @ts-ignore -- MUI v9 migration: TS2322
+        // @ts-expect-error -- MUI v9 migration: TS2322
         inputProps={register('variable_description')}
       />
       <div style={{

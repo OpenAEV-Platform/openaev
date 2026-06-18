@@ -64,7 +64,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
           label={t('Content')}
           error={!!errors.lessons_template_question_content}
           helperText={errors.lessons_template_question_content?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           inputProps={register('lessons_template_question_content')}
           InputLabelProps={{ required: true }}
           control={control}
@@ -75,7 +75,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
           label={t('Explanation')}
           error={!!errors.lessons_template_question_explanation}
           helperText={errors.lessons_template_question_explanation?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           inputProps={register('lessons_template_question_explanation')}
           control={control}
         />
@@ -85,7 +85,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
           label={t('Order')}
           error={!!errors.lessons_template_question_order}
           helperText={errors.lessons_template_question_order?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           inputProps={register('lessons_template_question_order')}
           type="number"
           InputLabelProps={{ required: true }}

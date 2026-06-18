@@ -105,7 +105,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Name')}
               error={!!errors.scenario_name}
               helperText={errors.scenario_name?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+              // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={register('scenario_name')}
               InputLabelProps={{ required: true }}
               control={control}
@@ -192,7 +192,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Description')}
               error={!!errors.scenario_description}
               helperText={errors.scenario_description?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+              // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={register('scenario_description')}
               control={control}
               setValue={setValue}
@@ -238,7 +238,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Sender email from')}
               error={!!errors.scenario_mail_from_name}
               helperText={errors.scenario_mail_from_name?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+              // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={register('scenario_mail_from_name')}
               disabled={disabled}
             />
@@ -265,8 +265,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
                       setInputValue(newInputValue);
                     }}
                     disableClearable={true}
-// @ts-ignore -- MUI v9 migration: TS7006
-// @ts-ignore -- MUI v9 migration: TS2322
+                    // @ts-expect-error -- MUI v9 migration: TS2322
                     renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
                       return (
                         <Chip
@@ -302,7 +301,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Messages header')}
               error={!!errors.scenario_message_header}
               helperText={errors.scenario_message_header?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+              // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={register('scenario_message_header')}
               disabled={disabled}
             />
@@ -312,7 +311,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Messages footer')}
               error={!!errors.scenario_message_footer}
               helperText={errors.scenario_message_footer?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+              // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={register('scenario_message_footer')}
               disabled={disabled}
             />

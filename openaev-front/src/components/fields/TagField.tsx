@@ -164,7 +164,7 @@ const TagField: FunctionComponent<Props> = ({
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
         >
           <DialogTitle>{t('Create a new tag')}</DialogTitle>

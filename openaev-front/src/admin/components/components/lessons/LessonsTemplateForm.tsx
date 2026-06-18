@@ -60,7 +60,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
           label={t('Name')}
           error={!!errors.lessons_template_name}
           helperText={errors.lessons_template_name?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           inputProps={register('lessons_template_name')}
           InputLabelProps={{ required: true }}
           control={control}
@@ -71,7 +71,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
           label={t('Description')}
           error={!!errors.lessons_template_description}
           helperText={errors.lessons_template_description?.message}
-// @ts-ignore -- MUI v9 migration: TS2322
+          // @ts-expect-error -- MUI v9 migration: TS2322
           inputProps={register('lessons_template_description')}
           control={control}
         />
