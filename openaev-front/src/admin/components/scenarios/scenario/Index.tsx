@@ -1,9 +1,10 @@
 import { NotificationsOutlined, UpdateOutlined } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Route, Routes, useLocation, useParams } from 'react-router';
 
+import { DATA_FETCH_SUCCESS } from '../../../../constants/ActionTypes';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { findNotificationRuleByResource } from '../../../../actions/scenarios/scenario-notification-rules';
@@ -25,6 +26,7 @@ import { type PeriodExpressionHandler } from '../../../../utils/period/PeriodExp
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import { isFeatureEnabled } from '../../../../utils/utils';
+import { MOCK_CHAINING_SCENARIO_IDS, MOCK_SCENARIO_LIST } from '../../simulations/simulation/attack_path/mockAttackPathData';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import ScenarioNotificationRulesDrawer from './notification_rule/ScenarioNotificationRulesDrawer';
 import injectContextForScenario from './ScenarioContext';
@@ -36,9 +38,12 @@ const Injects = lazy(() => import('./injects/ScenarioInjects'));
 const Tests = lazy(() => import('./tests/ScenarioTests'));
 const Lessons = lazy(() => import('./lessons/ScenarioLessons'));
 const ScenarioFindings = lazy(() => import('./findings/ScenarioFindings'));
+const ScenarioFindingsMock = lazy(() => import('./findings/ScenarioFindingsMock'));
+const ScenarioLogicMock = lazy(() => import('./logic/ScenarioLogicMock'));
 const ScenarioAnalysis = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
+const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -47,14 +52,12 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const location = useLocation();
   const theme = useTheme();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const permissions = useScenarioPermissions(scenario.scenario_id);
-  // Stable context identities: these providers wrap the whole scenario subtree and a
-  // new value each render forces every consumer (incl. the injects list) to re-render.
-  const permissionsContext: PermissionsContextType = useMemo(() => ({
-    permissions,
+  const isAttackPathMockEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
+  const permissionsContext: PermissionsContextType = {
+    permissions: useScenarioPermissions(scenario.scenario_id),
     inherited_context: INHERITED_CONTEXT.SCENARIO,
-  }), [permissions]);
-  const documentContext: DocumentContextType = useMemo(() => ({
+  };
+  const documentContext: DocumentContextType = {
     onInitDocument: () => ({
       document_tags: [],
       document_scenarios: scenario
@@ -65,7 +68,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
         : [],
       document_exercises: [],
     }),
-  }), [scenario?.scenario_id, scenario?.scenario_name]);
+  };
   let tabValue = location.pathname;
   if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/definition`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/definition`;
@@ -106,6 +109,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   });
 
   useEffect(() => {
+    if (MOCK_CHAINING_SCENARIO_IDS.has(scenario.scenario_id)) return;
     findNotificationRuleByResource(scenario.scenario_id).then((result: { data: NotificationRuleOutput[] }) => {
       if (result.data.length > 0) {
         setEditNotification(true);
@@ -169,7 +173,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
             justifyContent="space-between"
           >
             {
-              isChainingFeatureEnabled && scenario.scenario_workflow_id ? (
+              (isChainingFeatureEnabled || isAttackPathMockEnabled) && (scenario.scenario_workflow_id || isAttackPathMockEnabled) ? (
                 <Tabs
                   style={{ flex: 1 }}
                   value={tabValue}
@@ -186,13 +190,31 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
                     component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/scope`}
                     value={`/admin/scenarios/${scenario.scenario_id}/scope`}
-                    label={t('Scope')}
+                    label={t('Scope Definition')}
                   />
                   <Tab
                     component={Link}
                     to={`/admin/scenarios/${scenario.scenario_id}/logic`}
                     value={`/admin/scenarios/${scenario.scenario_id}/logic`}
                     label={t('Logic')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/analysis`}
+                    label={t('Analysis')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/findings`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/findings`}
+                    label={t('Findings')}
+                  />
+                  <Tab
+                    component={Link}
+                    to={`/admin/scenarios/${scenario.scenario_id}/attack_path`}
+                    value={`/admin/scenarios/${scenario.scenario_id}/attack_path`}
+                    label={t('Attack Path')}
                   />
                 </Tabs>
               ) : (
@@ -331,10 +353,11 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               <Route path="injects" element={errorWrapper(Injects)()} />
               <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
               <Route path="lessons" element={errorWrapper(Lessons)()} />
-              <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
+              <Route path="findings" element={errorWrapper(isAttackPathMockEnabled && MOCK_CHAINING_SCENARIO_IDS.has(scenario.scenario_id) ? ScenarioFindingsMock : ScenarioFindings)()} />
               <Route path="analysis" element={errorWrapper(ScenarioAnalysis)()} />
               <Route path="scope" element={errorWrapper(ScenarioScope)()} />
-              <Route path="logic" element={errorWrapper(ScenarioLogic)()} />
+              <Route path="logic" element={errorWrapper(isAttackPathMockEnabled && MOCK_CHAINING_SCENARIO_IDS.has(scenario.scenario_id) ? ScenarioLogicMock : ScenarioLogic)()} />
+              <Route path="attack_path" element={errorWrapper(ScenarioAttackPath)()} />
               {/* Not found */}
               <Route path="*" element={<NotFound />} />
             </Routes>
@@ -353,8 +376,43 @@ const Index = () => {
   const { t } = useFormatter();
   // Fetching data
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
+  const isMockScenario = MOCK_CHAINING_SCENARIO_IDS.has(scenarioId);
+
+  // For mock scenarios that exist only client-side, synthesize a Scenario so
+  // all useHelper(getScenario) consumers throughout the tree get a valid object.
+  const mockEntry = isMockScenario
+    ? MOCK_SCENARIO_LIST.find(s => s.scenario_id === scenarioId)
+    : undefined;
+  const mockScenario: Scenario | undefined = mockEntry
+    ? {
+        scenario_id: mockEntry.scenario_id,
+        scenario_name: mockEntry.scenario_name,
+        scenario_created_at: mockEntry.scenario_created_at,
+        scenario_updated_at: mockEntry.scenario_updated_at,
+        scenario_mail_from: mockEntry.scenario_mail_from,
+        scenario_severity: mockEntry.scenario_severity,
+        scenario_category: mockEntry.scenario_category,
+        scenario_platforms: mockEntry.scenario_platforms as string[],
+        scenario_tags: mockEntry.scenario_tags,
+      } as unknown as Scenario
+    : undefined;
+
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
   useDataLoader(() => {
+    if (isMockScenario) {
+      // Skip API call for client-side mock scenarios to avoid 404.
+      // Inject mock scenario into the Redux store so all useHelper(getScenario)
+      // consumers (e.g. ScenarioHeader) return a valid object instead of crashing.
+      if (mockScenario) {
+        dispatch({
+          type: DATA_FETCH_SUCCESS,
+          payload: { entities: { scenarios: { [scenarioId]: mockScenario } } },
+        });
+      }
+      setPristine(false);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     dispatch(fetchScenario(scenarioId)).finally(() => {
       setPristine(false);
@@ -362,13 +420,14 @@ const Index = () => {
     });
   });
 
-  const scenarioInjectContext = injectContextForScenario(scenario);
+  const effectiveScenario: Scenario | undefined = scenario ?? mockScenario;
+  const scenarioInjectContext = injectContextForScenario(effectiveScenario as Scenario);
 
   // avoid to show loader if something trigger useDataLoader
   if (pristine && loading) {
     return <Loader />;
   }
-  if (!loading && !scenario) {
+  if (!loading && !effectiveScenario) {
     return (
       <Alert severity="warning">
         <AlertTitle>{t('Warning')}</AlertTitle>
@@ -378,7 +437,7 @@ const Index = () => {
   }
   return (
     <InjectContext.Provider value={scenarioInjectContext}>
-      <IndexScenarioComponent scenario={scenario} />
+      <IndexScenarioComponent scenario={effectiveScenario as unknown as ScenarioOutput} />
     </InjectContext.Provider>
   );
 };
