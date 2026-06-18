@@ -86,9 +86,12 @@ public class MapperService {
    * @param importMapperAddInput The input from the call
    * @return The created ImportMapper
    */
-  public ImportMapper createAndSaveImportMapper(ImportMapperAddInput importMapperAddInput) {
+  public ImportMapper createAndSaveImportMapper(
+      String tenantId, ImportMapperAddInput importMapperAddInput) {
     ImportMapper importMapper = createImportMapper(importMapperAddInput);
-
+    // Attribute the new row to the tenant resolved from the request scope (B3), rather than relying
+    // on the v1 listener's default. The query inspector does not attribute INSERT ... VALUES.
+    importMapper.setTenant(new Tenant(tenantId));
     return importMapperRepository.save(importMapper);
   }
 

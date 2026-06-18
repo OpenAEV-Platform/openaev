@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
@@ -63,6 +64,7 @@ public class MapperApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final MapperService mapperService;
   private final InjectImportService injectImportService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // 25mb in byte
   private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
@@ -96,8 +98,9 @@ public class MapperApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
   public ImportMapper createImportMapper(
-      @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
-    return mapperService.createAndSaveImportMapper(importMapperAddInput);
+      TxCtx ctx, @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return mapperService.createAndSaveImportMapper(tenantId, importMapperAddInput);
   }
 
   @PostMapping(value = "/export")

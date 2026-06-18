@@ -122,7 +122,8 @@ public class MapperServiceTest extends IntegrationTest {
             .toList());
     when(importMapperRepository.save(any())).thenReturn(importMapper);
     // -- EXECUTE --
-    ImportMapper importMapperResponse = mapperService.createAndSaveImportMapper(importMapperInput);
+    ImportMapper importMapperResponse =
+        mapperService.createAndSaveImportMapper("tenant-test", importMapperInput);
 
     // -- ASSERT --
     assertNotNull(importMapperResponse);
