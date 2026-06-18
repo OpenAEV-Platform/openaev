@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * of these columns.
  */
 @Component
-public class V5_21__Add_Expected_Agent_Count_And_Cursor_Indexes extends BaseJavaMigration {
+public class V5_22__Add_Expected_Agent_Count_And_Cursor_Indexes extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
