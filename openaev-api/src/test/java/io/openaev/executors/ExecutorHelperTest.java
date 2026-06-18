@@ -61,6 +61,74 @@ class ExecutorHelperTest {
   }
 
   @Test
+  @DisplayName("Should replace payload location placeholder for Linux platform")
+  void shouldReplacePayloadLocationForLinux() {
+    // prepare
+    String command = "cat #{payload_location}/linpeas.sh";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+
+    // assert
+    assertThat(result)
+        .isEqualTo("cat " + ExecutorHelper.UNIX_PAYLOAD_LOCATION_PATH + "/linpeas.sh");
+  }
+
+  @Test
+  @DisplayName("Should replace payload location placeholder for Windows platform")
+  void shouldReplacePayloadLocationForWindows() {
+    // prepare
+    String command = "Get-Content #{payload_location}\\linpeas.ps1";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Windows, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+
+    // assert
+    assertThat(result)
+        .isEqualTo("Get-Content " + ExecutorHelper.WINDOWS_PAYLOAD_LOCATION_PATH + "\\linpeas.ps1");
+  }
+
+  @Test
+  @DisplayName("Should replace location and payload location placeholders independently")
+  void shouldReplaceLocationAndPayloadLocationIndependently() {
+    // prepare
+    String command = "cd \"#{location}\" && cat #{payload_location}/linpeas.sh";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+
+    // assert
+    assertThat(result)
+        .isEqualTo(
+            "cd "
+                + ExecutorHelper.UNIX_LOCATION_PATH
+                + " && cat "
+                + ExecutorHelper.UNIX_PAYLOAD_LOCATION_PATH
+                + "/linpeas.sh");
+  }
+
+  @Test
+  @DisplayName("Should keep existing location placeholder behavior")
+  void shouldKeepExistingLocationPlaceholderBehavior() {
+    // prepare
+    String command = "pwd=\"#{location}\"";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+
+    // assert
+    assertThat(result).isEqualTo("pwd=" + ExecutorHelper.UNIX_LOCATION_PATH);
+  }
+
+  @Test
   @DisplayName("Should replace token placeholder for Linux platform")
   void given_linuxCommandWithPlaceholders_should_replaceTokenTenantAndBaseUrl() {
     // Arrange
@@ -147,6 +215,18 @@ class ExecutorHelperTest {
   }
 
   @Test
+  @DisplayName("Should throw when platform is unsupported")
+  void shouldThrowWhenPlatformIsUnsupported() {
+    // act & assert
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Unknown, "echo hello", INJECT_ID, AGENT_ID, TENANT_ID, TOKEN))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Unsupported platform type: Unknown");
+  }
+
+  @Test
   @DisplayName(
       "Should propagate IllegalArgumentException from base overload when an argument is null")
   void given_nullCommand_should_throwIllegalArgumentException() {
@@ -185,6 +265,21 @@ class ExecutorHelperTest {
                     MAX_SIZE,
                     UNSECURED_CERTIFICATE,
                     WITH_PROXY))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux, "echo hello", null, AGENT_ID, TENANT_ID, TOKEN))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux, "echo hello", INJECT_ID, null, TENANT_ID, TOKEN))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux, "echo hello", INJECT_ID, AGENT_ID, null, TOKEN))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

@@ -6,6 +6,9 @@ public class ExecutorHelper {
 
   public static final String WINDOWS_LOCATION_PATH = "$PWD.Path";
   public static final String UNIX_LOCATION_PATH = "$(pwd)";
+  public static final String WINDOWS_PAYLOAD_LOCATION_PATH =
+      "$($PWD.Path.Replace('\\runtimes\\','\\payloads\\'))";
+  public static final String UNIX_PAYLOAD_LOCATION_PATH = "$(pwd | sed 's#/runtimes/#/payloads/#')";
   public static final String IMPLANT_BASE_NAME = "implant-";
   // Only used in Tanium / CS / Caldera executors, the native OpenAEV agent will determine a
   // relative path at its level
@@ -60,8 +63,17 @@ public class ExecutorHelper {
           default ->
               throw new IllegalArgumentException("Unsupported platform type: " + platformType);
         };
+    String payloadLocation =
+        switch (platformType) {
+          case Windows -> WINDOWS_PAYLOAD_LOCATION_PATH;
+          case Linux, MacOS -> UNIX_PAYLOAD_LOCATION_PATH;
+          default ->
+              throw new IllegalArgumentException("Unsupported platform type: " + platformType);
+        };
 
     return command
+        .replace("\"#{payload_location}\"", payloadLocation)
+        .replace("#{payload_location}", payloadLocation)
         .replace("\"#{location}\"", location)
         .replace("#{inject}", injectId)
         .replace("#{agent}", agentId)
