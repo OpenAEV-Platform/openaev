@@ -151,10 +151,12 @@ public class MapperApi extends RestBehavior {
   @PostMapping("/import")
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
-  public void importMappers(@RequestPart("file") @NotNull MultipartFile file)
+  public void importMappers(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     try {
       mapperService.importMappers(
+          tenantId,
           mapper.readValue(file.getInputStream().readAllBytes(), new TypeReference<>() {}));
     } catch (Exception e) {
       log.error(e.getMessage(), e);

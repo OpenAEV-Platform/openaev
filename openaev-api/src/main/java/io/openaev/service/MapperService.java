@@ -641,13 +641,15 @@ public class MapperService {
     return strategy;
   }
 
-  public void importMappers(List<ImportMapperAddInput> mappers) {
+  public void importMappers(String tenantId, List<ImportMapperAddInput> mappers) {
     importMapperRepository.saveAll(
         mappers.stream()
             .map(this::createImportMapper)
             .peek(
-                (m) ->
-                    m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)))
+                (m) -> {
+                  m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX));
+                  m.setTenant(new Tenant(tenantId));
+                })
             .toList());
   }
 }
