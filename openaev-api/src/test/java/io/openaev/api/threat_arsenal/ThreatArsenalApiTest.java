@@ -432,6 +432,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     // Create two payloads with injector contract + two injector contract that are not payload based
     @BeforeEach
     void setUpInjectorContracts() {
+      // Keep this test dataset deterministic by removing seed contracts created at app bootstrap.
+      injectorContractRepository.deleteAll();
+
       tag = tagComposer.forTag(TagFixture.getTagWithText("tag1"));
       TagComposer.Composer tag2 = tagComposer.forTag(TagFixture.getTagWithText("tag2"));
       domain1 = domainComposer.forDomain(DomainFixture.getRandomDomain());
@@ -545,6 +548,122 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       } else {
         assertTrue(countsDomain2.isEmpty(), "domain2 should not be present in domain counts");
       }
+    }
+
+    @Test
+    @DisplayName(
+        "given action_domains not_eq with AND and two values should return no result for search and domain counts")
+    void given_actionDomainsNotEqAndWithTwoValues_should_returnNoResultForSearchAndDomainCounts()
+        throws Exception {
+      // Arrange
+      SearchPaginationInput input =
+          buildSearchInputForActionDomainsNotEqAnd(
+              List.of(domain1.get().getId(), domain2.get().getId()));
+
+      // Act
+      String searchResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String countResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/domain-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> countedDomains = JsonPath.read(countResponse, "$[*].domain");
+      assertFalse(
+          countedDomains.contains(domain1.get().getId()),
+          "domain1 should not be present in domain counts");
+      assertFalse(
+          countedDomains.contains(domain2.get().getId()),
+          "domain2 should not be present in domain counts");
+
+      List<List<String>> resultDomains =
+          JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
+      assertTrue(
+          resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
+          "No result should contain domain1");
+      assertTrue(
+          resultDomains.stream().noneMatch(domains -> domains.contains(domain2.get().getId())),
+          "No result should contain domain2");
+    }
+
+    @Test
+    @DisplayName(
+        "given action_domains not_eq with AND and one value should keep contracts from other domains")
+    void given_actionDomainsNotEqAndWithOneValue_should_keepOtherDomains() throws Exception {
+      // Arrange
+      SearchPaginationInput input =
+          buildSearchInputForActionDomainsNotEqAnd(List.of(domain1.get().getId()));
+
+      // Act
+      String searchResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/search")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String countResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI + "/domain-counts")
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<Integer> countsDomain2 =
+          JsonPath.read(countResponse, "$[?(@.domain=='" + domain2.get().getId() + "')].count");
+      assertFalse(countsDomain2.isEmpty(), "domain2 should be present in domain counts");
+      assertEquals(1, countsDomain2.getFirst(), "Unexpected count for domain2");
+
+      List<Integer> countsDomain1 =
+          JsonPath.read(countResponse, "$[?(@.domain=='" + domain1.get().getId() + "')].count");
+      assertTrue(countsDomain1.isEmpty(), "domain1 should not be present in domain counts");
+
+      List<List<String>> resultDomains =
+          JsonPath.read(searchResponse, "$.content[*].action_domains_ids");
+      assertTrue(
+          resultDomains.stream().noneMatch(domains -> domains.contains(domain1.get().getId())),
+          "No result should contain domain1");
+    }
+
+    private SearchPaginationInput buildSearchInputForActionDomainsNotEqAnd(List<String> domainIds) {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("action_domains");
+      filter.setOperator(Filters.FilterOperator.not_eq);
+      filter.setMode(Filters.FilterMode.and);
+      filter.setValues(domainIds);
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
     }
 
     private SearchPaginationInput buildSearchInput(String filterType) {
