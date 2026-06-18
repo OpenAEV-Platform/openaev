@@ -58,7 +58,7 @@ class AgentExecutionProcessingHandlerTest {
             .isEmpty());
 
     InjectExecutionInput inputComplete =
-        buildInput(ExecutionTraceStatus.SUCCESS, InjectExecutionAction.complete);
+        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.complete);
     assertTrue(
         handler
             .processContext(new ExecutionProcessingContext(inject, agent, inputComplete, Map.of()))
@@ -208,7 +208,7 @@ class AgentExecutionProcessingHandlerTest {
     return new ExecutionProcessingContext(
         inject,
         agent,
-        buildInput(ExecutionTraceStatus.SUCCESS, InjectExecutionAction.command_execution),
+        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.command_execution),
         Map.of());
   }
 

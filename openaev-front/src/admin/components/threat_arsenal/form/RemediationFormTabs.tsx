@@ -4,7 +4,7 @@ import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
 
 import { fetchCollectors } from '../../../../actions/Collector';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
-import { fetchCollectorsForPayload } from '../../../../actions/payloads/payload-actions';
+import { fetchCollectorsForActionRemediation } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { COLLECTOR_LIST } from '../../../../constants/Entities';
@@ -35,7 +35,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
 
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
   useDataLoader(() => {
     if (hasPlatformSettingsCapabilities) {
       setLoading(true);
@@ -44,7 +44,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
       });
     } else if (actionId) {
       setLoading(true);
-      dispatch(fetchCollectorsForPayload(actionId)).finally(() => {
+      dispatch(fetchCollectorsForActionRemediation(actionId)).finally(() => {
         setLoading(false);
       });
     }
@@ -87,7 +87,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
+                              src={buildTenantApiPath(`/api/images/collectors/id/${tab.collector_id}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

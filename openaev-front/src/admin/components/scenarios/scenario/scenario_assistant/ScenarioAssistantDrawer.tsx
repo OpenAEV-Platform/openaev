@@ -15,9 +15,11 @@ import {
   type EndpointOutput,
   type InjectAssistantInput,
 } from '../../../../../utils/api-types';
+import useAI from '../../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import FiligranAiCguDialog from '../../../ariane/FiligranAiCguDialog';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
 import EndpointPopover from '../../../assets/endpoints/EndpointPopover';
@@ -54,9 +56,11 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
   const ability = useContext(AbilityContext);
+  const { enabled: aiEnabled, isCguPending } = useAI();
 
   const [openMitreFilterDrawer, setOpenMitreFilterDrawer] = useState(false);
   const [openArianeAIAssistantDialog, setOpenArianeAIAssistantDialog] = useState(false);
+  const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
   const {
     isValidated: isEnterpriseEdition,
     openDialog: openEnterpriseEditionDialog,
@@ -109,6 +113,8 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
     if (!isEnterpriseEdition) {
       setEEFeatureDetectedInfo(t('XTM One AI'));
       openEnterpriseEditionDialog();
+    } else if (isCguPending) {
+      setOpenValidateTermsOfUse(true);
     } else {
       setOpenArianeAIAssistantDialog(true);
     }
@@ -228,20 +234,22 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
 
             <div className={classes.titleWithButtonContainer}>
               <Typography variant="h5">{t('Scenario coverage')}</Typography>
-              <Button
-                variant="outlined"
-                sx={{
-                  marginLeft: 'auto',
-                  color: isEnterpriseEdition ? 'ai.main' : 'action.disabled',
-                  borderColor: isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground',
-                }}
-                size="small"
-                onClick={onUseArianeClick}
-                startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-                endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
-              >
-                {t('Use XTM One')}
-              </Button>
+              {aiEnabled && (
+                <Button
+                  variant="outlined"
+                  sx={{
+                    marginLeft: 'auto',
+                    color: 'ai.main',
+                    borderColor: 'ai.main',
+                  }}
+                  size="small"
+                  onClick={onUseArianeClick}
+                  startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
+                  endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
+                >
+                  {t('Use XTM One')}
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 color="inherit"
@@ -281,6 +289,12 @@ const ScenarioAssistantDrawer = ({ open, onClose, onSubmit }: Props) => {
           onClose={onCloseArianeAIAssistantDialog}
           onAttackPatternIdsFind={onUpdateAttackPatternAIDialog}
         />
+        {openValidateTermsOfUse && (
+          <FiligranAiCguDialog
+            open={openValidateTermsOfUse}
+            onClose={() => setOpenValidateTermsOfUse(false)}
+          />
+        )}
       </>
     </Drawer>
   );

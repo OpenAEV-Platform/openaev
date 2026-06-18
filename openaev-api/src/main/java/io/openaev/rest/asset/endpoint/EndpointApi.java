@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
@@ -64,26 +65,24 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.upsertEndpoint(input);
+    return this.endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
-    return this.endpointService.register(input);
+    return this.endpointService.register(input, TenantContext.getCurrentTenant());
   }
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/jobs", TENANT_ENDPOINT_URI + "/jobs"})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
-    List<AssetAgentJob> jobs = this.endpointService.getEndpointJobs(input);
-    this.injectStatusService.addJobRetrievalTraces(jobs);
-    return jobs;
+    return this.endpointService.getEndpointJobs(input);
   }
 
   @Deprecated(since = "1.11.0")
@@ -107,7 +106,13 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
   public void cleanupAssetAgentJob(@PathVariable @NotBlank final String assetAgentJobId) {
-    this.assetAgentJobRepository.deleteById(assetAgentJobId);
+    this.assetAgentJobRepository
+        .findById(assetAgentJobId)
+        .ifPresent(
+            assetAgentJob -> {
+              this.injectStatusService.addJobRetrievalTraces(assetAgentJob);
+              this.assetAgentJobRepository.deleteById(assetAgentJobId);
+            });
   }
 
   @Deprecated(since = "1.11.0")
@@ -136,7 +141,8 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
-    return endpointMapper.toEndpointOverviewOutput(this.endpointService.getEndpoint(endpointId));
+    return endpointMapper.toEndpointOverviewOutput(
+        this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant()));
   }
 
   @LogExecutionTime
@@ -183,7 +189,7 @@ public class EndpointApi extends RestBehavior {
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
     return endpointMapper.toEndpointOverviewOutput(
-        this.endpointService.updateEndpoint(endpointId, input));
+        this.endpointService.updateEndpoint(endpointId, input, TenantContext.getCurrentTenant()));
   }
 
   @DeleteMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})

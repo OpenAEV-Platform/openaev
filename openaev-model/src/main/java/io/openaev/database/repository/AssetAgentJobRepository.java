@@ -4,6 +4,7 @@ import io.openaev.database.model.AssetAgentJob;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +24,19 @@ public interface AssetAgentJobRepository
       value = "DELETE FROM asset_agent_jobs j WHERE j.asset_agent_id = :assetAgentJobId",
       nativeQuery = true)
   void deleteById(@Param("assetAgentJobId") @NotBlank String assetAgentJobId);
+
+  @Query(
+      value =
+          """
+    SELECT j FROM AssetAgentJob j WHERE j.agent.id = :agentId AND j.tenant.id = :tenantId AND j.inject IS NULL
+    """)
+  Optional<AssetAgentJob> findUpgradeJobByAgentIdAndInjectNull(
+      @Param("agentId") String agentId, @Param("tenantId") String tenantId);
+
+  @Query(
+      value =
+          "SELECT j.agent.id, COUNT(j) FROM AssetAgentJob j"
+              + " WHERE j.agent.id IN :agentIds AND j.inject IS NOT NULL"
+              + " GROUP BY j.agent.id")
+  Set<Object[]> countPendingJobsByAgentIds(@Param("agentIds") Set<String> agentIds);
 }

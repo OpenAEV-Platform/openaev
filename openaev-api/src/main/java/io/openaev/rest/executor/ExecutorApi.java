@@ -9,7 +9,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
-import io.openaev.database.repository.TokenRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -19,6 +18,7 @@ import io.openaev.rest.executor.form.ExecutorUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -37,8 +37,8 @@ import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -52,7 +52,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ExecutorApi extends RestBehavior {
 
   public static final String EXECUTOR_URI = "/api/executors";
-  private static final String AGENT_URI = "/api/agent";
+  public static final String AGENT_URI = "/api/agent";
   private static final String TENANT_EXECUTOR_URI = TENANT_PREFIX + "/executors";
   private static final String TENANT_AGENT_URI = TENANT_PREFIX + "/agent";
 
@@ -69,8 +69,8 @@ public class ExecutorApi extends RestBehavior {
   private final ExecutorRepository executorRepository;
   private final EndpointService endpointService;
   private final FileService fileService;
-  private final TokenRepository tokenRepository;
   private final ExecutorService executorService;
+  private final ServiceAccountPrivilegeService privilegeService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -141,7 +141,9 @@ public class ExecutorApi extends RestBehavior {
   public Executor updateExecutor(
       @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) {
     Executor executor =
-        executorRepository.findById(executorId).orElseThrow(ElementNotFoundException::new);
+        executorRepository
+            .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return updateExecutor(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
   }
@@ -169,7 +171,10 @@ public class ExecutorApi extends RestBehavior {
             banner.get());
       }
       // We need to support upsert for registration
-      Executor executor = executorRepository.findById(input.getId()).orElse(null);
+      Executor executor =
+          executorRepository
+              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
+              .orElse(null);
       if (executor == null) {
         Executor executorChecking =
             executorRepository
@@ -217,7 +222,7 @@ public class ExecutorApi extends RestBehavior {
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentExecutable(
+  public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentExecutable(
       @Parameter(
               description =
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
@@ -253,10 +258,12 @@ public class ExecutorApi extends RestBehavior {
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+      // Stream the binary instead of buffering it fully in heap: thousands of concurrent agent
+      // downloads with byte[] buffering caused GC churn / OOM risk
       return ResponseEntity.ok()
           .headers(headers)
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
-          .body(IOUtils.toByteArray(in));
+          .body(new InputStreamResource(in));
     }
     throw new UnsupportedOperationException(
         "Agent " + resolvedPlatform + " executable not supported");
@@ -283,7 +290,7 @@ public class ExecutorApi extends RestBehavior {
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getOpenAevAgentPackage(
+  public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentPackage(
       @Parameter(
               description =
                   "Target platform for the agent package (e.g., windows, linux, mac). Case insensitive.",
@@ -307,14 +314,11 @@ public class ExecutorApi extends RestBehavior {
         AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
     String resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
 
-    byte[] file = null;
-    String filename = null;
-
     if (resolvedPlatform.equals("windows")) {
       InputStream in = null;
       String resourcePath = "/openaev-agent/windows/" + resolvedArch + "/";
 
-      filename = "openaev-agent-installer-";
+      String filename = "openaev-agent-installer-";
       if (!resolvedInstallationMode.equals(SERVICE)) {
         filename = filename.concat(installationMode).concat("-");
       }
@@ -331,17 +335,15 @@ public class ExecutorApi extends RestBehavior {
         throw new UnsupportedOperationException(
             "Agent version " + agentBinaryVersion + " not found");
       }
-      file = IOUtils.toByteArray(in);
-    }
-    // linux & macos - No package needed
-    if (file != null) {
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+      // Stream the package instead of buffering it fully in heap
       return ResponseEntity.ok()
           .headers(headers)
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
-          .body(file);
+          .body(new InputStreamResource(in));
     }
+    // linux & macos - No package needed
     throw new UnsupportedOperationException("Agent " + resolvedPlatform + " package not supported");
   }
 
@@ -360,8 +362,8 @@ public class ExecutorApi extends RestBehavior {
       })
   @GetMapping(
       value = {
-        AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}",
-        TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}/{token}"
+        AGENT_URI + "/installer/openaev/{platform}/{installationMode}",
+        TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}"
       })
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
@@ -371,11 +373,6 @@ public class ExecutorApi extends RestBehavior {
               required = true)
           @PathVariable
           String platform,
-      @Parameter(
-              description = "Unique token associated with the agent installation.",
-              required = true)
-          @PathVariable
-          String token,
       @Parameter(
               description = "Installation Mode: session, user or system service",
               required = true)
@@ -388,14 +385,15 @@ public class ExecutorApi extends RestBehavior {
     String resolvedPlatform =
         AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
     String resolvedInstallationMode = AgentUtils.getSupportedInstallationMode(installationMode);
-    Token resolvedToken =
-        tokenRepository
-            .findByValue(token)
-            .orElseThrow(() -> new UnsupportedOperationException("Invalid token"));
+
+    // FIND TOKEN BY TENANT
+    String token =
+        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+
     String installCommand =
         this.endpointService.generateInstallCommand(
             resolvedPlatform,
-            resolvedToken.getValue(),
+            token,
             resolvedInstallationMode,
             installationDir,
             serviceName,

@@ -6,14 +6,18 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 import { api } from '../../../network';
+import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import installChatbotCsrf from './installChatbotCsrf';
 
 interface AskArianePanelProps {
+  mode: ChatMode;
   onClose: () => void;
+  onModeChange: (mode: ChatMode) => void;
   onWidthChange?: (width: number) => void;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
@@ -22,15 +26,17 @@ interface AskArianePanelProps {
 type AgentFetchState = 'loading' | 'success' | 'no_agents' | 'error';
 
 const AskArianePanel: React.FC<AskArianePanelProps> = ({
+  mode,
   onClose,
+  onModeChange,
   onWidthChange,
   onResizeStart,
   onResizeEnd,
 }) => {
   const theme = useTheme<Theme>();
   const { t } = useFormatter();
+  const location = useLocation();
   const { me, settings } = useAuth();
-  const [mode, setMode] = useState<ChatMode>('sidebar');
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [agentFetchState, setAgentFetchState] = useState<AgentFetchState>('loading');
 
@@ -57,6 +63,15 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     t('How do I configure detection rules?'),
     t('Summarize my recent findings'),
   ];
+
+  // Forward the user's current in-app location so the agent is always aware
+  // of the page (URI) the question is being asked from, e.g.
+  // `/admin/atomic_testings/<id>`. Only the pathname is sent — the query
+  // string is intentionally omitted to avoid forwarding UI state (filters,
+  // view settings, …) that would bloat the payload and could leak more than
+  // the agent needs. The shape is extensible — more context (page title,
+  // selected entity, etc.) can be added later.
+  const pageContext = { url: location.pathname };
 
   useEffect(() => {
     installChatbotCsrf();
@@ -140,25 +155,35 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     <ChatPanel
       mode={mode}
       onClose={onClose}
-      onModeChange={setMode}
+      onModeChange={onModeChange}
       topOffset={topOffset}
       backendType="rest"
       apiBaseUrl="/api/xtmone/chat"
       apiEndpoints={{
         agents: '/agents',
         messages: '/messages',
+        // Mid-run steering — must be set explicitly because the chatbot
+        // default ('/chat/messages/steer') assumes XTM One-style paths,
+        // while the OpenAEV proxy exposes '/messages/steer' relative to
+        // its '/api/xtmone/chat' base.
+        steer: '/messages/steer',
         sessions: '/sessions',
+        upload: '/upload',
+        download: '/files',
       }}
       user={{ firstName }}
+      disableFileManagement={false}
       t={t}
       accentColor={accentColor}
       logoIcon={logoIcon}
       agentDashboardUrl={xtmOneUrl || undefined}
       promptSuggestions={promptSuggestions}
+      pageContext={pageContext}
       resizable={mode === 'sidebar'}
       onWidthChange={onWidthChange}
       onResizeStart={onResizeStart}
       onResizeEnd={onResizeEnd}
+      onTaskComplete={(_title, body) => MESSAGING$.notifySuccess(body)}
     />,
     container,
   );

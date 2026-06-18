@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
@@ -229,7 +230,7 @@ public class InjectImportService {
                                   compositeId.setTeamId(team.getId());
                                   compositeId.setUserId(user.getId());
                                   boolean exists =
-                                      exerciseTeamUserRepository.findById(compositeId).isPresent();
+                                      exerciseTeamUserRepository.existsById(compositeId);
 
                                   if (!exists) {
                                     ExerciseTeamUser exerciseTeamUser = new ExerciseTeamUser();
@@ -274,7 +275,7 @@ public class InjectImportService {
                                   compositeId.setTeamId(team.getId());
                                   compositeId.setUserId(user.getId());
                                   boolean exists =
-                                      scenarioTeamUserRepository.findById(compositeId).isPresent();
+                                      scenarioTeamUserRepository.existsById(compositeId);
 
                                   if (!exists) {
                                     ScenarioTeamUser scenarioTeamUser = new ScenarioTeamUser();
@@ -1226,7 +1227,9 @@ public class InjectImportService {
 
   public void importInjectsForScenario(MultipartFile file, String scenarioId) throws Exception {
     Scenario targetScenario =
-        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(file, null, targetScenario);
   }

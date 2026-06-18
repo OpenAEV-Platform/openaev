@@ -56,7 +56,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     list: '/admin/integrations/injectors',
     detail: (id: string) => `/admin/integrations/injectors/${id}`,
   },
-  logoUrl: (type: string) => buildTenantApiPath(`/api/images/injectors/${type}`),
+  logoUrl: (injectorId: string) => buildTenantApiPath(`/api/images/injectors/id/${injectorId}`),
   normalizeSingle: data => ({
     id: data?.injector_id,
     name: data?.injector_name,
@@ -77,7 +77,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     fetchSingle: (id: string) => fetchCollector(id),
     getRelatedIds: (id: string) => fetchCollectorRelatedIds(id),
   },
-  logoUrl: (type: string) => buildTenantApiPath(`/api/images/collectors/${type}`),
+  logoUrl: (injectorId: string) => buildTenantApiPath(`/api/images/collectors/id/${injectorId}`),
   normalizeSingle: data => ({
     id: data?.collector_id,
     name: data?.collector_name,

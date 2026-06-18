@@ -187,6 +187,7 @@ public class InjectSearchService {
             injectScenarioJoin.get("id"),
             injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
+            injectorJoin.get("type"),
             injectDependency.get("id")));
   }
 
@@ -540,6 +541,7 @@ public class InjectSearchService {
             injectRoot.get("id"),
             injectorContractJoin.get("compositeId"),
             injectorJoin.get("id"),
+            injectorJoin.get("type"),
             payloadJoin.get("id"),
             collectorTypeJoin.get("name"),
             statusJoin.get("id")));

@@ -28,6 +28,7 @@ public class PlatformGroupComposer extends ComposerBase<Group> {
 
     @Override
     public PlatformGroupComposer.Composer delete() {
+      group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
       groupRepository.delete(group);
       return null;
     }

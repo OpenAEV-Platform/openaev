@@ -2,14 +2,24 @@ package io.openaev.executors.utils;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ExecutorUtils {
+
+  private final AssetAgentJobRepository assetAgentJobRepository;
+
+  @Value("${openaev.agent.queue-threshold:0}")
+  private int agentQueueThreshold;
 
   /**
    * Remove all Inactive agents from given agent list
@@ -100,5 +110,30 @@ public class ExecutorUtils {
               return endpoint.getPlatform().equals(platform) && endpoint.getArch().equals(arch);
             })
         .toList();
+  }
+
+  /**
+   * Find all overloaded agents from a list of agents. An agent is overloaded when its pending job
+   * count exceeds the configured queue threshold. If the threshold is 0 (disabled), returns an
+   * empty set.
+   *
+   * @param agents to check
+   * @return overloaded agents
+   */
+  public Set<Agent> findOverloadedAgents(Set<Agent> agents) {
+    if (agentQueueThreshold <= 0 || agents.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> agentIds = agents.stream().map(Agent::getId).collect(Collectors.toSet());
+    Set<Object[]> counts = assetAgentJobRepository.countPendingJobsByAgentIds(agentIds);
+    Map<String, Long> countByAgentId =
+        counts.stream().collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1]));
+    return agents.stream()
+        .filter(
+            agent -> {
+              Long count = countByAgentId.get(agent.getId());
+              return count != null && count >= agentQueueThreshold;
+            })
+        .collect(Collectors.toSet());
   }
 }

@@ -2,9 +2,12 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.database.model.TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,6 +20,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
+import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.scenario.form.CheckScenarioRulesInput;
@@ -26,18 +30,20 @@ import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioRecurrenceInput;
 import io.openaev.rest.scenario.form.ScenarioUpdateTeamsInput;
 import io.openaev.service.AssetGroupService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -52,6 +58,10 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private GrantComposer grantComposer;
+  @Autowired private UserComposer userComposer;
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
@@ -67,6 +77,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private AssetGroupService assetGroupService;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
   @AfterEach
   void afterEach() {
@@ -75,6 +86,10 @@ public class ScenarioApiTest extends IntegrationTest {
     injectComposer.reset();
     injectStatusComposer.reset();
     scenarioComposer.reset();
+    userComposer.reset();
+    grantComposer.reset();
+    tenantGroupComposer.reset();
+    tenantRoleComposer.reset();
   }
 
   private Scenario getScenario(@Nullable Scenario scenario, @Nullable Executor executor) {
@@ -548,9 +563,11 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Create scenario with injector contracts")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void given_validInput_should_createScenarioWithInjectorContracts() throws Exception {
     // -- PREPARE --
+    User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    Authentication auth = buildAuthenticationToken(testUser);
+
     ScenarioInput scenarioInput = new ScenarioInput();
     scenarioInput.setName("Scenario with injector contracts");
     scenarioInput.setFromName("no-reply@openaev.io");
@@ -568,6 +585,7 @@ public class ScenarioApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 post(SCENARIO_URI + "/with-injector-contracts")
+                    .with(authentication(auth))
                     .with(csrf())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
@@ -586,9 +604,12 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Update scenarios with injector contracts")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
   void given_existingScenarios_should_updateScenariosWithInjectorContracts() throws Exception {
     // -- PREPARE --
+    // Create test user with assessment role and granted on email injectorContract
+    User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    Authentication auth = buildAuthenticationToken(testUser);
+
     Scenario scenarioA =
         scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
     Scenario scenarioB =
@@ -610,6 +631,7 @@ public class ScenarioApiTest extends IntegrationTest {
         this.mvc
             .perform(
                 put(SCENARIO_URI + "/with-injector-contracts")
+                    .with(authentication(auth))
                     .with(csrf())
                     .content(asJsonString(input))
                     .contentType(MediaType.APPLICATION_JSON)
@@ -627,6 +649,29 @@ public class ScenarioApiTest extends IntegrationTest {
     assertFalse(injectRepository.findByScenarioId(scenarioB.getId()).isEmpty());
   }
 
+  private User createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract() {
+    Grant grant = new Grant();
+    grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
+    grant.setName(Grant.GRANT_TYPE.OBSERVER);
+    grant.setResourceId(injectorContractFixture.getWellKnownSingleEmailContract().getId());
+
+    TenantGroupComposer.Composer threatArsenalGroup =
+        tenantGroupComposer
+            .forGroup(TenantGroupFixture.getGroup())
+            .withRole(
+                tenantRoleComposer.forRole(
+                    TenantRoleFixture.getRole(new HashSet<>(Set.of(Capability.MANAGE_ASSESSMENT)))))
+            .withGrant(grantComposer.forGrant(grant));
+
+    return userComposer
+        .forUser(
+            UserFixture.getUser(
+                "AccessThreatArsenals", "User", UUID.randomUUID() + "@unittests.invalid"))
+        .withGroup(threatArsenalGroup)
+        .persist()
+        .get();
+  }
+
   private InjectorContractSearchPaginationInput createInjectorContractSearchPaginationInput() {
     InjectorContractSearchPaginationInput paginationInput =
         new InjectorContractSearchPaginationInput();
@@ -634,5 +679,539 @@ public class ScenarioApiTest extends IntegrationTest {
     paginationInput.setInjectorContractIdsToProcess(
         List.of(injectorContractFixture.getWellKnownSingleEmailContract().getId()));
     return paginationInput;
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Scenario created in tenant X should NOT be readable from tenant Y")
+    void given_scenarioInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("Isolation Test Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — read from tenant Y (expect 404) --------
+      int responseStatus =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/scenarios/" + scenarioId)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Scenario created in tenant X should be readable from tenant X")
+    void given_scenarioInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("Same Tenant Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      // -------- Act & Assert — read from same tenant should succeed --------
+      mvc.perform(
+              get("/api/tenants/" + tenantX.getId() + "/scenarios/" + scenarioId)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.scenario_name").value("Same Tenant Scenario"));
+    }
+
+    @Test
+    @DisplayName("Scenario search in tenant Y should NOT return scenarios from tenant X")
+    void given_scenarioInTenantX_should_notAppearInTenantYSearch() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("CrossTenantSearchScenario");
+
+      mvc.perform(
+              post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — search from tenant Y --------
+      SearchPaginationInput searchInput =
+          PaginationFixture.simpleTextSearch("CrossTenantSearchScenario");
+
+      String searchResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search")
+                      .content(asJsonString(searchInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+    }
+
+    @Test
+    @DisplayName("Scenario created in tenant X should NOT be updatable from tenant Y")
+    void given_scenarioInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("Update Isolation Test Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — update from tenant Y (expect 404) --------
+      ScenarioInput updateInput = new ScenarioInput();
+      updateInput.setName("Hijacked Name");
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/" + tenantY.getId() + "/scenarios/" + scenarioId)
+                      .content(asJsonString(updateInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Scenario created in tenant X should NOT be deletable from tenant Y")
+    void given_scenarioInTenantX_should_notBeDeletableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.DELETE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("Delete Isolation Test Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — delete from tenant Y (expect 404) --------
+      int responseStatus =
+          mvc.perform(
+                  delete("/api/tenants/" + tenantY.getId() + "/scenarios/" + scenarioId)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("Fetching scenarios by IDs should NOT return scenarios from another tenant")
+    void given_scenarioInTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
+
+      ScenarioInput input = new ScenarioInput();
+      input.setName("SearchById Isolation Scenario");
+
+      String createResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(createResponse, "$.scenario_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — fetch by IDs from tenant Y --------
+      String searchByIdResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search-by-id")
+                      .content(asJsonString(Map.of("scenario_ids", List.of(scenarioId))))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert — result should be empty --------
+      List<Object> results = JsonPath.read(searchByIdResponse, "$");
+      assertThat(results.size()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName(
+        "Enabling team players in scenario from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notEnablePlayersInScenarioFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create scenario in tenant X
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("TeamPlayer Isolation Scenario");
+
+      String scenarioResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(scenarioResponse, "$.scenario_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Scenario Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — enable team players from tenant X using team from tenant Y --------
+      ScenarioTeamPlayersEnableInput playersInput = new ScenarioTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/scenarios/"
+                          + scenarioId
+                          + "/teams/"
+                          + teamId
+                          + "/players/enable")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Adding team players in scenario from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notAddPlayersInScenarioFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create scenario in tenant X
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("AddPlayer Isolation Scenario");
+
+      String scenarioResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(scenarioResponse, "$.scenario_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Add Scenario Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — add players from tenant X using team from tenant Y --------
+      ScenarioTeamPlayersEnableInput playersInput = new ScenarioTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/scenarios/"
+                          + scenarioId
+                          + "/teams/"
+                          + teamId
+                          + "/players/add")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName(
+        "Removing team players in scenario from tenant X should fail with team from tenant Y")
+    void given_teamInTenantY_should_notRemovePlayersInScenarioFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y",
+              Set.of(
+                  Capability.MANAGE_ASSESSMENT,
+                  Capability.ACCESS_ASSESSMENT,
+                  Capability.MANAGE_TEAMS_AND_PLAYERS,
+                  Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+      // Create scenario in tenant X
+      ScenarioInput scenarioInput = new ScenarioInput();
+      scenarioInput.setName("RemovePlayer Isolation Scenario");
+
+      String scenarioResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantX.getId() + "/scenarios")
+                      .content(asJsonString(scenarioInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String scenarioId = JsonPath.read(scenarioResponse, "$.scenario_id");
+
+      // Create team in tenant Y
+      io.openaev.rest.team.form.TeamCreateInput teamInput =
+          new io.openaev.rest.team.form.TeamCreateInput();
+      teamInput.setName("CrossTenant Remove Scenario Team");
+
+      String teamResponse =
+          mvc.perform(
+                  post("/api/tenants/" + tenantY.getId() + "/teams")
+                      .content(asJsonString(teamInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String teamId = JsonPath.read(teamResponse, "$.team_id");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act — remove players from tenant X using team from tenant Y --------
+      ScenarioTeamPlayersEnableInput playersInput = new ScenarioTeamPlayersEnableInput();
+      playersInput.setPlayersIds(List.of());
+
+      int responseStatus =
+          mvc.perform(
+                  put("/api/tenants/"
+                          + tenantX.getId()
+                          + "/scenarios/"
+                          + scenarioId
+                          + "/teams/"
+                          + teamId
+                          + "/players/remove")
+                      .content(asJsonString(playersInput))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -------- Assert — team from another tenant should not be found --------
+      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
   }
 }

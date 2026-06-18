@@ -46,7 +46,7 @@ public class UserMappingService {
         if (idpGroup.equals(role)) {
           Optional<Group> groupOptional = groupRepository.findByName(userGroup);
           if (groupOptional.isPresent()) {
-            List<Group> userGroups = user.getGroups();
+            List<Group> userGroups = user.getUnscopedGroups();
             List<Group> existing =
                 userGroups.stream()
                     .filter(userG -> userG.getName().equals(groupOptional.get().getName()))
@@ -60,7 +60,7 @@ public class UserMappingService {
               Group newGroup = new Group();
               newGroup.setName(userGroup);
               groupRepository.save(newGroup);
-              List<Group> userGroups = user.getGroups();
+              List<Group> userGroups = user.getUnscopedGroups();
               userGroups.add(newGroup);
               user.setGroups(userGroups);
             } else {
@@ -76,11 +76,11 @@ public class UserMappingService {
       // If the user has not this group in the groups from the token but he has the group in his
       // current groups
       if (groupsFromToken.stream().noneMatch(groupToken -> groupToken.equals(mapping.getIdpGroup()))
-          && user.getGroups().stream()
+          && user.getUnscopedGroups().stream()
               .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
         // It means the user was removed from the group in the identity provider -> we remove it
         // from its current groups
-        List<Group> userGroups = user.getGroups();
+        List<Group> userGroups = user.getUnscopedGroups();
         userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
         user.setGroups(userGroups);
       }
@@ -88,6 +88,9 @@ public class UserMappingService {
   }
 
   private static List<GroupMapping> safeParseMappings(String json) {
+    if (json == null || json.isBlank()) {
+      return List.of();
+    }
     ObjectMapper mapper = new ObjectMapper();
     try {
       return mapper.readValue(json, new TypeReference<>() {});

@@ -69,7 +69,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository.findById(executorId).orElse(null);
+    return executorRepository
+        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
+        .orElse(null);
   }
 
   @Override
@@ -105,7 +107,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -149,6 +151,22 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       InputStream bannerData,
       String[] platforms)
       throws Exception {
+    return register(
+        id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+  }
+
+  @Transactional
+  public Executor register(
+      String id,
+      String type,
+      String name,
+      String documentationUrl,
+      String backgroundColor,
+      InputStream iconData,
+      InputStream bannerData,
+      String[] platforms,
+      boolean external)
+      throws Exception {
     // Sanity checks
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Executor ID must not be null or empty.");
@@ -162,10 +180,14 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor = executorRepository.findById(id).orElse(null);
+    Executor executor =
+        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
     if (executor == null) {
+      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
       executor = new Executor();
       executor.setId(id);
+      executor.setTenant(tenant);
+      executor.setTenantId(tenant.getId());
     }
 
     executor.setName(name);
@@ -173,13 +195,16 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     executor.setDoc(documentationUrl);
     executor.setBackgroundColor(backgroundColor);
     executor.setPlatforms(platforms);
+    executor.setExternal(external);
 
     return executorRepository.save(executor);
   }
 
   @Transactional
   public void remove(String id) {
-    executorRepository.findById(id).ifPresent(executor -> executorRepository.deleteById(id));
+    executorRepository
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .ifPresent(executor -> executorRepository.delete(executor));
   }
 
   /**

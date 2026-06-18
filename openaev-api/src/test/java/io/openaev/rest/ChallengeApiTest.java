@@ -14,13 +14,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -48,7 +48,8 @@ class ChallengeApiTest extends IntegrationTest {
 
   @BeforeEach
   public void before() throws Exception {
-    new Manager(List.of(challengeInjectorIntegrationFactory)).monitorIntegrations();
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
   }
 
   // -- SCENARIOS --

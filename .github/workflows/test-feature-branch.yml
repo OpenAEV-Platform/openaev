@@ -4,7 +4,7 @@ on:
     inputs:
       openaev_config:
         type: string
-        default: '{ "SPRING_PROFILES_ACTIVE": "ci" }'
+        default: '{ "SPRING_PROFILES_ACTIVE": "ci", "OPENAEV_ENABLED-DEV-FEATURES": "*" }'
         required: false
 
 permissions:
@@ -68,6 +68,7 @@ jobs:
           context: .
           file: ./Dockerfile_ga
           push: ${{ github.event_name != 'pull_request' }}
+          pull: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=filigran/openaev-platform:buildcache

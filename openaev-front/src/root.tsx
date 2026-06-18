@@ -1,6 +1,6 @@
 import { CssBaseline } from '@mui/material';
 import { StyledEngineProvider } from '@mui/material/styles';
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { fetchMe, fetchPlatformParameters } from './actions/Application';
@@ -37,6 +37,7 @@ const SimulationReport = lazy(() => import('./admin/components/simulations/simul
 const Challenges = lazy(() => import('./public/components/challenges/ChallengesPlayer'));
 const ExerciseViewLessons = lazy(() => import('./public/components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./public/components/lessons/ScenarioViewLessons'));
+const UrlAccess = lazy(() => import('./public/components/url_access/UrlAccess'));
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 
@@ -68,6 +69,19 @@ const Root = () => {
   }, [logged, me]);
 
   const { isReachable } = useNetworkCheck(settings?.xtm_hub_url && `${settings?.xtm_hub_url}/health`);
+
+  // Stable context identity: without this, every Root render produced a new object and
+  // re-rendered every useAuth() consumer in the app.
+  const userContextValue = useMemo(() => ({
+    me,
+    settings,
+    isXTMHubAccessible: isReachable,
+    userTenants,
+    currentUserTenant,
+    switchUserTenant,
+    reloadUserTenants,
+  }), [me, settings, isReachable, userTenants, currentUserTenant, switchUserTenant, reloadUserTenants]);
+
   if (logged && typeof logged === 'object' && Object.keys(logged).length === 0) {
     return <div />;
   }
@@ -78,15 +92,6 @@ const Root = () => {
         <RootPublic />
       </Suspense>
     );
-  }
-
-  // When the user is authenticated but the URL has no tenant prefix
-  // (e.g. first visit at "/", or right after login), hard-redirect to
-  // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl()) {
-    const tenantId = currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID;
-    window.location.href = buildTenantUrl(tenantId);
-    return <Loader />;
   }
 
   // When the user is authenticated but has no tenant assigned,
@@ -105,19 +110,25 @@ const Root = () => {
     );
   }
 
+  // When the user is authenticated but the URL has no tenant prefix
+  // (e.g. first visit at "/", or right after login), hard-redirect to
+  // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
+  if (!extractTenantFromUrl()) {
+    // Wait for fetchUserTenants (useTenant) before deciding which tenant to use.
+    if (userTenants === undefined) {
+      return <Loader />;
+    }
+
+    const tenantId = currentUserTenant?.tenant_id
+      ?? userTenants[0]?.tenant_id
+      ?? DEFAULT_TENANT_UUID;
+    window.location.href = buildTenantUrl(tenantId);
+    return <Loader />;
+  }
+
   return (
     <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
-      <UserContext.Provider
-        value={{
-          me,
-          settings,
-          isXTMHubAccessible: isReachable,
-          userTenants,
-          currentUserTenant,
-          switchUserTenant,
-          reloadUserTenants,
-        }}
-      >
+      <UserContext.Provider value={userContextValue}>
         <StyledEngineProvider injectFirst>
           <ConnectedIntlProvider>
             <ConnectedThemeProvider>
@@ -147,6 +158,7 @@ const Root = () => {
                     <Route path="challenges/:exerciseId" element={errorWrapper(Challenges)()} />
                     <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
                     <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
+                    <Route path="url/access" element={errorWrapper(UrlAccess)()} />
                     <Route path="reports/:reportId/exercise/:exerciseId" element={errorWrapper(SimulationReport)()} />
 
                     {/* Not found */}

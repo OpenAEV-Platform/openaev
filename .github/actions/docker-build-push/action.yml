@@ -111,6 +111,7 @@ runs:
         file: ./Dockerfile_ga
         platforms: linux/amd64,linux/arm64
         push: false
+        pull: true
         outputs: type=oci,dest=openaev-image.tar
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
@@ -213,6 +214,7 @@ runs:
         file: ./Dockerfile_ubi9_ga
         platforms: linux/amd64,linux/arm64
         push: false
+        pull: true
         outputs: type=oci,dest=openaev-ubi9-image.tar
         tags: ${{ inputs.ubi9-tags }}
         labels: ${{ inputs.ubi9-labels }}

@@ -3,6 +3,7 @@ package io.openaev.rest.security;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ExerciseRepository;
@@ -76,7 +77,10 @@ public class SecurityExpression extends SecurityExpressionRoot
     if (isUserHasBypass()) {
       return true;
     }
-    Exercise exercise = exerciseRepository.findById(simulationId).orElseThrow();
+    Exercise exercise =
+        exerciseRepository
+            .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
+            .orElseThrow();
     List<User> planners = exercise.getPlanners();
     Optional<User> planner =
         planners.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
@@ -98,7 +102,10 @@ public class SecurityExpression extends SecurityExpressionRoot
     if (isUserHasBypass()) {
       return true;
     }
-    Exercise exercise = exerciseRepository.findById(simulationId).orElseThrow();
+    Exercise exercise =
+        exerciseRepository
+            .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
+            .orElseThrow();
     List<User> observers = exercise.getObservers();
     Optional<User> observer =
         observers.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();
@@ -109,7 +116,10 @@ public class SecurityExpression extends SecurityExpressionRoot
     if (isUserHasBypass()) {
       return true;
     }
-    Exercise exercise = exerciseRepository.findById(exerciseId).orElseThrow();
+    Exercise exercise =
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow();
     List<User> players = exercise.getUsers();
     Optional<User> player =
         players.stream().filter(user -> user.getId().equals(getUser().getId())).findAny();

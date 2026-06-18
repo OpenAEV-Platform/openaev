@@ -5,6 +5,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.UrlAccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
@@ -61,7 +63,9 @@ public class ExerciseLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
       @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -104,7 +108,9 @@ public class ExerciseLessonsApi extends RestBehavior {
   public LessonsCategory createExerciseLessonsCategory(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setExercise(exercise);
@@ -334,7 +340,9 @@ public class ExerciseLessonsApi extends RestBehavior {
   public void sendExerciseLessons(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseRepository
+            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -383,10 +391,22 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_categories"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsCategory> playerLessonsCategories(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
-    return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
+    return lessonsCategoryRepository
+        .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+        .stream()
+        .filter(
+            lessonsCategory ->
+                userId.isEmpty()
+                    || lessonsCategory.getTeams().stream()
+                        .anyMatch(
+                            team ->
+                                team.getUsers().stream()
+                                    .anyMatch(user -> user.getId().equals(userId.get()))))
+        .toList();
   }
 
   @GetMapping({
@@ -394,6 +414,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_questions"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsQuestion> playerLessonsQuestions(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -413,6 +434,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_answers"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsAnswer> playerLessonsAnswers(
       @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     impersonateUser(userRepository, userId); // Protection for ?
@@ -431,6 +453,9 @@ public class ExerciseLessonsApi extends RestBehavior {
                                     LessonsAnswerSpecification.fromQuestion(
                                         lessonsQuestion.getId()))
                                 .stream()))
+        .filter(
+            lessonsAnswer ->
+                userId.isEmpty() || lessonsAnswer.getUser().getId().equals(userId.get()))
         .toList();
   }
 
@@ -440,6 +465,7 @@ public class ExerciseLessonsApi extends RestBehavior {
         + "/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers"
   })
   @AccessControl(skipRBAC = true)
+  @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public LessonsAnswer createExerciseLessonsQuestion(
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,

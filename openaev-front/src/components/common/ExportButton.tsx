@@ -21,16 +21,23 @@ export interface ExportProps<T> {
 interface Props<T> {
   totalElements: number;
   exportProps: ExportProps<T>;
+  exportCsvMapperFunction?: (searchPaginationInput: SearchPaginationInput | undefined) => Promise<{
+    data: string;
+    filename: string;
+  }>;
 }
 
-const ExportButton = <T extends object>({ totalElements, exportProps }: Props<T>) => {
+const ExportButton = <T extends object>({ totalElements, exportProps, exportCsvMapperFunction }: Props<T>) => {
   // Standard hooks
   const { t } = useFormatter();
   // Fetching data
   const { tagsMap } = useHelper((helper: TagHelper) => ({ tagsMap: helper.getTagsMap() }));
 
   const exportCsvMapperAction = () => {
-    exportCsvMapper(exportProps.exportType, exportProps.searchPaginationInput).then(
+    const exportPromise = exportCsvMapperFunction
+      ? exportCsvMapperFunction(exportProps.searchPaginationInput)
+      : exportCsvMapper(exportProps.exportType, exportProps.searchPaginationInput);
+    exportPromise.then(
       (result: {
         data: string;
         filename: string;
@@ -40,53 +47,39 @@ const ExportButton = <T extends object>({ totalElements, exportProps }: Props<T>
     );
   };
 
-  if (totalElements > 0) {
-    // TODO update all Front exports by Back API exports
-    if (
-      exportProps.exportType === 'ENDPOINTS'
-      || exportProps.exportType === 'INJECTOR_CONTRACTS'
-    ) {
-      return (
-        <ToggleButton value="export" aria-label="export" size="small" onClick={exportCsvMapperAction}>
-          <Tooltip title={t('Export this list')}>
-            <FileDownloadOutlined
-              color="primary"
-              fontSize="small"
-            />
-          </Tooltip>
+  const exportBtn = (enableOnClick: boolean) => (
+    <Tooltip title={t('Export this list')}>
+      <span>
+        <ToggleButton value="export" aria-label="export" size="small" disabled={totalElements === 0} onClick={enableOnClick ? exportCsvMapperAction : undefined}>
+          <FileDownloadOutlined
+            color={totalElements === 0 ? 'disabled' : 'primary'}
+            fontSize="small"
+          />
         </ToggleButton>
-      );
-    } else {
-      return (
-        <CSVLink
-          data={exportData(
-            exportProps.exportType,
-            exportProps.exportKeys,
-            exportProps.exportData,
-            tagsMap,
-          )}
-          filename={exportProps.exportFileName}
-        >
-          <ToggleButton value="export" aria-label="export" size="small">
-            <Tooltip title={t('Export this list')}>
-              <FileDownloadOutlined
-                color="primary"
-                fontSize="small"
-              />
-            </Tooltip>
-          </ToggleButton>
-        </CSVLink>
-      );
-    }
-  } else {
-    return (
-      <ToggleButton value="export" aria-label="export" size="small" disabled={true}>
-        <Tooltip title={t('Export this list')}>
-          <FileDownloadOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-    );
+      </span>
+    </Tooltip>
+  );
+
+  if (
+    exportProps.exportType === 'ENDPOINTS'
+    || exportProps.exportType === 'INJECTOR_CONTRACTS'
+  ) {
+    return exportBtn(true);
   }
+
+  return (
+    <CSVLink
+      data={exportData(
+        exportProps.exportType,
+        exportProps.exportKeys,
+        exportProps.exportData,
+        tagsMap,
+      )}
+      filename={exportProps.exportFileName}
+    >
+      {exportBtn(false)}
+    </CSVLink>
+  );
 };
 
 export default ExportButton;

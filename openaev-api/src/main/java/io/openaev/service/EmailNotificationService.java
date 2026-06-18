@@ -21,7 +21,9 @@ public class EmailNotificationService {
   private final ResourceLoader resourceLoader;
 
   public void sendNotification(
-      @NotNull final NotificationRule rule, @NotNull final Map<String, String> data) {
+      @NotNull final NotificationRule rule,
+      @NotNull final Map<String, String> data,
+      @NotNull final String tenantId) {
 
     // get the template
     String template = getTemplate(rule);
@@ -35,7 +37,7 @@ public class EmailNotificationService {
       String body = buildContextualContent(template, executionContext);
 
       // send the email
-      mailingService.sendEmail(rule.getSubject(), body, List.of(rule.getOwner()));
+      mailingService.sendEmail(rule.getSubject(), body, List.of(rule.getOwner()), tenantId);
 
     } catch (Exception e) {
       throw new RuntimeException(e);

@@ -432,7 +432,7 @@ public class TenantRoleApiTest extends IntegrationTest {
 
       RoleInput input =
           RoleInput.builder()
-              .name("RLS Isolated Role")
+              .name("Isolated Role")
               .capabilities(Set.of(Capability.ACCESS_ASSETS))
               .build();
 

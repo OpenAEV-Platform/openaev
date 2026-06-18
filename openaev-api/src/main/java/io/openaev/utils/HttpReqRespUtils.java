@@ -1,6 +1,10 @@
 package io.openaev.utils;
 
+import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -27,6 +31,7 @@ public class HttpReqRespUtils {
     "X-Forwarded-For",
     "Proxy-Client-IP",
     "WL-Proxy-Client-IP",
+    "X-Real-IP",
     "HTTP_X_FORWARDED_FOR",
     "HTTP_X_FORWARDED",
     "HTTP_X_CLUSTER_CLIENT_IP",
@@ -49,17 +54,120 @@ public class HttpReqRespUtils {
    * @return the client IP address, or "0.0.0.0" if no request context is available
    */
   public static String getClientIpAddressIfServletRequestExist() {
-    if (RequestContextHolder.getRequestAttributes() == null) {
-      return "0.0.0.0";
+    HttpServletRequest request = getCurrentRequest();
+    Map<String, String> headers = extractHeaders(request);
+
+    String ip = getClientIpAddressFromHeaders(headers);
+
+    if (ip != null) {
+      return ip;
     }
-    HttpServletRequest request =
-        ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-    for (String header : IP_HEADER_CANDIDATES) {
-      String ipList = request.getHeader(header);
-      if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
-        return ipList.split(",")[0];
+
+    if (request != null) {
+      return request.getRemoteAddr();
+    }
+
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+    String remoteAddress = requestContextData != null ? requestContextData.remoteAddress() : null;
+
+    if (remoteAddress != null) {
+      return remoteAddress;
+    }
+
+    return "0.0.0.0";
+  }
+
+  public static String getClientIpAddressFromHeaders(Map<String, String> headers) {
+    if (headers != null) {
+      for (String header : IP_HEADER_CANDIDATES) {
+        String ipList = extractHeader(headers, header);
+
+        if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
+          return ipList.split(",")[0];
+        }
       }
     }
-    return request.getRemoteAddr();
+
+    return null;
+  }
+
+  public static String extractHeader(Map<String, String> headers, String name) {
+    if (headers != null) {
+      if (headers.containsKey(name)) {
+        return headers.get(name);
+      }
+
+      if (headers.containsKey(name.toLowerCase())) {
+        return headers.get(name.toLowerCase());
+      }
+
+      for (var entry : headers.entrySet()) {
+        if (entry.getKey().equalsIgnoreCase(name)) {
+          return entry.getValue();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  public static Map<String, String> extractHeaders(HttpServletRequest request) {
+    try {
+      if (request != null) {
+        Map<String, String> headers = new HashMap<>();
+
+        Enumeration<String> headerNames = request.getHeaderNames();
+
+        while (headerNames.hasMoreElements()) {
+          String headerName = headerNames.nextElement();
+          headers.put(headerName, request.getHeader(headerName));
+        }
+
+        return headers;
+      }
+      // else if no headers, the returns the headers saved in the thread context
+    } catch (IllegalStateException e) {
+      // It means the request object has been recycled and is no longer associated with this facade.
+      // In this case returns the headers saved in the thread context
+    }
+
+    ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+        ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+
+    return requestContextData != null ? requestContextData.headers() : null;
+  }
+
+  public static String extractMethod(HttpServletRequest request) {
+    String method = null;
+
+    try {
+      if (request != null) {
+        method = request.getMethod();
+      }
+      // else if no method, the returns the method saved in the thread context
+    } catch (IllegalStateException e) {
+      // It means the request object has been recycled and is no longer associated with this facade.
+      // In this case returns the method saved in the thread context
+    }
+
+    if (method == null) {
+      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
+          ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
+
+      method = requestContextData != null ? requestContextData.method() : null;
+    }
+
+    return method;
+  }
+
+  public static HttpServletRequest getCurrentRequest() {
+    try {
+      ServletRequestAttributes attrs =
+          (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+      return attrs != null ? attrs.getRequest() : null;
+    } catch (Exception e) {
+      return null;
+    }
   }
 }

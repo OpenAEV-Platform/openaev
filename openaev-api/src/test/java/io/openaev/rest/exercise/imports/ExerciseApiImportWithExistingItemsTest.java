@@ -8,10 +8,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
-import io.openaev.integration.Manager;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.rest.exercise.exports.ExportOptions;
@@ -77,8 +77,9 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   @BeforeEach
   void before() throws Exception {
-    new Manager(List.of(channelInjectorIntegrationFactory, challengeInjectorIntegrationFactory))
-        .monitorIntegrations();
+    channelInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
 
     lessonsQuestionsComposer.reset();
     lessonsCategoryComposer.reset();

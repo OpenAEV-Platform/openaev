@@ -4,6 +4,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.Mockito.reset;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.opencti.client.OpenCTIClient;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.stix.objects.Bundle;
@@ -46,10 +47,12 @@ public class OpenCTIConnectorServiceConfigDisabledTest extends IntegrationTest {
       @DisplayName("throw exception")
       public void whenConnectorIsNotRegistered_throwException() {
         assertThatThrownBy(
-                () -> openCTIConnectorService.pushSecurityCoverageStixBundle(createBundle()))
+                () ->
+                    openCTIConnectorService.pushSecurityCoverageStixBundle(
+                        createBundle(), TenantContext.getCurrentTenant()))
             .isInstanceOf(ConnectorError.class)
-            .hasMessage(
-                "No instance of Security Coverage connector is currently active to send security coverage bundles.");
+            .hasMessageContaining(
+                "No instance of Security Coverage connector is currently active to send security coverage bundles");
       }
     }
   }

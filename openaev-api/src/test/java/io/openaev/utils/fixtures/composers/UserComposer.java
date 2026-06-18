@@ -51,7 +51,7 @@ public class UserComposer extends ComposerBase<User> {
 
     public Composer withGroup(InnerComposerBase<Group> groupComposer) {
       groupComposers.add(groupComposer);
-      this.user.getGroups().add(groupComposer.get());
+      this.user.getUnscopedGroups().add(groupComposer.get());
       return this;
     }
 

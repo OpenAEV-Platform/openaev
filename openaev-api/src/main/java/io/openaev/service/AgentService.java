@@ -31,11 +31,16 @@ public class AgentService {
       Agent.PRIVILEGE privilege,
       String executorId) {
     return agentRepository.findByAssetExecutorIdUserDeploymentAndPrivilege(
-        assetId, user, deploymentMode.name(), privilege.name(), executorId);
+        assetId, user, deploymentMode, privilege, executorId);
   }
 
   public List<Agent> getAgentsByExecutorId(String executorId) {
     return agentRepository.findByExecutorId(executorId);
+  }
+
+  public List<Agent> getAgentsByExecutorIdAndTenantId(
+      @NotBlank String executorId, @NotBlank String tenantId) {
+    return agentRepository.findByExecutorIdAndTenantId(executorId, tenantId);
   }
 
   public Agent createOrUpdateAgent(@NotNull final Agent agent) {

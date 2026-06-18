@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.annotation.AuditDiffTracked;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -23,6 +24,7 @@ import org.hibernate.annotations.FetchMode;
 @Entity
 @Table(name = "groups")
 @EntityListeners({ModelBaseListener.class})
+@AuditDiffTracked
 public class Group implements DualScopeBase {
 
   @Id
@@ -76,6 +78,7 @@ public class Group implements DualScopeBase {
       inverseJoinColumns = @JoinColumn(name = "role_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("group_roles")
+  @Fetch(value = FetchMode.SUBSELECT)
   private List<Role> roles = new ArrayList<>();
 
   @ManyToOne

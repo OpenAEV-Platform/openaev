@@ -40,7 +40,7 @@ public abstract class IntegrationTest {
   public void addGrantToCurrentUser(
       Grant.GRANT_RESOURCE_TYPE grantResourceType, Grant.GRANT_TYPE grantType, String resourceId) {
     User user = testUserHolder.get();
-    Group group = user.getGroups().stream().findAny().get();
+    Group group = user.getUnscopedGroups().stream().findAny().get();
 
     Grant grant = GrantFixture.getGrant(resourceId, grantResourceType, grantType, group);
     grantComposer.forGrant(grant).persist();

@@ -2,10 +2,12 @@ package io.openaev.executors.openaev.service;
 
 import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
+import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorContextService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,12 +22,14 @@ import org.springframework.stereotype.Service;
 public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;
+  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   private String computeCommand(
       @NotNull final Inject inject,
       String agentId,
       Endpoint.PLATFORM_TYPE platform,
-      Endpoint.PLATFORM_ARCH arch) {
+      Endpoint.PLATFORM_ARCH arch,
+      String token) {
     Injector injector = inject.getInjector();
     if (injector == null) {
       // Fallback for legacy injects without inject_injector populated
@@ -41,7 +45,8 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
       case Windows, Linux, MacOS -> {
         String executorCommandKey = platform.name() + "." + arch.name();
         String cmd = injector.getExecutorCommands().get(executorCommandKey);
-        yield replaceArgs(platform, cmd, inject.getId(), agentId, inject.getTenant().getId());
+        yield replaceArgs(
+            platform, cmd, inject.getId(), agentId, inject.getTenant().getId(), token);
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };
@@ -50,22 +55,24 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
-      @NotNull final Agent agent) {
+      @NotNull final Agent agent,
+      @NotNull final String token) {
     Endpoint.PLATFORM_TYPE platform = assetEndpoint.getPlatform();
     Endpoint.PLATFORM_ARCH arch = assetEndpoint.getArch();
     if (platform == null) {
       throw new RuntimeException("Unsupported null platform");
     }
     AssetAgentJob assetAgentJob = new AssetAgentJob();
-    assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch));
+    assetAgentJob.setCommand(computeCommand(inject, agent.getId(), platform, arch, token));
     assetAgentJob.setAgent(agent);
     assetAgentJob.setInject(inject);
     assetAgentJob.setTenant(inject.getTenant());
+    assetAgentJob.setCreatedAt(now());
     assetAgentJobRepository.save(assetAgentJob);
   }
 
   public List<Agent> launchBatchExecutorSubprocess(
-      Inject inject, Set<Agent> agents, InjectStatus injectStatus) {
+      Inject inject, Set<Agent> agents, InjectStatus injectStatus, String token) {
     return new ArrayList<>();
   }
 }

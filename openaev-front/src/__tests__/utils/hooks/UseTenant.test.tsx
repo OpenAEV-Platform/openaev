@@ -388,7 +388,7 @@ describe('useTenant', () => {
       expect(mockFetchUserTenants).toHaveBeenCalledTimes(2);
     });
 
-    it('given_reloadWithPreferredTenantId_should_navigateToPreferredTenant', async () => {
+    it('given_reloadCalledWithTenantId_should_navigateToThatTenant', async () => {
       // Arrange — URL points to ALPHA so setTenant is called during init
       mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
@@ -400,15 +400,16 @@ describe('useTenant', () => {
         expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
       });
 
-      // Arrange — reload with a preferred tenant
+      // Arrange — reload returns a list that includes GAMMA
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
+      mockBuildTenantUrl.mockClear();
 
-      // Act
+      // Act — explicitly request a switch to GAMMA
       await act(async () => {
         await result.current.reloadUserTenants(TENANT_GAMMA.tenant_id);
       });
 
-      // Assert — navigateToTenant triggers a full page navigation (skips setTenant)
+      // Assert — navigates to GAMMA (full page nav since URL is on ALPHA)
       expect(mockBuildTenantUrl).toHaveBeenCalledWith(
         TENANT_GAMMA.tenant_id,
         expect.any(String),
@@ -416,31 +417,69 @@ describe('useTenant', () => {
       expect(window.location.href).toContain(TENANT_GAMMA.tenant_id);
     });
 
-    it('given_reloadWithNonexistentPreferredId_should_fallbackToFirstTenant', async () => {
-      // Arrange — URL points to ALPHA so setTenant is called during init
-      mockExtractTenantFromUrl.mockReturnValue(TENANT_ALPHA.tenant_id);
+    it('given_reloadCalledWithoutTenantId_should_keepCurrentUrlTenant', async () => {
+      // Arrange — URL points to BETA so setTenant is called during init
+      mockExtractTenantFromUrl.mockReturnValue(TENANT_BETA.tenant_id);
       mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
       const useTenant = await importUseTenant();
 
       const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
       });
 
-      // Arrange — reload with a nonexistent preferred tenant
-      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA]);
+      // Arrange — reload returns updated list, no preferred tenant ID passed
+      mockTenantsResponse([TENANT_ALPHA, TENANT_BETA, TENANT_GAMMA]);
+      mockBuildTenantUrl.mockClear();
+
+      // Act — reload without specifying a tenant (e.g. after creating a tenant without auto-switch)
+      await act(async () => {
+        await result.current.reloadUserTenants();
+      });
+
+      // Assert — stays on URL tenant (BETA), no navigation triggered
+      await waitFor(() => {
+        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_BETA.tenant_id);
+      });
+      expect(mockBuildTenantUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  // -- ERROR HANDLING --
+
+  describe('Error handling', () => {
+    it('given_fetchUserTenantsRejects_should_setEmptyTenantsAndNotStayLoading', async () => {
+      // Arrange — fetchUserTenants returns a 500 error
+      mockFetchUserTenants.mockRejectedValue({
+        status: 500,
+        message: 'Internal error',
+      });
+      const useTenant = await importUseTenant();
 
       // Act
-      await act(async () => {
-        await result.current.reloadUserTenants('nonexistent-id');
-      });
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
 
-      // Assert — should fall back to first tenant since preferred doesn't exist
-      // and URL has no tenant (mockExtractTenantFromUrl returns null)
+      // Assert — userTenants should be [] (not undefined), so the app doesn't hang on Loader
       await waitFor(() => {
-        expect(result.current.currentUserTenant?.tenant_id).toBe(TENANT_ALPHA.tenant_id);
+        expect(result.current.userTenants).toEqual([]);
       });
+      expect(result.current.currentUserTenant).toBeNull();
+    });
+
+    it('given_fetchUserTenantsNetworkError_should_setEmptyTenantsAndNotStayLoading', async () => {
+      // Arrange — fetchUserTenants throws a network error
+      mockFetchUserTenants.mockRejectedValue(new Error('Network Error'));
+      const useTenant = await importUseTenant();
+
+      // Act
+      const { result } = renderHook(() => useTenant(MOCK_USER, true), { wrapper: createWrapper() });
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.userTenants).toEqual([]);
+      });
+      expect(result.current.currentUserTenant).toBeNull();
     });
   });
 

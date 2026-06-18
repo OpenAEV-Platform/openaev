@@ -11,4 +11,7 @@ public class PayloadInput extends PayloadUpdateInput {
 
   @JsonProperty("payload_type")
   private String type;
+
+  @JsonProperty("agent_slug")
+  private String agentSlug;
 }

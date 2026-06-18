@@ -6,9 +6,9 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.manual.ManualContract;
+import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.IntegrationFactory;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -18,7 +18,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ManualInjectorIntegrationFactory extends IntegrationFactory {
+public class ManualInjectorIntegrationFactory extends BuiltinIntegrationFactory {
 
   private final ManualContract manualContract;
   private final InjectorContext injectorContext;
@@ -63,7 +63,7 @@ public class ManualInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             ManualInjectorIntegration.MANUAL_INJECTOR_ID,
@@ -86,5 +86,20 @@ public class ManualInjectorIntegrationFactory extends IntegrationFactory {
         injectorContext,
         injectorService,
         injectExpectationService);
+  }
+
+  @Override
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    injectorService.registerBuiltinInjector(
+        tenantId,
+        ManualInjectorIntegration.MANUAL_INJECTOR_ID,
+        ManualInjectorIntegration.MANUAL_INJECTOR_NAME,
+        manualContract,
+        true,
+        "generic",
+        null,
+        null,
+        false,
+        List.of());
   }
 }

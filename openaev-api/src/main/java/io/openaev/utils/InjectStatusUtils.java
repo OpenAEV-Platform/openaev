@@ -12,12 +12,15 @@ public class InjectStatusUtils {
   /**
    * Compute the global execution status from a list of COMPLETE traces (one per agent).
    *
-   * <p>Filters out AGENT_INACTIVE traces. If no active traces remain, returns ERROR.
+   * <p>Filters out informational/non-actionable traces (AGENT_INACTIVE, ASSET_AGENTLESS, INFO). If
    */
   public static ExecutionStatus computeStatus(List<ExecutionTrace> traces) {
     List<ExecutionTrace> activeTraces =
         traces.stream()
             .filter(t -> !ExecutionTraceStatus.AGENT_INACTIVE.equals(t.getStatus()))
+            .filter(t -> !ExecutionTraceStatus.AGENT_OVERLOADED.equals(t.getStatus()))
+            .filter(t -> !ExecutionTraceStatus.ASSET_AGENTLESS.equals(t.getStatus()))
+            .filter(t -> !ExecutionTraceStatus.INFO.equals(t.getStatus()))
             .toList();
 
     if (activeTraces.isEmpty()) {
@@ -40,7 +43,7 @@ public class InjectStatusUtils {
       return ExecutionStatus.ERROR;
     }
     if (hasSuccess && !hasError) {
-      return ExecutionStatus.SUCCESS;
+      return ExecutionStatus.EXECUTED;
     }
     return ExecutionStatus.PARTIAL;
   }

@@ -1,8 +1,8 @@
 name: "[OpenAEV] Validate PR title Worker"
 on:
   pull_request:
-    branches: [master, release/current]
-    types: [opened, edited, reopened, ready_for_review, synchronize]
+    branches: [ main ]
+    types: [ opened, edited, reopened, ready_for_review, synchronize ]
 permissions:
   contents: read
 jobs:

@@ -19,6 +19,8 @@ interface LoginData {
   tenantId?: string;
 }
 
+interface ChatbotAiCguUpdateInput { status: 'pending' | 'enabled' | 'disabled' }
+
 type AppDispatch = Dispatch;
 
 export const fetchPlatformParameters = () => (dispatch: AppDispatch) => {
@@ -45,6 +47,14 @@ export const updatePlatformWhitemarkParameters = (data: SettingsPlatformWhitemar
   return putReferential(
     schema.platformParameters,
     '/api/settings/platform_whitemark',
+    data,
+  )(dispatch);
+};
+
+export const updateChatbotAiCguStatus = (data: ChatbotAiCguUpdateInput) => (dispatch: AppDispatch) => {
+  return putReferential(
+    schema.platformParameters,
+    '/api/settings/chatbot-ai-cgu',
     data,
   )(dispatch);
 };
@@ -111,7 +121,9 @@ export const checkKerberos = () => (dispatch: AppDispatch) => {
 };
 
 export const fetchMe = () => (dispatch: AppDispatch) => {
-  const ref = getReferential(schema.user, '/api/me')(dispatch);
+  const tenantId = extractTenantFromUrl();
+  const uri = tenantId ? `/api/tenants/${tenantId}/me` : '/api/me';
+  const ref = getReferential(schema.user, uri)(dispatch);
   return ref.then((data: User) => dispatch({
     type: Constants.IDENTITY_LOGIN_SUCCESS,
     payload: data,

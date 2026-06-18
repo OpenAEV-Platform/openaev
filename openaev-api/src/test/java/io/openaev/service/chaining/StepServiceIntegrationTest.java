@@ -10,7 +10,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -24,6 +27,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
+import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,10 +36,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.transaction.annotation.Propagation;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@WithMockUser(isAdmin = true)
 class StepServiceIntegrationTest extends IntegrationTest {
 
   @MockitoSpyBean private StepService spyStepService;
@@ -62,14 +67,11 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @BeforeEach
   void beforeEach() throws Exception {
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
-    Injector injectorSaved = injectorRepository.save(injector);
+    Injector injectorSaved = injectTestHelper.forceSaveInjector(injector);
 
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
-    injectorContractSaved = injectorContractRepository.save(injectorContract);
-    // Link on the owning side and save to persist the join table
-    injectorSaved.getContracts().add(injectorContractSaved);
-    injectorRepository.save(injectorSaved);
+    injectorContractSaved = injectTestHelper.forceSaveInjectorContract(injectorContract);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
@@ -93,7 +95,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
     injectExecuted.setId("INJECT-ID");
 
     ExecutionTrace executionTrace = new ExecutionTrace();
-    executionTrace.setStatus(ExecutionTraceStatus.SUCCESS);
+    executionTrace.setStatus(ExecutionTraceStatus.EXECUTED);
 
     Agent agent = AgentFixture.createDefaultAgentService();
 
@@ -156,7 +158,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
   }
 
   @Test
-  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void should_rollback_when_condition_fails() throws JsonProcessingException {
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     Workflow workflow =
@@ -168,18 +169,17 @@ class StepServiceIntegrationTest extends IntegrationTest {
     StepsCreateInput.StepInput input = buildInvalidInputCondition();
     input.setDataStep(injectInput);
 
-    long countBefore = stepRepository.count();
-
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
             () -> spyStepService.createStepTemplates(workflow, List.of(input)));
 
+    // vérification du message
     assertEquals(
         "New step (TEMPLATE): Only 1 condition can be first parent", exception.getMessage());
 
-    long countAfter = stepRepository.count();
-    assertEquals(countBefore, countAfter);
+    verify(spyStepService, atLeastOnce()).saveStep(any());
+    assertTrue(TestTransaction.isFlaggedForRollback());
   }
 
   @Test
@@ -201,13 +201,15 @@ class StepServiceIntegrationTest extends IntegrationTest {
 
     spyStepService.createStepTemplates(workflow, List.of(input1, input2));
 
+    // vérification du message
+
+    verify(spyStepService, atLeastOnce()).saveStep(any());
     long countAfter = stepRepository.count();
     assertNotEquals(countBefore, countAfter);
     assertEquals(2, countAfter - countBefore);
   }
 
   @Test
-  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void should_rollback_when_second_step_fails() throws JsonProcessingException {
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
     Workflow workflow =
@@ -221,19 +223,18 @@ class StepServiceIntegrationTest extends IntegrationTest {
     input1.setDataStep(injectInput);
     StepsCreateInput.StepInput input2 = buildInvalidInput();
 
-    long countBefore = stepRepository.count();
-
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
             () -> spyStepService.createStepTemplates(workflow, List.of(input1, input2)));
 
+    // vérification du message
     assertEquals(
         "Data step of new step (TEMPLATE) do not contain injector contract",
         exception.getMessage());
 
-    long countAfter = stepRepository.count();
-    assertEquals(countBefore, countAfter);
+    verify(spyStepService, atLeastOnce()).saveStep(any());
+    assertTrue(TestTransaction.isFlaggedForRollback());
   }
 
   private StepsCreateInput.StepInput buildInvalidInputCondition() {

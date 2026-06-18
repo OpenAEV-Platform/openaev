@@ -6,6 +6,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsCategorySpecification;
@@ -55,7 +56,9 @@ public class ScenarioLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyScenarioLessonsTemplate(
       @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
     Scenario scenario =
-        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -98,7 +101,9 @@ public class ScenarioLessonsApi extends RestBehavior {
   public LessonsCategory createScenarioLessonsCategory(
       @PathVariable String scenarioId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
-        scenarioRepository.findById(scenarioId).orElseThrow(ElementNotFoundException::new);
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setScenario(scenario);

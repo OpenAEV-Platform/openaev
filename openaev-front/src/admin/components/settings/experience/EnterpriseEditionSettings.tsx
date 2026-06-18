@@ -1,30 +1,45 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemText, Paper, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { useState } from 'react';
+import { type ChangeEvent, useContext, useState } from 'react';
 
-import { updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
+import { updateChatbotAiCguStatus, updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
 import { useFormatter } from '../../../../components/i18n';
 import ItemBoolean from '../../../../components/ItemBoolean';
 import { useHelper } from '../../../../store';
 import type { PlatformSettings, SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import EnterpriseEditionButton from '../../common/entreprise_edition/EnterpriseEditionButton';
 
 const EnterpriseEditionSettings: React.FC = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, fldt } = useFormatter();
+  const ability = useContext(AbilityContext);
   const [openEEChanges, setOpenEEChanges] = useState(false);
+  const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
 
   const isEnterpriseEditionActivated = settings.platform_license?.license_is_enterprise;
   const isEnterpriseEditionByConfig = settings.platform_license?.license_is_by_configuration;
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
+  const canManageSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);
   const updateEnterpriseEdition = (data: SettingsEnterpriseEditionUpdateInput) => dispatch(updatePlatformEnterpriseEditionParameters(data));
+
+  const chatbotCguStatus = settings.filigran_chatbot_ai_cgu_status;
+  const isCguPending = chatbotCguStatus === 'pending' || chatbotCguStatus === undefined;
+
+  const handleCGUStatusChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setOpenValidateTermsOfUse(true);
+    } else {
+      dispatch(updateChatbotAiCguStatus({ status: 'disabled' }));
+    }
+  };
 
   return (
     <>
@@ -172,7 +187,38 @@ const EnterpriseEditionSettings: React.FC = () => {
                   status={null}
                 />
               </ListItem>
+              {canManageSettings && (
+                <ListItem divider>
+                  <ListItemText primary={t('XTM One (Agentic IA)')} />
+                  {isCguPending
+                    ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="secondary"
+                          onClick={() => setOpenValidateTermsOfUse(true)}
+                          style={{ lineHeight: '12px' }}
+                        >
+                          {t('Validate the Filigran AI Terms')}
+                        </Button>
+                      )
+                    : (
+                        <Box sx={{ marginBlock: -0.75 }}>
+                          <Switch
+                            checked={chatbotCguStatus === 'enabled'}
+                            onChange={handleCGUStatusChange}
+                          />
+                        </Box>
+                      )}
+                </ListItem>
+              )}
             </List>
+            {openValidateTermsOfUse && (
+              <FiligranAiCguDialog
+                open={openValidateTermsOfUse}
+                onClose={() => setOpenValidateTermsOfUse(false)}
+              />
+            )}
           </Paper>
         </Grid>
       )}

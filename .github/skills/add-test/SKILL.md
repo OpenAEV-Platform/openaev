@@ -67,7 +67,47 @@ public class {Feature}ApiTest extends IntegrationTest {
 }
 ```
 
-### Step 4 — (Optional) Create Unit Test
+### Step 4 — (Optional) Lightweight Controller Tests (no entity)
+
+For controllers that don't manage entities (e.g. static endpoints, utility APIs, configuration endpoints):
+
+- **Skip Steps 1 & 2** (no Fixture/Composer needed)
+- **Reuse constants** from the controller via package-private static imports — never duplicate string literals
+- **Test public endpoints** without `@WithMockUser` when `@RBAC(skipRBAC = true)` is present
+- **Test HTTP-level concerns**: status code, content-type, response body, custom headers, cache-control
+
+```java
+@TestInstance(PER_CLASS)
+@DisplayName("{Feature} API tests")
+class {Feature}ApiTest extends IntegrationTest {
+  @Autowired private MockMvc mvc;
+
+  @Nested @DisplayName("GET /endpoint")
+  class EndpointGroup {
+
+    @Test @DisplayName("Should respond without authentication")
+    void given_unauthenticatedRequest_should_respondSuccessfully() throws Exception {
+      // Arrange & Act
+      var result = mvc.perform(get("/endpoint"));
+
+      // Assert
+      result
+          .andExpect(status().isOk())
+          .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+          .andExpect(content().string(EXPECTED_BODY))  // static import from controller
+          .andExpect(header().string("Custom-Header", EXPECTED_VALUE));
+    }
+  }
+}
+```
+
+**Key rules for lightweight tests:**
+- Constants must be `static final` (package-private) in the controller, imported via `static import` in the test
+- Group tests by endpoint using `@Nested` + `@DisplayName`
+- Always test both authenticated and unauthenticated access when `@RBAC(skipRBAC = true)`
+- Test HTTP headers (Cache-Control, custom headers) when the controller sets them explicitly
+
+### Step 5 — (Optional) Create Unit Test
 
 For complex service logic:
 ```java
@@ -79,7 +119,7 @@ class {Feature}ServiceUnitTest {
 }
 ```
 
-### Step 5 — Verify
+### Step 6 — Verify
 
 ```bash
 mvn test -pl openaev-api -Dtest="{Feature}ApiTest"

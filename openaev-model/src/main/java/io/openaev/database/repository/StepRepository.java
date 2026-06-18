@@ -24,6 +24,14 @@ public interface StepRepository extends JpaRepository<Step, String> {
   List<Step> findAllByStepTemplateIdIsNullAndWorkflowId(String workflowId);
 
   /**
+   * Retrieves all {@link Step} entities that are step templates (filtered at the database level
+   * instead of loading the whole table).
+   *
+   * @return a list of all step templates
+   */
+  List<Step> findAllByStepTemplateIdIsNull();
+
+  /**
    * Retrieves a {@link Step} entity by its ID and status, ensuring it is not based on a step
    * template.
    *

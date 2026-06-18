@@ -1,5 +1,7 @@
 package io.openaev.utils.fixtures;
 
+import static java.time.Instant.now;
+
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetAgentJob;
 
@@ -9,6 +11,7 @@ public class AssetAgentJobFixture {
     AssetAgentJob assetAgentJob = new AssetAgentJob();
     assetAgentJob.setCommand("whoami");
     assetAgentJob.setAgent(agent);
+    assetAgentJob.setCreatedAt(now());
     return assetAgentJob;
   }
 }

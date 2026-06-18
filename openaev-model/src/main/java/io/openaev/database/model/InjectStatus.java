@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
 
 @Setter
@@ -23,11 +25,22 @@ public class InjectStatus extends BaseInjectStatus {
   @JsonProperty("status_payload_output")
   private StatusPayload payloadOutput;
 
+  /**
+   * Number of agents resolved for this inject when the executor context was launched. Persisted so
+   * that the implant callback path can decide completion without re-resolving the full asset/agent
+   * graph (including dynamic asset-group filters) on every COMPLETE callback. Null for injects
+   * launched before this field existed or that do not go through an executor.
+   */
+  @Column(name = "status_expected_agent_count")
+  @JsonIgnore
+  private Integer expectedAgentCount;
+
   @OneToMany(
       mappedBy = "injectStatus",
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.EAGER)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("status_traces")
   private List<ExecutionTrace> traces = new ArrayList<>();
 

@@ -119,8 +119,7 @@ public class WorkflowStateService {
       String workflowTemplateId, Set<ConditionKeyType> outputKeyTypes) {
 
     // Find filter conditions in the workflow template that match the output key types
-    Set<ConditionType> excludedTypes =
-        Set.of(ConditionType.MAPPER, ConditionType.AFTER, ConditionType.BEFORE);
+    Set<ConditionType> excludedTypes = Set.of(ConditionType.MAPPER, ConditionType.DEPEND_ON);
     List<Condition> matchingConditions =
         conditionRepository.findFilterConditionsByWorkflowIdAndKeyTypes(
             workflowTemplateId, outputKeyTypes, excludedTypes);
@@ -169,6 +168,13 @@ public class WorkflowStateService {
 
     // Load or build the local state for this step template and add the values
     WorkflowState localState = loadOrBuildLocalState(stepTemplate, workflowRun);
+    if (localState == null) {
+      log.error(
+          "Failed to load or build local state for step template {} in workflow run {}",
+          stepTemplate.getId(),
+          workflowRun.getId());
+      return;
+    }
     WorkflowStateEntries localEntries =
         gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
 
@@ -185,11 +191,11 @@ public class WorkflowStateService {
 
   /**
    * Filters output values to keep only those matching the interested key types from the root
-   * conditions' children and satisfying at least one root filter condition.
+   * conditions' children and matching at least one leaf condition in the event tree.
    *
    * @param rootConditions the root filter conditions to check against
    * @param parsedByType map of output type names to their extracted values
-   * @return map of key type names to values that satisfy the filter conditions
+   * @return map of key type names to values that match at least one leaf condition
    */
   private Map<String, List<String>> filterValuesMatchingConditions(
       List<Condition> rootConditions, Map<String, List<String>> parsedByType) {
@@ -206,7 +212,7 @@ public class WorkflowStateService {
                         .map(child -> child.getKeyType().name()))
             .collect(Collectors.toSet());
 
-    // Filter output values: keep only those matching interested key types and satisfying filters
+    // Filter output values: keep only those matching interested key types and relevant to the event
     Map<String, List<String>> valuesToPropagate = new HashMap<>();
     for (String keyTypeName : interestedKeyTypes) {
       List<String> values = parsedByType.get(keyTypeName);
@@ -214,14 +220,16 @@ public class WorkflowStateService {
         continue;
       }
 
-      // Only propagate values that satisfy at least one root filter condition (event)
-      // isFilterConditionValid recursively checks the tree (AND/OR → leaves)
+      // Propagate values that match any leaf condition in any root condition tree.
+      // We ignore AND/OR grouping here: a value is relevant if it satisfies any individual
+      // leaf condition, because it may contribute to the overall event satisfaction together
+      // with other values. The full AND/OR evaluation happens at step execution time.
       List<String> matchingValues =
           values.stream()
               .filter(
                   val ->
                       rootConditions.stream()
-                          .anyMatch(root -> conditionUtils.isFilterConditionValid(val, root)))
+                          .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(val, root)))
               .toList();
       if (!matchingValues.isEmpty()) {
         valuesToPropagate.put(keyTypeName, matchingValues);
@@ -305,6 +313,15 @@ public class WorkflowStateService {
   /** Persists a workflow state entity. */
   public WorkflowState save(WorkflowState state) {
     return workflowStateRepository.save(state);
+  }
+
+  /**
+   * Deletes all workflow states associated with workflows of the given simulation.
+   *
+   * @param simulationId the ID of the simulation whose workflow states should be cleared
+   */
+  public void deleteAllBySimulationId(String simulationId) {
+    workflowStateRepository.deleteAllByWorkflowExecution_Simulation_Id(simulationId);
   }
 
   /**

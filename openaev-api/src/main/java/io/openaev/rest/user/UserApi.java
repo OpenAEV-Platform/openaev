@@ -2,8 +2,10 @@ package io.openaev.rest.user;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
@@ -15,6 +17,7 @@ import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.log.LogUtils;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,6 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +55,7 @@ public class UserApi extends RestBehavior {
   private final UserRepository userRepository;
   private final UserService userService;
   private final UserEventService userEventService;
+  private final Optional<AuditLogger> auditLogger;
 
   @Operation(description = "Endpoint to login", summary = "Endpoint to login")
   @ApiResponses(
@@ -63,18 +68,42 @@ public class UserApi extends RestBehavior {
   @PostMapping("/api/login")
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
-  public User login(@Valid @RequestBody LoginUserInput input) {
+  public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       if (userService.isUserPasswordValid(user, input.getPassword())) {
         userService.createUserSession(user);
+        // Capture auth context in session for reliable expiry audit metadata.
+        SessionManager.markAuthenticatedSession(httpRequest);
         userEventService.createLoginSuccessEvent(user);
+
+        auditLogger.ifPresent(
+            logger -> {
+              String eventScope = LogUtils.getEventScope(Action.LOGIN);
+              String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
+              logger.logAuthEvent(
+                  eventScope, eventStatus, LogUtils.getAuthEventProviderLocal(), null, null);
+            });
+
         return user;
       }
     }
     userEventService.createLoginFailedEvent(
         "local login", BadCredentialsException.class.getSimpleName());
+
+    auditLogger.ifPresent(
+        logger -> {
+          String eventScope = LogUtils.getEventScope(Action.LOGIN);
+          String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
+          logger.logAuthEvent(
+              eventScope,
+              eventStatus,
+              LogUtils.getAuthEventProviderLocal(),
+              BadCredentialsException.class.getSimpleName(),
+              null);
+        });
+
     throw new BadCredentialsException("Invalid credential.");
   }
 
@@ -85,7 +114,8 @@ public class UserApi extends RestBehavior {
         @ApiResponse(responseCode = "400", description = "The user was not found")
       })
   @PostMapping("/api/reset")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
     userService.requestPasswordReset(input);
@@ -103,7 +133,8 @@ public class UserApi extends RestBehavior {
             content = @Content(schema = @Schema(implementation = User.class))),
       })
   @PostMapping("/api/reset/{token}")
-  @AccessControl(skipRBAC = true)
+  // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
+  @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
