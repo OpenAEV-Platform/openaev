@@ -60,10 +60,6 @@ public class DocumentApi extends RestBehavior {
   private static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
   private static final String IMAGES_API = "/api/images";
   private static final String TENANT_IMAGES_API = TENANT_PREFIX + "/images";
-  private static final String INJECTOR_IMAGES_API = IMAGES_API + "/injectors";
-  private static final String TENANT_INJECTOR_IMAGES_API = TENANT_IMAGES_API + "/injectors";
-  private static final String COLLECTOR_IMAGES_API = IMAGES_API + "/collectors";
-  private static final String TENANT_COLLECTOR_IMAGES_API = TENANT_IMAGES_API + "/collectors";
   private static final String SECURITY_PLATFORM_IMAGES_API = IMAGES_API + "/security_platforms";
   private static final String TENANT_SECURITY_PLATFORM_IMAGES_API =
       TENANT_IMAGES_API + "/security_platforms";
@@ -80,7 +76,6 @@ public class DocumentApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
   private final UserRepository userRepository;
-  private final InjectorRepository injectorRepository;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
 
@@ -311,72 +306,21 @@ public class DocumentApi extends RestBehavior {
         .body(new InputStreamResource(in));
   }
 
-  @GetMapping(
-      value = {
-        INJECTOR_IMAGES_API + "/id/{injectorId}",
-        TENANT_INJECTOR_IMAGES_API + "/id/{injectorId}"
-      },
-      produces = MediaType.IMAGE_PNG_VALUE)
-  @Transactional
-  @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<InputStreamResource> getInjectorImageFromId(
-      @PathVariable String injectorId) {
-    Injector injector =
-        this.injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-            .orElseThrow(() -> new ElementNotFoundException("Injector not found"));
-
-    return fileService
-        .getInjectorImage(injector.getType(), injector.isExternal())
-        .map(
-            inputStream ->
-                ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-                    .body(new InputStreamResource(inputStream)))
-        .orElse(null);
-  }
-
-  public ResponseEntity<InputStreamResource> downloadCollectorImage(
-      @PathVariable String collectorType) {
-    Collector collector =
-        this.collectorRepository
-            .findByTypeAndTenantId(collectorType, TenantContext.getCurrentTenant())
-            .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
-
-    InputStream in =
+  public void downloadCollectorImage(
+      @PathVariable String collectorType, HttpServletResponse response) throws IOException {
+    response.addHeader(
+        HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png");
+    response.addHeader(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE);
+    response.setStatus(HttpServletResponse.SC_OK);
+    try (InputStream fileStream =
         fileService
-            .getCollectorImage(collectorType, collector.isExternal())
+            .getCollectorImage(collectorType)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
 
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png")
         .contentType(MediaType.IMAGE_PNG)
         .body(new InputStreamResource(in));
-  }
-
-  @GetMapping(
-      value = {
-        COLLECTOR_IMAGES_API + "/id/{collectorId}",
-        TENANT_COLLECTOR_IMAGES_API + "/id/{collectorId}"
-      },
-      produces = MediaType.IMAGE_PNG_VALUE)
-  @Transactional
-  @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<InputStreamResource> getCollectorImageFromId(
-      @PathVariable String collectorId) {
-    Collector collector =
-        this.collectorRepository
-            .findById(collectorId)
-            .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
-    Optional<InputStream> fileStream =
-        fileService.getCollectorImage(collector.getType(), collector.isExternal());
-    return fileStream
-        .map(
-            inputStream ->
-                ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-                    .body(new InputStreamResource(inputStream)))
-        .orElse(null);
   }
 
   @GetMapping(
@@ -441,7 +385,7 @@ public class DocumentApi extends RestBehavior {
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorIconImage(
       @PathVariable String executorId) {
     return fileService
-        .getExecutorIconImage(executorId, false)
+        .getExecutorIconImage(executorId)
         .map(
             inputStream ->
                 ResponseEntity.ok()
@@ -461,7 +405,7 @@ public class DocumentApi extends RestBehavior {
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorBannerImage(
       @PathVariable String executorId) {
     return fileService
-        .getExecutorBannerImage(executorId, false)
+        .getExecutorBannerImage(executorId)
         .map(
             inputStream ->
                 ResponseEntity.ok()

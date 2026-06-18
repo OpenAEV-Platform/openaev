@@ -1,7 +1,5 @@
 package io.openaev.rest.catalog_connector;
 
-import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CatalogConnectorConfiguration;
@@ -28,28 +26,20 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class CatalogConnectorApi extends RestBehavior {
   public static final String CATALOG_CONNECTOR_URI = "/api/catalog-connector";
-  private static final String TENANT_CATALOG_CONNECTOR_URI = TENANT_PREFIX + "/catalog-connector";
-  private static final String IMAGES_URI = "/api/images";
-  private static final String TENANT_IMAGES_URI = TENANT_PREFIX + "/images";
   private static final String CATALOG_CONNECTOR_LOGO_URI =
-      IMAGES_URI + "/catalog/connectors/logos/{fileName}";
-  private static final String TENANT_CATALOG_CONNECTOR_LOGO_URI =
-      TENANT_IMAGES_URI + "/catalog/connectors/logos/{fileName}";
+      "/api/images/catalog/connectors/logos/{fileName}";
 
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
 
-  @GetMapping({CATALOG_CONNECTOR_URI, TENANT_CATALOG_CONNECTOR_URI})
+  @GetMapping(CATALOG_CONNECTOR_URI)
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public List<CatalogConnectorOutput> getCatalogConnectors() {
     return this.catalogConnectorService.getCatalogConnectors();
   }
 
-  @GetMapping({
-    CATALOG_CONNECTOR_URI + "/{catalogConnectorId}",
-    TENANT_CATALOG_CONNECTOR_URI + "/{catalogConnectorId}"
-  })
+  @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}")
   @Transactional
   @AccessControl(
       resourceId = "#catalogConnectorId",
@@ -59,13 +49,11 @@ public class CatalogConnectorApi extends RestBehavior {
     return this.catalogConnectorService.catalogConnectorOutput(catalogConnectorId);
   }
 
-  @GetMapping(
-      value = {CATALOG_CONNECTOR_LOGO_URI, TENANT_CATALOG_CONNECTOR_LOGO_URI},
-      produces = MediaType.IMAGE_PNG_VALUE)
+  @GetMapping(value = CATALOG_CONNECTOR_LOGO_URI, produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
-    Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName, false);
+    Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName);
 
     if (fileStream.isPresent()) {
       byte[] bytes = IOUtils.toByteArray(fileStream.get());
@@ -75,10 +63,7 @@ public class CatalogConnectorApi extends RestBehavior {
     return ResponseEntity.notFound().build();
   }
 
-  @GetMapping({
-    CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations",
-    TENANT_CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations"
-  })
+  @GetMapping(CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations")
   @Transactional
   @AccessControl(
       resourceId = "#catalogConnectorId",

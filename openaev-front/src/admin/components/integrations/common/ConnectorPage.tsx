@@ -8,7 +8,6 @@ import { useFormatter } from '../../../../components/i18n';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { buildTenantApiPath } from '../../../../utils/url-helper';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
@@ -23,11 +22,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
-  const { logoUrl, connectorType } = useContext(ConnectorContext);
+  const { logoUrl } = useContext(ConnectorContext);
   const createInstanceDrawer = useDialog();
-
-  // Executors store images by type (not UUID); injectors/collectors use UUID.
-  const connectorLogoKey = connectorType === 'executor' ? (connector?.type ?? '') : (connector?.id ?? '');
 
   const onCloseCreateInstanceDrawer = () => {
     createInstanceDrawer.handleClose();
@@ -65,10 +61,9 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
           connectorName: connector?.name || catalogConnector?.catalog_connector_title,
           connectorType: catalogConnector?.catalog_connector_type,
           connectorLogoName: connector?.type || catalogConnector?.catalog_connector_slug,
-          // Executors store images by type (not UUID); injectors/collectors use UUID.
           connectorLogoUrl: instance
-            ? buildTenantApiPath(`/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`)
-            : logoUrl(connectorLogoKey),
+            ? `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`
+            : logoUrl(connector?.type),
           connectorDescription: catalogConnector?.catalog_connector_description,
           isExternal: catalogConnector?.catalog_connector_manager_supported,
           isVerified: instance != null,

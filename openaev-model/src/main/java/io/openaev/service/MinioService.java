@@ -79,6 +79,27 @@ public class MinioService implements DependenciesManager {
     return getTenantPath(fileName);
   }
 
+  /**
+   * Uploads a stream to the platform-level path (no tenant prefix). Use for assets that are shared
+   * across all tenants, such as catalog connector logos.
+   *
+   * @param fileName the file path/name within the platform space
+   * @param name the original filename stored as metadata
+   * @param data the input stream containing the file data
+   * @return the full platform path of the uploaded file
+   */
+  public String uploadStreamInPlatformPath(String fileName, String name, InputStream data)
+      throws Exception {
+    minioClient.putObject(
+        PutObjectArgs.builder()
+            .bucket(bucket())
+            .object(getPlatformPath(fileName))
+            .userMetadata(Map.of("filename", name))
+            .stream(data, data.available(), -1)
+            .build());
+    return getPlatformPath(fileName);
+  }
+
   // -- READ --
 
   public Optional<InputStream> getFilePathInTenant(String name) {
@@ -106,6 +127,26 @@ public class MinioService implements DependenciesManager {
       return Optional.of(streamResource.getInputStream());
     } catch (Exception e) {
       log.info("Error during file access", e);
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Retrieves a file from the platform-level path (no tenant prefix). Use for assets shared across
+   * all tenants, such as catalog connector logos.
+   *
+   * @param name the file path/name within the platform space
+   * @return an Optional containing the input stream, or empty if not found
+   */
+  public Optional<InputStream> getFilePathInPlatform(String name) {
+    try {
+      GetObjectResponse objectStream =
+          minioClient.getObject(
+              GetObjectArgs.builder().bucket(bucket()).object(getPlatformPath(name)).build());
+      InputStreamResource streamResource = new InputStreamResource(objectStream);
+      return Optional.of(streamResource.getInputStream());
+    } catch (Exception e) {
+      log.info("Platform file not found: {}", name);
       return Optional.empty();
     }
   }
@@ -270,5 +311,16 @@ public class MinioService implements DependenciesManager {
       return tenantId + objectName;
     }
     return tenantId + "/" + objectName;
+  }
+
+  /**
+   * Returns the platform-level path, prefixed with "platform/" to avoid collisions with
+   * tenant-scoped paths (which use a UUID prefix).
+   */
+  private String getPlatformPath(String objectName) {
+    if (objectName.startsWith("/")) {
+      return "platform" + objectName;
+    }
+    return "platform/" + objectName;
   }
 }

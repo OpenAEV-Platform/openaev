@@ -53,7 +53,7 @@ public class TestIntegrationFactory extends IntegrationFactory {
   @Override
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = "%s-logo.png".formatted(getClassName());
-    fileService.uploadStream(
+    fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-default.png"));

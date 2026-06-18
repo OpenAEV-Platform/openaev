@@ -49,7 +49,7 @@ const Catalog = () => {
                   connectorName: connector.catalog_connector_title,
                   connectorType: connector.catalog_connector_type,
                   connectorLogoName: `connector-logo-${connector.catalog_connector_id}`,
-                  connectorLogoUrl: buildTenantApiPath(`/api/images/catalog/connectors/logos/${connector.catalog_connector_logo_url}`),
+                  connectorLogoUrl: `/api/images/catalog/connectors/logos/${connector.catalog_connector_logo_url}`,
                   connectorDescription: connector.catalog_connector_short_description,
                   isExternal: connector.catalog_connector_manager_supported,
                   isVerified: true,

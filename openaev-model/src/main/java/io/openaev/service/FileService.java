@@ -79,6 +79,23 @@ public class FileService {
   }
 
   /**
+   * Uploads a catalog asset (e.g. connector logo) to the platform-level MinIO path, shared across
+   * all tenants. Use this instead of {@link #uploadStream} for catalog logos written by {@code
+   * insertCatalogEntry()} or the catalog ingestion service.
+   *
+   * @param path the directory path within the platform space
+   * @param name the filename
+   * @param data the input stream containing the file data
+   * @return the full platform path of the uploaded file
+   * @throws Exception if the upload fails
+   */
+  public String uploadCatalogLogo(String path, String name, InputStream data) throws Exception {
+    String file = path.endsWith("/") ? path + name : path + "/" + name;
+    minioService.uploadStreamInPlatformPath(file, name, data);
+    return file;
+  }
+
+  /**
    * Deletes a file from MinIO.
    *
    * @param name the file path/name to delete
@@ -136,36 +153,30 @@ public class FileService {
    * Retrieves an injector's image file.
    *
    * @param injectType the injector type identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getInjectorImage(String injectType, boolean isExternal) {
-    return getPlatformImage(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG, isExternal);
+  public Optional<InputStream> getInjectorImage(String injectType) {
+    return getPlatformImage(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG);
   }
 
   /**
    * Retrieves a collector's image file.
    *
    * @param collectorId the collector identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCollectorImage(String collectorId, boolean isExternal) {
-    return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG, isExternal);
+  public Optional<InputStream> getCollectorImage(String collectorId) {
+    return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
   }
 
   /**
    * Retrieves an executor's icon image file.
    *
    * @param executorId the executor identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorIconImage(String executorId, boolean isExternal) {
-    return getPlatformImage(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG, isExternal);
+  public Optional<InputStream> getExecutorIconImage(String executorId) {
+    return getPlatformImage(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
@@ -176,20 +187,34 @@ public class FileService {
    *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getExecutorBannerImage(String executorId, boolean isExternal) {
-    return getPlatformImage(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG, isExternal);
+  public Optional<InputStream> getExecutorBannerImage(String executorId) {
+    return getPlatformImage(EXECUTORS_IMAGES_BANNERS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**
-   * Retrieves a catalog connector's logo image file.
+   * Retrieves a catalog connector's logo image file from the platform-level MinIO path.
+   *
+   * <p>Falls back to the legacy tenant-scoped paths for instances deployed before the migration to
+   * platform-level storage:
+   *
+   * <ul>
+   *   <li>{@code platform/connectors/logos/{fileName}} — current path (bucket root)
+   *   <li>{@code {DEFAULT_TENANT_UUID}/platform/connectors/logos/{fileName}} — legacy path
+   * </ul>
    *
    * @param fileName the logo filename
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
-  public Optional<InputStream> getCatalogConnectorImage(String fileName, boolean isExternal) {
-    return getPlatformImage(CONNECTORS_LOGO_PATH + fileName, isExternal);
+  public Optional<InputStream> getCatalogConnectorImage(String fileName) {
+    Optional<InputStream> platform =
+        minioService.getFilePathInPlatform(CONNECTORS_LOGO_PATH + fileName);
+    if (platform.isPresent()) {
+      return platform;
+    }
+    // Fallback: legacy path before platform storage migration
+    // (files were stored as {DEFAULT_TENANT_UUID}/platform/connectors/logos/{fileName})
+    return minioService.getFilePathForTenant(
+        Tenant.DEFAULT_TENANT_UUID, "platform" + CONNECTORS_LOGO_PATH + fileName);
   }
 
   /**
@@ -197,17 +222,14 @@ public class FileService {
    * should fall back to specific tenant if isExternal is true.
    *
    * @param filePath to retrieve
-   * @param isExternal indicates if the file is a built-in asset (false) or from an external asset
-   *     (true)
    * @return finded file
    */
-  private Optional<InputStream> getPlatformImage(String filePath, boolean isExternal) {
+  private Optional<InputStream> getPlatformImage(String filePath) {
     Optional<InputStream> tenantFile = getFilePath(filePath);
     if (tenantFile.isPresent()) {
       return tenantFile;
     }
-    return minioService.getFilePathForTenant(
-        isExternal ? TenantContext.getCurrentTenant() : Tenant.DEFAULT_TENANT_UUID, filePath);
+    return minioService.getFilePathForTenant(TenantContext.getCurrentTenant(), filePath);
   }
 
   /**
