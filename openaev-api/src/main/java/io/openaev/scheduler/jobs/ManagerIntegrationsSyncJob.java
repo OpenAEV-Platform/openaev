@@ -34,6 +34,8 @@ public class ManagerIntegrationsSyncJob implements Job {
     try {
       List<String> tenantIds = tenantService.findActiveTenantIds();
       for (String tenantId : tenantIds) {
+        // TODO Set to check still executed or not + log warn if problem (still executing)
+        // TODO check transactions
         CompletableFuture.runAsync(
             () -> monitorTenantIntegrations(tenantId), managerIntegrationsExecutor);
       }
@@ -52,6 +54,7 @@ public class ManagerIntegrationsSyncJob implements Job {
   private void monitorTenantIntegrations(String tenantId) {
     long tenantStart = System.currentTimeMillis();
     try {
+      // TODO check thread local
       TenantContext.setCurrentTenant(tenantId);
       managerFactory.getManager(tenantId).monitorIntegrations();
     } catch (Exception e) {
