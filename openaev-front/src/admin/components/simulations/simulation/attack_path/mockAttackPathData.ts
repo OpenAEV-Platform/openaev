@@ -11662,20 +11662,41 @@ export const SCENARIO_SIMULATIONS_MAP: Record<string, Array<{
   date: string;
   score: number;
 }>> = {
+  // APT Domain Takeover — 4 attack paths full run
   'new-scen-0000-0000-0000-000000000001': [
     { id: 'aa000000-0000-0000-0000-000000000001', name: '4 Attack Paths — APT Domain Takeover', status: 'FINISHED', date: '2026-06-10T09:00:00Z', score: 34 },
-    { id: 'ab000000-0000-0000-0000-000000000002', name: 'Finance Portal Breach — Run #1 (Success)', status: 'FINISHED', date: '2026-06-01T09:00:00Z', score: 72 },
+  ],
+  // Finance Portal Breach — two runs (one success, one failure)
+  'new-scen-0000-0000-0000-000000000002': [
     { id: 'ab000000-0000-0000-0000-000000000003', name: 'Finance Portal Breach — Run #2 (Failed)', status: 'FINISHED', date: '2026-06-08T09:00:00Z', score: 28 },
+    { id: 'ab000000-0000-0000-0000-000000000002', name: 'Finance Portal Breach — Run #1 (Success)', status: 'FINISHED', date: '2026-06-01T09:00:00Z', score: 72 },
+  ],
+  // Enterprise Red Team Campaign
+  'new-scen-0000-0000-0000-000000000003': [
     { id: 'ac000000-0000-0000-0000-000000000004', name: 'Enterprise Red Team Campaign — Run #1', status: 'FINISHED', date: '2026-06-05T09:00:00Z', score: 41 },
+  ],
+  // APT Lateral Movement
+  'new-scen-0000-0000-0000-000000000004': [
     { id: 'ad000000-0000-0000-0000-000000000005', name: 'APT Lateral Movement — Full Campaign', status: 'FINISHED', date: '2026-06-03T09:00:00Z', score: 25 },
+  ],
+  // Full Vulnerability Sweep
+  'new-scen-0000-0000-0000-000000000005': [
     { id: 'ae000000-0000-0000-0000-000000000006', name: 'Full Vulnerability Sweep — Injectors Only', status: 'FINISHED', date: '2026-06-12T09:00:00Z', score: 58 },
-    { id: 'ag000000-0000-0000-0000-000000000008', name: 'Credential Spray Campaign — Injectors Only (No Pivoting)', status: 'FINISHED', date: '2026-06-13T09:00:00Z', score: 61 },
+  ],
+  // Credential Spray Campaign — two variants
+  'new-scen-0000-0000-0000-000000000006': [
     { id: 'af000000-0000-0000-0000-000000000007', name: 'Credential Spray Campaign — Multi-Param Spray', status: 'FINISHED', date: '2026-06-15T09:00:00Z', score: 63 },
+    { id: 'ag000000-0000-0000-0000-000000000008', name: 'Credential Spray Campaign — Injectors Only (No Pivoting)', status: 'FINISHED', date: '2026-06-13T09:00:00Z', score: 61 },
   ],
 };
 
 export const MOCK_CHAINING_SCENARIO_IDS = new Set([
   'new-scen-0000-0000-0000-000000000001',
+  'new-scen-0000-0000-0000-000000000002',
+  'new-scen-0000-0000-0000-000000000003',
+  'new-scen-0000-0000-0000-000000000004',
+  'new-scen-0000-0000-0000-000000000005',
+  'new-scen-0000-0000-0000-000000000006',
 ]);
 
 export const MOCK_CHAINING_EXERCISE_IDS = new Set([
@@ -11699,6 +11720,61 @@ export const MOCK_SCENARIO_LIST = [
     scenario_tags: [] as string[],
     scenario_updated_at: '2026-06-10T08:00:00Z',
     scenario_created_at: '2026-05-01T08:00:00Z',
+    scenario_mail_from: 'mock@openaev.local',
+  },
+  {
+    scenario_id: 'new-scen-0000-0000-0000-000000000002',
+    scenario_name: 'Finance Portal Breach',
+    scenario_severity: 'high' as const,
+    scenario_category: 'attack-scenario',
+    scenario_platforms: ['Windows'] as unknown as string[],
+    scenario_tags: [] as string[],
+    scenario_updated_at: '2026-06-08T08:00:00Z',
+    scenario_created_at: '2026-05-10T08:00:00Z',
+    scenario_mail_from: 'mock@openaev.local',
+  },
+  {
+    scenario_id: 'new-scen-0000-0000-0000-000000000003',
+    scenario_name: 'Enterprise Red Team Campaign',
+    scenario_severity: 'critical' as const,
+    scenario_category: 'attack-scenario',
+    scenario_platforms: ['Windows', 'Linux'] as unknown as string[],
+    scenario_tags: [] as string[],
+    scenario_updated_at: '2026-06-05T08:00:00Z',
+    scenario_created_at: '2026-05-15T08:00:00Z',
+    scenario_mail_from: 'mock@openaev.local',
+  },
+  {
+    scenario_id: 'new-scen-0000-0000-0000-000000000004',
+    scenario_name: 'APT Lateral Movement',
+    scenario_severity: 'critical' as const,
+    scenario_category: 'attack-scenario',
+    scenario_platforms: ['Windows'] as unknown as string[],
+    scenario_tags: [] as string[],
+    scenario_updated_at: '2026-06-03T08:00:00Z',
+    scenario_created_at: '2026-05-20T08:00:00Z',
+    scenario_mail_from: 'mock@openaev.local',
+  },
+  {
+    scenario_id: 'new-scen-0000-0000-0000-000000000005',
+    scenario_name: 'Full Vulnerability Sweep',
+    scenario_severity: 'medium' as const,
+    scenario_category: 'vulnerability-management',
+    scenario_platforms: ['Windows', 'Linux'] as unknown as string[],
+    scenario_tags: [] as string[],
+    scenario_updated_at: '2026-06-12T08:00:00Z',
+    scenario_created_at: '2026-05-25T08:00:00Z',
+    scenario_mail_from: 'mock@openaev.local',
+  },
+  {
+    scenario_id: 'new-scen-0000-0000-0000-000000000006',
+    scenario_name: 'Credential Spray Campaign',
+    scenario_severity: 'high' as const,
+    scenario_category: 'attack-scenario',
+    scenario_platforms: ['Windows', 'Linux'] as unknown as string[],
+    scenario_tags: [] as string[],
+    scenario_updated_at: '2026-06-15T08:00:00Z',
+    scenario_created_at: '2026-06-01T08:00:00Z',
     scenario_mail_from: 'mock@openaev.local',
   },
 ];
