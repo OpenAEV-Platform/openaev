@@ -70,7 +70,14 @@ public class TenantStatementInspector implements StatementInspector {
 
   @Override
   public String inspect(String sql) {
-    if (sql == null || activeTablePattern == null || !activeTablePattern.matcher(sql).find()) {
+    if (sql == null || activeTablePattern == null) {
+      return sql;
+    }
+    // Blank string literals before the gate: an active table name that appears only inside a
+    // literal must not pull an unrelated (possibly unparseable) statement into rewriting. The
+    // parser, not this gate, is the source of truth for real table references.
+    String gateSql = sql.replaceAll("'(?:[^']|'')*'", "''");
+    if (!activeTablePattern.matcher(gateSql).find()) {
       return sql;
     }
     try {
