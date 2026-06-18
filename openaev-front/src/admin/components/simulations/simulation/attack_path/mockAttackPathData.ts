@@ -11662,9 +11662,16 @@ export const SCENARIO_SIMULATIONS_MAP: Record<string, Array<{
   date: string;
   score: number;
 }>> = {
-  // APT Domain Takeover — 4 attack paths full run
+  // APT Domain Takeover — all 8 simulations belong to this main scenario
   'new-scen-0000-0000-0000-000000000001': [
     { id: 'aa000000-0000-0000-0000-000000000001', name: '4 Attack Paths — APT Domain Takeover', status: 'FINISHED', date: '2026-06-10T09:00:00Z', score: 34 },
+    { id: 'ab000000-0000-0000-0000-000000000003', name: 'Finance Portal Breach — Run #2 (Failed)', status: 'FINISHED', date: '2026-06-08T09:00:00Z', score: 28 },
+    { id: 'ab000000-0000-0000-0000-000000000002', name: 'Finance Portal Breach — Run #1 (Success)', status: 'FINISHED', date: '2026-06-01T09:00:00Z', score: 72 },
+    { id: 'ac000000-0000-0000-0000-000000000004', name: 'Enterprise Red Team Campaign — Run #1', status: 'FINISHED', date: '2026-06-05T09:00:00Z', score: 41 },
+    { id: 'ad000000-0000-0000-0000-000000000005', name: 'APT Lateral Movement — Full Campaign', status: 'FINISHED', date: '2026-06-03T09:00:00Z', score: 25 },
+    { id: 'ae000000-0000-0000-0000-000000000006', name: 'Full Vulnerability Sweep — Injectors Only', status: 'FINISHED', date: '2026-06-12T09:00:00Z', score: 58 },
+    { id: 'ag000000-0000-0000-0000-000000000008', name: 'Credential Spray Campaign — Injectors Only (No Pivoting)', status: 'FINISHED', date: '2026-06-13T09:00:00Z', score: 61 },
+    { id: 'af000000-0000-0000-0000-000000000007', name: 'Credential Spray Campaign — Multi-Param Spray', status: 'FINISHED', date: '2026-06-15T09:00:00Z', score: 63 },
   ],
   // Finance Portal Breach — two runs (one success, one failure)
   'new-scen-0000-0000-0000-000000000002': [
