@@ -143,9 +143,8 @@ public class MapperService {
     if (StringUtils.isNotBlank(importMapperId)) {
       ImportMapper importMapperOrigin =
           importMapperRepository
-              .findByIdAndTenantId(
-                  UUID.fromString(importMapperId), TenantContext.getCurrentTenant())
-              .orElseThrow();
+              .findById(UUID.fromString(importMapperId))
+              .orElseThrow(ElementNotFoundException::new);
       ImportMapper importMapper =
           CopyObjectListUtils.copyObjectWithoutId(importMapperOrigin, ImportMapper.class);
       importMapper.setName(duplicateString(importMapperOrigin.getName()));

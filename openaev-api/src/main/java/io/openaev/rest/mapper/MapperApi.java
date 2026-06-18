@@ -170,7 +170,10 @@ public class MapperApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.MAPPER)
   @Operation(summary = "Duplicate XLS mapper by id")
-  public ImportMapper duplicateMapper(@PathVariable @NotBlank final String mapperId) {
+  // TxCtx scopes the lookup of the source mapper to the caller's tenants; the copy inherits the
+  // source's tenant. A source outside the scope is not found, so a cross-tenant duplicate cannot
+  // reach it. The handler does not use it directly.
+  public ImportMapper duplicateMapper(TxCtx ctx, @PathVariable @NotBlank final String mapperId) {
     return mapperService.getDuplicateImportMapper(mapperId);
   }
 
