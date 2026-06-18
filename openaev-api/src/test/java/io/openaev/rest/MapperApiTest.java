@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.Tenant;
@@ -88,7 +90,12 @@ public class MapperApiTest extends IntegrationTest {
   @BeforeEach
   void before() throws IllegalAccessException, NoSuchFieldException {
     // Injecting mocks into the controller
-    mapperApi = new MapperApi(importMapperRepository, mapperService, injectImportService);
+    mapperApi =
+        new MapperApi(
+            importMapperRepository,
+            mapperService,
+            injectImportService,
+            new TenantWriteScopeResolver());
 
     Field sessionContextField = MapperApi.class.getSuperclass().getDeclaredField("mapper");
     sessionContextField.setAccessible(true);
@@ -96,7 +103,8 @@ public class MapperApiTest extends IntegrationTest {
 
     mvc =
         MockMvcBuilders.standaloneSetup(mapperApi)
-            .setCustomArgumentResolvers(TxCtxTestArgumentResolver.missing())
+            .setCustomArgumentResolvers(
+                new TxCtxTestArgumentResolver(TxCtx.forTenant("tenant-test")))
             .build();
   }
 
@@ -161,7 +169,7 @@ public class MapperApiTest extends IntegrationTest {
     ImportMapperAddInput importMapperInput = new ImportMapperAddInput();
     importMapperInput.setName("Test");
     importMapperInput.setInjectTypeColumn("B");
-    when(mapperService.createAndSaveImportMapper(any())).thenReturn(importMapper);
+    when(mapperService.createAndSaveImportMapper(any(), any())).thenReturn(importMapper);
     // -- EXECUTE --
     String response =
         this.mvc

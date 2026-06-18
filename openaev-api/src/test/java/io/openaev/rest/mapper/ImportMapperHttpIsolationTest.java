@@ -1,6 +1,7 @@
 package io.openaev.rest.mapper;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -8,7 +9,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.rest.mapper.form.ImportMapperAddInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -86,6 +89,47 @@ class ImportMapperHttpIsolationTest extends IntegrationTest {
             .getContentAsString();
     assertTrue(response.contains(mapperA), "A's mapper must appear in A's search results");
     assertFalse(response.contains(mapperB), "B's mapper must not appear in A's search results");
+  }
+
+  @Test
+  @DisplayName("a create under tenant A's path is attributed to tenant A")
+  void createUnderTenantAIsAttributedToA() throws Exception {
+    ImportMapperAddInput input = new ImportMapperAddInput();
+    input.setName("created-under-a");
+    input.setInjectTypeColumn("A");
+    String response =
+        mvc.perform(
+                post("/api/tenants/{tenantId}/mappers", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdId = JsonPath.read(response, "$.import_mapper_id");
+    String storedTenant =
+        (String)
+            entityManager
+                .createNativeQuery(
+                    "SELECT tenant_id FROM import_mappers WHERE mapper_id = CAST(:id AS uuid)")
+                .setParameter("id", createdId)
+                .getSingleResult();
+    assertEquals(tenantA, storedTenant, "the created mapper must belong to tenant A");
+  }
+
+  @Test
+  @DisplayName("a create with no tenant selector is refused (a single-tenant scope is required)")
+  void createWithoutSelectorIsRejected() throws Exception {
+    ImportMapperAddInput input = new ImportMapperAddInput();
+    input.setName("no-selector");
+    input.setInjectTypeColumn("A");
+    mvc.perform(
+            post("/api/mappers")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(input))
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
   }
 
   private String seedMapper(String tenantId, String name) {
