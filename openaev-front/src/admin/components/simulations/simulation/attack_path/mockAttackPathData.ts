@@ -11671,7 +11671,7 @@ export const SCENARIO_SIMULATIONS_MAP: Record<string, Array<{
 }>> = {
   // 1 scenario — all 8 simulations are runs under it
   'new-scen-0000-0000-0000-000000000001': [
-    { id: 'aa000000-0000-0000-0000-000000000001', name: '4 Attack Paths — APT Domain Takeover', status: 'FINISHED', date: '2026-06-10T09:00:00Z', score: 34 },
+    { id: 'aa000000-0000-0000-0000-000000000001', name: '4 Attack Paths — APT Domain Takeover', status: 'FINISHED', date: '2026-06-18T09:00:00Z', score: 34 },
     { id: 'ab000000-0000-0000-0000-000000000003', name: 'Finance Portal Breach — Run #2 (Failed)', status: 'FINISHED', date: '2026-06-08T09:00:00Z', score: 28 },
     { id: 'ab000000-0000-0000-0000-000000000002', name: 'Finance Portal Breach — Run #1 (Success)', status: 'FINISHED', date: '2026-06-01T09:00:00Z', score: 72 },
     { id: 'ac000000-0000-0000-0000-000000000004', name: 'Enterprise Red Team Campaign — Run #1', status: 'FINISHED', date: '2026-06-05T09:00:00Z', score: 41 },
@@ -11721,8 +11721,8 @@ export const MOCK_EXERCISE_LIST = [
     exercise_id: 'aa000000-0000-0000-0000-000000000001',
     exercise_name: '4 Attack Paths — APT Domain Takeover',
     exercise_status: 'FINISHED' as const,
-    exercise_start_date: '2026-06-10T09:00:00Z',
-    exercise_updated_at: '2026-06-10T11:00:00Z',
+    exercise_start_date: '2026-06-18T09:00:00Z',
+    exercise_updated_at: '2026-06-18T11:00:00Z',
     exercise_tags: [] as string[],
     exercise_targets: [],
     exercise_global_score: mockScore('PARTIAL', 34),
