@@ -884,7 +884,8 @@ public class WorkflowService {
     }
 
     // At least one template generated one or more ready execution steps.
-    boolean hasReadySteps = false;
+    boolean hasReadySteps =
+        stepService.countRunningStep(workflowRun.getId()) > 0;
 
     for (Step step : stepsTemplate) {
       List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);

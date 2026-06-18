@@ -205,6 +205,15 @@ public class StepService {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
   }
+  /**
+   * Count executed step by status
+   *
+   * @param workflowRunId id of the executed workflow
+   * @return integer
+   */
+  public long countRunningStep(String workflowRunId) {
+    return stepRepository.countRunningStep(workflowRunId);
+  }
 
   /**
    * Returns {@code true} if at least one executed step references the given step template, meaning
