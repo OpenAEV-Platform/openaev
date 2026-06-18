@@ -1,14 +1,14 @@
 import { type FunctionComponent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
-import { isFeatureEnabled } from '../../../../../utils/utils';
+import { IS_ATTACK_PATH_POC } from './mockAttackPathData';
 import AttackPathContent from './AttackPathContent';
 
 const SimulationAttackPath: FunctionComponent = () => {
   const { exerciseId } = useParams<{ exerciseId: string }>();
   const navigate = useNavigate();
 
-  if (!isFeatureEnabled('CHAINING_ATTACK_PATH')) return null;
+  if (!IS_ATTACK_PATH_POC) return null;
 
   return (
     <AttackPathContent
@@ -19,4 +19,3 @@ const SimulationAttackPath: FunctionComponent = () => {
 };
 
 export default SimulationAttackPath;
-
