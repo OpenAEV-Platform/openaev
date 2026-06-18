@@ -1,5 +1,5 @@
-import { MovieFilterOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
+import { AccountTreeOutlined, MovieFilterOutlined } from '@mui/icons-material';
+import { Box, Chip as _Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -25,11 +25,13 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
+import { MOCK_CHAINING_SCENARIO_IDS, MOCK_SCENARIO_LIST } from '../simulations/simulation/attack_path/mockAttackPathData';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
 import ScenarioCreation from './ScenarioCreation';
+
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -55,7 +57,7 @@ const Scenarios = () => {
   const { isXTMHubAccessible } = useAuth();
 
   const [loading, setLoading] = useState<boolean>(true);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING') || isFeatureEnabled('CHAINING_ATTACK_PATH');
 
   // Headers
   const headers = useMemo(() => [
@@ -136,6 +138,14 @@ const Scenarios = () => {
   ], []);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+
+  // Merge API scenarios with mock chaining scenarios (mock ones appear at the top when chaining is enabled)
+  const displayScenarios = useMemo<Scenario[]>(() => {
+    if (!isChainingFeatureEnabled) return scenarios;
+    const existingIds = new Set(scenarios.map(s => s.scenario_id));
+    const mockEntries = MOCK_SCENARIO_LIST.filter(ms => !existingIds.has(ms.scenario_id)) as unknown as Scenario[];
+    return [...mockEntries, ...scenarios];
+  }, [scenarios, isChainingFeatureEnabled]);
 
   // Filters
   const availableFilterNames = [
@@ -233,7 +243,7 @@ const Scenarios = () => {
         {
           loading
             ? <PaginatedListLoader Icon={MovieFilterOutlined} headers={headers} headerStyles={inlineStyles} />
-            : scenarios.map((scenario: Scenario) => {
+            : displayScenarios.map((scenario: Scenario) => {
                 return (
                   <ListItem
                     key={scenario.scenario_id}
@@ -241,7 +251,7 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+                        actions={isChainingFeatureEnabled && (!!(scenario as unknown as Record<string, unknown>).scenario_workflow_id || MOCK_CHAINING_SCENARIO_IDS.has(scenario.scenario_id)) ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({
@@ -264,7 +274,7 @@ const Scenarios = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary={(
-                          <div style={bodyItemsStyles.bodyItems}>
+                          <div style={{ ...bodyItemsStyles.bodyItems, alignItems: 'center' }}>
                             {headers.map(header => (
                               <div
                                 key={header.field}
@@ -276,6 +286,53 @@ const Scenarios = () => {
                                 {header.value(scenario)}
                               </div>
                             ))}
+                            {isChainingFeatureEnabled && (
+                              (!!(scenario as unknown as Record<string, unknown>).scenario_workflow_id || MOCK_CHAINING_SCENARIO_IDS.has(scenario.scenario_id)) ? (
+                                <Tooltip title="Chaining scenario — event-driven inject chain">
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '1px 6px',
+                                    borderRadius: 10,
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: 0.4,
+                                    textTransform: 'uppercase',
+                                    backgroundColor: 'rgba(103,58,183,0.15)',
+                                    color: '#b39ddb',
+                                    border: '1px solid rgba(103,58,183,0.35)',
+                                    lineHeight: '16px',
+                                    whiteSpace: 'nowrap',
+                                  }}>
+                                    <AccountTreeOutlined style={{ fontSize: 9, flexShrink: 0 }} />
+                                    Chain
+                                  </span>
+                                </Tooltip>
+                              ) : (
+                                <Tooltip title="Time-based scenario — inject timeline">
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 3,
+                                    padding: '1px 6px',
+                                    borderRadius: 10,
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    letterSpacing: 0.4,
+                                    textTransform: 'uppercase',
+                                    backgroundColor: 'rgba(2,136,209,0.12)',
+                                    color: '#81d4fa',
+                                    border: '1px solid rgba(2,136,209,0.30)',
+                                    lineHeight: '16px',
+                                    whiteSpace: 'nowrap',
+                                  }}>
+                                    <MovieFilterOutlined style={{ fontSize: 9, flexShrink: 0 }} />
+                                    Time
+                                  </span>
+                                </Tooltip>
+                              )
+                            )}
                           </div>
                         )}
                       />
