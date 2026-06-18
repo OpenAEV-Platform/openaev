@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +83,32 @@ class ImportMapperHttpIsolationTest extends IntegrationTest {
   void underTenantBPath() throws Exception {
     mvc.perform(get(MAPPER_BY_ID, tenantB, mapperB)).andExpect(status().isOk());
     mvc.perform(get(MAPPER_BY_ID, tenantB, mapperA)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @Disabled(
+      "Go-live guard: enable when the v1 @Filter on ImportMapper is neutralized as part of activating"
+          + " import_mappers. Until then v1 has no path tenant on this route, so TenantContext falls"
+          + " back to the default tenant and its tenant_id=default predicate ANDs with v2's"
+          + " can_access_tenant(A) to return ~0 rows. Proven red for exactly that reason. See PR #6255"
+          + " go-live step (remove the v1 filter for the activated table).")
+  @DisplayName(
+      "via the X-Tenant-Ids header (no path tenant): search returns A's mapper and not B's")
+  void searchViaHeaderReturnsOnlyA() throws Exception {
+    String body = asJsonString(PaginationFixture.getDefault().textSearch("").build());
+    String response =
+        mvc.perform(
+                post("/api/mappers/search")
+                    .header("X-Tenant-Ids", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body)
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertTrue(response.contains(mapperA), "A's mapper must appear when A is selected via header");
+    assertFalse(response.contains(mapperB), "B's mapper must not appear");
   }
 
   @Test
