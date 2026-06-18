@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
@@ -42,6 +43,7 @@ public class ExecutableInjectService {
 
   @Resource protected ObjectMapper mapper;
 
+  private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
   private static final Pattern cmdVariablesRegex = Pattern.compile("%(\\w+)%");
 
@@ -97,6 +99,10 @@ public class ExecutableInjectService {
     List<String> argumentKeys = getArgumentsFromCommandLines(command);
 
     for (String argumentKey : argumentKeys) {
+      if (RESERVED_PLACEHOLDERS.contains(argumentKey)) {
+        continue;
+      }
+
       String value;
       PayloadArgument defaultPayloadArgument =
           defaultPayloadArguments.stream()
