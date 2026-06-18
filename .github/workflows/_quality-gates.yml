@@ -17,6 +17,10 @@ on:
         description: "Upload coverage reports to Codecov and save artifacts"
         type: boolean
         default: true
+      run-coverage:
+        description: "Run coverage merge/report/check job"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -224,7 +228,7 @@ jobs:
       [api-tests, frontend-quality, e2e-tests, e2e-infra-tests, api-types-check]
     # Always run so partial coverage (e.g. backend+frontend) is still
     # uploaded even when one upstream job fails or is cancelled.
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.run-coverage }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

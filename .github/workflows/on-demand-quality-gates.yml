@@ -1,0 +1,29 @@
+name: "[Core] Quality Gates (On Demand)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload-codecov:
+        description: "Upload coverage reports to Codecov"
+        required: false
+        type: boolean
+        default: false
+      run-coverage:
+        description: "Run coverage merge/report/check"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-gates:
+    uses: ./.github/workflows/_quality-gates.yml
+    with:
+      upload-codecov: ${{ inputs.upload-codecov }}
+      run-coverage: ${{ inputs.run-coverage }}
+    secrets: inherit
+
+
