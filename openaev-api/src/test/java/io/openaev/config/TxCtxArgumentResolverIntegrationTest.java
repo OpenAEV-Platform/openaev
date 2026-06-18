@@ -109,6 +109,27 @@ class TxCtxArgumentResolverIntegrationTest extends IntegrationTest {
     mvc.perform(get(WITH_PATH, "tenant-not-mine")).andExpect(status().isForbidden());
   }
 
+  @Test
+  @DisplayName("an endpoint requiring a selector refuses a request without one (400)")
+  void requiredSelectorMissingIsRejected() throws Exception {
+    mvc.perform(get("/api/test/txctx/required/scope")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName("an endpoint requiring a selector accepts a request that carries one")
+  void requiredSelectorPresentIsAccepted() throws Exception {
+    mvc.perform(get("/api/test/txctx/required/scope").header("X-Tenant-Ids", tenantA))
+        .andExpect(status().isOk())
+        .andExpect(content().string(tenantA));
+  }
+
+  @Test
+  @DisplayName("a required selector that is present but outside the rights is still 403, not 400")
+  void requiredSelectorOutsideRightsIsForbidden() throws Exception {
+    mvc.perform(get("/api/test/txctx/required/scope").header("X-Tenant-Ids", "tenant-not-mine"))
+        .andExpect(status().isForbidden());
+  }
+
   private static String sorted(String... ids) {
     return java.util.Arrays.stream(ids).sorted().collect(Collectors.joining(","));
   }
@@ -136,6 +157,13 @@ class TxCtxArgumentResolverIntegrationTest extends IntegrationTest {
     @AccessControl(skipRBAC = true)
     @Transactional(readOnly = true)
     public String scopeForPath(TxCtx ctx) {
+      return ctx.toGuc();
+    }
+
+    @GetMapping("/api/test/txctx/required/scope")
+    @AccessControl(skipRBAC = true)
+    @Transactional(readOnly = true)
+    public String requiredScope(@RequireTenantSelector TxCtx ctx) {
       return ctx.toGuc();
     }
   }
