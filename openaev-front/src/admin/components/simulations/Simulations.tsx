@@ -1,5 +1,5 @@
 import { ToggleButtonGroup } from '@mui/material';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { searchExercises } from '../../../actions/Exercise';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -16,6 +16,7 @@ import { isFeatureEnabled } from '../../../utils/utils';
 import ImportUploaderExercise from './ImportUploaderExercise';
 import ExerciseCreation from './simulation/ExerciseCreation';
 import ExercisePopover from './simulation/ExercisePopover';
+import { MOCK_CHAINING_EXERCISE_IDS, MOCK_EXERCISE_LIST } from './simulation/attack_path/mockAttackPathData';
 import SimulationList from './SimulationList';
 
 const Simulations = () => {
@@ -25,6 +26,15 @@ const Simulations = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const isAttackPathMockEnabled = isFeatureEnabled('CHAINING_ATTACK_PATH');
+
+  // Merge mock exercises at the top of the list when PoC mode is active
+  const mergedExercises = useMemo<ExerciseSimple[]>(() => {
+    if (!isAttackPathMockEnabled) return exercises;
+    const existingIds = new Set(exercises.map(e => e.exercise_id));
+    const mockEntries = MOCK_EXERCISE_LIST.filter(me => !existingIds.has(me.exercise_id)) as unknown as ExerciseSimple[];
+    return [...mockEntries, ...exercises];
+  }, [exercises, isAttackPathMockEnabled]);
   // Filters
   const availableFilterNames = [
     'exercise_kill_chain_phases',
@@ -56,7 +66,9 @@ const Simulations = () => {
   };
 
   const secondaryAction = (exercise: ExerciseSimple) => {
-    const isChaining = isChainingFeatureEnabled && !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
+    const isMock = MOCK_CHAINING_EXERCISE_IDS.has(exercise.exercise_id);
+    const isChaining = (isChainingFeatureEnabled || isAttackPathMockEnabled)
+      && (!!(exercise as unknown as Record<string, unknown>).exercise_workflow_id || isMock);
     return (
       <ExercisePopover
         // @ts-expect-error: should pass Exercise model IF we have update as action
@@ -104,7 +116,7 @@ const Simulations = () => {
         )}
       />
       <SimulationList
-        exercises={exercises}
+        exercises={mergedExercises}
         queryableHelpers={queryableHelpers}
         secondaryAction={secondaryAction}
         loading={loading}
