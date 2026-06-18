@@ -201,6 +201,32 @@ class ImportMapperHttpIsolationTest extends IntegrationTest {
     assertFalse(response.contains("mapper-b"), "B's mapper must not be in A's export");
   }
 
+  @Test
+  @DisplayName("under tenant A's path: duplicating A's mapper attributes the copy to tenant A")
+  void duplicateUnderTenantAIsAttributedToA() throws Exception {
+    String response =
+        mvc.perform(post(MAPPER_BY_ID, tenantA, mapperA).with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String copyId = JsonPath.read(response, "$.import_mapper_id");
+    String copyTenant =
+        (String)
+            entityManager
+                .createNativeQuery(
+                    "SELECT tenant_id FROM import_mappers WHERE mapper_id = CAST(:id AS uuid)")
+                .setParameter("id", copyId)
+                .getSingleResult();
+    assertEquals(tenantA, copyTenant, "the duplicated mapper must belong to tenant A");
+  }
+
+  @Test
+  @DisplayName("under tenant A's path: duplicating B's mapper is not found (cross-tenant blocked)")
+  void duplicateUnderTenantAOfBMapperIsBlocked() throws Exception {
+    mvc.perform(post(MAPPER_BY_ID, tenantA, mapperB).with(csrf())).andExpect(status().isNotFound());
+  }
+
   private static ImportMapperUpdateInput updateInput(String name) {
     ImportMapperUpdateInput input = new ImportMapperUpdateInput();
     input.setName(name);
