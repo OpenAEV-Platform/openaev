@@ -171,6 +171,13 @@ public class RestBehavior {
         new ErrorMessage("TENANT_SELECTOR_REQUIRED"), HttpStatus.BAD_REQUEST);
   }
 
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantWriteScopeException.class)
+  public ResponseEntity<ErrorMessage> handleTenantWriteScopeException(
+      TenantWriteScopeException ex) {
+    return new ResponseEntity<>(new ErrorMessage("TENANT_WRITE_SCOPE"), HttpStatus.BAD_REQUEST);
+  }
+
   // -- 401 UNAUTHORIZED --
 
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
