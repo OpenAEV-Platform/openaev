@@ -13,6 +13,7 @@ import jakarta.annotation.Resource;
 import org.springdoc.core.converters.models.SortObject;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -23,7 +24,9 @@ import org.springframework.web.client.RestTemplate;
 @Component
 @EnableAsync
 @EnableScheduling
-@EnableTransactionManagement
+// The transaction advisor runs just inside @Lock and just outside the @Before aspects that must
+// see an open transaction (tenant scope, Hibernate filter), so the chain is lock -> tx -> scope.
+@EnableTransactionManagement(order = Ordered.LOWEST_PRECEDENCE - 1)
 public class AppConfig {
 
   static {

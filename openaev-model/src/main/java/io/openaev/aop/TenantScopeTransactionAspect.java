@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,6 +34,8 @@ import org.springframework.stereotype.Component;
 @Aspect
 @Component
 @RequiredArgsConstructor
+// Innermost of the chain: it runs as a @Before once the transaction advisor has opened the tx.
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class TenantScopeTransactionAspect {
 
   private final EntityManager entityManager;
