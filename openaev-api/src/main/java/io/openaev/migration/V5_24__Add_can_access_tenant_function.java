@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * (fail-closed); a null (platform) tenant passes only when {@code allow_platform} is true.
  */
 @Component
-public class V5_22__Add_can_access_tenant_function extends BaseJavaMigration {
+public class V5_24__Add_can_access_tenant_function extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
