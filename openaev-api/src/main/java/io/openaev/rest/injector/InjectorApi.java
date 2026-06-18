@@ -182,14 +182,16 @@ public class InjectorApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
-  @Operation(summary = "Get injector image by id")
+  @Operation(summary = "Get injector image by type")
   public ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
     if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
     }
     return ResponseEntity.notFound().build();
   }

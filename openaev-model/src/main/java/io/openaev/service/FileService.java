@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
 import java.io.InputStream;
@@ -183,8 +182,6 @@ public class FileService {
    * Retrieves an executor's banner image file.
    *
    * @param executorId the executor identifier
-   * @param isExternal indicates if the file is a built-in asset (false) or a tenant-specific file
-   *     (true)
    * @return an Optional containing the image input stream, or empty if not found
    */
   public Optional<InputStream> getExecutorBannerImage(String executorId) {
@@ -213,26 +210,29 @@ public class FileService {
     }
     // Fallback: legacy paths before platform storage migration
     Optional<InputStream> legacyDefaultTenant =
-        minioService.getFilePathForTenant(Tenant.DEFAULT_TENANT_UUID, CONNECTORS_LOGO_PATH + fileName);
+        minioService.getFilePathForTenant(
+            Tenant.DEFAULT_TENANT_UUID, CONNECTORS_LOGO_PATH + fileName);
     if (legacyDefaultTenant.isPresent()) {
       return legacyDefaultTenant;
     }
     return minioService.getFilePathForTenant(
         Tenant.DEFAULT_TENANT_UUID, "platform" + CONNECTORS_LOGO_PATH + fileName);
+  }
 
   /**
-   * Platform assets are written once under the default tenant during startup for built in assets
-   * should fall back to specific tenant if isExternal is true.
+   * Retrieves a platform image, checking the current tenant path first (for externally registered
+   * integrations) then falling back to the default tenant (for built-in platform assets uploaded at
+   * startup).
    *
-   * @param filePath to retrieve
-   * @return finded file
+   * @param filePath the file path to retrieve
+   * @return an Optional containing the image input stream, or empty if not found
    */
   private Optional<InputStream> getPlatformImage(String filePath) {
     Optional<InputStream> tenantFile = getFilePath(filePath);
     if (tenantFile.isPresent()) {
       return tenantFile;
     }
-    return minioService.getFilePathForTenant(TenantContext.getCurrentTenant(), filePath);
+    return minioService.getFilePathForTenant(Tenant.DEFAULT_TENANT_UUID, filePath);
   }
 
   /**

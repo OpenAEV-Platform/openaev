@@ -123,14 +123,41 @@ public class CollectorApi extends RestBehavior {
       },
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
-  @Operation(summary = "Get collector image by id")
+  @Operation(summary = "Get collector image by type")
   public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
     if (fileStream.isPresent()) {
-      return ResponseEntity.ok()
-          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-          .body(IOUtils.toByteArray(fileStream.get()));
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
+  }
+
+  @GetMapping(
+      value = {
+        COLLECTOR_URI + "/id/{collectorId}/image",
+        TENANT_COLLECTOR_URI + "/id/{collectorId}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get collector image by collector id")
+  public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
+      throws IOException {
+    Optional<Collector> collector = collectorRepository.findById(collectorId);
+    if (collector.isEmpty()) {
+      return ResponseEntity.notFound().build();
+    }
+    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.get().getType());
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
     }
     return ResponseEntity.notFound().build();
   }

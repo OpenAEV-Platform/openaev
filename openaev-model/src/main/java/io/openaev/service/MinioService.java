@@ -74,7 +74,7 @@ public class MinioService implements DependenciesManager {
             .bucket(bucket())
             .object(getTenantPath(fileName))
             .userMetadata(Map.of("filename", name))
-            .stream(data, data.available(), -1)
+            .stream(data, -1, 10 * 1024 * 1024)
             .build());
     return getTenantPath(fileName);
   }
@@ -95,7 +95,7 @@ public class MinioService implements DependenciesManager {
             .bucket(bucket())
             .object(getPlatformPath(fileName))
             .userMetadata(Map.of("filename", name))
-            .stream(data, data.available(), -1)
+            .stream(data, -1, 10 * 1024 * 1024)
             .build());
     return getPlatformPath(fileName);
   }

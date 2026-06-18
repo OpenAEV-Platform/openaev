@@ -20,6 +20,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.rest.collector.form.CollectorCreateInput;
+import io.openaev.service.FileService;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.*;
@@ -43,6 +44,7 @@ public class CollectorApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private CollectorRepository collectorRepository;
+  @Autowired private FileService fileService;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private CollectorComposer collectorComposer;
@@ -413,6 +415,53 @@ public class CollectorApiTest extends IntegrationTest {
           collectorRepository.findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant());
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getSecurityPlatform()).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Collector image")
+  class CollectorImage {
+    @Test
+    @DisplayName("Given existing collector image should return image by type")
+    void given_existingCollectorImage_should_returnImageByType() throws Exception {
+      // -- Arrange --
+      String collectorType = "test-collector-type";
+      fileService.uploadStream(
+          FileService.COLLECTORS_IMAGES_BASE_PATH,
+          collectorType + FileService.EXT_PNG,
+          new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/" + collectorType + "/image")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given existing collector image should return image by id")
+    void given_existingCollectorImage_should_returnImageById() throws Exception {
+      // -- Arrange --
+      Collector collector = getCollector("test-collector-by-id");
+      fileService.uploadStream(
+          FileService.COLLECTORS_IMAGES_BASE_PATH,
+          collector.getType() + FileService.EXT_PNG,
+          new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/id/" + collector.getId() + "/image"))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given missing collector image should return 404")
+    void given_missingCollectorImage_should_return404() throws Exception {
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/nonexistent-type/image")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Given unknown collector id should return 404")
+    void given_unknownCollectorId_should_return404() throws Exception {
+      // -- Act / Assert --
+      mvc.perform(get(COLLECTOR_URI + "/id/nonexistent-id/image")).andExpect(status().isNotFound());
     }
   }
 }
