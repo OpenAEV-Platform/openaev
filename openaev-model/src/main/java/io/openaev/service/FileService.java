@@ -211,11 +211,14 @@ public class FileService {
     if (platform.isPresent()) {
       return platform;
     }
-    // Fallback: legacy path before platform storage migration
-    // (files were stored as {DEFAULT_TENANT_UUID}/platform/connectors/logos/{fileName})
+    // Fallback: legacy paths before platform storage migration
+    Optional<InputStream> legacyDefaultTenant =
+        minioService.getFilePathForTenant(Tenant.DEFAULT_TENANT_UUID, CONNECTORS_LOGO_PATH + fileName);
+    if (legacyDefaultTenant.isPresent()) {
+      return legacyDefaultTenant;
+    }
     return minioService.getFilePathForTenant(
         Tenant.DEFAULT_TENANT_UUID, "platform" + CONNECTORS_LOGO_PATH + fileName);
-  }
 
   /**
    * Platform assets are written once under the default tenant during startup for built in assets
