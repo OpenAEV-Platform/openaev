@@ -29,8 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  * InjectExpectation).
  *
  * <p>Each test verifies that an entity whose only change is on a <em>linked</em> row (e.g. an
- * inject updated after {@code :from}) still appears in the indexing results. This catches
- * silent failures in the changed-set CTE logic that would otherwise only surface weeks later in
+ * inject updated after {@code :from}) still appears in the indexing results. This catches silent
+ * failures in the changed-set CTE logic that would otherwise only surface weeks later in
  * production.
  *
  * @see io.openaev.engine.InjectHandlerTest
@@ -85,8 +85,7 @@ class IndexingRegressionTest extends IntegrationTest {
 
   private void pushExerciseToPast(String exerciseId) {
     entityManager
-        .createNativeQuery(
-            "UPDATE exercises SET exercise_updated_at = :ts WHERE exercise_id = :id")
+        .createNativeQuery("UPDATE exercises SET exercise_updated_at = :ts WHERE exercise_id = :id")
         .setParameter("ts", PAST)
         .setParameter("id", exerciseId)
         .executeUpdate();
@@ -120,8 +119,7 @@ class IndexingRegressionTest extends IntegrationTest {
 
   private void touchInject(String injectId) {
     entityManager
-        .createNativeQuery(
-            "UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
+        .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
         .setParameter("ts", Instant.now())
         .setParameter("id", injectId)
         .executeUpdate();
@@ -159,8 +157,7 @@ class IndexingRegressionTest extends IntegrationTest {
       List<EsScenario> results = scenarioHandler.fetch(FROM, 5000);
 
       // Assert — scenario must appear because its inject is recent
-      assertThat(results)
-          .anyMatch(es -> es.getBase_id().equals(scenario.getId()));
+      assertThat(results).anyMatch(es -> es.getBase_id().equals(scenario.getId()));
     }
   }
 
@@ -195,8 +192,7 @@ class IndexingRegressionTest extends IntegrationTest {
       List<EsSimulation> results = simulationHandler.fetch(FROM, 5000);
 
       // Assert — exercise must appear because its inject is recent
-      assertThat(results)
-          .anyMatch(es -> es.getBase_id().equals(exercise.getId()));
+      assertThat(results).anyMatch(es -> es.getBase_id().equals(exercise.getId()));
     }
   }
 
@@ -215,9 +211,7 @@ class IndexingRegressionTest extends IntegrationTest {
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       InjectComposer.Composer injectWrapper =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withEndpoint(endpointWrapper);
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withEndpoint(endpointWrapper);
       scenarioComposer
           .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
           .withInject(injectWrapper)
@@ -240,8 +234,7 @@ class IndexingRegressionTest extends IntegrationTest {
       List<EsEndpoint> results = endpointHandler.fetch(FROM, 5000);
 
       // Assert — endpoint must appear because its linked inject is recent
-      assertThat(results)
-          .anyMatch(es -> es.getBase_id().equals(endpoint.getId()));
+      assertThat(results).anyMatch(es -> es.getBase_id().equals(endpoint.getId()));
     }
   }
 
@@ -287,8 +280,7 @@ class IndexingRegressionTest extends IntegrationTest {
       List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
 
       // Assert — expectation must appear because its linked inject is recent
-      assertThat(results)
-          .anyMatch(es -> es.getBase_id().equals(expectation.getId()));
+      assertThat(results).anyMatch(es -> es.getBase_id().equals(expectation.getId()));
     }
   }
 }
