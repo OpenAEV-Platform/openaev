@@ -44,6 +44,7 @@ import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -79,6 +80,7 @@ public class PayloadService {
   private final PayloadUtils payloadUtils;
   private final DomainService domainService;
   private final TagService tagService;
+  private final ExpectationService expectationService;
 
   private final PayloadMapper payloadMapper;
 
@@ -231,29 +233,55 @@ public class PayloadService {
   }
 
   private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
-    List<Expectation> expectations = new ArrayList<>();
+    List<Expectation> predefined = new ArrayList<>();
     if (expectationTypes != null) {
       for (InjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT -> expectations.add(this.expectationBuilderService.buildTextExpectation());
+          case TEXT ->
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildTextExpectation()));
           case DOCUMENT ->
-              expectations.add(this.expectationBuilderService.buildDocumentExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildDocumentExpectation()));
           case ARTICLE ->
-              expectations.add(this.expectationBuilderService.buildArticleExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildArticleExpectation()));
           case CHALLENGE ->
-              expectations.add(this.expectationBuilderService.buildChallengeExpectation());
-          case MANUAL -> expectations.add(this.expectationBuilderService.buildManualExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildChallengeExpectation()));
+          case MANUAL ->
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildManualExpectation()));
           case PREVENTION ->
-              expectations.add(this.expectationBuilderService.buildPreventionExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildPreventionExpectation()));
           case DETECTION ->
-              expectations.add(this.expectationBuilderService.buildDetectionExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildDetectionExpectation()));
           case VULNERABILITY ->
-              expectations.add(this.expectationBuilderService.buildVulnerabilityExpectation());
+              predefined.add(
+                  withExpectedMultiSelectableFlag(
+                      this.expectationBuilderService.buildVulnerabilityExpectation()));
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
-    return expectationsField(expectations);
+
+    // Payload contracts are technical injects: available expectations are always the 3 standard
+    // technical types.
+    List<Expectation> available =
+        expectationService.buildAvailableExpectationsForTechnicalInject().stream()
+            .map(this::withExpectedMultiSelectableFlag)
+            .toList();
+
+    return expectationsField(predefined, available);
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
@@ -287,6 +315,16 @@ public class PayloadService {
     List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
 
     return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  /**
+   * Applies the OpenAEV rule for available expectations: only MANUAL is multi-selectable, all other
+   * types are single-select.
+   */
+  private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
+    expectation.setMultiSelectable(
+        InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+    return expectation;
   }
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
