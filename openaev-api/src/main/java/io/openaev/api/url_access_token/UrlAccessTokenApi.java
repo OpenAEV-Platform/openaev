@@ -8,8 +8,6 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +33,6 @@ public class UrlAccessTokenApi {
   public static final String URL_ACCESS_COOKIE_NAME = "url_access_token";
 
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
   private final OpenAEVConfig openAEVConfig;
   private final UserService userService;
 
@@ -45,11 +42,6 @@ public class UrlAccessTokenApi {
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
   @Transactional
   public ResponseEntity<Void> access(@RequestParam("token") String rawToken) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      throw new ResponseStatusException(
-          HttpStatus.UNAUTHORIZED, "URL access token feature disabled");
-    }
-
     try {
       UrlAccessToken token = urlAccessTokenService.validateTokenExpiration(rawToken);
       urlAccessTokenService.updateLastUsed(token);
