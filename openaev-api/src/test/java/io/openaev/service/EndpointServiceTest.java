@@ -75,7 +75,6 @@ class EndpointServiceTest {
       sourceTag.setName("source:crowdstrike");
       sourceTag.setColor("#FF0000");
 
-      when(tagRepository.findByAssetIdAndTenantId(any(), any())).thenReturn(Set.of());
       when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
           .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(sourceTag);
@@ -108,7 +107,6 @@ class EndpointServiceTest {
       existingTag.setName("source:crowdstrike");
       existingTag.setColor("#FF0000");
 
-      when(tagRepository.findByAssetIdAndTenantId(any(), any())).thenReturn(Set.of());
       when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
           .thenReturn(Optional.of(existingTag));
       when(endpointRepository.findByAtleastOneMacAddress(any(), eq(TENANT_ID)))
@@ -136,6 +134,7 @@ class EndpointServiceTest {
       AgentRegisterInput input = createAgentRegisterInput(csExecutor, "cs-device-003");
 
       Endpoint existingEndpoint = EndpointFixture.createEndpoint();
+      existingEndpoint.setId("existing-endpoint-id");
       Tag otherExecutorTag = new Tag();
       otherExecutorTag.setName("source:tanium");
       existingEndpoint.setTags(new HashSet<>(Set.of(otherExecutorTag)));
@@ -145,8 +144,8 @@ class EndpointServiceTest {
 
       Tag csTag = new Tag();
       csTag.setName("source:crowdstrike");
-      when(tagRepository.findByAssetIdAndTenantId(any(), any()))
-          .thenReturn(Set.of(otherExecutorTag));
+      when(tagRepository.findByAssetIdAndTenantId("existing-endpoint-id", TENANT_ID))
+          .thenReturn(new HashSet<>(Set.of(otherExecutorTag)));
       when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
           .thenReturn(Optional.of(csTag));
       when(agentService.saveAllAgents(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -233,7 +232,7 @@ class EndpointServiceTest {
       // Act
       endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
 
-      // Assert: no matching tag removed → saveAll never called
+      // Assert: no matching tag removed, save never called
       verify(endpointRepository, never()).saveAll(any());
     }
 
