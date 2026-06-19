@@ -61,7 +61,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const initialType = availableTypes[0] ?? predefinedExpectations[0]?.expectation_type ?? 'MANUAL';
   const [expectationType, setExpectationType] = useState<string>(initialType);
 
-  const expectationExpirationTime = useExpectationExpirationTime(predefinedExpectations[0].expectation_type as InjectExpectationOutput['inject_expectation_type']);
+  const expectationExpirationTime = useExpectationExpirationTime(initialType as InjectExpectationOutput['inject_expectation_type']);
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
