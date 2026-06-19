@@ -4,8 +4,6 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditSignificanceAware;
@@ -18,7 +16,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -172,21 +169,10 @@ public class Agent implements TenantBase, AuditSignificanceAware {
   }
 
   /** Fields excluded from audit significance comparison (timestamps, computed, parent ref). */
-  private static final Set<String> NON_SIGNIFICANT_FIELDS =
-      Set.of(
-          "agent_last_seen",
-          "agent_created_at",
-          "agent_updated_at",
-          "agent_cleared_at",
-          "agent_active",
-          "agent_asset");
-
-  @Override
-  public Map<String, Object> significantState(ObjectMapper objectMapper) {
-    Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
-    NON_SIGNIFICANT_FIELDS.forEach(state::remove);
-    return state;
-  }
+  @JsonIgnore
+  @Setter(lombok.AccessLevel.NONE)
+  @Transient
+  private final Set<String> nonSignificantFields = Set.of("agent_last_seen", "agent_updated_at");
 
   public Agent() {}
 }

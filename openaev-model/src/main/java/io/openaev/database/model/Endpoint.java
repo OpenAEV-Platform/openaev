@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -237,10 +236,14 @@ public class Endpoint extends Asset implements AuditSignificanceAware {
   }
 
   /**
-   * Fields excluded from audit significance comparison (timestamps, child collections, metadata).
+   * Fields excluded from audit significance comparison (timestamps, metadata). Note: {@code
+   * asset_agents} is not listed here — agents are handled separately via {@link
+   * Agent#significantState}.
    */
-  private static final Set<String> NON_SIGNIFICANT_FIELDS =
-      Set.of("asset_id", "asset_type", "asset_created_at", "asset_updated_at", "asset_tags");
+  @JsonIgnore
+  @Setter(AccessLevel.NONE)
+  @Transient
+  private final Set<String> nonSignificantFields = Set.of("asset_updated_at");
 
   /**
    * Returns the significant state of this endpoint for audit comparison.
@@ -251,8 +254,7 @@ public class Endpoint extends Asset implements AuditSignificanceAware {
    */
   @Override
   public Map<String, Object> significantState(ObjectMapper objectMapper) {
-    Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
-    NON_SIGNIFICANT_FIELDS.forEach(state::remove);
+    Map<String, Object> state = AuditSignificanceAware.super.significantState(objectMapper);
     // Replace raw agent serialization with each agent's significant state (sorted by ID for stable
     // comparison)
     state.put(
