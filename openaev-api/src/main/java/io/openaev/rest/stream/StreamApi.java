@@ -178,8 +178,7 @@ public class StreamApi extends RestBehavior {
       produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(
       skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
-  @Transactional(
-      propagation = Propagation.NEVER) // Don't start a transaction for the stream, it will be async
+  @Transactional
   public ResponseEntity<Flux<Object>> streamFlux() {
     String sessionId = RequestContextHolder.currentRequestAttributes().getSessionId();
     // Build the database event flux.

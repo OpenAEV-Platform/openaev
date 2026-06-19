@@ -57,7 +57,7 @@ public class XtmOneProxyApi extends RestBehavior {
       summary = "List XTM One agents for an intent",
       description =
           "Returns the agents enabled for the given intent in the discovered XTM One catalog.")
-  @Transactional(propagation = Propagation.NEVER)
+  @Transactional
   public ResponseEntity<List<ChatbotAgentOutput>> getChatbotAgents(
       @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
     if (!config.isConfigured()) {
@@ -69,7 +69,7 @@ public class XtmOneProxyApi extends RestBehavior {
   // -- AGENT CALLS --
 
   @PostMapping("/agent")
-  @Transactional(propagation = Propagation.NEVER)
+  @Transactional
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
@@ -92,7 +92,7 @@ public class XtmOneProxyApi extends RestBehavior {
   }
 
   @PostMapping(value = "/agent/stream", produces = "text/event-stream")
-  @Transactional(propagation = Propagation.NEVER)
+  @Transactional
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(
