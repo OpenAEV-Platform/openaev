@@ -4,7 +4,7 @@ export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, '
   inject_expectation_id: string;
   inject_expectation_type: NonNullable<InjectExpectationOutput['inject_expectation_type']>;
   inject_expectation_expected_score: number;
-  inject_expiration_time: number;
+  inject_expectation_expiration_time: number;
   inject_expectation_team: string | undefined;
   inject_expectation_user: string | undefined;
   inject_expectation_article: string | undefined;
