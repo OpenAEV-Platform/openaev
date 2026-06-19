@@ -8,7 +8,6 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Injection;
 import io.openaev.database.model.User;
 import io.openaev.database.model.Variable;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.VariableService;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
@@ -25,7 +24,6 @@ public class ExecutionContextService {
 
   private final VariableService variableService;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   public ExecutionContext executionContext(
       @NotNull final User user, Injection injection, String team) {

@@ -36,7 +36,6 @@ public class ChannelExecutor extends Injector {
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   public ChannelExecutor(
       InjectorContext context,

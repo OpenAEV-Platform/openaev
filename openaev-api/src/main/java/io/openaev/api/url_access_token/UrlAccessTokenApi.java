@@ -8,7 +8,6 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ public class UrlAccessTokenApi {
   public static final String URL_ACCESS_COOKIE_NAME = "url_access_token";
 
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
   private final OpenAEVConfig openAEVConfig;
   private final UserService userService;
 

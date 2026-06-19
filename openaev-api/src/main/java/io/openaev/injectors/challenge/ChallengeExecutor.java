@@ -34,7 +34,6 @@ public class ChallengeExecutor extends Injector {
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   public ChallengeExecutor(
       InjectorContext context,

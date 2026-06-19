@@ -1,7 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
-import io.openaev.service.PreviewFeatureService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.DisallowConcurrentExecution;
@@ -21,7 +20,6 @@ public class UrlAccessTokenPurgeJob implements Job {
   public static final String URL_ACCESS_TOKEN_PURGE_TRIGGER = "urlAccessTokenPurgeTrigger";
 
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   @Override
   public void execute(JobExecutionContext context) throws JobExecutionException {

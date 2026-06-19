@@ -7,7 +7,6 @@ import static io.openaev.config.SessionHelper.currentUser;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.service.PreviewFeatureService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
@@ -43,7 +42,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class UrlAccessControlAspect {
 
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
