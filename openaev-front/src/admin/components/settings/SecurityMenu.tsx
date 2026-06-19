@@ -12,15 +12,13 @@ import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
 
 const SecurityMenuComponent: FunctionComponent = () => {
   const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
-  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
   const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
-  const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES) && isMultiTenancyEnabled;
+  const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
   const entries: RightMenuEntry[] = [
@@ -60,7 +58,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
         ]
       : []),
     // Tenants: platform-only + multi-tenancy
-    ...(isMultiTenancyEnabled && canAccessTenants
+    ...(canAccessTenants
       ? [{
           path: '/admin/settings/security/tenants',
           icon: () => (<HomeWorkOutlined />),
