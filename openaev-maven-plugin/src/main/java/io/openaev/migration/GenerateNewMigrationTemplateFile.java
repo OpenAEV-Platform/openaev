@@ -9,12 +9,12 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 /** Generate a new templated flyway migration file */
-@Mojo(name = "template", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+@Mojo(name = "migration", defaultPhase = LifecyclePhase.NONE)
 public class GenerateNewMigrationTemplateFile extends AbstractMojo {
-  @Parameter(property = "project.basedir", name = "basedir", required = true, defaultValue = "test")
+  @Parameter(property = "basedir", name = "basedir", required = true, defaultValue = "${project.basedir}")
   private File basedir;
 
-  @Parameter(name = "reason", required = true)
+  @Parameter(property = "reason", name = "reason", required = true, defaultValue = "migration")
   private String reason;
 
   private final ClassNameGenerator classNameGenerator;
