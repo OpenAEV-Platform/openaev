@@ -19,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -91,7 +92,7 @@ public class XtmOneProxyApi extends RestBehavior {
   }
 
   @PostMapping(value = "/agent/stream", produces = "text/event-stream")
-  @Transactional
+  @Transactional(propagation = Propagation.NEVER)
   @LogExecutionTime
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   @Operation(

@@ -22,6 +22,7 @@ import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.service.InjectorService;
+import io.openaev.service.TransactionExecutorService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +44,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -59,6 +61,7 @@ public class InjectorApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
+  private final TransactionExecutorService transactionExecutorService;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -187,7 +190,7 @@ public class InjectorApi extends RestBehavior {
         TENANT_PREFIX + "/implant/openaev/{platform}/{architecture}"
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @Transactional
+  @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevImplant(
       @PathVariable String platform,
@@ -201,8 +204,10 @@ public class InjectorApi extends RestBehavior {
       resolvedPlatform = AgentUtils.normaliseSupportedAgentPlatform(platform).name().toLowerCase();
       resolvedArch = AgentUtils.normaliseSupportedAgentArch(architecture).name().toLowerCase();
     } catch (IllegalArgumentException e) {
-      this.injectStatusService.setImplantErrorTrace(
-          injectId, agentId, "Unable to download the implant. %s".formatted(e.getMessage()));
+      transactionExecutorService.runInNewTransaction(
+          () ->
+              this.injectStatusService.setImplantErrorTrace(
+                  injectId, agentId, "Unable to download the implant. %s".formatted(e.getMessage())));
       throw e;
     }
 

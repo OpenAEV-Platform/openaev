@@ -41,6 +41,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -279,7 +280,7 @@ public class ExecutorApi extends RestBehavior {
       summary = "Retrieve OpenAEV Agent Package",
       description =
           "Downloads the OpenAEV agent package for the specified platform and architecture.")
-  @Transactional
+  @Transactional(propagation = Propagation.NEVER)
   @ApiResponses(
       value = {
         @ApiResponse(
