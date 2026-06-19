@@ -1,5 +1,6 @@
 package io.openaev.xtmhub.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -26,6 +27,10 @@ public class XtmHubConfig {
   @JsonProperty("connectivity-email-enable")
   @Value("${openaev.xtm.hub.connectivity-email-enable:true}")
   private Boolean connectivityEmailEnable;
+
+  @JsonIgnore
+  @Value("${XTM_HUB_PLATFORM_TOKEN:#{null}}")
+  private String platformToken;
 
   public String getApiUrl() {
     if (StringUtils.isNotBlank(this.override_api_url)) {
