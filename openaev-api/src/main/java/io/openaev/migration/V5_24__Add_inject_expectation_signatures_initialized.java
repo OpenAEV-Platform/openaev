@@ -1,12 +1,13 @@
 package io.openaev.migration;
 
-import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
+import java.sql.Statement;
+
 @Component
-public class V5_18__Add_inject_expectation_signatures_initialized extends BaseJavaMigration {
+public class V5_24__Add_inject_expectation_signatures_initialized extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
