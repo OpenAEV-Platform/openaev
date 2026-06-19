@@ -3799,11 +3799,14 @@ export interface InjectExpectationOutput {
    * Expected score of the inject expectation
    * @format double
    */
-  inject_expectation_expected_score?: number;
+  inject_expectation_expected_score: number;
   /** Whether this expectation is a group expectation */
   inject_expectation_group?: boolean;
-  /** ID of the inject expectation */
-  inject_expectation_id?: string;
+  /**
+   * ID of the inject expectation
+   * @minLength 1
+   */
+  inject_expectation_id: string;
   /** Inject ID associated with the inject expectation */
   inject_expectation_inject?: string;
   /** Name of the inject expectation */
@@ -3829,7 +3832,7 @@ export interface InjectExpectationOutput {
   /** Traces associated with the inject expectation */
   inject_expectation_traces?: InjectExpectationTrace[];
   /** Type of the inject expectation */
-  inject_expectation_type?:
+  inject_expectation_type:
     | "TEXT"
     | "DOCUMENT"
     | "ARTICLE"
@@ -3849,7 +3852,7 @@ export interface InjectExpectationOutput {
    * Expiration time in seconds
    * @format int64
    */
-  inject_expiration_time?: number;
+  inject_expiration_time: number;
   /** Target ID resolved from user, team, agent, asset, or asset group */
   target_id?: string;
 }

@@ -37,13 +37,13 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutpu
   const expectationType = injectExpectation.inject_expectation_type;
 
   // Technical
-  if (expectationType && ['DETECTION', 'PREVENTION'].includes(expectationType)) {
+  if (['DETECTION', 'PREVENTION'].includes(expectationType)) {
     if (isAssetGroupExpectation(injectExpectation) || isAgentExpectation(injectExpectation)) return false;
 
     return true;
   }
   // Human
-  if (expectationType && isManualExpectation(expectationType)) {
+  if (isManualExpectation(expectationType)) {
     if ((injectExpectation.inject_expectation_results?.length ?? 0) > 0) return false;
 
     return true;

@@ -7,13 +7,23 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 
 public record InjectExpectationOutput(
-    @Schema(description = "ID of the inject expectation") @JsonProperty("inject_expectation_id")
+    @NotBlank
+        @Schema(
+            description = "ID of the inject expectation",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        @JsonProperty("inject_expectation_id")
         String id,
-    @Schema(description = "Type of the inject expectation") @JsonProperty("inject_expectation_type")
+    @NotNull
+        @Schema(
+            description = "Type of the inject expectation",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        @JsonProperty("inject_expectation_type")
         EXPECTATION_TYPE type,
     @Schema(description = "Name of the inject expectation") @JsonProperty("inject_expectation_name")
         String name,
@@ -23,10 +33,17 @@ public record InjectExpectationOutput(
     @Schema(description = "Current score of the inject expectation")
         @JsonProperty("inject_expectation_score")
         Double score,
-    @Schema(description = "Expected score of the inject expectation")
+    @NotNull
+        @Schema(
+            description = "Expected score of the inject expectation",
+            requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("inject_expectation_expected_score")
         Double expectedScore,
-    @Schema(description = "Expiration time in seconds") @JsonProperty("inject_expiration_time")
+    @NotNull
+        @Schema(
+            description = "Expiration time in seconds",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        @JsonProperty("inject_expiration_time")
         Long expirationTime,
     @Schema(description = "Whether this expectation is a group expectation")
         @JsonProperty("inject_expectation_group")
