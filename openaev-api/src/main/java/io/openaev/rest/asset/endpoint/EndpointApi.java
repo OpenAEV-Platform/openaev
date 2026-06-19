@@ -127,6 +127,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI, TENANT_ENDPOINT_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<Endpoint> endpoints() {
@@ -135,6 +136,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
   @AccessControl(
       resourceId = "#endpointId",
@@ -147,6 +149,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/search", TENANT_ENDPOINT_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointOutput> endpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -160,6 +163,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointTargetOutput> targetEndpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -205,6 +209,7 @@ public class EndpointApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -260,6 +265,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI + "/findings/options", TENANT_ENDPOINT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
@@ -270,6 +276,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @PostMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.endpointRepository.findAllById(ids)).stream()

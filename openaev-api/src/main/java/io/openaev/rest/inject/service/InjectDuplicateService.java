@@ -12,9 +12,9 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.InjectUtils;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 @Service

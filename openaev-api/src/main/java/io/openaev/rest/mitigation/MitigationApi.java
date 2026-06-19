@@ -15,7 +15,6 @@ import io.openaev.rest.mitigation.form.MitigationCreateInput;
 import io.openaev.rest.mitigation.form.MitigationUpdateInput;
 import io.openaev.rest.mitigation.form.MitigationUpsertInput;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -26,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -46,6 +46,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -55,6 +56,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PostMapping("/api/mitigations/search")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -69,6 +71,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations/{mitigationId}")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -82,7 +85,7 @@ public class MitigationApi extends RestBehavior {
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Mitigation createMitigation(@Valid @RequestBody MitigationCreateInput input) {
     Mitigation mitigation = new Mitigation();
     mitigation.setUpdateAttributes(input);
@@ -92,6 +95,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @GetMapping("/api/mitigations/{mitigationId}/attack_patterns")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -103,6 +107,7 @@ public class MitigationApi extends RestBehavior {
   }
 
   @PutMapping("/api/mitigations/{mitigationId}")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
@@ -160,13 +165,14 @@ public class MitigationApi extends RestBehavior {
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<Mitigation> upsertMitigation(@Valid @RequestBody MitigationUpsertInput input) {
     List<MitigationCreateInput> mitigations = input.getMitigations();
     return new ArrayList<>(upsertMitigations(mitigations));
   }
 
   @DeleteMapping("/api/mitigations/{mitigationId}")
+  @Transactional
   @AccessControl(
       skipRBAC =
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC

@@ -199,6 +199,7 @@
     </build>
 
     <modules>
+        <module>openaev-annotation-processor</module>
         <module>openaev-model</module>
         <module>openaev-framework</module>
         <module>openaev-api</module>
