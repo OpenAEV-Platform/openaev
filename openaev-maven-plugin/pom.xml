@@ -6,6 +6,7 @@
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
     <version>2.260615.0</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
   <artifactId>openaev-maven-plugin</artifactId>
   <packaging>maven-plugin</packaging>
