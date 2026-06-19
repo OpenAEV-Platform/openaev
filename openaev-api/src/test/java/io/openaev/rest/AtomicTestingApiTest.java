@@ -717,13 +717,18 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
-            .node("[0].inject_expectation_results")
+            .node("$[?(@.inject_expectation_type == 'DETECTION')].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
+
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
-            .node("[1].inject_expectation_results")
+            .node("$[?(@.inject_expectation_type == 'DETECTION')].inject_expectation_score")
+            .isEqualTo(100.0);
+
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("$[?(@.inject_expectation_type == 'PREVENTION')].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
-        assertThatJson(response).node("[0].inject_expectation_score").isEqualTo("100.0");
       }
 
       @Test
