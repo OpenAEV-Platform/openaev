@@ -15,6 +15,7 @@ import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.MailingService;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
@@ -393,7 +394,8 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsCategory> playerLessonsCategories(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
+      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -416,7 +418,8 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsQuestion> playerLessonsQuestions(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
+      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -436,7 +439,8 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsAnswer> playerLessonsAnswers(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
+      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -470,7 +474,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsAnswerCreateInput input,
-      @RequestParam Optional<String> userId) {
+      @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     User user = impersonateUser(userRepository, userId);
     LessonsQuestion lessonsQuestion =
         lessonsQuestionRepository

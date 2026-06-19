@@ -104,7 +104,7 @@ public class UrlAccessControlAspect {
     if (!urlAccessControl.userId().isEmpty()) {
       String paramName = stripSpelPrefix(urlAccessControl.userId());
       for (int i = 0; i < parameterNames.length; i++) {
-        if (paramName.equals(parameterNames[i]) && shouldExecuteInjection(args[i])) {
+        if (paramName.equals(parameterNames[i])) {
           Object[] newArgs = Arrays.copyOf(args, args.length);
           newArgs[i] = Optional.of(token.getUser().getId());
           return joinPoint.proceed(newArgs);
@@ -153,27 +153,5 @@ public class UrlAccessControlAspect {
    */
   private static String stripSpelPrefix(String spelExpression) {
     return spelExpression.startsWith("#") ? spelExpression.substring(1) : spelExpression;
-  }
-
-  /**
-   * Check if the given object is null, or a string "null"
-   *
-   * @param arg object to check
-   * @return check value
-   */
-  private static boolean shouldExecuteInjection(Object arg) {
-    if (arg == null) {
-      return true;
-    }
-    if (arg instanceof Optional<?> opt) {
-      return opt.isEmpty()
-          || opt.filter(String.class::isInstance)
-              .map(String.class::cast)
-              .map(String::trim)
-              .filter(
-                  value -> "null".equalsIgnoreCase(value) || "undefined".equalsIgnoreCase(value))
-              .isPresent();
-    }
-    return false;
   }
 }
