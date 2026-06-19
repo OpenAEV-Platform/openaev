@@ -14,6 +14,8 @@ runs:
       run: |
         for attempt in 1 2; do
           echo "::group::Attempt $attempt of 2"
+          pwd
+          cat pom.xml
           if mvn -U -B -ntp -T 1C install -DskipTests \
                -Dspring-boot.repackage.skip=true \
                -Djacoco.skip=true; then
