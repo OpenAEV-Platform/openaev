@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
+
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -191,6 +193,7 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
+  @Transactional
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
