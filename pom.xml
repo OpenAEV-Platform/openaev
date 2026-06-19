@@ -202,5 +202,6 @@
         <module>openaev-model</module>
         <module>openaev-framework</module>
         <module>openaev-api</module>
+        <module>openaev-maven-plugin</module>
     </modules>
 </project>
