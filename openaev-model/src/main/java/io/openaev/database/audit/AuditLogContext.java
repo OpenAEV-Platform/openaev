@@ -57,8 +57,7 @@ public final class AuditLogContext {
   public static boolean isEnabled() {
     if (hasRequestContext()) {
       Object val =
-          requestAttributes()
-              .getAttribute(REQUEST_ATTR_ENABLED, RequestAttributes.SCOPE_REQUEST);
+          requestAttributes().getAttribute(REQUEST_ATTR_ENABLED, RequestAttributes.SCOPE_REQUEST);
       return val == null || Boolean.TRUE.equals(val);
     }
     return Boolean.TRUE.equals(ENABLED_TL.get());
