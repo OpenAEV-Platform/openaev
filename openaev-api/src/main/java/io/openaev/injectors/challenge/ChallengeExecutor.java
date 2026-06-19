@@ -20,7 +20,6 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChallengeExpectation;
 import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
 import jakarta.validation.constraints.NotNull;
@@ -64,11 +63,6 @@ public class ChallengeExecutor extends Injector {
             + exercise.getId()
             + "?challenge="
             + challengeId;
-
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      url = url + "&user=" + user.getId();
-      return url;
-    }
     return urlAccessTokenService.generateTokenUrl(exercise, user, url);
   }
 

@@ -1,8 +1,6 @@
 package io.openaev.injectors.channel;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.database.model.ExecutionTrace.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 
@@ -21,7 +19,6 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChannelExpectation;
 import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
 import jakarta.validation.constraints.NotNull;
@@ -61,11 +58,6 @@ public class ChannelExecutor extends Injector {
     ProtectUser user = executionContext.getUser();
     String channelId = article.getChannel().getId();
     String queryOptions = "article=" + article.getId();
-
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      queryOptions = queryOptions + "&user=" + user.getId();
-    }
-
     String url =
         this.context.getOpenAEVConfig().getBaseUrl()
             + "/"
@@ -76,10 +68,6 @@ public class ChannelExecutor extends Injector {
             + channelId
             + "?"
             + queryOptions;
-
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      return url;
-    }
     return urlAccessTokenService.generateTokenUrl(exercise, user, url);
   }
 

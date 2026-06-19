@@ -7,7 +7,6 @@ import static io.openaev.config.SessionHelper.currentUser;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,12 +50,6 @@ public class UrlAccessControlAspect {
   @Around("@annotation(urlAccessControl)")
   public Object validateUrlAccess(ProceedingJoinPoint joinPoint, UrlAccessControl urlAccessControl)
       throws Throwable {
-
-    // Feature flag off, skip URL access control entirely and proceed with legacy flow
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      return joinPoint.proceed();
-    }
-
     // Classical authentication (session/token) already established, no URL token control needed
     if (isClassicallyAuthenticated()) {
       return joinPoint.proceed();
