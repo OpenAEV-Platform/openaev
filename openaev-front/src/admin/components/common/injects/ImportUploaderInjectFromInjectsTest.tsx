@@ -113,7 +113,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
                   fullWidth
                   error={!!errors.sheetName}
                   helperText={errors.sheetName?.message}
-                  InputLabelProps={{ required: true }}
+                  slotProps={{ inputLabel: { required: true } }}
                 />
               )}
             />
@@ -131,7 +131,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
               label={t('Timezone')}
               error={!!errors.timezone}
               helperText={errors.timezone?.message}
-              inputProps={register('timezone')}
+              slotProps={{ htmlInput: register('timezone') }}
             >
               {timezones.map(tz => (
                 <MenuItem key={tz} value={tz}>{t(tz)}</MenuItem>

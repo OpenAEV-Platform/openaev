@@ -60,8 +60,10 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
           label={t('Name')}
           error={!!errors.lessons_template_name}
           helperText={errors.lessons_template_name?.message}
-          inputProps={register('lessons_template_name')}
-          InputLabelProps={{ required: true }}
+          slotProps={{
+            htmlInput: register('lessons_template_name'),
+            inputLabel: { required: true },
+          }}
           control={control}
         />
         <TextField
@@ -70,7 +72,7 @@ const LessonsTemplateForm: FunctionComponent<Props> = ({
           label={t('Description')}
           error={!!errors.lessons_template_description}
           helperText={errors.lessons_template_description?.message}
-          inputProps={register('lessons_template_description')}
+          slotProps={{ htmlInput: register('lessons_template_description') }}
           control={control}
         />
       </div>

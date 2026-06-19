@@ -23,9 +23,13 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
   control,
   setValue,
   maxLength: _maxLength,
+  slotProps,
   ...props
 }: TextFieldProps<TFieldValues>) => {
-  const fieldName = (props.inputProps as { name?: string } | undefined)?.name;
+  const htmlInputProps = {
+    ...(slotProps?.htmlInput as Record<string, unknown> | undefined),
+  };
+  const fieldName = typeof htmlInputProps.name === 'string' ? htmlInputProps.name : undefined;
   const watchedValue = useWatch({
     // `name` is keyed off the underlying form so we widen here; runtime safety is enforced by the
     // `disabled` flag below (we only subscribe when both a control and a name are available).
@@ -35,31 +39,41 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
   });
 
   const currentValue: unknown = fieldName ? watchedValue : undefined;
+  const existingEndAdornment = (slotProps?.input as { endAdornment?: unknown } | undefined)?.endAdornment;
+  const askAiAdornment = askAi && fieldName && setValue
+    ? (
+        <TextFieldAskAI
+          variant="text"
+          currentValue={typeof currentValue === 'string' ? currentValue : ''}
+          setFieldValue={(val: string) => (setValue as UseFormSetValue<FieldValues>)(
+            fieldName,
+            val,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          )}
+          format="text"
+          disabled={props.disabled}
+        />
+      )
+    : undefined;
 
   return (
     <MuiTextField
       {...props}
       value={currentValue ?? undefined}
       slotProps={{
+        ...slotProps,
+        htmlInput: htmlInputProps,
         input: {
-          endAdornment: askAi && fieldName && setValue
-            ? (
-                <TextFieldAskAI
-                  variant="text"
-                  currentValue={typeof currentValue === 'string' ? currentValue : ''}
-                  setFieldValue={(val: string) => (setValue as UseFormSetValue<FieldValues>)(
-                    fieldName,
-                    val,
-                    {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    },
-                  )}
-                  format="text"
-                  disabled={props.disabled}
-                />
-              )
-            : undefined,
+          ...(slotProps?.input as Record<string, unknown> | undefined),
+          endAdornment: (
+            <>
+              {existingEndAdornment}
+              {askAiAdornment}
+            </>
+          ),
         },
       }}
     />

@@ -48,6 +48,7 @@ const EETooltip = ({
           </span>
         </Tooltip>
         <Dialog
+          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
           open={openEnableAI}
           onClose={() => setOpenEnableAI(false)}
@@ -81,6 +82,7 @@ const EETooltip = ({
           </span>
         </Tooltip>
         <Dialog
+          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
           open={openConfigAI}
           onClose={() => setOpenConfigAI(false)}

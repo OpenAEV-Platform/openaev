@@ -59,7 +59,7 @@ const VariableForm: FunctionComponent<Props> = ({
         label={t('Key')}
         error={!!errors.variable_key}
         helperText={errors.variable_key && errors.variable_key?.message}
-        inputProps={register('variable_key')}
+        slotProps={{ htmlInput: register('variable_key') }}
       />
       <MuiTextField
         variant="standard"
@@ -68,7 +68,7 @@ const VariableForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.variable_value}
         helperText={errors.variable_value && errors.variable_value?.message}
-        inputProps={register('variable_value')}
+        slotProps={{ htmlInput: register('variable_value') }}
       />
       <MuiTextField
         variant="standard"
@@ -81,7 +81,7 @@ const VariableForm: FunctionComponent<Props> = ({
         helperText={
           errors.variable_description && errors.variable_description?.message
         }
-        inputProps={register('variable_description')}
+        slotProps={{ htmlInput: register('variable_description') }}
       />
       <div style={{
         float: 'right',

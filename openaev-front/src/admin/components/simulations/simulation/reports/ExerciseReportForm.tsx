@@ -134,7 +134,7 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
         label={t('Name')}
         error={!!errors.report_name}
         helperText={errors.report_name && errors.report_name?.message}
-        inputProps={register('report_name')}
+        slotProps={{ htmlInput: register('report_name') }}
       />
       <Typography
         variant="h4"

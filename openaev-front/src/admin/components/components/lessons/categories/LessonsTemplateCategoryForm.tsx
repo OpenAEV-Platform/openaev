@@ -64,8 +64,10 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
           label={t('Name')}
           error={!!errors.lessons_template_category_name}
           helperText={errors.lessons_template_category_name?.message}
-          inputProps={register('lessons_template_category_name')}
-          InputLabelProps={{ required: true }}
+          slotProps={{
+            htmlInput: register('lessons_template_category_name'),
+            inputLabel: { required: true },
+          }}
           control={control}
         />
         <TextField
@@ -74,7 +76,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
           label={t('Description')}
           error={!!errors.lessons_template_category_description}
           helperText={errors.lessons_template_category_description?.message}
-          inputProps={register('lessons_template_category_description')}
+          slotProps={{ htmlInput: register('lessons_template_category_description') }}
           control={control}
         />
         <TextField
@@ -83,9 +85,11 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
           label={t('Order')}
           error={!!errors.lessons_template_category_order}
           helperText={errors.lessons_template_category_order?.message}
-          inputProps={register('lessons_template_category_order')}
+          slotProps={{
+            htmlInput: register('lessons_template_category_order'),
+            inputLabel: { required: true },
+          }}
           type="number"
-          InputLabelProps={{ required: true }}
           control={control}
         />
       </div>

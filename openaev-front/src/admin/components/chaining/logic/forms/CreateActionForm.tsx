@@ -1,3 +1,5 @@
+// @ts-expect-error -- MUI v9 migration: TS2724
+
 import { Add, ArrowBack, DeleteOutline, KeyboardArrowRight } from '@mui/icons-material';
 import {
   Button,

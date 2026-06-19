@@ -262,7 +262,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
                   fullWidth
                   error={!!errors.sheetName}
                   helperText={errors.sheetName?.message}
-                  InputLabelProps={{ required: true }}
+                  slotProps={{ inputLabel: { required: true } }}
                 />
               )}
             />
@@ -338,7 +338,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
                   fullWidth
                   error={!!errors.importMapperId}
                   helperText={errors.importMapperId?.message}
-                  InputLabelProps={{ required: true }}
+                  slotProps={{ inputLabel: { required: true } }}
                 />
               )}
             />
@@ -361,7 +361,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
                       error: !!fieldState.error,
                       helperText: fieldState.error && fieldState.error?.message,
                       label: (
-                        <Box display="flex" alignItems="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           {t('Start date')}
                           <Tooltip title={t('The imported file contains absolute dates (ex.: 9h30). A starting date must be provided for the Scenario to be build')}>
                             <InformationOutline
@@ -393,7 +393,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
               label={t('Timezone')}
               error={!!errors.timezone}
               helperText={errors.timezone?.message}
-              inputProps={register('timezone')}
+              slotProps={{ htmlInput: register('timezone') }}
             >
               {timezones.map(tz => (
                 <MenuItem key={tz} value={tz}>{t(tz)}</MenuItem>

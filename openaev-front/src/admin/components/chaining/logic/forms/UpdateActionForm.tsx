@@ -1,4 +1,4 @@
-import { Add, DeleteOutline } from '@mui/icons-material';
+import { Add, DeleteOutlined } from '@mui/icons-material';
 import {
   Button,
   Chip,
@@ -130,7 +130,7 @@ const UpdateActionForm: FunctionComponent<Props> = ({
                   size="small"
                   onClick={() => setSelectedAssets(prev => prev.filter(a => a.asset_id !== asset.asset_id))}
                 >
-                  <DeleteOutline fontSize="small" />
+                  <DeleteOutlined fontSize="small" />
                 </IconButton>
               </ListItemSecondaryAction>
             </ListItemButton>
@@ -287,7 +287,7 @@ const UpdateActionForm: FunctionComponent<Props> = ({
             size="small"
             onClick={() => setMapperConditions(prev => prev.filter((_, i) => i !== idx))}
           >
-            <DeleteOutline fontSize="small" />
+            <DeleteOutlined fontSize="small" />
           </IconButton>
         </div>
       ))}

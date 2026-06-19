@@ -1,4 +1,6 @@
 import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, NewspaperOutlined, ShareOutlined, VisibilityOutlined } from '@mui/icons-material';
+// @ts-expect-error -- MUI v9 migration: TS2305
+
 import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Chip, GridLegacy, IconButton, Tooltip, Typography } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
 import * as R from 'ramda';

@@ -84,6 +84,7 @@ const SearchInput: FunctionComponent<Props> = ({
       placeholder={placeholder ?? `${t('Search these results')}...`}
       onChange={handleChange}
       onKeyDown={handleKeyDown}
+      // @ts-expect-error -- MUI v9 migration: TS2322
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">

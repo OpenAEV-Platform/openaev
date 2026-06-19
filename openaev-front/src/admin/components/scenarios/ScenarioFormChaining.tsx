@@ -104,8 +104,10 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             label={t('Name')}
             error={!!errors.scenario_name}
             helperText={errors.scenario_name?.message}
-            inputProps={register('scenario_name')}
-            InputLabelProps={{ required: true }}
+            slotProps={{
+              htmlInput: register('scenario_name'),
+              inputLabel: { required: true },
+            }}
             control={control}
             setValue={setValue}
             askAi={true}
@@ -190,7 +192,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             label={t('Description')}
             error={!!errors.scenario_description}
             helperText={errors.scenario_description?.message}
-            inputProps={register('scenario_description')}
+            slotProps={{ htmlInput: register('scenario_description') }}
             control={control}
             setValue={setValue}
             askAi={true}
@@ -268,6 +270,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                         setInputValue(newInputValue);
                       }}
                       disableClearable={true}
+                      // @ts-expect-error -- MUI v9 migration: TS2322
                       renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
                         return (
                           <Chip

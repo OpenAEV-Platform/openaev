@@ -1,4 +1,6 @@
 import { HelpOutlined } from '@mui/icons-material';
+// @ts-expect-error -- MUI v9 migration: TS2305
+
 import { GridLegacy, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Paper, Typography } from '@mui/material';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';

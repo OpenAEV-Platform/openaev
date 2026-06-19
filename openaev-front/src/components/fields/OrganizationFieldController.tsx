@@ -100,7 +100,6 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
                 helperText={error?.message}
                 slotProps={{
                   input: {
-                    ...params.InputProps,
                     endAdornment: (
                       <>
                         <IconButton
@@ -112,7 +111,6 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
                         >
                           <AddOutlined />
                         </IconButton>
-                        {params.InputProps.endAdornment}
                       </>
                     ),
                   },

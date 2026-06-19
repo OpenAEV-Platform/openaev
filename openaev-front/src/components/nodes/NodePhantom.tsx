@@ -1,4 +1,4 @@
-import { AddCircleOutline } from '@mui/icons-material';
+import { AddCircleOutlined } from '@mui/icons-material';
 import { type FunctionComponent, memo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -58,7 +58,7 @@ const NodePhantomComponent: FunctionComponent<Props> = (props) => {
           }}
         >
           <div className={classes.iconContainer}>
-            <AddCircleOutline className={classes.icon} style={{ fontSize: '30px' }} />
+            <AddCircleOutlined className={classes.icon} style={{ fontSize: '30px' }} />
           </div>
         </div>
         <span className={classes.time}>
