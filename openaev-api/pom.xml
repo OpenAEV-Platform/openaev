@@ -397,7 +397,7 @@
                     <execution>
                         <id>new-migration</id>
                         <goals>
-                            <goal>template</goal>
+                            <goal>migration</goal>
                         </goals>
                     </execution>
                 </executions>
