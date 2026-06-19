@@ -2,6 +2,7 @@ package io.openaev.migration;
 
 import java.io.File;
 import java.io.IOException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -11,7 +12,11 @@ import org.apache.maven.plugins.annotations.Parameter;
 /** Generate a new templated flyway migration file */
 @Mojo(name = "migration", defaultPhase = LifecyclePhase.NONE)
 public class GenerateNewMigrationTemplateFile extends AbstractMojo {
-  @Parameter(property = "basedir", name = "basedir", required = true, defaultValue = "${project.basedir}")
+  @Parameter(
+      property = "basedir",
+      name = "basedir",
+      required = true,
+      defaultValue = "${project.basedir}")
   private File basedir;
 
   @Parameter(property = "reason", name = "reason", required = true, defaultValue = "migration")
@@ -58,7 +63,7 @@ public class GenerateNewMigrationTemplateFile extends AbstractMojo {
   private final String subLocation = "src/main/java/io/openaev/migration";
 
   private String getClassName() {
-    return reason == null ? defaultReason : reason;
+    return StringUtils.isBlank(reason) ? defaultReason : reason;
   }
 
   private File getFinalBaseDir() {
@@ -70,7 +75,7 @@ public class GenerateNewMigrationTemplateFile extends AbstractMojo {
   }
 
   private String getFullDirectoryPath(File baseDir) {
-    return "%s/%s".formatted(baseDir.getAbsolutePath(), subLocation);
+    return new File(baseDir, subLocation).getAbsolutePath();
   }
 
   public void execute() throws MojoExecutionException {
