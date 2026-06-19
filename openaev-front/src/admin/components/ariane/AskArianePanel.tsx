@@ -151,39 +151,39 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     return null;
   }
 
-	const chatPanelProps = {
-		mode,
-		onClose,
-		onModeChange,
-		topOffset,
-		backendType: 'rest' as const,
-		apiBaseUrl: '/api/xtmone/chat',
-		apiEndpoints: {
-			agents: '/agents',
-			messages: '/messages',
-			// Mid-run steering — must be set explicitly because the chatbot
-			// default ('/chat/messages/steer') assumes XTM One-style paths,
-			// while the OpenAEV proxy exposes '/messages/steer' relative to
-			// its '/api/xtmone/chat' base.
-			steer: '/messages/steer',
-			sessions: '/sessions',
-			upload: '/upload',
-			download: '/files',
-		},
-		user: { firstName },
-		disableFileManagement: false,
-		t,
-		accentColor,
-		logoIcon,
-		agentDashboardUrl: xtmOneUrl || undefined,
-		promptSuggestions,
-		pageContext,
-		resizable: mode === 'sidebar',
-		onWidthChange,
-		onResizeStart,
-		onResizeEnd,
-		onTaskComplete: (_title: string, body: string) => MESSAGING$.notifySuccess(body),
-	};
+  const chatPanelProps = {
+    mode,
+    onClose,
+    onModeChange,
+    topOffset,
+    backendType: 'rest' as const,
+    apiBaseUrl: '/api/xtmone/chat',
+    apiEndpoints: {
+      agents: '/agents',
+      messages: '/messages',
+      // Mid-run steering — must be set explicitly because the chatbot
+      // default ('/chat/messages/steer') assumes XTM One-style paths,
+      // while the OpenAEV proxy exposes '/messages/steer' relative to
+      // its '/api/xtmone/chat' base.
+      steer: '/messages/steer',
+      sessions: '/sessions',
+      upload: '/upload',
+      download: '/files',
+    },
+    user: { firstName },
+    disableFileManagement: false,
+    t,
+    accentColor,
+    logoIcon,
+    agentDashboardUrl: xtmOneUrl || undefined,
+    promptSuggestions,
+    pageContext,
+    resizable: mode === 'sidebar',
+    onWidthChange,
+    onResizeStart,
+    onResizeEnd,
+    onTaskComplete: (_title: string, body: string) => MESSAGING$.notifySuccess(body),
+  };
 
   return createPortal(
     <ChatPanel {...chatPanelProps} />,
