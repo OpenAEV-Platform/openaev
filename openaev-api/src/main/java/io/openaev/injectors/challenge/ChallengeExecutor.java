@@ -21,7 +21,6 @@ import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChallengeExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.PreviewFeatureService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,14 +39,12 @@ public class ChallengeExecutor extends Injector {
       ChallengeRepository challengeRepository,
       EmailService emailService,
       InjectExpectationService injectExpectationService,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(context);
     this.challengeRepository = challengeRepository;
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   private String buildChallengeUri(

@@ -20,7 +20,6 @@ import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChannelExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.PreviewFeatureService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,14 +41,12 @@ public class ChannelExecutor extends Injector {
       ArticleRepository articleRepository,
       EmailService emailService,
       InjectExpectationService injectExpectationService,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(context);
     this.articleRepository = articleRepository;
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   private String buildArticleUri(
