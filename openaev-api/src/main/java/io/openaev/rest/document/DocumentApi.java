@@ -551,13 +551,8 @@ public class DocumentApi extends RestBehavior {
   public ResponseEntity<InputStreamResource> downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
-<<<<<<< issue/6212-transactional-updates
-      @RequestParam Optional<String> userId) {
-=======
-      @RequestParam Optional<String> userId,
-      HttpServletResponse response)
-      throws IOException, AuthenticationError {
->>>>>>> main
+      @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());

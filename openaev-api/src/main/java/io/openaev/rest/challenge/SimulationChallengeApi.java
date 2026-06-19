@@ -92,12 +92,8 @@ public class SimulationChallengeApi extends RestBehavior {
     "/api/player/simulations/{simulationId}/documents",
     TENANT_PREFIX + "/player/simulations/{simulationId}/documents"
   })
-<<<<<<< issue/6212-transactional-updates
   @Transactional
-  @UrlAccessControl(userId = "#userId")
-=======
   @UrlAccessControl(exerciseId = "#simulationId", userId = "#userId")
->>>>>>> main
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
       @PathVariable String simulationId, @RequestParam Optional<String> userId)
