@@ -30,7 +30,7 @@ public class ExpectationApi extends RestBehavior {
   public static final String TENANT_EXPECTATIONS_URI = TENANT_PREFIX + "/expectations";
   public static final String INJECTS_EXPECTATIONS_URI = "/api/injects/expectations";
   public static final String TENANT_INJECTS_EXPECTATIONS_URI =
-      TENANT_PREFIX + "/injects/expectations";
+          TENANT_PREFIX + "/injects/expectations";
 
   private final InjectExpectationService injectExpectationService;
   private final ExpectationService expectationService;
@@ -39,186 +39,171 @@ public class ExpectationApi extends RestBehavior {
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectation updateInjectExpectation(
-      @PathVariable @NotBlank final String expectationId,
-      @Valid @RequestBody final ExpectationUpdateInput input) {
+          @PathVariable @NotBlank final String expectationId,
+          @Valid @RequestBody final ExpectationUpdateInput input) {
     return injectExpectationService.updateInjectExpectation(expectationId, input);
   }
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping({
-    EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete",
-    TENANT_EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete"
+          EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete",
+          TENANT_EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete"
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectation deleteInjectExpectationResult(
-      @PathVariable @NotBlank final String expectationId,
-      @PathVariable @NotBlank final String sourceId) {
+          @PathVariable @NotBlank final String expectationId,
+          @PathVariable @NotBlank final String sourceId) {
     return injectExpectationService.deleteInjectExpectationResult(expectationId, sourceId);
   }
 
   @Operation(
-      summary = "Get Inject Expectations",
-      description =
-          "Retrieves inject expectations of agents installed on an asset. If an expiration time is provided, it will return all expectations not expired within this timeframe independently of their results. Otherwise, it will return all expectations without any result.")
-  @Transactional
+          summary = "Get Inject Expectations",
+          description =
+                  "Retrieves inject expectations of agents installed on an asset. If an expiration time is provided, it will return all expectations not expired within this timeframe independently of their results. Otherwise, it will return all expectations without any result.")
   @GetMapping({INJECTS_EXPECTATIONS_URI, TENANT_INJECTS_EXPECTATIONS_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
-      @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+          @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     if (expirationTime == null) {
       return Stream.of(
-              injectExpectationService.manualExpectationsNotFill(),
-              injectExpectationService.preventionExpectationsNotFill(),
-              injectExpectationService.detectionExpectationsNotFill())
-          .flatMap(List::stream)
-          .toList();
+                       injectExpectationService.manualExpectationsNotFill(),
+                      injectExpectationService.preventionExpectationsNotFill(),
+                      injectExpectationService.detectionExpectationsNotFill())
+              .flatMap(List::stream)
+              .toList();
     }
 
     return Stream.of(
-            injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
-            injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
-            injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
-        .flatMap(List::stream)
-        .toList();
+                    injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
+                    injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
+                    injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
+            .flatMap(List::stream)
+            .toList();
   }
 
   @Operation(
-      summary = "Get Inject Expectations for a Specific Source",
-      description =
-          "Retrieves inject expectations that have not seen any result yet of agents installed on an asset for a given source ID.")
-  @Transactional
+          summary = "Get Inject Expectations for a Specific Source",
+          description =
+                  "Retrieves inject expectations that have not seen any result yet of agents installed on an asset for a given source ID.")
   @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/{sourceId}",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/{sourceId}"
+          INJECTS_EXPECTATIONS_URI + "/{sourceId}",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/{sourceId}"
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectExpectationsNotFilledForSource(
-      @PathVariable String sourceId) {
+          @PathVariable String sourceId) {
     return Stream.concat(
-            injectExpectationService.manualExpectationsNotFill(sourceId).stream(),
-            Stream.concat(
-                injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-                injectExpectationService.detectionExpectationsNotFill(sourceId).stream()))
-        .toList();
+                    injectExpectationService.manualExpectationsNotFill(sourceId).stream(),
+                    Stream.concat(
+                            injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
+                            injectExpectationService.detectionExpectationsNotFill(sourceId).stream()))
+            .toList();
   }
 
   @Operation(
-      summary = "Get Inject Expectations for a Specific Source",
-      description =
-          "Retrieves inject expectations of agents installed on an asset for a given source ID.")
-  @Transactional
+          summary = "Get Inject Expectations for a Specific Source",
+          description =
+                  "Retrieves inject expectations of agents installed on an asset for a given source ID.")
   @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}"
+          INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/assets/{sourceId}"
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
-      @PathVariable String sourceId,
-      @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+          @PathVariable String sourceId,
+          @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     if (expirationTime == null) {
       return Stream.concat(
-              injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-              injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
-          .toList();
+                      injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
+                      injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
+              .toList();
     }
     return Stream.concat(
-            injectExpectationService
-                .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
-                .stream(),
-            injectExpectationService
-                .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
-                .stream())
-        .toList();
+                    injectExpectationService
+                            .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                            .stream(),
+                    injectExpectationService
+                            .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                            .stream())
+            .toList();
   }
 
   @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/prevention",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/prevention"
+          INJECTS_EXPECTATIONS_URI + "/prevention",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/prevention"
   })
-  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectPreventionExpectationsNotFilled() {
     return injectExpectationService.preventionExpectationsNotFill().stream().toList();
   }
 
   @Operation(
-      summary = "Get Inject Expectations for a Specific Source and type Prevention",
-      description =
-          "Retrieves inject expectations of agents installed on an asset for a given source ID and type Prevention.")
-  @Transactional
+          summary = "Get Inject Expectations for a Specific Source and type Prevention",
+          description =
+                  "Retrieves inject expectations of agents installed on an asset for a given source ID and type Prevention.")
   @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}"
+          INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/prevention/{sourceId}"
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectPreventionExpectationsNotFilledForSource(
-      @PathVariable String sourceId) {
+          @PathVariable String sourceId) {
     return injectExpectationService.preventionExpectationsNotFill(sourceId).stream().toList();
   }
 
   @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/detection",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/detection"
+          INJECTS_EXPECTATIONS_URI + "/detection",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/detection"
   })
-  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectDetectionExpectationsNotFilled() {
     return injectExpectationService.detectionExpectationsNotFill().stream().toList();
   }
 
   @Operation(
-      summary = "Get Inject Expectations for a Specific Source and type Detection",
-      description =
-          "Retrieves inject expectations of agents installed on an asset for a given source ID and type detection.")
-  @Transactional
+          summary = "Get Inject Expectations for a Specific Source and type Detection",
+          description =
+                  "Retrieves inject expectations of agents installed on an asset for a given source ID and type detection.")
   @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}"
+          INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/detection/{sourceId}"
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
   public List<InjectExpectation> getInjectDetectionExpectationsNotFilledForSource(
-      @PathVariable String sourceId) {
+          @PathVariable String sourceId) {
     return injectExpectationService.detectionExpectationsNotFill(sourceId).stream().toList();
   }
 
   @Operation(
-      summary = "Update Inject Expectation",
-      description = "Update Inject expectation from an external source, e.g., EDR collector.")
+          summary = "Update Inject Expectation",
+          description = "Update Inject expectation from an external source, e.g., EDR collector.")
   @PutMapping({
-    INJECTS_EXPECTATIONS_URI + "/{expectationId}",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/{expectationId}"
+          INJECTS_EXPECTATIONS_URI + "/{expectationId}",
+          TENANT_INJECTS_EXPECTATIONS_URI + "/{expectationId}"
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public InjectExpectation updateInjectExpectation(
-      @PathVariable @NotBlank final String expectationId,
-      @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
+          @PathVariable @NotBlank final String expectationId,
+          @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
     return injectExpectationService.updateInjectExpectation(expectationId, input);
   }
 
   @Operation(
-      summary = "Bulk Update Inject Expectation",
-      description = "Bulk Update Inject expectation from an external source, e.g., EDR collector.")
+          summary = "Bulk Update Inject Expectation",
+          description = "Bulk Update Inject expectation from an external source, e.g., EDR collector.")
   @PutMapping({INJECTS_EXPECTATIONS_URI + "/bulk", TENANT_INJECTS_EXPECTATIONS_URI + "/bulk"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void updateInjectExpectation(
-      @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
+          @Valid @RequestBody @NotNull InjectExpectationBulkUpdateInput inputs) {
     injectExpectationService.bulkUpdateInjectExpectation(inputs.getInputs());
-  }
-
-  @Operation(summary = "Get available expectations for an inject by injector contract id")
-  @Transactional
-  @GetMapping({
-    INJECTS_EXPECTATIONS_URI + "/available",
-    TENANT_INJECTS_EXPECTATIONS_URI + "/available"
-  })
-  @AccessControl(
-      resourceId = "#injectorContractId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.INJECTOR_CONTRACT)
-  public List<Expectation> getAvailableExpectationsForInject(
-      @RequestParam @NotBlank String injectorContractId) {
-    return expectationService.getAvailableExpectationsForInject(injectorContractId);
   }
 }
