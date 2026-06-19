@@ -33,7 +33,12 @@ public class GenerateNewMigrationTemplateFile extends AbstractMojo {
   }
 
   public GenerateNewMigrationTemplateFile(File baseDir, String reason) {
-    this(new ClassNameGenerator(), new ClassFileWriter(), new ClassContentsGenerator(), baseDir, reason);
+    this(
+        new ClassNameGenerator(),
+        new ClassFileWriter(),
+        new ClassContentsGenerator(),
+        baseDir,
+        reason);
   }
 
   public GenerateNewMigrationTemplateFile(
