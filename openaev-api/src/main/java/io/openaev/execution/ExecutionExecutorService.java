@@ -3,6 +3,7 @@ package io.openaev.execution;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.ComponentRequest;
@@ -11,6 +12,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,9 +29,11 @@ public class ExecutionExecutorService {
 
   private final ManagerFactory managerFactory;
   private final ExecutionTraceRepository executionTraceRepository;
+  private final InjectStatusRepository injectStatusRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
   private final ConnectorInstanceService connectorInstanceService;
+  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -39,6 +43,10 @@ public class ExecutionExecutorService {
         this.injectService.getAgentsAndAgentlessAssetsByInject(inject);
     Set<Agent> agents = agentsAndAssetsAgentless.agents();
     Set<Asset> assetsAgentless = agentsAndAssetsAgentless.assetsAgentless();
+    // Persist the number of agents resolved at launch so the COMPLETE callback path can decide
+    // completion without re-resolving the full asset/agent graph on every callback
+    injectStatus.setExpectedAgentCount(agents.size());
+    injectStatusRepository.save(injectStatus);
     // Manage agentless assets
     saveAgentlessAssetsTraces(assetsAgentless, injectStatus);
     // Filter inactive and executor-less agents
@@ -46,12 +54,16 @@ public class ExecutionExecutorService {
     agents.removeAll(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
+    Set<Agent> overloadedAgents = executorUtils.findOverloadedAgents(agents);
+    agents.removeAll(overloadedAgents);
 
     AtomicBoolean atLeastOneExecution = new AtomicBoolean(false);
     // Manage inactive agents
     saveInactiveAgentsTraces(inactiveAgents, injectStatus);
     // Manage without executor agents
     saveWithoutExecutorAgentsTraces(agentsWithoutExecutor, injectStatus);
+    // Manage overloaded agents
+    saveOverloadedAgentsTraces(overloadedAgents, injectStatus);
 
     // Group remaining agents by their executor entity for per-instance routing.
     // Each executor entity maps to exactly one ConnectorInstance (and therefore one Integration
@@ -80,7 +92,7 @@ public class ExecutionExecutorService {
       AtomicBoolean atLeastOneExecution) {
     if (!agents.isEmpty()) {
       try {
-        Manager manager = managerFactory.getManager();
+        Manager manager = managerFactory.getManager(inject.getTenant().getId());
         ExecutorContextService executorContextService;
         if (executor.isExternal()) {
           // Resolve the ConnectorInstance that owns this executor
@@ -95,15 +107,19 @@ public class ExecutionExecutorService {
               manager.request(
                   new ComponentRequest(executor.getName()), ExecutorContextService.class);
         }
+        String token =
+            serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+                inject.getTenant().getId());
         List<Agent> agentsProcessed =
-            executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus);
+            executorContextService.launchBatchExecutorSubprocess(
+                inject, agents, injectStatus, token);
         List<Agent> remainingAgents = new ArrayList<>(agents);
         remainingAgents.removeAll(agentsProcessed);
         // Also handle individual execution for executor context services whose batch
         // implementation is a no-op (e.g. OpenAEV agent)
         for (Agent agent : remainingAgents) {
           Endpoint assetEndpoint = (Endpoint) Hibernate.unproxy(agent.getAsset());
-          executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent);
+          executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent, token);
         }
         atLeastOneExecution.set(true);
       } catch (Exception e) {
@@ -185,6 +201,29 @@ public class ExecutionExecutorService {
                               + agent.getExecutedByUser()
                               + " is inactive for the asset "
                               + agent.getAsset().getName(),
+                          ExecutionTraceAction.COMPLETE,
+                          agent,
+                          null))
+              .toList());
+    }
+  }
+
+  @VisibleForTesting
+  public void saveOverloadedAgentsTraces(Set<Agent> overloadedAgents, InjectStatus injectStatus) {
+    if (!overloadedAgents.isEmpty()) {
+      executionTraceRepository.saveAll(
+          overloadedAgents.stream()
+              .map(
+                  agent ->
+                      new ExecutionTrace(
+                          injectStatus,
+                          ExecutionTraceStatus.AGENT_OVERLOADED,
+                          List.of(),
+                          "Agent "
+                              + agent.getExecutedByUser()
+                              + " is overloaded for the asset "
+                              + agent.getAsset().getName()
+                              + " (queue threshold exceeded)",
                           ExecutionTraceAction.COMPLETE,
                           agent,
                           null))

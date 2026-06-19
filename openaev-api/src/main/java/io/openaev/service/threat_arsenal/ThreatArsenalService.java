@@ -6,10 +6,14 @@ import static io.openaev.utils.ThreatArsenalFilterUtils.ENTITY_TO_ACTION_FIELDS;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.database.model.Collector;
+import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
@@ -23,11 +27,14 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.criteria.Join;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -38,6 +45,11 @@ public class ThreatArsenalService {
   private final PayloadService payloadService;
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalMapper threatArsenalMapper;
+  private final CollectorService collectorService;
+
+  /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
+  public static final List<String> TABLETOP_INJECTOR_TYPES =
+      List.of("openaev_email", "openaev_ovh_sms", "openaev_challenge", "openaev_channel");
 
   /**
    * Retrieves a threat arsenal action by its identifier and returns the full-detail output.
@@ -156,6 +168,27 @@ public class ThreatArsenalService {
   }
 
   /**
+   * Retrieves the collectors associated with the remediation of a given action.
+   *
+   * <p>Resolves the injector contract by the given action ID and fetches the collectors linked to
+   * the underlying payload. Only payload-based injector contracts are supported.
+   *
+   * @param actionId the action (injector contract) identifier
+   * @return the list of collectors associated with the action's payload
+   * @throws ElementNotFoundException if the injector contract is not payload-based
+   */
+  public List<Collector> getCollectorsForActionRemediation(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    Payload payload = injectorContract.getPayload();
+    if (payload == null) {
+      throw new ElementNotFoundException(
+          "Only payload-based injector contracts can provide collectors for action remediation.");
+    }
+
+    return collectorService.collectorsForPayload(payload.getId());
+  }
+
+  /**
    * Creates a new threat arsenal action.
    *
    * <p>Converts the action input into a payload create input, delegates the creation to the payload
@@ -164,6 +197,7 @@ public class ThreatArsenalService {
    * @param actionInput the creation input containing the new action values
    * @return the created threat arsenal action
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(ThreatArsenalActionCreateInput actionInput) {
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
@@ -183,23 +217,55 @@ public class ThreatArsenalService {
    * @param actionInput the update input containing the new action values
    * @return the updated threat arsenal action
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction update(String actionId, ThreatArsenalActionUpdateInput actionInput) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
-    Payload payload = injectorContract.getPayload();
-    if (payload == null) {
-      throw new ElementNotFoundException("Only injector contract based on payload can be updated ");
+
+    if (injectorContract.getPayload() == null) {
+      return updateActionNotPayloadBased(injectorContract, actionInput);
     }
 
+    return updateActionPayloadBased(injectorContract, actionInput);
+  }
+
+  private ThreatArsenalAction updateActionPayloadBased(
+      InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+    if (actionInput.executionArch() == null) {
+      throw new IllegalArgumentException(
+          "action_execution_arch is required for payload-based actions");
+    }
+    if (actionInput.expectations() == null) {
+      throw new IllegalArgumentException(
+          "action_expectations is required for payload-based actions");
+    }
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
-
     // update payload using the resolved payload ID
     PayloadCreationService.PayloadInjectorContractCreationResult result =
-        this.payloadUpdateService.updatePayload(payload.getId(), payloadInput);
-
+        this.payloadUpdateService.updatePayload(
+            injectorContract.getPayload().getId(), payloadInput);
     // convert to ThreatArsenalAction
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+  }
+
+  private ThreatArsenalAction updateActionNotPayloadBased(
+      InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+    InjectorContractUpdateMappingInput injectorContractInput =
+        getInjectorContractUpdateMappingInputFromActionInput(actionInput);
+    InjectorContract injectorContractUpdated =
+        injectorContractService.updateInjectorContractTTPDomainsAndTags(
+            injectorContract, injectorContractInput);
+    return threatArsenalMapper.toThreatArsenalAction(injectorContractUpdated);
+  }
+
+  private InjectorContractUpdateMappingInput getInjectorContractUpdateMappingInputFromActionInput(
+      ThreatArsenalActionUpdateInput actionInput) {
+    InjectorContractUpdateMappingInput input = new InjectorContractUpdateMappingInput();
+    input.setAttackPatternsIds(actionInput.attackPatternsIds());
+    input.setDomainIds(actionInput.domainIds());
+    input.setTagIds(actionInput.tagIds());
+    return input;
   }
 
   /**
@@ -211,13 +277,14 @@ public class ThreatArsenalService {
    * @param actionId the ID of the action to duplicate
    * @return the newly created threat arsenal action copy
    */
+  @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction duplicate(String actionId) {
     // resolve the payload ID from the injector contract
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
       throw new ElementNotFoundException(
-          "Only payload linked to injector contract can be duplicated ");
+          "Only injector contract based on payload can be duplicated.");
     }
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -245,5 +312,53 @@ public class ThreatArsenalService {
                 input.getInjectorContractIdsToProcess()),
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input)),
         InjectorContract.class);
+  }
+
+  /**
+   * Search for non-tabletop Injector Contracts (excludes email, SMS, challenges, media pressure).
+   * Adds a JPA specification to filter out contracts whose injector type is in {@link
+   * #TABLETOP_INJECTOR_TYPES}.
+   *
+   * @param mode output mode
+   * @param input to filter
+   * @return the injector contracts search results excluding tabletop types
+   */
+  public Page<? extends InjectorContractBaseOutput> searchNonTabletopInjectorContracts(
+      InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
+    Specification<InjectorContract> excludeTabletop =
+        (root, query, cb) -> {
+          Join<InjectorContract, Injector> injectorJoin = root.join("injectors");
+          return cb.not(injectorJoin.get("type").in(TABLETOP_INJECTOR_TYPES));
+        };
+
+    return buildPaginationCriteriaBuilder(
+        (spec, specCount, pageable) ->
+            this.injectorContractService.getSinglePage(
+                spec.and(excludeTabletop),
+                specCount.and(excludeTabletop),
+                pageable,
+                mode,
+                input.getInjectorContractIdsToIgnore(),
+                input.getInjectorContractIdsToProcess()),
+        handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input)),
+        InjectorContract.class);
+  }
+
+  /**
+   * Deletes a payload-based threat arsenal action.
+   *
+   * <p>Resolves the injector contract by the given action ID and deletes it. Only payload-based
+   * actions can be deleted. The associated {@link Payload} is automatically removed via JPA cascade
+   * ({@code CascadeType.REMOVE}) configured on {@link InjectorContract#getPayload()}.
+   *
+   * @param actionId the ID of the action to delete — equals the injector contract ID
+   * @throws ElementNotFoundException if the injector contract is not payload-based
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void delete(String actionId) {
+    if (!injectorContractService.isPayloadBased(actionId)) {
+      throw new ElementNotFoundException("Only payload-based actions can be deleted.");
+    }
+    this.injectorContractService.deleteInjectorContractById(actionId);
   }
 }

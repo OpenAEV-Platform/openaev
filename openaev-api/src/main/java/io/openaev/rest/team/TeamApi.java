@@ -13,12 +13,14 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ResourceInUseException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.TeamHelper;
 import io.openaev.rest.team.form.TeamCreateInput;
@@ -43,6 +45,8 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.TransientObjectException;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
@@ -119,7 +123,9 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The team")})
   @Operation(description = "Get a team", summary = "Get team")
   public Team getTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    return teamRepository
+        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   @GetMapping({"/api/teams/{teamId}/players", TENANT_TEAM_URI + "/{teamId}/players"})
@@ -132,7 +138,10 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Get the list of players of a team", summary = "Get team's players")
   public Iterable<User> getTeamPlayers(
       @PathVariable @Schema(description = "ID of the team") String teamId) {
-    return teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new).getUsers();
+    return teamRepository
+        .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new)
+        .getUsers();
   }
 
   @PostMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -193,8 +202,18 @@ public class TeamApi extends RestBehavior {
       resourceType = ResourceType.TEAM)
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   @Operation(description = "Delete an existing team", summary = "Delete team")
-  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
-    teamRepository.deleteById(teamId);
+  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
+      throws ResourceInUseException {
+    if (!teamRepository.existsByIdAndTenantId(teamId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException();
+    }
+    try {
+      teamRepository.deleteById(teamId);
+    } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
+      throw new ResourceInUseException(
+          "Cannot delete this team because it is still in use. Please remove its dependencies first.",
+          ex);
+    }
   }
 
   @PutMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
@@ -207,7 +226,10 @@ public class TeamApi extends RestBehavior {
   public Team updateTeam(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody TeamUpdateInput input) {
-    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     team.setUpdateAttributes(input);
     team.setUpdatedAt(now());
     team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -228,7 +250,10 @@ public class TeamApi extends RestBehavior {
   public Team updateTeamUsers(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
-    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
     team.setUsers(fromIterable(teamUsers));
     return teamRepository.save(team);

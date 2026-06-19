@@ -21,6 +21,7 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -243,7 +244,10 @@ public final class FilterUtilsJpa {
                   ? notContainsTexts((Expression<String>) paths, cb, texts, type)
                   : notContainsTexts(root, query, cb, joinRelation, "id", texts);
       case contains ->
-          (paths, texts) -> containsTexts((Expression<String>) paths, cb, texts, type, mode);
+          (paths, texts) ->
+              joinRelation == null
+                  ? containsTexts((Expression<String>) paths, cb, texts, type, mode)
+                  : containsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts, mode);
       case not_starts_with ->
           (paths, texts) -> notStartWithTexts((Expression<String>) paths, cb, texts, type);
       case starts_with ->
@@ -254,8 +258,149 @@ public final class FilterUtilsJpa {
       case gte -> (paths, texts) -> greaterThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
       case lt -> (paths, texts) -> lessThanTexts((Expression<Instant>) paths, cb, texts);
       case lte -> (paths, texts) -> lessThanOrEqualTexts((Expression<Instant>) paths, cb, texts);
-      case not_eq -> (paths, texts) -> notEqualsTexts((Expression<String>) paths, cb, texts, type);
-      default -> (paths, texts) -> equalsTexts((Expression<String>) paths, cb, texts, type);
+      case not_eq ->
+          (paths, texts) ->
+              joinRelation == null
+                  ? notEqualsTexts((Expression<String>) paths, cb, texts, type)
+                  : notEqualsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts, mode);
+      default ->
+          (paths, texts) ->
+              joinRelation == null
+                  ? equalsTexts((Expression<String>) paths, cb, texts, type, mode)
+                  : equalsTextsOnJoinRelation(root, query, cb, joinRelation, "id", texts, mode);
     };
+  }
+
+  private static <T> Predicate containsTextsOnJoinRelation(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      List<String> texts,
+      FilterMode mode) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(text -> containsTextOnJoinRelation(root, query, cb, joinRelation, labelPath, text))
+            .toArray(Predicate[]::new);
+
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
+  }
+
+  private static <T, U> Predicate containsTextOnJoinRelation(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      String text) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    String pattern = "%" + text.toLowerCase() + "%";
+
+    Subquery<Integer> subquery = query.subquery(Integer.class);
+    Root<T> subRoot = subquery.correlate(root);
+    Join<T, U> join = subRoot.join(joinRelation);
+
+    subquery
+        .select(cb.literal(1))
+        .where(cb.like(cb.lower(join.get(labelPath).as(String.class)), pattern));
+
+    return cb.exists(subquery);
+  }
+
+  private static <T> Predicate equalsTextsOnJoinRelation(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      List<String> texts,
+      FilterMode mode) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(text -> equalsTextOnJoinRelation(root, query, cb, joinRelation, labelPath, text))
+            .toArray(Predicate[]::new);
+
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
+  }
+
+  private static <T, U> Predicate equalsTextOnJoinRelation(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      String text) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    String expectedValue = text.toLowerCase();
+
+    Subquery<Integer> subquery = query.subquery(Integer.class);
+    Root<T> subRoot = subquery.correlate(root);
+    Join<T, U> join = subRoot.join(joinRelation);
+
+    subquery
+        .select(cb.literal(1))
+        .where(cb.equal(cb.lower(join.get(labelPath).as(String.class)), expectedValue));
+
+    return cb.exists(subquery);
+  }
+
+  private static <T> Predicate notEqualsTextsOnJoinRelation(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      List<String> texts,
+      FilterMode mode) {
+    if (texts == null || texts.isEmpty()) {
+      return cb.conjunction();
+    }
+
+    Predicate[] predicates =
+        texts.stream()
+            .map(
+                text -> notEqualsTextOnJoinRelation(root, query, cb, joinRelation, labelPath, text))
+            .toArray(Predicate[]::new);
+
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
+  }
+
+  private static <T, U> Predicate notEqualsTextOnJoinRelation(
+      Root<T> root,
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String joinRelation,
+      String labelPath,
+      String text) {
+    if (text == null || text.isBlank()) {
+      return cb.conjunction();
+    }
+
+    String expectedValue = text.toLowerCase();
+
+    Subquery<Integer> subquery = query.subquery(Integer.class);
+    Root<T> subRoot = subquery.correlate(root);
+    Join<T, U> join = subRoot.join(joinRelation);
+
+    subquery
+        .select(cb.literal(1))
+        .where(cb.equal(cb.lower(join.get(labelPath).as(String.class)), expectedValue));
+
+    return cb.not(cb.exists(subquery));
   }
 }

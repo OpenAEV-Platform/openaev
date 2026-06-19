@@ -152,6 +152,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  // NOTE: do NOT add @Fetch(FetchMode.SUBSELECT) to the collections of this entity. Contracts are
+  // loaded through Inject's EAGER @JoinColumnsOrFormulas association; subselect-fetching their
+  // collections re-renders the loading query's SQL AST and triggers an infinite recursion
+  // (StackOverflowError) in Hibernate's AbstractSqlAstWalker on paginated inject searches.
+  // hibernate.default_batch_fetch_size keeps these collections batched instead.
   @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)
@@ -175,7 +180,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   }
 
   @Queryable(filterable = true)
-  @OneToOne(fetch = FetchType.EAGER)
+  @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.REMOVE, orphanRemoval = true)
   @JoinColumn(name = "injector_contract_payload")
   @JsonProperty("injector_contract_payload")
   private Payload payload;
@@ -337,7 +342,12 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(filterable = true, dynamicValues = true, path = "injectors.id")
   private List<String> getInjectorIds() {
     return injectors != null
-        ? new ArrayList<>(injectors.stream().map(Injector::getId).toList())
+        ? new ArrayList<>(
+            injectors.stream()
+                .filter(Objects::nonNull)
+                .map(Injector::getId)
+                .filter(Objects::nonNull)
+                .toList())
         : Collections.emptyList();
   }
 
@@ -346,6 +356,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   private Map<String, String> getInjectorNames() {
     return injectors != null
         ? injectors.stream()
+            .filter(i -> i != null && i.getId() != null && i.getName() != null)
             .collect(
                 Collectors.toMap(
                     Injector::getId, Injector::getName, (a, b) -> a, LinkedHashMap::new))

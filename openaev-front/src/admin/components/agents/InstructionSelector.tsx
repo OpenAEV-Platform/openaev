@@ -8,7 +8,7 @@ import { fetchCalderaSettings } from '../../../actions/settings/settings-action'
 import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
 import useTabs from '../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../components/i18n';
-import { type BasePayload, type CalderaSettings, type ExecutorOutput, type Token } from '../../../utils/api-types';
+import { type BasePayload, type CalderaSettings, type ExecutorOutput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import { DEFAULT_TENANT_UUID } from '../../../utils/url-helper';
 import { copyToClipboard, download } from '../../../utils/utils';
@@ -22,12 +22,11 @@ const OPENAEV_CALDERA = 'openaev_caldera_executor';
 const OPENAEV_AGENT = 'openaev_agent';
 
 interface InstructionSelectorProps {
-  userToken: Token;
   platform: string;
   selectedExecutor: ExecutorOutput;
 }
 
-const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, platform, selectedExecutor }) => {
+const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, selectedExecutor }) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const [selectedOption, setSelectedOption] = useState(USER);
@@ -61,9 +60,9 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ userToken, pl
   };
 
   const buildInstallationUrl = (baseUrl: string) => {
-    if (currentTab === 'Standard Installation') return `${baseUrl}/session-user/${userToken?.token_value}`;
-    if (currentTab === 'Advanced Installation' && selectedOption === USER) return `${baseUrl}/service-user/${userToken?.token_value}`;
-    return `${baseUrl}/service/${userToken?.token_value}`;
+    if (currentTab === 'Standard Installation') return `${baseUrl}/session-user`;
+    if (currentTab === 'Advanced Installation' && selectedOption === USER) return `${baseUrl}/service-user`;
+    return `${baseUrl}/service`;
   };
   const buildCalderaInstallerScript = () => {
     switch (platform) {

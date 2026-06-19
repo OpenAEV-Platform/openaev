@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { addExerciseTeamPlayers, disableExerciseTeamPlayers, enableExerciseTeamPlayers, fetchExerciseTeams, removeExerciseTeamPlayers } from '../../../../../actions/Exercise';
 import { removeExerciseTeams, replaceExerciseTeams, searchExerciseTeams } from '../../../../../actions/exercises/exercise-teams-action';
 import { addTeam } from '../../../../../actions/teams/team-actions';
@@ -10,7 +12,8 @@ import { type UserStore } from '../../../teams/players/Player';
 const teamContextForExercise = (exerciseId: Exercise['exercise_id'], exerciseTeamsUsers: Exercise['exercise_teams_users'], allUsersNumber = 0, allUsersEnabledNumber = 0): TeamContextType => {
   const dispatch = useAppDispatch();
 
-  return {
+  // Stable identity: used as a context provider value on hot screens
+  return useMemo(() => ({
     async onAddUsersTeam(teamId: Team['team_id'], userIds: UserStore['user_id'][]): Promise<void> {
       await dispatch(addExerciseTeamPlayers(exerciseId, teamId, { exercise_team_players: userIds }));
       return dispatch(fetchExerciseTeams(exerciseId));
@@ -55,7 +58,7 @@ const teamContextForExercise = (exerciseId: Exercise['exercise_id'], exerciseTea
     searchTeams(input: SearchPaginationInput, contextualOnly?: boolean): Promise<{ data: Page<TeamOutput> }> {
       return searchExerciseTeams(exerciseId, input, contextualOnly);
     },
-  };
+  }), [dispatch, exerciseId, exerciseTeamsUsers, allUsersNumber, allUsersEnabledNumber]);
 };
 
 export default teamContextForExercise;

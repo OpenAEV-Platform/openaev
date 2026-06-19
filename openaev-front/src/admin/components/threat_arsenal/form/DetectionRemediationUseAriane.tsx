@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, SvgIcon, Typography } from '@mui/material';
+import { Button, IconButton, SvgIcon } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useEffect, useState } from 'react';
 
@@ -8,6 +8,7 @@ import AgentSelector from '../../../../utils/ai/AgentSelector';
 import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { isNotEmptyField } from '../../../../utils/utils';
+import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 import Loader from '../../payloads/Loader';
@@ -32,17 +33,22 @@ const DetectionRemediationUseAriane = ({
 }: Props) => {
   const { snapshot } = useSnapshotRemediation();
   const { t } = useFormatter();
-  // Fetch data
   const {
     isValidated: isEnterpriseEdition,
     openDialog: openEnterpriseEditionDialog,
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
-  const { enabled, configured, xtmOneConfigured } = useAI();
+  const { enabled, isCguPending, configured, xtmOneConfigured } = useAI();
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
   const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
+  const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
 
   const [loading, setLoading] = useState(false);
-  const [agentDialogOpen, setAgentDialogOpen] = useState(false);
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<AgentOption | null>(null);
   const [loadingAgents, setLoadingAgents] = useState(false);
@@ -51,17 +57,15 @@ const DetectionRemediationUseAriane = ({
   const hasContent = isNotEmptyField(detectionRemediationContent);
 
   useEffect(() => {
-    if (!agentDialogOpen) return;
+    if (!xtmOneConfigured) return;
     setLoadingAgents(true);
-    setSelectedAgent(null);
-    setAgentOptions([]);
-    fetchAgentsForIntent('detection.generate')
+    fetchAgentsForIntent('aev.detection_rules_generator')
       .then((agents) => {
         setAgentOptions(agents);
         if (agents.length > 0) setSelectedAgent(agents[0]);
       })
       .finally(() => setLoadingAgents(false));
-  }, [agentDialogOpen]);
+  }, [xtmOneConfigured]);
 
   const runOnSubmit = (agentSlug?: string) => {
     setLoading(true);
@@ -74,17 +78,15 @@ const DetectionRemediationUseAriane = ({
       openEnterpriseEditionDialog();
       return;
     }
+    if (isCguPending) {
+      setOpenValidateTermsOfUse(true);
+      return;
+    }
     if (xtmOneConfigured) {
-      setAgentDialogOpen(true);
+      runOnSubmit(selectedAgent?.slug);
       return;
     }
     runOnSubmit();
-  };
-
-  const handleAgentConfirm = () => {
-    if (!selectedAgent) return;
-    setAgentDialogOpen(false);
-    runOnSubmit(selectedAgent.slug);
   };
 
   let btnLabel = t('Use XTM One');
@@ -101,94 +103,106 @@ const DetectionRemediationUseAriane = ({
     btnLabel = btnLabel + t(' is only available for empty content');
   }
 
-  const disabled = !isEligibleArianeCollector || !isAvailable || hasContent || !isValidForm || !isEligibleArianePayload;
+  const disabled = !isEligibleArianeCollector || (!isAvailable && !isCguPending) || hasContent || !isValidForm || !isEligibleArianePayload;
+
+  const isLoading = loading || snapshot?.get(collectorType)?.isLoading;
+
+  const actionColor = isEnterpriseEdition ? 'ai.main' : 'action.disabled';
+  const actionBorderColor = isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground';
+
+  const renderAction = () => {
+    if (isLoading) {
+      return (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginRight: '10px',
+        }}
+        >
+          <Loader />
+        </div>
+      );
+    }
+    if (xtmOneConfigured) {
+      return (
+        <IconButton
+          onClick={handleClick}
+          aria-label={t('Use XTM One')}
+          disabled={disabled || loading || !selectedAgent}
+          sx={{
+            width: 36,
+            height: 36,
+            border: '1px solid',
+            borderRadius: 1,
+            color: actionColor,
+            borderColor: actionBorderColor,
+          }}
+        >
+          <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
+        </IconButton>
+      );
+    }
+    return (
+      <Button
+        type="button"
+        variant="outlined"
+        size="small"
+        onClick={handleClick}
+        aria-label={t('Use Ariane')}
+        startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
+        endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
+        disabled={disabled || loading}
+        sx={{
+          height: 36,
+          color: actionColor,
+          borderColor: actionBorderColor,
+        }}
+      >
+        {t('Use Ariane')}
+      </Button>
+    );
+  };
 
   return (
-    <>
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginLeft: 'auto',
+    }}
+    >
+      {xtmOneConfigured && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+        }}
+        >
+          <AgentSelector
+            options={agentOptions}
+            value={selectedAgent}
+            onChange={setSelectedAgent}
+            loading={loadingAgents}
+            disabled={isLoading}
+          />
+        </div>
+      )}
       <EETooltip forAi title={btnLabel}>
-        <span>
-          {(loading || snapshot?.get(collectorType)?.isLoading) ? (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginRight: '10px',
-            }}
-            >
-              <Typography
-                variant="body2"
-                color="textSecondary"
-                sx={{ padding: 2 }}
-                gutterBottom
-              >
-                {t('AI in progress')}
-              </Typography>
-              <Loader />
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="outlined"
-              sx={{
-                marginLeft: 'auto',
-                color: isEnterpriseEdition ? 'ai.main' : 'action.disabled',
-                borderColor: isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground',
-              }}
-              size="small"
-              onClick={handleClick}
-              startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-              endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
-              disabled={disabled || loading}
-            >
-              {t('Use XTM One ')}
-            </Button>
-          )}
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+        }}
+        >
+          {renderAction()}
         </span>
       </EETooltip>
-      <Dialog
-        open={agentDialogOpen}
-        onClose={() => setAgentDialogOpen(false)}
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{ elevation: 1 }}
-      >
-        <DialogTitle>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            gap: 16,
-          }}
-          >
-            <span>{t('Use XTM One')}</span>
-            <AgentSelector
-              options={agentOptions}
-              value={selectedAgent}
-              onChange={setSelectedAgent}
-              loading={loadingAgents}
-            />
-          </div>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="textSecondary">
-            {t('Select the AI agent that will generate detection rules for this collector.')}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAgentDialogOpen(false)}>
-            {t('Cancel')}
-          </Button>
-          <Button
-            color="secondary"
-            variant="contained"
-            onClick={handleAgentConfirm}
-            disabled={!selectedAgent || loadingAgents}
-          >
-            {t('Generate')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+      {openValidateTermsOfUse && (
+        <FiligranAiCguDialog
+          open={openValidateTermsOfUse}
+          onClose={() => setOpenValidateTermsOfUse(false)}
+        />
+      )}
+    </div>
   );
 };
 export default DetectionRemediationUseAriane;

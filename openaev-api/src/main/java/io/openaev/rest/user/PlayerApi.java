@@ -16,6 +16,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
 import io.openaev.service.UserService;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
@@ -31,9 +32,6 @@ public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
   private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
-  private static final String PLAYER_COMMUNICATION_URI = "/api/player/{userId}/communications";
-  private static final String TENANT_PLAYER_COMMUNICATION_URI =
-      TENANT_PREFIX + "/player/{userId}/communications";
 
   @Resource private SessionManager sessionManager;
 
@@ -62,12 +60,6 @@ public class PlayerApi extends RestBehavior {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
-  @GetMapping({PLAYER_COMMUNICATION_URI, TENANT_PLAYER_COMMUNICATION_URI})
-  @AccessControl(skipRBAC = true)
-  public Iterable<Communication> playerCommunications(@PathVariable String userId) {
-    return communicationRepository.findByUser(userId);
-  }
-
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackOn = Exception.class)
@@ -88,6 +80,7 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLAYER)
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
+    ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -102,7 +95,6 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
-    sessionManager.invalidateUserSession(userId);
-    userRepository.deleteById(userId);
+    userService.delete(userId);
   }
 }

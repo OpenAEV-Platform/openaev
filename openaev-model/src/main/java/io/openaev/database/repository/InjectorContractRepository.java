@@ -4,6 +4,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
 import jakarta.validation.constraints.NotNull;
@@ -59,14 +60,18 @@ public interface InjectorContractRepository
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
   /**
-   * Retrieves injector contracts accessible to a specific user.
+   * Retrieves injector contracts that a specific user has been granted access to.
    *
-   * <p>Returns contracts that either have no payload (public contracts) or where the user has been
-   * granted access to the payload through their group memberships.
+   * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
+   * through their group memberships.
    *
    * @param userId the ID of the user to check access for
-   * @return list of raw injector contract projections the user can access
+   * @return list of raw injector contract projections the user has been granted access to
    */
+  default List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(String userId) {
+    return getAllRawInjectorsContractsGranted(userId, ResourceType.THREAT_ARSENAL.name());
+  }
+
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
@@ -75,23 +80,26 @@ public interface InjectorContractRepository
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
-              + "AND (injcon.injector_contract_payload IS NULL "
-              + "OR EXISTS ( "
+              + "AND EXISTS ( "
               + "  SELECT 1 FROM users u "
               + "  INNER JOIN users_groups ug ON u.user_id = ug.user_id "
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
               + "  INNER JOIN grants gr ON g.group_id = gr.grant_group "
               + "  WHERE u.user_id = :userId "
-              + "  AND gr.grant_resource = injcon.injector_contract_payload "
-              + ")) "
+              + "  AND gr.grant_resource = injcon.injector_contract_id "
+              + "  AND gr.grant_resource_type = :resourceType "
+              + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContractsWithoutPayloadOrGranted(
-      @Param("userId") String userId);
+  List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
+      @Param("userId") String userId, @Param("resourceType") String resourceType);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   Optional<InjectorContract> findById(@Param("id") @NotNull String id);
+
+  @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
+  boolean existsByContractId(@Param("id") @NotNull String id);
 
   @NotNull
   @Query(
@@ -133,13 +141,37 @@ public interface InjectorContractRepository
       nativeQuery = true)
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
-  @Modifying
-  @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id = :id")
-  void deleteById(@Param("id") @NotNull String id);
+  @Query(
+      "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
+          + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
+  boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
 
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")
   void deleteAllById(@Param("ids") @NotNull List<String> ids);
+
+  /**
+   * Deletes injector contracts by their IDs scoped to a specific tenant.
+   *
+   * <p>Uses a native query intentionally to bypass Hibernate's SQM DELETE machinery ({@code
+   * SqmMutationStrategyHelper.cleanUpCollectionTables}), which triggers an auto-flush
+   * mid-execution. That auto-flush batches UPDATEs for dirty {@link InjectorContract} entities and
+   * — due to a Hibernate 6.x behaviour with {@code @EmbeddedId} fields marked {@code updatable =
+   * false} — can generate an UPDATE WHERE clause that omits {@code tenant_id}, matching multiple
+   * rows and throwing {@code BatchedTooManyRowsAffectedException}.
+   *
+   * <p>The native DELETE avoids that path entirely; join-table rows are cleaned up automatically
+   * via the database {@code ON DELETE CASCADE} constraints.
+   */
+  @Modifying
+  @Query(
+      value =
+          "DELETE FROM injectors_contracts"
+              + " WHERE (injector_contract_id, tenant_id)"
+              + " IN (SELECT unnest(CAST(:ids AS text[])), CAST(:tenantId AS text))",
+      nativeQuery = true)
+  void deleteAllByIdAndTenantId(
+      @Param("ids") @NotNull String[] ids, @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       value =
@@ -184,13 +216,15 @@ public interface InjectorContractRepository
       value =
           """
           INSERT INTO injectors_injector_contracts (injector_id, injector_contract_id, tenant_id)
-          SELECT i.injector_id, :contractId, i.tenant_id
+          SELECT i.injector_id, :contractId, ic_ref.tenant_id
           FROM injectors i
+          JOIN injectors_contracts ic_ref ON ic_ref.injector_contract_id = :contractId AND ic_ref.tenant_id = i.tenant_id
           WHERE i.injector_id IN (:injectorIds)
           AND NOT EXISTS (
             SELECT 1 FROM injectors_injector_contracts ic
             WHERE ic.injector_id = i.injector_id
             AND ic.injector_contract_id = :contractId
+            AND ic.tenant_id = i.tenant_id
           )
         """,
       nativeQuery = true)

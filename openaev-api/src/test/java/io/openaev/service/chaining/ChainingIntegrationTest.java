@@ -77,7 +77,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   @MockitoBean private io.openaev.executors.Executor executor;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
-  @MockitoSpyBean UserService userService;
+  @MockitoSpyBean private UserService userService;
   @Autowired private TestUserHolder testUserHolder;
   String injectInputJson;
   InjectorContract injectorContractSaved;
@@ -186,6 +186,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertEquals(WorkflowStatus.TEMPLATE, workflowTemplate.getStatus());
       assertNull(
           workflowTemplate.getSimulation(), "The Workflow TEMPLATE must not have a simulation");
+      // Timeout defaults must be set on creation
+      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertEquals(
+          WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+          workflowTemplate.getTimeoutSeconds(),
+          "Timeout seconds must default to DEFAULT_TIMEOUT_SECONDS");
     }
 
     // -------------------------------------------------------------------------
@@ -439,10 +445,13 @@ class ChainingIntegrationTest extends IntegrationTest {
               .findFirst()
               .orElseThrow();
 
-      // Add a step with an inject to the workflow template
+      // Add a step with an inject to the workflow template (no conditions so the step
+      // becomes READY immediately and gets executed during the workflow run).
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepInput step = buildValidStepInput();
+      StepsCreateInput.StepInput step = new StepsCreateInput.StepInput();
+      step.setStepAction(StepActionClass.INJECT_EXECUTION);
       step.setDataStep(injectInput);
+      step.setConditions(List.of());
       stepService.createStepTemplates(workflowTemplate, List.of(step));
       String simulation =
           mvc.perform(
@@ -459,10 +468,15 @@ class ChainingIntegrationTest extends IntegrationTest {
               .getContentAsString();
       String simulationId = mapper.readTree(simulation).get("exercise_id").asText();
 
-      List<Workflow> workflowsRun = workflowService.findWorkflowRunBySimulationId(simulationId);
+      // After launch the workflow may have already transitioned from RUN to END,
+      // so we look for any execution workflow (non-TEMPLATE) linked to this simulation.
+      List<Workflow> executionWorkflows =
+          workflowRepository.findAllBySimulation_Id(simulationId).stream()
+              .filter(w -> !WorkflowStatus.TEMPLATE.equals(w.getStatus()))
+              .toList();
 
-      assertTrue((workflowsRun.size() == 1), "The Workflow RUN must be unique");
-      Workflow workflowRun = workflowsRun.get(0);
+      assertEquals(1, executionWorkflows.size(), "Exactly one execution workflow must exist");
+      Workflow workflowRun = executionWorkflows.getFirst();
       // Retrieve the inject created from the step
       Step createdStep =
           stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId()).stream()
@@ -614,6 +628,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertNull(
           workflowTemplate.getScenario(),
           "Template workflow for simulation must not link scenario");
+      // Timeout defaults must be set on creation
+      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertEquals(
+          WorkflowService.DEFAULT_TIMEOUT_SECONDS,
+          workflowTemplate.getTimeoutSeconds(),
+          "Timeout seconds must default to DEFAULT_TIMEOUT_SECONDS");
     }
 
     @Test

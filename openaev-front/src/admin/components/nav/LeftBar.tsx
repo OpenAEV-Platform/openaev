@@ -32,14 +32,12 @@ import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
-  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
   const entries: LeftMenuEntries[] = [
     {
       userRight: true,
@@ -94,7 +92,7 @@ const LeftBar = () => {
           path: `/admin/threat-arsenal`,
           icon: () => (<LayersOutlined />),
           label: 'Threat Arsenal',
-          userRight: true,
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
         {
           path: `/admin/assets`,
@@ -245,9 +243,7 @@ const LeftBar = () => {
     <LeftMenu
       entries={entries}
       bottomEntries={bottomEntries}
-      headerElement={isMultiTenancyEnabled
-        ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} />
-        : undefined}
+      headerElement={(navOpen: boolean) => <TenantSwitcher navOpen={navOpen} />}
     />
   );
 };

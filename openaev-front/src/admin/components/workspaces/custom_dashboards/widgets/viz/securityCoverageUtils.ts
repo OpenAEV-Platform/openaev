@@ -78,7 +78,25 @@ export const filterByKillChainPhase = (data: ResolvedTTPData[], killChainPhase: 
   return data.filter(d => d.kill_chain_phase_external_id?.includes(killChainPhase));
 };
 
-export const SUCCESS_100_COLOR = '#103822';
-export const SUCCESS_75_COLOR = '#2f5e3d';
-export const SUCCESS_50_COLOR = '#644100';
-export const SUCCESS_25_COLOR = '#5C1717';
+export const SUCCESS_100_COLOR = 'rgba(9, 78, 11 ,0.4)';
+export const SUCCESS_75_COLOR = 'rgba(184, 135, 10, 0.4)';
+export const SUCCESS_50_COLOR = 'rgba(136, 65, 6, 0.4)';
+export const SUCCESS_25_COLOR = 'rgba(136, 17, 6, 0.4)';
+
+export const getBackgroundColor = (successRate: number | null): string | undefined => {
+  if (successRate == null) return undefined;
+  switch (true) {
+    case successRate < 0:
+      return undefined;
+    case successRate <= 0.25:
+      return SUCCESS_25_COLOR;
+    case successRate <= 0.50:
+      return SUCCESS_50_COLOR;
+    case successRate <= 0.75:
+      return SUCCESS_75_COLOR;
+    case successRate <= 1.00:
+      return SUCCESS_100_COLOR;
+    default:
+      return undefined;
+  }
+};

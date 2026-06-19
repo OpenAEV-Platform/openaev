@@ -131,7 +131,10 @@ public class NotificationRuleApi {
 
   @LogExecutionTime
   @PostMapping({NOTIFICATION_RULE_URI, TENANT_NOTIFICATION_RULE_URI})
-  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.NOTIFICATION_RULE)
+  @AccessControl(
+      resourceId = "#input.resourceId",
+      actionPerformed = Action.CREATE,
+      resourceType = ResourceType.NOTIFICATION_RULE)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create NotificationRule", description = "Create a NotificationRule")
   @ApiResponses(

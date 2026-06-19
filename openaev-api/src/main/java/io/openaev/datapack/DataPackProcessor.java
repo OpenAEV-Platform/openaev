@@ -3,10 +3,10 @@ package io.openaev.datapack;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
-import io.openaev.helper.StreamHelper;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.List;
@@ -25,8 +25,8 @@ public class DataPackProcessor implements DependenciesManager {
 
   @PostConstruct
   public void process() {
-    // Check all tenant to add a Datapack migration if one is added
-    init(StreamHelper.fromIterable(tenantRepository.findAll()));
+    // Check all active tenants to add a Datapack migration if one is added
+    init(tenantRepository.findAllByDeletedAtIsNull());
   }
 
   private void init(List<Tenant> tenants) {
@@ -67,6 +67,6 @@ public class DataPackProcessor implements DependenciesManager {
   @Override
   public List<Class<? extends DependenciesManager>> getPrerequisite() {
     // We want to process datapack after all the default domain are created for the tenant
-    return List.of(DomainService.class);
+    return List.of(DomainService.class, InjectorContractService.class);
   }
 }

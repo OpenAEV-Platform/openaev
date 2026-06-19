@@ -40,10 +40,12 @@ const buildError = (data: AxiosError) => {
 };
 
 const notifySuccess = (message: string) => {
-  const messages = oaevLocaleMap[LANG as keyof typeof oaevLocaleMap] as Record<string, string>;
+  // Non-default locales are loaded lazily; fall back to the always-bundled english catalog
+  // until the active locale chunk is available
+  const messages = oaevLocaleMap[LANG as keyof typeof oaevLocaleMap] ?? oaevLocaleMap.en;
   const intl = createIntl({
     locale: LANG,
-    messages: oaevLocaleMap[LANG as keyof typeof oaevLocaleMap],
+    messages,
   }, cache);
 
   if (messages[message]) {

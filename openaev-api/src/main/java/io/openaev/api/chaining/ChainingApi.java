@@ -128,7 +128,7 @@ public class ChainingApi extends RestBehavior {
     workflowService.isPreviewFeatureChainingEnable();
 
     if (workflowService.isSimulationChaining(simulationId)) {
-      exerciseService.findById(simulationId);
+      exerciseService.exercise(simulationId);
 
       StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(input);
 

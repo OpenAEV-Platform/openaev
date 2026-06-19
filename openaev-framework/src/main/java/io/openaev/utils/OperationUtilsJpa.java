@@ -224,6 +224,15 @@ public final class OperationUtilsJpa {
 
   public static Predicate equalsTexts(
       Expression<String> paths, CriteriaBuilder cb, List<String> texts, Class<?> type) {
+    return equalsTexts(paths, cb, texts, type, FilterMode.or);
+  }
+
+  public static Predicate equalsTexts(
+      Expression<String> paths,
+      CriteriaBuilder cb,
+      List<String> texts,
+      Class<?> type,
+      FilterMode mode) {
     if (isEmpty(texts)) {
       return cb.conjunction();
     }
@@ -231,7 +240,7 @@ public final class OperationUtilsJpa {
     Predicate[] predicates =
         texts.stream().map(text -> equalsText(paths, cb, text, type)).toArray(Predicate[]::new);
 
-    return cb.or(predicates);
+    return FilterMode.and.equals(mode) ? cb.and(predicates) : cb.or(predicates);
   }
 
   private static Predicate equalsText(
@@ -315,6 +324,10 @@ public final class OperationUtilsJpa {
       value = arrayToString(avals(paths, cb), cb);
     } else {
       value = paths;
+    }
+
+    if (type.equals(Instant.class) || type.isEnum()) {
+      return cb.isNotNull(value);
     }
 
     return cb.and(cb.isNotNull(value), cb.notEqual(value, ""));

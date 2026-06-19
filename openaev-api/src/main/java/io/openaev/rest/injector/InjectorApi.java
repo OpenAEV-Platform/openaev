@@ -8,7 +8,10 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
-import io.openaev.database.model.*;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.Injector;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.*;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -35,8 +38,8 @@ import java.io.InputStream;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -98,7 +101,9 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
     Injector injector =
-        injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
+        injectorRepository
+            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
             contract -> {
@@ -119,7 +124,9 @@ public class InjectorApi extends RestBehavior {
   public Injector updateInjector(
       @PathVariable String injectorId, @Valid @RequestBody InjectorUpdateInput input) {
     Injector injector =
-        injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
+        injectorRepository
+            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return injectorService.updateExistingExternalInjector(
         injector,
         injector.getType(),
@@ -138,7 +145,9 @@ public class InjectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
   public Injector injector(@PathVariable String injectorId) {
-    return injectorRepository.findById(injectorId).orElseThrow(ElementNotFoundException::new);
+    return injectorRepository
+        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   @GetMapping({
@@ -174,7 +183,7 @@ public class InjectorApi extends RestBehavior {
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getOpenAevImplant(
+  public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevImplant(
       @PathVariable String platform,
       @PathVariable String architecture,
       @RequestParam(required = false) final String injectId,
@@ -210,10 +219,12 @@ public class InjectorApi extends RestBehavior {
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+      // Stream the binary instead of buffering it fully in heap: thousands of concurrent implant
+      // downloads with byte[] buffering caused GC churn / OOM risk
       return ResponseEntity.ok()
           .headers(headers)
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
-          .body(IOUtils.toByteArray(in));
+          .body(new InputStreamResource(in));
     }
     throw new UnsupportedOperationException(
         "Implant " + resolvedPlatform + " executable not supported");
@@ -238,7 +249,7 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(
       @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
-    return fromIterable(this.injectorRepository.findAllById(ids)).stream()
+    return injectorService.findAllByIds(ids).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }

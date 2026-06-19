@@ -116,9 +116,11 @@ class StixApiTest extends IntegrationTest {
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
     mockServer = new ClientAndServer(Configuration.configuration(), PortFactory.findFreePort());
+    String tenantKey = "openaev.xtm.opencti." + Tenant.DEFAULT_TENANT_UUID;
     registry.add(
-        "openaev.xtm.opencti.url",
-        () -> String.format("http://localhost:%d/", mockServer.getLocalPort()));
+        tenantKey + ".url", () -> String.format("http://localhost:%d/", mockServer.getLocalPort()));
+    registry.add(tenantKey + ".enable", () -> "true");
+    registry.add(tenantKey + ".token", () -> "test-token");
     registry.add(
         "openaev.test.connector.url",
         () -> String.format("http://localhost:%d/", mockServer.getLocalPort()));

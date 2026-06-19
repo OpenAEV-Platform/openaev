@@ -124,6 +124,7 @@ public class AccessControlAspect {
           resourceId,
           accessControl.resourceType(),
           accessControl.actionPerformed());
+
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "Access denied for user: " + principal.getEmail()) {};
     }

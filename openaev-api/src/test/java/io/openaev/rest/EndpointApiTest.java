@@ -3,12 +3,14 @@ package io.openaev.rest;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
+import static io.openaev.utils.fixtures.AgentFixture.createDefaultAgentService;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createAssetGroupWithAssets;
 import static io.openaev.utils.fixtures.AssetGroupFixture.createDefaultAssetGroup;
 import static io.openaev.utils.fixtures.EndpointFixture.*;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -21,6 +23,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
+import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -28,17 +31,22 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
@@ -47,6 +55,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -63,8 +72,13 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
 
   @MockitoSpyBean private EndpointService endpointService;
+  @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
+  @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
 
   @BeforeEach
@@ -571,5 +585,310 @@ class EndpointApiTest extends IntegrationTest {
     filter.setOperator(Filters.FilterOperator.eq);
     filter.setValues(values);
     return filter;
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser(isAdmin = true)
+  class TenantIsolation {
+
+    @Nested
+    @DisplayName("Scenario-style endpoint isolation")
+    @WithMockUser
+    class EndpointCrudIsolation {
+
+      private Endpoint createTenantEndpoint(String tenantId, String name) throws Exception {
+        Endpoint endpointInput = createEndpoint();
+        endpointInput.setName(name);
+        endpointInput.setHostname(name);
+
+        String createResponse =
+            mvc.perform(
+                    post("/api/tenants/" + tenantId + "/endpoints/agentless")
+                        .content(asJsonString(endpointInput))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String endpointId = JsonPath.read(createResponse, "$.asset_id");
+        return endpointRepository.findByIdAndTenantId(endpointId, tenantId).orElseThrow();
+      }
+
+      @Test
+      @DisplayName("Endpoint created in tenant X should NOT be readable from tenant Y")
+      void given_endpointInTenantX_should_notBeReadableFromTenantY() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+
+        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Isolation Read Endpoint");
+        entityManager.flush();
+        entityManager.clear();
+
+        // -------- Act --------
+        int responseStatus =
+            mvc.perform(
+                    get("/api/tenants/" + tenantY.getId() + "/endpoints/" + endpointX.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        // -------- Assert --------
+        assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+      }
+
+      @Test
+      @DisplayName("Endpoint created in tenant X should be readable from tenant X")
+      void given_endpointInTenantX_should_beReadableFromTenantX() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Same Tenant Endpoint");
+
+        // -------- Act --------
+        String response =
+            mvc.perform(
+                    get("/api/tenants/" + tenantX.getId() + "/endpoints/" + endpointX.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -------- Assert --------
+        assertThatJson(response).node("asset_id").isEqualTo(endpointX.getId());
+      }
+
+      @Test
+      @DisplayName("Endpoint search in tenant Y should NOT return endpoints from tenant X")
+      void given_endpointInTenantX_should_notAppearInTenantYSearch() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+
+        createTenantEndpoint(tenantX.getId(), "CrossTenantSearchEndpoint");
+        entityManager.flush();
+        entityManager.clear();
+
+        SearchPaginationInput searchInput =
+            PaginationFixture.simpleTextSearch("CrossTenantSearchEndpoint");
+
+        // -------- Act --------
+        String searchResponse =
+            mvc.perform(
+                    post("/api/tenants/" + tenantY.getId() + "/endpoints/search")
+                        .content(asJsonString(searchInput))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -------- Assert --------
+        assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
+      }
+
+      @Test
+      @DisplayName("Endpoint created in tenant X should NOT be updatable from tenant Y")
+      void given_endpointInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
+        // -------- Arrange --------
+        Tenant tenantX =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant X", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+        Tenant tenantY =
+            tenantHelper.createTenantWithCapabilities(
+                "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
+
+        Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Update Isolation Endpoint");
+        entityManager.flush();
+        entityManager.clear();
+
+        EndpointInput updateInput = createWindowsEndpointInput(List.of());
+        updateInput.setName("Hijacked Endpoint");
+        updateInput.setHostname("hijacked-endpoint");
+
+        // -------- Act --------
+        int responseStatus =
+            mvc.perform(
+                    put("/api/tenants/" + tenantY.getId() + "/endpoints/" + endpointX.getId())
+                        .content(asJsonString(updateInput))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        // -------- Assert --------
+        assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+      }
+    }
+
+    @Nested
+    class AgentExecutorJoin {
+
+      @Test
+      @DisplayName(
+          "Given same executor type in two tenants, endpoint API should return agent without duplicates")
+      void givenSameExecutorInTwoTenants_endpointShouldReturnAgentWithoutDuplicates()
+          throws Exception {
+        // -- Arrange --
+        String tenantA = TenantContext.getCurrentTenant();
+
+        ExecutorComposer.Composer executorComposerA =
+            executorComposer.forExecutor(executorFixture.getDefaultExecutor());
+        Executor executorA = executorComposerA.get();
+
+        Endpoint endpointA = EndpointFixture.createEndpoint("Endpoint-TenantA");
+        AgentComposer.Composer agentComposerA =
+            agentComposer.forAgent(createDefaultAgentService()).withExecutor(executorComposerA);
+        EndpointComposer.Composer endpointComposerA =
+            endpointComposer.forEndpoint(endpointA).withAgent(agentComposerA);
+        endpointComposerA.persist();
+
+        // Flush and clear to avoid "Tenant is immutable" when creating tenant B
+        entityManager.flush();
+        entityManager.clear();
+
+        // Create tenant B with the same executor ID to reproduce the cross-tenant join bug
+        Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
+        tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+        Executor executorB = executorFixture.createDefaultExecutor("OpenAEV-B");
+        executorB.setId(executorA.getId());
+        executorComposer.forExecutor(executorB).persist().get();
+
+        // Switch back to tenant A
+        tenantHelper.switchToTenant(tenantA, entityManager);
+
+        // -- Act --
+        String response =
+            mvc.perform(
+                    get(ENDPOINT_URI + "/" + endpointA.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -- Assert --
+        assertThatJson(response)
+            .inPath("$.asset_agents")
+            .isArray()
+            .as(
+                "Endpoint should have exactly 1 agent — not duplicated by cross-tenant executor join")
+            .hasSize(1);
+
+        assertThatJson(response)
+            .inPath("$.asset_agents[0].agent_executor.executor_id")
+            .asString()
+            .as("Returned agent_id should match tenant A's agent and not a cross-tenant agent")
+            .isEqualTo(executorA.getId());
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("Agent jobs")
+  @WithMockUser(isAdmin = true)
+  class AgentJobs {
+
+    @Test
+    @DisplayName("Given endpoint register input, should return endpoint jobs from service")
+    void given_endpointRegisterInput_should_returnEndpointJobsFromService() throws Exception {
+      // -- PREPARE --
+      EndpointRegisterInput input = createWindowsEndpointRegisterInput(List.of(), "jobs-ext-ref");
+      input.setExecutedByUser("jobs-user");
+      input.setService(true);
+      input.setElevated(false);
+
+      Agent agent = new Agent();
+      agent.setId("agent-1");
+
+      AssetAgentJob assetAgentJob = new AssetAgentJob();
+      assetAgentJob.setId("job-1");
+      assetAgentJob.setCommand("whoami");
+      assetAgentJob.setAgent(agent);
+
+      Mockito.doReturn(List.of(assetAgentJob))
+          .when(endpointService)
+          .getEndpointJobs(Mockito.any(EndpointRegisterInput.class));
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(ENDPOINT_URI + "/jobs")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$[0].asset_agent_id").value("job-1"))
+          .andExpect(jsonPath("$[0].asset_agent_command").value("whoami"));
+
+      // -- ASSERT --
+      Mockito.verify(endpointService).getEndpointJobs(Mockito.any(EndpointRegisterInput.class));
+    }
+
+    @Test
+    @DisplayName("Given existing asset agent job id, should trace retrieval and delete job")
+    void given_existingAssetAgentJobId_should_traceRetrievalAndDeleteJob() throws Exception {
+      // -- PREPARE --
+      String assetAgentJobId = "job-to-clean";
+      AssetAgentJob assetAgentJob = new AssetAgentJob();
+      assetAgentJob.setId(assetAgentJobId);
+      assetAgentJob.setCommand("command");
+
+      Mockito.doReturn(java.util.Optional.of(assetAgentJob))
+          .when(assetAgentJobRepository)
+          .findById(assetAgentJobId);
+
+      // -- EXECUTE --
+      mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
+      Mockito.verify(injectStatusService).addJobRetrievalTraces(assetAgentJob);
+      Mockito.verify(assetAgentJobRepository).deleteById(assetAgentJobId);
+    }
+
+    @Test
+    @DisplayName(
+        "Given unknown asset agent job id, should not trace retrieval and should not delete")
+    void given_unknownAssetAgentJobId_should_notTraceRetrievalAndShouldNotDelete()
+        throws Exception {
+      // -- PREPARE --
+      String assetAgentJobId = "job-missing";
+      Mockito.doReturn(java.util.Optional.empty())
+          .when(assetAgentJobRepository)
+          .findById(assetAgentJobId);
+
+      // -- EXECUTE --
+      mvc.perform(delete(ENDPOINT_URI + "/jobs/" + assetAgentJobId).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      Mockito.verify(assetAgentJobRepository).findById(assetAgentJobId);
+      Mockito.verify(injectStatusService, Mockito.never())
+          .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
+      Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
+    }
   }
 }

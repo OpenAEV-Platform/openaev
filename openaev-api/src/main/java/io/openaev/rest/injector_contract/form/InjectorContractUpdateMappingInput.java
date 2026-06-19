@@ -16,9 +16,6 @@ public class InjectorContractUpdateMappingInput {
   @JsonProperty("contract_attack_patterns_ids")
   private List<String> attackPatternsIds = new ArrayList<>();
 
-  @JsonProperty("contract_vulnerability_ids")
-  private List<String> vulnerabilityIds = new ArrayList<>();
-
   @NotNull(message = MANDATORY_MESSAGE)
   @JsonProperty("contract_domains")
   @Schema(description = "Set list of domains")

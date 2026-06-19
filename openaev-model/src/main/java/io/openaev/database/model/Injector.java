@@ -89,11 +89,12 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injectors_injector_contracts",
-      joinColumns = @JoinColumn(name = "injector_id"),
+      joinColumns = @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
       inverseJoinColumns = {
         @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
       })
+  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
 
@@ -101,6 +102,11 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
+
+  // Read-only mapping so Hibernate registers the logical column name "tenant_id" in this table
+  @Column(name = "tenant_id", insertable = false, updatable = false)
+  @JsonIgnore
+  private String tenantId;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

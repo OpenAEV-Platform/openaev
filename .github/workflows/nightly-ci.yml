@@ -57,7 +57,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+        image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
         ports:
           - 9200:9200
         env:
@@ -286,6 +286,7 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
       - uses: actions/checkout@v6
 
@@ -302,7 +303,7 @@ jobs:
             docker run -d --name search -p 9200:9200 \
               -e discovery.type=single-node \
               -e DISABLE_SECURITY_PLUGIN=true \
-              -e "OPENSEARCH_JAVA_OPTS="-Xms2g -Xmx2g" \
+              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
               ${{ matrix.engine.image }}
           fi
           for i in $(seq 1 60); do
@@ -334,7 +335,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.22.2"
+          node-version: "22.22.3"
 
       - name: Install corepack
         run: npm install -g corepack
@@ -521,6 +522,7 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
       - uses: actions/checkout@v6
 
@@ -536,7 +538,7 @@ jobs:
             docker run -d --name search -p 9200:9200 \
               -e discovery.type=single-node \
               -e DISABLE_SECURITY_PLUGIN=true \
-              -e "OPENSEARCH_JAVA_OPTS="-Xms2g -Xmx2g" \
+              -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
               ${{ matrix.engine.image }}
           fi
           for i in $(seq 1 60); do
@@ -567,7 +569,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.22.2"
+          node-version: "22.22.3"
 
       - name: Install corepack
         run: npm install -g corepack

@@ -160,7 +160,7 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
   const [keyword, setKeyword] = useState('');
   const [sortBy, setSortby] = useState('user_email');
   const [orderAsc, setOrderAsc] = useState(true);
-  const [tags, setTags] = useState<Option['id'][]>([]);
+  const [tags, setTags] = useState<Option[]>([]);
 
   const { organizationsMap, team, users }: {
     organizationsMap: Record<string, Organization>;
@@ -254,13 +254,13 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage 
         <div className={classes.parameters}>
           <div className={classes.tags}>
             <TagsFilter
-              onAddTag={(value: Option['id']) => {
+              onAddTag={(value: Option) => {
                 if (value) {
                   setTags([...tags, value]);
                 }
               }}
               onRemoveTag={(value: Option['id']) => {
-                setTags(tags.splice(tags.indexOf(value), 1));
+                setTags(tags.filter((t: Option) => t.id !== value));
               }}
               currentTags={tags}
               thin={true}

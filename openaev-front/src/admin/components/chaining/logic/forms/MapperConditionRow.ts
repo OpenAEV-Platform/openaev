@@ -1,6 +1,8 @@
 export interface MapperConditionRow {
   condition_key_type: string;
+  condition_key_subtype?: string;
   condition_key: string;
+  condition_value?: string;
   condition_mapping_type: string;
 }
 

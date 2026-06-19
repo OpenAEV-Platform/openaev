@@ -1,7 +1,7 @@
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
-import Chart from 'react-apexcharts';
 
+import Chart from '../../../../../../components/Chart';
 import { useFormatter } from '../../../../../../components/i18n';
 import { lineChartOptions } from '../../../../../../utils/Charts';
 import { CustomDashboardContext } from '../../CustomDashboardContext';

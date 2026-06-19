@@ -35,6 +35,7 @@ import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.SecurityCoverageComposer;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
+import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -61,6 +62,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private ArticleRepository articleRepository;
   @Autowired InjectRepository injectRepository;
+  @Autowired private InjectDependenciesRepository injectDependenciesRepository;
   @Autowired private LessonsCategoryRepository lessonsCategoryRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private HealthCheckUtils healthCheckUtils;
@@ -83,6 +85,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private CustomDashboardService customDashboardService;
   @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
+  @Autowired private ScenarioService scenarioServiceBean;
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
@@ -132,9 +135,9 @@ class ScenarioServiceTest extends IntegrationTest {
 
   @AfterAll
   public void teardown() {
-    this.userRepository.deleteById(USER_ID);
-    this.teamRepository.deleteById(TEAM_ID);
-    this.injectRepository.deleteById(INJECT_ID);
+    if (USER_ID != null) this.userRepository.deleteById(USER_ID);
+    if (TEAM_ID != null) this.teamRepository.deleteById(TEAM_ID);
+    if (INJECT_ID != null) this.injectRepository.deleteById(INJECT_ID);
   }
 
   @DisplayName("Should delete injects at the same time as the scenario itself")
@@ -160,6 +163,65 @@ class ScenarioServiceTest extends IntegrationTest {
 
     assertThat(injectRepository.findById(injectWrapper.get().getId())).isEmpty();
     assertThatThrownBy(() -> scenarioService.getScenarioById(scenarioId))
+        .isInstanceOf(ElementNotFoundException.class);
+  }
+
+  @DisplayName(
+      "given scenario with cross inject dependencies should delete without exception and clear dependency rows")
+  @Test
+  @Transactional
+  @WithMockUser
+  void
+      given_scenarioWithCrossInjectDependencies_should_deleteScenarioWithoutException_and_clearDependencies() {
+    // Arrange
+    Scenario scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .persist()
+            .get();
+
+    Inject injectA = InjectFixture.getDefaultInject();
+    injectA.setScenario(scenario);
+    injectA.setTitle("inject-a-" + UUID.randomUUID());
+    Inject injectB = InjectFixture.getDefaultInject();
+    injectB.setScenario(scenario);
+    injectB.setTitle("inject-b-" + UUID.randomUUID());
+
+    Inject persistedInjectA = injectComposer.forInject(injectA).persist().get();
+    Inject persistedInjectB = injectComposer.forInject(injectB).persist().get();
+
+    InjectDependencyId dependencyAtoBId = new InjectDependencyId();
+    dependencyAtoBId.setInjectParent(persistedInjectA);
+    dependencyAtoBId.setInjectChildren(persistedInjectB);
+    InjectDependency dependencyAtoB = new InjectDependency();
+    dependencyAtoB.setCompositeId(dependencyAtoBId);
+
+    InjectDependencyId dependencyBtoAId = new InjectDependencyId();
+    dependencyBtoAId.setInjectParent(persistedInjectB);
+    dependencyBtoAId.setInjectChildren(persistedInjectA);
+    InjectDependency dependencyBtoA = new InjectDependency();
+    dependencyBtoA.setCompositeId(dependencyBtoAId);
+
+    injectDependenciesRepository.save(dependencyAtoB);
+    injectDependenciesRepository.save(dependencyBtoA);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // Act
+    assertDoesNotThrow(() -> scenarioServiceBean.deleteScenario(scenario.getId()));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    // Assert
+    assertThat(
+            injectDependenciesRepository.findParents(
+                List.of(persistedInjectA.getId(), persistedInjectB.getId())))
+        .isEmpty();
+    assertThat(injectRepository.findById(persistedInjectA.getId())).isEmpty();
+    assertThat(injectRepository.findById(persistedInjectB.getId())).isEmpty();
+    assertThatThrownBy(() -> scenarioServiceBean.getScenarioById(scenario.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 
@@ -214,11 +276,15 @@ class ScenarioServiceTest extends IntegrationTest {
     scenarioTeams.add(noContextualTeam);
 
     Inject inject = new Inject();
+    inject.setTitle("test-inject");
+    inject.setDependsDuration(0L);
     inject.setTeams(scenarioTeams);
     Set<Inject> scenarioInjects = new HashSet<>();
     scenarioInjects.add(this.injectRepository.save(inject));
     Scenario scenario =
         this.scenarioRepository.save(ScenarioFixture.getScenario(scenarioTeams, scenarioInjects));
+
+    entityManager.flush();
 
     // -- EXECUTE --
     Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
@@ -304,7 +370,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForSmtpIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -339,7 +405,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForImapIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -374,7 +440,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForExecutorIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -408,7 +474,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForCollectorIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -442,7 +508,7 @@ class ScenarioServiceTest extends IntegrationTest {
   public void testRunChecksForMissingContentIssue() {
     // PREPARE
     Inject inject = new Inject();
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -477,7 +543,7 @@ class ScenarioServiceTest extends IntegrationTest {
     // Arrange
     Inject inject = new Inject();
     inject.setEnabled(false);
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
     scenario.setInjects(new HashSet<>(List.of(inject)));
     this.scenarioRepository.save(scenario);
 
@@ -499,7 +565,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Transactional
   public void testRunChecksForTeamsIssue() {
     // PREPARE
-    Scenario scenario = new Scenario();
+    Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
 
     Injector injector = new Injector();
     injector.setDependencies(

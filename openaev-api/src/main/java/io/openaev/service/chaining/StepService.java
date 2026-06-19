@@ -8,7 +8,6 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -36,7 +35,6 @@ public class StepService {
   private final QueueChainingService queueChainingService;
 
   private final StepRepository stepRepository;
-  private final StepDelayQueueRepository stepDelayQueueRepository;
 
   /**
    * Create a single step template.
@@ -88,49 +86,6 @@ public class StepService {
     // Todo add condition not linked to a step
     List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
     saveSteps(stepsTemplateCopy);
-  }
-
-  /**
-   * Evaluates workflow progress by checking all step templates for valid conditions and creating
-   * READY steps. Sets workflow to END if no steps are ready and no delayed steps remain.
-   *
-   * @param workflowRun the running workflow to evaluate
-   * @return the updated workflow (may have status END)
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
-    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
-
-    // Get all step template
-    List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateId);
-
-    if (stepsTemplate.isEmpty()) {
-      log.info(
-          "No step template for workflow template {}. End running {}",
-          workflowTemplateId,
-          workflowRun.getId());
-      workflowRun.setStatus(WorkflowStatus.END);
-      return workflowRun;
-    }
-
-    // At least one template generated one or more ready execution steps.
-    boolean hasReadySteps = false;
-
-    for (Step step : stepsTemplate) {
-      List<Step> stepReadys = createReadySteps(step, workflowRun, null);
-      if (!stepReadys.isEmpty()) {
-        hasReadySteps = true;
-        enqueueReadySteps(stepReadys, workflowRun);
-      }
-    }
-
-    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
-    // status END
-    if (!hasReadySteps && stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      workflowRun.setStatus(WorkflowStatus.END);
-    }
-
-    return workflowRun;
   }
 
   /**
@@ -489,10 +444,9 @@ public class StepService {
    *
    * @return list of all step templates
    */
+  @Transactional(readOnly = true)
   public List<Step> findAllStepTemplates() {
-    return this.stepRepository.findAll().stream()
-        .filter(step -> step.getStepTemplate() == null)
-        .toList();
+    return this.stepRepository.findAllByStepTemplateIdIsNull();
   }
 
   /**
@@ -654,6 +608,23 @@ public class StepService {
   public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
     return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
         id, List.of(StepStatus.RUN, StepStatus.READY));
+  }
+
+  /**
+   * Ends all active steps (READY or RUN) for the given workflow run.
+   *
+   * @param workflowId the workflow run ID
+   * @return number of steps terminated
+   */
+  public int endActiveStepsByWorkflowId(String workflowId) {
+    List<Step> activeSteps =
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
+            workflowId, List.of(StepStatus.READY, StepStatus.RUN));
+    for (Step step : activeSteps) {
+      step.setStatus(StepStatus.END);
+    }
+    stepRepository.saveAll(activeSteps);
+    return activeSteps.size();
   }
 
   private Step findStepFromCondition(String stepFromId) {

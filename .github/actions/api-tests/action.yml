@@ -12,9 +12,9 @@ inputs:
     description: 'Surefire test include patterns (multi-line) or "catchall"'
     required: true
   excludes:
-    description: 'Surefire test exclude patterns (multi-line, optional)'
+    description: "Surefire test exclude patterns (multi-line, optional)"
     required: false
-    default: ''
+    default: ""
   shard:
     description: Shard number (used for artifact naming)
     required: true
@@ -25,7 +25,6 @@ inputs:
 runs:
   using: composite
   steps:
-
     - name: Start all services (non-blocking)
       shell: bash
       run: |
@@ -71,18 +70,20 @@ runs:
         distribution: temurin
         cache: maven
 
-    - name: Wait for and download compiled artifacts
+    - name: Wait for compiled artifacts
       shell: bash
       run: |
         echo "⏳ Waiting for backend-compile artifacts (services booting in parallel)..."
         for i in $(seq 1 120); do
-          HTTP_CODE=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --include 2>&1 | head -1 | awk '{print $2}' || echo "000")
+          # Check if backend-compile has failed — abort immediately
+          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
+          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
+            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
+            exit 1
+          fi
           NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
             --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
-            echo "⚠️ GitHub API returned HTTP $HTTP_CODE (attempt $i/120)"
-          fi
           if echo "$NAMES" | grep -q '"api-build-output"'; then
             echo "✅ Artifacts available (after ~$((i * 5))s)"
             break
@@ -94,27 +95,21 @@ runs:
           echo "  Attempt $i/120 — not ready, retrying in 5s..."
           sleep 5
         done
-
-        echo "📥 Downloading backend-compiled..."
         # Remove any cached openaev artifacts to prevent "file exists"
         # errors when extracting the freshly compiled artifact.
         rm -rf ~/.m2/repository/io/openaev/
-        if ! gh run download "${{ github.run_id }}" -n backend-compiled -D ~/.m2/repository/io/openaev/; then
-          echo "❌ Failed to download backend-compiled artifact"
-          exit 1
-        fi
-        echo "📥 Downloading api-build-output..."
-        if ! gh run download "${{ github.run_id }}" -n api-build-output -D openaev-api/target; then
-          echo "❌ Failed to download api-build-output artifact"
-          exit 1
-        fi
 
-        echo "🔍 Post-download: listing ~/.m2/repository/io/openaev/ (top 3 levels):"
-        find ~/.m2/repository/io/openaev/ -maxdepth 3 -type d 2>/dev/null | head -20 || echo "  directory does not exist"
-        echo "---"
-        echo "🔍 Post-download: listing openaev-api/target/ (top 3 levels):"
-        find openaev-api/target/ -maxdepth 3 -type d 2>/dev/null | head -20 || echo "  directory does not exist"
-        echo "---"
+    - name: Download backend-compiled artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: backend-compiled
+        path: ~/.m2/repository/io/openaev/
+
+    - name: Download api-build-output artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: api-build-output
+        path: openaev-api/target
 
     - name: Verify downloaded artifacts
       shell: bash
@@ -199,7 +194,6 @@ runs:
         curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
 
         echo "✅ All services ready"
-
 
     - name: Prepare test suite
       id: suite

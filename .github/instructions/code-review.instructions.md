@@ -34,7 +34,7 @@ Key checks: tenant-scoped entities extend `TenantBase` + `@Filter("tenantFilter"
 
 > Full rules: [testing.instructions.md](testing.instructions.md)
 
-Key checks: `@Nested` + `@DisplayName` grouping, `given_X_should_Y` naming, AAA comments, OpenAEV's `@WithMockUser` (not Spring's), Fixture + Composer (no inline data).
+Key checks: `@Nested` + `@DisplayName` grouping, `given_X_should_Y` naming, AAA comments, OpenAEV's `@WithMockUser` (not Spring's), Fixture + Composer (no inline data), constants shared via static import (never duplicated between source and test), public endpoints tested without `@WithMockUser`.
 
 ## Frontend
 

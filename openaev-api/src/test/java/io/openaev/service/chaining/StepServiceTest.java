@@ -57,7 +57,7 @@ class StepServiceTest {
 
   @BeforeEach
   void setUp() {
-    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService);
+    queueChainingJob = new QueueChainingJob(stepDelayQueueService, stepService, workflowService);
     workflow = mock(Workflow.class);
   }
 
@@ -1015,17 +1015,15 @@ class StepServiceTest {
     }
 
     @Test
-    void given_mixedSteps_should_findAllStepTemplates_onlyTemplateRows() {
+    void given_templateSteps_should_findAllStepTemplates_returnTemplateRowsFromRepository() {
       // Arrange
       Step templateA = new Step();
       Step templateB = new Step();
-      Step executed = new Step();
       templateA.setId("tA");
       templateB.setId("tB");
-      executed.setId("exec");
-      executed.setStepTemplate(new Step());
+      List<Step> templates = List.of(templateA, templateB);
 
-      when(stepRepository.findAll()).thenReturn(List.of(templateA, executed, templateB));
+      when(stepRepository.findAllByStepTemplateIdIsNull()).thenReturn(templates);
 
       // Act
       List<Step> result = stepService.findAllStepTemplates();
@@ -1034,7 +1032,7 @@ class StepServiceTest {
       assertEquals(2, result.size());
       assertTrue(result.contains(templateA));
       assertTrue(result.contains(templateB));
-      assertFalse(result.contains(executed));
+      verify(stepRepository).findAllByStepTemplateIdIsNull();
     }
   }
 }

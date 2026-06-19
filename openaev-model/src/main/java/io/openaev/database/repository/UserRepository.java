@@ -7,6 +7,7 @@ import io.openaev.database.raw.RawUserAuthFlat;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.domain.Page;
@@ -27,7 +28,19 @@ public interface UserRepository
 
   Optional<User> findByEmailIgnoreCase(String email);
 
-  List<User> findAllByEmailInIgnoreCase(List<String> emails);
+  @Query(
+      "SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE LOWER(u.email) IN :emails AND t.id = :tenantId")
+  List<User> findAllByEmailInAndTenantIdNormalized(
+      @Param("emails") List<String> emails, @Param("tenantId") String tenantId);
+
+  default List<User> findAllByEmailInIgnoreCaseAndTenantId(List<String> emails, String tenantId) {
+    if (emails == null || emails.isEmpty()) {
+      return List.of();
+    }
+    List<String> normalizedEmails =
+        emails.stream().map(email -> email.toLowerCase(Locale.ROOT)).toList();
+    return findAllByEmailInAndTenantIdNormalized(normalizedEmails, tenantId);
+  }
 
   @Override
   @Query(
@@ -170,6 +183,19 @@ public interface UserRepository
 
   @NotNull
   Page<User> findAll(@NotNull Specification<User> spec, @NotNull Pageable pageable);
+
+  @Query(
+      value =
+          "SELECT us.* "
+              + "FROM users us "
+              + "JOIN tokens t ON us.user_id = t.token_user "
+              + "JOIN users_tenants ut ON us.user_id = ut.user_id "
+              + "WHERE t.token_value = :token "
+              + "AND ut.tenant_id = :tenantId "
+              + "LIMIT 1",
+      nativeQuery = true)
+  Optional<User> findByTokenAndTenantId(
+      @Param("token") String token, @Param("tenantId") String tenantId);
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);

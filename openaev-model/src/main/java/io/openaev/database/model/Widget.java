@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.engine.api.WidgetConfiguration;
 import io.openaev.engine.api.WidgetType;
 import io.openaev.jsonapi.InnerRelationship;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -22,9 +24,10 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 @Entity
 @Table(name = "widgets")
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @InnerRelationship
-public class Widget implements Base {
+public class Widget implements TenantBase {
 
   @Id
   @Column(name = "widget_id", updatable = false, nullable = false)
@@ -58,6 +61,11 @@ public class Widget implements Base {
   @JoinColumn(name = "widget_custom_dashboard")
   @JsonIgnore
   private CustomDashboard customDashboard;
+
+  @ManyToOne
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @JsonIgnore
+  private Tenant tenant;
 
   // -- AUDIT --
 

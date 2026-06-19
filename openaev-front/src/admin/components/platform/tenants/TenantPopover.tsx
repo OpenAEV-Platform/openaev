@@ -53,10 +53,14 @@ const TenantPopover: FunctionComponent<Props> = ({
     setIsDeleteOpen(false);
   }, []);
   const handleDelete = useCallback(async () => {
-    const result = await softDeleteTenant(tenant.tenant_id);
-    handleCloseDelete();
-    onDelete?.(result.data as TenantOutput);
-    await reloadUserTenants();
+    try {
+      const result = await softDeleteTenant(tenant.tenant_id);
+      onDelete?.(result.data as TenantOutput);
+      await reloadUserTenants();
+    } finally {
+      // Close dialog on both success and failure; failures are still propagated.
+      handleCloseDelete();
+    }
   }, [tenant.tenant_id, onDelete, handleCloseDelete, reloadUserTenants]);
 
   // Reactivation
@@ -68,10 +72,14 @@ const TenantPopover: FunctionComponent<Props> = ({
     setIsReactivateOpen(false);
   }, []);
   const handleReactivate = useCallback(async () => {
-    const result = await reactivateTenant(tenant.tenant_id);
-    handleCloseReactivate();
-    onReactivate?.(result.data as TenantOutput);
-    await reloadUserTenants();
+    try {
+      const result = await reactivateTenant(tenant.tenant_id);
+      onReactivate?.(result.data as TenantOutput);
+      await reloadUserTenants();
+    } finally {
+      // Close dialog on both success and failure; failures are still propagated.
+      handleCloseReactivate();
+    }
   }, [tenant.tenant_id, onReactivate, handleCloseReactivate, reloadUserTenants]);
 
   // Button Popover

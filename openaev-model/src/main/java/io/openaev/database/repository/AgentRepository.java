@@ -17,20 +17,26 @@ public interface AgentRepository
 
   @Query(
       value =
-          "SELECT a.* FROM agents a "
-              + "WHERE a.agent_asset = :assetId AND a.agent_executed_by_user = :user "
-              + "AND a.agent_deployment_mode = :deployment AND a.agent_privilege = :privilege "
-              + "AND a.agent_parent IS NULL AND a.agent_inject IS NULL "
-              + "AND a.agent_executor = :executorId",
-      nativeQuery = true)
+          """
+          SELECT a FROM Agent a
+            WHERE a.asset.id = :assetId
+              AND a.executedByUser = :user
+              AND a.deploymentMode = :deployment
+              AND a.privilege = :privilege
+              AND a.parent IS NULL
+              AND a.inject IS NULL
+              AND a.executor.id = :executorId
+          """)
   Optional<Agent> findByAssetExecutorIdUserDeploymentAndPrivilege(
       @Param("assetId") String assetId,
       @Param("user") String user,
-      @Param("deployment") String deployment,
-      @Param("privilege") String privilege,
+      @Param("deployment") Agent.DEPLOYMENT_MODE deployment,
+      @Param("privilege") Agent.PRIVILEGE privilege,
       @Param("executorId") String executorId);
 
   List<Agent> findByExecutorId(String executorId);
+
+  List<Agent> findByExecutorIdAndTenantId(String executorId, String tenantId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
 

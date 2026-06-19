@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -392,13 +393,13 @@ public class ScenarioService {
 
   public Scenario scenario(@NotBlank final String scenarioId) {
     return this.scenarioRepository
-        .findById(scenarioId)
+        .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
     ObjectMapper objectMapper = new ObjectMapper();
-    RawScenario rawScenario = this.scenarioRepository.getScenarioById(scenarioId);
+    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
     }
@@ -485,7 +486,17 @@ public class ScenarioService {
     this.scenarioRepository.saveAll(scenarios);
   }
 
+  /** Validates that the scenario exists for the current tenant. Throws if not found. */
+  public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
+    if (!this.scenarioRepository.existsByIdAndTenantId(
+        scenarioId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+  }
+
+  @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotBlank final String scenarioId) {
+    existsByIdAndTenantId(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -762,7 +773,10 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
     team.getUsers().addAll(fromIterable(teamUsers));
     Team savedTeam = teamRepository.save(team);
@@ -773,7 +787,10 @@ public class ScenarioService {
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
-    Team team = teamRepository.findById(teamId).orElseThrow(ElementNotFoundException::new);
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     return this.enablePlayers(scenarioId, team, playerIds);
   }
 
@@ -817,7 +834,10 @@ public class ScenarioService {
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
     if (StringUtils.isNotBlank(scenarioId)) {
-      Scenario scenarioOrigin = scenarioRepository.findById(scenarioId).orElseThrow();
+      Scenario scenarioOrigin =
+          scenarioRepository
+              .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+              .orElseThrow();
       Scenario scenario = copyScenario(scenarioOrigin);
       Scenario scenarioDuplicate = scenarioRepository.save(scenario);
       getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);

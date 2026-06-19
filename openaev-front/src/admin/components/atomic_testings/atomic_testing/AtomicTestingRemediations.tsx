@@ -185,11 +185,15 @@ const AtomicTestingRemediations = () => {
     }, 10);
   }
 
-  async function onClickUseAriane() {
+  async function onClickUseAriane(agentSlug?: string) {
     updateSnapshot(tabs, activeTab, true);
     setTyping(true);
     const collectorType = tabs[activeTab].collector_type;
-    return postDetectionRemediationAIRulesByInject(injectId, tabs[activeTab].collector_type).then((value) => {
+    return postDetectionRemediationAIRulesByInject(
+      injectId,
+      tabs[activeTab].collector_type,
+      agentSlug,
+    ).then((value) => {
       updateSnapshotNewRemediation(tabs, collectorType, value.data.detection_remediation_values, true);
       addOrUpdateRemediation(value.data);
     }).finally(() => {
@@ -219,7 +223,7 @@ const AtomicTestingRemediations = () => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
+                              src={buildTenantApiPath(`/api/images/collectors/id/${tab.collector_id}`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,
@@ -247,11 +251,9 @@ const AtomicTestingRemediations = () => {
                           alignItems: 'center',
                         }}
                         >
-                          {!(snapshot?.get(tabs[activeTab].collector_type)?.isLoading) && (
-                            <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                              {t('No detection rule available for this security platform yet.')}
-                            </Typography>
-                          )}
+                          <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
+                            {t('No detection rule available for this security platform yet.')}
+                          </Typography>
                           <DetectionRemediationUseAriane
                             key={tabs[activeTab].collector_type}
                             collectorType={tabs[activeTab].collector_type}
@@ -309,12 +311,9 @@ const AtomicTestingRemediations = () => {
                                   alignItems: 'center',
                                 }}
                                 >
-                                  {!(snapshot?.get(tabs[activeTab].collector_type)?.isLoading) && (
-                                    <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
-                                      {t('No detection rule available for this security platform yet.')}
-                                    </Typography>
-                                  )}
-
+                                  <Typography sx={{ padding: 2 }} variant="body2" color="textSecondary" gutterBottom>
+                                    {t('No detection rule available for this security platform yet.')}
+                                  </Typography>
                                   <DetectionRemediationUseAriane
                                     collectorType={tabs[activeTab].collector_type}
                                     detectionRemediationContent={activeDetectionRemediation?.detection_remediation_values}

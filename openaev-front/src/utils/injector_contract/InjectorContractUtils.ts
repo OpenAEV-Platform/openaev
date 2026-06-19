@@ -11,13 +11,13 @@ const computeAttackPatterns = (attackPatternIds: InjectorContractFullOutput['inj
       return [attackPatternsMap[attackPatternParentId]];
     }
     return [];
-  });
+  }).filter(Boolean);
   if (!R.isEmpty(attackPatternParents)) {
     return attackPatternParents;
   }
   return (attackPatternIds ?? []).map((attackPattern) => {
     return attackPatternsMap[attackPattern];
-  });
+  }).filter(Boolean);
 };
 
 export default computeAttackPatterns;

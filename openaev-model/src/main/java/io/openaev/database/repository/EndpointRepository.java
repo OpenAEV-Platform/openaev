@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -30,26 +31,30 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :#{#tenantContext.currentTenant} "
+          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
               + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
-      @Param("hostname") String hostname, @Param("macAddresses") String[] macAddresses);
+      @Param("hostname") String hostname,
+      @Param("macAddresses") String[] macAddresses,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
-      @NotNull final @Param("macAddresses") String[] macAddresses);
+      @NotNull final @Param("macAddresses") String[] macAddresses,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
-      @NotNull final @Param("externalReference") String externalReference);
+      @NotNull final @Param("externalReference") String externalReference,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT a FROM Inject i"
@@ -144,13 +149,13 @@ public interface EndpointRepository
   List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   // For testing purposes only
-
   @Modifying
   @Query(
       value = "UPDATE assets SET asset_created_at = :creationDate where asset_id = :id",
       nativeQuery = true)
   void setCreationDate(@Param("creationDate") Instant creationDate, @Param("id") String assetId);
 
+  // For testing purposes only
   @Modifying
   @Query(
       value = "UPDATE assets SET asset_updated_at = :updateDate where asset_id = :id",
@@ -161,7 +166,10 @@ public interface EndpointRepository
   // Native query does the same as Hibernate query here because all "cascade" and other relations
   // are properly set in the database
   @Modifying
-  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
+  @Query(
+      value =
+          "DELETE FROM assets WHERE asset_id = :assetId AND tenant_id = :#{#tenantContext.currentTenant}",
+      nativeQuery = true)
   void deleteById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
@@ -171,4 +179,6 @@ public interface EndpointRepository
   List<Endpoint> findDistinctByInjectsExerciseId(String exerciseId);
 
   List<Endpoint> findDistinctByInjectsExerciseIdAndIdIn(String exerciseId, List<String> ids);
+
+  Optional<Endpoint> findByIdAndTenantId(String id, String tenantId);
 }

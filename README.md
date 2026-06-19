@@ -5,7 +5,6 @@
   <a href="https://openaev.io" alt="Website"><img src="https://img.shields.io/badge/website-openaev.io-blue.svg" /></a>
   <a href="https://docs.openaev.io" alt="Documentation"><img src="https://img.shields.io/badge/documentation-latest-orange.svg" /></a>
   <a href="https://community.filigran.io" alt="Slack"><img src="https://img.shields.io/badge/slack-3K%2B%20members-4A154B" /></a>
-  <a href="https://drone.filigran.io/OpenAEV-Platform/openaev"><img src="https://drone.filigran.io/api/badges/OpenAEV-Platform/openaev/status.svg" /></a>
   <a href="https://codecov.io/gh/OpenAEV-Platform/openaev"><img src="https://codecov.io/gh/OpenAEV-Platform/openaev/graph/badge.svg" /></a>
   <a href="https://deepscan.io/dashboard#view=project&tid=11710&pid=14631&bid=276803"><img src="https://deepscan.io/api/teams/11710/projects/14631/branches/276803/badge/grade.svg" alt="DeepScan grade"></a>
   <a href="https://hub.docker.com/u/openaev" alt="Docker pulls"><img src="https://img.shields.io/docker/pulls/openaev/platform" /></a>
@@ -56,7 +55,7 @@ developers.
 ## Releases download
 
 The releases are available on the [Github releases page](https://github.com/OpenAEV-Platform/openaev/releases). You can
-also access the [rolling release package](https://releases.openaev.io) generated from the master branch of the
+also access the [rolling release package](https://releases.openaev.io) generated from the main branch of the
 repository.
 
 ## Installation

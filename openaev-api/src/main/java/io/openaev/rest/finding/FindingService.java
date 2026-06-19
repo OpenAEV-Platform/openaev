@@ -3,6 +3,7 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
@@ -44,7 +45,7 @@ public class FindingService {
 
   public Finding finding(@NotNull final String id) {
     return this.findingRepository
-        .findById(id)
+        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new EntityNotFoundException("Finding not found with id: " + id));
   }
 
@@ -62,7 +63,7 @@ public class FindingService {
   }
 
   public void deleteFinding(@NotNull final String id) {
-    if (!this.findingRepository.existsById(id)) {
+    if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
       throw new EntityNotFoundException("Finding not found with id: " + id);
     }
     this.findingRepository.deleteById(id);
@@ -215,7 +216,11 @@ public class FindingService {
   public void createFindings(
       @NotNull final List<Finding> findings, @NotBlank final String injectId) {
     Inject inject = injectService.inject(injectId);
-    findings.forEach(finding -> finding.setInject(inject));
+    findings.forEach(
+        finding -> {
+          finding.setInject(inject);
+          finding.setTenant(inject.getTenant());
+        });
     List<Finding> deduplicatedFindings = deduplicateFindings(findings);
     findingRepository.saveAll(deduplicatedFindings);
   }

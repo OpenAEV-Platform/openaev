@@ -66,7 +66,7 @@ class InjectExpectationServiceTest {
     input.setMessage("message");
     input.setOutputStructured(structuredOutput != null ? String.valueOf(structuredOutput) : null);
     input.setOutputRaw("outputRaw");
-    input.setStatus(ExecutionTraceStatus.SUCCESS.toString());
+    input.setStatus(ExecutionTraceStatus.EXECUTED.toString());
     input.setDuration(10);
     input.setAction(InjectExecutionAction.command_execution);
     return input;

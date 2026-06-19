@@ -12,6 +12,8 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -28,15 +30,21 @@ import org.springframework.util.CollectionUtils;
 @Service
 public class WorkflowService {
 
+  public static final long DEFAULT_TIMEOUT_SECONDS = 3600L;
+
   private static final Gson GSON = new Gson();
 
   private final StepService stepService;
   private final PreviewFeatureService previewFeatureService;
+  private final WorkflowStateService workflowStateService;
+  private final StepDelayQueueService stepDelayQueueService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
-  private final WorkflowStateService workflowStateService;
+
+  private final ScopeMetricCollector scopeMetricCollector;
+  private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
 
   // -- READ --
 
@@ -59,6 +67,13 @@ public class WorkflowService {
                         + (status != null ? status.name() : null)
                         + " not found. Workflow ID : "
                         + workflowId));
+  }
+
+  public Workflow findById(@NotBlank final String workflowId) {
+    return this.workflowRepository
+        .findById(workflowId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Workflow not found with id: " + workflowId));
   }
 
   /**
@@ -94,6 +109,7 @@ public class WorkflowService {
             .simulation(simulation)
             .rateLimitEnabled(false)
             .timeoutEnabled(false)
+            .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
     workflowRepository.save(workflow);
@@ -112,6 +128,7 @@ public class WorkflowService {
             .scenario(scenario)
             .rateLimitEnabled(false)
             .timeoutEnabled(false)
+            .timeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
             .safeModeEnabled(true)
             .build();
     workflowRepository.save(workflow);
@@ -423,11 +440,14 @@ public class WorkflowService {
       throws ChainingException {
     List<Workflow> workflows =
         this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
-    if (workflows.size() > 1)
+    if (workflows.size() > 1) {
       throw new ChainingException(
           "Error Model DB - Many Workflow TEMPLATE for the same scenario ID : " + scenarioId);
-    if (workflows.isEmpty()) return Optional.empty();
-    return Optional.ofNullable(workflows.get(0));
+    }
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(workflows.getFirst());
   }
 
   /**
@@ -439,6 +459,15 @@ public class WorkflowService {
     workflowRepository.deleteById(workflowId);
   }
 
+  /**
+   * Deletes all workflow states associated with workflows of the given simulation.
+   *
+   * @param simulationId the ID of the simulation whose workflow states should be cleared
+   */
+  public void deleteWorkflowStatesBySimulationId(String simulationId) {
+    workflowStateService.deleteAllBySimulationId(simulationId);
+  }
+
   // -- Configuration Update --
 
   /**
@@ -447,25 +476,33 @@ public class WorkflowService {
    */
   private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
+    boolean rateLimitChanged = false;
+    boolean timeoutChanged = false;
+
     if (workflow.isRateLimitEnabled() != input.isRateLimitEnabled()) {
       workflow.setRateLimitEnabled(input.isRateLimitEnabled());
       changed = true;
+      rateLimitChanged = true;
     }
     if (!Objects.equals(workflow.getMaxAttempts(), input.getMaxAttempts())) {
       workflow.setMaxAttempts(input.getMaxAttempts());
       changed = true;
+      rateLimitChanged = true;
     }
     if (!Objects.equals(workflow.getMaxTemporalRateSeconds(), input.getMaxTemporalRateSeconds())) {
       workflow.setMaxTemporalRateSeconds(input.getMaxTemporalRateSeconds());
       changed = true;
+      rateLimitChanged = true;
     }
     if (workflow.isTimeoutEnabled() != input.isTimeoutEnabled()) {
       workflow.setTimeoutEnabled(input.isTimeoutEnabled());
       changed = true;
+      timeoutChanged = true;
     }
     if (!Objects.equals(workflow.getTimeoutSeconds(), input.getTimeoutSeconds())) {
       workflow.setTimeoutSeconds(input.getTimeoutSeconds());
       changed = true;
+      timeoutChanged = true;
     }
     if (workflow.isSafeModeEnabled() != input.isSafeModeEnabled()) {
       workflow.setSafeModeEnabled(input.isSafeModeEnabled());
@@ -473,6 +510,20 @@ public class WorkflowService {
     }
     boolean rulesChanged = applyScopeRules(input.getWorkflowScopeRules(), workflow);
     boolean variablesChanged = applyScopeVariables(input.getWorkflowScopeVariables(), workflow);
+
+    if (timeoutChanged) {
+      long timeoutSec = input.getTimeoutSeconds() != null ? input.getTimeoutSeconds() : 0L;
+      chainingSafetyPolicyMetricCollector.recordTimeoutConfigured(
+          timeoutSec / 3600, (timeoutSec % 3600) / 60, timeoutSec == DEFAULT_TIMEOUT_SECONDS);
+    }
+    if (rateLimitChanged) {
+      int attempts = input.getMaxAttempts() != null ? input.getMaxAttempts() : 0;
+      long seconds =
+          input.getMaxTemporalRateSeconds() != null ? input.getMaxTemporalRateSeconds() : 0L;
+      chainingSafetyPolicyMetricCollector.recordRateLimitConfigured(
+          attempts, seconds, !input.isRateLimitEnabled());
+    }
+
     return rulesChanged || variablesChanged || changed;
   }
 
@@ -506,25 +557,74 @@ public class WorkflowService {
 
     boolean changed = existing.removeIf(r -> !inputIds.contains(r.getId()));
 
-    Set<String> processedIds = new HashSet<>();
+    // Build new rules from inputs without an ID
+    List<WorkflowScopeRule> newRules =
+        deduplicated.stream()
+            .filter(r -> r.getId() == null)
+            .map(r -> buildScopeRule(r, workflow))
+            .toList();
 
+    if (!newRules.isEmpty()) {
+      existing.addAll(newRules);
+      changed = true;
+
+      trackScopeMetrics(workflow, newRules);
+    }
+
+    // Update existing rules that have changed
+    Set<String> processedIds = new HashSet<>();
     for (WorkflowScopeRuleInput ruleInput : deduplicated) {
       String ruleId = ruleInput.getId();
-      if (ruleId == null) {
-        existing.add(buildScopeRule(ruleInput, workflow));
-        changed = true;
-      } else {
-        if (!processedIds.contains(ruleId)) {
-          WorkflowScopeRule existingRule = existingById.get(ruleId);
-          if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
-            updateScopeRule(existingRule, ruleInput);
-            changed = true;
-          }
-          processedIds.add(ruleId);
+      if (ruleId != null && processedIds.add(ruleId)) {
+        WorkflowScopeRule existingRule = existingById.get(ruleId);
+        if (existingRule != null && hasRuleChanged(existingRule, ruleInput)) {
+          updateScopeRule(existingRule, ruleInput);
+          changed = true;
         }
       }
     }
+
     return changed;
+  }
+
+  /**
+   * Tracks metrics related to scope rules added in a workflow configuration, including the volume
+   * of new rules by mode/type/source and the usage of CSV vs Manual sources.
+   */
+  private void trackScopeMetrics(Workflow workflow, List<WorkflowScopeRule> newRules) {
+    if (CollectionUtils.isEmpty(newRules)) return;
+
+    Map<String, Integer> modeCounts = new HashMap<>();
+    Map<String, Integer> typeSourceCounts = new HashMap<>();
+    Set<String> uniqueSources = new HashSet<>();
+
+    for (WorkflowScopeRule rule : newRules) {
+      String mode = rule.getSelectedMode().name();
+      String typeSourceKey = rule.getValueType().name() + "|" + rule.getRuleSource().name();
+      String source = rule.getRuleSource().name();
+
+      modeCounts.merge(mode, 1, Integer::sum);
+      typeSourceCounts.merge(typeSourceKey, 1, Integer::sum);
+      uniqueSources.add(source);
+    }
+
+    // KPI. Record Creation Patterns (Allowlist/Denylist)
+    modeCounts.forEach(scopeMetricCollector::recordScopeCreated);
+
+    // KPI. Record Type and Source Patterns (e.g. DOMAIN|CSV, IP|Manual)
+    typeSourceCounts.forEach(
+        (key, count) -> {
+          String[] parts = key.split("\\|");
+          scopeMetricCollector.recordEntryAdded(parts[0], parts[1], count);
+        });
+
+    // KPI. Record Source Usage (CSV vs Manual only — ignore asset-based sources)
+    uniqueSources.stream()
+        .filter(
+            source ->
+                ScopeRuleSource.CSV.name().equals(source)
+                    || ScopeRuleSource.MANUAL.name().equals(source))
+        .forEach(source -> scopeMetricCollector.recordUsage(workflow.getId(), source));
   }
 
   /**
@@ -608,7 +708,9 @@ public class WorkflowService {
       throws ChainingException {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
-    if (oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) {
+      return null;
+    }
     Workflow oldWorkflowTemplateScenario = oldWorkflowOpt.get();
 
     Workflow newWorkflowTemplateScenario =
@@ -627,7 +729,9 @@ public class WorkflowService {
       @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
 
     Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
-    if (oldWorkflowOpt.isEmpty()) return null;
+    if (oldWorkflowOpt.isEmpty()) {
+      return null;
+    }
     Workflow oldWorkflowTemplateSimulation = oldWorkflowOpt.get();
 
     Workflow newWorkflowTemplateScenario =
@@ -641,8 +745,9 @@ public class WorkflowService {
    * @throws ChainingException when the feature flag is disabled
    */
   public void isPreviewFeatureChainingEnable() throws ChainingException {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
       throw new ChainingException("Feature chaining is not enabled");
+    }
   }
 
   /**
@@ -701,7 +806,7 @@ public class WorkflowService {
 
     // Sync global state and define next steps to be executed
     workflowStateService.syncState(GSON.toJsonTree(scopeData), fieldTypeMap, workflowRun);
-    stepService.evaluateWorkflowProgress(workflowRun);
+    this.evaluateWorkflowProgress(workflowRun);
 
     saveWorkflowRun(workflowRun);
   }
@@ -715,5 +820,86 @@ public class WorkflowService {
             Collectors.groupingBy(
                 rule -> rule.getValueType().getContractOutputType(),
                 Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
+  }
+
+  // -- Timeout --
+
+  /**
+   * Checks if a workflow has ended by reading the current status from the database.
+   *
+   * @param workflowId the workflow ID to check
+   * @return true if the workflow status is END, false otherwise or if not found
+   */
+  @Transactional(readOnly = true)
+  public boolean isWorkflowEnded(String workflowId) {
+    return workflowRepository.existsByIdAndStatus(workflowId, WorkflowStatus.END);
+  }
+
+  /**
+   * Finds all RUN workflows whose timeout has expired.
+   *
+   * @return list of expired workflows
+   */
+  public List<Workflow> findAllExpiredRunWorkflows() {
+    return workflowRepository.findAllExpiredRunWorkflows();
+  }
+
+  /**
+   * Sets the workflow status to END and persists it.
+   *
+   * @param workflowRun the running workflow to end
+   */
+  public void endWorkflow(Workflow workflowRun) {
+    workflowRun.setStatus(WorkflowStatus.END);
+    workflowRepository.save(workflowRun);
+  }
+
+  /**
+   * Evaluates workflow progress by checking all step templates for valid conditions and creating
+   * READY steps. Sets workflow to END if no steps are ready and no delayed steps remain.
+   *
+   * @param workflowRun the running workflow to evaluate
+   * @return the updated workflow (may have status END)
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow evaluateWorkflowProgress(Workflow workflowRun) throws ChainingException {
+    String workflowTemplateId = workflowRun.getWorkflowTemplate().getId();
+
+    // Guard: ignore if workflow run has already ended (e.g. timeout).
+    if (this.isWorkflowEnded(workflowRun.getId())) {
+      log.info("Ignoring evalution because workflow run {} has ended.", workflowRun.getId());
+      return workflowRun;
+    }
+
+    // Get all step template
+    List<Step> stepsTemplate = stepService.findAllStepTemplateByWorkflow(workflowTemplateId);
+
+    if (stepsTemplate.isEmpty()) {
+      log.info(
+          "No step template for workflow template {}. End running {}",
+          workflowTemplateId,
+          workflowRun.getId());
+      workflowRun.setStatus(WorkflowStatus.END);
+      return workflowRun;
+    }
+
+    // At least one template generated one or more ready execution steps.
+    boolean hasReadySteps = false;
+
+    for (Step step : stepsTemplate) {
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
+      if (!stepReadys.isEmpty()) {
+        hasReadySteps = true;
+        stepService.enqueueReadySteps(stepReadys, workflowRun);
+      }
+    }
+
+    // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
+    // status END
+    if (!hasReadySteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+      workflowRun.setStatus(WorkflowStatus.END);
+    }
+
+    return workflowRun;
   }
 }

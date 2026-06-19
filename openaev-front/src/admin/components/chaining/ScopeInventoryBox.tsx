@@ -77,16 +77,18 @@ const ScopeInventoryBox = ({
 
   return (
     <Box>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: theme.spacing(1),
-      }}
+      <Typography
+        variant="h4"
+        sx={{
+          m: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: theme.spacing(1),
+          marginBlock: theme.spacing(2),
+        }}
       >
-        <Typography variant="h4">
-          {`${listLabel} ${t('inventory')} (${totalSelected})`}
-        </Typography>
+        {`${listLabel} ${t('inventory')} (${totalSelected})`}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -107,7 +109,7 @@ const ScopeInventoryBox = ({
             {t('Add Bulk CSV')}
           </Button>
         </div>
-      </div>
+      </Typography>
 
       <Box
         sx={{

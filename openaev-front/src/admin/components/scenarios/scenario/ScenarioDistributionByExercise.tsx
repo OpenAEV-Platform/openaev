@@ -1,8 +1,8 @@
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useState } from 'react';
-import Chart from 'react-apexcharts';
 
 import { fetchScenarioStatistic } from '../../../../actions/scenarios/scenario-actions';
+import Chart from '../../../../components/Chart';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';

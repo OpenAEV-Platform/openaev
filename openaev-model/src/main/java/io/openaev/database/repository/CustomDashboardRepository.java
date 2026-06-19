@@ -38,28 +38,21 @@ public interface CustomDashboardRepository
       select cd.* from custom_dashboards cd
       join scenarios s on s.scenario_custom_dashboard = cd.custom_dashboard_id
       where s.scenario_id = :resourceId
+      and s.tenant_id = :#{#tenantContext.currentTenant}
       union
       select cd.* from custom_dashboards cd
       join exercises e on e.exercise_custom_dashboard = cd.custom_dashboard_id
       where e.exercise_id = :resourceId
+      and e.tenant_id = :#{#tenantContext.currentTenant}
       """,
       nativeQuery = true)
   Optional<CustomDashboard> findByResourceId(String resourceId);
-
-  // TODO multi-tenancy: add tenant_id on parameters?
-  @Query(
-      """
-  SELECT d FROM CustomDashboard d
-  WHERE d.id = (
-    SELECT s.value FROM Setting s
-    WHERE s.key = 'platform_home_dashboard'
-  )
-  """)
-  Optional<CustomDashboard> findHomeDashboard();
 
   @Modifying
   @Query(
       value = "DELETE FROM custom_dashboards cd WHERE cd.custom_dashboard_id = :customDashboardId",
       nativeQuery = true)
   int deleteByIdNative(@Param("customDashboardId") String customDashboardId);
+
+  Optional<CustomDashboard> findByIdAndTenantId(String id, String tenantId);
 }

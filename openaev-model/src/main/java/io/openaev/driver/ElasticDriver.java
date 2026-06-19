@@ -14,9 +14,7 @@ import co.elastic.clients.json.JsonData;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
@@ -56,6 +54,18 @@ public class ElasticDriver {
   private final EngineConfig config;
   private final IndexingStatusRepository indexingStatusRepository;
 
+  /**
+   * Shared ObjectMapper used by the Elasticsearch client for JSON serialization. Exposed via {@link
+   * #getObjectMapper()} so that other components (e.g. audit log service) can reuse the exact same
+   * serialization settings.
+   */
+  private final ObjectMapper engineObjectMapper = EngineObjectMapperFactory.create();
+
+  /** Returns the ObjectMapper used by the Elasticsearch client for document serialization. */
+  public ObjectMapper getObjectMapper() {
+    return engineObjectMapper;
+  }
+
   @Autowired
   public void setSearchEngine(EngineContext searchEngine) {
     this.searchEngine = searchEngine;
@@ -87,10 +97,7 @@ public class ElasticDriver {
     }
     restClientBuilder.setHttpClientConfigCallback(hc -> clientBuilder);
     RestClient restClient = restClientBuilder.build();
-    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper();
-    jsonpMapper.objectMapper().registerModule(new JavaTimeModule());
-    jsonpMapper.objectMapper().configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-    jsonpMapper.objectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    JacksonJsonpMapper jsonpMapper = new JacksonJsonpMapper(engineObjectMapper);
     ElasticsearchTransport transport = new RestClientTransport(restClient, jsonpMapper);
     return new ElasticsearchClient(transport);
   }
@@ -296,24 +303,29 @@ public class ElasticDriver {
     // If version of the model stored in elastic is different from the db version
     // Index + template must be removed and recreated
     // last_updated_at for the type must be reset to reindex the full data.
+
+    // Sequential iteration is intentional: parallel stream caused a startup deadlock.
+    // Spring's MetricsRepositoryMethodInvocationListener acquires a ReentrantLock when recording
+    // repository call metrics. When multiple ForkJoinPool threads all hit a repository method
+    // (indexingStatusRepository.findByType) at the same time during startup, they contend on that
+    // same lock and deadlock — none can proceed and the application never finishes booting.
+    // Iterating sequentially eliminates the contention entirely at a negligible cost: the number
+    // of ES models is small and the bottleneck is network I/O, not CPU parallelism.
     List<EsModel<T>> models = this.searchEngine.getModels();
-    models.stream()
-        .parallel()
-        .forEach(
-            esModel -> {
-              Map<String, Property> mappings = mappingGeneratorForClass(esModel);
-              try {
-                // Cleanup old index
-                if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
-                  log.info("Cleanup old Index {}", esModel.getName());
-                  cleanUpIndex(esModel.getName(), elasticClient);
-                }
-                log.info("Creating Index " + esModel.getName());
-                setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+    for (EsModel<T> esModel : models) {
+      Map<String, Property> mappings = mappingGeneratorForClass(esModel);
+      try {
+        // Initialize indexes sequentially to avoid startup lock contention in repository metrics.
+        if (indexingStatusRepository.findByType(esModel.getName()).isEmpty()) {
+          log.info("Cleanup old Index {}", esModel.getName());
+          cleanUpIndex(esModel.getName(), elasticClient);
+        }
+        log.info("Creating Index {}", esModel.getName());
+        setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
     return elasticClient;
   }
 

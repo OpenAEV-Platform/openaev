@@ -325,6 +325,7 @@ public class PlatformRoleApiTest extends IntegrationTest {
           .andExpect(status().isNoContent());
 
       // -------- Assert --------
+      entityManager.flush();
       entityManager.clear();
       assertFalse(
           roleRepository.findById(role.getId()).filter(r -> r.getTenant() == null).isPresent());

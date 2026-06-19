@@ -1,12 +1,12 @@
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
-import Chart from 'react-apexcharts';
 
 import { fetchExerciseInjects } from '../../../../actions/Inject';
 import { type InjectorContractHelper } from '../../../../actions/injector_contracts/injector-contract-helper';
 import { type InjectStore } from '../../../../actions/injects/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import Chart from '../../../../components/Chart';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';

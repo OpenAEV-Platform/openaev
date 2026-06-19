@@ -11,10 +11,10 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
@@ -36,34 +36,6 @@ public class ConditionServiceTest {
   @Mock private StepRepository stepRepository;
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
-
-  /* ============================================================
-   * isTimeCondition
-   * ============================================================ */
-  @Nested
-  class IsTimeCondition {
-
-    static Stream<ConditionType> allConditionTypes() {
-      return Stream.of(ConditionType.values());
-    }
-
-    @ParameterizedTest(name = "{index} => type={0}")
-    @MethodSource("allConditionTypes")
-    void shouldReturnExpected_forGivenConditionType(ConditionType type) {
-      // -------- Prepare --------
-      Condition condition = mock(Condition.class);
-      when(condition.getType()).thenReturn(type);
-
-      assertEquals(type, condition.getType());
-
-      boolean expected = (type == ConditionType.AFTER || type == ConditionType.BEFORE);
-      // -------- Act --------
-      boolean result = conditionUtils.isTimeCondition(condition);
-
-      // -------- Assert --------
-      assertEquals(result, expected);
-    }
-  }
 
   /* ============================================================
    * isMapperCondition
@@ -113,73 +85,12 @@ public class ConditionServiceTest {
 
       assertEquals(type, condition.getType());
 
-      boolean expected =
-          !(type == ConditionType.AFTER
-              || type == ConditionType.BEFORE
-              || type == ConditionType.MAPPER);
+      boolean expected = !(type == ConditionType.MAPPER || type == ConditionType.DEPEND_ON);
       // -------- Act --------
       boolean result = conditionUtils.isFilterCondition(condition);
 
       // -------- Assert --------
       assertEquals(expected, result);
-    }
-  }
-
-  /* ============================================================
-   * isTimeConditionValid
-   * ============================================================ */
-  @Nested
-  class IsTimeConditionValid {
-
-    @ParameterizedTest(name = "{index} => type={0}, nowVsGoal={1}, shouldCreate={2}")
-    @MethodSource("timeConditionValidScenarios")
-    void shouldReturnExpectedConditionOrNull(
-        ConditionType type, NowGoalRelation relation, boolean shouldCreate) {
-      // -------- Prepare --------
-      Condition template = mock(Condition.class);
-      lenient().when(template.getType()).thenReturn(type);
-
-      Instant now = Instant.parse("2026-02-04T10:15:30Z");
-      Instant goal =
-          switch (relation) {
-            case NOW_AFTER_GOAL -> Instant.parse("2026-02-04T10:15:00Z");
-            case NOW_BEFORE_GOAL -> Instant.parse("2026-02-04T10:16:00Z");
-            case NOW_EQUAL_GOAL -> now;
-          };
-
-      // -------- Act --------
-      boolean result = conditionUtils.isTimeConditionValid(template, now, goal);
-
-      // -------- Assert --------
-      if (shouldCreate) {
-        assertTrue(result);
-      } else {
-        assertFalse(result);
-      }
-    }
-
-    private static Stream<Arguments> timeConditionValidScenarios() {
-      return Stream.of(
-          // AFTER: only valid if now.isAfter(goal)
-          Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_AFTER_GOAL, true),
-          Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_BEFORE_GOAL, false),
-          Arguments.of(ConditionType.AFTER, NowGoalRelation.NOW_EQUAL_GOAL, false),
-
-          // BEFORE: always returns a Condition
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_AFTER_GOAL, false),
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_BEFORE_GOAL, true),
-          Arguments.of(ConditionType.BEFORE, NowGoalRelation.NOW_EQUAL_GOAL, false),
-
-          // Other types: returns null
-          Arguments.of(ConditionType.MAPPER, NowGoalRelation.NOW_AFTER_GOAL, false),
-          Arguments.of(ConditionType.EQ, NowGoalRelation.NOW_AFTER_GOAL, false),
-          Arguments.of(ConditionType.DEPEND_ON, NowGoalRelation.NOW_AFTER_GOAL, false));
-    }
-
-    private enum NowGoalRelation {
-      NOW_AFTER_GOAL,
-      NOW_BEFORE_GOAL,
-      NOW_EQUAL_GOAL
     }
   }
 
@@ -320,6 +231,7 @@ public class ConditionServiceTest {
       List<Condition> conditions = List.of(filterTemplate, mapperTemplate);
 
       doReturn(conditions).when(conditionService).findAllConditionsByStepId(stepId);
+      when(filterTemplate.getType()).thenReturn(ConditionType.MAPPER);
       when(conditionUtils.isMapperCondition(filterTemplate)).thenReturn(false);
       when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
 
@@ -337,6 +249,486 @@ public class ConditionServiceTest {
       assertEquals(expected, result);
       verify(conditionService)
           .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+    }
+  }
+
+  /* ============================================================
+   * checkCondition — DEPEND_ON evaluation
+   * ============================================================ */
+  @Nested
+  class CheckConditionDependOn {
+
+    @Test
+    void given_dependOnConditionSatisfied_should_returnDirectBatch() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dependentStepTemplateId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(dependentStepTemplateId);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dependentStepTemplateId, workflowId))
+          .thenReturn(true);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+      assertEquals("{\"in\":1}", result.getFirst().inputString());
+    }
+
+    @Test
+    void given_dependOnConditionNotSatisfied_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dependentStepTemplateId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(dependentStepTemplateId);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dependentStepTemplateId, workflowId))
+          .thenReturn(false);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_dependOnConditionWithNullValue_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      when(stepTemplate.getId()).thenReturn(stepId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue(null);
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_dependOnConditionWithBlankValue_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      when(stepTemplate.getId()).thenReturn(stepId);
+
+      Condition dependOnCondition = new Condition();
+      dependOnCondition.setType(ConditionType.DEPEND_ON);
+      dependOnCondition.setValue("   ");
+
+      doReturn(List.of(dependOnCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_multipleDependOnConditions_allSatisfied_should_returnDirectBatch()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dep1 = UUID.randomUUID().toString();
+      String dep2 = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition cond1 = new Condition();
+      cond1.setType(ConditionType.DEPEND_ON);
+      cond1.setValue(dep1);
+
+      Condition cond2 = new Condition();
+      cond2.setType(ConditionType.DEPEND_ON);
+      cond2.setValue(dep2);
+
+      doReturn(List.of(cond1, cond2)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dep1, workflowId)).thenReturn(true);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dep2, workflowId)).thenReturn(true);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+      assertEquals("{\"in\":1}", result.getFirst().inputString());
+    }
+
+    @Test
+    void given_multipleDependOnConditions_oneFails_should_returnEmptyList()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+      String dep1 = UUID.randomUUID().toString();
+      String dep2 = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition cond1 = new Condition();
+      cond1.setType(ConditionType.DEPEND_ON);
+      cond1.setValue(dep1);
+
+      Condition cond2 = new Condition();
+      cond2.setType(ConditionType.DEPEND_ON);
+      cond2.setValue(dep2);
+
+      doReturn(List.of(cond1, cond2)).when(conditionService).findAllConditionsByStepId(stepId);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dep1, workflowId)).thenReturn(true);
+      when(stepRepository.existsByStepTemplateIdAndWorkflowId(dep2, workflowId)).thenReturn(false);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+  }
+
+  /* ============================================================
+   * checkCondition — FILTER evaluation (EQ conditions)
+   * ============================================================ */
+  @Nested
+  class CheckConditionFilterEq {
+
+    private WorkflowState buildWorkflowState(String entries) {
+      WorkflowState state = new WorkflowState();
+      state.setEntries(entries);
+      return state;
+    }
+
+    private String buildStateEntriesJson(String key, Set<String> values) {
+      StringBuilder valuesJson = new StringBuilder("[");
+      boolean first = true;
+      for (String v : values) {
+        if (!first) valuesJson.append(",");
+        valuesJson.append("\"").append(v).append("\"");
+        first = false;
+      }
+      valuesJson.append("]");
+      return "{\"inputs\":[{\"key\":\""
+          + key
+          + "\",\"values\":"
+          + valuesJson
+          + "}],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}";
+    }
+
+    private String buildEmptyStateEntriesJson() {
+      return "{\"inputs\":[],\"correlated\":[],\"hashExecution\":[],\"executionKeys\":[]}";
+    }
+
+    @Test
+    void given_eqFilterMatchingGlobalState_should_returnDirectBatch() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState =
+          buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
+      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+      assertEquals("{\"in\":1}", result.getFirst().inputString());
+    }
+
+    @Test
+    void given_eqFilterNotMatchingGlobalState_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState =
+          buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("192.168.0.1")));
+      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_eqFilterMatchingLocalState_should_returnDirectBatch() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState = buildWorkflowState(buildEmptyStateEntriesJson());
+      WorkflowState localState =
+          buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+    }
+
+    @Test
+    void given_eqFilterWithNullGlobalState_should_handleGracefully() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState localState =
+          buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(null);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+    }
+
+    @Test
+    void given_eqFilterWithKeyNotInState_should_returnEmptyList() throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      // State has a different key — IPv4 won't be found
+      WorkflowState globalState =
+          buildWorkflowState(buildStateEntriesJson("Portscan", Set.of("445")));
+      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void given_eqFilterWithMultipleValues_oneMatching_should_returnDirectBatch()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState =
+          buildWorkflowState(
+              buildStateEntriesJson("IPv4", Set.of("192.168.0.1", "10.0.0.1", "172.16.0.1")));
+      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+    }
+
+    @Test
+    void given_eqFilterSatisfied_andNoMappers_should_returnDirectBatchWithOriginalInput()
+        throws ChainingException {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+
+      String stepId = UUID.randomUUID().toString();
+      String workflowId = UUID.randomUUID().toString();
+
+      when(stepTemplate.getId()).thenReturn(stepId);
+      when(workflowRun.getId()).thenReturn(workflowId);
+
+      Condition eqCondition = new Condition();
+      eqCondition.setType(ConditionType.EQ);
+      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setValue("10.0.0.1");
+
+      doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+
+      WorkflowState globalState =
+          buildWorkflowState(buildStateEntriesJson("IPv4", Set.of("10.0.0.1")));
+      WorkflowState localState = buildWorkflowState(buildEmptyStateEntriesJson());
+
+      when(workflowStateService.getGlobalStateByWorkflowId(workflowId)).thenReturn(globalState);
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(localState);
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> result =
+          conditionService.checkCondition(stepTemplate, workflowRun, "{\"in\":1}");
+
+      // -------- Assert --------
+      assertNotNull(result);
+      assertEquals(1, result.size());
+      assertEquals("{\"in\":1}", result.getFirst().inputString());
+      assertTrue(result.getFirst().usedMappers().isEmpty());
     }
   }
 

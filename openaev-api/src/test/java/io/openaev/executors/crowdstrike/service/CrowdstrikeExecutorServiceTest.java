@@ -3,6 +3,7 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -77,12 +78,13 @@ public class CrowdstrikeExecutorServiceTest {
     crowdStrikeExecutorService.run();
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
-    verify(agentService).getAgentsByExecutorId(executorIdCaptor.capture());
-    assertEquals(crowdstrikeExecutor.getId(), executorIdCaptor.getValue());
+    verify(agentService)
+        .getAgentsByExecutorIdAndTenantId(
+            executorIdCaptor.capture(), eq(TenantContext.getCurrentTenant()));
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
-    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture());
+    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture(), any());
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 
@@ -120,7 +122,7 @@ public class CrowdstrikeExecutorServiceTest {
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
-        inject, new HashSet<>(agents), injectStatus);
+        inject, new HashSet<>(agents), injectStatus, "token");
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
@@ -166,7 +168,7 @@ public class CrowdstrikeExecutorServiceTest {
 
     // Act
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
-        inject, new HashSet<>(agents), injectStatus);
+        inject, new HashSet<>(agents), injectStatus, "token");
     Thread.sleep(1000);
 
     // Assert

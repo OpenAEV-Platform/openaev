@@ -45,14 +45,6 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "URL of the server containing the map tile with dark theme")
   private String mapTileServerDark;
 
-  @JsonProperty("xtm_opencti_enable")
-  @Schema(description = "True if connection with OpenCTI is enabled")
-  private Boolean xtmOpenctiEnable;
-
-  @JsonProperty("xtm_opencti_url")
-  @Schema(description = "Url of OpenCTI")
-  private String xtmOpenctiUrl;
-
   @JsonProperty("telemetry_manager_enable")
   @Schema(description = "True if telemetry manager enable")
   private Boolean telemetryManagerEnable;
@@ -89,13 +81,9 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "XTM One platform URL")
   private String xtmOneUrl;
 
-  @JsonProperty("platform_xtm_one_web_token")
-  @Schema(description = "XTM One public chat web token for the embedded agent")
-  private String xtmOneWebToken;
-
-  @JsonProperty("platform_ai_enabled")
-  @Schema(description = "True if AI is enabled for the platform")
-  private Boolean aiEnabled;
+  @JsonProperty("filigran_chatbot_ai_cgu_status")
+  @Schema(description = "Chatbot AI CGU acceptance status: pending, enabled, or disabled")
+  private String chatbotAiCguStatus;
 
   @JsonProperty("platform_ai_has_token")
   @Schema(description = "True if we have an AI token")

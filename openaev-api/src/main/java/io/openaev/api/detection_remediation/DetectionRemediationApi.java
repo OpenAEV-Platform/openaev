@@ -79,7 +79,7 @@ public class DetectionRemediationApi {
     TENANT_DETECTION_REMEDIATION_URI + "/rules/{collectorType}"
   })
   @LogExecutionTime
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
       @PathVariable @NotBlank final String collectorType, @Valid @RequestBody PayloadInput input) {
     if (input.getType().equals(FileDrop.FILE_DROP_TYPE)
@@ -88,7 +88,8 @@ public class DetectionRemediationApi {
           HttpStatus.NOT_IMPLEMENTED,
           "AI Webservice for FileDrop or Executable File not implemented");
 
-    String rules = getRulesDetectionRemediationByCollector(input, collectorType);
+    String rules =
+        getRulesDetectionRemediationByCollector(input, collectorType, input.getAgentSlug());
 
     DetectionRemediationAIOutput detectionRemediationAIOutput =
         DetectionRemediationAIOutput.builder().rules(rules).build();
@@ -96,7 +97,8 @@ public class DetectionRemediationApi {
     return ResponseEntity.ok(detectionRemediationAIOutput);
   }
 
-  private String getRulesDetectionRemediationByCollector(PayloadInput input, String collectorType) {
+  private String getRulesDetectionRemediationByCollector(
+      PayloadInput input, String collectorType, String agentSlug) {
 
     Optional<DetectionRemediationInput> currentDetectionRemediation =
         input.getDetectionRemediations().stream()
@@ -108,7 +110,8 @@ public class DetectionRemediationApi {
       if (!currentDetectionRemediation.get().getValues().isEmpty())
         throw new IllegalStateException("AI Webservice available only for empty content");
     }
-    return detectionRemediationService.getRulesDetectionRemediationAI(input, collectorType);
+    return detectionRemediationService.getRulesDetectionRemediationAI(
+        input, collectorType, agentSlug);
   }
 
   @Operation(summary = "Get detection and remediation rule by inject using AI")
@@ -143,14 +146,16 @@ public class DetectionRemediationApi {
             description = "Collector not found with type {collectorType}")
       })
   @LogExecutionTime
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   @PostMapping({
     DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}",
     TENANT_DETECTION_REMEDIATION_URI + "/rules/inject/{injectId}/collector/{collectorType}"
   })
   public ResponseEntity<DetectionRemediationOutput>
       postRuleDetectionRemediationByInjectIdAndCollectorType(
-          @PathVariable @NotBlank String injectId, @PathVariable @NotBlank String collectorType) {
+          @PathVariable @NotBlank String injectId,
+          @PathVariable @NotBlank String collectorType,
+          @RequestParam(value = "agent_slug", required = false) String agentSlug) {
 
     Inject inject = injectService.inject(injectId);
     Optional<Payload> payloadOptional = inject.getPayload();
@@ -167,7 +172,7 @@ public class DetectionRemediationApi {
     List<DetectionRemediation> detectionRemediations = payload.getDetectionRemediations();
     DetectionRemediation detectionRemediation =
         detectionRemediationService.getOrCreateDetectionRemediationWithAIRulesByCollector(
-            detectionRemediations, payload, collectorType, attackPatterns);
+            detectionRemediations, payload, collectorType, attackPatterns, agentSlug);
 
     DetectionRemediationOutput detectionRemediationOutput =
         PayloadMapper.toDetectionRemediationOutput(detectionRemediation);

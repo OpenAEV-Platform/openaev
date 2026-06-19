@@ -1,6 +1,6 @@
 import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
 import { GridLegacy, Paper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -85,13 +85,14 @@ const ExerciseInjects: FunctionComponent = () => {
   const articleContext = articleContextForExercise(exerciseId);
   const teamContext = teamContextForExercise(exerciseId, exercise.exercise_teams_users, exercise.exercise_all_users_number, exercise.exercise_users_number);
   const endpointContext = endpointContextForExercise(exerciseId);
-  const challengeContext = { fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) };
+  // Stable context identities so the whole injects list does not re-render on each update
+  const challengeContext = useMemo(() => ({ fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) }), [dispatch, exerciseId]);
 
-  const injectTestContext: InjectTestContextType = {
+  const injectTestContext: InjectTestContextType = useMemo(() => ({
     contextId: exerciseId,
     url: `/admin/simulations/${exerciseId}/tests/`,
     testInject: testInject,
-  };
+  }), [exerciseId]);
 
   return (
     <ViewModeContext.Provider value={viewMode}>

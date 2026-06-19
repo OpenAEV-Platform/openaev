@@ -19,8 +19,10 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -128,6 +130,7 @@ public class ExerciseService {
   private final LessonsAnswerRepository lessonsAnswerRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
   private final LessonsService lessonsService;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   private final InjectExpectationMapper injectExpectationMapper;
 
@@ -194,9 +197,18 @@ public class ExerciseService {
   }
 
   // -- READ --
+
+  /** Validates that the exercise exists for the current tenant. Throws if not found. */
+  public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
+    if (!this.exerciseRepository.existsByIdAndTenantId(
+        exerciseId, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException("Exercise not found");
+    }
+  }
+
   public Exercise exercise(@NotBlank final String exerciseId) {
     return this.exerciseRepository
-        .findById(exerciseId)
+        .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
   }
 
@@ -228,7 +240,7 @@ public class ExerciseService {
   // -- DUPLICATION --
   @Transactional
   public Exercise getDuplicateExercise(@NotBlank String exerciseId) {
-    Exercise exerciseOrigin = exerciseRepository.findById(exerciseId).orElseThrow();
+    Exercise exerciseOrigin = exercise(exerciseId);
     Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
@@ -507,17 +519,12 @@ public class ExerciseService {
   }
 
   /**
-   * Find a simulation by it's ID
-   *
-   * @param simulationId ID of the simulation to fetch
-   * @return the simulation found
-   * @throws ElementNotFoundException if no simulation matches the given ID
+   * @deprecated Use {@link #exercise(String)} instead — kept temporarily for backward
+   *     compatibility.
    */
+  @Deprecated(forRemoval = true)
   public Exercise findById(String simulationId) {
-    return exerciseRepository
-        .findById(simulationId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Simulation not found with ID: " + simulationId));
+    return exercise(simulationId);
   }
 
   /**
@@ -546,14 +553,15 @@ public class ExerciseService {
    * @param simulationId ID of the simulation to delete
    */
   public void deleteById(String simulationId) {
+    existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
-    Exercise exercise =
-        this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = this.exercise(exerciseId);
     // Check if next status is possible
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
@@ -607,16 +615,18 @@ public class ExerciseService {
       entityManager.flush();
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues
-      exercise =
-          this.exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+      exercise = this.exercise(exerciseId);
       // Delete exercise transient files (communications, ...)
       fileService.deleteDirectory(exerciseId);
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
           && workflowService.isSimulationChaining(exercise.getId())) {
+        // DELETE workflow states
+        workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
+      urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
@@ -658,7 +668,7 @@ public class ExerciseService {
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
       if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete injects
+        // End WORKFLOW + STEP + delete injects + delete workflow states
         List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
         if (!run.isEmpty()) {
           List<Step> stepsToUpdate = new ArrayList<>();
@@ -671,6 +681,7 @@ public class ExerciseService {
               });
           stepService.saveSteps(stepsToUpdate);
           workflowService.saveAll(run);
+          workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
           List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
           this.injectRepository.deleteAll(injects);
         }
@@ -692,7 +703,10 @@ public class ExerciseService {
     // 3. RESET LESSONS ANSWERS
     lessonsService.resetLessonsAnswer(exercise.getId());
 
-    // 4. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
+    // 4. CLEAR WORKFLOW STATES
+    workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
+
+    // 5. SCHEDULE MINIO CLEANUP (after commit to avoid cleanup on rollback)
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
           @Override
@@ -705,7 +719,7 @@ public class ExerciseService {
           }
         });
 
-    // 5. RESET EXERCISE DATES
+    // 6. RESET EXERCISE DATES
     exercise.setStart(null);
     exercise.setEnd(null);
     exercise.setCurrentPause(null);
@@ -1070,8 +1084,7 @@ public class ExerciseService {
       @NotBlank final String exerciseId,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
-    Exercise exercise =
-        exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise = this.exercise(exerciseId);
     playerIds.forEach(
         playerId -> {
           boolean alreadyLinked =
@@ -1144,18 +1157,23 @@ public class ExerciseService {
 
       // we ignore manual expectation
       if (ExpectationType.HUMAN_RESPONSE.equals(type)) {
-        break;
+        continue;
       }
 
       ExpectationResultsByType secondLastSimulationResultsByType =
           secondLastSimulationResultsMap.get(type);
+
+      // if the second simulation has no result for this type, skip
+      if (secondLastSimulationResultsByType == null) {
+        continue;
+      }
 
       // we ignore if one of the 2 expectation is still PENDING
       if (InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               lastSimulationResultsByType.avgResult())
           || InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               secondLastSimulationResultsByType.avgResult())) {
-        break;
+        continue;
       }
 
       float lastSimulationScore =

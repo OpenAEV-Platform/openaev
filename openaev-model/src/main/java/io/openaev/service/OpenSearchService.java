@@ -462,6 +462,9 @@ public class OpenSearchService implements EngineService {
   }
 
   public void bulkDelete(List<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return;
+    }
     try {
       List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
       // Delete the direct document corresponding to the id
@@ -498,20 +501,17 @@ public class OpenSearchService implements EngineService {
                                               """
                                                       // For each EsBase attribute of each document
                                                       for (String key : ctx._source.keySet().toArray()) {
-                                                        // If it's a "base_XXX_side" (means String id or List of ids), we delete only in the "base_XXX_side" of the EsBase the object id deleted before with the deleteByQuery
+                                                        // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
                                                         if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
                                                             if (ctx._source[key] instanceof List) {
-                                                                ctx._source[key].removeIf(item -> item == params.valueToRemove);
-                                                            } else if (ctx._source[key] instanceof String && ctx._source[key] == params.valueToRemove) {
+                                                                ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item));
+                                                            } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
                                                                 ctx._source.remove(key);
                                                             }
                                                         }
                                                       }
                                                     """)
-                                          .params(
-                                              "valueToRemove",
-                                              JsonData.of(
-                                                  ids.getFirst())))))) // Only 1 id in this list
+                                          .params("valuesToRemove", JsonData.of(ids))))))
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
               .build());
@@ -866,7 +866,6 @@ public class OpenSearchService implements EngineService {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .parallel()
         .map(c -> termHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
@@ -939,7 +938,6 @@ public class OpenSearchService implements EngineService {
     Map<String, String> parameters = runtime.getParameters();
     Map<String, CustomDashboardParameters> definitionParameters = runtime.getDefinitionParameters();
     return runtime.getWidget().getSeries().stream()
-        .parallel()
         .map(c -> dateHistogram(user, runtime.getWidget(), c, parameters, definitionParameters))
         .toList();
   }
@@ -1121,6 +1119,11 @@ public class OpenSearchService implements EngineService {
   @Override
   public void cleanUpIndex(String model) throws IOException {
     driver.cleanUpIndex(model, openSearchClient);
+  }
+
+  @Override
+  public ObjectMapper getObjectMapper() {
+    return driver.getObjectMapper();
   }
 
   // endregion

@@ -77,8 +77,13 @@ public class ChannelContract extends Contractor {
             The animation team
         """;
     ContractCheckbox emailingField = checkboxField("emailing", "Send email", true);
+    // Media pressure injects expose both article and manual expectations.
     ContractExpectations expectationsField =
-        expectationsField(List.of(this.expectationBuilderService.buildArticleExpectation()));
+        expectationsField(
+            List.of(this.expectationBuilderService.buildArticleExpectation()),
+            List.of(
+                this.expectationBuilderService.buildArticleExpectation(),
+                this.expectationBuilderService.buildManualExpectation()));
     List<ContractElement> publishInstance =
         contractBuilder()
             // built in

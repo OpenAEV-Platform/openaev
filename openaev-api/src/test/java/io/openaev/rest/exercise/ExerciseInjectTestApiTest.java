@@ -10,7 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -33,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExerciseInjectTestApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
   @Autowired private ExerciseComposer simulationComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectTestStatusComposer injectTestStatusComposer;
@@ -41,6 +46,12 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   private Exercise simulation;
   private Inject inject1, inject2;
   private InjectTestStatus injectTestStatus1, injectTestStatus2;
+
+  @BeforeEach
+  void beforeEach() throws Exception {
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
+  }
 
   @BeforeAll
   void setupData() {

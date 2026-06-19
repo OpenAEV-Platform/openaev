@@ -6,7 +6,7 @@ licensed under the OpenAEV Enterprise Edition License (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-https://github.com/OpenAEV-Platform/openaev/blob/master/LICENSE
+https://github.com/OpenAEV-Platform/openaev/blob/main/LICENSE
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,12 +17,16 @@ import useAuth from './useAuth';
 
 const useAI = (): {
   configured?: boolean | null;
-  enabled?: boolean | null;
+  enabled: boolean;
+  isCguPending: boolean;
   xtmOneConfigured?: boolean | null;
 } => {
   const { settings } = useAuth();
+  const isCguPending = settings.filigran_chatbot_ai_cgu_status === 'pending' || settings.filigran_chatbot_ai_cgu_status === undefined;
+  const enabled = settings.filigran_chatbot_ai_cgu_status !== 'disabled';
   return {
-    enabled: settings.platform_ai_enabled,
+    enabled,
+    isCguPending,
     configured: settings.platform_ai_has_token,
     xtmOneConfigured: settings.platform_xtm_one_configured,
   };
