@@ -318,7 +318,7 @@ public interface InjectExpectationRepository
       ie.inject_expiration_time,
       ie.inject_expectation_group,
       ie.inject_expectation_created_at,
-      COALESCE(GREATEST(ie.inject_expectation_updated_at, max(i.inject_updated_at), max(ic.injector_contract_updated_at)), ie.inject_expectation_updated_at) as inject_expectation_updated_at,
+      GREATEST(ie.inject_expectation_updated_at, max(i.inject_updated_at), max(ic.injector_contract_updated_at)) as inject_expectation_updated_at,
       ie.exercise_id,
       ie.inject_id,
       ie.user_id,
