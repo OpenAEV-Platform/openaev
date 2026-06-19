@@ -74,7 +74,6 @@ public class ManagerIntegrationsSyncJob implements Job {
   private void monitorTenantIntegrations(String tenantId) {
     long tenantStart = System.currentTimeMillis();
     try {
-      // TODO check thread local -> seems OK but ?
       TenantContext.setCurrentTenant(tenantId);
       managerFactory.getManager(tenantId).monitorIntegrations();
     } catch (Exception e) {
