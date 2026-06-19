@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -436,14 +436,14 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
       entityManager.flush();
 
-      Map<String, EntityDiffContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
+      Map<String, AuditLogContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
       snapshotsMap.put(
           team.getId(),
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               "Team", "update", Map.of("name", "Old Name"), Map.of("name", "New Name")));
 
       @SuppressWarnings("unchecked")
-      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
       // Act — pass snapshots as request attribute so EntityDiffContext finds them during the
@@ -467,10 +467,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               snapshotsCaptor.capture(),
               anyString());
 
-      Map<String, EntityDiffContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
+      Map<String, AuditLogContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
       assertThat(captured).isNotNull();
       assertThat(captured).containsKey(team.getId());
-      EntityDiffContext.EntitySnapshot snapshot = captured.get(team.getId());
+      AuditLogContext.EntitySnapshot snapshot = captured.get(team.getId());
       assertThat(snapshot.entityType()).isEqualTo("Team");
       assertThat(snapshot.operation()).isEqualTo("update");
       assertThat(snapshot.before().get("name")).isEqualTo("Old Name");
@@ -484,7 +484,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
       @SuppressWarnings("unchecked")
-      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
       // Act

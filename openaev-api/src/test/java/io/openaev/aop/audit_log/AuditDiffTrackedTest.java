@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Integration tests verifying that {@code @AuditDiffTracked} entities produce field-level diffs in
- * {@link EntityDiffContext} when modified or deleted through the JPA lifecycle.
+ * {@link AuditLogContext} when modified or deleted through the JPA lifecycle.
  *
  * <p>These tests verify the diff mechanism at the service/entity level (not the full HTTP audit
  * pipeline) to avoid flush-timing issues inherent to {@code @Transactional} tests.
@@ -43,7 +43,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
 
   @BeforeEach
   void setup() {
-    EntityDiffContext.clear();
+    AuditLogContext.clear();
   }
 
   @Nested
@@ -68,11 +68,10 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush(); // triggers @PreUpdate → computes diff
 
       // Assert
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
-          EntityDiffContext.consumeAllSnapshots();
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = AuditLogContext.consumeAllSnapshots();
       assertThat(snapshots).containsKey(group.getId());
 
-      EntityDiffContext.EntitySnapshot snapshot = snapshots.get(group.getId());
+      AuditLogContext.EntitySnapshot snapshot = snapshots.get(group.getId());
       assertThat(snapshot.entityType()).isEqualTo("Group");
       assertThat(snapshot.operation()).isEqualTo("update");
       assertThat(snapshot.before()).isNotNull();
@@ -99,9 +98,8 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
 
       // Assert
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
-          EntityDiffContext.consumeAllSnapshots();
-      EntityDiffContext.EntitySnapshot snapshot = snapshots.get(group.getId());
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = AuditLogContext.consumeAllSnapshots();
+      AuditLogContext.EntitySnapshot snapshot = snapshots.get(group.getId());
       assertThat(snapshot).isNotNull();
       assertThat(snapshot.after().get("group_description")).isEqualTo("New description");
       // Name should NOT differ since it didn't change
@@ -133,11 +131,10 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
 
       // Assert
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
-          EntityDiffContext.consumeAllSnapshots();
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = AuditLogContext.consumeAllSnapshots();
       assertThat(snapshots).containsKey(role.getId());
 
-      EntityDiffContext.EntitySnapshot snapshot = snapshots.get(role.getId());
+      AuditLogContext.EntitySnapshot snapshot = snapshots.get(role.getId());
       assertThat(snapshot.entityType()).isEqualTo("Role");
       assertThat(snapshot.operation()).isEqualTo("update");
       assertThat(snapshot.before().get("role_name")).isEqualTo("OldRoleName");
@@ -160,7 +157,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
               .get();
       entityManager.flush();
       entityManager.clear();
-      EntityDiffContext.clear(); // discard the "create" diff from persist
+      AuditLogContext.clear(); // discard the "create" diff from persist
 
       // Act — reload but don't change anything
       Group loaded = entityManager.find(Group.class, group.getId());
@@ -168,8 +165,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
 
       // Assert
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots =
-          EntityDiffContext.consumeAllSnapshots();
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = AuditLogContext.consumeAllSnapshots();
       assertThat(snapshots).doesNotContainKey(group.getId());
     }
   }

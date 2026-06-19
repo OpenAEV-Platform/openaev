@@ -2,11 +2,14 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditSignificanceAware;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -22,7 +25,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Endpoint extends Asset {
+public class Endpoint extends Asset implements AuditSignificanceAware {
 
   public static final Set<String> BAD_MAC_ADDRESS =
       new HashSet<>(Arrays.asList("ffffffffffff", "000000000000", "0180c2000000"));
@@ -231,5 +234,33 @@ public class Endpoint extends Asset {
   public Endpoint(String id, String type, String name, PLATFORM_TYPE platform) {
     super(id, type, name);
     this.platform = platform;
+  }
+
+  /**
+   * Fields excluded from audit significance comparison (timestamps, child collections, metadata).
+   */
+  private static final Set<String> NON_SIGNIFICANT_FIELDS =
+      Set.of("asset_id", "asset_type", "asset_created_at", "asset_updated_at", "asset_tags");
+
+  /**
+   * Returns the significant state of this endpoint for audit comparison.
+   *
+   * <p>Serializes the entire entity via Jackson, then strips non-significant fields and replaces
+   * the raw agents list with each agent's own {@link Agent#significantState}. Any new field added
+   * to the entity is automatically included without code changes.
+   */
+  @Override
+  public Map<String, Object> significantState(ObjectMapper objectMapper) {
+    Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
+    NON_SIGNIFICANT_FIELDS.forEach(state::remove);
+    // Replace raw agent serialization with each agent's significant state (sorted by ID for stable
+    // comparison)
+    state.put(
+        "asset_agents",
+        agents.stream()
+            .sorted(Comparator.comparing(Agent::getId))
+            .map(agent -> agent.significantState(objectMapper))
+            .toList());
+    return state;
   }
 }

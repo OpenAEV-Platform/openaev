@@ -4,8 +4,11 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditSignificanceAware;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.AgentHelper;
@@ -15,7 +18,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,7 +35,7 @@ import org.hibernate.annotations.JoinFormula;
 @Table(name = "agents")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Agent implements TenantBase {
+public class Agent implements TenantBase, AuditSignificanceAware {
 
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
@@ -164,6 +169,23 @@ public class Agent implements TenantBase {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  /** Fields excluded from audit significance comparison (timestamps, computed, parent ref). */
+  private static final Set<String> NON_SIGNIFICANT_FIELDS =
+      Set.of(
+          "agent_last_seen",
+          "agent_created_at",
+          "agent_updated_at",
+          "agent_cleared_at",
+          "agent_active",
+          "agent_asset");
+
+  @Override
+  public Map<String, Object> significantState(ObjectMapper objectMapper) {
+    Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
+    NON_SIGNIFICANT_FIELDS.forEach(state::remove);
+    return state;
   }
 
   public Agent() {}

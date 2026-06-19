@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
@@ -106,7 +106,7 @@ public class AccessControlAuditLogAspect {
       throw ex;
     }
 
-    if (isActive && isActionActive) {
+    if (isActive && isActionActive && AuditLogContext.isEnabled()) {
       try {
         String eventScope = LogUtils.getEventScope(action);
         String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
@@ -135,7 +135,7 @@ public class AccessControlAuditLogAspect {
       JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
 
       // Capture snapshots on the servlet thread before any async handoff.
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots = captureEntitySnapshots();
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = captureEntitySnapshots();
 
       BiConsumer<Boolean, Throwable> logCompletion =
           (success, throwable) -> {
@@ -166,15 +166,15 @@ public class AccessControlAuditLogAspect {
   }
 
   /**
-   * Captures all pending entity snapshots from {@link EntityDiffContext}. Must be called on the
-   * servlet thread before any async handoff, since {@link EntityDiffContext} is request-scoped.
+   * Captures all pending entity snapshots from {@link AuditLogContext}. Must be called on the
+   * servlet thread before any async handoff, since {@link AuditLogContext} is request-scoped.
    */
-  private Map<String, EntityDiffContext.EntitySnapshot> captureEntitySnapshots() {
+  private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
-      return EntityDiffContext.consumeAllSnapshots();
+      return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
-      EntityDiffContext.clear();
+      AuditLogContext.clear();
       return null;
     }
   }
