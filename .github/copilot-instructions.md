@@ -77,7 +77,8 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - `pom.xml` - Parent Maven POM
 - `.github/workflows/` - CI/CD pipelines (GitHub Actions)
 - `docker-compose.yml` - Dev services (in `openaev-dev/`)
-- `Dockerfile` / `Dockerfile_ga` - Production / GitHub Actions images
+- `Dockerfile` - Production multi-stage image
+- `Dockerfile_ga_deprecated` - Legacy GitHub Actions image (deprecated)
 
 ### Backend
 

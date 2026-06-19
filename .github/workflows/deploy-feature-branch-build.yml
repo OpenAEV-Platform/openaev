@@ -1,0 +1,102 @@
+name: "[Core] Deploy Feature Branch Build"
+
+# Unprivileged build workflow dispatched by deploy-feature-branch.yml.
+# SECURITY: This workflow has contents:read ONLY — no secrets, no write token.
+# It checks out and builds untrusted PR code in a safe sandbox.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_ref:
+        description: "PR branch name"
+        required: true
+        type: string
+      head_sha:
+        description: "PR head commit SHA"
+        required: true
+        type: string
+      comment_id:
+        description: "PR comment ID to update"
+        required: true
+        type: string
+
+permissions:
+  contents: read # strictly read-only — no secrets, no write token
+
+jobs:
+  backend-compile:
+    name: "🔨 Backend Compile"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/frontend-build
+
+  backend-package:
+    name: "📦 Backend Package"
+    needs: [frontend-build, backend-compile]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/backend-package
+
+  docker-build:
+    name: "🐳 Docker Build"
+    needs: backend-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/docker-build-push
+        with:
+          tags: openaev:feat-${{ inputs.head_ref }}
+
+  # Save metadata as artifact for the workflow_run follow-up
+  save-metadata:
+    name: "💾 Save metadata"
+    needs: docker-build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write metadata file
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          COMMENT_ID: ${{ inputs.comment_id }}
+          BUILD_RESULT: ${{ needs.docker-build.result }}
+        run: |
+          mkdir -p metadata
+          jq -n \
+            --arg pr "$PR_NUMBER" \
+            --arg ref "$HEAD_REF" \
+            --arg sha "$HEAD_SHA" \
+            --arg cid "$COMMENT_ID" \
+            --arg res "$BUILD_RESULT" \
+            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, comment_id: $cid, build_result: $res}' \
+            > metadata/deploy-metadata.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-metadata
+          path: metadata/

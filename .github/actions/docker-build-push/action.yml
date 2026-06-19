@@ -1,7 +1,8 @@
 name: Docker Build & Validate (Multi-arch)
 description: >
   Build multi-arch Docker images (linux/amd64 + linux/arm64) for standard and
-  optionally UBI9 variants.  Uses buildx + QEMU to produce OCI archives
+  optionally UBI9 variants using multi-stage Dockerfiles that build frontend
+  and backend from source.  Uses buildx + QEMU to produce OCI archives
   containing both platforms, validates the amd64 variant locally, and uploads
   the archives as artifacts.  This action NEVER pushes to any external
   registry.  The calling job MUST run actions/checkout before this action.
@@ -18,7 +19,7 @@ inputs:
     default: ""
   build-ubi9:
     description: >
-      When 'true', also build a UBI9-based Docker image from Dockerfile_ubi9_ga.
+      When 'true', also build a UBI9-based Docker image from Dockerfile_ubi9.
     required: false
     default: "false"
   ubi9-tags:
@@ -75,27 +76,6 @@ runs:
         fi
       shell: bash
 
-    - name: Download backend JAR artifact
-      uses: actions/download-artifact@v8
-      with:
-        name: openaev-api-jar
-        path: openaev-build
-
-    - name: Verify backend JAR
-      run: |
-        if [ ! -f "openaev-build/openaev-api.jar" ]; then
-          echo "❌ openaev-api.jar not found in openaev-build/"
-          ls -la openaev-build/ 2>/dev/null || echo "  directory does not exist"
-          exit 1
-        fi
-        JAR_SIZE=$(stat --format=%s openaev-build/openaev-api.jar 2>/dev/null || stat -f%z openaev-build/openaev-api.jar 2>/dev/null)
-        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
-          echo "❌ openaev-api.jar is suspiciously small ($JAR_SIZE bytes)"
-          exit 1
-        fi
-        echo "✅ openaev-api.jar present for Docker build ($JAR_SIZE bytes)"
-      shell: bash
-
     - name: Set up QEMU (for arm64 emulation)
       uses: docker/setup-qemu-action@v4
 
@@ -108,7 +88,7 @@ runs:
       uses: docker/build-push-action@v7
       with:
         context: .
-        file: ./Dockerfile_ga
+        file: ./Dockerfile
         platforms: linux/amd64,linux/arm64
         push: false
         pull: true
@@ -164,15 +144,15 @@ runs:
 
         # Verify JAR is inside the image
         JAR_CHECK_ERR=$(mktemp)
-        JAR_IN_IMAGE=$(docker run --rm --entrypoint ls "$IMAGE" -la /opt/openaev-api.jar 2>"$JAR_CHECK_ERR") || true
+        JAR_IN_IMAGE=$(docker run --rm --entrypoint ls "$IMAGE" -la /openaev-api.jar 2>"$JAR_CHECK_ERR") || true
         if [ -z "$JAR_IN_IMAGE" ]; then
-          echo "❌ openaev-api.jar NOT found inside Docker image at /opt/openaev-api.jar"
+          echo "❌ openaev-api.jar NOT found inside Docker image at /openaev-api.jar"
           if [ -s "$JAR_CHECK_ERR" ]; then
             echo "  Error: $(cat "$JAR_CHECK_ERR")"
           fi
-          echo "  Listing /opt/ contents for diagnostics:"
-          docker run --rm --entrypoint ls "$IMAGE" -la /opt/ 2>/dev/null \
-            | sed 's/^/    /' || echo "    (could not list /opt/)"
+          echo "  Listing / contents for diagnostics:"
+          docker run --rm --entrypoint ls "$IMAGE" -la / 2>/dev/null \
+            | sed 's/^/    /' || echo "    (could not list /)"
           echo "jar_in_image=false" >> "$GITHUB_OUTPUT"
         else
           echo "✅ openaev-api.jar found inside Docker image"
@@ -211,7 +191,7 @@ runs:
       uses: docker/build-push-action@v7
       with:
         context: .
-        file: ./Dockerfile_ubi9_ga
+        file: ./Dockerfile_ubi9
         platforms: linux/amd64,linux/arm64
         push: false
         pull: true

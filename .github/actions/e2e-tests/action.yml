@@ -1,7 +1,9 @@
 name: E2E Tests
 description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
-  download and run the backend JAR, and run Playwright E2E tests.
+  download and run the backend Docker image, and run Playwright E2E tests.
+  The Docker image is built in parallel by the docker-build job; this action
+  polls for the image artifact and loads it once available.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
   MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
@@ -59,11 +61,6 @@ runs:
         done
         echo "✅ All containers started"
 
-    - name: Set up Java 21
-      uses: actions/setup-java@v5
-      with:
-        java-version: "21"
-        distribution: temurin
     - name: Set up Node.js 22.11
       uses: actions/setup-node@v6
       with:
@@ -104,21 +101,21 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    - name: Wait for backend JAR artifact
+    - name: Wait for Docker image artifact
       shell: bash
       run: |
-        echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
+        echo "⏳ Waiting for Docker image artifact (services booting in parallel)..."
         for i in $(seq 1 180); do
-          # Check if backend-compile has failed — abort immediately
-          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
-          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
+          # Check if docker-build has failed — abort immediately
+          BUILD_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name | test("Docker Build")) | .conclusion] | first' 2>/dev/null || echo "")
+          if [ "$BUILD_CONCLUSION" = "failure" ] || [ "$BUILD_CONCLUSION" = "cancelled" ]; then
+            echo "❌ Docker Build job $BUILD_CONCLUSION — aborting"
             exit 1
           fi
           NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
             --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
+          if echo "$NAMES" | grep -q '"openaev-image"'; then
             echo "✅ Artifact available (after ~$((i * 5))s)"
             break
           fi
@@ -130,26 +127,29 @@ runs:
           sleep 5
         done
 
-    - name: Download backend JAR artifact
+    - name: Download Docker image artifact
       uses: actions/download-artifact@v8
       with:
-        name: openaev-api-jar
-        path: openaev-api/target
+        name: openaev-image
+        path: /tmp/openaev-image
 
-    - name: Verify backend JAR
+    - name: Load Docker image
       shell: bash
       run: |
-        if [ ! -f "openaev-api/target/openaev-api.jar" ]; then
-          echo "❌ openaev-api.jar not found after download"
-          ls -la openaev-api/target/ 2>/dev/null || echo "  target/ directory does not exist"
+        cd /tmp/openaev-image
+        gunzip openaev-image.tar.gz
+        ARCH=$(dpkg --print-architecture)
+        echo "🐳 Loading Docker image (platform: linux/$ARCH)..."
+        skopeo copy --override-os linux --override-arch "$ARCH" \
+          oci-archive:openaev-image.tar \
+          docker-daemon:openaev:ci
+        rm -f openaev-image.tar
+        IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')
+        if [ -z "$IMAGE_ID" ]; then
+          echo "❌ Failed to load Docker image"
           exit 1
         fi
-        JAR_SIZE=$(stat --format=%s openaev-api/target/openaev-api.jar 2>/dev/null || stat -f%z openaev-api/target/openaev-api.jar 2>/dev/null)
-        if [ "$JAR_SIZE" -lt 1000 ] 2>/dev/null; then
-          echo "❌ openaev-api.jar is suspiciously small ($JAR_SIZE bytes)"
-          exit 1
-        fi
-        echo "✅ openaev-api.jar present ($JAR_SIZE bytes)"
+        echo "✅ Docker image loaded (ID: $IMAGE_ID)"
 
     - name: Wait for services
       shell: bash
@@ -185,8 +185,28 @@ runs:
         echo "✅ All services ready"
 
     - name: Start application
-      run: java -jar openaev-api/target/openaev-api.jar > /tmp/openaev-app.log 2>&1 &
       shell: bash
+      run: |
+        echo "🚀 Starting OpenAEV from Docker image..."
+        docker run -d --name openaev-app --network host \
+          -e SPRING_DATASOURCE_URL \
+          -e SPRING_DATASOURCE_USERNAME \
+          -e SPRING_DATASOURCE_PASSWORD \
+          -e MINIO_ENDPOINT \
+          -e MINIO_PORT \
+          -e MINIO_ACCESS_KEY \
+          -e MINIO_ACCESS_SECRET \
+          -e ENGINE_URL \
+          -e OPENBAS_RABBITMQ_HOSTNAME \
+          -e OPENAEV_ADMIN_EMAIL \
+          -e OPENAEV_ADMIN_PASSWORD \
+          -e OPENAEV_ADMIN_TOKEN \
+          -e OPENAEV_ADMIN_ENCRYPTION_KEY \
+          -e OPENAEV_ADMIN_ENCRYPTION_SALT \
+          -e SPRING_PROFILES_ACTIVE \
+          -e OPENAEV_APPLICATION_LICENSE \
+          openaev:ci
+        echo "✅ Container started"
     - name: Wait for application to be ready
       shell: bash
       run: |
@@ -195,6 +215,14 @@ runs:
         echo "⏳ Waiting for API to be fully initialized (GET /api/me)..."
         APP_UP=false
         for i in $(seq 1 150); do
+          # Check container is still running
+          if ! docker inspect --format='{{.State.Running}}' openaev-app 2>/dev/null | grep -q true; then
+            echo "❌ Container openaev-app stopped unexpectedly"
+            echo "  Last 80 lines of container log:"
+            docker logs --tail 80 openaev-app 2>&1 || true
+            exit 1
+          fi
+
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             http://localhost:8080/api/me \
             -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null || echo -e "\n000")
@@ -214,14 +242,14 @@ runs:
           if [ $((i % 15)) -eq 0 ]; then
             BODY=$(echo "$RESPONSE" | sed '$d')
             echo "  Attempt $i/150 — HTTP ${HTTP_CODE} — ${BODY}"
-            echo "  Last 10 lines of app log:"
-            tail -10 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            echo "  Last 10 lines of container log:"
+            docker logs --tail 10 openaev-app 2>&1 || echo "  (no container log)"
           fi
 
           if [ "$i" -eq 150 ]; then
             echo "❌ API /api/me not returning 200 after 300s (last HTTP ${HTTP_CODE})"
-            echo "  Last 80 lines of app log:"
-            tail -80 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            echo "  Last 80 lines of container log:"
+            docker logs --tail 80 openaev-app 2>&1 || echo "  (no container log)"
             exit 1
           fi
           sleep 2

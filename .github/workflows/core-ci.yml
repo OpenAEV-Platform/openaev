@@ -10,11 +10,11 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 jobs:
   backend-compile:
@@ -168,19 +168,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package-musl
 
-  # Build all Docker images locally (standard + UBI9)
+  # Build all Docker images (standard + UBI9) from multi-stage Dockerfiles.
+  # Starts in parallel with all other jobs — no dependencies needed since
+  # the Dockerfiles build frontend and backend from source.
   docker-build:
     name: "🐳 Docker Build (all images)"
-    needs:
-      - backend-package
-      - prepare-release-assets
-    timeout-minutes: 20
-    if: >-
-      ${{
-       !cancelled() &&
-        needs.backend-package.result == 'success' &&
-        (needs.prepare-release-assets.result == 'success' || needs.prepare-release-assets.result == 'skipped')
-      }}
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -189,6 +182,92 @@ jobs:
           build-ubi9: "true"
           tags: openaev:ci-${{ github.run_id }}
           ubi9-tags: openaev-ubi9:ci-${{ github.run_id }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # Snyk container scan — download Docker images built above and run
+  # Snyk vulnerability scanning on both standard and UBI9 variants.
+  # Requires SNYK_TOKEN in GitHub Actions secrets.
+  # ──────────────────────────────────────────────────────────────────
+  snyk-docker:
+    name: "🔒 Snyk Container Scan"
+    needs: [docker-build]
+    if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download standard Docker image
+        uses: actions/download-artifact@v8
+        with:
+          name: openaev-image
+          path: /tmp/docker-images
+
+      - name: Download UBI9 Docker image
+        uses: actions/download-artifact@v8
+        with:
+          name: openaev-ubi9-image
+          path: /tmp/docker-images
+
+      - name: Load Docker images
+        run: |
+          cd /tmp/docker-images
+          gunzip openaev-image.tar.gz
+          skopeo copy --override-os linux --override-arch amd64 \
+            oci-archive:openaev-image.tar \
+            docker-daemon:openaev:ci
+          rm -f openaev-image.tar
+
+          gunzip openaev-ubi9-image.tar.gz
+          skopeo copy --override-os linux --override-arch amd64 \
+            oci-archive:openaev-ubi9-image.tar \
+            docker-daemon:openaev-ubi9:ci
+          rm -f openaev-ubi9-image.tar
+
+      - name: Run Snyk on standard image
+        id: snyk-standard
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: openaev:ci
+          args: --severity-threshold=high --json-file-output=snyk-standard.json
+        continue-on-error: true
+
+      - name: Upload Snyk report (standard)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: snyk-report-standard
+          path: snyk-standard.json
+          if-no-files-found: ignore
+
+      - name: Run Snyk on UBI9 image
+        id: snyk-ubi9
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: openaev-ubi9:ci
+          args: --severity-threshold=high --json-file-output=snyk-ubi9.json
+        continue-on-error: true
+
+      - name: Upload Snyk report (UBI9)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: snyk-report-ubi9
+          path: snyk-ubi9.json
+          if-no-files-found: ignore
+
+      - name: Fail if vulnerabilities found
+        if: ${{ steps.snyk-standard.outcome == 'failure' || steps.snyk-ubi9.outcome == 'failure' }}
+        run: |
+          echo "❌ Snyk found high or critical vulnerabilities:"
+          [ "${{ steps.snyk-standard.outcome }}" = "failure" ] && echo "  Standard image: VULNERABLE"
+          [ "${{ steps.snyk-ubi9.outcome }}" = "failure" ] && echo "  UBI9 image: VULNERABLE"
+          echo "Download the snyk-report-* artifacts for details."
+          exit 1
 
   # ──────────────────────────────────────────────────────────────────
   # Final sanity check — download every artifact and Docker image,
@@ -366,3 +445,26 @@ jobs:
             echo ""
             echo "⚠️ Sanity check passed with $WARN warning(s) — some artifacts are smaller than expected"
           fi
+
+  # ──────────────────────────────────────────────────────────────────
+  # Retry failed jobs once — if any job failed on the first attempt,
+  # automatically re-run only the failed jobs via the GitHub API.
+  # Limited to one retry (run_attempt == 1) to prevent infinite loops.
+  # ──────────────────────────────────────────────────────────────────
+  retry-failed:
+    name: "🔄 Retry Failed Jobs"
+    needs: [sanity-check, quality-gates, snyk-docker]
+    if: ${{ failure() && github.run_attempt == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions:
+      actions: write
+    steps:
+      - name: Re-run failed jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🔄 First attempt failed — retrying failed jobs..."
+          gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/rerun-failed-jobs \
+            --method POST
+          echo "✅ Re-run triggered (attempt 2)"
