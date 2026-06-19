@@ -42,12 +42,14 @@ const useStyles = makeStyles()(theme => ({
 
 interface Props {
   predefinedExpectations: ExpectationInput[];
+  availableExpectations: ExpectationInput[];
   onSubmit: SubmitHandler<ExpectationInputForm>;
   handleClose: () => void;
 }
 
 const ExpectationFormCreate: FunctionComponent<Props> = ({
   predefinedExpectations = [],
+  availableExpectations = [],
   onSubmit,
   handleClose,
 }) => {
@@ -55,9 +57,11 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const { classes } = useStyles();
 
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
-  const [expectationType, setExpectationType] = useState<string>(predefinedExpectations[0].expectation_type);
+  const availableTypes = Array.from(new Set(availableExpectations.map(e => e.expectation_type)));
+  const initialType = availableTypes[0] ?? predefinedExpectations[0]?.expectation_type ?? 'MANUAL';
+  const [expectationType, setExpectationType] = useState<string>(initialType);
 
-  const expectationExpirationTime = useExpectationExpirationTime(predefinedExpectations[0].expectation_type as InjectExpectation['inject_expectation_type']);
+  const expectationExpirationTime = useExpectationExpirationTime(expectationType as InjectExpectation['inject_expectation_type']);
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
@@ -68,20 +72,21 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   };
 
   const computeValuesFromType = (type: string): ExpectationInputForm => {
-    const predefinedExpectation = predefinedExpectations.filter(pe => pe.expectation_type === type)[0];
-    if (predefinedExpectation) {
-      const expirationTime = splitDuration(predefinedExpectation.expectation_expiration_time || 0);
+    const expectationDefinition = predefinedExpectations.find(pe => pe.expectation_type === type)
+      ?? availableExpectations.find(pe => pe.expectation_type === type);
+    if (expectationDefinition) {
+      const expirationTime = splitDuration(expectationDefinition.expectation_expiration_time || 0);
       return {
-        expectation_type: predefinedExpectation.expectation_type ?? '',
-        expectation_name: predefinedExpectation.expectation_name ?? '',
-        expectation_description: predefinedExpectation.expectation_description ?? '',
-        expectation_score: predefinedExpectation.expectation_score > 0
-          ? predefinedExpectation.expectation_score
-          : getExpectationDefaultScoreByType(predefinedExpectation.expectation_type),
-        expectation_expectation_group: predefinedExpectation.expectation_expectation_group ?? false,
-        expiration_time_days: parseInt(expirationTime.days, 10),
-        expiration_time_hours: parseInt(expirationTime.hours, 10),
-        expiration_time_minutes: parseInt(expirationTime.minutes, 10),
+        expectation_type: expectationDefinition.expectation_type ?? '',
+        expectation_name: expectationDefinition.expectation_name ?? '',
+        expectation_description: expectationDefinition.expectation_description ?? '',
+        expectation_score: expectationDefinition.expectation_score > 0
+          ? expectationDefinition.expectation_score
+          : getExpectationDefaultScoreByType(expectationDefinition.expectation_type),
+        expectation_expectation_group: expectationDefinition.expectation_expectation_group ?? false,
+        expiration_time_days: Number.parseInt(expirationTime.days, 10),
+        expiration_time_hours: Number.parseInt(expirationTime.hours, 10),
+        expiration_time_minutes: Number.parseInt(expirationTime.minutes, 10),
       };
     }
     const expirationTime = splitDuration(expectationExpirationTime || 0);
@@ -91,14 +96,13 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
       expectation_description: '',
       expectation_score: getExpectationDefaultScoreByType(expectationType),
       expectation_expectation_group: false,
-      expiration_time_days: parseInt(expirationTime.days, 10),
-      expiration_time_hours: parseInt(expirationTime.hours, 10),
-      expiration_time_minutes: parseInt(expirationTime.minutes, 10),
+      expiration_time_days: Number.parseInt(expirationTime.days, 10),
+      expiration_time_hours: Number.parseInt(expirationTime.hours, 10),
+      expiration_time_minutes: Number.parseInt(expirationTime.minutes, 10),
     };
   };
 
-  const predefinedTypes = predefinedExpectations.map(e => e.expectation_type);
-  const initialValues: ExpectationInputForm = computeValuesFromType(predefinedTypes[0]);
+  const initialValues: ExpectationInputForm = computeValuesFromType(initialType);
 
   const {
     control,
@@ -107,6 +111,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
     formState: { errors, isSubmitting, isValid },
     watch,
     reset,
+    setValue,
     getValues,
   } = useForm<ExpectationInputForm>(formProps(initialValues, t));
   const watchType = watch('expectation_type');
@@ -118,8 +123,16 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   };
 
   useEffect(() => {
-    reset(computeValuesFromType(watchType));
-  }, [watchType, reset]);
+    if (watchType) {
+      reset(computeValuesFromType(watchType));
+    }
+  }, [watchType, reset, predefinedExpectations, availableExpectations]);
+
+  useEffect(() => {
+    if (!watchType && initialType) {
+      setValue('expectation_type', initialType, { shouldValidate: true });
+    }
+  }, [watchType, initialType, setValue]);
 
   return (
     <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
@@ -128,13 +141,17 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         <MUISelect
           labelId="input-type"
           value={expectationType}
-          onChange={event => setExpectationType(event.target.value)}
+          onChange={(event) => {
+            const selectedType = event.target.value;
+            setExpectationType(selectedType);
+            setValue('expectation_type', selectedType, { shouldValidate: true });
+          }}
           variant="standard"
           fullWidth
           error={!!errors.expectation_type}
           inputProps={register('expectation_type')}
         >
-          {predefinedTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
+          {availableTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
         </MUISelect>
       </div>
       {(watchType === 'ARTICLE' || watchType === 'CHALLENGE')
@@ -152,11 +169,11 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         label={t('Name')}
         className={classes.marginTop_2}
         error={!!errors.expectation_name}
-        helperText={
-          errors.expectation_name && errors.expectation_name?.message
-        }
-        inputProps={register('expectation_name')}
-        InputLabelProps={{ required: true }}
+        helperText={errors.expectation_name?.message}
+        slotProps={{
+          htmlInput: { ...register('expectation_name') },
+          inputLabel: { required: true },
+        }}
       />
       <MuiTextField
         variant="standard"
@@ -165,10 +182,8 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         className={classes.marginTop_2}
         multiline
         error={!!errors.expectation_description}
-        helperText={
-          errors.expectation_description && errors.expectation_description?.message
-        }
-        inputProps={register('expectation_description')}
+        helperText={errors.expectation_description?.message}
+        slotProps={{ htmlInput: { ...register('expectation_description') } }}
       />
       {(watchType !== 'VULNERABILITY') && (
         <div className={classes.duration}>
@@ -211,9 +226,8 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         className={classes.marginTop_2}
         error={!!errors.expectation_score}
         helperText={
-          errors.expectation_score && errors.expectation_score?.message
+          errors.expectation_score?.message
         }
-        {...register('expectation_score')}
         slotProps={{
           htmlInput: {
             ...register('expectation_score', { valueAsNumber: true }),
