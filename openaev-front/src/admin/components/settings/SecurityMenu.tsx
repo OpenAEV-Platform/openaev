@@ -57,7 +57,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
           },
         ]
       : []),
-    // Tenants: platform-only + multi-tenancy
+    // Tenants: platform-only (EE-gated)
     ...(canAccessTenants
       ? [{
           path: '/admin/settings/security/tenants',
