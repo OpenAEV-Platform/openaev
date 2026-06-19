@@ -34,9 +34,7 @@ public class EndpointTransactionalRule extends AbstractTransactionalRule {
   }
 
   private static final Set<String> TRANSACTIONAL_ANNOTATIONS =
-      Set.of(
-          "org.springframework.transaction.annotation.Transactional",
-          "jakarta.transaction.Transactional");
+      Set.of("org.springframework.transaction.annotation.Transactional");
 
   @Override
   protected void doProcess(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
