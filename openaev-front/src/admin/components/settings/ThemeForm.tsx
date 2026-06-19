@@ -76,7 +76,10 @@ const ThemeForm: FunctionComponent<Props> = ({
         fullWidth
         label={t('Background color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+        slotProps={{
+          inputLabel: { shrink: true },
+          htmlInput: register('logo_url'),
+        }}
         error={!!errors.background_color}
         helperText={errors.background_color && errors.background_color?.message}
         control={control}
@@ -157,8 +160,6 @@ const ThemeForm: FunctionComponent<Props> = ({
         slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.logo_url}
         helperText={errors.logo_url && errors.logo_url?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('logo_url')}
         disabled={canNotManage}
       />
       <MuiTextField
@@ -167,11 +168,12 @@ const ThemeForm: FunctionComponent<Props> = ({
         fullWidth
         label={t('Logo URL (collapsed)')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+        slotProps={{
+          inputLabel: { shrink: true },
+          htmlInput: register('logo_url_collapsed'),
+        }}
         error={!!errors.logo_url_collapsed}
         helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('logo_url_collapsed')}
         disabled={canNotManage}
       />
       <MuiTextField
@@ -179,11 +181,12 @@ const ThemeForm: FunctionComponent<Props> = ({
         fullWidth
         label={t('Logo URL (login)')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+        slotProps={{
+          inputLabel: { shrink: true },
+          htmlInput: register('logo_login_url'),
+        }}
         error={!!errors.logo_login_url}
         helperText={errors.logo_login_url && errors.logo_login_url?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('logo_login_url')}
         disabled={canNotManage}
       />
 

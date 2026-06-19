@@ -134,8 +134,7 @@ const ExerciseReportForm: FunctionComponent<Props> = ({
         label={t('Name')}
         error={!!errors.report_name}
         helperText={errors.report_name && errors.report_name?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('report_name')}
+        slotProps={{ htmlInput: register('report_name') }}
       />
       <Typography
         variant="h4"

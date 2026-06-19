@@ -64,9 +64,10 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
           label={t('Content')}
           error={!!errors.lessons_template_question_content}
           helperText={errors.lessons_template_question_content?.message}
-          // @ts-expect-error -- MUI v9 migration: TS2322
-          inputProps={register('lessons_template_question_content')}
-          InputLabelProps={{ required: true }}
+          slotProps={{
+            htmlInput: register('lessons_template_question_content'),
+            inputLabel: { required: true },
+          }}
           control={control}
         />
         <TextField
@@ -75,8 +76,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
           label={t('Explanation')}
           error={!!errors.lessons_template_question_explanation}
           helperText={errors.lessons_template_question_explanation?.message}
-          // @ts-expect-error -- MUI v9 migration: TS2322
-          inputProps={register('lessons_template_question_explanation')}
+          slotProps={{ htmlInput: register('lessons_template_question_explanation') }}
           control={control}
         />
         <TextField
@@ -85,10 +85,11 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
           label={t('Order')}
           error={!!errors.lessons_template_question_order}
           helperText={errors.lessons_template_question_order?.message}
-          // @ts-expect-error -- MUI v9 migration: TS2322
-          inputProps={register('lessons_template_question_order')}
+          slotProps={{
+            htmlInput: register('lessons_template_question_order'),
+            inputLabel: { required: true },
+          }}
           type="number"
-          InputLabelProps={{ required: true }}
           control={control}
         />
       </div>

@@ -113,8 +113,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
                   fullWidth
                   error={!!errors.sheetName}
                   helperText={errors.sheetName?.message}
-                  // @ts-expect-error -- MUI v9 migration: TS2322
-                  InputLabelProps={{ required: true }}
+                  slotProps={{ inputLabel: { required: true } }}
                 />
               )}
             />
@@ -132,8 +131,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
               label={t('Timezone')}
               error={!!errors.timezone}
               helperText={errors.timezone?.message}
-              // @ts-expect-error -- MUI v9 migration: TS2322
-              inputProps={register('timezone')}
+              slotProps={{ htmlInput: register('timezone') }}
             >
               {timezones.map(tz => (
                 <MenuItem key={tz} value={tz}>{t(tz)}</MenuItem>

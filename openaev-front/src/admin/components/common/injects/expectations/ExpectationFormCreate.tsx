@@ -132,7 +132,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth
           error={!!errors.expectation_type}
-          inputProps={register('expectation_type')}
+          slotProps={{ htmlInput: register('expectation_type') }}
         >
           {predefinedTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
         </MUISelect>
@@ -155,9 +155,10 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_name && errors.expectation_name?.message
         }
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('expectation_name')}
-        InputLabelProps={{ required: true }}
+        slotProps={{
+          htmlInput: register('expectation_name'),
+          inputLabel: { required: true },
+        }}
       />
       <MuiTextField
         variant="standard"
@@ -169,8 +170,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_description && errors.expectation_description?.message
         }
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('expectation_description')}
+        slotProps={{ htmlInput: register('expectation_description') }}
       />
       {(watchType !== 'VULNERABILITY') && (
         <div className={classes.duration}>

@@ -105,9 +105,10 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Name')}
               error={!!errors.scenario_name}
               helperText={errors.scenario_name?.message}
-              // @ts-expect-error -- MUI v9 migration: TS2322
-              inputProps={register('scenario_name')}
-              InputLabelProps={{ required: true }}
+              slotProps={{
+                htmlInput: register('scenario_name'),
+                inputLabel: { required: true },
+              }}
               control={control}
               setValue={setValue}
               askAi={true}
@@ -192,8 +193,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Description')}
               error={!!errors.scenario_description}
               helperText={errors.scenario_description?.message}
-              // @ts-expect-error -- MUI v9 migration: TS2322
-              inputProps={register('scenario_description')}
+              slotProps={{ htmlInput: register('scenario_description') }}
               control={control}
               setValue={setValue}
               askAi={true}
@@ -238,8 +238,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Sender email from')}
               error={!!errors.scenario_mail_from_name}
               helperText={errors.scenario_mail_from_name?.message}
-              // @ts-expect-error -- MUI v9 migration: TS2322
-              inputProps={register('scenario_mail_from_name')}
+              slotProps={{ htmlInput: register('scenario_mail_from_name') }}
               disabled={disabled}
             />
             <Controller
@@ -301,8 +300,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Messages header')}
               error={!!errors.scenario_message_header}
               helperText={errors.scenario_message_header?.message}
-              // @ts-expect-error -- MUI v9 migration: TS2322
-              inputProps={register('scenario_message_header')}
+              slotProps={{ htmlInput: register('scenario_message_header') }}
               disabled={disabled}
             />
             <MuiTextField
@@ -311,8 +309,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
               label={t('Messages footer')}
               error={!!errors.scenario_message_footer}
               helperText={errors.scenario_message_footer?.message}
-              // @ts-expect-error -- MUI v9 migration: TS2322
-              inputProps={register('scenario_message_footer')}
+              slotProps={{ htmlInput: register('scenario_message_footer') }}
               disabled={disabled}
             />
           </>
