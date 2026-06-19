@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "2.260615.0",
+  "version": "2.260619.0",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
@@ -30,7 +30,7 @@
     "generate-test-e2e": "yarn playwright codegen http://localhost:3001/",
     "show-report-e2e": "start \"\" test-results/report.html && start \"\" test-results/coverage/index.html"
   },
-  "packageManager": "yarn@4.16.0+sha512.5374c94eb4ef6aa8188fb112f20c1aa6569f248d676c5e576e1fd2a1a4d8d87a96df65d9dfe1c2a0252cbe38bda46cf18d955005b81b43cc7607a5c9d56fd2b6",
+  "packageManager": "yarn@4.17.0+sha512.c2957de2f9025ab14d63b24d0d8be1f1655810e22c341042c27f7ecd017b180ec12db73d69ac366d71b304ef9f069349ce462de96f04f8f1da317f4f762c95ae",
   "engines": {
     "node": ">= 22.11.0"
   },
@@ -52,7 +52,7 @@
     "@mui/system": "7.3.11",
     "@mui/x-date-pickers": "8.29.0",
     "@redux-devtools/extension": "4.0.0",
-    "@tanstack/react-virtual": "3.14.2",
+    "@tanstack/react-virtual": "3.14.3",
     "@uiw/react-md-editor": "4.1.1",
     "@xyflow/react": "12.10.2",
     "apexcharts": "4.7.0",
