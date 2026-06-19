@@ -1,0 +1,75 @@
+import { ArrowDropDown } from '@mui/icons-material';
+import { Button, Menu, MenuItem } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { type FunctionComponent, useState } from 'react';
+
+import { useFormatter } from '../../../../../components/i18n';
+import type { LogicalOperator } from './event-types';
+
+interface Props {
+  value: LogicalOperator;
+  onChange: (value: LogicalOperator) => void;
+}
+
+const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange }) => {
+  const { t } = useFormatter();
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
+  const handleOpen = (e: React.MouseEvent<HTMLButtonElement>) => setAnchorEl(e.currentTarget);
+  const handleClose = () => setAnchorEl(null);
+  const handleSelect = (operator: LogicalOperator) => {
+    onChange(operator);
+    handleClose();
+  };
+
+  return (
+    <>
+      <Button
+        size="small"
+        onClick={handleOpen}
+        endIcon={<ArrowDropDown />}
+        sx={{
+          'background': `${theme.palette.primary.main}18`,
+          'color': 'primary.main',
+          'fontWeight': 700,
+          'px': 1.5,
+          'borderRadius': 1,
+          'textTransform': 'none',
+          '&:hover': { background: `${theme.palette.primary.main}28` },
+          '& .MuiButton-endIcon': { ml: 0.5 },
+        }}
+      >
+        {value === 'AND' ? t('And') : t('Or')}
+      </Button>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
+        slotProps={{
+          paper: {
+            sx: {
+              background: theme.palette.background.paper,
+              minWidth: 80,
+            },
+          },
+        }}
+      >
+        <MenuItem
+          selected={value === 'AND'}
+          onClick={() => handleSelect('AND')}
+        >
+          {t('And')}
+        </MenuItem>
+        <MenuItem
+          selected={value === 'OR'}
+          onClick={() => handleSelect('OR')}
+        >
+          {t('Or')}
+        </MenuItem>
+      </Menu>
+    </>
+  );
+};
+
+export default LogicalOperatorSelect;

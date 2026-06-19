@@ -10,7 +10,7 @@ import type {
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
 import LogicFlow from './chaining_flow/LogicFlow';
-import type { ActionMeta } from './types';
+import type { ActionMeta, EventMeta } from './types';
 
 interface LogicProps {
   workflowId: string | undefined;
@@ -30,6 +30,12 @@ const Logic = ({ workflowId, context }: LogicProps) => {
   const [editingStep, setEditingStep] = useState<{
     stepId: string;
     meta: ActionMeta;
+  } | null>(null);
+
+  // Event currently being edited
+  const [editingEvent, setEditingEvent] = useState<{
+    eventId: string;
+    meta: EventMeta;
   } | null>(null);
 
   useEffect(() => {
@@ -70,6 +76,14 @@ const Logic = ({ workflowId, context }: LogicProps) => {
     setDrawerView('actionDetail');
   }, []);
 
+  const handleEditEvent = useCallback((eventId: string, meta: EventMeta) => {
+    setEditingEvent({
+      eventId,
+      meta,
+    });
+    setDrawerView('event');
+  }, []);
+
   // Loading state
   if (hasExistingData === null) {
     return null;
@@ -89,6 +103,7 @@ const Logic = ({ workflowId, context }: LogicProps) => {
               workflowId={workflowId}
               onAddComponent={handleOpenDrawer}
               onEditStep={handleEditStep}
+              onEditEvent={handleEditEvent}
             />
           )
         : (
@@ -101,6 +116,8 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         onDrawerViewChange={setDrawerView}
         editingStep={editingStep}
         onEditingStepChange={setEditingStep}
+        editingEvent={editingEvent}
+        onEditingEventChange={setEditingEvent}
         onStepCreated={handleStepCreated}
       />
     </div>
