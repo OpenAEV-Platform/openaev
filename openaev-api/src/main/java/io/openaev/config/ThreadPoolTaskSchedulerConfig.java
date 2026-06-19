@@ -3,6 +3,7 @@ package io.openaev.config;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -11,6 +12,13 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 @Configuration
 @Slf4j
 public class ThreadPoolTaskSchedulerConfig {
+
+  @Value("${spring.datasource.hikari.maximum-pool-size:20}")
+  private int dbPoolSize;
+
+  // optional manual override per environment
+  @Value("${manager.integrations.concurrency:#{null}}")
+  private Integer concurrencyOverride;
 
   @Bean
   public ThreadPoolTaskScheduler threadPoolTaskScheduler() {
@@ -43,10 +51,17 @@ public class ThreadPoolTaskSchedulerConfig {
   /** Dedicated executor for manager integrations tenant sync dispatches. */
   @Bean(name = "managerIntegrationsExecutor")
   public Executor managerIntegrationsExecutor() {
+    // Bottleneck is the shared DB connection pool, not CPU.
+    // Default to ~40% of the pool so the rest of the app keeps connections available.
+    int concurrency =
+        concurrencyOverride != null ? concurrencyOverride : Math.max(1, dbPoolSize * 2 / 5);
+
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(5);
-    executor.setMaxPoolSize(10);
-    executor.setQueueCapacity(200);
+    executor.setCorePoolSize(concurrency);
+    executor.setMaxPoolSize(concurrency);
+    executor.setQueueCapacity(0);
+    executor.setKeepAliveSeconds(30);
+    executor.setAllowCoreThreadTimeOut(true);
     executor.setThreadNamePrefix("ManagerIntegrations-");
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     executor.initialize();
