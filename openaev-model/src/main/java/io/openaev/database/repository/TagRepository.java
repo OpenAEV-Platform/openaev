@@ -25,6 +25,9 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
   Optional<Tag> findByName(@NotNull final String name);
 
   @NotNull
+  Optional<Tag> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
+
+  @NotNull
   List<Tag> findByNameIgnoreCase(@NotNull final String name);
 
   @Query(
@@ -34,7 +37,8 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
               + "JOIN assets_tags at ON t.tag_id = at.tag_id "
               + "JOIN assets a ON at.asset_id = a.asset_id "
               + "WHERE at.asset_id = :assetId "
-              + "AND a.tenant_id = :tenantId",
+              + "AND a.tenant_id = :tenantId "
+              + "AND t.tenant_id = :tenantId",
       nativeQuery = true)
   Set<Tag> findByAssetIdAndTenantId(
       @Param("assetId") String assetId, @Param("tenantId") String tenantId);

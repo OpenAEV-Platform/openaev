@@ -570,7 +570,11 @@ public class EndpointService {
 
   private void addSourceTagToEndpoint(Endpoint endpoint, Executor executor) {
     Set<Tag> existingTags = loadEndpointTags(endpoint);
-    String tagName = "source:" + executor.getName().toLowerCase();
+    String tagName = "source:" + executor.getName().toLowerCase(Locale.ROOT);
+    String tenantId =
+        endpoint.getTenant() != null
+            ? endpoint.getTenant().getId()
+            : TenantContext.getCurrentTenant();
 
     // Check if the tag already exists on this endpoint, if so, nothing to do.
     boolean alreadyHasTag = existingTags.stream().anyMatch(t -> tagName.equals(t.getName()));
@@ -578,8 +582,8 @@ public class EndpointService {
       return;
     }
 
-    // Find or create the tag entity, then add to the endpoint
-    Optional<Tag> tag = tagRepository.findByName(tagName);
+    // Find or create the tag entity scoped by tenant, then add to the endpoint
+    Optional<Tag> tag = tagRepository.findByNameAndTenantId(tagName, tenantId);
     if (tag.isEmpty()) {
       Tag newTag = new Tag();
       newTag.setColor(executor.getBackgroundColor());
@@ -592,26 +596,6 @@ public class EndpointService {
     }
     endpoint.setTags(existingTags);
     endpointRepository.save(endpoint);
-  }
-
-  /**
-   * Remove the source tag for a specific executor from an endpoint. Called when an executor becomes
-   * inactive or during startup cleanup of unregistered executors.
-   *
-   * @param endpoint the endpoint to remove the tag from
-   * @param executor the executor whose source tag should be removed
-   */
-  public void removeSourceTagFromEndpoint(Endpoint endpoint, Executor executor) {
-    Set<Tag> existingTags = loadEndpointTags(endpoint);
-    if (existingTags.isEmpty()) {
-      return;
-    }
-    String tagName = "source:" + executor.getName().toLowerCase();
-    boolean removed =
-        existingTags.removeIf(t -> t.getName() != null && t.getName().equals(tagName));
-    if (removed) {
-      endpoint.setTags(existingTags);
-    }
   }
 
   /**
@@ -688,11 +672,11 @@ public class EndpointService {
    * new source tag.
    */
   private Set<Tag> loadEndpointTags(Endpoint endpoint) {
-    String tenantId = TenantContext.getCurrentTenant();
-    if (endpoint.getId() == null || tenantId == null) {
+    if (endpoint.getId() == null) {
       return new HashSet<>();
     }
-    return new HashSet<>(tagRepository.findByAssetIdAndTenantId(endpoint.getId(), tenantId));
+    return new HashSet<>(
+        tagRepository.findByAssetIdAndTenantId(endpoint.getId(), endpoint.getTenant().getId()));
   }
 
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {

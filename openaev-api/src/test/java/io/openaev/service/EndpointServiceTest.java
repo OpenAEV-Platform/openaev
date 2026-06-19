@@ -76,7 +76,8 @@ class EndpointServiceTest {
       sourceTag.setColor("#FF0000");
 
       when(tagRepository.findByAssetIdAndTenantId(any(), any())).thenReturn(Set.of());
-      when(tagRepository.findByName("source:crowdstrike")).thenReturn(Optional.empty());
+      when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
+          .thenReturn(Optional.empty());
       when(tagRepository.save(any(Tag.class))).thenReturn(sourceTag);
       when(endpointRepository.findByAtleastOneMacAddress(any(), eq(TENANT_ID)))
           .thenReturn(List.of());
@@ -108,7 +109,8 @@ class EndpointServiceTest {
       existingTag.setColor("#FF0000");
 
       when(tagRepository.findByAssetIdAndTenantId(any(), any())).thenReturn(Set.of());
-      when(tagRepository.findByName("source:crowdstrike")).thenReturn(Optional.of(existingTag));
+      when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
+          .thenReturn(Optional.of(existingTag));
       when(endpointRepository.findByAtleastOneMacAddress(any(), eq(TENANT_ID)))
           .thenReturn(List.of());
       when(agentService.saveAllAgents(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -145,7 +147,8 @@ class EndpointServiceTest {
       csTag.setName("source:crowdstrike");
       when(tagRepository.findByAssetIdAndTenantId(any(), any()))
           .thenReturn(Set.of(otherExecutorTag));
-      when(tagRepository.findByName("source:crowdstrike")).thenReturn(Optional.of(csTag));
+      when(tagRepository.findByNameAndTenantId("source:crowdstrike", TENANT_ID))
+          .thenReturn(Optional.of(csTag));
       when(agentService.saveAllAgents(any())).thenAnswer(inv -> inv.getArgument(0));
 
       // Act
@@ -163,14 +166,14 @@ class EndpointServiceTest {
   }
 
   @Nested
-  @DisplayName("Remove Source Tag From Endpoint")
-  class RemoveSourceTagFromEndpoint {
+  @DisplayName("removeSourceTagsFromAgentEndpoints")
+  class RemoveSourceTagsFromAgentEndpoints {
 
     private static final String ENDPOINT_ID = "endpoint-test-id";
 
     @Test
-    @DisplayName("given endpoint with executor tag should remove only that tag")
-    void given_endpointWithExecutorTag_should_removeOnlyThatTag() {
+    @DisplayName("given agents with executor tag should remove only that executor tag")
+    void given_agentsWithExecutorTag_should_removeOnlyThatTag() {
       // Arrange
       Executor csExecutor = new Executor();
       csExecutor.setName("CrowdStrike");
@@ -184,22 +187,30 @@ class EndpointServiceTest {
       endpoint.setId(ENDPOINT_ID);
       endpoint.setTenant(new Tenant(TENANT_ID));
 
+      Agent agent = new Agent();
+      agent.setAsset(endpoint);
+      agent.setExecutor(csExecutor);
+
+      when(endpointRepository.findAllById(Set.of(ENDPOINT_ID))).thenReturn(List.of(endpoint));
       when(tagRepository.findByAssetIdAndTenantId(ENDPOINT_ID, TENANT_ID))
           .thenReturn(new HashSet<>(Set.of(csTag, taniumTag)));
 
       // Act
-      endpointService.removeSourceTagFromEndpoint(endpoint, csExecutor);
+      endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
 
-      // Assert: only crowdstrike tag removed, tanium preserved
-      assertThat(endpoint.getTags())
+      // Assert
+      ArgumentCaptor<List<Endpoint>> captor = ArgumentCaptor.forClass(List.class);
+      verify(endpointRepository).saveAll(captor.capture());
+      Endpoint saved = captor.getValue().getFirst();
+      assertThat(saved.getTags())
           .extracting(Tag::getName)
           .contains("source:tanium")
           .doesNotContain("source:crowdstrike");
     }
 
     @Test
-    @DisplayName("given endpoint without executor tag should not modify tags")
-    void given_endpointWithoutExecutorTag_should_notModifyTags() {
+    @DisplayName("given agents without matching executor tag should not save endpoints")
+    void given_agentsWithoutMatchingTag_should_notSaveEndpoints() {
       // Arrange
       Executor csExecutor = new Executor();
       csExecutor.setName("CrowdStrike");
@@ -210,21 +221,25 @@ class EndpointServiceTest {
       Endpoint endpoint = EndpointFixture.createEndpoint();
       endpoint.setId(ENDPOINT_ID);
       endpoint.setTenant(new Tenant(TENANT_ID));
-      endpoint.setTags(new HashSet<>(Set.of(taniumTag)));
 
+      Agent agent = new Agent();
+      agent.setAsset(endpoint);
+      agent.setExecutor(csExecutor);
+
+      when(endpointRepository.findAllById(Set.of(ENDPOINT_ID))).thenReturn(List.of(endpoint));
       when(tagRepository.findByAssetIdAndTenantId(ENDPOINT_ID, TENANT_ID))
           .thenReturn(new HashSet<>(Set.of(taniumTag)));
 
       // Act
-      endpointService.removeSourceTagFromEndpoint(endpoint, csExecutor);
+      endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
 
-      // Assert: tanium tag still present, nothing changed
-      assertThat(endpoint.getTags()).extracting(Tag::getName).containsExactly("source:tanium");
+      // Assert: no matching tag removed → saveAll never called
+      verify(endpointRepository, never()).saveAll(any());
     }
 
     @Test
-    @DisplayName("given endpoint with no tags should not fail")
-    void given_endpointWithNoTags_should_notFail() {
+    @DisplayName("given agents with no tags on endpoint should not fail")
+    void given_agentsWithNoTags_should_notFail() {
       // Arrange
       Executor csExecutor = new Executor();
       csExecutor.setName("CrowdStrike");
@@ -233,14 +248,29 @@ class EndpointServiceTest {
       endpoint.setId(ENDPOINT_ID);
       endpoint.setTenant(new Tenant(TENANT_ID));
 
+      Agent agent = new Agent();
+      agent.setAsset(endpoint);
+      agent.setExecutor(csExecutor);
+
+      when(endpointRepository.findAllById(Set.of(ENDPOINT_ID))).thenReturn(List.of(endpoint));
       when(tagRepository.findByAssetIdAndTenantId(ENDPOINT_ID, TENANT_ID))
           .thenReturn(new HashSet<>());
 
-      // Act: should not throw
-      endpointService.removeSourceTagFromEndpoint(endpoint, csExecutor);
+      // Act
+      endpointService.removeSourceTagsFromAgentEndpoints(List.of(agent));
 
       // Assert
-      assertThat(endpoint.getTags()).isEmpty();
+      verify(endpointRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("given empty agent list should do nothing")
+    void given_emptyAgentList_should_doNothing() {
+      // Act
+      endpointService.removeSourceTagsFromAgentEndpoints(List.of());
+
+      // Assert
+      verifyNoInteractions(endpointRepository, tagRepository);
     }
   }
 }
