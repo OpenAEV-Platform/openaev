@@ -65,7 +65,6 @@ class PlayerApiTest extends IntegrationTest {
   class PlayerLessonsApi {
     @BeforeEach
     void before() {
-
       exerciseComposer.reset();
       lessonsCategoryComposer.reset();
       lessonsQuestionsComposer.reset();
