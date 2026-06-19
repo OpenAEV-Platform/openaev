@@ -98,9 +98,10 @@ const ExerciseForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.exercise_name}
         helperText={errors.exercise_name?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('exercise_name')}
-        InputLabelProps={{ required: true }}
+        slotProps={{
+          htmlInput: register('exercise_name'),
+          inputLabel: { required: true },
+        }}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -190,8 +191,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.exercise_description}
         helperText={errors.exercise_description?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('exercise_description')}
+        slotProps={{ htmlInput: register('exercise_description') }}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -260,8 +260,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.exercise_mail_from_name}
         helperText={errors.exercise_mail_from_name?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('exercise_mail_from_name')}
+        slotProps={{ htmlInput: register('exercise_mail_from_name') }}
         disabled={disabled}
       />
 
@@ -326,8 +325,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.exercise_message_header}
         helperText={errors.exercise_message_header?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('exercise_message_header')}
+        slotProps={{ htmlInput: register('exercise_message_header') }}
         disabled={disabled}
       />
       <MuiTextField
@@ -337,8 +335,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.exercise_message_footer}
         helperText={errors.exercise_message_footer?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('exercise_message_footer')}
+        slotProps={{ htmlInput: register('exercise_message_footer') }}
         disabled={disabled}
       />
       <div style={{

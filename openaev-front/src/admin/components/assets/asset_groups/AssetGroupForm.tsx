@@ -65,9 +65,10 @@ const AssetGroupForm: FunctionComponent<Props> = ({
         style={{ marginTop: 10 }}
         error={!!errors.asset_group_name}
         helperText={errors.asset_group_name?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('asset_group_name')}
-        InputLabelProps={{ required: true }}
+        slotProps={{
+          htmlInput: register('asset_group_name'),
+          inputLabel: { required: true },
+        }}
       />
       <TextField
         variant="standard"
@@ -78,8 +79,7 @@ const AssetGroupForm: FunctionComponent<Props> = ({
         style={{ marginTop: 20 }}
         error={!!errors.asset_group_description}
         helperText={errors.asset_group_description?.message}
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('asset_group_description')}
+        slotProps={{ htmlInput: register('asset_group_description') }}
       />
 
       <Controller

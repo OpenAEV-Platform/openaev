@@ -163,10 +163,10 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
               borderBottom: 1,
               borderColor: 'divider',
               marginBottom: 2,
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
             }}
-            display="flex"
-            flexDirection="row"
-            justifyContent="space-between"
           >
             {
               isChainingFeatureEnabled && scenario.scenario_workflow_id ? (

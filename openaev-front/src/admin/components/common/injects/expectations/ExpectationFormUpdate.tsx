@@ -84,7 +84,7 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth
           error={!!errors.expectation_type}
-          inputProps={register('expectation_type')}
+          slotProps={{ htmlInput: register('expectation_type') }}
         >
           <MenuItem value={getValues().expectation_type}>{t(getValues().expectation_type)}</MenuItem>
         </MUISelect>
@@ -107,8 +107,7 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_name && errors.expectation_name?.message
         }
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('expectation_name')}
+        slotProps={{ htmlInput: register('expectation_name') }}
       />
       <MuiTextField
         variant="standard"
@@ -120,8 +119,7 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_description && errors.expectation_description?.message
         }
-        // @ts-expect-error -- MUI v9 migration: TS2322
-        inputProps={register('expectation_description')}
+        slotProps={{ htmlInput: register('expectation_description') }}
       />
       <div className={classes.duration}>
         <div className={classes.trigger}>

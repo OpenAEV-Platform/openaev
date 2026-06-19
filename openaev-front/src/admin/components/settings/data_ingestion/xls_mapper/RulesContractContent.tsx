@@ -206,7 +206,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
               style={{ marginTop: 10 }}
               // @ts-expect-error -- MUI v9 migration: TS2322
               inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_type_value` as const)}
-              InputLabelProps={{ required: true }}
+              slotProps={{ inputLabel: { required: true } }}
               error={!!methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value}
               helperText={methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value?.message}
             />
