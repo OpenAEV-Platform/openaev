@@ -257,10 +257,12 @@ class IndexingRegressionTest extends IntegrationTest {
     @DisplayName("Expectation appears when only its linked inject was updated after :from")
     void expectation_reindexed_when_linked_inject_updated() {
       // Arrange — create an inject with an expectation inside a scenario
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       InjectExpectation expectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
       InjectExpectationComposer.Composer expectationWrapper =
-          injectExpectationComposer.forExpectation(expectation);
+          injectExpectationComposer.forExpectation(expectation).withEndpoint(endpointWrapper);
       InjectComposer.Composer injectWrapper =
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
