@@ -10,14 +10,13 @@ import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.IOUtils;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -64,15 +63,16 @@ public class CatalogConnectorApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
+  public ResponseEntity<InputStreamResource> getCatalogLogo(@PathVariable String fileName) {
     Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName, false);
 
-    if (fileStream.isPresent()) {
-      byte[] bytes = IOUtils.toByteArray(fileStream.get());
-      return ResponseEntity.ok().cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES)).body(bytes);
-    }
-
-    return ResponseEntity.notFound().build();
+    return fileStream
+        .map(
+            inputStream ->
+                ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+                    .body(new InputStreamResource(inputStream)))
+        .orElseGet(() -> ResponseEntity.notFound().build());
   }
 
   @GetMapping({

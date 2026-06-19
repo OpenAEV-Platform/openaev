@@ -54,8 +54,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
@@ -72,6 +70,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
@@ -144,9 +143,8 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/search/export", TENANT_INJECT_URI + "/search/export"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public void injectsExportFromSearch(
-      @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
-      throws IOException {
+  public ResponseEntity<byte[]> injectsExportFromSearch(
+      @RequestBody @Valid InjectExportFromSearchRequestInput input) throws IOException {
 
     // Control and format inputs
     List<Inject> injects =
@@ -156,21 +154,19 @@ public class InjectApi extends RestBehavior {
       throw new ElementNotFoundException("No injects to export");
     }
 
-    runInjectExport(
+    return runInjectExport(
         injects,
         ExportOptions.mask(
             input.getExportOptions().isWithPlayers(),
             input.getExportOptions().isWithTeams(),
-            input.getExportOptions().isWithVariableValues()),
-        response);
+            input.getExportOptions().isWithVariableValues()));
   }
 
   @PostMapping({INJECT_URI + "/export", TENANT_INJECT_URI + "/export"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public void injectsExport(
-      @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
-      HttpServletResponse response)
+  public ResponseEntity<byte[]> injectsExport(
+      @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput)
       throws IOException {
     List<String> targetIds = injectExportRequestInput.getTargetsIds();
     User currentUser = userService.currentUser();
@@ -197,7 +193,7 @@ public class InjectApi extends RestBehavior {
             injectExportRequestInput.getExportOptions().isWithPlayers(),
             injectExportRequestInput.getExportOptions().isWithTeams(),
             injectExportRequestInput.getExportOptions().isWithVariableValues());
-    runInjectExport(injects, exportOptionsMask, response);
+    return runInjectExport(injects, exportOptionsMask);
   }
 
   @Operation(summary = "Export an inject")
@@ -215,11 +211,10 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public void injectsIndividualExport(
+  public ResponseEntity<byte[]> injectsIndividualExport(
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
-          final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
-      HttpServletResponse response)
+          final InjectIndividualExportRequestInput injectIndividualExportRequestInput)
       throws IOException {
 
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
@@ -228,21 +223,18 @@ public class InjectApi extends RestBehavior {
             injectIndividualExportRequestInput.getExportOptions().isWithPlayers(),
             injectIndividualExportRequestInput.getExportOptions().isWithTeams(),
             injectIndividualExportRequestInput.getExportOptions().isWithVariableValues());
-    runInjectExport(List.of(inject), exportOptionsMask, response);
+    return runInjectExport(List.of(inject), exportOptionsMask);
   }
 
-  private void runInjectExport(
-      List<Inject> injects, int exportOptionsMask, HttpServletResponse response)
+  private ResponseEntity<byte[]> runInjectExport(List<Inject> injects, int exportOptionsMask)
       throws IOException {
-    byte[] zippedExport = injectExportService.exportInjectsToZip(injects, exportOptionsMask);
     String zipName = injectExportService.getZipFileName(exportOptionsMask);
+    byte[] zippedExport = injectExportService.exportInjectsToZip(injects, exportOptionsMask);
 
-    response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
-    response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");
-    response.setStatus(HttpServletResponse.SC_OK);
-    ServletOutputStream outputStream = response.getOutputStream();
-    outputStream.write(zippedExport);
-    outputStream.close();
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName)
+        .header(HttpHeaders.CONTENT_TYPE, "application/zip")
+        .body(zippedExport);
   }
 
   /**

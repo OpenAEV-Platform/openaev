@@ -50,8 +50,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.persistence.criteria.Join;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -60,12 +58,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -835,16 +835,14 @@ public class ExerciseApi extends RestBehavior {
   @GetMapping("/api/communications/attachment")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
-  //
-  public void downloadAttachment(@RequestParam String file, HttpServletResponse response)
-      throws IOException {
+  public ResponseEntity<InputStreamResource> downloadAttachment(@RequestParam String file) {
     FileContainer fileContainer =
         fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
-    response.addHeader(
-        HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName());
-    response.addHeader(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType());
-    response.setStatus(HttpServletResponse.SC_OK);
-    fileContainer.getInputStream().transferTo(response.getOutputStream());
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + fileContainer.getName())
+        .header(HttpHeaders.CONTENT_TYPE, fileContainer.getContentType())
+        .body(new InputStreamResource(fileContainer.getInputStream()));
   }
 
   // endregion
@@ -856,12 +854,11 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public void exerciseExport(
+  public ResponseEntity<byte[]> exerciseExport(
       @NotBlank @PathVariable final String exerciseId,
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
-      @RequestParam(required = false) final boolean isWithVariableValues,
-      HttpServletResponse response)
+      @RequestParam(required = false) final boolean isWithVariableValues)
       throws IOException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
@@ -869,12 +866,10 @@ public class ExerciseApi extends RestBehavior {
     byte[] zippedExport = exportService.exportExerciseToZip(exercise, exportOptionsMask);
     String zipName = exportService.getZipFileName(exercise, exportOptionsMask);
 
-    response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
-    response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");
-    response.setStatus(HttpServletResponse.SC_OK);
-    ServletOutputStream outputStream = response.getOutputStream();
-    outputStream.write(zippedExport);
-    outputStream.close();
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName)
+        .header("application/zip")
+        .body(zippedExport);
   }
 
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})

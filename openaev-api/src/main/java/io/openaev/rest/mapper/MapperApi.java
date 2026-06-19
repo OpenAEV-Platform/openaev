@@ -45,6 +45,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -100,8 +101,8 @@ public class MapperApi extends RestBehavior {
   @PostMapping(value = "/export")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
-  public void exportMappers(
-      @RequestBody @Valid final ExportMapperInput exportMapperInput, HttpServletResponse response) {
+  public ResponseEntity<byte[]> exportMappers(
+      @RequestBody @Valid final ExportMapperInput exportMapperInput) {
     try {
       String jsonMappers = mapperService.exportMappers(exportMapperInput.getIdsToExport());
 
@@ -114,13 +115,10 @@ public class MapperApi extends RestBehavior {
       String exportFileName = name.length() > 15 ? name.substring(0, 15) : name;
       String filename = MessageFormat.format("{0}-{1}.json", exportFileName, rightNow);
 
-      response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
-      response.addHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
-      response.setStatus(HttpServletResponse.SC_OK);
-
-      response.getOutputStream().write(jsonMappers.getBytes(StandardCharsets.UTF_8));
-      response.getOutputStream().flush();
-      response.getOutputStream().close();
+      return ResponseEntity.ok()
+          .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(jsonMappers.getBytes(StandardCharsets.UTF_8));
     } catch (IOException e) {
       throw new RuntimeException("Error during export", e);
     }
