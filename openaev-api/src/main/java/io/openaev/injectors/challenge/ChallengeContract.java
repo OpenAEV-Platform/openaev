@@ -67,8 +67,13 @@ public class ChallengeContract extends Contractor {
             The animation team
         """;
     // We include the expectations for challenges
+    // Challenge injects expose both challenge and manual expectations.
     ContractExpectations expectationsField =
-        expectationsField(List.of(this.expectationBuilderService.buildChallengeExpectation()));
+        expectationsField(
+            List.of(this.expectationBuilderService.buildChallengeExpectation()),
+            List.of(
+                this.expectationBuilderService.buildChallengeExpectation(),
+                this.expectationBuilderService.buildManualExpectation()));
     List<ContractElement> publishInstance =
         contractBuilder()
             .mandatory(challengeField(Multiple))

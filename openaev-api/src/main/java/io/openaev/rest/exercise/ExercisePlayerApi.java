@@ -11,6 +11,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.response.PublicExercise;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.security.error.AuthenticationError;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +35,8 @@ public class ExercisePlayerApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public PublicExercise playerExercise(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
+      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     impersonateUser(this.userRepository, userId);
     Exercise exercise =
         this.exerciseRepository

@@ -1,6 +1,5 @@
 package io.openaev.rest.document;
 
-import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -23,6 +22,7 @@ import io.openaev.rest.document.form.DocumentUpdateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -513,7 +513,8 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId) {
+      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
@@ -522,20 +523,17 @@ public class DocumentApi extends RestBehavior {
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
 
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
 
     if (exerciseOpt.isPresent()) {
       if (!exerciseOpt.get().isUserHasAccess(user)
           && !exerciseOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       return getExercisePlayerDocuments(exerciseOpt.get());
     } else if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
           && !scenarioOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       return getScenarioPlayerDocuments(scenarioOpt.get());
     } else {
@@ -553,7 +551,13 @@ public class DocumentApi extends RestBehavior {
   public ResponseEntity<InputStreamResource> downloadPlayerDocument(
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
+<<<<<<< issue/6212-transactional-updates
       @RequestParam Optional<String> userId) {
+=======
+      @RequestParam Optional<String> userId,
+      HttpServletResponse response)
+      throws IOException, AuthenticationError {
+>>>>>>> main
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
@@ -562,15 +566,12 @@ public class DocumentApi extends RestBehavior {
             exerciseOrScenarioId, TenantContext.getCurrentTenant());
 
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
 
     Optional<Document> document = Optional.empty();
     if (exerciseOpt.isPresent()) {
       if (!exerciseOpt.get().isUserHasAccess(user)
           && !exerciseOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       document =
           getExercisePlayerDocuments(exerciseOpt.get()).stream()
@@ -579,7 +580,7 @@ public class DocumentApi extends RestBehavior {
     } else if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
           && !scenarioOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       document =
           getScenarioPlayerDocuments(scenarioOpt.get()).stream()
