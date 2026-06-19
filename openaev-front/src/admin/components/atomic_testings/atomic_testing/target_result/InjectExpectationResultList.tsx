@@ -21,8 +21,8 @@ import {
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { getSourceLabel } from '../../../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../../../common/injects/InjectIcon';
-import { getSourceLabel } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
 import InjectExpectationContext from '../context/InjectExpectationContext';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
 
