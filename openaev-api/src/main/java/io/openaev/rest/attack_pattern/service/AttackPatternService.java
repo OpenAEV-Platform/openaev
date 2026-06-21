@@ -1,17 +1,30 @@
 package io.openaev.rest.attack_pattern.service;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.engine.EngineService;
+import io.openaev.engine.api.StructuralHistogramRuntime;
+import io.openaev.engine.api.StructuralHistogramWidget;
+import io.openaev.engine.api.WidgetConfigurationWithSeries;
+import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.EsSeriesData;
+import io.openaev.rest.attack_pattern.form.AttackPatternCoverageOutput;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.SecurityCoverageUtils;
+import io.openaev.utils.mapper.RawUserAuthMapper;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.annotation.Resource;
@@ -31,6 +44,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -60,6 +74,10 @@ public class AttackPatternService {
   private final SecurityCoverageUtils securityCoverageUtils;
   private final XtmOneConfig xtmOneConfig;
   private final XtmOneClient xtmOneClient;
+  private final ExerciseRepository exerciseRepository;
+  private final UserRepository userRepository;
+  private final EngineService engineService;
+  private final RawUserAuthMapper rawUserAuthMapper;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -126,6 +144,197 @@ public class AttackPatternService {
             () ->
                 new ElementNotFoundException(
                     "Attack pattern not found with id: " + attackPatternId));
+  }
+
+  // -- GLOBAL MITRE ATT&CK COVERAGE --
+
+  private static final String COVERAGE_PREVENTION_SUCCESS = "PREVENTION_SUCCESS";
+  private static final String COVERAGE_PREVENTION_FAILED = "PREVENTION_FAILED";
+  private static final String COVERAGE_DETECTION_SUCCESS = "DETECTION_SUCCESS";
+  private static final String COVERAGE_DETECTION_FAILED = "DETECTION_FAILED";
+
+  /** High terms-bucket cap so every attack pattern is returned (the default cap is only 100). */
+  private static final int COVERAGE_BUCKET_CAP = 10_000;
+
+  /**
+   * Compute the tenant-wide MITRE ATT&CK coverage matrix.
+   *
+   * <p>Uses the very same Elasticsearch aggregation as the home {@code security-coverage} matrix: a
+   * structural histogram on {@code base_attack_patterns_side} over the {@code expectation-inject}
+   * documents, with one series per (PREVENTION|DETECTION) x (SUCCESS|FAILED) combination, evaluated
+   * through {@link EngineService#multiTermHistogram}. The query is tenant- and ACL-scoped
+   * automatically and, by default, spans every simulation - so the numbers match the home matrix.
+   *
+   * @param latest when non-null and positive, restrict the aggregation to the latest N finished
+   *     simulations by end date; when null, aggregate across all simulations like the home matrix
+   * @return the coverage entries sorted by attack pattern external id (patterns without any
+   *     prevention or detection result are excluded)
+   */
+  @Transactional(readOnly = true)
+  public List<AttackPatternCoverageOutput> getGlobalCoverage(Integer latest) {
+    List<String> simulationIds = resolveLatestSimulationIds(latest);
+    if (simulationIds != null && simulationIds.isEmpty()) {
+      // latest scoping was requested but no finished simulation exists -> nothing to aggregate
+      return List.of();
+    }
+
+    RawUserAuth user =
+        rawUserAuthMapper.toRawUserAuth(userRepository.getUserWithAuth(currentUser().getId()));
+
+    StructuralHistogramWidget widget = new StructuralHistogramWidget();
+    widget.setField("base_attack_patterns_side");
+    widget.setDateAttribute("base_created_at");
+    widget.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
+    widget.setLimit(COVERAGE_BUCKET_CAP);
+    widget.setSeries(
+        List.of(
+            coverageSeries(
+                COVERAGE_PREVENTION_SUCCESS,
+                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                simulationIds),
+            coverageSeries(
+                COVERAGE_PREVENTION_FAILED,
+                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                InjectExpectation.EXPECTATION_STATUS.FAILED,
+                simulationIds),
+            coverageSeries(
+                COVERAGE_DETECTION_SUCCESS,
+                InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                simulationIds),
+            coverageSeries(
+                COVERAGE_DETECTION_FAILED,
+                InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                InjectExpectation.EXPECTATION_STATUS.FAILED,
+                simulationIds)));
+
+    List<EsSeries> series =
+        engineService.multiTermHistogram(
+            user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
+
+    // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed]
+    Map<String, long[]> countsByAttackPattern = new HashMap<>();
+    for (EsSeries serie : series) {
+      int index = seriesIndex(serie.getLabel());
+      if (index < 0) {
+        continue;
+      }
+      for (EsSeriesData data : serie.getData()) {
+        countsByAttackPattern.computeIfAbsent(data.getKey(), k -> new long[4])[index] +=
+            data.getValue();
+      }
+    }
+    if (countsByAttackPattern.isEmpty()) {
+      return List.of();
+    }
+
+    Map<String, AttackPattern> attackPatternsById =
+        fromIterable(attackPatternRepository.findAllById(countsByAttackPattern.keySet())).stream()
+            .collect(Collectors.toMap(AttackPattern::getId, Function.identity()));
+
+    List<AttackPatternCoverageOutput> coverage = new ArrayList<>();
+    countsByAttackPattern.forEach(
+        (attackPatternId, counts) -> {
+          AttackPattern attackPattern = attackPatternsById.get(attackPatternId);
+          if (attackPattern == null) {
+            return;
+          }
+          int preventionSuccess = (int) counts[0];
+          int preventionTotal = (int) (counts[0] + counts[1]);
+          int detectionSuccess = (int) counts[2];
+          int detectionTotal = (int) (counts[2] + counts[3]);
+          if (preventionTotal == 0 && detectionTotal == 0) {
+            return;
+          }
+          coverage.add(
+              new AttackPatternCoverageOutput(
+                  attackPattern.getId(),
+                  attackPattern.getExternalId(),
+                  attackPattern.getName(),
+                  attackPattern.getKillChainPhases().stream()
+                      .map(
+                          phase ->
+                              new AttackPatternCoverageOutput.KillChainPhaseCoverage(
+                                  phase.getId(),
+                                  phase.getName(),
+                                  phase.getExternalId(),
+                                  phase.getOrder()))
+                      .toList(),
+                  preventionSuccess,
+                  preventionTotal,
+                  detectionSuccess,
+                  detectionTotal));
+        });
+
+    coverage.sort(
+        Comparator.comparing(
+            AttackPatternCoverageOutput::attackPatternExternalId,
+            Comparator.nullsLast(Comparator.naturalOrder())));
+    return coverage;
+  }
+
+  /**
+   * Resolve the latest N finished simulation ids used to scope the coverage, or {@code null} to
+   * aggregate across all simulations (home-identical behaviour).
+   */
+  private List<String> resolveLatestSimulationIds(Integer latest) {
+    if (latest == null || latest <= 0) {
+      return null;
+    }
+    List<String> finishedIds =
+        exerciseRepository.findExerciseIdsByStatusOrderedByEndDateDesc(
+            ExerciseStatus.FINISHED.name());
+    return finishedIds.size() > latest ? finishedIds.subList(0, latest) : finishedIds;
+  }
+
+  private static WidgetConfigurationWithSeries.Series coverageSeries(
+      String name,
+      InjectExpectation.EXPECTATION_TYPE type,
+      InjectExpectation.EXPECTATION_STATUS status,
+      List<String> simulationIds) {
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    List<Filters.Filter> filters = new ArrayList<>();
+    filters.add(
+        coverageFilter("base_entity", Filters.FilterMode.and, List.of("expectation-inject")));
+    filters.add(
+        coverageFilter("inject_expectation_type", Filters.FilterMode.and, List.of(type.name())));
+    filters.add(
+        coverageFilter(
+            "inject_expectation_status", Filters.FilterMode.and, List.of(status.name())));
+    if (simulationIds != null && !simulationIds.isEmpty()) {
+      filters.add(coverageFilter("base_simulation_side", Filters.FilterMode.or, simulationIds));
+    }
+    filterGroup.setFilters(filters);
+
+    WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
+    serie.setName(name);
+    serie.setFilter(filterGroup);
+    return serie;
+  }
+
+  private static Filters.Filter coverageFilter(
+      String key, Filters.FilterMode mode, List<String> values) {
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey(key);
+    filter.setMode(mode);
+    filter.setOperator(Filters.FilterOperator.eq);
+    filter.setValues(values);
+    return filter;
+  }
+
+  private static int seriesIndex(String label) {
+    if (label == null) {
+      return -1;
+    }
+    return switch (label) {
+      case COVERAGE_PREVENTION_SUCCESS -> 0;
+      case COVERAGE_PREVENTION_FAILED -> 1;
+      case COVERAGE_DETECTION_SUCCESS -> 2;
+      case COVERAGE_DETECTION_FAILED -> 3;
+      default -> -1;
+    };
   }
 
   /**

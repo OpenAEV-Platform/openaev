@@ -287,6 +287,25 @@ public interface ExerciseRepository
   List<RawFinishedExerciseWithInjects> rawLatestFinishedExercisesWithInjectsByScenarioId(
       @Param("scenarioId") String scenarioId);
 
+  /**
+   * Get the tenant-scoped exercise ids for a given status, ordered by end date descending (latest
+   * first). Used to compute the tenant-wide MITRE ATT&CK coverage matrix. Only exercises with an
+   * end date are returned so the ordering is meaningful.
+   *
+   * @param status the exercise status name (e.g. {@code FINISHED})
+   * @return the ordered list of exercise ids (latest end date first)
+   */
+  @Query(
+      value =
+          "SELECT ex.exercise_id "
+              + "FROM exercises ex "
+              + "WHERE ex.exercise_status = :status "
+              + "AND ex.exercise_end_date IS NOT NULL "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
+              + "ORDER BY ex.exercise_end_date DESC ;",
+      nativeQuery = true)
+  List<String> findExerciseIdsByStatusOrderedByEndDateDesc(@Param("status") String status);
+
   @Query(
       value =
           """

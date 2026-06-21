@@ -13,6 +13,7 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.specification.InjectorContractSpecification;
+import io.openaev.rest.attack_pattern.form.AttackPatternCoverageOutput;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.attack_pattern.form.AttackPatternUpdateInput;
 import io.openaev.rest.attack_pattern.form.AttackPatternUpsertInput;
@@ -55,6 +56,18 @@ public class AttackPatternApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
   public List<RawAttackPatternIndexing> attackPatterns() {
     return attackPatternRepository.rawAll();
+  }
+
+  @GetMapping("/coverage")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
+  @Operation(
+      summary = "Global MITRE ATT&CK coverage",
+      description =
+          "Tenant-wide ATT&CK matrix aggregating prevention and detection results across simulations (Elasticsearch, identical to the home security-coverage matrix)")
+  public List<AttackPatternCoverageOutput> attackPatternsCoverage(
+      @RequestParam(required = false) final Integer latest) {
+    return attackPatternService.getGlobalCoverage(latest);
   }
 
   @PostMapping("/search")
