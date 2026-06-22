@@ -12,6 +12,7 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.List;
@@ -52,14 +53,20 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
 
   @DisplayName("Admin user is enrolled in the default-tenant admin group at bootstrap")
   @Test
-  void adminUserBelongsToAdminGroupTest() {
-    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
+  void given_platform_bootstrap_should_enroll_admin_in_default_tenant_admin_group() {
+    // Arrange
+    String adminGroupId =
+        AbstractPrivilegeService.getUUIDFromName(
+            AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
 
+    // Act
+    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
     List<Group> adminGroups =
         adminUser.getUnscopedGroups().stream()
-            .filter(group -> AdminPrivilegeService.ADMIN_GROUP_NAME.equals(group.getName()))
+            .filter(group -> adminGroupId.equals(group.getId()))
             .toList();
 
+    // Assert
     assertThat(adminGroups).hasSize(1);
     Group adminGroup = adminGroups.getFirst();
     assertThat(adminGroup.getTenant()).isNotNull();
@@ -68,16 +75,25 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
         .anyMatch(role -> role.getCapabilities().contains(Capability.BYPASS));
   }
 
-  @DisplayName("Ensuring the admin group twice is idempotent")
+  @DisplayName("Ensuring the admin group twice keeps a single membership")
   @Test
-  void ensureAdminGroupIsIdempotentTest() {
-    this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, ADMIN_UUID);
-    this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, ADMIN_UUID);
+  void given_admin_group_ensured_twice_should_keep_single_membership() {
+    // Arrange
+    String adminGroupId =
+        AbstractPrivilegeService.getUUIDFromName(
+            AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
 
+    // Act
+    this.adminPrivilegeService.ensureAdminGroup(
+        DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+    this.adminPrivilegeService.ensureAdminGroup(
+        DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+
+    // Assert
     User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
     long adminGroupCount =
         adminUser.getUnscopedGroups().stream()
-            .filter(group -> AdminPrivilegeService.ADMIN_GROUP_NAME.equals(group.getName()))
+            .filter(group -> adminGroupId.equals(group.getId()))
             .count();
 
     assertThat(adminGroupCount).isEqualTo(1);

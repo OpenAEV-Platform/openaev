@@ -21,9 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>New tenants get their default Admin/Manager/Observer groups seeded through the tenant
  * provisioning chain (see {@code V20260330_Default_tenant_data}). The default tenant, however, is
  * created by a Flyway migration and never goes through that chain, so a fresh platform ended up
- * with no admin group at all. The platform admin still bypasses RBAC through {@code
- * user_admin = true}, but the missing group broke group-based administration parity with every
- * other tenant. This regression was introduced together with multi-tenancy (PR #4864).
+ * with no admin group at all. The platform admin still bypasses RBAC through {@code user_admin =
+ * true}, but the missing group broke group-based administration parity with every other tenant.
+ * This regression was introduced together with multi-tenancy (PR #4864).
  *
  * <p>Bootstrapping the group from {@link io.openaev.runner.InitAdminCommandLineRunner} is the only
  * place that runs after the admin user is guaranteed to exist, which is why the membership is wired
@@ -35,12 +35,12 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
 
   public static final String ADMIN_ROLE_ID = "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
   public static final String ADMIN_ROLE_NAME = "Admin";
-  public static final String ADMIN_ROLE_DESCRIPTION = "Full administrative access to the platform.";
+  public static final String ADMIN_ROLE_DESCRIPTION = "Full administrative access to the tenant.";
   public static final Set<Capability> ADMIN_ROLE_CAPABILITIES = Set.of(Capability.BYPASS);
 
   public static final String ADMIN_GROUP_ID = "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e";
   public static final String ADMIN_GROUP_NAME = "Administrators";
-  public static final String ADMIN_GROUP_DESCRIPTION = "Platform administrators.";
+  public static final String ADMIN_GROUP_DESCRIPTION = "Tenant administrators.";
 
   @Autowired
   public AdminPrivilegeService(
@@ -90,22 +90,25 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
    * Idempotently ensures the given tenant owns the admin group (with the BYPASS role) and that the
    * given user is a member of it. Safe to call on every platform startup.
    *
+   * <p>The caller passes the already-resolved admin {@link User} (the bootstrap runner has just
+   * created or loaded it) rather than an id, so the membership check never depends on re-fetching
+   * the user through {@code UserService} - a service that some test contexts replace with a mock.
+   *
    * @param tenantId the tenant the group belongs to
-   * @param adminUserId the user to enroll as an administrator
+   * @param adminUser the user to enroll as an administrator
    * @return the (created or existing) admin group
    */
   @Transactional
-  public Group ensureAdminGroup(String tenantId, String adminUserId) {
+  public Group ensureAdminGroup(String tenantId, User adminUser) {
     Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
-    User admin = userService.user(adminUserId);
     boolean alreadyMember =
-        admin.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
+        adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
     if (!alreadyMember) {
-      admin.getUnscopedGroups().add(group);
-      userService.saveUser(admin);
+      adminUser.getUnscopedGroups().add(group);
+      userService.saveUser(adminUser);
       log.info(
           "Enrolled admin user {} into the '{}' group for tenant {}",
-          adminUserId,
+          adminUser.getId(),
           getGroupName(),
           tenantId);
     }

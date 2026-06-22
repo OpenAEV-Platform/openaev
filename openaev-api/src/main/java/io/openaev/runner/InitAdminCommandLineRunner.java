@@ -69,7 +69,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     // tenant is created by a Flyway migration and never runs the tenant-provisioning chain that
     // seeds the default groups for tenants created through the API, so this must be bootstrapped
     // explicitly here, once the admin user is guaranteed to exist.
-    this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, adminUser.getId());
+    this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, adminUser);
   }
 
   // -- USER --
