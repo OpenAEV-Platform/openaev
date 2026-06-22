@@ -58,7 +58,7 @@ runs:
   using: composite
   steps:
     - name: Restore Maven repository cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: .m2-cache
         key: setup-java-Linux-maven-${{ hashFiles('**/pom.xml') }}
@@ -66,7 +66,7 @@ runs:
           setup-java-Linux-maven-
 
     - name: Restore Yarn cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: .yarn-cache
         key: Linux-yarn-${{ hashFiles('openaev-front/yarn.lock') }}

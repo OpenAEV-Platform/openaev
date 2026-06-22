@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
       - uses: ./.github/actions/backend-compile
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
       - uses: ./.github/actions/frontend-build
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
       - uses: ./.github/actions/backend-package
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.head_sha }}
       - uses: ./.github/actions/docker-build
@@ -96,7 +96,7 @@ jobs:
             --arg res "$BUILD_RESULT" \
             '{pr_number: $pr, head_ref: $ref, head_sha: $sha, comment_id: $cid, build_result: $res}' \
             > metadata/deploy-metadata.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: deploy-metadata
           path: metadata/

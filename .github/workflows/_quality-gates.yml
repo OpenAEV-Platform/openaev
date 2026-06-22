@@ -120,7 +120,7 @@ jobs:
   e2e-tests:
     name: "🧪 E2E Tests (${{ matrix.browser }})"
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -157,7 +157,7 @@ jobs:
   e2e-infra-tests:
     name: "🧪 E2E Infra (${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

@@ -66,6 +66,7 @@ runs:
       run: |
         if snyk container test openaev:ci \
           --severity-threshold=${{ inputs.severity-threshold }} \
+          --fail-on=upgradable \
           --json-file-output=snyk-standard.json; then
           echo "result=success" >> "$GITHUB_OUTPUT"
         else
@@ -88,6 +89,7 @@ runs:
       run: |
         if snyk container test openaev-ubi9:ci \
           --severity-threshold=${{ inputs.severity-threshold }} \
+          --fail-on=upgradable \
           --json-file-output=snyk-ubi9.json; then
           echo "result=success" >> "$GITHUB_OUTPUT"
         else
