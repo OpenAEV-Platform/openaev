@@ -119,7 +119,10 @@ public enum Capability {
   ACCESS_PAYLOADS(
       null,
       CapabilityGroup.THREAT_ARSENALS,
-      Set.of(),
+      // Payload is a TenantBase (tenant-scoped) resource, like every sibling in this group. The
+      // tenant scope lets a tenant BYPASS cover payload access; an empty scope made ACCESS_PAYLOADS
+      // unreachable via BYPASS, so even a CE admin was denied /api/payloads/** (issues #6331/#6332).
+      EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
   @Deprecated(

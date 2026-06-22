@@ -192,6 +192,18 @@ public class PermissionServiceTest extends IntegrationTest {
   }
 
   @Test
+  public void test_hasPermission_search_payload_WHEN_has_tenant_bypass_capa() {
+    // Regression for #6331 / #6332: a CE admin's authority is a default-tenant BYPASS group, so a
+    // tenant BYPASS must cover /api/payloads/** like every other tenant resource. ACCESS_PAYLOADS
+    // previously had an empty capability scope, leaving payloads unreachable via BYPASS (403).
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.BYPASS)));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), RESOURCE_ID, ResourceType.PAYLOAD, Action.SEARCH));
+  }
+
+  @Test
   public void test_hasPermission_write_WHEN_has_read_capa() {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.ACCESS_CHANNELS)));
