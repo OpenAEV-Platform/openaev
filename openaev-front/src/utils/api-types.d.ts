@@ -473,6 +473,21 @@ export interface AttackPattern {
   listened?: boolean;
 }
 
+export interface AttackPatternCoverageOutput {
+  attack_pattern_external_id?: string;
+  attack_pattern_id?: string;
+  attack_pattern_name?: string;
+  /** @format int64 */
+  detection_success?: number;
+  /** @format int64 */
+  detection_total?: number;
+  kill_chain_phases?: KillChainPhaseCoverage[];
+  /** @format int64 */
+  prevention_success?: number;
+  /** @format int64 */
+  prevention_total?: number;
+}
+
 export interface AttackPatternCreateInput {
   attack_pattern_description?: string;
   /** @minLength 1 */
@@ -4599,6 +4614,14 @@ export interface KillChainPhase {
   phase_stix_id?: string;
   /** @format date-time */
   phase_updated_at: string;
+}
+
+export interface KillChainPhaseCoverage {
+  phase_external_id?: string;
+  phase_id?: string;
+  phase_name?: string;
+  /** @format int64 */
+  phase_order?: number;
 }
 
 export interface KillChainPhaseCreateInput {
