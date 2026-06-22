@@ -177,7 +177,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/docker-build-push
+      - uses: ./.github/actions/docker-build
         with:
           build-ubi9: "true"
           tags: openaev:ci-${{ github.run_id }}

@@ -68,7 +68,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.head_sha }}
-      - uses: ./.github/actions/docker-build-push
+      - uses: ./.github/actions/docker-build
         with:
           tags: openaev:feat-${{ inputs.head_ref }}
 

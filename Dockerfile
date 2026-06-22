@@ -12,6 +12,7 @@ RUN yarn build
 FROM maven:3.9.16-eclipse-temurin-21 AS api-builder
 
 WORKDIR /opt/openaev-build/openaev
+COPY openaev-annotation-processor ./openaev-annotation-processor
 COPY openaev-model ./openaev-model
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api

@@ -43,7 +43,6 @@ env:
   SIMULATED_VERSION: ${{ inputs.simulated_version || '0.0.0-dryrun' }}
 
 jobs:
-
   # ──────────────────────────────────────────────────────────────────
   # 1. Quick sanity: spotless + compile + frontend
   #    All three use the SAME composite actions as core-ci.yml
@@ -145,7 +144,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   backend-package:
     name: "📦 Backend Package (glibc)"
-    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    needs: [frontend-build, backend-compile, prepare-release-assets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -205,7 +204,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   backend-package-musl:
     name: "📦 Backend Package (musl)"
-    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    needs: [frontend-build, backend-compile, prepare-release-assets]
     runs-on: ubuntu-latest
     container:
       image: maven:3.9.16-eclipse-temurin-21-alpine
@@ -255,7 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/docker-build-push
+      - uses: ./.github/actions/docker-build
         with:
           build-ubi9: "true"
           tags: openaev:ci-${{ github.run_id }}
@@ -266,7 +265,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   summary:
     name: "📋 Release Dry Run Summary"
-    needs: [ backend-package, backend-package-musl, docker-build, quality-gates ]
+    needs: [backend-package, backend-package-musl, docker-build, quality-gates]
     if: always()
     runs-on: ubuntu-latest
     steps:
