@@ -57,6 +57,18 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Restore Maven repository cache
+      uses: actions/cache/restore@v4
+      with:
+        path: .m2-cache
+        key: setup-java-Linux-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          setup-java-Linux-maven-
+
+    - name: Ensure .m2-cache directory exists
+      run: mkdir -p .m2-cache
+      shell: bash
+
     - name: Set up QEMU (for arm64 emulation)
       uses: docker/setup-qemu-action@v4
 
@@ -77,6 +89,7 @@ runs:
         labels: ${{ inputs.labels }}
         cache-from: type=gha,scope=${{ inputs.cache-scope }}
         cache-to: type=gha,mode=max,scope=${{ inputs.cache-scope }}
+        build-contexts: m2-cache=.m2-cache
 
     - name: Compress OCI archive
       run: |

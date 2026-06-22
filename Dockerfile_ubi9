@@ -1,3 +1,6 @@
+# Default empty Maven cache (overridden via --build-context m2-cache=...)
+FROM scratch AS m2-cache
+
 FROM registry.access.redhat.com/ubi9/nodejs-22 AS front-builder
 
 USER root
@@ -19,22 +22,23 @@ microdnf clean all        ; \
 mvn --version             ;
 
 WORKDIR /opt/openaev-build/openaev
+# Pre-seed Maven cache (injected via build-context, empty by default)
+RUN --mount=type=bind,from=m2-cache,target=/tmp/m2-seed \
+cp -rn /tmp/m2-seed/. /root/.m2/repository/ 2>/dev/null || mkdir -p /root/.m2/repository
 # Copy only POMs first to cache dependency resolution
 COPY pom.xml ./pom.xml
 COPY openaev-annotation-processor/pom.xml ./openaev-annotation-processor/pom.xml
 COPY openaev-model/pom.xml ./openaev-model/pom.xml
 COPY openaev-framework/pom.xml ./openaev-framework/pom.xml
 COPY openaev-api/pom.xml ./openaev-api/pom.xml
-RUN --mount=type=cache,target=/root/.m2/repository \
-mvn dependency:go-offline -Pdev -B -q || true
+RUN mvn dependency:go-offline -Pdev -B -q || true
 # Now copy source and build
 COPY openaev-annotation-processor ./openaev-annotation-processor
 COPY openaev-model ./openaev-model
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
-RUN --mount=type=cache,target=/root/.m2/repository \
-mvn install -DskipTests -Pdev
+RUN mvn install -DskipTests -Pdev
 
 FROM registry.access.redhat.com/ubi9/openjdk-21-runtime AS app
 
