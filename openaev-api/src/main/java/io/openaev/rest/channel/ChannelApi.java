@@ -1,6 +1,5 @@
 package io.openaev.rest.channel;
 
-import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.channel.ChannelHelper.enrichArticleWithVirtualPublication;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
@@ -18,12 +17,12 @@ import io.openaev.rest.channel.response.ChannelReader;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.scenario.ScenarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -31,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -56,12 +56,14 @@ public class ChannelApi extends RestBehavior {
   // -- CHANNELS --
 
   @GetMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
   public Iterable<Channel> channels() {
     return channelRepository.findAll();
   }
 
   @GetMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.READ,
@@ -71,6 +73,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
@@ -85,6 +88,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @PutMapping({CHANNEL_URI + "/{channelId}/logos", TENANT_CHANNEL_URI + "/{channelId}/logos"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.WRITE,
@@ -108,7 +112,7 @@ public class ChannelApi extends RestBehavior {
 
   @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Channel createChannel(@Valid @RequestBody ChannelCreateInput input) {
     Channel channel = new Channel();
     channel.setUpdateAttributes(input);
@@ -116,6 +120,7 @@ public class ChannelApi extends RestBehavior {
   }
 
   @DeleteMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#channelId",
       actionPerformed = Action.DELETE,
@@ -128,6 +133,7 @@ public class ChannelApi extends RestBehavior {
     OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}",
     TENANT_OBSERVER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -164,16 +170,15 @@ public class ChannelApi extends RestBehavior {
     PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}",
     TENANT_PLAYER_CHANNEL_URI + "/{exerciseId}/{channelId}"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public ChannelReader playerArticles(
       @PathVariable String exerciseId,
       @PathVariable String channelId,
-      @RequestParam Optional<String> userId) {
+      @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
     return channelService.validateArticles(exerciseId, channelId, user);
   }
 
@@ -187,7 +192,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Article createArticleForExercise(
       @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
@@ -225,6 +230,7 @@ public class ChannelApi extends RestBehavior {
     "/api/exercises/{exerciseId}/articles/{articleId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/articles/{articleId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -282,7 +288,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteArticleForExercise(
       @PathVariable String exerciseId, @PathVariable String articleId) {
     articleRepository.deleteById(articleId);
@@ -298,7 +304,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Article createArticleForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody ArticleCreateInput input) {
@@ -338,7 +344,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Article updateArticleForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId,
@@ -389,7 +395,7 @@ public class ChannelApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteArticleForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String articleId) {
@@ -405,6 +411,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
   @Operation(summary = "Get the Documents used in a channel")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(

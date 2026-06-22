@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,6 +40,7 @@ public class FindingSearchApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({FINDING_URI + "/search", TENANT_FINDING_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.FINDING)
   @ApiResponse(
       responseCode = "200",
@@ -68,6 +70,7 @@ public class FindingSearchApi extends RestBehavior {
     FINDING_URI + "/injects/{injectId}/search",
     TENANT_FINDING_URI + "/injects/{injectId}/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
@@ -103,6 +106,7 @@ public class FindingSearchApi extends RestBehavior {
     FINDING_URI + "/exercises/{simulationId}/search",
     TENANT_FINDING_URI + "/exercises/{simulationId}/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
@@ -138,6 +142,7 @@ public class FindingSearchApi extends RestBehavior {
     FINDING_URI + "/scenarios/{scenarioId}/search",
     TENANT_FINDING_URI + "/scenarios/{scenarioId}/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -175,6 +180,7 @@ public class FindingSearchApi extends RestBehavior {
     FINDING_URI + "/endpoints/{endpointId}/search",
     TENANT_FINDING_URI + "/endpoints/{endpointId}/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#endpointId",
       actionPerformed = Action.READ,

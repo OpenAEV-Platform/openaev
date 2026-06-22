@@ -28,7 +28,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -42,6 +41,7 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -79,6 +79,7 @@ public class ExecutorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve executors",
       description = "Retrieve all executors and pending executors if includeNext is true")
+  @Transactional
   @ApiResponse(
       responseCode = "200",
       content =
@@ -96,6 +97,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -121,6 +123,7 @@ public class ExecutorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Operation(summary = "Retrieve executor related ids")
+  @Transactional
   public ConnectorIds getExecutorRelatedIds(@PathVariable String executorId) {
     return executorService.getExecutorRelationsId(executorId);
   }
@@ -134,6 +137,7 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @PutMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#executorId",
       actionPerformed = Action.WRITE,
@@ -153,7 +157,7 @@ public class ExecutorApi extends RestBehavior {
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Executor registerExecutor(
       @Valid @RequestPart("input") ExecutorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> icon,
@@ -208,6 +212,7 @@ public class ExecutorApi extends RestBehavior {
       summary = "Retrieve OpenAEV Agent Executable",
       description =
           "Downloads the OpenAEV agent executable for a specified platform and architecture.")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved the executable."),
@@ -274,6 +279,7 @@ public class ExecutorApi extends RestBehavior {
       summary = "Retrieve OpenAEV Agent Package",
       description =
           "Downloads the OpenAEV agent package for the specified platform and architecture.")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -352,6 +358,7 @@ public class ExecutorApi extends RestBehavior {
       summary = "Retrieve OpenAEV Agent Installer Command",
       description =
           "Generates the installation command for the OpenAEV agent for the specified platform, installation mode and token.")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(

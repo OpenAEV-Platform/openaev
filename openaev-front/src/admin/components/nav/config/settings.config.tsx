@@ -3,7 +3,6 @@ import { SettingsOutlined } from '@mui/icons-material';
 import { type LeftMenuItem } from '../../../../components/common/menu/leftmenu/leftmenu-model';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, type Actions, SUBJECTS, type Subjects } from '../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../utils/utils';
 
 export const SETTINGS_LABEL = 'Settings';
 
@@ -35,11 +34,10 @@ export const SETTINGS_ACCESS_CHECKS: {
 ];
 
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
-  const isMultiTenancyEnabled = isFeatureEnabled('MULTI_TENANCY');
   const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
-  const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES) && isMultiTenancyEnabled;
-  const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS) && isMultiTenancyEnabled;
+  const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
+  const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
   const subItems = [
     {

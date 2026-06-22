@@ -67,6 +67,7 @@ public class ChainingApi extends RestBehavior {
   // -- READ --
 
   @Operation(summary = "Get all chaining data", description = "Returns all conditions and steps")
+  @Transactional
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Chaining data retrieved successfully")
   })
@@ -84,6 +85,7 @@ public class ChainingApi extends RestBehavior {
 
   // CREATE SIMULATION
   @PostMapping(SIMULATION_URI)
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
   public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input)
       throws ChainingException {
@@ -172,6 +174,7 @@ public class ChainingApi extends RestBehavior {
 
   // CREATE SCENARIO
   @PostMapping(SCENARIO_URI)
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
       throws ChainingException {
@@ -232,6 +235,7 @@ public class ChainingApi extends RestBehavior {
   }
 
   @PostMapping(SCENARIO_URI + "/{scenarioId}")
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,

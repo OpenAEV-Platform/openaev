@@ -7,8 +7,6 @@ import static io.openaev.config.SessionHelper.currentUser;
 
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
@@ -44,19 +42,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class UrlAccessControlAspect {
 
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
   @Around("@annotation(urlAccessControl)")
   public Object validateUrlAccess(ProceedingJoinPoint joinPoint, UrlAccessControl urlAccessControl)
       throws Throwable {
-
-    // Feature flag off, skip URL access control entirely and proceed with legacy flow
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      return joinPoint.proceed();
-    }
-
     // Classical authentication (session/token) already established, no URL token control needed
     if (isClassicallyAuthenticated()) {
       return joinPoint.proceed();
@@ -104,7 +95,7 @@ public class UrlAccessControlAspect {
     if (!urlAccessControl.userId().isEmpty()) {
       String paramName = stripSpelPrefix(urlAccessControl.userId());
       for (int i = 0; i < parameterNames.length; i++) {
-        if (paramName.equals(parameterNames[i]) && shouldExecuteInjection(args[i])) {
+        if (paramName.equals(parameterNames[i])) {
           Object[] newArgs = Arrays.copyOf(args, args.length);
           newArgs[i] = Optional.of(token.getUser().getId());
           return joinPoint.proceed(newArgs);
@@ -153,27 +144,5 @@ public class UrlAccessControlAspect {
    */
   private static String stripSpelPrefix(String spelExpression) {
     return spelExpression.startsWith("#") ? spelExpression.substring(1) : spelExpression;
-  }
-
-  /**
-   * Check if the given object is null, or a string "null"
-   *
-   * @param arg object to check
-   * @return check value
-   */
-  private static boolean shouldExecuteInjection(Object arg) {
-    if (arg == null) {
-      return true;
-    }
-    if (arg instanceof Optional<?> opt) {
-      return opt.isEmpty()
-          || opt.filter(String.class::isInstance)
-              .map(String.class::cast)
-              .map(String::trim)
-              .filter(
-                  value -> "null".equalsIgnoreCase(value) || "undefined".equalsIgnoreCase(value))
-              .isPresent();
-    }
-    return false;
   }
 }

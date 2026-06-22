@@ -3192,25 +3192,6 @@ export interface ExercisesGlobalScoresOutput {
   global_scores_by_exercise_ids: Record<string, ExpectationResultsByType[]>;
 }
 
-export interface Expectation {
-  expectation_description?: string;
-  expectation_expectation_group?: boolean;
-  /** @format int64 */
-  expectation_expiration_time?: number;
-  expectation_name?: string;
-  /** @format double */
-  expectation_score?: number;
-  expectation_type?:
-    | "TEXT"
-    | "DOCUMENT"
-    | "ARTICLE"
-    | "CHALLENGE"
-    | "MANUAL"
-    | "PREVENTION"
-    | "DETECTION"
-    | "VULNERABILITY";
-}
-
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
@@ -6357,11 +6338,9 @@ export interface PlatformSettings {
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
-    | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
-    | "URL_ACCESS_TOKEN"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6629,11 +6608,9 @@ export interface PublicPlatformSettings {
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
-    | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
-    | "URL_ACCESS_TOKEN"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;

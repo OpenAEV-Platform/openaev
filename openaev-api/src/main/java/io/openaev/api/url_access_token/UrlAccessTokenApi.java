@@ -8,8 +8,6 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,7 +33,6 @@ public class UrlAccessTokenApi {
   public static final String URL_ACCESS_COOKIE_NAME = "url_access_token";
 
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
   private final OpenAEVConfig openAEVConfig;
   private final UserService userService;
 
@@ -42,12 +40,8 @@ public class UrlAccessTokenApi {
   @LogExecutionTime
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
+  @Transactional
   public ResponseEntity<Void> access(@RequestParam("token") String rawToken) {
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      throw new ResponseStatusException(
-          HttpStatus.UNAUTHORIZED, "URL access token feature disabled");
-    }
-
     try {
       UrlAccessToken token = urlAccessTokenService.validateTokenExpiration(rawToken);
       urlAccessTokenService.updateLastUsed(token);
@@ -73,6 +67,7 @@ public class UrlAccessTokenApi {
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
+  @Transactional
   public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeToken(tokenId);
@@ -86,6 +81,7 @@ public class UrlAccessTokenApi {
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
+  @Transactional
   public ResponseEntity<Void> revokeByExerciseId(@PathVariable("exerciseId") String exerciseId) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeAllForExercise(exerciseId);
