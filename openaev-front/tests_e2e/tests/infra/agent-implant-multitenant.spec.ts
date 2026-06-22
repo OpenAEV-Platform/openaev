@@ -81,7 +81,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await page.goto(tenantUrl('/admin/agents', newTenantId!));
     const agentInstallPage = new AgentInstallPage(page);
     await agentInstallPage.waitForLoad();
-    let installCommand = await agentInstallPage.getInstallCommand(platform);
+    const installCommand = await agentInstallPage.getInstallCommand(platform);
 
     // ─── Create a command-line payload in the new tenant ───
     await page.goto(tenantUrl('/admin', newTenantId!));
