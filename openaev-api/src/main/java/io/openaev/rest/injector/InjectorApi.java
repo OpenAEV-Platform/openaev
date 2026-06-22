@@ -183,6 +183,7 @@ public class InjectorApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get injector image by type")
+  @Transactional
   public ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);

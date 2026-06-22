@@ -124,6 +124,7 @@ public class CollectorApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by type")
+  @Transactional
   public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
       throws IOException {
     Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
@@ -145,6 +146,7 @@ public class CollectorApi extends RestBehavior {
       produces = MediaType.IMAGE_PNG_VALUE)
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by collector id")
+  @Transactional
   public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
       throws IOException {
     Optional<Collector> collector = collectorRepository.findById(collectorId);
