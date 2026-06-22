@@ -153,6 +153,11 @@ jobs:
         with:
           playwright-config: ${{ matrix.playwright-config }}
           browser: ${{ matrix.browser }}
+          start-all-services: 'true'
+          wait-for-jar-artifact: 'true'
+          app-readiness-check: api-me
+          use-playwright-cache: 'true'
+          upload-coverage: ${{ matrix.browser == 'chrome' && 'true' || 'false' }}
 
   e2e-infra-tests:
     name: "🧪 E2E Infra (${{ matrix.arch }})"
@@ -192,6 +197,10 @@ jobs:
         with:
           playwright-config: playwright.infra.chromium_config.ts
           browser: chromium
+          start-all-services: 'true'
+          wait-for-jar-artifact: 'true'
+          app-readiness-check: api-me
+          use-playwright-cache: 'true'
 
   api-types-check:
     name: "🔎 API Types Check"

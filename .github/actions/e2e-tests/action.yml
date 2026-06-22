@@ -1,27 +1,77 @@
 name: E2E Tests
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
-  download and run the backend JAR, and run Playwright E2E tests.
-  Requires job-level env vars: SPRING_DATASOURCE_URL,
-  SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
-  MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
-  ENGINE_URL, OPENBAS_RABBITMQ_HOSTNAME, OPENAEV_ADMIN_EMAIL,
-  OPENAEV_ADMIN_PASSWORD, OPENAEV_ADMIN_TOKEN,
-  OPENAEV_ADMIN_ENCRYPTION_KEY, OPENAEV_ADMIN_ENCRYPTION_SALT,
-  SPRING_PROFILES_ACTIVE, GH_TOKEN.
+  Unified E2E action for both core (quality-gates) and nightly matrix runs.
+  Two startup modes:
+    start-all-services=true  — starts pgsql/elasticsearch/rabbitmq/minio internally (core mode)
+    start-search-engine=true — starts only engine + minio; pgsql/rabbitmq are job services (nightly mode)
 
 inputs:
   playwright-config:
-    description: "Playwright config file to use (relative to openaev-front/)."
+    description: Playwright config file (relative to openaev-front/)
     required: true
   browser:
-    description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
+    description: Browser name (chrome, chromium, webkit, firefox, edge)
     required: true
+  playwright-extra-args:
+    description: Extra CLI args appended to yarn playwright test (e.g. --project=setup --project=chromium --workers=1 --retries=2)
+    required: false
+    default: ''
+  use-playwright-cache:
+    description: Cache Playwright browser binaries between runs (core mode)
+    required: false
+    default: 'false'
+  install-chromium-for-setup:
+    description: Also install chromium when browser != chromium (needed for nightly setup project)
+    required: false
+    default: 'false'
+  ci-arch:
+    description: Architecture marker exposed as CI_ARCH env var inside Playwright
+    required: false
+    default: ''
+  start-all-services:
+    description: Start pgsql + elasticsearch + rabbitmq + minio via docker run (core mode)
+    required: false
+    default: 'false'
+  start-search-engine:
+    description: Start only search engine + minio (nightly mode; pgsql/rabbitmq are job services)
+    required: false
+    default: 'false'
+  engine-name:
+    description: Search engine name — elasticsearch or opensearch (used when start-search-engine=true)
+    required: false
+    default: 'elasticsearch'
+  engine-image:
+    description: Search engine Docker image (used when start-search-engine=true)
+    required: false
+    default: ''
+  wait-for-jar-artifact:
+    description: Poll GitHub API until openaev-api-jar artifact is ready before downloading (core mode)
+    required: false
+    default: 'false'
+  app-readiness-check:
+    description: api-me waits for GET /api/me HTTP 200 (core); port waits for port 8080 (nightly)
+    required: false
+    default: 'port'
+  app-log-artifact-name:
+    description: Name for the uploaded application log artifact
+    required: false
+    default: 'app-log'
+  playwright-report-artifact-name:
+    description: Override name for Playwright report artifact (defaults to playwright-report-{browser})
+    required: false
+    default: ''
+  upload-coverage:
+    description: Upload E2E coverage artifact (core chrome mode)
+    required: false
+    default: 'false'
 
 runs:
   using: composite
   steps:
-    - name: Start all services (non-blocking)
+
+    # ── Mode: start ALL services (core) ─────────────────────────────────
+    - name: Start all services (pgsql, elasticsearch, rabbitmq, minio)
+      if: ${{ inputs.start-all-services == 'true' }}
       shell: bash
       run: |
         docker run -d --name pgsql \
@@ -59,23 +109,67 @@ runs:
         done
         echo "✅ All containers started"
 
+    # ── Mode: start SEARCH ENGINE + MINIO only (nightly) ────────────────
+    - name: Start ${{ inputs.engine-name }}
+      if: ${{ inputs.start-search-engine == 'true' }}
+      shell: bash
+      run: |
+        if [ "${{ inputs.engine-name }}" = "elasticsearch" ]; then
+          docker run -d --name search -p 9200:9200 \
+            -e discovery.type=single-node \
+            -e xpack.security.enabled=false \
+            -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+            ${{ inputs.engine-image }}
+        else
+          docker run -d --name search -p 9200:9200 \
+            -e discovery.type=single-node \
+            -e DISABLE_SECURITY_PLUGIN=true \
+            -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
+            ${{ inputs.engine-image }}
+        fi
+        for i in $(seq 1 60); do
+          curl -sf http://localhost:9200/_cluster/health && break
+          sleep 2
+        done
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ inputs.engine-name }} failed"; exit 1; }
+
+    - name: Start MinIO (nightly)
+      if: ${{ inputs.start-search-engine == 'true' }}
+      shell: bash
+      run: |
+        docker run -d --name minio \
+          -p 11000:9000 \
+          -e MINIO_ROOT_USER=minioadmin \
+          -e MINIO_ROOT_PASSWORD=minioadmin \
+          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+        for i in $(seq 1 30); do
+          curl -sf http://localhost:11000/minio/health/live && break
+          sleep 1
+        done
+        curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed"; exit 1; }
+
+    # ── Tooling ──────────────────────────────────────────────────────────
     - name: Set up Java 21
       uses: actions/setup-java@v5
       with:
         java-version: "21"
         distribution: temurin
+
     - name: Set up Node.js 22.11
       uses: actions/setup-node@v6
       with:
         node-version: "22.23.0"
+
     - name: Install corepack
-      run: npm install -g corepack
       shell: bash
+      run: npm install -g corepack
+
     - name: Get Yarn cache directory
       id: yarn-cache-dir
-      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
       shell: bash
       working-directory: openaev-front
+      run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
     - name: Cache Yarn dependencies
       uses: actions/cache@v5
       with:
@@ -83,33 +177,55 @@ runs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
-    - name: Install frontend dependencies
-      run: yarn install --immutable
+
+    # Core path: separate yarn install + Playwright browser cache
+    - name: Install frontend dependencies (core)
+      if: ${{ inputs.use-playwright-cache == 'true' }}
       shell: bash
       working-directory: openaev-front
-    - name: Cache Playwright browsers
+      run: yarn install --immutable
+
+    - name: Cache Playwright browsers (core)
+      if: ${{ inputs.use-playwright-cache == 'true' }}
       id: playwright-cache
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
-    - name: Install Playwright browser (${{ inputs.browser }})
-      if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps ${{ inputs.browser }}
-      shell: bash
-      working-directory: openaev-front
-    - name: Install Playwright system dependencies (cache hit)
-      if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps ${{ inputs.browser }}
-      shell: bash
-      working-directory: openaev-front
 
-    - name: Wait for backend JAR artifact
+    - name: Install Playwright browser — cache miss (core)
+      if: ${{ inputs.use-playwright-cache == 'true' && steps.playwright-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      working-directory: openaev-front
+      run: yarn playwright install --with-deps ${{ inputs.browser }}
+
+    - name: Install Playwright system dependencies — cache hit (core)
+      if: ${{ inputs.use-playwright-cache == 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
+      shell: bash
+      working-directory: openaev-front
+      run: yarn playwright install-deps ${{ inputs.browser }}
+
+    # Nightly path: yarn install + inline browser install (edge->msedge + optional chromium for setup)
+    - name: Install frontend dependencies & Playwright (nightly)
+      if: ${{ inputs.use-playwright-cache != 'true' }}
+      shell: bash
+      working-directory: openaev-front
+      run: |
+        yarn install --immutable
+        INSTALL_BROWSER=${{ inputs.browser }}
+        if [ "$INSTALL_BROWSER" = "edge" ]; then INSTALL_BROWSER="msedge"; fi
+        yarn playwright install --with-deps "$INSTALL_BROWSER"
+        if [ "${{ inputs.install-chromium-for-setup }}" = "true" ] && [ "${{ inputs.browser }}" != "chromium" ]; then
+          yarn playwright install --with-deps chromium
+        fi
+
+    # ── JAR acquisition ──────────────────────────────────────────────────
+    - name: Wait for backend JAR artifact (core)
+      if: ${{ inputs.wait-for-jar-artifact == 'true' }}
       shell: bash
       run: |
         echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
         for i in $(seq 1 180); do
-          # Check if backend-compile has failed — abort immediately
           COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
             --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
           if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
@@ -151,7 +267,9 @@ runs:
         fi
         echo "✅ openaev-api.jar present ($JAR_SIZE bytes)"
 
-    - name: Wait for services
+    # ── Service health check (core) ────────────────────────────────────
+    - name: Wait for all services (core)
+      if: ${{ inputs.start-all-services == 'true' }}
       shell: bash
       run: |
         echo "⏳ Waiting for PostgreSQL..."
@@ -184,14 +302,21 @@ runs:
 
         echo "✅ All services ready"
 
+    # ── Application startup ─────────────────────────────────────────────
     - name: Start application
-      run: java -jar openaev-api/target/openaev-api.jar > /tmp/openaev-app.log 2>&1 &
       shell: bash
-    - name: Wait for application to be ready
+      run: |
+        nohup java -jar openaev-api/target/openaev-api.jar \
+          > "${{ runner.temp }}/app.log" 2>&1 &
+        echo $! > "${{ runner.temp }}/app.pid"
+        echo "🚀 Application started (PID $(cat "${{ runner.temp }}/app.pid"))"
+
+    # ── Readiness: /api/me (core) ────────────────────────────────────────
+    - name: Wait for application ready — /api/me (core)
+      if: ${{ inputs.app-readiness-check == 'api-me' }}
       shell: bash
       run: |
         ADMIN_TOKEN="${OPENAEV_ADMIN_TOKEN}"
-
         echo "⏳ Waiting for API to be fully initialized (GET /api/me)..."
         APP_UP=false
         for i in $(seq 1 150); do
@@ -199,54 +324,109 @@ runs:
             http://localhost:8080/api/me \
             -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null || echo -e "\n000")
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
           if [ "$HTTP_CODE" -eq 200 ]; then
             echo "✅ API fully ready (HTTP 200 on /api/me after ~$((i * 2))s)"
             break
           fi
-
-          # Track when the app first starts responding
           if [ "$APP_UP" = false ] && [ "$HTTP_CODE" -ne 000 ]; then
             APP_UP=true
             echo "  Application responding (HTTP ${HTTP_CODE} after ~$((i * 2))s), waiting for full init..."
           fi
-
           if [ $((i % 15)) -eq 0 ]; then
             BODY=$(echo "$RESPONSE" | sed '$d')
             echo "  Attempt $i/150 — HTTP ${HTTP_CODE} — ${BODY}"
             echo "  Last 10 lines of app log:"
-            tail -10 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            tail -10 "${{ runner.temp }}/app.log" 2>/dev/null || echo "  (no app log)"
           fi
-
           if [ "$i" -eq 150 ]; then
             echo "❌ API /api/me not returning 200 after 300s (last HTTP ${HTTP_CODE})"
             echo "  Last 80 lines of app log:"
-            tail -80 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            tail -80 "${{ runner.temp }}/app.log" 2>/dev/null || echo "  (no app log)"
             exit 1
           fi
           sleep 2
         done
 
+    # ── Readiness: port 8080 (nightly) ──────────────────────────────────
+    - name: Wait for application ready — port 8080 (nightly)
+      if: ${{ inputs.app-readiness-check != 'api-me' }}
+      shell: bash
+      run: |
+        PID=$(cat "${{ runner.temp }}/app.pid" 2>/dev/null || echo "unknown")
+        echo "⏳ Waiting for application (PID $PID) on port 8080..."
+        for i in $(seq 1 90); do
+          if [ "$PID" != "unknown" ] && ! kill -0 "$PID" 2>/dev/null; then
+            echo "❌ Application process (PID $PID) exited prematurely"
+            break
+          fi
+          if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+            echo "✅ Application is up after $((i * 2))s"
+            exit 0
+          fi
+          sleep 2
+        done
+
+        echo ""
+        echo "╔══════════════════════════════════════════════════╗"
+        echo "║         APPLICATION FAILED TO START              ║"
+        echo "╚══════════════════════════════════════════════════╝"
+        echo ""
+        echo "── Process status ──"
+        if [ "$PID" != "unknown" ]; then
+          ps -p "$PID" -o pid,stat,etime,rss,args 2>/dev/null || echo "  Process $PID is NOT running"
+        fi
+        echo ""
+        echo "── Port 8080 check ──"
+        ss -tlnp | grep ':8080' || echo "  Nothing listening on port 8080"
+        echo ""
+        echo "── Service connectivity ──"
+        echo -n "  PostgreSQL (5432): "; curl -sf http://localhost:5432 2>&1 | head -1 || pg_isready -h localhost -p 5432 2>&1 || echo "unreachable"
+        echo -n "  Search engine (9200): "; curl -sf http://localhost:9200 | head -1 || echo "unreachable"
+        echo -n "  MinIO (11000): "; curl -sf http://localhost:11000/minio/health/live && echo "ok" || echo "unreachable"
+        echo -n "  RabbitMQ (5672): "; nc -z localhost 5672 2>&1 && echo "ok" || echo "unreachable"
+        echo ""
+        echo "── Disk space ──"
+        df -h / | head -5
+        echo ""
+        echo "── Application log (last 200 lines) ──"
+        tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || echo "  (no log file found)"
+        exit 1
+
+    # ── Upload app log ───────────────────────────────────────────────────
+    - name: Upload application log
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.app-log-artifact-name }}
+        path: ${{ runner.temp }}/app.log
+        if-no-files-found: warn
+
+    # ── XTM Composer ────────────────────────────────────────────────────
     - name: Start XTM Composer
       uses: ./.github/actions/start-xtm-composer
       with:
         openaev-url: http://localhost:8080
 
+    # ── Run tests ────────────────────────────────────────────────────────
     - name: Run E2E tests (${{ inputs.browser }})
-      run: yarn playwright test --config ${{ inputs.playwright-config }}
       shell: bash
       working-directory: openaev-front
+      run: yarn playwright test --config ${{ inputs.playwright-config }} ${{ inputs.playwright-extra-args }}
       env:
         APP_URL: http://localhost:8080
         E2E_COVERAGE: "true"
+        CI_ARCH: ${{ inputs.ci-arch }}
+
+    # ── Upload reports ───────────────────────────────────────────────────
     - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-report-${{ inputs.browser }}
+        name: ${{ inputs.playwright-report-artifact-name != '' && inputs.playwright-report-artifact-name || format('playwright-report-{0}', inputs.browser) }}
         path: openaev-front/test-results/
+
     - name: Upload E2E coverage report (${{ inputs.browser }})
-      if: ${{ !cancelled() && inputs.browser == 'chrome' }}
+      if: ${{ !cancelled() && inputs.upload-coverage == 'true' }}
       uses: actions/upload-artifact@v7
       with:
         name: playwright-coverage-${{ inputs.browser }}

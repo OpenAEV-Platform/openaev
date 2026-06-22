@@ -382,15 +382,19 @@ jobs:
       OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
       - uses: actions/checkout@v7
-      - name: Run shared nightly E2E flow
-        uses: ./.github/actions/nightly-e2e-shared
+      - name: Run E2E tests
+        uses: ./.github/actions/e2e-tests
         with:
-          engine-name: ${{ matrix.engine.name }}
-          engine-image: ${{ matrix.engine.image }}
           browser: ${{ matrix.browser }}
           playwright-config: playwright.nightly.config.ts
-          app-log-artifact-prefix: app-log
-          playwright-report-artifact-prefix: playwright-report
+          playwright-extra-args: --project=setup --project=${{ matrix.browser }} --workers=1 --retries=2
+          start-search-engine: 'true'
+          engine-name: ${{ matrix.engine.name }}
+          engine-image: ${{ matrix.engine.image }}
+          install-chromium-for-setup: 'true'
+          app-readiness-check: port
+          app-log-artifact-name: app-log-${{ matrix.engine.name }}-${{ matrix.browser }}
+          playwright-report-artifact-name: playwright-report-${{ matrix.engine.name }}-${{ matrix.browser }}
 
       - name: Verify API types are up to date
         if: matrix.browser == 'chromium' && matrix.engine.name == 'elasticsearch'
@@ -463,14 +467,18 @@ jobs:
       OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
       - uses: actions/checkout@v7
-      - name: Run shared nightly E2E flow (arm)
-        uses: ./.github/actions/nightly-e2e-shared
+      - name: Run E2E tests (arm)
+        uses: ./.github/actions/e2e-tests
         with:
-          engine-name: ${{ matrix.engine.name }}
-          engine-image: ${{ matrix.engine.image }}
           browser: ${{ matrix.browser }}
           playwright-config: playwright.nightly.config.ts
-          app-log-artifact-prefix: app-log-arm
-          playwright-report-artifact-prefix: playwright-report-arm
+          playwright-extra-args: --project=setup --project=${{ matrix.browser }} --workers=1 --retries=2
+          start-search-engine: 'true'
+          engine-name: ${{ matrix.engine.name }}
+          engine-image: ${{ matrix.engine.image }}
+          install-chromium-for-setup: 'true'
+          app-readiness-check: port
           ci-arch: arm64
+          app-log-artifact-name: app-log-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
+          playwright-report-artifact-name: playwright-report-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
 
