@@ -7,6 +7,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -112,7 +113,8 @@ public class TaniumExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
@@ -135,7 +137,8 @@ public class TaniumExecutorIntegrationTest {
     List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
     List<ConnectorInstancePersisted> instances =
         connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
-    List<Integration> syncedIntegrations = integrationFactory.sync(new ArrayList<>(instances));
+    List<Integration> syncedIntegrations =
+        integrationFactory.sync(new ArrayList<>(instances), TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(TaniumExecutorIntegration.class);
@@ -246,7 +249,7 @@ public class TaniumExecutorIntegrationTest {
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
 
     // Act
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     // Assert
     assertThat(integration.getCurrentStatus())
@@ -269,7 +272,7 @@ public class TaniumExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     Integration integration = integrationFactory.spawn(instance);
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
 
@@ -278,7 +281,7 @@ public class TaniumExecutorIntegrationTest {
     connectorInstanceService.save(instance);
 
     // Act
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     // Assert
     assertThat(integration.getCurrentStatus())

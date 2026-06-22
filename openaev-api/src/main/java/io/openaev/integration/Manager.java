@@ -121,24 +121,11 @@ public class Manager {
   /** Not thread-safe */
   public void monitorIntegrations() {
     for (IntegrationFactory factory : factories) {
-      long start = System.currentTimeMillis();
       List<ConnectorInstance> newInstances =
           factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
-      long time = System.currentTimeMillis() - start;
-      if (time > 100) {
-        log.error(
-            "!!!!!!!!!!!!!!!!!!!! Found "
-                + newInstances.size()
-                + " new instances for factory "
-                + factory.getClassName()
-                + " in tenant "
-                + tenantId
-                + " (took ms) "
-                + time);
-      }
-      List<Integration> newIntegrations = factory.sync(newInstances);
+      List<Integration> newIntegrations = factory.sync(newInstances, tenantId);
 
       for (Integration integration : newIntegrations) {
         spawnedIntegrations.put(integration.getConnectorInstance(), integration);
@@ -147,8 +134,7 @@ public class Manager {
 
     for (Map.Entry<ConnectorInstance, Integration> entry : spawnedIntegrations.entrySet()) {
       try {
-        entry.getValue().initialise();
-        log.error("???????????????????????????? Initialise " + entry.getValue());
+        entry.getValue().initialise(tenantId);
         if (entry.getValue().getConnectorInstance() == null) {
           spawnedIntegrations.remove(entry.getKey());
         }

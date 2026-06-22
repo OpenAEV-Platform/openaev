@@ -34,6 +34,10 @@ public interface ConnectorInstanceRepository
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   Optional<ConnectorInstancePersisted> findWithGraphById(String id);
 
+  /** Loads a single tenant-scoped instance with configurations and catalogConnector. */
+  @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
+  Optional<ConnectorInstancePersisted> findWithGraphByIdAndTenantId(String id, String tenantId);
+
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
   List<ConnectorInstancePersisted> findAllByCatalogConnectorContainerType(
       ConnectorType containerType);

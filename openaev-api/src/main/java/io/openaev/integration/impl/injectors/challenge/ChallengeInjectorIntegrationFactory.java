@@ -19,11 +19,9 @@ import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
-@Slf4j
 public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFactory {
 
   private final ChallengeContract challengeContract;
@@ -108,8 +106,6 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
 
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
-    long start = System.currentTimeMillis();
-    log.error("XXXXXXXXXXXXXXXXXXXXXXXXXX register challenge for tenantId " + tenantId);
     injectorService.registerBuiltinInjector(
         tenantId,
         ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
@@ -121,7 +117,5 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
         null,
         false,
         List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
-    long time = System.currentTimeMillis() - start;
-    log.error("XXXXXXXXXXXXXXXXXXXXXXXXXX register challenge timeout " + time);
   }
 }

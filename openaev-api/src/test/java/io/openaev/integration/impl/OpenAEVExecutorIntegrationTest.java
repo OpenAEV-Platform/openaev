@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -114,7 +115,9 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise();
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
+        integrationFactory.sync(
+            integrationFactory.findRelatedInstances("test-tenant"),
+            TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);
     assertThat(syncedIntegrations)
@@ -134,7 +137,9 @@ public class OpenAEVExecutorIntegrationTest {
     integrationFactory.initialise();
 
     List<Integration> syncedIntegrations =
-        integrationFactory.sync(integrationFactory.findRelatedInstances("test-tenant"));
+        integrationFactory.sync(
+            integrationFactory.findRelatedInstances("test-tenant"),
+            TenantContext.getCurrentTenant());
 
     assertThat(syncedIntegrations).hasSize(1);
     assertThat(syncedIntegrations).first().isInstanceOf(OpenAEVExecutorIntegration.class);

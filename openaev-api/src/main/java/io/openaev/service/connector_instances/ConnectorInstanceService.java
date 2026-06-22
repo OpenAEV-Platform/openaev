@@ -369,7 +369,7 @@ public class ConnectorInstanceService {
             .getManager(connectorInstance.getTenant().getId())
             .getSpawnedIntegrations()
             .get(connectorInstance)
-            .initialise();
+            .initialise(connectorInstance.getTenant().getId());
       } catch (Exception e) {
         log.error("Could not stop the connector id {} before delete", id, e);
         throw new ConnectorStatusException(
@@ -664,9 +664,11 @@ public class ConnectorInstanceService {
     return (ConnectorInstancePersisted) this.save(instance);
   }
 
-  public ConnectorInstance refresh(ConnectorInstance instance) {
+  public ConnectorInstance refresh(ConnectorInstance instance, String tenantId) {
     if (instance instanceof ConnectorInstancePersisted) {
-      return connectorInstanceRepository.findWithGraphById(instance.getId()).orElse(null);
+      return connectorInstanceRepository
+          .findWithGraphByIdAndTenantId(instance.getId(), tenantId)
+          .orElse(null);
     }
     return instance;
   }

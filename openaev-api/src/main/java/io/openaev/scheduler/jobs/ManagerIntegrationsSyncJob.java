@@ -26,7 +26,7 @@ public class ManagerIntegrationsSyncJob implements Job {
   private final ManagerFactory managerFactory;
   private final TenantService tenantService;
   private static final long EXECUTION_TIME_THRESHOLD = 500;
-  private static final long TENANT_EXECUTION_TIME_THRESHOLD = 250;
+  private static final long TENANT_EXECUTION_TIME_THRESHOLD = 300;
   private final @Qualifier("managerIntegrationsExecutor") Executor managerIntegrationsExecutor;
   // Track in-flight tenant syncs to avoid scheduling overlapping runs.
   private final Set<String> runningTenantSyncs = ConcurrentHashMap.newKeySet();
@@ -61,8 +61,8 @@ public class ManagerIntegrationsSyncJob implements Job {
       }
       long jobDuration = System.currentTimeMillis() - jobStart;
       if (jobDuration > EXECUTION_TIME_THRESHOLD) {
-        log.error(
-            "!!!!!!!!!!!!!!!!!!!!!!!!!! ManagerIntegrationsSyncJob dispatch took {} ms (threshold {} ms)",
+        log.warn(
+            "==> ManagerIntegrationsSyncJob dispatch took {} ms (threshold {} ms)",
             jobDuration,
             EXECUTION_TIME_THRESHOLD);
       }
@@ -74,16 +74,14 @@ public class ManagerIntegrationsSyncJob implements Job {
   private void monitorTenantIntegrations(String tenantId) {
     long tenantStart = System.currentTimeMillis();
     try {
-      TenantContext.setCurrentTenant(tenantId);
       managerFactory.getManager(tenantId).monitorIntegrations();
     } catch (Exception e) {
       log.error("Failed to sync integrations for tenant '{}': {}", tenantId, e.getMessage(), e);
     } finally {
-      TenantContext.clearCurrentTenant();
       long tenantDuration = System.currentTimeMillis() - tenantStart;
       if (tenantDuration > TENANT_EXECUTION_TIME_THRESHOLD) {
-        log.error(
-            "!!!!!!!!!!!!!!!!!!!!!!!!!!  Integration sync for tenant '{}' took {} ms (threshold {} ms)",
+        log.warn(
+            "==>  Integration sync for tenant '{}' took {} ms (threshold {} ms)",
             tenantId,
             tenantDuration,
             TENANT_EXECUTION_TIME_THRESHOLD);

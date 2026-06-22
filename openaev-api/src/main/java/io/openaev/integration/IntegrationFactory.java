@@ -36,13 +36,12 @@ public abstract class IntegrationFactory {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public List<Integration> sync(List<ConnectorInstance> instances) {
+  public List<Integration> sync(List<ConnectorInstance> instances, String tenantId) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
       try {
         Integration integration = this.spawn(connectorInstance);
-        integration.initialise();
-        log.error("???????????????????????????? Initialise " + integration);
+        integration.initialise(tenantId);
         list.add(integration);
       } catch (Exception e) {
         log.error(

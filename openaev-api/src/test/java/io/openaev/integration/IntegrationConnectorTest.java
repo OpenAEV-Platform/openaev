@@ -3,6 +3,7 @@ package io.openaev.integration;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.integration.local_fixtures.regular.TestIntegration;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -36,7 +37,7 @@ public class IntegrationConnectorTest {
         new TestIntegration(componentRequestEngine, instance, connectorInstanceService, null);
 
     integration.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
@@ -52,7 +53,7 @@ public class IntegrationConnectorTest {
         new TestIntegration(componentRequestEngine, instance, connectorInstanceService, null);
 
     integration.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.stopped;
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     assertThat(integration.getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
@@ -74,7 +75,7 @@ public class IntegrationConnectorTest {
     TestIntegration integration =
         new TestIntegration(componentRequestEngine, instance, connectorInstanceService, null);
 
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
     String appliedHashBefore = readAppliedHash(integration);
     assertThat(appliedHashBefore).isNotNull();
 
@@ -84,7 +85,7 @@ public class IntegrationConnectorTest {
     config.setKey("TEST_KEY");
     config.setValue(mapper.readTree("2"));
 
-    integration.initialise();
+    integration.initialise(TenantContext.getCurrentTenant());
 
     String appliedHashAfter = readAppliedHash(integration);
     assertThat(appliedHashAfter).isNotNull();

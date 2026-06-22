@@ -39,6 +39,7 @@ public abstract class Integration {
   private void start() throws Exception {
     if (ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
       this.refresh();
+      // TODO check/add tenant id in each inner start
       this.innerStart();
       this.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
       this.appliedHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
@@ -54,9 +55,9 @@ public abstract class Integration {
     this.currentStatus = ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped;
   }
 
-  public void initialise() throws Exception {
+  public void initialise(String tenantId) throws Exception {
     try {
-      this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance);
+      this.connectorInstance = connectorInstanceService.refresh(this.connectorInstance, tenantId);
       if (connectorInstance == null) {
         // the instance cannot be found again in the DB
         // exit early to finally block

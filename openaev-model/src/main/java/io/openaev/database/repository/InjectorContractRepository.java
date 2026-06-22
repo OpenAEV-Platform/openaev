@@ -111,6 +111,14 @@ public interface InjectorContractRepository
   List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
 
   @NotNull
+  @Query(
+      "SELECT ic FROM InjectorContract ic "
+          + "JOIN ic.injectors i "
+          + "WHERE i = :injector AND ic.compositeId.tenantId = :tenantId")
+  List<InjectorContract> findByTenantIdAndInjectorsContaining(
+      @Param("tenantId") @NotNull String tenantId, @Param("injector") @NotNull Injector injector);
+
+  @NotNull
   Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);
 
   @Query(
