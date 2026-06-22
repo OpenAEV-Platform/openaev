@@ -1,7 +1,6 @@
 package io.openaev.scheduler.jobs;
 
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.service.tenants.TenantService;
 import java.util.List;
