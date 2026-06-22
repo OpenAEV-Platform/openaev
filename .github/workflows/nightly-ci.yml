@@ -33,6 +33,59 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
 
+  prepare-release-assets:
+    name: Prepare Release Assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compute versions
+        id: versions
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "binary_version=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "catalog_version=${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "binary_version=latest" >> "$GITHUB_OUTPUT"
+            echo "catalog_version=rolling" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download agent & implant binaries
+        run: |
+          BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
+
+          if [[ "${{ steps.versions.outputs.catalog_version }}" == "rolling" || "${{ steps.versions.outputs.catalog_version }}" == "prerelease" ]]; then
+            LOCAL_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "$BINARY_VERSION")"
+          else
+            LOCAL_VERSION="$BINARY_VERSION"
+          fi
+
+          chmod +x scripts/download-binaries.sh
+          bash scripts/download-binaries.sh "$BINARY_VERSION" "$LOCAL_VERSION"
+
+      - name: Patch catalog version
+        run: |
+          CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+          CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
+
+          jq --arg ver "$CATALOG_VERSION" \
+            '.contracts[].container_version = $ver | .version = $ver' \
+            "$CATALOG_FILE" > catalog.tmp
+          mv catalog.tmp "$CATALOG_FILE"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: |
+            openaev-api/src/main/resources/agents/
+            openaev-api/src/main/resources/implants/
+            openaev-api/src/main/resources/catalog/
+
   # ────────────────────────────────────────────────────────────────────
   # Backend API tests — full suite (no sharding)
   # Two parallel variants: Elasticsearch vs OpenSearch
@@ -221,11 +274,13 @@ jobs:
 
   backend-package:
     name: Backend Package
-    needs: [ frontend-build, backend-compile ]
+    needs: [ frontend-build, backend-compile, prepare-release-assets ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: 'true'
 
   # ────────────────────────────────────────────────────────────────────
   # E2E tests — browser × engine matrix (Linux x64, services managed by GitHub)
