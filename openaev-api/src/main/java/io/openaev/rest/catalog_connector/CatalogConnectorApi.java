@@ -21,6 +21,7 @@ import org.apache.commons.io.IOUtils;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,6 +40,7 @@ public class CatalogConnectorApi extends RestBehavior {
   private final FileService fileService;
 
   @GetMapping({CATALOG_CONNECTOR_URI, TENANT_CATALOG_CONNECTOR_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public List<CatalogConnectorOutput> getCatalogConnectors() {
     return this.catalogConnectorService.getCatalogConnectors();
@@ -48,6 +50,7 @@ public class CatalogConnectorApi extends RestBehavior {
     CATALOG_CONNECTOR_URI + "/{catalogConnectorId}",
     TENANT_CATALOG_CONNECTOR_URI + "/{catalogConnectorId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,
@@ -59,6 +62,7 @@ public class CatalogConnectorApi extends RestBehavior {
   @GetMapping(
       value = {CATALOG_CONNECTOR_LOGO_URI, TENANT_CATALOG_CONNECTOR_LOGO_URI},
       produces = MediaType.IMAGE_PNG_VALUE)
+  @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> getCatalogLogo(@PathVariable String fileName) throws IOException {
     Optional<InputStream> fileStream = fileService.getCatalogConnectorImage(fileName, false);
@@ -75,6 +79,7 @@ public class CatalogConnectorApi extends RestBehavior {
     CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations",
     TENANT_CATALOG_CONNECTOR_URI + "/{catalogConnectorId}/configurations"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#catalogConnectorId",
       actionPerformed = Action.READ,

@@ -20,13 +20,13 @@ import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -52,7 +52,7 @@ public class InjectStatusService {
             () -> new ElementNotFoundException("Inject status not found for :" + injectId));
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow();
     // build status

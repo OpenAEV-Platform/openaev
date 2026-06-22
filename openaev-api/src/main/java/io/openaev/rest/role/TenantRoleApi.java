@@ -63,6 +63,7 @@ public class TenantRoleApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.GROUP_ROLE)
   @Operation(description = "Get Role by Id", summary = "Get Role")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Role found"),
@@ -77,6 +78,7 @@ public class TenantRoleApi extends RestBehavior {
   @GetMapping({ROLE_URI, TENANT_ROLE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.GROUP_ROLE)
   @Operation(description = "Get All Roles", summary = "Get Roles")
+  @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
   public List<RoleOutput> roles() {
     return roleService.findAll(TenantContext.getCurrentTenant()).stream()
@@ -86,6 +88,7 @@ public class TenantRoleApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ROLE_URI + "/search", TENANT_ROLE_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.GROUP_ROLE)
   @Operation(
       description = "Search Roles corresponding to search criteria",

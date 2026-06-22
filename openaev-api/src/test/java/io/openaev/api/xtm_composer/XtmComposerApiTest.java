@@ -32,7 +32,6 @@ import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -40,6 +39,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional

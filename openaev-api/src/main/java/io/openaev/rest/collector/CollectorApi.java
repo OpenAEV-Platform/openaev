@@ -22,13 +22,13 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -48,6 +48,7 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
+  @Transactional
   @ApiResponse(
       responseCode = "200",
       content =
@@ -85,6 +86,7 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
@@ -102,6 +104,7 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
+  @Transactional
   public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
   }
@@ -111,7 +114,7 @@ public class CollectorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Collector updateCollector(
       @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
     Collector collector = collectorService.collector(collectorId);
@@ -129,7 +132,7 @@ public class CollectorApi extends RestBehavior {
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Collector registerCollector(
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {

@@ -1,6 +1,6 @@
-package io.openaev.rest.report.specification;
+package io.openaev.database.specification;
 
-import io.openaev.rest.report.model.Report;
+import io.openaev.database.model.Report;
 import org.springframework.data.jpa.domain.Specification;
 
 public class ReportSpecification {
