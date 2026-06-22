@@ -111,7 +111,10 @@ public class InjectorApi extends RestBehavior {
         injectorRepository
             .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
+    return fromIterable(
+            injectorContractRepository.findByTenantIdAndInjectorsContaining(
+                TenantContext.getCurrentTenant(), injector))
+        .stream()
         .map(
             contract -> {
               try {
