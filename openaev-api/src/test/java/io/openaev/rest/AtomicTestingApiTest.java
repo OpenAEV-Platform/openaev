@@ -725,7 +725,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
 
         List<Double> detectionScoresByType =
-            JsonPath.read(response, "$[?(@.inject_expectation_type == 'DETECTION')].inject_expectation_score");
+            JsonPath.read(
+                response,
+                "$[?(@.inject_expectation_type == 'DETECTION')].inject_expectation_score");
         assertFalse(detectionScoresByType.isEmpty());
         assertEquals(100.0, detectionScoresByType.getFirst());
 
