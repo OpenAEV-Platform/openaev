@@ -95,6 +95,8 @@ runs:
         outputs: type=oci,dest=openaev-image.tar
         tags: ${{ inputs.tags }}
         labels: ${{ inputs.labels }}
+        cache-from: type=gha,scope=docker-standard
+        cache-to: type=gha,mode=max,scope=docker-standard
 
     - name: Compress standard OCI archive
       run: |
@@ -198,6 +200,8 @@ runs:
         outputs: type=oci,dest=openaev-ubi9-image.tar
         tags: ${{ inputs.ubi9-tags }}
         labels: ${{ inputs.ubi9-labels }}
+        cache-from: type=gha,scope=docker-ubi9
+        cache-to: type=gha,mode=max,scope=docker-ubi9
 
     - name: Compress UBI9 OCI archive
       if: ${{ inputs.build-ubi9 == 'true' }}
