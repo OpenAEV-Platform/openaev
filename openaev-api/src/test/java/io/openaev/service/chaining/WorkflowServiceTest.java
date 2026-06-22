@@ -1237,15 +1237,14 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-// evaluateWorkflowProgress Tests
-// ========================================================================
+  // evaluateWorkflowProgress Tests
+  // ========================================================================
   @Nested
   @DisplayName("evaluateWorkflowProgress")
   class EvaluateWorkflowProgressTests {
 
     @Test
-    @DisplayName(
-        "given active steps exist should not set workflow to END")
+    @DisplayName("given active steps exist should not set workflow to END")
     void given_activeStepsExist_should_notEndWorkflow() throws Exception {
       // Arrange
       String workflowRunId = UUID.randomUUID().toString();
@@ -1280,8 +1279,7 @@ class WorkflowServiceTest {
     }
 
     @Test
-    @DisplayName(
-        "given steps in delay queue should not set workflow to END")
+    @DisplayName("given steps in delay queue should not set workflow to END")
     void given_stepsInDelayQueue_should_notEndWorkflow() throws Exception {
       // Arrange
       String workflowRunId = UUID.randomUUID().toString();
@@ -1319,8 +1317,7 @@ class WorkflowServiceTest {
     }
 
     @Test
-    @DisplayName(
-        "given new ready steps created should not set workflow to END")
+    @DisplayName("given new ready steps created should not set workflow to END")
     void given_newReadyStepsCreated_should_notEndWorkflow() throws Exception {
       // Arrange
       String workflowRunId = UUID.randomUUID().toString();
@@ -1358,8 +1355,7 @@ class WorkflowServiceTest {
     }
 
     @Test
-    @DisplayName(
-        "given no active steps and empty delay queue should set workflow to END")
+    @DisplayName("given no active steps and empty delay queue should set workflow to END")
     void given_noActiveStepsAndEmptyDelayQueue_should_endWorkflow() throws Exception {
       // Arrange
       String workflowRunId = UUID.randomUUID().toString();
@@ -1394,5 +1390,4 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.END, result.getStatus());
     }
   }
-
 }

@@ -618,8 +618,7 @@ public class StepService {
    * @return list of steps active
    */
   public List<Step> findAllStepActiveByWorkflowRunId(String id) {
-    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-        id, ACTIVE_STEP_STATUS);
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, ACTIVE_STEP_STATUS);
   }
 
   /**
@@ -630,8 +629,7 @@ public class StepService {
    */
   public int endActiveStepsByWorkflowId(String workflowId) {
     List<Step> activeSteps =
-        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-            workflowId, ACTIVE_STEP_STATUS);
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(workflowId, ACTIVE_STEP_STATUS);
     for (Step step : activeSteps) {
       step.setStatus(StepStatus.END);
     }
