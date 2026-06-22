@@ -29,6 +29,86 @@ class TenantStatementInspectorTest {
     assertEquals(sql, inspector.inspect(sql));
   }
 
+  // --- Fail-closed on shapes the rewriter does not cover -------------------
+
+  @Test
+  @DisplayName("a parseable but non-CRUD statement on an active table is refused")
+  void unsupportedStatementTypeIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class, () -> inspector.inspect("TRUNCATE TABLE documents"));
+    assertTrue(ex.getMessage().contains("statement shape not supported"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("an UPDATE with a target-side join is refused (not yet covered)")
+  void updateWithTargetJoinIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class,
+            () ->
+                inspector.inspect(
+                    "UPDATE documents d JOIN findings f ON f.doc_id = d.id SET d.name = 'x'"));
+    assertTrue(ex.getMessage().contains("target join"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("a multi-target DELETE is refused (not yet covered)")
+  void multiTargetDeleteIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class,
+            () ->
+                inspector.inspect(
+                    "DELETE d, f FROM documents d JOIN findings f ON f.doc_id = d.id"));
+    assertTrue(ex.getMessage().contains("multi-target or join"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("an INSERT ... SELECT without a column list is refused")
+  void insertSelectWithoutColumnListIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class,
+            () -> inspector.inspect("INSERT INTO documents SELECT id FROM documents"));
+    assertTrue(ex.getMessage().contains("explicit column list"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("an INSERT ... SELECT from a non-plain (UNION) source is refused")
+  void insertSelectFromUnionSourceIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class,
+            () ->
+                inspector.inspect(
+                    "INSERT INTO documents (tenant_id, x) "
+                        + "SELECT tenant_id, x FROM documents UNION SELECT tenant_id, x FROM documents"));
+    assertTrue(ex.getMessage().contains("explicit column list"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("an INSERT ... SELECT whose tenant_id column is not projected is refused")
+  void insertSelectTenantIdNotProjectedIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class,
+            () ->
+                inspector.inspect("INSERT INTO documents (x, tenant_id) SELECT x FROM documents"));
+    assertTrue(ex.getMessage().contains("cannot be mapped"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("a FROM item the rewriter cannot wrap (table function) is refused")
+  void unsupportedFromItemIsRefused() {
+    TenantFilteringException ex =
+        assertThrows(
+            TenantFilteringException.class,
+            () ->
+                inspector.inspect("SELECT * FROM documents d CROSS JOIN generate_series(1, 10) g"));
+    assertTrue(ex.getMessage().contains("not yet covered"), ex.getMessage());
+  }
+
   // --- Single table --------------------------------------------------------
 
   @Test
