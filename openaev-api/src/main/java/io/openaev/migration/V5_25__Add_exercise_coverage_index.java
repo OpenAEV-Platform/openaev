@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * {@code exercise_end_date IS NOT NULL} to match the query and keep the index lean.
  */
 @Component
-public class V5_24__Add_exercise_coverage_index extends BaseJavaMigration {
+public class V5_25__Add_exercise_coverage_index extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
