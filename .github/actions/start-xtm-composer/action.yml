@@ -27,7 +27,25 @@ runs:
         mkdir -p /tmp/xtm-keys
         openssl genpkey -algorithm RSA -out /tmp/xtm-keys/private_key.pem -pkeyopt rsa_keygen_bits:4096
 
-        echo "🚀 Starting XTM Composer..."
+        pull_with_retry() {
+          local image="$1"
+          for i in $(seq 1 3); do
+            if docker pull "$image"; then
+              return 0
+            fi
+            echo "⚠️ Pull failed for $image (attempt $i/3), retrying..."
+            sleep 2
+          done
+          return 1
+        }
+
+        XTM_IMAGE="filigran/xtm-composer:latest"
+        if ! pull_with_retry "$XTM_IMAGE"; then
+          echo "❌ Unable to pull $XTM_IMAGE"
+          exit 1
+        fi
+
+        echo "🚀 Starting XTM Composer with $XTM_IMAGE..."
         docker run -d --name xtm-composer \
           --network host \
           -e MANAGER__ID=8B67E8B6-D5CC-4BE6-9BF1-4D75A5F374E3 \
@@ -42,7 +60,7 @@ runs:
           -e OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host \
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v /tmp/xtm-keys:/keys:ro \
-          filigran/xtm-composer:latest
+          "$XTM_IMAGE"
 
         echo "⏳ Waiting for XTM Composer to register..."
         for i in $(seq 1 30); do
