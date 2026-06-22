@@ -66,11 +66,24 @@ runs:
         for i in $(seq 1 30); do
           if docker logs xtm-composer 2>&1 | grep -qi "registered\|connected\|started"; then
             echo "✅ XTM Composer ready (after ~$((i * 2))s)"
-            exit 0
+            break
           fi
           sleep 2
         done
 
-        echo "⚠️ XTM Composer may not be fully registered yet"
+        echo "⏳ Waiting for OpenAEV to report XTM Composer as reachable..."
+        for i in $(seq 1 60); do
+          BODY=$(curl -s \
+            -H "Authorization: Bearer ${OPENAEV_ADMIN_TOKEN}" \
+            "${OPENAEV_URL}/api/xtm-composer/reachable" || true)
+          if [ "$BODY" = "true" ]; then
+            echo "✅ OpenAEV confirms XTM Composer is reachable (after ~$((i * 3))s)"
+            exit 0
+          fi
+          sleep 3
+        done
+
+        echo "❌ XTM Composer is not reachable from OpenAEV"
         docker logs xtm-composer 2>&1 | tail -20
+        exit 1
 

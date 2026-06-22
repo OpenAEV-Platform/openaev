@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 import { TIMEOUT } from '../../utils/constants';
 
@@ -9,7 +9,7 @@ import { TIMEOUT } from '../../utils/constants';
 class InjectorInstancePage {
   /** Maximum wait time (ms) for the injector to reach "Started" status.
    *  Starting a real injector container is async and can take time. */
-  private readonly STATUS_CHANGE_TIMEOUT = 120_000;
+  private readonly STATUS_CHANGE_TIMEOUT = 240_000;
 
   constructor(private page: Page) {}
 
@@ -37,8 +37,11 @@ class InjectorInstancePage {
    * Requires the actual injector agent to start; may take up to STATUS_CHANGE_TIMEOUT ms.
    */
   async waitForStarted(): Promise<void> {
-    await this.startedChip.waitFor({
-      state: 'visible',
+    await expect(async () => {
+      await this.page.reload();
+      await expect(this.startedChip).toBeVisible();
+    }).toPass({
+      intervals: [5_000],
       timeout: this.STATUS_CHANGE_TIMEOUT,
     });
   }
