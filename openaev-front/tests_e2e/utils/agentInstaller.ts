@@ -17,7 +17,8 @@ export const normalizeAgentInstallCommand = (rawCommand: string): AgentInstallEx
     command = command.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
     shell = 'powershell';
   } else {
-    // Keep the backend-provided command, but execute with bash in CI/Linux shells.
+    // Keep the backend-provided command, but avoid piping into sh (dash in CI).
+    command = command.replace(/\|\s*sh\b/, '| bash');
     shell = '/bin/bash';
   }
 
