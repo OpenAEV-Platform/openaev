@@ -205,6 +205,7 @@ public class StepService {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
   }
+
   /**
    * Count executed step by status
    *
