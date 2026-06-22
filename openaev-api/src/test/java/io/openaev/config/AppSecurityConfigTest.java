@@ -138,10 +138,10 @@ public class AppSecurityConfigTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("bearer auth is stateless: replaying its session cookie alone is unauthorized")
+  @DisplayName("a bearer call's session is not reusable to authenticate without the bearer token")
   void given_replayedBearerSessionWithoutToken_should_returnUnauthorized() throws Exception {
-    // A bearer call succeeds but must NOT establish a reusable server-side session: token auth is
-    // stateless, so no JSESSIONID is persisted for the client to replay (the #6343 root cause).
+    // A bearer call may run with a session present, but token auth is stateless: its
+    // SecurityContext is never persisted to that session (the #6343 root cause).
     MockHttpSession session = new MockHttpSession();
     mockMvc
         .perform(
@@ -152,7 +152,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .content(SEARCH_BODY))
         .andExpect(status().isOk());
 
-    // Replaying only the JSESSIONID from that bearer call (no bearer token) is not authenticated.
+    // Replaying that same server-side session (via .session(...); the JSESSIONID cookie below is
+    // redundant in MockMvc) with a valid CSRF token but no bearer token stays unauthenticated.
     Cookie jsessionCookie = new Cookie("JSESSIONID", Objects.requireNonNull(session.getId()));
     Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
 
