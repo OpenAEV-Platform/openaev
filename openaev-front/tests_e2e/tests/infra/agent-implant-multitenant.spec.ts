@@ -11,6 +11,7 @@ import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingList
 import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { normalizeAgentInstallCommand } from '../../utils/agentInstaller';
 import { AUTH_FILE, TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
@@ -95,13 +96,11 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await context.close();
 
     // ─── Execute the install command ───
-    if (os.platform() === 'win32') {
-      installCommand = installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
-    }
-    execSync(installCommand, {
+    const normalizedInstall = normalizeAgentInstallCommand(installCommand);
+    execSync(normalizedInstall.command, {
       stdio: 'inherit',
       timeout: 60_000,
-      shell: os.platform() === 'win32' ? 'powershell' : undefined,
+      shell: normalizedInstall.shell,
     });
   });
 

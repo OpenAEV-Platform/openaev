@@ -9,6 +9,7 @@ import EndpointListPage from '../../model/assets/EndpointListPage';
 import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { normalizeAgentInstallCommand } from '../../utils/agentInstaller';
 import { AUTH_FILE } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
@@ -57,17 +58,12 @@ test.describe('Agent implant registration', () => {
 
     await context.close();
 
-    // Windows PowerShell 5.1 prompts for confirmation when iwr parses HTML;
-    // -UseBasicParsing avoids the interactive security prompt.
-    if (os.platform() === 'win32') {
-      installCommand = installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
-    }
-
     // Execute the install command
-    execSync(installCommand, {
+    const normalizedInstall = normalizeAgentInstallCommand(installCommand);
+    execSync(normalizedInstall.command, {
       stdio: 'inherit',
       timeout: 60_000,
-      shell: os.platform() === 'win32' ? 'powershell' : undefined,
+      shell: normalizedInstall.shell,
     });
   });
 
