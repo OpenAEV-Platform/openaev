@@ -306,13 +306,9 @@ public class DocumentApi extends RestBehavior {
         .body(new InputStreamResource(in));
   }
 
-  public void downloadCollectorImage(
-      @PathVariable String collectorType, HttpServletResponse response) throws IOException {
-    response.addHeader(
-        HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + collectorType + ".png");
-    response.addHeader(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE);
-    response.setStatus(HttpServletResponse.SC_OK);
-    try (InputStream fileStream =
+  public ResponseEntity<InputStreamResource> downloadCollectorImage(
+      @PathVariable String collectorType) {
+    InputStream in =
         fileService
             .getCollectorImage(collectorType)
             .orElseThrow(() -> new ElementNotFoundException("File not found"));
