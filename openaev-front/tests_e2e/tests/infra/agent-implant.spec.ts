@@ -45,7 +45,7 @@ test.describe('Agent implant registration', () => {
     await page.goto(tenantUrl('/admin/agents'));
     const agentInstallPage = new AgentInstallPage(page);
     await agentInstallPage.waitForLoad();
-    let installCommand = await agentInstallPage.getInstallCommand(platform);
+    const installCommand = await agentInstallPage.getInstallCommand(platform);
 
     // ─── Create the threat arsenal payload ───
     await page.goto(tenantUrl('/admin'));

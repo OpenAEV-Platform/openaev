@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import os from 'node:os';
 
 export type AgentInstallExecution = {
@@ -22,12 +21,8 @@ export const normalizeAgentInstallCommand = (rawCommand: string): AgentInstallEx
     shell = '/bin/bash';
   }
 
-  const commandHash = createHash('sha256').update(command).digest('hex').slice(0, 12);
-  console.info(
-    `[E2E][AgentInstall] shell=${shell} commandHash=${commandHash} commandLength=${command.length}`,
-  );
-
-  return { command, shell };
+  return {
+    command,
+    shell,
+  };
 };
-
-
