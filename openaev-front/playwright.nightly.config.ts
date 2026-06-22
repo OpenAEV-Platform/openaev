@@ -19,6 +19,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
+      testIgnore: /infra\/.*/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -31,6 +32,7 @@ export default defineConfig({
     },
     {
       name: 'firefox',
+      testIgnore: /infra\/.*/,
       use: {
         ...devices['Desktop Firefox'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -43,6 +45,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
+      testIgnore: /infra\/.*/,
       use: {
         ...devices['Desktop Safari'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -55,6 +58,7 @@ export default defineConfig({
     },
     {
       name: 'chrome',
+      testIgnore: /infra\/.*/,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
@@ -68,6 +72,7 @@ export default defineConfig({
     },
     {
       name: 'edge',
+      testIgnore: /infra\/.*/,
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
