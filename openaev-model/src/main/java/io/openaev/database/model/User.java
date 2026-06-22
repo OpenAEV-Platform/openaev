@@ -402,9 +402,6 @@ public class User implements Base {
    * tenant plus platform-level groups (tenant IS NULL).
    */
   private List<Group> scopedGroups() {
-    if (!TenantContext.hasCurrentTenant()) {
-      return platformGroups();
-    }
     String currentTenant = TenantContext.getCurrentTenant();
     return getUnscopedGroups().stream()
         .filter(
