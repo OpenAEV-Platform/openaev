@@ -101,15 +101,15 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     String instanceId = getConnectorInstance().getId();
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            instanceId, ConnectorType.EXECUTOR.getIdKeyName());
+            instanceId, ConnectorType.EXECUTOR.getIdKeyName(), tenantId);
     String executorName =
         ofNullable(
                 connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+                    getConnectorInstance().getId(), "EXECUTOR_NAME", tenantId))
             .orElseThrow(
                 () ->
                     new ExecutorException(
@@ -129,7 +129,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.Windows.name(),
               Endpoint.PLATFORM_TYPE.Linux.name(),
               Endpoint.PLATFORM_TYPE.MacOS.name()
-            });
+            },
+            tenantId);
 
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
@@ -140,7 +141,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, executorId);
+            config, crowdStrikeExecutorContextService, agentService, executorId, tenantId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

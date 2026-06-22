@@ -36,7 +36,7 @@ public class OpenAEVExecutorIntegration extends Integration {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
 
     this.openAEVExecutorContextService =
         new OpenAEVExecutorContextService(assetAgentJobRepository, serviceAccountPrivilegeService);

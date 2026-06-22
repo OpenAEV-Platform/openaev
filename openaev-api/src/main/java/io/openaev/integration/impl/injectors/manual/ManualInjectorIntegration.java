@@ -40,7 +40,7 @@ public class ManualInjectorIntegration extends IntegrationInMemory {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     this.manualExecutor = new ManualExecutor(injectorContext, injectExpectationService);
   }
 

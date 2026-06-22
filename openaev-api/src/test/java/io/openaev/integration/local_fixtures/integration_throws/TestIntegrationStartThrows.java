@@ -16,7 +16,7 @@ public class TestIntegrationStartThrows extends Integration {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     throw new RuntimeException("throw exception on start()");
   }
 

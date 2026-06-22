@@ -52,7 +52,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     this.challengeExecutor =
         new ChallengeExecutor(
             injectorContext,

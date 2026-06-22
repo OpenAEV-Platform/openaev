@@ -67,7 +67,7 @@ public class OpenCTIInjectorIntegration extends Integration {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     this.openCTIExecutor =
         new OpenCTIExecutor(injectorContext, openCTIService, injectExpectationService);
   }

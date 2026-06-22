@@ -44,7 +44,7 @@ public class EmailInjectorIntegration extends IntegrationInMemory {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     this.emailExecutor = new EmailExecutor(injectorContext, emailService, injectExpectationService);
   }
 

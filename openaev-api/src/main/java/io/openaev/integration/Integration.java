@@ -32,15 +32,14 @@ public abstract class Integration {
     this.connectorInstanceService = connectorInstanceService;
   }
 
-  protected abstract void innerStart() throws Exception;
+  protected abstract void innerStart(String tenantId) throws Exception;
 
   protected abstract void refresh() throws Exception;
 
-  private void start() throws Exception {
+  private void start(String tenantId) throws Exception {
     if (ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped.equals(this.currentStatus)) {
       this.refresh();
-      // TODO check/add tenant id in each inner start
-      this.innerStart();
+      this.innerStart(tenantId);
       this.currentStatus = ConnectorInstance.CURRENT_STATUS_TYPE.started;
       this.appliedHash = ConnectorInstanceHashHelper.computeInstanceHash(this.connectorInstance);
     } else {
@@ -94,11 +93,11 @@ public abstract class Integration {
         log.info(
             "Integration: restarting instance {} (hash changed)", this.connectorInstance.getId());
         this.stop();
-        this.start();
+        this.start(tenantId);
         return;
       }
       if (isStartingRequested && isStopped) {
-        this.start();
+        this.start(tenantId);
       }
     } catch (Exception e) {
       log.error(

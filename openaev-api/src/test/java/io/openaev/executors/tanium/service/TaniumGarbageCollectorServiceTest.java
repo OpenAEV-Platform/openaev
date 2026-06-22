@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class TaniumGarbageCollectorServiceTest {
 
   private static final String EXECUTOR_ID = "test-executor-id";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private AgentService agentService;
   @Mock private TaniumExecutorContextService taniumExecutorContextService;
@@ -33,7 +34,7 @@ public class TaniumGarbageCollectorServiceTest {
   void setUp() {
     taniumGarbageCollectorService =
         new TaniumGarbageCollectorService(
-            config, taniumExecutorContextService, agentService, EXECUTOR_ID);
+            config, taniumExecutorContextService, agentService, EXECUTOR_ID, TENANT_ID);
   }
 
   @Test
@@ -41,7 +42,8 @@ public class TaniumGarbageCollectorServiceTest {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorId(EXECUTOR_ID)).thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorIdAndTenantId(EXECUTOR_ID, TENANT_ID))
+        .thenReturn(List.of(agent));
     when(config.getWindowsPackageId()).thenReturn(12345);
     // Run method to test
     taniumGarbageCollectorService.run();

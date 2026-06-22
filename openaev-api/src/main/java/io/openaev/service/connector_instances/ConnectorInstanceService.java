@@ -226,8 +226,14 @@ public class ConnectorInstanceService {
    */
   public ConnectorInstancePersisted connectorInstanceById(String id)
       throws EntityNotFoundException {
+    String tenantId = TenantContext.getCurrentTenant();
+    return connectorInstanceById(id, tenantId);
+  }
+
+  public ConnectorInstancePersisted connectorInstanceById(String id, String tenantId)
+      throws EntityNotFoundException {
     return connectorInstanceRepository
-        .findWithGraphById(id)
+        .findWithGraphByIdAndTenantId(id, tenantId)
         .orElseThrow(
             () -> new EntityNotFoundException("ConnectorInstance with id " + id + " not found"));
   }
@@ -269,7 +275,12 @@ public class ConnectorInstanceService {
    * @return a set of connector instance configurations
    */
   public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(String instanceId) {
-    return connectorInstanceById(instanceId).getConfigurations();
+    return getConnectorInstanceConfigurations(instanceId, TenantContext.getCurrentTenant());
+  }
+
+  public Set<ConnectorInstanceConfiguration> getConnectorInstanceConfigurations(
+      String instanceId, String tenantId) {
+    return connectorInstanceById(instanceId, tenantId).getConfigurations();
   }
 
   /**
@@ -290,10 +301,12 @@ public class ConnectorInstanceService {
    *
    * @param instanceId the connector instance ID to search for the configuration
    * @param key the configuration key to retrieve
+   * @param tenantId the tenant ID to filter by
    * @return the configuration value as a String
    */
-  public String getConnectorInstanceConfigurationsByIdAndKey(String instanceId, String key) {
-    return this.getConnectorInstanceConfigurations(instanceId).stream()
+  public String getConnectorInstanceConfigurationsByIdAndKey(
+      String instanceId, String key, String tenantId) {
+    return this.getConnectorInstanceConfigurations(instanceId, tenantId).stream()
         .filter(c -> key.equals(c.getKey()))
         .findFirst()
         .map(c -> c.getValue().asText())

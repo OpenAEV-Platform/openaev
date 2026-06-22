@@ -22,21 +22,24 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
   private final CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   private final AgentService agentService;
   private final String executorId;
+  private final String tenantId;
 
   public CrowdStrikeGarbageCollectorService(
       CrowdStrikeExecutorConfig config,
       CrowdStrikeExecutorContextService crowdStrikeExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      String executorId,
+      String tenantId) {
     this.config = config;
     this.crowdStrikeExecutorContextService = crowdStrikeExecutorContextService;
     this.agentService = agentService;
     this.executorId = executorId;
+    this.tenantId = tenantId;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
+    List<Agent> agents = this.agentService.getAgentsByExecutorIdAndTenantId(executorId, tenantId);
     if (!agents.isEmpty()) {
       List<CrowdStrikeAction> actions = new ArrayList<>();
       log.info("Running CrowdStrike executor garbage collector on " + agents.size() + " agents");

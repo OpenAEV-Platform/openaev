@@ -23,21 +23,24 @@ public class PaloAltoCortexGarbageCollectorService implements Runnable {
   private final PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
   private final AgentService agentService;
   private final String executorId;
+  private final String tenantId;
 
   public PaloAltoCortexGarbageCollectorService(
       PaloAltoCortexExecutorConfig config,
       PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      String executorId,
+      String tenantId) {
     this.config = config;
     this.paloAltoCortexExecutorContextService = paloAltoCortexExecutorContextService;
     this.agentService = agentService;
     this.executorId = executorId;
+    this.tenantId = tenantId;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
+    List<Agent> agents = this.agentService.getAgentsByExecutorIdAndTenantId(executorId, tenantId);
     if (!agents.isEmpty()) {
       log.info(
           "Running Palo Alto Cortex executor garbage collector on " + agents.size() + " agents");

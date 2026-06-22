@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class CrowdstrikeGarbageCollectorServiceTest {
 
   private static final String EXECUTOR_ID = "test-executor-id";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private AgentService agentService;
   @Mock private CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
@@ -33,7 +34,7 @@ public class CrowdstrikeGarbageCollectorServiceTest {
   void setUp() {
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, EXECUTOR_ID);
+            config, crowdStrikeExecutorContextService, agentService, EXECUTOR_ID, TENANT_ID);
   }
 
   @Test
@@ -41,7 +42,8 @@ public class CrowdstrikeGarbageCollectorServiceTest {
     // Init datas
     Agent agent = AgentFixture.createDefaultAgentService();
     agent.setAsset(EndpointFixture.createEndpoint());
-    when(agentService.getAgentsByExecutorId(EXECUTOR_ID)).thenReturn(List.of(agent));
+    when(agentService.getAgentsByExecutorIdAndTenantId(EXECUTOR_ID, TENANT_ID))
+        .thenReturn(List.of(agent));
     when(config.getWindowsScriptName()).thenReturn("test script");
     // Run method to test
     crowdStrikeGarbageCollectorService.run();

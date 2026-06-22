@@ -99,14 +99,14 @@ public class TaniumExecutorIntegration extends Integration {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
+            getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName(), tenantId);
     String executorName =
         ofNullable(
                 connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
-                    getConnectorInstance().getId(), "EXECUTOR_NAME"))
+                    getConnectorInstance().getId(), "EXECUTOR_NAME", tenantId))
             .orElseThrow(
                 () ->
                     new ExecutorException(
@@ -126,7 +126,8 @@ public class TaniumExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.Windows.name(),
               Endpoint.PLATFORM_TYPE.Linux.name(),
               Endpoint.PLATFORM_TYPE.MacOS.name()
-            });
+            },
+            tenantId);
 
     client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
@@ -137,7 +138,7 @@ public class TaniumExecutorIntegration extends Integration {
             executor, client, config, endpointService, agentService, assetGroupService);
     taniumGarbageCollectorService =
         new TaniumGarbageCollectorService(
-            config, taniumExecutorContextService, agentService, executorId);
+            config, taniumExecutorContextService, agentService, executorId, tenantId);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

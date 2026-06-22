@@ -152,7 +152,41 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       String[] platforms)
       throws Exception {
     return register(
-        id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+        id,
+        type,
+        name,
+        documentationUrl,
+        backgroundColor,
+        iconData,
+        bannerData,
+        platforms,
+        true,
+        TenantContext.getCurrentTenant());
+  }
+
+  @Transactional
+  public Executor register(
+      String id,
+      String type,
+      String name,
+      String documentationUrl,
+      String backgroundColor,
+      InputStream iconData,
+      InputStream bannerData,
+      String[] platforms,
+      String tenantId)
+      throws Exception {
+    return register(
+        id,
+        type,
+        name,
+        documentationUrl,
+        backgroundColor,
+        iconData,
+        bannerData,
+        platforms,
+        true,
+        tenantId);
   }
 
   @Transactional
@@ -167,6 +201,32 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       String[] platforms,
       boolean external)
       throws Exception {
+    return register(
+        id,
+        type,
+        name,
+        documentationUrl,
+        backgroundColor,
+        iconData,
+        bannerData,
+        platforms,
+        external,
+        TenantContext.getCurrentTenant());
+  }
+
+  @Transactional
+  public Executor register(
+      String id,
+      String type,
+      String name,
+      String documentationUrl,
+      String backgroundColor,
+      InputStream iconData,
+      InputStream bannerData,
+      String[] platforms,
+      boolean external,
+      String tenantId)
+      throws Exception {
     // Sanity checks
     if (id == null || id.isEmpty()) {
       throw new IllegalArgumentException("Executor ID must not be null or empty.");
@@ -180,10 +240,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Executor executor = executorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
+      Tenant tenant = new Tenant(tenantId);
       executor = new Executor();
       executor.setId(id);
       executor.setTenant(tenant);

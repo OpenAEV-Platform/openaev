@@ -52,7 +52,7 @@ public class ChannelInjectorIntegration extends IntegrationInMemory {
   }
 
   @Override
-  protected void innerStart() throws Exception {
+  protected void innerStart(String tenantId) throws Exception {
     this.channelExecutor =
         new ChannelExecutor(
             injectorContext,
