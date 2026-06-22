@@ -1,7 +1,7 @@
-import { type ClassicEditor } from 'ckeditor5';
+import type { Editor } from '@tiptap/core';
 
 const typeChar = (
-  editor: ClassicEditor,
+  editor: Editor,
   submittedText: string,
   onComplete: (value: string) => void,
 ) => {
@@ -18,12 +18,12 @@ const typeChar = (
       if (index < lines.length) {
         const line = lines[index];
         buffer += line;
-        editor.setData(buffer);
+        editor.commands.setContent(buffer);
 
-        const editingView = editor.editing.view;
-        const domRoot = editingView.getDomRoot();
-        if (domRoot) {
-          domRoot.scrollTop = domRoot.scrollHeight;
+        // Scroll the editor's contenteditable div to the bottom
+        const editorEl = editor.view.dom as HTMLElement;
+        if (editorEl) {
+          editorEl.scrollTop = editorEl.scrollHeight;
         }
         index++;
         setTimeout(typeNext, 150);

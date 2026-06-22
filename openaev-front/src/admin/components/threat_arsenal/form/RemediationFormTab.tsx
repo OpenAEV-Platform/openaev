@@ -1,4 +1,4 @@
-import type { ClassicEditor } from 'ckeditor5';
+import type { Editor } from '@tiptap/core';
 import { useRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -24,7 +24,7 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
   const { control, watch, setValue, getValues, formState: { isValid, defaultValues } } = useFormContext();
 
   const { snapshot, setSnapshot } = useSnapshotRemediation();
-  const editorRef = useRef<ClassicEditor | null>(null);
+  const editorRef = useRef<Editor | null>(null);
   const fieldName = 'remediations.' + activeTab.collector_type;
 
   const setLoadingSnapshot = (collectorType: string, isLoading: boolean) => {
@@ -49,8 +49,6 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     setValue(fieldName, updated);
 
     if (!editor) {
-      // Editor is not mounted yet (e.g. user triggered AI before CKEditor finished initialising):
-      // clear the loading flag so the UI doesn't stay stuck in `isLoading: true`.
       setLoadingSnapshot(activeTab.collector_type, false);
       return;
     }
@@ -153,33 +151,27 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
               id={'payload-remediation-editor' + activeTab.collector_type}
               data={value?.content}
               onChange={(_, editor) => {
+                const content = editor.getData();
                 const latest = getValues(fieldName);
+                const aiRules = snapshot?.get(activeTab.collector_type)?.AIRules;
 
-                onChange({
-                  ...latest,
-                  content: editor.getData(),
-                });
-
-                editor.editing.view.document.on('keyup', () => {
-                  const latest = getValues(fieldName);
-                  if (snapshot?.get(activeTab.collector_type)?.AIRules === latest.content) {
-                    const isAiOutdated = hasSpecificDirtyFieldAI(defaultValues, snapshot?.get(activeTab.collector_type)?.trackedFields, getValues(trackedFields));
-                    const defaultAuthor = snapshot?.get(activeTab.collector_type)?.trackedFields == undefined
-                      ? defaultValues?.['remediations'][activeTab.collector_type].author_rule
-                      : 'AI';
-                    onChange({
-                      ...latest,
-                      content: editor.getData(),
-                      author_rule: isAiOutdated ? 'AI_OUTDATED' : defaultAuthor,
-                    });
-                  } else {
-                    onChange({
-                      ...latest,
-                      content: editor.getData(),
-                      author_rule: 'HUMAN',
-                    });
-                  }
-                });
+                if (aiRules !== undefined && aiRules === content) {
+                  const isAiOutdated = hasSpecificDirtyFieldAI(defaultValues, snapshot?.get(activeTab.collector_type)?.trackedFields, getValues(trackedFields));
+                  const defaultAuthor = snapshot?.get(activeTab.collector_type)?.trackedFields == undefined
+                    ? defaultValues?.['remediations'][activeTab.collector_type].author_rule
+                    : 'AI';
+                  onChange({
+                    ...latest,
+                    content,
+                    author_rule: isAiOutdated ? 'AI_OUTDATED' : defaultAuthor,
+                  });
+                } else {
+                  onChange({
+                    ...latest,
+                    content,
+                    author_rule: 'HUMAN',
+                  });
+                }
               }}
             />
           )}
