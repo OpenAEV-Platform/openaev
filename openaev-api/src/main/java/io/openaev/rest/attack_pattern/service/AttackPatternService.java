@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.attack_pattern.dto.AttackPatternCoverageOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawUserAuth;
@@ -19,7 +20,6 @@ import io.openaev.engine.api.StructuralHistogramWidget;
 import io.openaev.engine.api.WidgetConfigurationWithSeries;
 import io.openaev.engine.query.EsSeries;
 import io.openaev.engine.query.EsSeriesData;
-import io.openaev.rest.attack_pattern.form.AttackPatternCoverageOutput;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.CustomDashboardTimeRange;
@@ -229,8 +229,12 @@ public class AttackPatternService {
       return List.of();
     }
 
+    // Fetch the attack patterns together with their kill chain phases in a single query to avoid
+    // an N+1 pattern (killChainPhases is a LAZY @ManyToMany without SUBSELECT fetching).
     Map<String, AttackPattern> attackPatternsById =
-        fromIterable(attackPatternRepository.findAllById(countsByAttackPattern.keySet())).stream()
+        attackPatternRepository
+            .findAllByIdInWithKillChainPhases(countsByAttackPattern.keySet())
+            .stream()
             .collect(Collectors.toMap(AttackPattern::getId, Function.identity()));
 
     List<AttackPatternCoverageOutput> coverage = new ArrayList<>();
@@ -240,10 +244,10 @@ public class AttackPatternService {
           if (attackPattern == null) {
             return;
           }
-          int preventionSuccess = (int) counts[0];
-          int preventionTotal = (int) (counts[0] + counts[1]);
-          int detectionSuccess = (int) counts[2];
-          int detectionTotal = (int) (counts[2] + counts[3]);
+          long preventionSuccess = counts[0];
+          long preventionTotal = counts[0] + counts[1];
+          long detectionSuccess = counts[2];
+          long detectionTotal = counts[2] + counts[3];
           if (preventionTotal == 0 && detectionTotal == 0) {
             return;
           }
@@ -282,10 +286,8 @@ public class AttackPatternService {
     if (latest == null || latest <= 0) {
       return null;
     }
-    List<String> finishedIds =
-        exerciseRepository.findExerciseIdsByStatusOrderedByEndDateDesc(
-            ExerciseStatus.FINISHED.name());
-    return finishedIds.size() > latest ? finishedIds.subList(0, latest) : finishedIds;
+    // The LIMIT is applied at the database so only the requested N rows are fetched.
+    return exerciseRepository.findLatestExerciseIdsByStatus(ExerciseStatus.FINISHED.name(), latest);
   }
 
   private static WidgetConfigurationWithSeries.Series coverageSeries(

@@ -288,12 +288,15 @@ public interface ExerciseRepository
       @Param("scenarioId") String scenarioId);
 
   /**
-   * Get the tenant-scoped exercise ids for a given status, ordered by end date descending (latest
-   * first). Used to compute the tenant-wide MITRE ATT&CK coverage matrix. Only exercises with an
-   * end date are returned so the ordering is meaningful.
+   * Get the latest tenant-scoped exercise ids for a given status, ordered by end date descending
+   * (latest first) and capped at {@code limit} rows. Used to compute the tenant-wide MITRE ATT&CK
+   * coverage matrix when it is scoped to the latest N simulations. Only exercises with an end date
+   * are returned so the ordering is meaningful, and the LIMIT is applied at the database so callers
+   * never load the full result set into memory.
    *
    * @param status the exercise status name (e.g. {@code FINISHED})
-   * @return the ordered list of exercise ids (latest end date first)
+   * @param limit the maximum number of exercise ids to return
+   * @return the ordered list of exercise ids (latest end date first), at most {@code limit} entries
    */
   @Query(
       value =
@@ -302,9 +305,11 @@ public interface ExerciseRepository
               + "WHERE ex.exercise_status = :status "
               + "AND ex.exercise_end_date IS NOT NULL "
               + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
-              + "ORDER BY ex.exercise_end_date DESC ;",
+              + "ORDER BY ex.exercise_end_date DESC "
+              + "LIMIT :limit;",
       nativeQuery = true)
-  List<String> findExerciseIdsByStatusOrderedByEndDateDesc(@Param("status") String status);
+  List<String> findLatestExerciseIdsByStatus(
+      @Param("status") String status, @Param("limit") int limit);
 
   @Query(
       value =
