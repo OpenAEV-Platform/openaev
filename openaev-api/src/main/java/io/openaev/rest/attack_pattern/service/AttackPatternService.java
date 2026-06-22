@@ -157,8 +157,8 @@ public class AttackPatternService {
 
   /**
    * Upper bound for the {@code latest} scoping parameter. Keeps the request cost bounded: a very
-   * large value would otherwise produce a huge SQL {@code LIMIT} and feed an oversized simulation-id
-   * list into the Elasticsearch filter.
+   * large value would otherwise produce a huge SQL {@code LIMIT} and feed an oversized
+   * simulation-id list into the Elasticsearch filter.
    */
   private static final int COVERAGE_LATEST_MAX = 1_000;
 
@@ -291,8 +291,8 @@ public class AttackPatternService {
 
   /**
    * Resolve the latest N finished simulation ids used to scope the coverage, or {@code null} to
-   * aggregate across all simulations (home-identical behaviour). {@code latest} is clamped to {@link
-   * #COVERAGE_LATEST_MAX} to keep the query and the downstream Elasticsearch filter bounded.
+   * aggregate across all simulations (home-identical behaviour). {@code latest} is clamped to
+   * {@link #COVERAGE_LATEST_MAX} to keep the query and the downstream Elasticsearch filter bounded.
    */
   private List<String> resolveLatestSimulationIds(Integer latest) {
     if (latest == null || latest <= 0) {
