@@ -2,6 +2,7 @@ package io.openaev.config;
 
 import static io.openaev.config.security.SecurityService.REGISTRATION_ID;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 import static org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ import io.openaev.service.user_events.UserEventService;
 import io.openaev.utils.log.LogUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +35,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.context.DeferredSecurityContext;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -49,6 +53,10 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.HttpRequestResponseHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
@@ -86,7 +94,11 @@ public class AppSecurityConfig {
                     .ignoringRequestMatchers("/api/health", "/api/login", "/actuator/**")
                     .ignoringRequestMatchers(bearerWithoutCookiesMatcher()))
         .formLogin(AbstractHttpConfigurer::disable)
-        .securityContext(securityContext -> securityContext.requireExplicitSave(false))
+        .securityContext(
+            securityContext ->
+                securityContext
+                    .requireExplicitSave(false)
+                    .securityContextRepository(bearerAwareSecurityContextRepository()))
         .authorizeHttpRequests(
             rq ->
                 rq.requestMatchers("/api/health")
@@ -301,12 +313,74 @@ public class AppSecurityConfig {
     };
   }
 
+  /**
+   * Skip CSRF only for a bearer request that sends no cookies.
+   *
+   * <p>A pure API client authenticates statelessly with a bearer token and sends no cookies.
+   *
+   * <p>Bearer auth is stateless (bearerAwareSecurityContextRepository) so no session cookie is set.
+   *
+   * <p>So a standard client keeps passing on every call, not just the first (the #6343 regression).
+   *
+   * <p>A request that also sends cookies keeps full CSRF protection (no bearer bypass).
+   */
   private RequestMatcher bearerWithoutCookiesMatcher() {
     return request -> {
       String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-      boolean hasBearer = authorization != null && authorization.startsWith("Bearer ");
+      boolean hasBearer = startsWithIgnoreCase(authorization, "Bearer ");
       boolean hasCookies = request.getCookies() != null && request.getCookies().length > 0;
       return hasBearer && !hasCookies;
     };
+  }
+
+  /**
+   * Persists the security context in the HTTP session for browser / cookie auth.
+   *
+   * <p>Authorization-header (bearer) requests stay stateless - no session is read or created.
+   *
+   * <p>So a pure API client never receives a JSESSIONID to replay (#6343); SSO sessions are intact.
+   */
+  private SecurityContextRepository bearerAwareSecurityContextRepository() {
+    return new BearerAwareSecurityContextRepository();
+  }
+
+  /** See {@link #bearerAwareSecurityContextRepository()}. */
+  private static final class BearerAwareSecurityContextRepository
+      implements SecurityContextRepository {
+
+    private final HttpSessionSecurityContextRepository sessionRepository =
+        new HttpSessionSecurityContextRepository();
+    private final RequestAttributeSecurityContextRepository statelessRepository =
+        new RequestAttributeSecurityContextRepository();
+
+    private SecurityContextRepository delegate(HttpServletRequest request) {
+      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+      if (startsWithIgnoreCase(authorization, "Bearer ")) {
+        return statelessRepository;
+      }
+      return sessionRepository;
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public SecurityContext loadContext(HttpRequestResponseHolder requestResponseHolder) {
+      return delegate(requestResponseHolder.getRequest()).loadContext(requestResponseHolder);
+    }
+
+    @Override
+    public DeferredSecurityContext loadDeferredContext(HttpServletRequest request) {
+      return delegate(request).loadDeferredContext(request);
+    }
+
+    @Override
+    public boolean containsContext(HttpServletRequest request) {
+      return delegate(request).containsContext(request);
+    }
+
+    @Override
+    public void saveContext(
+        SecurityContext context, HttpServletRequest request, HttpServletResponse response) {
+      delegate(request).saveContext(context, request, response);
+    }
   }
 }

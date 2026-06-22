@@ -136,35 +136,33 @@ public class AppSecurityConfigTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given valid jsessionid and csrf without bearer token, should return HTTP 200")
-  void given_validJsessionIdAndCsrfWithoutBearerToken_should_returnOk() throws Exception {
+  @DisplayName("bearer auth is stateless: replaying its session cookie alone is unauthorized")
+  void given_replayedBearerSessionWithoutToken_should_returnUnauthorized() throws Exception {
+    // A bearer call succeeds but must NOT establish a reusable server-side session: token auth is
+    // stateless, so no JSESSIONID is persisted for the client to replay (the #6343 root cause).
     MockHttpSession session = new MockHttpSession();
-    Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
     mockMvc
         .perform(
             post(SCENARIO_SEARCH_URI)
                 .session(session)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .cookie(csrfCookie)
-                .header(CSRF_HEADER_NAME, "test-csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY)
-                .with(csrf()))
+                .content(SEARCH_BODY))
         .andExpect(status().isOk());
 
-    String sessionId = Objects.requireNonNull(session.getId());
-    Cookie jsessionCookie = new Cookie("JSESSIONID", sessionId);
+    // Replaying only the JSESSIONID from that bearer call (no bearer token) is not authenticated.
+    Cookie jsessionCookie = new Cookie("JSESSIONID", Objects.requireNonNull(session.getId()));
+    Cookie csrfCookie = new Cookie(CSRF_COOKIE_NAME, "test-csrf-token");
 
     mockMvc
         .perform(
             post(SCENARIO_SEARCH_URI)
                 .session(session)
-                .cookie(jsessionCookie)
-                .cookie(new Cookie(CSRF_COOKIE_NAME, "test-csrf-token"))
+                .cookie(jsessionCookie, csrfCookie)
                 .header(CSRF_HEADER_NAME, "test-csrf-token")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(SEARCH_BODY)
                 .with(csrf()))
-        .andExpect(status().isOk());
+        .andExpect(status().isUnauthorized());
   }
 }
