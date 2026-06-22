@@ -23,11 +23,16 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.IOUtils;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -107,6 +112,56 @@ public class CollectorApi extends RestBehavior {
   @Transactional
   public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
+  }
+
+  // -- IMAGE --
+
+  @GetMapping(
+      value = {
+        COLLECTOR_URI + "/{collectorType}/image",
+        TENANT_COLLECTOR_URI + "/{collectorType}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get collector image by type")
+  @Transactional
+  public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
+      throws IOException {
+    Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
+  }
+
+  @GetMapping(
+      value = {
+        COLLECTOR_URI + "/id/{collectorId}/image",
+        TENANT_COLLECTOR_URI + "/id/{collectorId}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get collector image by collector id")
+  @Transactional
+  public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
+      throws IOException {
+    Optional<Collector> collector = collectorRepository.findById(collectorId);
+    if (collector.isEmpty()) {
+      return ResponseEntity.notFound().build();
+    }
+    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.get().getType());
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})

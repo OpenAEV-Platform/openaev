@@ -154,6 +154,7 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/xtm-composer',
   '/api/schemas',
   '/api/engine',
+  '/api/catalog-connector',
 ];
 
 /**

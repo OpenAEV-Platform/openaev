@@ -83,7 +83,7 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   @Override
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE);
-    fileService.uploadStream(
+    fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-paloaltocortex.png"));

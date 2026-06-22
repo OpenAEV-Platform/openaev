@@ -26,6 +26,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
+import io.openaev.service.FileService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -65,6 +66,7 @@ public class InjectorApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager em;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private FileService fileService;
 
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
@@ -640,6 +642,31 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(reloadedInject.getInjector().getTenant().getId())
           .as("Injector should belong to tenant A")
           .isEqualTo(tenantA);
+    }
+  }
+
+  @Nested
+  @DisplayName("Injector image")
+  class InjectorImage {
+    @Test
+    @DisplayName("Given existing injector image should return image")
+    void given_existingInjectorImage_should_returnImage() throws Exception {
+      // -- Arrange --
+      String injectorType = "test-injector-type";
+      fileService.uploadStream(
+          FileService.INJECTORS_IMAGES_BASE_PATH,
+          injectorType + FileService.EXT_PNG,
+          new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+
+      // -- Act / Assert --
+      mvc.perform(get(INJECT0R_URI + "/" + injectorType + "/image")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Given missing injector image should return 404")
+    void given_missingInjectorImage_should_return404() throws Exception {
+      // -- Act / Assert --
+      mvc.perform(get(INJECT0R_URI + "/nonexistent-type/image")).andExpect(status().isNotFound());
     }
   }
 }
