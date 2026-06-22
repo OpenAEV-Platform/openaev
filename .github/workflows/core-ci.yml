@@ -213,79 +213,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Download standard Docker image
-        uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/snyk-docker
         with:
-          name: openaev-image
-          path: /tmp/docker-images
-
-      - name: Download UBI9 Docker image
-        uses: actions/download-artifact@v8
-        with:
-          name: openaev-ubi9-image
-          path: /tmp/docker-images
-
-      - name: Load Docker images
-        run: |
-          cd /tmp/docker-images
-          gunzip openaev-image.tar.gz
-          skopeo copy --override-os linux --override-arch amd64 \
-            oci-archive:openaev-image.tar \
-            docker-daemon:openaev:ci
-          rm -f openaev-image.tar
-
-          gunzip openaev-ubi9-image.tar.gz
-          skopeo copy --override-os linux --override-arch amd64 \
-            oci-archive:openaev-ubi9-image.tar \
-            docker-daemon:openaev-ubi9:ci
-          rm -f openaev-ubi9-image.tar
-
-      - name: Run Snyk on standard image
-        id: snyk-standard
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: openaev:ci
-          args: --severity-threshold=high --json-file-output=snyk-standard.json
-        continue-on-error: true
-
-      - name: Upload Snyk report (standard)
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: snyk-report-standard
-          path: snyk-standard.json
-          if-no-files-found: ignore
-
-      - name: Run Snyk on UBI9 image
-        id: snyk-ubi9
-        uses: snyk/actions/docker@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          image: openaev-ubi9:ci
-          args: --severity-threshold=high --json-file-output=snyk-ubi9.json
-        continue-on-error: true
-
-      - name: Upload Snyk report (UBI9)
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: snyk-report-ubi9
-          path: snyk-ubi9.json
-          if-no-files-found: ignore
-
-      - name: Fail if vulnerabilities found
-        if: ${{ steps.snyk-standard.outcome == 'failure' || steps.snyk-ubi9.outcome == 'failure' }}
-        run: |
-          echo "❌ Snyk found high or critical vulnerabilities:"
-          [ "${{ steps.snyk-standard.outcome }}" = "failure" ] && echo "  Standard image: VULNERABLE"
-          [ "${{ steps.snyk-ubi9.outcome }}" = "failure" ] && echo "  UBI9 image: VULNERABLE"
-          echo "Download the snyk-report-* artifacts for details."
-          exit 1
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
 
   # ──────────────────────────────────────────────────────────────────
   # Final sanity check — download every artifact and Docker image,

@@ -1,5 +1,7 @@
 # Default empty Maven cache (overridden via --build-context m2-cache=...)
 FROM scratch AS m2-cache
+# Default empty Yarn cache (overridden via --build-context yarn-cache=...)
+FROM scratch AS yarn-cache
 
 FROM node:22.16.0-alpine3.20 AS front-builder
 
@@ -8,6 +10,10 @@ COPY openaev-front/packages ./packages
 COPY openaev-front/patches ./patches
 COPY openaev-front/package.json openaev-front/yarn.lock openaev-front/.yarnrc.yml ./
 RUN npm install -g corepack
+RUN --mount=type=bind,from=yarn-cache,target=/tmp/yarn-seed \
+    CACHE_DIR=$(yarn config get cacheFolder 2>/dev/null || echo /root/.yarn/berry/cache) && \
+    mkdir -p "$CACHE_DIR" && \
+    cp -rn /tmp/yarn-seed/. "$CACHE_DIR/" 2>/dev/null || true
 RUN yarn install
 COPY openaev-front /opt/openaev-build/openaev-front
 RUN yarn build

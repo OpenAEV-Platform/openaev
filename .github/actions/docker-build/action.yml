@@ -65,8 +65,16 @@ runs:
         restore-keys: |
           setup-java-Linux-maven-
 
-    - name: Ensure .m2-cache directory exists
-      run: mkdir -p .m2-cache
+    - name: Restore Yarn cache
+      uses: actions/cache/restore@v4
+      with:
+        path: .yarn-cache
+        key: Linux-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
+        restore-keys: |
+          Linux-yarn-
+
+    - name: Ensure cache directories exist
+      run: mkdir -p .m2-cache .yarn-cache
       shell: bash
 
     - name: Set up QEMU (for arm64 emulation)
@@ -89,7 +97,9 @@ runs:
         labels: ${{ inputs.labels }}
         cache-from: type=gha,scope=${{ inputs.cache-scope }}
         cache-to: type=gha,mode=max,scope=${{ inputs.cache-scope }}
-        build-contexts: m2-cache=.m2-cache
+        build-contexts: |
+          m2-cache=.m2-cache
+          yarn-cache=.yarn-cache
 
     - name: Compress OCI archive
       run: |

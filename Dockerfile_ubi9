@@ -1,5 +1,7 @@
 # Default empty Maven cache (overridden via --build-context m2-cache=...)
 FROM scratch AS m2-cache
+# Default empty Yarn cache (overridden via --build-context yarn-cache=...)
+FROM scratch AS yarn-cache
 
 FROM registry.access.redhat.com/ubi9/nodejs-22 AS front-builder
 
@@ -7,10 +9,16 @@ USER root
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front ./
-RUN set -eux                             ; \
-npm install -g corepack                  ; \
-yarn install                             ; \
-yarn build                               ;
+RUN set -eux                                                                              ; \
+npm install -g corepack                                                                   ; \
+CACHE_DIR=$(yarn config get cacheFolder 2>/dev/null || echo /root/.yarn/berry/cache)      ; \
+mkdir -p "$CACHE_DIR"
+RUN --mount=type=bind,from=yarn-cache,target=/tmp/yarn-seed \
+CACHE_DIR=$(yarn config get cacheFolder 2>/dev/null || echo /root/.yarn/berry/cache) && \
+cp -rn /tmp/yarn-seed/. "$CACHE_DIR/" 2>/dev/null || true
+RUN set -eux                                                                              ; \
+yarn install                                                                              ; \
+yarn build                                                                                ;
 
 FROM registry.access.redhat.com/ubi9/openjdk-21 AS api-builder
 
