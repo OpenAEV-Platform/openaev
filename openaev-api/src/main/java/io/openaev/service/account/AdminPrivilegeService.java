@@ -87,8 +87,9 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   }
 
   /**
-   * Idempotently ensures the given tenant owns the admin group (with the BYPASS role) and that the
-   * given user is a member of it. Safe to call on every platform startup.
+   * Idempotently ensures the given tenant owns the admin group (with the BYPASS role), that the
+   * given user belongs to that tenant, and that the user is a member of the group. Safe to call on
+   * every platform startup.
    *
    * <p>The caller passes the already-resolved admin {@link User} (the bootstrap runner has just
    * created or loaded it) rather than an id, so the membership check never depends on re-fetching
@@ -112,6 +113,10 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
           getGroupName(),
           tenantId);
     }
+    // Mirror ServiceAccountPrivilegeService: make sure the admin belongs to the tenant that owns
+    // the group, so the self-heal also covers installs whose users_tenants row is missing. The call
+    // is idempotent and clears the persistence context, so it runs after the group enrollment.
+    tenantUserService.attachToTenant(adminUser.getId(), tenantId);
     return group;
   }
 }
