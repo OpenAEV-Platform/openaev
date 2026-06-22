@@ -10,6 +10,11 @@ import { defineConfig, devices } from '@playwright/test';
 
 import baseConfig from './playwright.config';
 
+const isArmNightly = process.env.CI_ARCH === 'arm64';
+const infraIgnore = /infra\/.*/;
+const armExternalConnectorIgnore = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
+const nightlyTestIgnore = isArmNightly ? [infraIgnore, armExternalConnectorIgnore] : infraIgnore;
+
 export default defineConfig({
   ...baseConfig,
   projects: [
@@ -19,7 +24,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: /infra\/.*/,
+      testIgnore: nightlyTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -32,7 +37,7 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      testIgnore: /infra\/.*/,
+      testIgnore: nightlyTestIgnore,
       use: {
         ...devices['Desktop Firefox'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -45,7 +50,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      testIgnore: /infra\/.*/,
+      testIgnore: nightlyTestIgnore,
       use: {
         ...devices['Desktop Safari'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -58,7 +63,7 @@ export default defineConfig({
     },
     {
       name: 'chrome',
-      testIgnore: /infra\/.*/,
+      testIgnore: nightlyTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
@@ -72,7 +77,7 @@ export default defineConfig({
     },
     {
       name: 'edge',
-      testIgnore: /infra\/.*/,
+      testIgnore: nightlyTestIgnore,
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
