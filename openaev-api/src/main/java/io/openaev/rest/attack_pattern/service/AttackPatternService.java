@@ -44,6 +44,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -171,17 +172,13 @@ public class AttackPatternService {
    * through {@link EngineService#multiTermHistogram}. The query is tenant- and ACL-scoped
    * automatically and, by default, spans every simulation - so the numbers match the home matrix.
    *
-   * <p>The method deliberately does not open a surrounding DB transaction: the Elasticsearch
-   * aggregation is network I/O and must not run inside a transaction (it would hold a DB connection
-   * for the whole call). The DB reads run in their own short transactions through the repositories,
-   * and {@code killChainPhases} is fetched eagerly via a join so no lazy access happens afterwards.
-   *
    * @param latest when non-null and positive, restrict the aggregation to the latest N finished
    *     simulations by end date (capped at {@value #COVERAGE_LATEST_MAX}); when null, aggregate
    *     across all simulations like the home matrix
    * @return the coverage entries sorted by attack pattern external id (patterns without any
    *     prevention or detection result are excluded)
    */
+  @Transactional(readOnly = true)
   public List<AttackPatternCoverageOutput> getGlobalCoverage(Integer latest) {
     List<String> simulationIds = resolveLatestSimulationIds(latest);
     if (simulationIds != null && simulationIds.isEmpty()) {

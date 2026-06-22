@@ -11,6 +11,7 @@ import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,6 +29,7 @@ public class AttackPatternCoverageApi {
   // -- READ --
 
   @GetMapping("/coverage")
+  @Transactional(readOnly = true)
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ATTACK_PATTERN)
   @Operation(
