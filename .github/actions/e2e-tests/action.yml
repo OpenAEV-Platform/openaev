@@ -43,11 +43,21 @@ runs:
           -e RABBITMQ_DEFAULT_USER=guest \
           -e RABBITMQ_DEFAULT_PASS=guest \
           rabbitmq:4.1-management
-        docker run -d --name minio \
-          -p 11000:9000 \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
-          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+        for i in $(seq 1 3); do
+          if docker run -d --name minio \
+            -p 11000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:RELEASE.2025-06-13T11-33-47Z server /data; then
+            break
+          fi
+          if [ "$i" -eq 3 ]; then
+            echo "❌ MinIO failed to start after 3 attempts"
+            exit 1
+          fi
+          echo "⚠️ MinIO startup attempt $i failed, retrying in 5s..."
+          sleep 5
+        done
 
         echo "🔍 Verifying containers started..."
         for name in pgsql elasticsearch rabbitmq minio; do
