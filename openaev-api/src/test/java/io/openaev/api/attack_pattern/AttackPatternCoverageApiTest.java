@@ -66,5 +66,22 @@ public class AttackPatternCoverageApiTest extends IntegrationTest {
       // Assert
       assertThatJson(response).isArray();
     }
+
+    @Test
+    @DisplayName("Should reject a non-positive latest parameter with 400")
+    void given_nonPositiveLatest_should_returnBadRequest() throws Exception {
+      // Act + Assert
+      mvc.perform(
+              get(ATTACK_PATTERN_URI + "/coverage?latest=0")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest());
+
+      mvc.perform(
+              get(ATTACK_PATTERN_URI + "/coverage?latest=-1")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest());
+    }
   }
 }
