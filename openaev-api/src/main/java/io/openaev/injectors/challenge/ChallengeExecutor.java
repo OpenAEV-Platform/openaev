@@ -1,10 +1,5 @@
 package io.openaev.injectors.challenge;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
-
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
@@ -22,10 +17,16 @@ import io.openaev.model.expectation.ChallengeExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 
 public class ChallengeExecutor extends Injector {
 
@@ -66,7 +67,7 @@ public class ChallengeExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChallengeContent content = contentConvert(injection, ChallengeContent.class);
+      ChallengeContent content = injectExpectationService.contentConvert(injection, ChallengeContent.class);
       List<Challenge> challenges =
           fromIterable(challengeRepository.findAllById(content.getChallenges()));
       if (challenges.isEmpty()) {

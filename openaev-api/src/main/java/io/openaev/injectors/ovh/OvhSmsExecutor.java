@@ -1,9 +1,5 @@
 package io.openaev.injectors.ovh;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
-import static org.springframework.util.StringUtils.hasText;
-
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
@@ -19,12 +15,17 @@ import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.util.StringUtils;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import org.springframework.util.StringUtils;
+
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static org.springframework.util.StringUtils.hasText;
 
 public class OvhSmsExecutor extends Injector {
 
@@ -45,7 +46,7 @@ public class OvhSmsExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    OvhSmsContent content = contentConvert(injection, OvhSmsContent.class);
+    OvhSmsContent content = injectExpectationService.contentConvert(injection, OvhSmsContent.class);
     String smsMessage = content.buildMessage(inject.getFooter(), inject.getHeader());
     List<ExecutionContext> users = injection.getUsers();
     if (users.isEmpty()) {

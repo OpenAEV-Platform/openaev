@@ -2,17 +2,16 @@ package io.openaev.injectors.email.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.model.inject.form.Expectation;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import io.openaev.injectors.common.model.BaseInjectContent;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.util.StringUtils;
 
+import java.util.Objects;
+
 @Getter
 @Setter
-public class EmailContent {
+public class EmailContent extends BaseInjectContent {
 
   private static final String HEADER_DIV =
       "<div style=\"text-align: center; margin-bottom: 10px;\">";
@@ -30,9 +29,6 @@ public class EmailContent {
 
   @JsonProperty("encrypted")
   private boolean encrypted;
-
-  @JsonProperty("expectations")
-  private List<Expectation> expectations = new ArrayList<>();
 
   public EmailContent() {
     // For mapper

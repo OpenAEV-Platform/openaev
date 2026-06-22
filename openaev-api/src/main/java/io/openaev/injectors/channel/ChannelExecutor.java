@@ -1,9 +1,5 @@
 package io.openaev.injectors.channel;
 
-import static io.openaev.database.model.ExecutionTrace.*;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
-
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
@@ -21,10 +17,15 @@ import io.openaev.model.expectation.ChannelExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static io.openaev.database.model.ExecutionTrace.*;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 
 public class ChannelExecutor extends Injector {
 
@@ -71,7 +72,7 @@ public class ChannelExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChannelContent content = contentConvert(injection, ChannelContent.class);
+      ChannelContent content = injectExpectationService.contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
       if (articles.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one article");

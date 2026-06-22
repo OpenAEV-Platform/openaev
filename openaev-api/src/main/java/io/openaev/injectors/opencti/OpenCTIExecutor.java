@@ -1,8 +1,5 @@
 package io.openaev.injectors.opencti;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.injectors.opencti.OpenCTIContract.OPENCTI_CREATE_CASE;
-
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
@@ -14,8 +11,12 @@ import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.List;
 import java.util.stream.Stream;
+
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.injectors.opencti.OpenCTIContract.OPENCTI_CREATE_CASE;
 
 public class OpenCTIExecutor extends Injector {
 
@@ -62,7 +63,7 @@ public class OpenCTIExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    CaseContent content = contentConvert(injection, CaseContent.class);
+    CaseContent content = injectExpectationService.contentConvert(injection, CaseContent.class);
     List<Document> documents =
         inject.getDocuments().stream()
             .filter(InjectDocument::isAttached)

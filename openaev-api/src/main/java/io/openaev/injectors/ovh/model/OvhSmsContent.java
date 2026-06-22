@@ -2,24 +2,20 @@ package io.openaev.injectors.ovh.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.model.inject.form.Expectation;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import io.openaev.injectors.common.model.BaseInjectContent;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.util.StringUtils;
 
+import java.util.Objects;
+
 @Setter
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class OvhSmsContent {
+public class OvhSmsContent extends BaseInjectContent {
 
   @JsonProperty("message")
   private String message;
-
-  @JsonProperty("expectations")
-  private List<Expectation> expectations = new ArrayList<>();
 
   public String buildMessage(String footer, String header) {
     StringBuilder data = new StringBuilder();
