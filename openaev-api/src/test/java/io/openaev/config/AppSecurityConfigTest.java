@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(Lifecycle.PER_CLASS)
@@ -164,5 +166,26 @@ public class AppSecurityConfigTest extends IntegrationTest {
                 .content(SEARCH_BODY)
                 .with(csrf()))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("given pure bearer request, should not create session nor issue JSESSIONID")
+  void given_pureBearerRequest_should_notCreateSessionNorIssueJsessionId() throws Exception {
+    // The #6343 root cause: a pure bearer (stateless) call must neither establish a server-side
+    // session nor emit a JSESSIONID for the client to replay - otherwise CSRF re-engages on the
+    // next call and standards-compliant clients (Postman, httpx, requests) get 403 from the second
+    // request onwards. No session is injected here so the absence is actually asserted.
+    MvcResult result =
+        mockMvc
+            .perform(
+                post(SCENARIO_SEARCH_URI)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(SEARCH_BODY))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    assertThat(result.getResponse().getCookie("JSESSIONID")).isNull();
+    assertThat(result.getRequest().getSession(false)).isNull();
   }
 }
