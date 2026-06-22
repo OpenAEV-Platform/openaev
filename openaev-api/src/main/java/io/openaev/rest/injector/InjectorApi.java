@@ -21,6 +21,7 @@ import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
+import io.openaev.service.FileService;
 import io.openaev.service.InjectorService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
@@ -35,11 +36,14 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +63,7 @@ public class InjectorApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
+  private final FileService fileService;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -166,6 +171,30 @@ public class InjectorApi extends RestBehavior {
   @Transactional
   public ConnectorIds getInjectorRelatedIds(@PathVariable String injectorId) {
     return injectorService.getInjectorRelationsId(injectorId);
+  }
+
+  // -- IMAGE --
+
+  @GetMapping(
+      value = {
+        INJECT0R_URI + "/{injectorType}/image",
+        TENANT_INJECTOR_URI + "/{injectorType}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get injector image by type")
+  @Transactional
+  public ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
+      throws IOException {
+    Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
   }
 
   @PostMapping(

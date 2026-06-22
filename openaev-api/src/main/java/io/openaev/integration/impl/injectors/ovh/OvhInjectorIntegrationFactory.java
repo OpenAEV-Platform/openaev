@@ -79,7 +79,7 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   protected void insertCatalogEntry() throws Exception {
     CatalogConnector connector = new CatalogConnector();
     String logoFilename = "%s-logo.png".formatted(ovhSmsContract.getType());
-    fileService.uploadStream(
+    fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-ovh-sms.png"));
