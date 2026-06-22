@@ -71,6 +71,7 @@ public class AppSecurityConfig {
   private static final String TENANT_AGENT_URI = "/api/tenants/*/agent/**";
   private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
   private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
+  private static final String BEARER_PREFIX = "Bearer ";
 
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
@@ -326,11 +327,17 @@ public class AppSecurityConfig {
    */
   private RequestMatcher bearerWithoutCookiesMatcher() {
     return request -> {
-      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-      boolean hasBearer = startsWithIgnoreCase(authorization, "Bearer ");
       boolean hasCookies = request.getCookies() != null && request.getCookies().length > 0;
-      return hasBearer && !hasCookies;
+      return hasBearerToken(request) && !hasCookies;
     };
+  }
+
+  /**
+   * Whether the request carries a bearer token. Single-sourced so the CSRF-skip rule and the
+   * stateless-context rule can never disagree on what counts as a bearer request.
+   */
+  private static boolean hasBearerToken(HttpServletRequest request) {
+    return startsWithIgnoreCase(request.getHeader(HttpHeaders.AUTHORIZATION), BEARER_PREFIX);
   }
 
   /**
@@ -354,11 +361,7 @@ public class AppSecurityConfig {
         new RequestAttributeSecurityContextRepository();
 
     private SecurityContextRepository delegate(HttpServletRequest request) {
-      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-      if (startsWithIgnoreCase(authorization, "Bearer ")) {
-        return statelessRepository;
-      }
-      return sessionRepository;
+      return hasBearerToken(request) ? statelessRepository : sessionRepository;
     }
 
     @Override
