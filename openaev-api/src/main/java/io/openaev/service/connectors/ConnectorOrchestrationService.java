@@ -115,7 +115,9 @@ public class ConnectorOrchestrationService {
   }
 
   private void throwIfConnectorIdDoesNotExist(
-      CreateConnectorInstanceInput collectorInput, CatalogConnector catalogConnector)
+      CreateConnectorInstanceInput collectorInput,
+      CatalogConnector catalogConnector,
+      String tenantId)
       throws DataIntegrityViolationException {
     String connectorId =
         collectorInput.getConfigurations().stream()
@@ -129,7 +131,7 @@ public class ConnectorOrchestrationService {
             .asText();
     try {
       if (catalogConnector.getContainerType().equals(ConnectorType.COLLECTOR)) {
-        collectorService.collector(connectorId);
+        collectorService.collector(connectorId, tenantId);
       } else if (catalogConnector.getContainerType().equals(ConnectorType.INJECTOR)) {
         injectorService.injector(connectorId);
       } else {
@@ -195,7 +197,8 @@ public class ConnectorOrchestrationService {
    */
   public ConnectorInstancePersisted createConnectorInstance(
       CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
-      CreateConnectorInstanceInput input) {
+      CreateConnectorInstanceInput input,
+      String tenantId) {
     throwIfEnterpriseLicenseNotActive();
 
     throwIfXtmComposerDownAndNeeded(catalogConnectorWithConfigMap.catalogConnector);
@@ -210,7 +213,8 @@ public class ConnectorOrchestrationService {
                         catalogConnectorWithConfigMap.catalogConnector.getContainerType()
                             + "_ID"))) {
       // If we have an ID in the input, we check if the connector already exists
-      throwIfConnectorIdDoesNotExist(input, catalogConnectorWithConfigMap.catalogConnector);
+      throwIfConnectorIdDoesNotExist(
+          input, catalogConnectorWithConfigMap.catalogConnector, tenantId);
     }
 
     ConnectorInstancePersisted connectorInstance =

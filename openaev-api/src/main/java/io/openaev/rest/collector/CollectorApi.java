@@ -92,7 +92,7 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
   public Collector getCollector(@PathVariable String collectorId) {
-    return collectorService.collector(collectorId);
+    return collectorService.collector(collectorId, TenantContext.getCurrentTenant());
   }
 
   @GetMapping({
@@ -116,7 +116,7 @@ public class CollectorApi extends RestBehavior {
   @Transactional(rollbackOn = Exception.class)
   public Collector updateCollector(
       @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
-    Collector collector = collectorService.collector(collectorId);
+    Collector collector = collectorService.collector(collectorId, TenantContext.getCurrentTenant());
     return updateCollector(
         collector,
         collector.getType(),
@@ -141,6 +141,7 @@ public class CollectorApi extends RestBehavior {
               ? file.get().getInputStream()
               : null;
       return collectorService.register(
+          TenantContext.getCurrentTenant(),
           input.getId(),
           input.getType(),
           input.getName(),

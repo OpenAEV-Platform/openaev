@@ -23,6 +23,7 @@ import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -100,9 +101,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   // -- CRUD --
 
-  public Collector collector(String id) {
+  public Collector collector(String id, @NotBlank String tenantId) {
     return collectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(id, tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
@@ -173,6 +174,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * Registers (or updates) a collector with upsert semantics. Handles both built-in and external
    * collectors.
    *
+   * @param tenantId the tenant identifier
    * @param id collector identifier
    * @param type collector type (e.g. "openaev_crowdstrike")
    * @param name human-readable name
@@ -184,6 +186,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   @Transactional
   public Collector register(
+      @NotBlank String tenantId,
       @NotNull String id,
       @NotNull String type,
       @NotNull String name,
@@ -200,12 +203,12 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
     Collector collector =
-        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+        collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
             ? securityPlatformRepository
-                .findByIdAndTenantId(securityPlatformId, TenantContext.getCurrentTenant())
+                .findByIdAndTenantId(securityPlatformId, tenantId)
                 .orElseThrow()
             : null;
 
@@ -234,7 +237,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       newCollector.setSecurityPlatform(securityPlatform);
     }
     // For new entities, isNew()=true triggers persist() via Spring Data save().
-    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newCollector.setTenant(new Tenant(tenantId));
     return collectorRepository.save(newCollector);
   }
 
