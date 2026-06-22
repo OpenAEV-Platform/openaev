@@ -51,7 +51,7 @@ const InjectExpectationResultList = ({
       return (
         <img
           src={expectationResult.sourceType === 'collector'
-            ? buildTenantApiPath(`/api/images/collectors/id/${expectationResult.sourceId}`)
+            ? buildTenantApiPath(`/api/collectors/id/${expectationResult.sourceId}/image`)
             : buildTenantApiPath(`/api/images/security_platforms/id/${expectationResult.sourceId}/${theme.palette.mode}`)}
           alt={expectationResult.sourceId}
           style={{
