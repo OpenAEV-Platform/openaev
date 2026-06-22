@@ -319,6 +319,8 @@ jobs:
         with:
           playwright-config: playwright.infra.chromium_config.ts
           browser: chromium
+          start-all-services: 'true'
+          app-readiness-check: port
 
   # ────────────────────────────────────────────────────────────────────
   # E2E tests — browser × engine matrix (Linux x64, services managed by GitHub)
