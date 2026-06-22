@@ -172,16 +172,34 @@ jobs:
   # Starts in parallel with all other jobs — no dependencies needed since
   # the Dockerfiles build frontend and backend from source.
   docker-build:
-    name: "🐳 Docker Build (all images)"
+    name: "🐳 Docker Build (${{ matrix.variant }})"
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            dockerfile: ./Dockerfile
+            artifact-name: openaev-image
+            jar-path: /openaev-api.jar
+            cache-scope: docker-standard
+            tags: openaev:ci-${{ github.run_id }}
+          - variant: ubi9
+            dockerfile: ./Dockerfile_ubi9
+            artifact-name: openaev-ubi9-image
+            jar-path: /opt/openaev/openaev-api.jar
+            cache-scope: docker-ubi9
+            tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/docker-build
         with:
-          build-ubi9: "true"
-          tags: openaev:ci-${{ github.run_id }}
-          ubi9-tags: openaev-ubi9:ci-${{ github.run_id }}
+          dockerfile: ${{ matrix.dockerfile }}
+          artifact-name: ${{ matrix.artifact-name }}
+          jar-path: ${{ matrix.jar-path }}
+          cache-scope: ${{ matrix.cache-scope }}
+          tags: ${{ matrix.tags }}
 
   # ──────────────────────────────────────────────────────────────────
   # Snyk container scan — download Docker images built above and run
