@@ -26,7 +26,7 @@ Main security benefits:
 - OpenAEV removes the token from the URL after first access.
 
 !!! tip
-This change hardens security without changing the player experience.
+    This change hardens security without changing the player experience.
 
 ## How do I do it?
 
@@ -43,7 +43,7 @@ This change hardens security without changing the player experience.
 ### Verify email link flow
 
 1. Send a Media Pressure, Challenge, or Lessons Learned email.
-2. Confirm the email contains `/api/url/access?token=...`.
+2. Confirm the email contains `/url/access?token=...`.
 3. Open the link and verify OpenAEV returns a redirect to the target page.
 4. Verify the browser receives a cookie with `HttpOnly`, `Secure`, and `SameSite=Strict`.
 
@@ -52,7 +52,7 @@ This change hardens security without changing the player experience.
 A player receives this link:
 
 ```text
-https://<openaev-base-url>/api/url/access?token=<opaque-token>
+https://<openaev-base-url>/url/access?token=<opaque-token>
 ```
 
 OpenAEV validates the token and redirects the player to the initial exercise resource.

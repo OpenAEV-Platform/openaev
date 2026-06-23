@@ -99,6 +99,6 @@ For more details, see [this migration guide](breaking-changes/2.3.4-csrf-token-e
 
 Starting with **OpenAEV 2.5.0**, OpenAEV no longer accepts legacy email links based on `userId` and `user` query parameters for player access flows.
 
-OpenAEV now requires token-based links using `GET /api/url/access?token=<raw-token>`, followed by a secure cookie and redirect flow.
+OpenAEV now requires token-based links using `/url/access?token=<raw-token>`, followed by a secure cookie and redirect flow.
 
 For more details, see [this migration guide](breaking-changes/2.5.0-url-access-token-enforcement.md)
