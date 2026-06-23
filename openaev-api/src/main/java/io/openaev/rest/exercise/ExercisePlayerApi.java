@@ -14,6 +14,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.security.error.AuthenticationError;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +31,7 @@ public class ExercisePlayerApi extends RestBehavior {
   private final ExerciseRepository exerciseRepository;
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public PublicExercise playerExercise(

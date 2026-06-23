@@ -1,16 +1,13 @@
 package io.openaev.api.url_access_token;
 
-import static io.openaev.api.url_access_token.UrlAccessTokenApi.*;
+import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_COOKIE_NAME;
+import static io.openaev.api.url_access_token.UrlAccessTokenApi.URL_ACCESS_URI;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -19,14 +16,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.UrlAccessToken;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.mockUser.WithMockUser;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -54,31 +46,11 @@ public class UrlAccessTokenApiTest extends IntegrationTest {
 
   @Nested
   @WithMockUser(isAdmin = true)
-  @DisplayName("When URL_ACCESS_TOKEN feature is disabled")
-  class WhenFeatureIsDisabled {
-
-    @BeforeEach
-    void disableFeature() {
-      doReturn(false).when(previewFeatureService).isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN);
-    }
-
-    @Test
-    @DisplayName("Any token request should return 401 Unauthorized")
-    void given_disabledFeature_should_return_401() throws Exception {
-      // -- ACT & ASSERT --
-      mvc.perform(get(URL_ACCESS_URI).param("token", VALID_RAW_TOKEN))
-          .andExpect(status().isUnauthorized());
-    }
-  }
-
-  @Nested
-  @WithMockUser(isAdmin = true)
-  @DisplayName("When URL_ACCESS_TOKEN feature is enabled")
-  class WhenFeatureIsEnabled {
+  @DisplayName("Validate all aspects about the token")
+  class TokenValidations {
 
     @BeforeEach
     void enableFeature() {
-      doReturn(true).when(previewFeatureService).isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN);
       doNothing().when(urlAccessTokenService).updateLastUsed(any());
     }
 

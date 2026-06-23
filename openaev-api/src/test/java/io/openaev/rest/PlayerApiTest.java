@@ -10,7 +10,6 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,9 +23,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.user.form.player.PlayerInput;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -38,7 +35,6 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,7 +50,6 @@ class PlayerApiTest extends IntegrationTest {
   @Autowired private OrganizationRepository organizationRepository;
   @Autowired private TagRepository tagRepository;
   @Autowired private UserRepository userRepository;
-  @MockitoBean private PreviewFeatureService mockPreviewFeatureService;
 
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private LessonsCategoryComposer lessonsCategoryComposer;
@@ -70,9 +65,6 @@ class PlayerApiTest extends IntegrationTest {
   class PlayerLessonsApi {
     @BeforeEach
     void before() {
-      when(mockPreviewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
-
       exerciseComposer.reset();
       lessonsCategoryComposer.reset();
       lessonsQuestionsComposer.reset();

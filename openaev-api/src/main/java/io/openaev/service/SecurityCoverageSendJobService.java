@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +55,6 @@ public class SecurityCoverageSendJobService {
         "PENDING", Instant.now().minus(1, ChronoUnit.MINUTES));
   }
 
-  @Modifying
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void consumeJobs(List<SecurityCoverageSendJob> jobs) {
     /* force hibernate to forget cache and refetch new data */

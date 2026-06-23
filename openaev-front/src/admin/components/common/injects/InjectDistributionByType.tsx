@@ -10,7 +10,7 @@ import Chart from '../../../../components/Chart';
 import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput } from '../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -33,7 +33,7 @@ const InjectDistributionByType: FunctionComponent<Props> = ({ exerciseId }) => {
     R.filter((n: InjectStore) => n.inject_sent_at !== null),
     R.groupBy(R.prop('inject_type')),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => ({
+    R.map((n: [string, InjectExpectationOutput[]]) => ({
       inject_type: n[0],
       number: n[1].length,
     })),

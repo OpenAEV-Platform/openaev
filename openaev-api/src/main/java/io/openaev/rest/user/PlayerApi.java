@@ -19,11 +19,11 @@ import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -44,7 +44,7 @@ public class PlayerApi extends RestBehavior {
 
   @GetMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<RawPlayer> players() {
     List<RawPlayer> players;
     User currentUser = userService.currentUser();
@@ -54,6 +54,7 @@ public class PlayerApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({PLAYER_URI + "/search", TENANT_PLAYER_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -62,19 +63,20 @@ public class PlayerApi extends RestBehavior {
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public User createPlayer(@Valid @RequestBody PlayerInput input) {
     return playerService.createPlayer(input);
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
     return playerService.upsertPlayer(input);
   }
 
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
@@ -90,6 +92,7 @@ public class PlayerApi extends RestBehavior {
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
