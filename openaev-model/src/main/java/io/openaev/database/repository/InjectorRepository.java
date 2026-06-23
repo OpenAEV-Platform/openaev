@@ -17,6 +17,16 @@ public interface InjectorRepository
 
   Optional<Injector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  @Query(
+      value =
+          """
+        SELECT * FROM injectors
+        WHERE injector_id = :id
+          AND tenant_id = :tenantId
+        """,
+      nativeQuery = true)
+  Optional<Injector> getByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
+
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 

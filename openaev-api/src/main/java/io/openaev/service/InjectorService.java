@@ -389,7 +389,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
 
     // Find existing injector or create new
-    Injector existingInjector = injectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    Injector existingInjector = injectorRepository.getByIdAndTenantId(id, tenantId).orElse(null);
 
     if (existingInjector != null) {
       updateExistingBuiltinInjector(

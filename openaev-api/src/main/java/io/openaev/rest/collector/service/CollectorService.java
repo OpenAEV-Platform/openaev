@@ -22,6 +22,7 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -47,6 +48,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorMapper collectorMapper;
 
+  private final EntityManager entityManager;
+
   @Autowired
   public CollectorService(
       CollectorRepository collectorRepository,
@@ -57,7 +60,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       CollectorMapper collectorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      EntityManager entityManager) {
     super(
         ConnectorType.COLLECTOR,
         connectorInstanceConfigurationRepository,
@@ -69,6 +73,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
     this.securityPlatformRepository = securityPlatformRepository;
+    this.entityManager = entityManager;
   }
 
   @Override
@@ -153,16 +158,17 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * Ensures a {@link CollectorType} row exists for the given type name. Creates one if it does not
    * already exist (upsert semantics scoped to the current tenant).
    *
+   * @param tenantId current tenant identifier
    * @param type the collector type name (e.g. "openaev_crowdstrike")
    * @return the existing or newly created {@link CollectorType}
    */
-  public CollectorType ensureCollectorTypeExists(String type) {
+  public CollectorType ensureCollectorTypeExists(String tenantId, String type) {
     return collectorTypeRepository
-        .findByName(type)
+        .findByNameAndTenantId(type, tenantId)
         .orElseGet(
             () -> {
               CollectorType ct = new CollectorType(type);
-              // Tenant is auto-assigned by TenantBaseListener @PrePersist
+              ct.setTenant(entityManager.getReference(Tenant.class, tenantId));
               return collectorTypeRepository.save(ct);
             });
   }
@@ -198,9 +204,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       fileService.uploadStream(COLLECTORS_IMAGES_BASE_PATH, type + ".png", iconStream);
     }
 
-    CollectorType collectorType = ensureCollectorTypeExists(type);
+    CollectorType collectorType = ensureCollectorTypeExists(tenantId, type);
 
-    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    Collector collector = collectorRepository.getByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null

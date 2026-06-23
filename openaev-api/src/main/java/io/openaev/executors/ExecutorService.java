@@ -240,7 +240,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor = executorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    Executor executor = executorRepository.getByIdAndTenantId(id, tenantId).orElse(null);
     if (executor == null) {
       Tenant tenant = new Tenant(tenantId);
       executor = new Executor();

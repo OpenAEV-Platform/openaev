@@ -14,6 +14,16 @@ public interface ExecutorRepository extends CrudRepository<Executor, String> {
 
   Optional<Executor> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  @Query(
+      value =
+          """
+        SELECT * FROM executors
+        WHERE executor_id = :id
+          AND tenant_id = :tenantId
+        """,
+      nativeQuery = true)
+  Optional<Executor> getByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
+
   @NotNull
   Optional<Executor> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 

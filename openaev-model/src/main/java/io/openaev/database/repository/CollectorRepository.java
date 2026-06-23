@@ -18,6 +18,17 @@ public interface CollectorRepository
   Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   @Query(
+      value =
+          """
+        SELECT * FROM collectors
+        WHERE collector_id = :id
+          AND tenant_id = :tenantId
+        """,
+      nativeQuery = true)
+  Optional<Collector> getByIdAndTenantId(
+      @Param("id") String id, @Param("tenantId") String tenantId);
+
+  @Query(
       """
               SELECT DISTINCT c FROM Collector c
               WHERE c.collectorType IN (
