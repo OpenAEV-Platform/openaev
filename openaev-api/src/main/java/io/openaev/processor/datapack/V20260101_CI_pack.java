@@ -1,9 +1,8 @@
-package io.openaev.datapack.packs;
+package io.openaev.processor.datapack;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.repository.*;
-import io.openaev.datapack.DataPack;
 import io.openaev.rest.challenge.form.ChallengeInput;
 import io.openaev.rest.challenge.form.FlagInput;
 import io.openaev.rest.payload.form.PayloadCreateInput;

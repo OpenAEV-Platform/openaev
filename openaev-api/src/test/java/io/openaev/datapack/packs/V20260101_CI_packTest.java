@@ -8,6 +8,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
+import io.openaev.processor.datapack.V20260101_CI_pack;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.rest.user.PlayerService;
 import io.openaev.service.DataPackService;
