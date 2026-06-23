@@ -20,17 +20,16 @@ import org.springframework.stereotype.Component;
 public class ManagerIntegrationsSyncJob implements Job {
   private final ManagerFactory managerFactory;
   private final TenantService tenantService;
+  private static final long EXECUTION_TIME_THRESHOLD = 500;
 
   @Override
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+    long jobStart = System.currentTimeMillis();
     try {
       List<String> tenantIds = tenantService.findActiveTenantIds();
-      log.info(
-          "===> ManagerIntegrationsSyncJob: starting sync for {} tenant(s): {}",
-          tenantIds.size(),
-          tenantIds);
       for (String tenantId : tenantIds) {
+        long tenantStart = System.currentTimeMillis();
         try {
           TenantContext.setCurrentTenant(tenantId);
           managerFactory.getManager(tenantId).monitorIntegrations();
@@ -38,7 +37,19 @@ public class ManagerIntegrationsSyncJob implements Job {
           log.error("Failed to sync integrations for tenant '{}': {}", tenantId, e.getMessage(), e);
         } finally {
           TenantContext.clearCurrentTenant();
+          long tenantDuration = System.currentTimeMillis() - tenantStart;
+          if (tenantDuration > EXECUTION_TIME_THRESHOLD) {
+            log.warn(
+                "==> managerFactory.getManager(tenantId).monitorIntegrations() for tenant '{}' took {} ms (>500ms threshold)",
+                tenantId,
+                tenantDuration);
+          }
         }
+      }
+      long jobDuration = System.currentTimeMillis() - jobStart;
+      if (jobDuration > EXECUTION_TIME_THRESHOLD) {
+        log.warn(
+            "==> ManagerIntegrationsSyncJob.execute took {} ms (>500ms threshold)", jobDuration);
       }
     } catch (Exception e) {
       throw new JobExecutionException(e);

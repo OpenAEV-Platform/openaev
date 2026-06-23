@@ -14,7 +14,6 @@ import io.openaev.importer.Importer;
 import io.openaev.importer.V1_DataImporter;
 import io.openaev.utils.constants.Constants;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -27,6 +26,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
@@ -71,7 +71,7 @@ public class ImportService {
     }
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
     handleInputStreamImport(
@@ -83,7 +83,7 @@ public class ImportService {
         Constants.IMPORTED_OBJECT_NAME_SUFFIX);
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void handleInputStreamFileImport(
       InputStream is,
       Exercise exercise,

@@ -2,13 +2,12 @@ import { HelpOutlineOutlined } from '@mui/icons-material';
 import { Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type CSSProperties, type FunctionComponent, type SyntheticEvent, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { exportInjectSearch } from '../../../../actions/injects/inject-action';
-import ChainedTimeline from '../../../../components/ChainedTimeline';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -47,6 +46,9 @@ import InjectorContract from './InjectorContract';
 import InjectPopover from './InjectPopover';
 import InjectsListButtons from './InjectsListButtons';
 import UpdateInject from './UpdateInject';
+
+// Lazy-loaded: the chained timeline pulls @xyflow/react and is only needed in 'chain' view mode
+const ChainedTimeline = lazy(() => import('../../../../components/ChainedTimeline'));
 
 const useStyles = makeStyles()(theme => ({
   disabled: {
@@ -556,20 +558,22 @@ const Injects: FunctionComponent<Props> = ({
       />
       {viewModeContext === 'chain' && (
         <div style={{ marginBottom: 10 }}>
-          <ChainedTimeline
-            injects={injects}
-            onUpdateInject={massUpdateInject}
-            onTimelineClick={openCreateInjectDrawer}
-            onSelectedInject={(inject) => {
-              const injectContract = inject?.inject_injector_contract.convertedContent;
-              if (injectContract) {
-                setSelectedInjectId(inject?.inject_id);
-              }
-            }}
-            onCreate={onCreate}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-          />
+          <Suspense fallback={<Loader />}>
+            <ChainedTimeline
+              injects={injects}
+              onUpdateInject={massUpdateInject}
+              onTimelineClick={openCreateInjectDrawer}
+              onSelectedInject={(inject) => {
+                const injectContract = inject?.inject_injector_contract.convertedContent;
+                if (injectContract) {
+                  setSelectedInjectId(inject?.inject_id);
+                }
+              }}
+              onCreate={onCreate}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          </Suspense>
           <div className="clearfix" />
         </div>
       )}

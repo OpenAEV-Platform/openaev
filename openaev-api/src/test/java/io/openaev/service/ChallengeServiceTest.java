@@ -219,6 +219,7 @@ public class ChallengeServiceTest extends IntegrationTest {
             InjectExpectation.EXPECTATION_STATUS.SUCCESS);
     expectation.setChallenge(challenge);
     expectation.setInject(inject);
+    expectation.setUser(user);
     List<InjectExpectation> expectations = new ArrayList<>(List.of(expectation, expectation));
 
     // MOCK
@@ -268,6 +269,7 @@ public class ChallengeServiceTest extends IntegrationTest {
             InjectExpectation.EXPECTATION_STATUS.SUCCESS);
     expectation.setInject(inject);
     expectation.setChallenge(challenge);
+    expectation.setUser(user);
     List<InjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
 
     // MOCK
@@ -326,6 +328,7 @@ public class ChallengeServiceTest extends IntegrationTest {
             InjectExpectation.EXPECTATION_STATUS.SUCCESS);
     expectation.setInject(inject);
     expectation.setChallenge(challenge);
+    expectation.setUser(user);
     List<InjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
 
     // MOCK

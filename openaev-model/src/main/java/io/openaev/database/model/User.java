@@ -21,6 +21,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -190,6 +192,7 @@ public class User implements Base {
       name = "users_groups",
       joinColumns = @JoinColumn(name = "user_id"),
       inverseJoinColumns = @JoinColumn(name = "group_id"))
+  @Fetch(FetchMode.SUBSELECT)
   @JsonIgnore
   @Getter(NONE)
   private List<Group> groups = new ArrayList<>();
@@ -395,13 +398,17 @@ public class User implements Base {
   }
 
   /**
-   * Returns only groups visible in the current tenant context: groups belonging to the current
+   * Returns the groups visible in the current tenant context: groups belonging to the current
    * tenant plus platform-level groups (tenant IS NULL).
+   *
+   * <p>A request without an explicit tenant context - token/bearer API clients (Postman, httpx, the
+   * integrations) and Community Edition, where multi-tenancy is disabled - still operates on the
+   * default tenant. {@link TenantContext#getCurrentTenant()} falls back to the default tenant when
+   * none is set, so such requests resolve default-tenant groups plus platform groups. Without this,
+   * {@code getCapabilities()} was empty for those requests and {@code AccessControlAspect} denied
+   * them with 403 (issues #6331 / #6332).
    */
   private List<Group> scopedGroups() {
-    if (!TenantContext.hasCurrentTenant()) {
-      return platformGroups();
-    }
     String currentTenant = TenantContext.getCurrentTenant();
     return getUnscopedGroups().stream()
         .filter(

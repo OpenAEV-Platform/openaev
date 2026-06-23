@@ -297,7 +297,7 @@ public class CatalogConnectorIngestionService {
 
       String fileName = connectorSlug + "-logo.png";
 
-      fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
+      fileService.uploadCatalogLogo(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
 
       return fileName;
     } catch (Exception e) {

@@ -18,9 +18,9 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.objective.form.EvaluationInput;
 import io.openaev.rest.objective.form.ObjectiveInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -40,6 +40,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -56,7 +57,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Objective createObjective(
       @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
     Exercise exercise =
@@ -73,6 +74,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -91,6 +93,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -106,6 +109,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -119,6 +123,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -136,7 +141,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Evaluation createEvaluation(
       @PathVariable String exerciseId,
       @PathVariable String objectiveId,
@@ -165,6 +170,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -195,6 +201,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
     EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_EXERCISE_URI + "{exerciseId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,

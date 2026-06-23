@@ -15,7 +15,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -33,7 +32,6 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   private final ComponentRequestEngine componentRequestEngine;
   private final ChallengeRepository challengeRepository;
@@ -49,8 +47,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
       InjectExpectationService injectExpectationService,
       ChallengeRepository challengeRepository,
       HttpClientFactory httpClientFactory,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -61,7 +58,6 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
     this.injectExpectationService = injectExpectationService;
     this.challengeRepository = challengeRepository;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -105,8 +101,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
         injectorService,
         injectExpectationService,
         challengeRepository,
-        urlAccessTokenService,
-        previewFeatureService);
+        urlAccessTokenService);
   }
 
   @Override

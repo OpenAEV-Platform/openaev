@@ -20,13 +20,13 @@ import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -52,7 +52,7 @@ public class InjectStatusService {
             () -> new ElementNotFoundException("Inject status not found for :" + injectId));
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Inject updateInjectStatus(String injectId, InjectUpdateStatusInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow();
     // build status
@@ -104,6 +104,14 @@ public class InjectStatusService {
 
   public boolean isAllInjectAgentsExecuted(Inject inject) {
     int totalCompleteTrace = getCompleteTrace(inject);
+    // Use the agent count persisted at launch when available: it avoids re-resolving the full
+    // asset/agent graph (incl. dynamic asset-group filters) on every COMPLETE callback
+    Integer expectedAgentCount =
+        inject.getStatus().map(InjectStatus::getExpectedAgentCount).orElse(null);
+    if (expectedAgentCount != null) {
+      return totalCompleteTrace >= expectedAgentCount;
+    }
+    // Fallback for injects launched before the expected count was persisted
     List<Agent> agents = this.injectService.getAgentsByInject(inject);
     return agents.size() == totalCompleteTrace;
   }

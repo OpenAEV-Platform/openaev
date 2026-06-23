@@ -66,6 +66,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @GetMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET_GROUP)
   public List<AssetGroup> assetGroups() {
     return this.assetGroupService.assetGroups();
@@ -73,6 +74,7 @@ public class AssetGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ASSET_GROUP_URI + "/search", TENANT_ASSET_GROUP_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public Page<AssetGroupOutput> assetGroups(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -83,6 +85,7 @@ public class AssetGroupApi extends RestBehavior {
     ASSET_GROUP_URI + "/{assetGroupId}/assets/search",
     TENANT_ASSET_GROUP_URI + "/{assetGroupId}/assets/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
@@ -120,6 +123,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @GetMapping({ASSET_GROUP_URI + "/{assetGroupId}", TENANT_ASSET_GROUP_URI + "/{assetGroupId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
@@ -177,6 +181,7 @@ public class AssetGroupApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -234,6 +239,7 @@ public class AssetGroupApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ASSET_GROUP_URI + "/findings/options", TENANT_ASSET_GROUP_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
@@ -245,6 +251,7 @@ public class AssetGroupApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.assetGroupRepository.findAllById(ids)).stream()

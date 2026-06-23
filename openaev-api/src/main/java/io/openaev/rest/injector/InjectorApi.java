@@ -21,6 +21,7 @@ import io.openaev.rest.injector.form.InjectorCreateInput;
 import io.openaev.rest.injector.form.InjectorOutput;
 import io.openaev.rest.injector.form.InjectorUpdateInput;
 import io.openaev.rest.injector.response.InjectorRegistration;
+import io.openaev.service.FileService;
 import io.openaev.service.InjectorService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
@@ -30,20 +31,23 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -59,6 +63,7 @@ public class InjectorApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
+  private final FileService fileService;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -74,6 +79,7 @@ public class InjectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve injectors",
       description = "Retrieve all injectors and pending injectors if includeNext is true")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   @ApiResponse(
       responseCode = "200",
@@ -95,6 +101,7 @@ public class InjectorApi extends RestBehavior {
     INJECT0R_URI + "/{injectorId}/injector_contracts",
     TENANT_INJECTOR_URI + "/{injectorId}/injector_contracts"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
@@ -117,6 +124,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @PutMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.WRITE,
@@ -140,6 +148,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @GetMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
+  @Transactional
   @AccessControl(
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
@@ -159,8 +168,33 @@ public class InjectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
   @Operation(summary = "Retrieve injector related ids")
+  @Transactional
   public ConnectorIds getInjectorRelatedIds(@PathVariable String injectorId) {
     return injectorService.getInjectorRelationsId(injectorId);
+  }
+
+  // -- IMAGE --
+
+  @GetMapping(
+      value = {
+        INJECT0R_URI + "/{injectorType}/image",
+        TENANT_INJECTOR_URI + "/{injectorType}/image"
+      },
+      produces = MediaType.IMAGE_PNG_VALUE)
+  @AccessControl(skipRBAC = true)
+  @Operation(summary = "Get injector image by type")
+  @Transactional
+  public ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
+      throws IOException {
+    Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
+    if (fileStream.isPresent()) {
+      try (InputStream is = fileStream.get()) {
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+            .body(IOUtils.toByteArray(is));
+      }
+    }
+    return ResponseEntity.notFound().build();
   }
 
   @PostMapping(
@@ -168,7 +202,7 @@ public class InjectorApi extends RestBehavior {
       produces = {MediaType.APPLICATION_JSON_VALUE},
       consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public InjectorRegistration registerInjector(
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
@@ -182,8 +216,9 @@ public class InjectorApi extends RestBehavior {
         TENANT_PREFIX + "/implant/openaev/{platform}/{architecture}"
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+  @Transactional
   @AccessControl(skipRBAC = true)
-  public @ResponseBody ResponseEntity<byte[]> getOpenAevImplant(
+  public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevImplant(
       @PathVariable String platform,
       @PathVariable String architecture,
       @RequestParam(required = false) final String injectId,
@@ -219,10 +254,12 @@ public class InjectorApi extends RestBehavior {
     if (in != null) {
       HttpHeaders headers = new HttpHeaders();
       headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename);
+      // Stream the binary instead of buffering it fully in heap: thousands of concurrent implant
+      // downloads with byte[] buffering caused GC churn / OOM risk
       return ResponseEntity.ok()
           .headers(headers)
           .contentType(MediaType.APPLICATION_OCTET_STREAM)
-          .body(IOUtils.toByteArray(in));
+          .body(new InputStreamResource(in));
     }
     throw new UnsupportedOperationException(
         "Implant " + resolvedPlatform + " executable not supported");
@@ -231,6 +268,7 @@ public class InjectorApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -244,6 +282,7 @@ public class InjectorApi extends RestBehavior {
   }
 
   @PostMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(
       @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {

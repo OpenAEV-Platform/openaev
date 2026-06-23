@@ -1,12 +1,13 @@
 package io.openaev.rest.atomic_testing;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.collector.service.CollectorService;
@@ -56,6 +57,7 @@ public class AtomicTestingApi extends RestBehavior {
   // some api use inject as resource type because they are actually used to retrieve inject data for
   // simulation and AT
   @LogExecutionTime
+  @Transactional
   @GetMapping("/{injectId}")
   @AccessControl(
       resourceId = "#injectId",
@@ -66,6 +68,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping("/{injectId}/payload")
   @AccessControl(
       resourceId = "#injectId",
@@ -96,6 +99,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @DeleteMapping("/{injectId}")
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
@@ -105,6 +109,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")
+  @Transactional
   @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.DUPLICATE,
@@ -115,6 +120,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/launch")
+  @Transactional
   @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
@@ -125,6 +131,7 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @PostMapping("/{atomicTestingId}/relaunch")
+  @Transactional
   @AccessControl(
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
@@ -135,17 +142,19 @@ public class AtomicTestingApi extends RestBehavior {
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}")
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public List<InjectExpectation> findTargetResult(
+  public List<InjectExpectationOutput> findTargetResult(
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType,
       @RequestParam(required = false) String parentTargetId) {
-    return injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-        injectId, targetId, parentTargetId, targetType);
+    return toOutputs(
+        injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+            injectId, targetId, parentTargetId, targetType));
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/asset_with_agents")
@@ -155,6 +164,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Operation(
       summary = "Get the agents injects expectations from an inject, asset and expectation type")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -180,6 +190,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Operation(
       summary =
           "Fetch target expectations with merged results across all occurrences of each expectation type")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -192,15 +203,16 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public List<InjectExpectation> findTargetResultMerged(
+  public List<InjectExpectationOutput> findTargetResultMerged(
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
-    return injectExpectationService
-        .findMergedExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType)
-        .stream()
-        .sorted(Comparator.comparing(InjectExpectation::getType))
-        .toList();
+    return toOutputs(
+        injectExpectationService
+            .findMergedExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType)
+            .stream()
+            .sorted(Comparator.comparing(expectation -> expectation.getType().name()))
+            .toList());
   }
 
   @PutMapping("/{injectId}/tags")
@@ -221,6 +233,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   @Operation(summary = "Get the Collectors used in an atomic testing remediation")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
@@ -234,6 +247,7 @@ public class AtomicTestingApi extends RestBehavior {
   @PostMapping(
       path = "/import",
       consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ATOMIC_TESTING)
   public void atomicTestingImport(
       @RequestPart("file") MultipartFile file, HttpServletResponse response) throws Exception {

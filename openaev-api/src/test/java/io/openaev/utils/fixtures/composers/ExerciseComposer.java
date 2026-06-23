@@ -79,6 +79,7 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       this.categoryComposers.add(categoryComposer);
       List<LessonsCategory> tempCategories = this.exercise.getLessonsCategories();
       tempCategories.add(categoryComposer.get());
+      categoryComposer.get().setExercise(this.exercise);
       this.exercise.setLessonsCategories(tempCategories);
       return this;
     }

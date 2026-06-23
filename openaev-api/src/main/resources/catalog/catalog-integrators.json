@@ -71,11 +71,6 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "crowdstrike/img/icon-crowdstrike.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
-                    },
                     "COLLECTOR_PLATFORM": {
                         "default": "EDR",
                         "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
@@ -182,11 +177,6 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "microsoft_entra/img/icon-microsoft-entra.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
-                    },
                     "COLLECTOR_MICROSOFT_ENTRA_TENANT_ID": {
                         "description": "Azure Active Directory tenant ID for Microsoft Entra.",
                         "type": "string"
@@ -284,11 +274,6 @@
                         "default": "PT1H",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "microsoft_intune/img/icon-microsoft-intune.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "COLLECTOR_MICROSOFT_INTUNE_TENANT_ID": {
@@ -395,11 +380,6 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "microsoft_defender/img/icon-microsoft-defender.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
-                    },
                     "COLLECTOR_PLATFORM": {
                         "default": "EDR",
                         "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
@@ -495,11 +475,6 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "microsoft_azure/img/icon-microsoft-azure.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "COLLECTOR_MICROSOFT_AZURE_TENANT_ID": {
@@ -604,11 +579,6 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "microsoft_sentinel/img/icon-microsoft-sentinel.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "COLLECTOR_PLATFORM": {
@@ -729,11 +699,6 @@
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "atomic_red_team/img/icon-atomic-red-team.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -810,11 +775,6 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "tanium_threat_response/img/icon-tanium.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "COLLECTOR_PLATFORM": {
@@ -921,11 +881,6 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "nvd_nist_cve/img/icon-nist.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
-                    },
                     "NVDNISTCVE_API_KEY": {
                         "default": "",
                         "description": "The NVD API key.",
@@ -1019,11 +974,6 @@
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "mitre_attack/img/icon-mitre-attack.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -1109,11 +1059,6 @@
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "openaev/img/icon-openaev.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -1191,11 +1136,6 @@
                         "default": "PT1H",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "google_workspace/img/icon-google-workspace.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "COLLECTOR_GOOGLE_WORKSPACE_SERVICE_ACCOUNT_JSON": {
@@ -1299,11 +1239,6 @@
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
-                    },
-                    "INJECTOR_ICON_FILEPATH": {
-                        "default": "nmap/img/nmap.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -1380,11 +1315,6 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "INJECTOR_ICON_FILEPATH": {
-                        "default": "nuclei/img/nuclei.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "INJECTOR_EXTERNAL_CONTRACTS_MAINTENANCE_SCHEDULE_SECONDS": {
@@ -1468,11 +1398,6 @@
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
                         "type": "string"
-                    },
-                    "INJECTOR_ICON_FILEPATH": {
-                        "default": "http-query/img/icon-http.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
                     }
                 },
                 "required": [
@@ -1549,11 +1474,6 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "INJECTOR_ICON_FILEPATH": {
-                        "default": "aws/img/icon-aws.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     }
                 },
@@ -1637,11 +1557,6 @@
                         "default": "PT2M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "src/img/sentinelone-logo.png",
-                        "description": "Path to the icon file of the collector.",
                         "type": "string"
                     },
                     "SENTINELONE_BASE_URL": {
@@ -1759,11 +1674,6 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "src/img/splunk-logo.png",
-                        "description": "Path to the icon file of the collector.",
-                        "type": "string"
-                    },
                     "SPLUNK_ES_BASE_URL": {
                         "description": "Base URL for the Splunk ES instance (e.g., https://splunk.company.com:8089).",
                         "type": "string"
@@ -1798,6 +1708,11 @@
                         "default": "PT30S",
                         "description": "Time offset between retry attempts.",
                         "format": "duration",
+                        "type": "string"
+                    },
+                    "SPLUNK_ES_QUERY_TEMPLATE": {
+                        "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator), {target_ips} (target IP values, quoted for IN operator), {implant_urls} (implant callback URL paths, quoted for IN operator; * if none), {implant_names} (implant process names, quoted for IN operator; * if none), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'), {ip_conditions} (legacy: auto-generated IP filters with all CIM field names), {process_conditions} (legacy: auto-generated URL path filters), {time_window} (time window in seconds, legacy). The query MUST include '| table _time' for proper alert parsing. Leave empty to use the default query.",
+                        "default": "index={alerts_index} (src_ip IN ({source_ips}) OR src IN ({source_ips}) OR source_ip IN ({source_ips}) OR client_ip IN ({source_ips})) (dst_ip IN ({target_ips}) OR dest IN ({target_ips}) OR dest_ip IN ({target_ips}) OR destination_ip IN ({target_ips}) OR server_ip IN ({target_ips})) (url_path IN ({implant_urls}) OR url IN ({implant_urls}) OR path IN ({implant_urls}) OR query IN ({implant_urls}) OR process_name IN ({implant_names}) OR parent_process_name IN ({implant_names})) earliest={start_date} latest={end_date} | table _time, src_ip, src, source_ip, client_ip, dst_ip, dest, dest_ip, destination_ip, server_ip, signature, rule_name, event_type, severity, url_path, url, path, query, process_name, parent_process_name, _raw | sort -_time",
                         "type": "string"
                     }
                 },
@@ -1878,11 +1793,6 @@
                         "default": "PT1H",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "aws_resources/img/icon-aws-resources.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "COLLECTOR_AWS_ACCESS_KEY_ID": {
@@ -1984,11 +1894,6 @@
                         "default": "PT1M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "INJECTOR_ICON_FILEPATH": {
-                        "default": "shodan/img/icon-shodan.png",
-                        "description": "Path to the icon file",
                         "type": "string"
                     },
                     "SHODAN_BASE_URL": {
@@ -2098,11 +2003,6 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "INJECTOR_ICON_FILEPATH": {
-                        "default": "teams/img/icon-teams.png",
-                        "description": "Path to the icon file",
-                        "type": "string"
-                    },
                     "INJECTOR_TYPE": {
                         "default": "openaev_teams",
                         "description": "Type of the injector.",
@@ -2189,11 +2089,6 @@
                         "default": "PT2M",
                         "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
                         "format": "duration",
-                        "type": "string"
-                    },
-                    "COLLECTOR_ICON_FILEPATH": {
-                        "default": "src/img/palo-alto-cortex-xdr-logo.png",
-                        "description": "Path to the icon file of the collector.",
                         "type": "string"
                     },
                     "PALO_ALTO_CORTEX_XDR_FQDN": {

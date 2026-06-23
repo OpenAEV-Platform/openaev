@@ -10,7 +10,6 @@ import org.springframework.security.saml2.provider.service.authentication.Abstra
 import org.springframework.security.saml2.provider.service.web.HttpSessionSaml2AuthenticationRequestRepository;
 import org.springframework.security.saml2.provider.service.web.Saml2AuthenticationRequestRepository;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Repository;
 
 /**
  * This class is heavily based on <a
@@ -22,7 +21,6 @@ import org.springframework.stereotype.Repository;
  * if we can remove this custom class when we switch to a more modern saml library
  */
 @Component
-@Repository
 public class OpenAEVSaml2AuthenticationRequestRepository
     implements Saml2AuthenticationRequestRepository<AbstractSaml2AuthenticationRequest> {
 

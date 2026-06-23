@@ -11,6 +11,7 @@ import io.openaev.aop.lock.LockAcquisitionException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.*;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.stix.parsing.ParsingException;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -321,12 +322,29 @@ public class RestBehavior {
     return new ResponseEntity<>(new ErrorMessage(errorMessage), HttpStatus.UNPROCESSABLE_ENTITY);
   }
 
+  @ResponseStatus(HttpStatus.UNAUTHORIZED)
+  @ExceptionHandler(AuthenticationError.class)
+  @ApiResponses(
+      value = {
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ResponseEntity.class)))
+      })
+  ResponseEntity<ErrorMessage> handleAuthenticationError(AuthenticationError ex) {
+    String errorMessage =
+        ex.getMessage() != null && !ex.getMessage().isEmpty()
+            ? ex.getMessage()
+            : HttpStatus.UNAUTHORIZED.getReasonPhrase();
+    return new ResponseEntity<>(new ErrorMessage(errorMessage), HttpStatus.UNAUTHORIZED);
+  }
+
   // --- Open channel access
-  public User impersonateUser(UserRepository userRepository, Optional<String> userId) {
+  public User impersonateUser(UserRepository userRepository, Optional<String> userId)
+      throws AuthenticationError {
     if (ANONYMOUS.equals(currentUser().getId())) {
       if (userId.isEmpty()) {
-        throw new UnsupportedOperationException(
-            "User must be logged or dynamic player is required");
+        throw new AuthenticationError("User must be logged or dynamic player is required");
       }
       return userRepository
           .findById(userId.get())

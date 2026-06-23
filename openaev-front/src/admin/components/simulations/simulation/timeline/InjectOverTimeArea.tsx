@@ -1,9 +1,9 @@
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
-import Chart from 'react-apexcharts';
 
 import { type InjectStore } from '../../../../../actions/injects/Inject';
+import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Inject } from '../../../../../utils/api-types';

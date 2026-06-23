@@ -1,23 +1,13 @@
-import 'cronstrue/locales/fr';
-import 'cronstrue/locales/en';
-import 'cronstrue/locales/es';
-import 'cronstrue/locales/de';
-import 'cronstrue/locales/it';
-import 'cronstrue/locales/ja';
-import 'cronstrue/locales/ko';
-import 'cronstrue/locales/ru';
-import 'cronstrue/locales/zh_CN';
-
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import moment from 'moment';
-import { type FunctionComponent, type ReactElement, useEffect } from 'react';
+import { type FunctionComponent, type ReactElement, useEffect, useState } from 'react';
 import { IntlProvider } from 'react-intl';
 
 import { type LoggedHelper } from '../actions/helper';
 import { DEFAULT_LANG } from '../constants/Lang';
 import { useHelper } from '../store';
-import { dateFnsLocaleMap, type LanguageCode, momentMap, oaevLocaleMap } from '../utils/locales';
+import { dateFnsLocaleMap, type LanguageCode, loadLocaleMessages, momentMap, oaevLocaleMap } from '../utils/locales';
 
 // Export LANG to be used in non-React code
 // eslint-disable-next-line import/no-mutable-exports
@@ -38,7 +28,22 @@ const AppIntlProvider: FunctionComponent<{ children: ReactElement }> = ({ childr
   });
 
   LANG = userLang;
-  const baseMessages: Record<string, string> = oaevLocaleMap[userLang] || oaevLocaleMap[DEFAULT_LANG];
+  // Locales other than the default are code-split: render with the best catalog already in
+  // memory and swap in the requested one as soon as its chunk is loaded
+  const [baseMessages, setBaseMessages] = useState<Record<string, string>>(
+    () => oaevLocaleMap[userLang] ?? oaevLocaleMap[DEFAULT_LANG as LanguageCode] ?? oaevLocaleMap.en,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    loadLocaleMessages(userLang).then((messages) => {
+      if (!cancelled) {
+        setBaseMessages(messages);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userLang]);
   const momentLocale = momentMap[userLang];
   moment.locale(momentLocale);
   useEffect(() => {

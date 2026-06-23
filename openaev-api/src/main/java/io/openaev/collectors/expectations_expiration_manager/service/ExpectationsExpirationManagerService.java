@@ -15,7 +15,9 @@ import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -55,25 +57,29 @@ public class ExpectationsExpirationManagerService {
   // -- PRIVATE --
   private void processAgentExpectations(
       @NotNull final List<InjectExpectation> expectations, @NotNull final Collector collector) {
-    List<InjectExpectation> expectationAgents =
-        expectations.stream().filter(ExpectationUtils::isAgentExpectation).toList();
-    expectationAgents.forEach(
-        expectation -> {
-          if (isExpired(expectation)) {
-            InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-            if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
-              input.setIsSuccess(true);
-              input.setResult(computeSuccessMessage(expectation.getType()));
-              expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
-            } else {
-              input.setIsSuccess(false);
-              input.setResult(computeFailedMessage(expectation.getType()));
-              expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
-            }
-            this.injectExpectationService.computeTechnicalExpectation(
-                expectation, collector, input, true);
-          }
-        });
+    List<InjectExpectation> expiredExpectations = new ArrayList<>();
+    Map<String, InjectExpectationUpdateInput> inputsById = new LinkedHashMap<>();
+    for (InjectExpectation expectation : expectations) {
+      if (!ExpectationUtils.isAgentExpectation(expectation) || !isExpired(expectation)) {
+        continue;
+      }
+      InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
+      if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
+        input.setIsSuccess(true);
+        input.setResult(computeSuccessMessage(expectation.getType()));
+        expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
+      } else {
+        input.setIsSuccess(false);
+        input.setResult(computeFailedMessage(expectation.getType()));
+        expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+      }
+      expiredExpectations.add(expectation);
+      inputsById.put(expectation.getId(), input);
+    }
+    // Batched: one save for all agent expirations plus one propagation per distinct parent,
+    // instead of one save + full propagation chain per expectation
+    this.injectExpectationService.bulkComputeTechnicalExpectations(
+        expiredExpectations, inputsById, collector, true);
   }
 
   private void processRemainingExpectations(

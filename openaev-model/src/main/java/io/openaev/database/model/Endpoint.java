@@ -14,6 +14,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
 
 @EqualsAndHashCode(callSuper = true)
@@ -170,6 +172,7 @@ public class Endpoint extends Asset {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
+  @Fetch(FetchMode.SUBSELECT)
   // method
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
