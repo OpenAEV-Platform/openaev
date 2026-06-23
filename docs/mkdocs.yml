@@ -121,6 +121,7 @@ nav:
       - Configuration: deployment/configuration.md
       - Certificate validation: deployment/certificate-validation.md
       - Authentication: deployment/authentication.md
+      - URL access token: deployment/url-access-token.md
       - Upgrade: deployment/upgrade.md
     - Ecosystem:
       - Executors: deployment/ecosystem/executors.md
@@ -143,6 +144,8 @@ nav:
         - OpenAEV renaming: deployment/breaking-changes/2.0.0-openaev-renaming.md
         - OpenAEV encryption: deployment/breaking-changes/2.1.0-encrypting-password.md
         - Scenario Generation from OpenCTI Security Coverage: deployment/breaking-changes/2.2.0-opencti-security-coverage.md
+        - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
+        - URL access token enforcement for email links: deployment/breaking-changes/2.5.0-url-access-token-enforcement.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
