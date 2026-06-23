@@ -32,7 +32,6 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
-import io.openaev.service.chaining.StepEventService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
@@ -210,7 +209,7 @@ public class InjectExecutionStep implements ActionStep {
 
       // Surface rate-limit delays as an INFO trace on the inject status, so the user
       // can see in the UI that execution was throttled before proceeding.
-      int rateLimitCount = StepEventService.getRateLimitCount(readyStep.getInput());
+      int rateLimitCount = readyStep.getRateLimitCount();
       if (rateLimitCount > 0) {
         inject
             .getStatus()

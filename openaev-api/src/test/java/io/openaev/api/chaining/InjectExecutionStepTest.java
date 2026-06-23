@@ -652,12 +652,13 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
 
-    // Set input with _rateLimitCount = 3 to simulate 3 prior rate-limit reschedules
-    String inputWithRateLimit = "{\"_rateLimitCount\":3}";
+    // Set rateLimitCount = 3 on the step to simulate 3 prior rate-limit reschedules
+    String inputWithRateLimit = "{}";
     Optional<Step> stepReadyOpt =
         injectExecutionStep.ready(stepTemplate, inputWithRateLimit, workflowRun);
     assertTrue(stepReadyOpt.isPresent());
     Step stepReady = stepReadyOpt.get();
+    stepReady.setRateLimitCount(3);
 
     // Capture the InjectStatus returned by executor so we can inspect traces
     InjectStatus capturedStatus = new InjectStatus();

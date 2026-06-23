@@ -52,6 +52,12 @@ public class StepDelayQueue implements Base {
   @Schema(description = "Step template to execute when the goal time is reached")
   private Step stepTemplate;
 
+  @Column(name = "steps_delay_queue_rate_limit_count")
+  @JsonProperty("steps_delay_queue_rate_limit_count")
+  @Schema(description = "Number of times the step was rescheduled due to rate limiting")
+  @Builder.Default
+  private int rateLimitCount = 0;
+
   @ManyToOne
   @JoinColumn(name = "steps_delay_queue_step_ready_id")
   @OnDelete(action = OnDeleteAction.CASCADE)

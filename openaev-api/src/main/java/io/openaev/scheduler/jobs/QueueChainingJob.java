@@ -56,6 +56,8 @@ public class QueueChainingJob implements Job {
               Step existingReadyStep = stepDelayQueue.getStepReady();
               if (existingReadyStep != null) {
                 // Rate-limit reschedule: re-enqueue the existing READY step directly.
+                // Propagate the rate-limit count from the delay queue entry to the step.
+                existingReadyStep.setRateLimitCount(stepDelayQueue.getRateLimitCount());
                 log.info(
                     "Re-enqueuing existing READY step {} into ready queue",
                     existingReadyStep.getId());

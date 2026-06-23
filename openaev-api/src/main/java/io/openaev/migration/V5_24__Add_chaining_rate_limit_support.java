@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_24__Add_workflow_simulation_run_index extends BaseJavaMigration {
+public class V5_24__Add_chaining_rate_limit_support extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -41,6 +41,22 @@ public class V5_24__Add_workflow_simulation_run_index extends BaseJavaMigration 
           ALTER TABLE steps_delay_queue
             ADD COLUMN IF NOT EXISTS steps_delay_queue_step_ready_id VARCHAR(255)
             REFERENCES steps(step_id) ON DELETE CASCADE;
+          """);
+
+      // Add rate_limit_count column to steps_delay_queue to carry the reschedule count
+      // through the delay queue without polluting the step input JSON.
+      stmt.execute(
+          """
+          ALTER TABLE steps_delay_queue
+            ADD COLUMN IF NOT EXISTS steps_delay_queue_rate_limit_count INTEGER DEFAULT 0;
+          """);
+
+      // Add rate_limit_count column to steps to store the count on the READY step
+      // so it can be read by InjectExecutionStep to emit an INFO trace.
+      stmt.execute(
+          """
+          ALTER TABLE steps
+            ADD COLUMN IF NOT EXISTS step_rate_limit_count INTEGER DEFAULT 0;
           """);
     }
   }

@@ -68,6 +68,7 @@ class StepDelayQueueServiceTest {
       when(step.getInput()).thenReturn("{\"key\":\"value\"}");
       when(step.getWorkflow()).thenReturn(workflowRun);
       when(step.getStepTemplate()).thenReturn(template);
+      when(step.getRateLimitCount()).thenReturn(3);
 
       Instant before = Instant.now().minusSeconds(5);
 
@@ -84,6 +85,7 @@ class StepDelayQueueServiceTest {
       assertEquals(120_000L, captured.getDelay());
       assertSame(template, captured.getStepTemplate());
       assertSame(workflowRun, captured.getWorkflowRun());
+      assertEquals(3, captured.getRateLimitCount());
       assertTrue(captured.getGoal().isAfter(before));
       assertTrue(captured.getGoal().isBefore(after));
     }

@@ -31,11 +31,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  * action-step execution layer. This validates the full cycle:
  *
  * <ol>
- *   <li>Rate limit reached → step rescheduled with {@code _rateLimitCount} incremented
- *   <li>{@code _rateLimitCount} preserved through the delay queue (TEMPLATE step + input)
- *   <li>Delay queue consumed → new READY step created with the preserved input
- *   <li>Rate limit now under threshold → step executes; action step receives input containing
- *       {@code _rateLimitCount}
+ *   <li>Rate limit reached → step rescheduled with {@code rateLimitCount} incremented
+ *   <li>{@code rateLimitCount} preserved through the delay queue dedicated column
+ *   <li>Delay queue consumed → existing READY step re-enqueued with the preserved count
+ *   <li>Rate limit now under threshold → step executes; action step receives step with {@code
+ *       rateLimitCount}
  * </ol>
  */
 @ExtendWith(MockitoExtension.class)
@@ -109,8 +109,8 @@ class RateLimitEndToEndTest {
 
   @Test
   @DisplayName(
-      "Full cycle: rate limit blocks → reschedule with _rateLimitCount"
-          + " → delay queue preserves data → re-execution proceeds with count in input")
+      "Full cycle: rate limit blocks → reschedule with rateLimitCount"
+          + " → delay queue preserves count → re-execution proceeds")
   void fullRateLimitCycle() throws Exception {
     // =====================================================================
     // PHASE 1 — First attempt: rate limit reached, step is rescheduled
@@ -132,11 +132,9 @@ class RateLimitEndToEndTest {
     // Assert — step was NOT executed
     verify(stepService, never()).factoryAction(any(), any());
 
-    // Assert — input was enriched with _rateLimitCount:1
-    assertTrue(
-        stepReady1.getInput().contains("\"_rateLimitCount\":1"),
-        "Input should contain _rateLimitCount:1 after first reschedule, got: "
-            + stepReady1.getInput());
+    // Assert — rateLimitCount was incremented to 1
+    assertEquals(
+        1, stepReady1.getRateLimitCount(), "rateLimitCount should be 1 after first reschedule");
 
     // Assert — delay queue entry was persisted with the TEMPLATE step (not the READY step)
     ArgumentCaptor<StepDelayQueue> delayCaptor = ArgumentCaptor.forClass(StepDelayQueue.class);
@@ -154,18 +152,16 @@ class RateLimitEndToEndTest {
     assertSame(workflowRun, capturedEntry.getWorkflowRun());
     assertEquals(
         60_000L, capturedEntry.getDelay(), "Delay should be maxTemporalRateSeconds * 1000");
-    assertTrue(
-        capturedEntry.getInput().contains("\"_rateLimitCount\":1"),
-        "Delay queue input must carry _rateLimitCount:1, got: " + capturedEntry.getInput());
+    assertEquals(
+        1, capturedEntry.getRateLimitCount(), "Delay queue entry must carry rateLimitCount=1");
 
     // =====================================================================
     // PHASE 2 — Second attempt: still rate limited → count increments to 2
     // =====================================================================
 
-    // Simulate QueueChainingJob consuming the delay queue: it calls
-    // stepService.createReadySteps(template, workflowRun, input) which creates
-    // a new READY step with the input from the delay queue.
-    Step stepReady2 = buildReadyStep(stepTemplate, workflowRun, capturedEntry.getInput());
+    // Simulate QueueChainingJob consuming the delay queue: it re-enqueues the
+    // existing READY step with the rateLimitCount from the delay queue entry.
+    stepReady1.setRateLimitCount(capturedEntry.getRateLimitCount());
 
     reset(stepDelayQueueRepository);
     // Still at the limit
@@ -173,27 +169,24 @@ class RateLimitEndToEndTest {
         .thenReturn(3L);
 
     // Act — second run attempt
-    stepEventService.run(stepReady2);
+    stepEventService.run(stepReady1);
 
     // Assert — count incremented to 2
-    assertTrue(
-        stepReady2.getInput().contains("\"_rateLimitCount\":2"),
-        "Input should contain _rateLimitCount:2 after second reschedule, got: "
-            + stepReady2.getInput());
+    assertEquals(
+        2, stepReady1.getRateLimitCount(), "rateLimitCount should be 2 after second reschedule");
 
     // Assert — delay queue was saved again with count 2
     verify(stepDelayQueueRepository).save(delayCaptor.capture());
     StepDelayQueue secondEntry = delayCaptor.getValue();
-    assertTrue(
-        secondEntry.getInput().contains("\"_rateLimitCount\":2"),
-        "Second delay queue entry must carry _rateLimitCount:2, got: " + secondEntry.getInput());
+    assertEquals(
+        2, secondEntry.getRateLimitCount(), "Second delay queue entry must carry rateLimitCount=2");
 
     // =====================================================================
     // PHASE 3 — Third attempt: rate limit now allows execution
     // =====================================================================
 
-    // New READY step created from delay queue, carrying count=2
-    Step stepReady3 = buildReadyStep(stepTemplate, workflowRun, secondEntry.getInput());
+    // Simulate QueueChainingJob: set count from delay queue onto the step
+    stepReady1.setRateLimitCount(secondEntry.getRateLimitCount());
 
     // Now only 2 terminal injects → under the limit of 3
     when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
@@ -205,53 +198,50 @@ class RateLimitEndToEndTest {
     stepRun.setId(UUID.randomUUID().toString());
     stepRun.setStatus(StepStatus.RUN);
 
-    when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), eq(stepReady3.getId())))
+    when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), eq(stepReady1.getId())))
         .thenReturn(actionStep);
-    when(actionStep.run(stepReady3)).thenReturn(Optional.of(stepRun));
+    when(actionStep.run(stepReady1)).thenReturn(Optional.of(stepRun));
     when(stepService.saveStep(stepRun)).thenReturn(stepRun);
 
     // Act — third run attempt, this time it should proceed
-    stepEventService.run(stepReady3);
+    stepEventService.run(stepReady1);
 
     // Assert — action step was executed
-    verify(actionStep).run(stepReady3);
+    verify(actionStep).run(stepReady1);
     verify(stepService).saveStep(stepRun);
     assertEquals(StepStatus.RUN, stepRun.getStatus());
 
-    // Assert — the input passed to the action step still contains _rateLimitCount:2
-    // (it was NOT cleared, so InjectExecutionStep.run() can read it and emit the INFO trace)
+    // Assert — the step still carries rateLimitCount=2 for INFO trace emission
     assertEquals(
         2,
-        StepEventService.getRateLimitCount(stepReady3.getInput()),
-        "The executed step's input should still carry _rateLimitCount:2 for INFO trace emission");
+        stepReady1.getRateLimitCount(),
+        "The executed step should still carry rateLimitCount=2 for INFO trace emission");
   }
 
   @Test
-  @DisplayName("Null input is handled gracefully through the full reschedule cycle")
-  void fullCycle_withNullInput() {
-    // READY step with null input
+  @DisplayName("Zero rateLimitCount is handled gracefully through the full reschedule cycle")
+  void fullCycle_withZeroCount() {
+    // READY step with default count (0)
     Step stepReady = buildReadyStep(stepTemplate, workflowRun, null);
 
     when(workflowService.isWorkflowEnded(workflowRun.getId())).thenReturn(false);
     when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
         .thenReturn(5L);
 
-    // Act — should not throw NPE
+    // Act
     stepEventService.run(stepReady);
 
-    // Assert — input defaulted to {} and enriched with count
-    assertNotNull(stepReady.getInput(), "Input must no longer be null after reschedule");
-    assertTrue(
-        stepReady.getInput().contains("\"_rateLimitCount\":1"),
-        "Count should be 1 even when starting from null input, got: " + stepReady.getInput());
+    // Assert — count incremented from 0 to 1
+    assertEquals(
+        1, stepReady.getRateLimitCount(), "Count should be 1 after first reschedule from zero");
 
-    // Assert — delay queue preserves the non-null enriched input
+    // Assert — delay queue preserves the count
     ArgumentCaptor<StepDelayQueue> captor = ArgumentCaptor.forClass(StepDelayQueue.class);
     verify(stepDelayQueueRepository).save(captor.capture());
     assertEquals(
-        stepReady.getInput(),
-        captor.getValue().getInput(),
-        "Delay queue input should match the step's enriched input");
+        1,
+        captor.getValue().getRateLimitCount(),
+        "Delay queue entry should carry rateLimitCount=1");
   }
 
   // ========================================================================

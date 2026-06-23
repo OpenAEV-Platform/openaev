@@ -3,7 +3,6 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
@@ -492,7 +491,7 @@ class StepEventServiceTest {
 
       Step stepReady = mock(Step.class);
       when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getInput()).thenReturn("{}");
+      when(stepReady.getRateLimitCount()).thenReturn(0);
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
       when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
@@ -531,10 +530,10 @@ class StepEventServiceTest {
       when(workflowRun.getId()).thenReturn("wf-1");
       when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(60L);
 
-      // Simulate a step that was already rate-limited once
+      // Simulate a step that was already rate-limited twice
       Step stepReady = mock(Step.class);
       when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getInput()).thenReturn("{\"_rateLimitCount\":2}");
+      when(stepReady.getRateLimitCount()).thenReturn(2);
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
       when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
@@ -543,12 +542,12 @@ class StepEventServiceTest {
       stepEventService.run(stepReady);
 
       // -------- Assert — count should be incremented to 3 --------
-      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":3")));
+      verify(stepReady).setRateLimitCount(3);
       verify(stepDelayQueueService).reschedule(stepReady, 60L);
     }
 
     @Test
-    void shouldHandleNullInput_whenRateLimitReached() {
+    void shouldHandleZeroCount_whenRateLimitReached() {
       // -------- Prepare --------
       Workflow workflowRun = mock(Workflow.class);
       when(workflowRun.getId()).thenReturn("wf-1");
@@ -556,65 +555,17 @@ class StepEventServiceTest {
 
       Step stepReady = mock(Step.class);
       when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getInput()).thenReturn(null);
+      when(stepReady.getRateLimitCount()).thenReturn(0);
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
       when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
 
-      // -------- Act — should not throw NPE --------
+      // -------- Act --------
       stepEventService.run(stepReady);
 
-      // -------- Assert — count should start at 1 from default {} --------
-      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
+      // -------- Assert — count should start at 1 --------
+      verify(stepReady).setRateLimitCount(1);
       verify(stepDelayQueueService).reschedule(stepReady, 30L);
-    }
-
-    @Test
-    void shouldResetToEmptyJson_whenInputIsInvalidJson() {
-      // -------- Prepare --------
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-1");
-      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(60L);
-
-      Step stepReady = mock(Step.class);
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getInput()).thenReturn("{not-valid-json!!!");
-
-      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
-
-      // -------- Act — should not throw, should recover gracefully --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert — count should start at 1 from a reset {} --------
-      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
-      verify(stepDelayQueueService).reschedule(stepReady, 60L);
-    }
-  }
-
-  // -- GET RATE LIMIT COUNT --
-
-  @Nested
-  class GetRateLimitCount {
-
-    @Test
-    void shouldReturnZero_whenInputIsNull() {
-      assertEquals(0, StepEventService.getRateLimitCount(null));
-    }
-
-    @Test
-    void shouldReturnZero_whenFieldNotPresent() {
-      assertEquals(0, StepEventService.getRateLimitCount("{}"));
-    }
-
-    @Test
-    void shouldReturnCount_whenFieldPresent() {
-      assertEquals(3, StepEventService.getRateLimitCount("{\"_rateLimitCount\":3}"));
-    }
-
-    @Test
-    void shouldReturnZero_whenFieldIsNotANumber() {
-      assertEquals(0, StepEventService.getRateLimitCount("{\"_rateLimitCount\":\"abc\"}"));
     }
   }
 }

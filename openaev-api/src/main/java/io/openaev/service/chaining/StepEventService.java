@@ -1,7 +1,5 @@
 package io.openaev.service.chaining;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
@@ -26,14 +24,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 @Service
 public class StepEventService implements StepEventHandler, ExternalUpdateEventHandler {
-
-  /**
-   * JSON field name used to carry the rate-limit reschedule count through the delay queue. Stored
-   * inside the step's {@code input} JSON so it survives step re-creation and can be read by {@link
-   * io.openaev.api.chaining.InjectExecutionStep} to emit an INFO trace once the inject is finally
-   * executed.
-   */
-  public static final String RATE_LIMIT_COUNT_FIELD = "_rateLimitCount";
 
   /** Maximum number of times an event can be re-queued after a transactional failure. */
   static final int MAX_RETRY_COUNT = 3;
@@ -136,26 +126,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           workflowRun.getMaxTemporalRateSeconds() != null
               ? workflowRun.getMaxTemporalRateSeconds()
               : 60L;
-      // Track rate limit count in step input so the info propagates through the delay queue
-      // and can be surfaced as an INFO trace when the inject is eventually executed.
-      String input = stepReady.getInput() != null ? stepReady.getInput() : "{}";
-      int currentCount = getRateLimitCount(input);
-      Gson gson = new Gson();
-      JsonObject json;
-      try {
-        json = gson.fromJson(input, JsonObject.class);
-      } catch (RuntimeException e) {
-        log.warn(
-            "Invalid step input JSON for step {}. Resetting rate-limit metadata.",
-            stepReady.getId(),
-            e);
-        json = new JsonObject();
-      }
-      if (json == null) {
-        json = new JsonObject();
-      }
-      json.addProperty(RATE_LIMIT_COUNT_FIELD, currentCount + 1);
-      stepReady.setInput(json.toString());
+      // Increment the rate-limit count on the step itself so it propagates through the delay
+      // queue and can be surfaced as an INFO trace when the inject is eventually executed.
+      stepReady.setRateLimitCount(stepReady.getRateLimitCount() + 1);
       stepDelayQueueService.reschedule(stepReady, backoffSeconds);
       return;
     }
@@ -268,25 +241,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
             e.getMessage(),
             e);
       }
-    }
-  }
-
-  /**
-   * Extracts the rate-limit reschedule count from the step input JSON.
-   *
-   * @param input the step input JSON string
-   * @return the current rate-limit count, or 0 if not present
-   */
-  public static int getRateLimitCount(String input) {
-    if (input == null) {
-      return 0;
-    }
-    try {
-      String value = StepService.getField(input, RATE_LIMIT_COUNT_FIELD);
-      return value != null ? Integer.parseInt(value) : 0;
-    } catch (RuntimeException e) {
-      // Catching any parsing error that may occur.
-      return 0;
     }
   }
 }

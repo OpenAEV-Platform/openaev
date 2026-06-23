@@ -122,6 +122,7 @@ public class StepDelayQueueService {
             .delay(delayMillis)
             .stepTemplate(template)
             .stepReady(step)
+            .rateLimitCount(step.getRateLimitCount())
             .workflowRun(step.getWorkflow())
             .build();
     stepDelayQueueRepository.save(entry);
