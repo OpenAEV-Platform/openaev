@@ -12,9 +12,15 @@ runs:
         cache: maven
     - name: Compile and install all modules (skip tests)
       run: |
+        # Build annotation processor first so maven-compiler annotationProcessorPaths
+        # resolves from local repository, not Maven Central.
+        mvn -U -B -ntp -pl openaev-annotation-processor -am install -DskipTests \
+          -Dspring-boot.repackage.skip=true \
+          -Djacoco.skip=true
+
         for attempt in 1 2; do
           echo "::group::Attempt $attempt of 2"
-          if mvn -U -B -ntp -T 1C install -DskipTests \
+          if mvn -U -B -ntp install -DskipTests \
                -Dspring-boot.repackage.skip=true \
                -Djacoco.skip=true; then
             echo "::endgroup::"
