@@ -145,7 +145,7 @@ nav:
         - OpenAEV encryption: deployment/breaking-changes/2.1.0-encrypting-password.md
         - Scenario Generation from OpenCTI Security Coverage: deployment/breaking-changes/2.2.0-opencti-security-coverage.md
         - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
-        - URL access token enforcement for email links: deployment/breaking-changes/2.5.0-url-access-token-enforcement.md
+        - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:

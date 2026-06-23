@@ -9,13 +9,13 @@ Please follow the migration guides if you need to upgrade your platform.
 This table regroups all the breaking changes introduced, with the corresponding version in which the change was
 implemented.
 
-| Change                                                         | Deprecated in | Changed in |
-|:---------------------------------------------------------------|:--------------|:-----------|
-| [OpenCTI / OpenAEV compatibility](#octi-oaev-compatibility)    | -             | 2.2.0      |
-| [OpenAEV encryption of secret](#openaev-encryption)            | -             | 2.1.0      |
-| [OpenAEV renaming](#openaev-renaming)                          | 1.18.20       | 2.0.0      |
-| [OpenAEV CSRF](#openaev-csrf)                                  | -             | 2.3.4      |
-| [URL access token enforcement](#url-access-token-enforcement) | -             | 2.5.0      |
+| Change                                                        | Deprecated in | Changed in |
+|:--------------------------------------------------------------|:--------------|:-----------|
+| [OpenCTI / OpenAEV compatibility](#octi-oaev-compatibility)   | -             | 2.2.0      |
+| [OpenAEV encryption of secret](#openaev-encryption)           | -             | 2.1.0      |
+| [OpenAEV renaming](#openaev-renaming)                         | 1.18.20       | 2.0.0      |
+| [OpenAEV CSRF](#openaev-csrf)                                 | -             | 2.3.4      |
+| [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
 
 ## OpenAEV 2.2.0
 
@@ -89,7 +89,7 @@ To prevent API authentication and connection issues, make sure all ecosystem com
 
 For more details, see [this migration guide](breaking-changes/2.3.4-csrf-token-enforcement.md)
 
-## OpenAEV 2.5.0
+## OpenAEV 2.260622.0
 
 ### Introduction
 
@@ -97,8 +97,8 @@ For more details, see [this migration guide](breaking-changes/2.3.4-csrf-token-e
 
 #### URL access token enforcement for email links
 
-Starting with **OpenAEV 2.5.0**, OpenAEV no longer accepts legacy email links based on `userId` and `user` query parameters for player access flows.
+Starting with **OpenAEV 2.260622.0**, OpenAEV no longer accepts legacy email links based on `userId` and `user` query parameters for player access flows.
 
 OpenAEV now requires token-based links using `/url/access?token=<raw-token>`, followed by a secure cookie and redirect flow.
 
-For more details, see [this migration guide](breaking-changes/2.5.0-url-access-token-enforcement.md)
+For more details, see [this migration guide](breaking-changes/2.260622.0-url-access-token-enforcement.md)
