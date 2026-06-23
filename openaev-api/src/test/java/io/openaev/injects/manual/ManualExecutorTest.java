@@ -1,9 +1,5 @@
 package io.openaev.injects.manual;
 
-import static org.mockito.Mockito.*;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.Inject;
@@ -17,13 +13,16 @@ import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utilstest.RabbitMQTestListener;
-import java.time.Instant;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
+
+import java.time.Instant;
+import java.util.List;
+
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @TestExecutionListeners(
@@ -33,7 +32,6 @@ public class ManualExecutorTest extends IntegrationTest {
 
   @Mock InjectExpectationService injectExpectationService;
 
-  @Mock ObjectMapper mapper;
   @InjectMocks private InjectorContext injectorContext;
 
   @Test
@@ -53,11 +51,9 @@ public class ManualExecutorTest extends IntegrationTest {
     ExecutableInject executableInject = mock(ExecutableInject.class);
     Injection injection = mock(Injection.class);
     Inject inject = mock(Inject.class);
-    ObjectNode content = mock(ObjectNode.class);
-    when(inject.getContent()).thenReturn(content);
+    when(injectExpectationService.contentConvert(any(), any())).thenReturn(manualContent);
     when(injection.getInject()).thenReturn(inject);
     when(executableInject.getInjection()).thenReturn(injection);
-    when(mapper.treeToValue(content, ManualContent.class)).thenReturn(manualContent);
 
     ManualExecutor executor = new ManualExecutor(injectorContext, injectExpectationService);
     executor.process(execution, executableInject);
