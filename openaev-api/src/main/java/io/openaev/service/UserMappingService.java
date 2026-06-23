@@ -35,16 +35,43 @@ public class UserMappingService {
   private final Environment env;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
+  public static final String TENANT_ID_SUFFIX = ".tenant_id";
 
-  public void mapCurrentUserWithGroup(String property, User user, List<String> groupsFromToken) {
+  /**
+   * Maps a user to OpenAEV groups based on SSO group mapping configuration. Resolves the tenant
+   * from the provider's {@code tenant_id} property (e.g. {@code
+   * openaev.provider.microsoft.tenant_id}). If a mapping entry has a {@code tenantId} field, it
+   * takes precedence over the provider-level tenant.
+   */
+  public void mapCurrentUserWithGroup(
+      String property, String registrationId, User user, List<String> groupsFromToken) {
+    log.info(
+        "SSO group mapping — user: {}, groupsFromToken: {}, mappingConfig: {}",
+        user.getEmail(),
+        groupsFromToken,
+        property);
+
+    String providerTenantId = resolveProviderTenantId(registrationId);
     List<GroupMapping> groupMappings = safeParseMappings(property);
+
     for (GroupMapping mapping : groupMappings) {
       String idpGroup = mapping.getIdpGroup();
       String userGroup = mapping.getUserGroup();
       boolean autoCreate = mapping.isAutoCreate();
+      // Mapping-level tenantId takes precedence; fall back to provider-level tenant_id
+      // in case we define in properties file both:
+      // openaev.provider.microsoft.tenant_id=my-tenant
+      // openaev.provider.microsoft.groups_management=
+      // [{"idpGroup":"Filigran","userGroup":"GROUP_A","autoCreate":true,"tenantId":"some-other-tenant-uuid"}]
+      // some-other-tenant-uuid takes precedence other my-tenant
+      String tenantId =
+          (mapping.getTenantId() != null && !mapping.getTenantId().isBlank())
+              ? mapping.getTenantId()
+              : providerTenantId;
+
       for (String role : groupsFromToken) {
         if (idpGroup.equals(role)) {
-          Optional<Group> groupOptional = groupRepository.findByName(userGroup);
+          Optional<Group> groupOptional = findGroupByNameScoped(userGroup, tenantId);
           if (groupOptional.isPresent()) {
             List<Group> userGroups = user.getUnscopedGroups();
             List<Group> existing =
@@ -59,17 +86,22 @@ public class UserMappingService {
             if (autoCreate) {
               Group newGroup = new Group();
               newGroup.setName(userGroup);
+              if (tenantId != null && !tenantId.isBlank()) {
+                newGroup.setTenant(tenantRepository.getReferenceById(tenantId));
+              }
               groupRepository.save(newGroup);
               List<Group> userGroups = user.getUnscopedGroups();
               userGroups.add(newGroup);
               user.setGroups(userGroups);
+              log.info("Auto-created group '{}' in tenant '{}'", userGroup, tenantId);
             } else {
-              log.error("Did not create new group");
+              log.warn(
+                  "Group '{}' not found and autoCreate is false — skipping mapping", userGroup);
             }
           }
-          attachTenantFromGroupMapping(mapping, user);
+          attachTenantToUser(tenantId, user);
         } else {
-          log.error(String.format("No corresponding group found for group %s", role));
+          log.debug("IdP group '{}' does not match token group '{}' — skipping", idpGroup, role);
         }
       }
 
@@ -101,12 +133,28 @@ public class UserMappingService {
     }
   }
 
+  /** Resolves the tenant ID from the provider configuration property. */
+  private String resolveProviderTenantId(String registrationId) {
+    if (registrationId == null || registrationId.isBlank()) {
+      return null;
+    }
+    return env.getProperty(
+        OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
+  }
+
+  /** Finds a group by name, scoped to a tenant if tenantId is provided. */
+  private Optional<Group> findGroupByNameScoped(String groupName, String tenantId) {
+    if (tenantId != null && !tenantId.isBlank()) {
+      return groupRepository.findByNameAndTenantId(groupName, tenantId);
+    }
+    return groupRepository.findByName(groupName);
+  }
+
   /**
-   * Attaches the user to the tenant configured in the group mapping, if any. Skips if tenantId is
-   * not set, the user is already attached, or the tenant is not found.
+   * Attaches the user to the given tenant, if not already attached. Skips if tenantId is null/blank
+   * or the tenant is not found.
    */
-  private void attachTenantFromGroupMapping(GroupMapping mapping, User user) {
-    String tenantId = mapping.getTenantId();
+  private void attachTenantToUser(String tenantId, User user) {
     if (tenantId == null || tenantId.isBlank()) {
       return;
     }
