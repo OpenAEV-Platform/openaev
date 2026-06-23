@@ -40,11 +40,12 @@ public class PlatformRoleService {
   }
 
   /**
-   * Idempotently creates or updates a system-managed platform role with a deterministic id (used by
-   * the bootstrap to seed the platform administrators role). Bypasses reserved-name validation and
-   * keeps the role platform-scoped (no tenant). Fails fast if a role already exists under the id
-   * but is tenant-scoped, since {@code tenant_id} is {@code updatable=false} and silently reusing
-   * it would grant incorrect, tenant-scoped privileges.
+   * Idempotently creates or updates a system-managed platform role under a fixed, well-known id
+   * (used by the bootstrap to seed the platform administrators role). This is an internal seeding
+   * path that keeps the role platform-scoped (no tenant); unlike the tenant-scoped role CRUD, it
+   * does not run the reserved-id validation. Fails fast if a role already exists under the id but
+   * is tenant-scoped, since {@code tenant_id} is {@code updatable=false} and silently reusing it
+   * would grant incorrect, tenant-scoped privileges.
    */
   public Role ensureInternalPlatformRole(
       @NotBlank final String id,

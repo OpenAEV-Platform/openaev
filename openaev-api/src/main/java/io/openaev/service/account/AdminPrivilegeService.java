@@ -164,7 +164,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
             PLATFORM_ADMIN_ROLE_DESCRIPTION,
             Set.of(Capability.BYPASS));
     Group group =
-        platformGroupService.ensureInternalPlatformGroupWithRole(
+        platformGroupService.ensureInternalPlatformGroupWithRoles(
             PLATFORM_ADMIN_GROUP_ID,
             PLATFORM_ADMIN_GROUP_NAME,
             PLATFORM_ADMIN_GROUP_DESCRIPTION,

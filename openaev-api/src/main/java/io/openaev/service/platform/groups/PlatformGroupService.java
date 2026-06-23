@@ -50,7 +50,7 @@ public class PlatformGroupService {
    * already exists under the id but is tenant-scoped, since {@code tenant_id} is {@code
    * updatable=false} and silently reusing it would corrupt the platform scope invariant.
    */
-  public Group ensureInternalPlatformGroupWithRole(
+  public Group ensureInternalPlatformGroupWithRoles(
       @NotBlank final String id,
       @NotBlank final String name,
       final String description,
