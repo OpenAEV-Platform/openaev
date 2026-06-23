@@ -1,5 +1,7 @@
 package io.openaev.injects.manual;
 
+import static org.mockito.Mockito.*;
+
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.Inject;
@@ -13,16 +15,13 @@ import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utilstest.RabbitMQTestListener;
+import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
-
-import java.time.Instant;
-import java.util.List;
-
-import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @TestExecutionListeners(
