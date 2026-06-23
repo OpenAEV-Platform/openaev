@@ -32,7 +32,7 @@ const perspectives: {
   icon: () => SvgIconComponent;
   title: string;
   description: string;
-  type: NonNullable<InjectExpectationOutput['inject_expectation_type']>;
+  type: InjectExpectationOutput['inject_expectation_type'];
 }[] = [{
   icon: () => TrackChangesOutlined,
   title: 'Detection',
