@@ -42,7 +42,9 @@ public class PlatformRoleService {
   /**
    * Idempotently creates or updates a system-managed platform role with a deterministic id (used by
    * the bootstrap to seed the platform administrators role). Bypasses reserved-name validation and
-   * keeps the role platform-scoped (no tenant).
+   * keeps the role platform-scoped (no tenant). Fails fast if a role already exists under the id
+   * but is tenant-scoped, since {@code tenant_id} is {@code updatable=false} and silently reusing
+   * it would grant incorrect, tenant-scoped privileges.
    */
   public Role ensureInternalPlatformRole(
       @NotBlank final String id,
@@ -51,6 +53,10 @@ public class PlatformRoleService {
       @NotNull final Set<Capability> capabilities) {
     Capability.validateForPlatformRole(capabilities);
     Role role = roleRepository.findById(id).orElseGet(Role::new);
+    if (role.getTenant() != null) {
+      throw new IllegalStateException(
+          "Role " + id + " already exists as a tenant-scoped role; expected a platform role");
+    }
     role.setId(id);
     role.setName(name);
     role.setDescription(description);
