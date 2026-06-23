@@ -340,8 +340,13 @@ public class RabbitmqService {
   // -- MIGRATION HELPERS --
 
   /**
-   * Drains all messages from a queue using {@code basicGet} with auto-ack and returns them as raw
-   * byte arrays.
+   * Drains all messages from a queue using {@code basicGet} without acknowledging them, and returns
+   * their bodies as raw byte arrays.
+   *
+   * <p>Messages are fetched with manual-ack but <b>never acknowledged</b>. When the channel closes,
+   * RabbitMQ requeues them. This guarantees no data loss if the caller fails before completing the
+   * migration (publish + delete). The caller is expected to delete the queue via {@link
+   * #safeDeleteQueue(String)} after a successful {@link #publishBatch} to the target.
    *
    * <p>Returns an empty list if the queue does not exist (AMQP 404). Any other error (connection
    * failure, permission denied, etc.) is propagated as an exception.
@@ -365,13 +370,15 @@ public class RabbitmqService {
         }
         throw e;
       }
-      // Queue exists — drain with a fresh channel (manual ack for safety)
+      // Queue exists — drain without ack: if publish fails, messages stay in the queue.
+      // The queue is deleted only after successful publish, so no data loss is possible.
       try (Channel drainChannel = connection.createChannel()) {
         com.rabbitmq.client.GetResponse response;
         while ((response = drainChannel.basicGet(queueName, false)) != null) {
           messages.add(response.getBody());
-          drainChannel.basicAck(response.getEnvelope().getDeliveryTag(), true);
         }
+        // No basicAck — closing the channel requeues unacked messages.
+        // safeDeleteQueue() (called after publishBatch) will destroy the queue.
       }
       log.info("Drained {} messages from queue '{}'.", messages.size(), queueName);
     }

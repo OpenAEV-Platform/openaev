@@ -4,14 +4,15 @@ import io.openaev.database.model.Tenant;
 
 /**
  * Common interface for all tenant-scoped migrations and datapacks. Implementations are sorted by
- * their {@link #getProcessableId()} (which follows the {@code V{YYYYMMDD}_Description} naming
- * convention) to guarantee chronological execution order regardless of type.
+ * their {@link #getSortKey()} (which follows the {@code V{YYYYMMDD}_Description} naming convention)
+ * to guarantee chronological execution order regardless of type.
  */
 public interface Processable {
 
   /** Unique identifier used for ordering and idempotency tracking. */
   default String getProcessableId() {
-    return this.getClass().getCanonicalName();
+    String canonicalName = this.getClass().getCanonicalName();
+    return canonicalName != null ? canonicalName : this.getClass().getName();
   }
 
   /**

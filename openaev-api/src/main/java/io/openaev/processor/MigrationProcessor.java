@@ -18,9 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-@Service
-@Slf4j
-@Profile("!test")
 /**
  * Processes all {@link RuntimeMigration} and {@link DataPack} instances for each active tenant at
  * startup. Migrations and datapacks are merged into a single chronologically-ordered list sorted by
@@ -29,6 +26,9 @@ import org.springframework.stereotype.Service;
  * <p>Also implements {@link DependenciesManager} to initialize migrations/datapacks when a new
  * tenant is created at runtime.
  */
+@Service
+@Slf4j
+@Profile("!test")
 public class MigrationProcessor implements DependenciesManager {
   private final List<DataPack> packs;
   private final List<RuntimeMigration> migrations;
@@ -57,13 +57,17 @@ public class MigrationProcessor implements DependenciesManager {
             .toList();
     for (Tenant tenant : tenants) {
       TenantContext.setCurrentTenant(tenant.getId());
-      long processed =
-          allProcessables.stream()
-              .filter(
-                  processable ->
-                      MigrationProcessingResult.PROCESSED.equals(processable.process(tenant)))
-              .count();
-      log.info("Tenant {}: processed {} migrations/datapacks.", tenant.getId(), processed);
+      try {
+        long processed =
+            allProcessables.stream()
+                .filter(
+                    processable ->
+                        MigrationProcessingResult.PROCESSED.equals(processable.process(tenant)))
+                .count();
+        log.info("Tenant {}: processed {} migrations/datapacks.", tenant.getId(), processed);
+      } finally {
+        TenantContext.clearCurrentTenant();
+      }
     }
   }
 
