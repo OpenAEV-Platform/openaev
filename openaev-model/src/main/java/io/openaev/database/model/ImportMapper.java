@@ -22,8 +22,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "import_mappers")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-// No v1 @Filter: import_mappers is fully on v2 (the statement inspector + can_access_tenant), activated
-// via openaev.tenant.active-tables. v1 and v2 must not filter the same table at once (see PR #6255).
+// import_mappers is fully on v2 (inspector + can_access_tenant); no v1 @Filter (PR #6255).
 public class ImportMapper implements TenantBase {
 
   @Id

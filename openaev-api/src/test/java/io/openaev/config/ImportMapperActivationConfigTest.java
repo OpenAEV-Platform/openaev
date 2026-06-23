@@ -10,11 +10,12 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Guards that the production configuration keeps {@code import_mappers} activated in v2. The pilot
- * table is fully on the new mechanism: its v1 {@code @Filter} has been removed, so if it ever dropped
- * out of {@code openaev.tenant.active-tables} it would have <b>no</b> tenant isolation at all (neither
- * v1 nor v2). This reads the production {@code application.properties} directly, because the test
- * classpath deliberately shadows it with the test config (which keeps the allowlist empty so the rest
- * of the suite controls activation per test via {@code @TestPropertySource}).
+ * table is fully on the new mechanism: its v1 {@code @Filter} has been removed, so if it ever
+ * dropped out of {@code openaev.tenant.active-tables} it would have <b>no</b> tenant isolation at
+ * all (neither v1 nor v2). This reads the production {@code application.properties} directly,
+ * because the test classpath deliberately shadows it with the test config (which keeps the
+ * allowlist empty so the rest of the suite controls activation per test via
+ * {@code @TestPropertySource}).
  */
 @DisplayName("Production config keeps import_mappers activated (v2)")
 class ImportMapperActivationConfigTest {
@@ -30,6 +31,8 @@ class ImportMapperActivationConfigTest {
     assertTrue(
         active.contains("import_mappers"),
         "import_mappers must stay in openaev.tenant.active-tables: its v1 @Filter was removed, so"
-            + " dropping it would leave the table with no tenant isolation. Found: '" + active + "'");
+            + " dropping it would leave the table with no tenant isolation. Found: '"
+            + active
+            + "'");
   }
 }
