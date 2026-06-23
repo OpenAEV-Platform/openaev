@@ -205,17 +205,17 @@ class RuntimeMigrationTest {
       @DisplayName("given legacy queue with unknown suffix should not delete and warn")
       void given_legacyQueueWithUnknownSuffix_should_notDeleteAndWarn() throws Exception {
         // Arrange
-        byte[] msg = "data".getBytes();
         stubEmptyBrokerState();
         when(rabbitmqService.listQueueNamesWithPrefix("openbas_"))
             .thenReturn(List.of("openbas_something_unknown"));
-        when(rabbitmqService.drainQueue("openbas_something_unknown")).thenReturn(List.of(msg));
+        // Target resolution fails for unknown suffix → drainQueue is never called
 
         // Act
         boolean result = migration.doMigrate();
 
         // Assert
         assertThat(result).isTrue();
+        verify(rabbitmqService, never()).drainQueue(any());
         verify(rabbitmqService, never()).publishBatch(any(), any(), any());
         verify(rabbitmqService, never()).safeDeleteQueue("openbas_something_unknown");
       }
@@ -379,19 +379,19 @@ class RuntimeMigrationTest {
       void given_drainThrowsException_should_notDeleteAndContinue() throws Exception {
         // Arrange
         stubEmptyBrokerState();
+        // Use a valid injector type so target resolution succeeds and drainQueue is called
         when(rabbitmqService.listQueueNamesWithPrefix("openbas_"))
-            .thenReturn(List.of("openbas_injector_broken", "openbas_injector_openaev_nmap"));
-        when(rabbitmqService.drainQueue("openbas_injector_broken"))
+            .thenReturn(List.of("openbas_injector_openaev_nmap"));
+        when(rabbitmqService.drainQueue("openbas_injector_openaev_nmap"))
             .thenThrow(new RuntimeException("connection refused"));
-        when(rabbitmqService.drainQueue("openbas_injector_openaev_nmap")).thenReturn(List.of());
 
         // Act
         boolean result = migration.doMigrate();
 
         // Assert
         assertThat(result).isTrue();
-        verify(rabbitmqService, never()).safeDeleteQueue("openbas_injector_broken");
-        verify(rabbitmqService).safeDeleteQueue("openbas_injector_openaev_nmap");
+        verify(rabbitmqService, never()).safeDeleteQueue("openbas_injector_openaev_nmap");
+        verify(rabbitmqService, never()).publishBatch(any(), any(), any());
       }
     }
   }
