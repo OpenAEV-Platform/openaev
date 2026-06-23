@@ -1,19 +1,18 @@
 package io.openaev.executors;
 
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.utils.InjectionUtils.isInInjectableRange;
+
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.ExecutionProcess;
-import org.apache.commons.io.IOUtils;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.utils.InjectionUtils.isInInjectableRange;
+import org.apache.commons.io.IOUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 public abstract class Injector {
 

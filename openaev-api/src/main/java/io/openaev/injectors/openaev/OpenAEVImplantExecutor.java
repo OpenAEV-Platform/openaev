@@ -1,5 +1,8 @@
 package io.openaev.injectors.openaev;
 
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.utils.ExpectationUtils.OAEV_IMPLANT;
+
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
@@ -9,29 +12,21 @@ import io.openaev.executors.InjectorContext;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
-
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.utils.ExpectationUtils.OAEV_IMPLANT;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class OpenAEVImplantExecutor extends Injector {
 
-  private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
 
   public OpenAEVImplantExecutor(
       InjectorContext context,
-      AssetGroupService assetGroupService,
       InjectExpectationService injectExpectationService,
       InjectService injectService) {
     super(context);
-    this.assetGroupService = assetGroupService;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
   }
@@ -52,8 +47,8 @@ public class OpenAEVImplantExecutor extends Injector {
     }
 
     // Compute expectations
-    injectExpectationService.computeAndSaveExpectations(injection, inject, OAEV_IMPLANT, assetToExecutes);
-
+    injectExpectationService.computeAndSaveExpectations(
+        injection, inject, OAEV_IMPLANT, assetToExecutes);
 
     return new ExecutionProcess(true);
   }

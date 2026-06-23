@@ -1,5 +1,8 @@
 package io.openaev.executors;
 
+import static io.openaev.database.model.ExecutionStatus.EXECUTING;
+import static io.openaev.utils.InjectionUtils.isInInjectableRange;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Injector;
@@ -17,16 +20,11 @@ import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
-import org.springframework.stereotype.Component;
-
 import java.time.Instant;
 import java.util.List;
-
-import static io.openaev.database.model.ExecutionStatus.EXECUTING;
-import static io.openaev.utils.InjectionUtils.isInInjectableRange;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
@@ -34,8 +32,6 @@ import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 public class Executor {
 
   @Resource protected ObjectMapper mapper;
-
-  private final ApplicationContext context;
 
   private final InjectStatusRepository injectStatusRepository;
   private final InjectorRepository injectorRepository;
@@ -55,7 +51,7 @@ public class Executor {
   public static final String PSH = "psh";
 
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
-          throws Exception {
+      throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     String jsonInject =
         mapper.writeValueAsString(
@@ -63,12 +59,14 @@ public class Executor {
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
 
+    List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, inject, injector.getType(), assetToExecutes);
+
     rabbitmqService.publish(injector.getId(), jsonInject);
     injectStatus.addInfoTrace(
         "The inject has been published and is now waiting to be consumed.",
         ExecutionTraceAction.EXECUTION);
-    List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
-    injectExpectationService.computeAndSaveExpectations(executableInject, inject, injector.getType(), assetToExecutes);
     return this.injectStatusRepository.save(injectStatus);
   }
 
@@ -107,8 +105,7 @@ public class Executor {
               .orElseThrow(
                   () ->
                       new IllegalStateException(
-                          "Injector not found for type: "
-                              + injectorContract.getFirstInjector().getType()));
+                          "Injector not found for type: " + inject.getType()));
     }
 
     // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,

@@ -42,7 +42,6 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectorContext injectorContext;
-  @Autowired private io.openaev.service.AssetGroupService assetGroupService;
   @Autowired private io.openaev.service.InjectExpectationService injectExpectationService;
   @Autowired private io.openaev.rest.inject.service.InjectService injectService;
 
@@ -130,8 +129,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
 
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     io.openaev.executors.Injector openAEVImplantExecutor =
-        new OpenAEVImplantExecutor(
-            injectorContext, assetGroupService, injectExpectationService, injectService);
+        new OpenAEVImplantExecutor(injectorContext, injectExpectationService, injectService);
 
     Inject inject = createTechnicalInjectHelper(List.of(expectation));
     Injection injection = mock(Injection.class);

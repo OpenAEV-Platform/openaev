@@ -2,10 +2,9 @@ package io.openaev.injectors.opencti.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.Objects;
 
 @Getter
 @Setter
