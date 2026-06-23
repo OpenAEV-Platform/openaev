@@ -16,7 +16,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -35,6 +40,7 @@ public class UrlAccessTokenApi {
   @LogExecutionTime
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
+  @Transactional
   public ResponseEntity<Void> access(@RequestParam("token") String rawToken) {
     try {
       UrlAccessToken token = urlAccessTokenService.validateTokenExpiration(rawToken);
@@ -61,6 +67,7 @@ public class UrlAccessTokenApi {
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
+  @Transactional
   public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeToken(tokenId);
@@ -74,6 +81,7 @@ public class UrlAccessTokenApi {
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
+  @Transactional
   public ResponseEntity<Void> revokeByExerciseId(@PathVariable("exerciseId") String exerciseId) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeAllForExercise(exerciseId);

@@ -14,10 +14,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,6 +32,7 @@ public class DomainApi extends RestBehavior {
 
   @LogExecutionTime
   @Operation(summary = "Search Domains")
+  @Transactional
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
   public List<Domain> domains() {
@@ -39,6 +40,7 @@ public class DomainApi extends RestBehavior {
   }
 
   @Operation(summary = "Get a Domain by ID", description = "Fetches detailed Domain info by ID")
+  @Transactional
   @GetMapping("/{domainId}")
   @AccessControl(
       resourceId = "#domainId",
@@ -50,7 +52,7 @@ public class DomainApi extends RestBehavior {
 
   @PostMapping("/{domainId}/upsert")
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOMAIN)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
@@ -60,6 +62,7 @@ public class DomainApi extends RestBehavior {
   // -- OPTION --
 
   @GetMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
       @RequestParam(required = false) final String searchText) {
@@ -67,6 +70,7 @@ public class DomainApi extends RestBehavior {
   }
 
   @PostMapping("/options")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
     return domainService.findAllAsOptionsById(ids);

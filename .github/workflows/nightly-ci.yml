@@ -23,14 +23,14 @@ jobs:
     name: Backend Compile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile
 
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
 
   # ────────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ jobs:
       ENGINE_URL: http://localhost:9200
       OPENBAS_RABBITMQ_HOSTNAME: localhost
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -175,7 +175,7 @@ jobs:
       ENGINE_ENGINESELECTOR: opensearch
       OPENBAS_RABBITMQ_HOSTNAME: localhost
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -224,7 +224,7 @@ jobs:
     needs: [ frontend-build, backend-compile ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package
 
   # ────────────────────────────────────────────────────────────────────
@@ -288,7 +288,7 @@ jobs:
       SPRING_PROFILES_ACTIVE: ci
       OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Search engine — conditional per matrix (services: can't vary by matrix)
       - name: Start ${{ matrix.engine.name }}
@@ -335,7 +335,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.22.3"
+          node-version: "22.23.0"
 
       - name: Install corepack
         run: npm install -g corepack
@@ -524,7 +524,7 @@ jobs:
       SPRING_PROFILES_ACTIVE: ci
       OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Start ${{ matrix.engine.name }}
         run: |
@@ -569,7 +569,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.22.3"
+          node-version: "22.23.0"
 
       - name: Install corepack
         run: npm install -g corepack

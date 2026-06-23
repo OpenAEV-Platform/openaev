@@ -14,10 +14,10 @@ import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -36,6 +36,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_categories",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -52,7 +53,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> applyScenarioLessonsTemplate(
       @PathVariable String scenarioId, @PathVariable String lessonsTemplateId) {
     Scenario scenario =
@@ -97,7 +98,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsCategory createScenarioLessonsCategory(
       @PathVariable String scenarioId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Scenario scenario =
@@ -118,7 +119,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> emptyScenarioLessons(@PathVariable String scenarioId) {
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
@@ -142,7 +143,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateScenarioLessonsCategory(
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
@@ -164,7 +165,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteScenarioLessonsCategory(
       @PathVariable String scenarioId, @PathVariable String lessonsCategoryId) {
     lessonsCategoryRepository.deleteById(lessonsCategoryId);
@@ -178,7 +179,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateScenarioLessonsCategoryTeams(
       @PathVariable String scenarioId,
       @PathVariable String lessonsCategoryId,
@@ -196,6 +197,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -216,6 +218,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -230,6 +233,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_SCENARIO_URI + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -254,6 +258,7 @@ public class ScenarioLessonsApi extends RestBehavior {
     TENANT_SCENARIO_URI
         + "/{scenarioId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -281,7 +286,7 @@ public class ScenarioLessonsApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteScenarioLessonsQuestion(
       @PathVariable String scenarioId, @PathVariable String lessonsQuestionId) {
     lessonsQuestionRepository.deleteById(lessonsQuestionId);

@@ -10,9 +10,8 @@ import { useFormatter } from '../../../../../../components/i18n';
 import { type InjectExpectationResult } from '../../../../../../utils/api-types';
 import { truncate } from '../../../../../../utils/String';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
-import { typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
+import { getSourceLabel, typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
-import { getSourceLabel } from './ExpectationUtils';
 
 const useStyles = makeStyles()(theme => ({
   buttons: {

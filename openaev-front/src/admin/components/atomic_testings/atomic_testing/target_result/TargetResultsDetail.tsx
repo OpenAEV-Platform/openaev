@@ -84,9 +84,10 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
   useEffect(() => {
     if (!openIdParams || !sortedGroupedTargetResults) return;
 
-    const activeTabIndex: string = Object.values(sortedGroupedTargetResults)
-      .map(results => results.find(r => r.inject_expectation_id === openIdParams))
-      .filter(res => !!res)[0]?.inject_expectation_type.toString();
+    const activeTabIndex = Object.values(sortedGroupedTargetResults)
+      .flat()
+      .find(result => result.inject_expectation_id === openIdParams)
+      ?.inject_expectation_type;
 
     if (!activeTabIndex) return;
 

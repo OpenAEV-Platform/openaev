@@ -17,11 +17,11 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.MailingService;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -44,6 +44,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_categories",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -60,7 +61,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
       @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
@@ -105,7 +106,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsCategory createExerciseLessonsCategory(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
@@ -126,7 +127,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> resetExerciseLessonsAnswers(@PathVariable String exerciseId) {
     List<LessonsAnswer> lessonsAnswers =
         lessonsCategoryRepository
@@ -160,7 +161,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> emptyExerciseLessons(@PathVariable String exerciseId) {
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
@@ -184,7 +185,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateExerciseLessonsCategory(
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
@@ -206,7 +207,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseLessonsCategory(
       @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
     lessonsCategoryRepository.deleteById(lessonsCategoryId);
@@ -220,7 +221,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateExerciseLessonsCategoryTeams(
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
@@ -238,6 +239,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -258,6 +260,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -272,6 +275,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -296,6 +300,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_EXERCISE_URL
         + "{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -323,7 +328,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseLessonsQuestion(
       @PathVariable String exerciseId, @PathVariable String lessonsQuestionId) {
     lessonsQuestionRepository.deleteById(lessonsQuestionId);
@@ -337,7 +342,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void sendExerciseLessons(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
@@ -363,6 +368,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     EXERCISE_URL + "{exerciseId}/lessons_answers",
     TENANT_EXERCISE_URL + "{exerciseId}/lessons_answers"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -391,6 +397,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     "/api/player/lessons/exercise/{exerciseId}/lessons_categories",
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_categories"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsCategory> playerLessonsCategories(
@@ -415,6 +422,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     "/api/player/lessons/exercise/{exerciseId}/lessons_questions",
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_questions"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsQuestion> playerLessonsQuestions(
@@ -436,6 +444,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     "/api/player/lessons/exercise/{exerciseId}/lessons_answers",
     TENANT_PREFIX + "/player/lessons/exercise/{exerciseId}/lessons_answers"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsAnswer> playerLessonsAnswers(
@@ -468,6 +477,7 @@ public class ExerciseLessonsApi extends RestBehavior {
     TENANT_PREFIX
         + "/player/lessons/exercise/{exerciseId}/lessons_categories/{lessonsCategoryId}/lessons_questions/{lessonsQuestionId}/lessons_answers"
   })
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public LessonsAnswer createExerciseLessonsQuestion(

@@ -1,4 +1,4 @@
-package io.openaev.rest.report.model;
+package io.openaev.database.model;
 
 public enum ReportInformationsType {
   MAIN_INFORMATION,

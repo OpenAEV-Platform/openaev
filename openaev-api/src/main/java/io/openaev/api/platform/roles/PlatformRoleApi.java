@@ -15,6 +15,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,6 +35,7 @@ public class PlatformRoleApi {
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input) {
     return toOutput(
         platformRoleService.createPlatformRole(
@@ -43,6 +45,7 @@ public class PlatformRoleApi {
   // -- READ --
 
   @Operation(summary = "Get platform role by ID")
+  @Transactional
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.READ,
@@ -54,6 +57,7 @@ public class PlatformRoleApi {
   }
 
   @Operation(summary = "Get capabilities of a platform role")
+  @Transactional
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.READ,
@@ -70,6 +74,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PostMapping("/search")
+  @Transactional
   public Page<PlatformRoleOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return platformRoleService.search(searchPaginationInput).map(PlatformRoleMapper::toOutput);
@@ -81,6 +86,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PostMapping("/find")
+  @Transactional
   public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids) {
     return platformRoleService.findByIds(ids).stream().map(PlatformRoleMapper::toOutput).toList();
   }
@@ -94,6 +100,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PutMapping("/{platformRoleId}")
+  @Transactional
   public PlatformRoleOutput update(
       @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input) {
     return toOutput(
@@ -111,6 +118,7 @@ public class PlatformRoleApi {
       isEnterpriseEdition = true)
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Transactional
   public void delete(@PathVariable String platformRoleId) {
     platformRoleService.deletePlatformRole(platformRoleId);
   }
