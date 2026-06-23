@@ -43,6 +43,25 @@ public class PlatformGroupService {
     return groupRepository.save(group);
   }
 
+  /**
+   * Idempotently creates or updates a system-managed platform group (with the given roles) using a
+   * deterministic id (used by the bootstrap to seed the platform administrators group). Keeps the
+   * group platform-scoped (no tenant) and does not touch its membership.
+   */
+  public Group ensureInternalPlatformGroupWithRole(
+      @NotBlank final String id,
+      @NotBlank final String name,
+      final String description,
+      final List<Role> roles) {
+    Group group = groupRepository.findById(id).orElseGet(Group::new);
+    group.setId(id);
+    group.setName(name);
+    group.setDescription(description);
+    group.setDefaultUserAssignation(false);
+    group.setRoles(new java.util.ArrayList<>(roles));
+    return groupRepository.save(group);
+  }
+
   // -- READ --
 
   @Transactional(readOnly = true)

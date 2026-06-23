@@ -2,12 +2,16 @@ package io.openaev.service.account;
 
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.RoleService;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.UserService;
+import io.openaev.service.platform.groups.PlatformGroupService;
+import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.service.tenants.TenantUserService;
+import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,17 +19,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Ensures a tenant owns a well-known "Administrators" group (granting the BYPASS capability) and
- * that the platform admin user belongs to it.
+ * Ensures the platform admin user holds full administrative privileges through well-known
+ * "Administrators" groups: a platform-scoped group (tenant = null) granting platform BYPASS and a
+ * per-tenant group granting tenant BYPASS, with the admin user enrolled in both.
  *
  * <p>New tenants get their default Admin/Manager/Observer groups seeded through the tenant
  * provisioning chain (see {@code V20260330_Default_tenant_data}). The default tenant, however, is
  * created by a Flyway migration and never goes through that chain, so a fresh platform ended up
  * with no admin group at all. The platform admin still bypasses RBAC through {@code user_admin =
- * true}, but the missing group broke group-based administration parity with every other tenant.
+ * true}, but the missing groups broke group-based administration parity with every other tenant.
  * This regression was introduced together with multi-tenancy (PR #4864).
  *
- * <p>Bootstrapping the group from {@link io.openaev.runner.InitAdminCommandLineRunner} is the only
+ * <p>The two scopes are both required: a tenant BYPASS only expands to tenant-scoped capabilities
+ * (see {@link io.openaev.database.model.User#getCapabilities()}), so a platform-scoped admin group
+ * is needed to grant the platform-only capabilities (tenants, platform settings, platform
+ * users/groups/roles) through group membership rather than only via {@code user_admin}.
+ *
+ * <p>Bootstrapping the groups from {@link io.openaev.runner.InitAdminCommandLineRunner} is the only
  * place that runs after the admin user is guaranteed to exist, which is why the membership is wired
  * here rather than in the datapack.
  */
@@ -42,13 +52,29 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   public static final String ADMIN_GROUP_NAME = "Administrators";
   public static final String ADMIN_GROUP_DESCRIPTION = "Tenant administrators.";
 
+  public static final String PLATFORM_ADMIN_ROLE_ID = "3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f";
+  public static final String PLATFORM_ADMIN_ROLE_NAME = "Admin";
+  public static final String PLATFORM_ADMIN_ROLE_DESCRIPTION =
+      "Full administrative access to the platform.";
+
+  public static final String PLATFORM_ADMIN_GROUP_ID = "4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f8a";
+  public static final String PLATFORM_ADMIN_GROUP_NAME = "Administrators";
+  public static final String PLATFORM_ADMIN_GROUP_DESCRIPTION = "Platform administrators.";
+
+  private final PlatformRoleService platformRoleService;
+  private final PlatformGroupService platformGroupService;
+
   @Autowired
   public AdminPrivilegeService(
       RoleService roleService,
       TenantGroupService tenantGroupService,
       UserService userService,
-      TenantUserService tenantUserService) {
+      TenantUserService tenantUserService,
+      PlatformRoleService platformRoleService,
+      PlatformGroupService platformGroupService) {
     super(roleService, tenantGroupService, userService, tenantUserService);
+    this.platformRoleService = platformRoleService;
+    this.platformGroupService = platformGroupService;
   }
 
   @Override
@@ -117,6 +143,42 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
     // the group, so the self-heal also covers installs whose users_tenants row is missing. The call
     // is idempotent and clears the persistence context, so it runs after the group enrollment.
     tenantUserService.attachToTenant(adminUser.getId(), tenantId);
+    return group;
+  }
+
+  /**
+   * Idempotently ensures a platform-scoped (tenant = null) admin group granting platform BYPASS
+   * exists and that the given user is a member. Unlike a tenant BYPASS, a platform BYPASS expands
+   * to the platform-only capabilities (tenants, platform settings, platform users/groups/roles).
+   * Safe to call on every platform startup.
+   *
+   * @param adminUser the user to enroll as a platform administrator
+   * @return the (created or existing) platform admin group
+   */
+  @Transactional
+  public Group ensurePlatformAdminGroup(User adminUser) {
+    Role role =
+        platformRoleService.ensureInternalPlatformRole(
+            PLATFORM_ADMIN_ROLE_ID,
+            PLATFORM_ADMIN_ROLE_NAME,
+            PLATFORM_ADMIN_ROLE_DESCRIPTION,
+            Set.of(Capability.BYPASS));
+    Group group =
+        platformGroupService.ensureInternalPlatformGroupWithRole(
+            PLATFORM_ADMIN_GROUP_ID,
+            PLATFORM_ADMIN_GROUP_NAME,
+            PLATFORM_ADMIN_GROUP_DESCRIPTION,
+            List.of(role));
+    boolean alreadyMember =
+        adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
+    if (!alreadyMember) {
+      adminUser.getUnscopedGroups().add(group);
+      userService.saveUser(adminUser);
+      log.info(
+          "Enrolled admin user {} into the platform '{}' group",
+          adminUser.getId(),
+          PLATFORM_ADMIN_GROUP_NAME);
+    }
     return group;
   }
 }

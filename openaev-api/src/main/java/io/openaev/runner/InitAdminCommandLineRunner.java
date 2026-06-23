@@ -65,10 +65,14 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     Optional<Token> adminToken = this.tokenRepository.findById(ADMIN_TOKEN_UUID);
     adminToken.ifPresentOrElse(this::updateToken, () -> this.createToken(adminUser));
 
-    // Ensure the default tenant owns an admin group and the admin user belongs to it. The default
-    // tenant is created by a Flyway migration and never runs the tenant-provisioning chain that
-    // seeds the default groups for tenants created through the API, so this must be bootstrapped
-    // explicitly here, once the admin user is guaranteed to exist.
+    // Ensure the admin user holds full administrative privileges through well-known groups: a
+    // platform-scoped "Administrators" group (granting platform BYPASS) and the default-tenant
+    // "Administrators" group (granting tenant BYPASS). The default tenant is created by a Flyway
+    // migration and never runs the tenant-provisioning chain that seeds default groups for
+    // API-created tenants, so both must be bootstrapped explicitly here, once the admin user is
+    // guaranteed to exist. The platform group is ensured first because the tenant path clears the
+    // persistence context last (see AdminPrivilegeService#ensureAdminGroup).
+    this.adminPrivilegeService.ensurePlatformAdminGroup(adminUser);
     this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, adminUser);
   }
 

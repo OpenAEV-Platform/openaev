@@ -39,6 +39,25 @@ public class PlatformRoleService {
     return roleRepository.save(role);
   }
 
+  /**
+   * Idempotently creates or updates a system-managed platform role with a deterministic id (used by
+   * the bootstrap to seed the platform administrators role). Bypasses reserved-name validation and
+   * keeps the role platform-scoped (no tenant).
+   */
+  public Role ensureInternalPlatformRole(
+      @NotBlank final String id,
+      @NotBlank final String name,
+      final String description,
+      @NotNull final Set<Capability> capabilities) {
+    Capability.validateForPlatformRole(capabilities);
+    Role role = roleRepository.findById(id).orElseGet(Role::new);
+    role.setId(id);
+    role.setName(name);
+    role.setDescription(description);
+    role.setCapabilities(Capability.resolveWithParents(capabilities));
+    return roleRepository.save(role);
+  }
+
   // -- READ --
 
   @Transactional(readOnly = true)

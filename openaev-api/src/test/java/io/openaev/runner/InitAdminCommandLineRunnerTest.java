@@ -98,4 +98,23 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
 
     assertThat(adminGroupCount).isEqualTo(1);
   }
+
+  @DisplayName("Admin user is enrolled in the platform admin group at bootstrap")
+  @Test
+  void given_platform_bootstrap_should_enroll_admin_in_platform_admin_group() {
+    // Act
+    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
+    List<Group> platformAdminGroups =
+        adminUser.getUnscopedGroups().stream()
+            .filter(group -> AdminPrivilegeService.PLATFORM_ADMIN_GROUP_ID.equals(group.getId()))
+            .toList();
+
+    // Assert
+    assertThat(platformAdminGroups).hasSize(1);
+    Group platformAdminGroup = platformAdminGroups.getFirst();
+    assertThat(platformAdminGroup.getTenant()).isNull();
+    assertThat(platformAdminGroup.getRoles())
+        .anyMatch(role -> role.getCapabilities().contains(Capability.BYPASS));
+    assertThat(adminUser.hasPlatformBypass()).isTrue();
+  }
 }
