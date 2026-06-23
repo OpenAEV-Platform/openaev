@@ -25,8 +25,8 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import AskArianeButton from '../ariane/AskArianeButton';
-import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import AskArianePanel from '../ariane/AskArianePanel';
+import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import { useChatbot } from '../ariane/useChatbotHooks';
 
 const useStyles = makeStyles()(theme => ({
