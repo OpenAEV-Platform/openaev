@@ -6,8 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
-import io.openaev.database.audit.AuditDiffIgnore;
-import io.openaev.database.audit.AuditSignificanceAware;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.AgentHelper;
@@ -32,7 +32,7 @@ import org.hibernate.annotations.JoinFormula;
 @Table(name = "agents")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Agent implements TenantBase, AuditSignificanceAware {
+public class Agent implements TenantBase, AuditStateCapturable {
 
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
@@ -135,7 +135,7 @@ public class Agent implements TenantBase, AuditSignificanceAware {
   @JsonProperty("agent_external_reference")
   private String externalReference;
 
-  @AuditDiffIgnore
+  @AuditStateIgnore
   @Column(name = "agent_last_seen")
   @JsonProperty("agent_last_seen")
   private Instant lastSeen;
@@ -145,7 +145,7 @@ public class Agent implements TenantBase, AuditSignificanceAware {
   @NotNull
   private Instant createdAt = now();
 
-  @AuditDiffIgnore
+  @AuditStateIgnore
   @Column(name = "agent_updated_at")
   @JsonProperty("agent_updated_at")
   @NotNull

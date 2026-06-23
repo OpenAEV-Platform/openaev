@@ -15,10 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * worthy of audit logging.
  *
  * <p>The default {@link #significantState(ObjectMapper)} serializes the entity via Jackson and
- * strips fields annotated with {@link AuditDiffIgnore}. New fields are automatically included
+ * strips fields annotated with {@link AuditStateIgnore}. New fields are automatically included
  * unless explicitly annotated.
  */
-public interface AuditSignificanceAware {
+public interface AuditStateCapturable {
 
   /** Cache of ignored JSON keys per class — computed once via reflection, reused thereafter. */
   Map<Class<?>, Set<String>> IGNORED_FIELDS_CACHE = new ConcurrentHashMap<>();
@@ -27,7 +27,7 @@ public interface AuditSignificanceAware {
    * Returns a map representing this entity's significant state.
    *
    * <p>Serializes the entity via {@code objectMapper.convertValue(this, Map)} and removes fields
-   * annotated with {@link AuditDiffIgnore}. New fields are automatically captured.
+   * annotated with {@link AuditStateIgnore}. New fields are automatically captured.
    *
    * @param objectMapper the ObjectMapper used to serialize the entity
    * @return a map of significant field names to their current values
@@ -54,7 +54,7 @@ public interface AuditSignificanceAware {
    * per class so reflection is only performed once.
    */
   private static Set<String> resolveIgnoredFields(Class<?> clazz) {
-    return IGNORED_FIELDS_CACHE.computeIfAbsent(clazz, AuditSignificanceAware::scanIgnoredFields);
+    return IGNORED_FIELDS_CACHE.computeIfAbsent(clazz, AuditStateCapturable::scanIgnoredFields);
   }
 
   /** Walks the class hierarchy and collects JSON keys of fields annotated with @AuditDiffIgnore. */
@@ -62,7 +62,7 @@ public interface AuditSignificanceAware {
     Set<String> ignored = new HashSet<>();
     for (Class<?> c = clazz; c != null && c != Object.class; c = c.getSuperclass()) {
       for (Field field : c.getDeclaredFields()) {
-        if (field.isAnnotationPresent(AuditDiffIgnore.class)) {
+        if (field.isAnnotationPresent(AuditStateIgnore.class)) {
           JsonProperty jsonProp = field.getAnnotation(JsonProperty.class);
           ignored.add(jsonProp != null ? jsonProp.value() : field.getName());
         }

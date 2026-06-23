@@ -8,8 +8,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
-import io.openaev.database.audit.AuditDiffIgnore;
-import io.openaev.database.audit.AuditSignificanceAware;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -25,7 +25,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Endpoint extends Asset implements AuditSignificanceAware {
+public class Endpoint extends Asset implements AuditStateCapturable {
 
   public static final Set<String> BAD_MAC_ADDRESS =
       new HashSet<>(Arrays.asList("ffffffffffff", "000000000000", "0180c2000000"));
@@ -190,7 +190,7 @@ public class Endpoint extends Asset implements AuditSignificanceAware {
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
   // Since we're adding it manually in significantState(), we ignore it for now
-  @AuditDiffIgnore
+  @AuditStateIgnore
   private List<Agent> agents = new ArrayList<>();
 
   // -- INJECT --
@@ -242,13 +242,13 @@ public class Endpoint extends Asset implements AuditSignificanceAware {
    * Returns the significant state of this endpoint for audit comparison.
    *
    * <p>Serializes the entire entity via Jackson, then strips non-significant fields (annotated with
-   * {@link AuditDiffIgnore}) and replaces the raw agents list with each agent's own {@link
+   * {@link AuditStateIgnore}) and replaces the raw agents list with each agent's own {@link
    * Agent#significantState}. Any new field added to the entity is automatically included without
    * code changes.
    */
   @Override
   public Map<String, Object> significantState(ObjectMapper objectMapper) {
-    Map<String, Object> state = AuditSignificanceAware.super.significantState(objectMapper);
+    Map<String, Object> state = AuditStateCapturable.super.significantState(objectMapper);
     // Replace raw agent serialization with each agent's significant state (sorted by ID for stable
     // comparison)
     state.put(

@@ -9,9 +9,9 @@ import java.lang.annotation.Target;
  * Marks a field as non-significant for audit diff comparison.
  *
  * <p>Fields annotated with {@code @AuditDiffIgnore} are excluded from the map returned by {@link
- * AuditSignificanceAware#significantState}. Typical candidates are timestamps, computed values, and
+ * AuditStateCapturable#significantState}. Typical candidates are timestamps, computed values, and
  * back-references that change on every update but carry no business significance.
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface AuditDiffIgnore {}
+public @interface AuditStateIgnore {}
