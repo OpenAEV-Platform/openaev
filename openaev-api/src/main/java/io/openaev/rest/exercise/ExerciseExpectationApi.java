@@ -1,11 +1,12 @@
 package io.openaev.rest.exercise;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.ExerciseExpectationService;
@@ -33,8 +34,8 @@ public class ExerciseExpectationApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<InjectExpectation> exerciseInjectExpectations(
+  public List<InjectExpectationOutput> exerciseInjectExpectations(
       @PathVariable @NotBlank final String exerciseId) {
-    return this.exerciseExpectationService.injectExpectations(exerciseId);
+    return toOutputs(this.exerciseExpectationService.injectExpectations(exerciseId));
   }
 }

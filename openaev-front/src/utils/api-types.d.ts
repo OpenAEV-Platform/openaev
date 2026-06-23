@@ -956,7 +956,7 @@ export interface ChallengeInformation {
   /** @format int32 */
   challenge_attempt?: number;
   challenge_detail?: PublicChallenge;
-  challenge_expectation?: InjectExpectation;
+  challenge_expectation?: InjectExpectationOutput;
 }
 
 export interface ChallengeInput {
@@ -3738,53 +3738,6 @@ export interface InjectExecutionInput {
   execution_status: string;
 }
 
-export interface InjectExpectation {
-  inject_expectation_agent?: string;
-  inject_expectation_article?: string;
-  inject_expectation_asset?: string;
-  inject_expectation_asset_group?: string;
-  inject_expectation_challenge?: string;
-  /** @format date-time */
-  inject_expectation_created_at?: string;
-  inject_expectation_description?: string;
-  inject_expectation_exercise?: string;
-  /** @format double */
-  inject_expectation_expected_score: number;
-  inject_expectation_group?: boolean;
-  /** @minLength 1 */
-  inject_expectation_id: string;
-  inject_expectation_inject?: string;
-  inject_expectation_name?: string;
-  inject_expectation_results?: InjectExpectationResult[];
-  /** @format double */
-  inject_expectation_score?: number;
-  inject_expectation_signatures?: InjectExpectationSignature[];
-  inject_expectation_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-  inject_expectation_team?: string;
-  inject_expectation_traces?: InjectExpectationTrace[];
-  inject_expectation_type:
-    | "TEXT"
-    | "DOCUMENT"
-    | "ARTICLE"
-    | "CHALLENGE"
-    | "MANUAL"
-    | "PREVENTION"
-    | "DETECTION"
-    | "VULNERABILITY";
-  /** @format date-time */
-  inject_expectation_updated_at?: string;
-  inject_expectation_user?: string;
-  /** @format int64 */
-  inject_expiration_time: number;
-  listened?: boolean;
-  target_id?: string;
-}
-
 /** Represents a single inject expectation with agent name */
 export interface InjectExpectationAgentOutput {
   inject_expectation_agent?: string;
@@ -3820,6 +3773,88 @@ export interface InjectExpectationAgentOutput {
 
 export interface InjectExpectationBulkUpdateInput {
   inputs: Record<string, InjectExpectationUpdateInput>;
+}
+
+export interface InjectExpectationOutput {
+  /** Agent ID associated with the inject expectation */
+  inject_expectation_agent?: string;
+  /** Article ID associated with the inject expectation */
+  inject_expectation_article?: string;
+  /** Asset ID associated with the inject expectation */
+  inject_expectation_asset?: string;
+  /** Asset group ID associated with the inject expectation */
+  inject_expectation_asset_group?: string;
+  /** Challenge ID associated with the inject expectation */
+  inject_expectation_challenge?: string;
+  /**
+   * Creation date of the inject expectation
+   * @format date-time
+   */
+  inject_expectation_created_at?: string;
+  /** Description of the inject expectation */
+  inject_expectation_description?: string;
+  /** Exercise ID associated with the inject expectation */
+  inject_expectation_exercise?: string;
+  /**
+   * Expected score of the inject expectation
+   * @format double
+   */
+  inject_expectation_expected_score: number;
+  /** Whether this expectation is a group expectation */
+  inject_expectation_group?: boolean;
+  /**
+   * ID of the inject expectation
+   * @minLength 1
+   */
+  inject_expectation_id: string;
+  /** Inject ID associated with the inject expectation */
+  inject_expectation_inject?: string;
+  /** Name of the inject expectation */
+  inject_expectation_name?: string;
+  /** Results associated with the inject expectation */
+  inject_expectation_results?: InjectExpectationResult[];
+  /**
+   * Current score of the inject expectation
+   * @format double
+   */
+  inject_expectation_score?: number;
+  /** Signatures associated with the inject expectation */
+  inject_expectation_signatures?: InjectExpectationSignature[];
+  /** Computed status of the inject expectation */
+  inject_expectation_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** Team ID associated with the inject expectation */
+  inject_expectation_team?: string;
+  /** Traces associated with the inject expectation */
+  inject_expectation_traces?: InjectExpectationTrace[];
+  /** Type of the inject expectation */
+  inject_expectation_type:
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+  /**
+   * Last update date of the inject expectation
+   * @format date-time
+   */
+  inject_expectation_updated_at?: string;
+  /** User ID associated with the inject expectation */
+  inject_expectation_user?: string;
+  /**
+   * Expiration time in seconds
+   * @format int64
+   */
+  inject_expiration_time: number;
+  /** Target ID resolved from user, team, agent, asset, or asset group */
+  target_id?: string;
 }
 
 export interface InjectExpectationResult {

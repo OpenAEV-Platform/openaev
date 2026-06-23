@@ -14,22 +14,22 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
 import {
   type Inject,
-  type InjectExpectation,
+  type InjectExpectationOutput,
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { getSourceLabel } from '../../../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../../../common/injects/InjectIcon';
-import { getSourceLabel } from '../../../simulations/simulation/validation/expectations/ExpectationUtils';
 import InjectExpectationContext from '../context/InjectExpectationContext';
 import TargetResultAlertNumber from './TargetResultAlertNumber';
 
 interface Props {
   injectExpectation: InjectExpectationsStore;
   injectExpectationResults: InjectExpectationResult[];
-  injectExpectationAgent: InjectExpectation['inject_expectation_agent'];
+  injectExpectationAgent: InjectExpectationOutput['inject_expectation_agent'];
   injectorContractPayload?: PayloadSimple;
   injectType: Inject['inject_type'];
 }
