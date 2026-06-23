@@ -8,9 +8,8 @@ import { type Contract } from '../../../../../../actions/contract/contract';
 import { useHelper } from '../../../../../../store';
 import { type AssetGroup, type Endpoint, type Team } from '../../../../../../utils/api-types';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
-import { typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
+import { groupedByAsset, typeIcon } from '../../../../common/injects/expectations/ExpectationUtils';
 import ExpectationLine from './ExpectationLine';
-import { groupedByAsset } from './ExpectationUtils';
 import TechnicalExpectationAsset from './TechnicalExpectationAsset';
 
 const useStyles = makeStyles()(() => ({

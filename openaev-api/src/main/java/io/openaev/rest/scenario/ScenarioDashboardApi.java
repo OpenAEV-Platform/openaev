@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,6 +31,7 @@ public class ScenarioDashboardApi {
   private final CustomDashboardService customDashboardService;
 
   @Operation(summary = "Find the dashboard linked to a Scenario")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "The dashboard"),
@@ -52,6 +54,7 @@ public class ScenarioDashboardApi {
     SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/count/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -67,6 +70,7 @@ public class ScenarioDashboardApi {
     SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/average/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -83,6 +87,7 @@ public class ScenarioDashboardApi {
     SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/series/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -99,6 +104,7 @@ public class ScenarioDashboardApi {
     SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -114,6 +120,7 @@ public class ScenarioDashboardApi {
     SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/entities-runtime/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -130,6 +137,7 @@ public class ScenarioDashboardApi {
     SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/dashboard/attack-paths/{widgetId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

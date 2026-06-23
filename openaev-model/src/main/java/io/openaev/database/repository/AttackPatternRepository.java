@@ -4,6 +4,7 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.raw.RawAttackPatternIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,6 +21,15 @@ public interface AttackPatternRepository
   Optional<AttackPattern> findById(@NotNull String id);
 
   List<AttackPattern> findAllByIdIn(List<String> ids);
+
+  /**
+   * Load attack patterns together with their kill chain phases in a single query. Avoids the N+1
+   * pattern that would otherwise occur when iterating the LAZY {@code killChainPhases} association
+   * of each result (e.g. when building the global ATT&CK coverage matrix).
+   */
+  @Query(
+      "SELECT DISTINCT ap FROM AttackPattern ap LEFT JOIN FETCH ap.killChainPhases WHERE ap.id IN :ids")
+  List<AttackPattern> findAllByIdInWithKillChainPhases(@Param("ids") Collection<String> ids);
 
   Optional<AttackPattern> findByExternalId(@NotNull String externalId);
 

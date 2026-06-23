@@ -34,6 +34,7 @@ public class ThreatArsenalApiExporter {
 
   @Operation(summary = "Export threat arsenal actions as CSV")
   @PostMapping("/export/csv")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
   public void exportCsv(
       @RequestBody @Valid final SearchPaginationInput input, HttpServletResponse response) {

@@ -223,7 +223,7 @@ const AtomicTestingRemediations = () => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={buildTenantApiPath(`/api/images/collectors/id/${tab.collector_id}`)}
+                              src={buildTenantApiPath(`/api/collectors/${tab.collector_type}/image`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

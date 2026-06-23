@@ -11,6 +11,7 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -40,14 +41,17 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
   private final UserRepository userRepository;
   private final TokenRepository tokenRepository;
   private final TenantUserService tenantUserService;
+  private final AdminPrivilegeService adminPrivilegeService;
 
   public InitAdminCommandLineRunner(
       @NotNull final UserRepository userRepository,
       @NotNull final TokenRepository tokenRepository,
-      @NotNull final TenantUserService tenantUserService) {
+      @NotNull final TenantUserService tenantUserService,
+      @NotNull final AdminPrivilegeService adminPrivilegeService) {
     this.userRepository = userRepository;
     this.tokenRepository = tokenRepository;
     this.tenantUserService = tenantUserService;
+    this.adminPrivilegeService = adminPrivilegeService;
   }
 
   @Override
@@ -60,6 +64,16 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     // Handle admin token
     Optional<Token> adminToken = this.tokenRepository.findById(ADMIN_TOKEN_UUID);
     adminToken.ifPresentOrElse(this::updateToken, () -> this.createToken(adminUser));
+
+    // Ensure the admin user holds full administrative privileges through well-known groups: a
+    // platform-scoped "Administrators" group (granting platform BYPASS) and the default-tenant
+    // "Administrators" group (granting tenant BYPASS). The default tenant is created by a Flyway
+    // migration and never runs the tenant-provisioning chain that seeds default groups for
+    // API-created tenants, so both must be bootstrapped explicitly here, once the admin user is
+    // guaranteed to exist. The platform group is ensured first because the tenant path clears the
+    // persistence context last (see AdminPrivilegeService#ensureAdminGroup).
+    this.adminPrivilegeService.ensurePlatformAdminGroup(adminUser);
+    this.adminPrivilegeService.ensureAdminGroup(DEFAULT_TENANT_UUID, adminUser);
   }
 
   // -- USER --

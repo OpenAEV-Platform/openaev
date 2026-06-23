@@ -10,14 +10,16 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -59,47 +61,11 @@ class UrlAccessControlAspectTest {
     return new Cookie(URL_ACCESS_COOKIE_NAME, value);
   }
 
-  // -- Feature flag disabled --
-
-  @Nested
-  @DisplayName("Feature flag disabled")
-  class FeatureFlagDisabled {
-
-    @Test
-    @DisplayName(
-        "Feature flag disabled when UrlAccessControl is applied should proceed without validation")
-    void
-        given_feature_flag_disabled_when_url_access_control_is_applied_should_proceed_without_validation()
-            throws Throwable {
-      // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(false);
-      ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
-      when(joinPoint.proceed()).thenReturn("result");
-
-      UrlAccessControl annotation = mock(UrlAccessControl.class);
-
-      // -- Act --
-      Object result = aspect.validateUrlAccess(joinPoint, annotation);
-
-      // -- Assert --
-      assertThat(result).isEqualTo("result");
-      verify(urlAccessTokenService, never()).validateToken(anyString(), any());
-      verify(joinPoint).proceed();
-    }
-  }
-
   // -- Authenticated users --
 
   @Nested
   @DisplayName("Authenticated users")
   class AuthenticatedUsers {
-
-    @BeforeEach
-    void setup() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
-    }
 
     @Test
     @DisplayName(
@@ -136,12 +102,6 @@ class UrlAccessControlAspectTest {
   @Nested
   @DisplayName("Anonymous users")
   class AnonymousUsers {
-
-    @BeforeEach
-    void setup() {
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN))
-          .thenReturn(true);
-    }
 
     @Test
     @DisplayName(

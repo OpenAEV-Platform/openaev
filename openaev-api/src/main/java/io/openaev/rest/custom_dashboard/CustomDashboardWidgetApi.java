@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,6 +35,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   // -- CRUD --
 
   @PostMapping
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.WRITE,
@@ -45,6 +47,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @GetMapping
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
@@ -54,6 +57,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @GetMapping("/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
@@ -64,6 +68,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @PutMapping("/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.WRITE,
@@ -78,6 +83,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @PutMapping("/{widgetId}/layout")
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.WRITE,
@@ -92,6 +98,7 @@ public class CustomDashboardWidgetApi extends RestBehavior {
   }
 
   @DeleteMapping("/{widgetId}")
+  @Transactional
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.WRITE,

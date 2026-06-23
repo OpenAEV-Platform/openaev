@@ -94,6 +94,7 @@ public class ScenarioInjectApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/injects",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -108,6 +109,7 @@ public class ScenarioInjectApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -178,6 +180,7 @@ public class ScenarioInjectApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/injects/{injectId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
@@ -213,6 +216,7 @@ public class ScenarioInjectApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/{injectId}/activation"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
