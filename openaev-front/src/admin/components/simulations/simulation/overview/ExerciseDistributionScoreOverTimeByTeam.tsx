@@ -8,7 +8,7 @@ import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { computeTeamsColors } from './DistributionUtils';
 
@@ -30,26 +30,26 @@ const ExerciseDistributionScoreOverTimeByTeam: FunctionComponent<Props> = ({ exe
 
   let cumulation = 0;
   const teamsScores = R.pipe(
-    R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team && n?.inject_expectation_user === null),
+    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team && n?.inject_expectation_user === null),
     R.groupBy(R.prop('inject_expectation_team')),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => {
+    R.map((n: [string, InjectExpectationOutput[]]) => {
       cumulation = 0;
       return [
         n[0],
         R.pipe(
           R.sortWith([R.ascend(R.prop('inject_expectation_updated_at'))]),
-          R.map((i: InjectExpectation) => {
+          R.map((i: InjectExpectationOutput) => {
             cumulation += i.inject_expectation_score ?? 0;
             return R.assoc('inject_expectation_cumulated_score', cumulation, i);
           }),
         )(n[1]),
       ];
     }),
-    R.map((n: [string, Array<InjectExpectation & { inject_expectation_cumulated_score: number }>]) => ({
+    R.map((n: [string, Array<InjectExpectationOutput & { inject_expectation_cumulated_score: number }>]) => ({
       name: teamsMap[n[0]]?.team_name,
       color: teamsColors[n[0]],
-      data: n[1].map((i: InjectExpectation & { inject_expectation_cumulated_score: number }) => ({
+      data: n[1].map((i: InjectExpectationOutput & { inject_expectation_cumulated_score: number }) => ({
         x: i.inject_expectation_updated_at,
         y: i.inject_expectation_cumulated_score,
       })),

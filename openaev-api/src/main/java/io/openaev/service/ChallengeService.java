@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutput;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttempt;
@@ -136,7 +137,7 @@ public class ChallengeService {
                           .getChallengeAttempt(challengeAttemptId)
                           .orElse(buildChallengeAttempt(challengeAttemptId));
                   return new ChallengeInformation(
-                      challenge, injectExpectation, challengeAttempt.getAttempt());
+                      challenge, toOutput(injectExpectation), challengeAttempt.getAttempt());
                 })
             .sorted(Comparator.comparing(o -> o.getChallenge().getVirtualPublication()))
             .toList();

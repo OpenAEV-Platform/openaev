@@ -7,7 +7,7 @@ import { type LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
 import { useHelper } from '../../../../../store';
-import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
 import { splitDuration } from '../../../../../utils/Time';
 import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
 import { formProps, infoMessage } from './ExpectationFormUtils';
@@ -61,7 +61,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   const initialType = availableTypes[0] ?? predefinedExpectations[0]?.expectation_type ?? 'MANUAL';
   const [expectationType, setExpectationType] = useState<string>(initialType);
 
-  const expectationExpirationTime = useExpectationExpirationTime(expectationType as InjectExpectation['inject_expectation_type']);
+  const expectationExpirationTime = useExpectationExpirationTime(initialType as InjectExpectationOutput['inject_expectation_type']);
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
