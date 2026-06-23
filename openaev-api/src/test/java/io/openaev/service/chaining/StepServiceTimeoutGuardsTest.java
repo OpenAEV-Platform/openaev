@@ -27,7 +27,7 @@ class StepServiceTimeoutGuardsTest {
   @Mock private StepRepository stepRepository;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
-  @Mock private RateLimitGuardService rateLimitGuardService;
+  @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private TransactionTemplate transactionTemplate;
@@ -88,7 +88,7 @@ class StepServiceTimeoutGuardsTest {
       StepEvent event = StepEvent.builder().stepId(stepId).build();
       when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(runningWorkflow)).thenReturn(true);
+      when(simulationRateLimitService.isExecutionAllowed(runningWorkflow)).thenReturn(true);
       when(stepService.factoryAction(stepReady.getStepAction(), stepId)).thenReturn(actionStep);
       when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
 
@@ -132,7 +132,7 @@ class StepServiceTimeoutGuardsTest {
       Step stepReady = buildStep(StepStatus.READY, runningWorkflow);
       String stepReadyId = stepReady.getId();
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(runningWorkflow)).thenReturn(true);
+      when(simulationRateLimitService.isExecutionAllowed(runningWorkflow)).thenReturn(true);
 
       Step stepRun = buildStep(StepStatus.RUN, runningWorkflow);
       when(stepService.factoryAction(stepReady.getStepAction(), stepReadyId))

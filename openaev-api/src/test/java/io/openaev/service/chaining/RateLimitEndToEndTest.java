@@ -1,6 +1,7 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -26,7 +27,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * End-to-end orchestration test for the rate-limit lifecycle.
  *
- * <p>Wires real {@link StepEventService}, {@link RateLimitGuardService} and {@link
+ * <p>Wires real {@link StepEventService}, {@link SimulationRateLimitService} and {@link
  * StepDelayQueueService} together, mocking only the persistence boundaries (repositories) and the
  * action-step execution layer. This validates the full cycle:
  *
@@ -51,7 +52,7 @@ class RateLimitEndToEndTest {
   @Mock private QueueChainingService queueChainingService;
 
   // -- Real services wired together --
-  private RateLimitGuardService rateLimitGuardService;
+  private SimulationRateLimitService simulationRateLimitService;
   private StepDelayQueueService stepDelayQueueService;
   private StepEventService stepEventService;
 
@@ -61,8 +62,9 @@ class RateLimitEndToEndTest {
 
   @BeforeEach
   void setUp() {
-    rateLimitGuardService = new RateLimitGuardService(injectStatusRepository);
     stepDelayQueueService = new StepDelayQueueService(stepDelayQueueRepository);
+    simulationRateLimitService =
+        new SimulationRateLimitService(injectStatusRepository, stepDelayQueueService);
 
     // Create a TransactionTemplate mock that simply executes the callback
     TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
@@ -81,7 +83,7 @@ class RateLimitEndToEndTest {
             stepService,
             workflowService,
             stepRepository,
-            rateLimitGuardService,
+            simulationRateLimitService,
             stepDelayQueueService,
             queueChainingService,
             transactionTemplate);

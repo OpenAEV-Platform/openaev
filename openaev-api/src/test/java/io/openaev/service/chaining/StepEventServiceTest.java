@@ -34,7 +34,7 @@ class StepEventServiceTest {
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
   @Mock private StepRepository stepRepository;
-  @Mock private RateLimitGuardService rateLimitGuardService;
+  @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private TransactionTemplate transactionTemplate;
@@ -430,25 +430,24 @@ class StepEventServiceTest {
   class RateLimitGuard {
 
     @Test
-    void shouldRescheduleStep_whenRateLimitReached() throws ChainingException {
+    void shouldDelegateToSimulationRateLimitService_whenWorkflowRunIsNotNull()
+        throws ChainingException {
       // -------- Prepare --------
       Workflow workflowRun = mock(Workflow.class);
       when(workflowRun.getId()).thenReturn("wf-1");
-      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(120L);
 
       Step stepReady = mock(Step.class);
       when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getInput()).thenReturn("{}");
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
+      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, workflowRun))
+          .thenReturn(true);
 
       // -------- Act --------
       stepEventService.run(stepReady);
 
-      // -------- Assert --------
-      verify(stepReady).setInput(argThat(input -> input.contains("\"_rateLimitCount\":1")));
-      verify(stepDelayQueueService).reschedule(stepReady, 120L);
+      // -------- Assert — execution was blocked, step was not run --------
+      verify(simulationRateLimitService).requeueIfRateLimitReached(stepReady, workflowRun);
       verify(stepService, never()).factoryAction(any(), any());
       verify(stepService, never()).saveStep(any());
     }
@@ -466,7 +465,8 @@ class StepEventServiceTest {
       Step stepRun = mock(Step.class);
 
       when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(true);
+      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, workflowRun))
+          .thenReturn(false);
 
       ActionStep localActionStep = mock(ActionStep.class);
       when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
@@ -477,30 +477,8 @@ class StepEventServiceTest {
       stepEventService.run(stepReady);
 
       // -------- Assert --------
-      verify(stepDelayQueueService, never()).reschedule(any(), anyLong());
       verify(stepRun).setStatus(StepStatus.RUN);
       verify(stepService).saveStep(stepRun);
-    }
-
-    @Test
-    void shouldUseFallbackDelay_whenMaxTemporalRateSecondsIsNull() {
-      // -------- Prepare --------
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-1");
-      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(null);
-
-      Step stepReady = mock(Step.class);
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getRateLimitCount()).thenReturn(0);
-
-      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
-
-      // -------- Act --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert --------
-      verify(stepDelayQueueService).reschedule(stepReady, 60L);
     }
 
     @Test
@@ -518,54 +496,9 @@ class StepEventServiceTest {
       stepEventService.run(stepReady);
 
       // -------- Assert --------
-      verify(rateLimitGuardService, never()).isExecutionAllowed(any());
+      verify(simulationRateLimitService).requeueIfRateLimitReached(stepReady, null);
       assertEquals(StepStatus.RUN, stepRun.getStatus());
       verify(stepService).saveStep(stepRun);
-    }
-
-    @Test
-    void shouldIncrementRateLimitCount_whenRescheduledMultipleTimes() {
-      // -------- Prepare --------
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-1");
-      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(60L);
-
-      // Simulate a step that was already rate-limited twice
-      Step stepReady = mock(Step.class);
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getRateLimitCount()).thenReturn(2);
-
-      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
-
-      // -------- Act --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert — count should be incremented to 3 --------
-      verify(stepReady).setRateLimitCount(3);
-      verify(stepDelayQueueService).reschedule(stepReady, 60L);
-    }
-
-    @Test
-    void shouldHandleZeroCount_whenRateLimitReached() {
-      // -------- Prepare --------
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-1");
-      when(workflowRun.getMaxTemporalRateSeconds()).thenReturn(30L);
-
-      Step stepReady = mock(Step.class);
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getRateLimitCount()).thenReturn(0);
-
-      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(rateLimitGuardService.isExecutionAllowed(workflowRun)).thenReturn(false);
-
-      // -------- Act --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert — count should start at 1 --------
-      verify(stepReady).setRateLimitCount(1);
-      verify(stepDelayQueueService).reschedule(stepReady, 30L);
     }
   }
 }

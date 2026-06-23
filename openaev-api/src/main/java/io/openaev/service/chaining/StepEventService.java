@@ -31,7 +31,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   private final StepService stepService;
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
-  private final RateLimitGuardService rateLimitGuardService;
+  private final SimulationRateLimitService simulationRateLimitService;
   private final StepDelayQueueService stepDelayQueueService;
   private final QueueChainingService queueChainingService;
 
@@ -120,18 +120,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       return;
     }
 
-    // Guard: rate limit — re-schedule the step if the workflow has reached its rate limit.
-    if (workflowRun != null && !rateLimitGuardService.isExecutionAllowed(workflowRun)) {
-      long backoffSeconds =
-          workflowRun.getMaxTemporalRateSeconds() != null
-              ? workflowRun.getMaxTemporalRateSeconds()
-              : 60L;
-      // Increment the rate-limit count on the step itself so it propagates through the delay
-      // queue and can be surfaced as an INFO trace when the inject is eventually executed.
-      stepReady.setRateLimitCount(stepReady.getRateLimitCount() + 1);
-      stepDelayQueueService.reschedule(stepReady, backoffSeconds);
-      return;
-    }
+    // Check for rate limit, stop the run here and delay the step ready if reached
+    if (simulationRateLimitService.requeueIfRateLimitReached(stepReady, workflowRun)) return;
 
     Step stepRun;
     try {

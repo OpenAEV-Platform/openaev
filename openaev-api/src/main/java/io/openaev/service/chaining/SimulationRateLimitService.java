@@ -1,5 +1,6 @@
 package io.openaev.service.chaining;
 
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.InjectStatusRepository;
 import java.time.Instant;
@@ -19,9 +20,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class RateLimitGuardService {
+public class SimulationRateLimitService {
 
   private final InjectStatusRepository injectStatusRepository;
+  private final StepDelayQueueService stepDelayQueueService;
 
   /**
    * Determines whether a new inject execution is allowed for the given workflow run based on its
@@ -59,5 +61,29 @@ public class RateLimitGuardService {
     }
 
     return true;
+  }
+
+  /**
+   * Check that a rate limit has been reached and re-schedule the step if necessary. Returns true if
+   * the step was re-scheduled, false otherwise.
+   *
+   * @param stepReady the step to check
+   * @param workflowRun the workflow being run
+   * @return true if the step was re-scheduled, false otherwise.
+   */
+  public boolean requeueIfRateLimitReached(Step stepReady, Workflow workflowRun) {
+    // Guard: rate limit — re-schedule the step if the workflow has reached its rate limit.
+    if (workflowRun != null && !this.isExecutionAllowed(workflowRun)) {
+      long backoffSeconds =
+          workflowRun.getMaxTemporalRateSeconds() != null
+              ? workflowRun.getMaxTemporalRateSeconds()
+              : 60L;
+      // Increment the rate-limit count on the step itself so it propagates through the delay
+      // queue and can be surfaced as an INFO trace when the inject is eventually executed.
+      stepReady.setRateLimitCount(stepReady.getRateLimitCount() + 1);
+      stepDelayQueueService.reschedule(stepReady, backoffSeconds);
+      return true;
+    }
+    return false;
   }
 }
