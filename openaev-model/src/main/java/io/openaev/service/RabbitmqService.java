@@ -365,11 +365,12 @@ public class RabbitmqService {
         }
         throw e;
       }
-      // Queue exists — drain with a fresh channel
+      // Queue exists — drain with a fresh channel (manual ack for safety)
       try (Channel drainChannel = connection.createChannel()) {
         com.rabbitmq.client.GetResponse response;
-        while ((response = drainChannel.basicGet(queueName, true)) != null) {
+        while ((response = drainChannel.basicGet(queueName, false)) != null) {
           messages.add(response.getBody());
+          drainChannel.basicAck(response.getEnvelope().getDeliveryTag(), true);
         }
       }
       log.info("Drained {} messages from queue '{}'.", messages.size(), queueName);
