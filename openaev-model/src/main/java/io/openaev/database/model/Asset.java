@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditDiffIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -176,6 +177,7 @@ public class Asset implements TenantBase {
   @CreationTimestamp
   private Instant createdAt = now();
 
+  @AuditDiffIgnore
   @Column(name = "asset_updated_at")
   @JsonProperty("asset_updated_at")
   @NotNull

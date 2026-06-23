@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditDiffIgnore;
 import io.openaev.database.audit.AuditSignificanceAware;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -17,7 +18,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
@@ -135,6 +135,7 @@ public class Agent implements TenantBase, AuditSignificanceAware {
   @JsonProperty("agent_external_reference")
   private String externalReference;
 
+  @AuditDiffIgnore
   @Column(name = "agent_last_seen")
   @JsonProperty("agent_last_seen")
   private Instant lastSeen;
@@ -144,6 +145,7 @@ public class Agent implements TenantBase, AuditSignificanceAware {
   @NotNull
   private Instant createdAt = now();
 
+  @AuditDiffIgnore
   @Column(name = "agent_updated_at")
   @JsonProperty("agent_updated_at")
   @NotNull
@@ -167,12 +169,6 @@ public class Agent implements TenantBase, AuditSignificanceAware {
   public int hashCode() {
     return Objects.hash(id);
   }
-
-  /** Fields excluded from audit significance comparison (timestamps, computed, parent ref). */
-  @JsonIgnore
-  @Setter(lombok.AccessLevel.NONE)
-  @Transient
-  private final Set<String> nonSignificantFields = Set.of("agent_last_seen", "agent_updated_at");
 
   public Agent() {}
 }
