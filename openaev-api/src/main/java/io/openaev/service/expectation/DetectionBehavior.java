@@ -8,12 +8,12 @@ import org.springframework.stereotype.Component;
 /**
  * Behavior implementation for {@link DetectionInjectExpectation}.
  *
- * <p>Handles the full lifecycle of a detection expectation: leaf result computation,
- * result initialization from security-platform collectors, and score propagation
- * up the agent → asset → asset-group hierarchy.
+ * <p>Handles the full lifecycle of a detection expectation: leaf result computation, result
+ * initialization from security-platform collectors, and score propagation up the agent → asset →
+ * asset-group hierarchy.
  *
- * <p>All logic is inherited from {@link AbstractTechnicalBehavior}; this class only
- * declares which expectation type it owns via {@link #supports(BaseInjectExpectation)}.
+ * <p>All logic is inherited from {@link AbstractTechnicalBehavior}; this class only declares which
+ * expectation type it owns via {@link #supports(BaseInjectExpectation)}.
  *
  * <p><strong>Dead code — not wired into any service yet.</strong>
  */
@@ -29,4 +29,3 @@ public class DetectionBehavior extends AbstractTechnicalBehavior {
     return expectation instanceof DetectionInjectExpectation;
   }
 }
-
