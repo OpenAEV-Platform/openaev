@@ -1,10 +1,12 @@
 package io.openaev.rest.expectation;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutput;
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.helper.RestBehavior;
@@ -38,10 +40,10 @@ public class ExpectationApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
-  public InjectExpectation updateInjectExpectation(
+  public InjectExpectationOutput updateInjectExpectation(
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody final ExpectationUpdateInput input) {
-    return injectExpectationService.updateInjectExpectation(expectationId, input);
+    return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -50,10 +52,11 @@ public class ExpectationApi extends RestBehavior {
     TENANT_EXPECTATIONS_URI + "/{expectationId}/{sourceId}/delete"
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
-  public InjectExpectation deleteInjectExpectationResult(
+  public InjectExpectationOutput deleteInjectExpectationResult(
       @PathVariable @NotBlank final String expectationId,
       @PathVariable @NotBlank final String sourceId) {
-    return injectExpectationService.deleteInjectExpectationResult(expectationId, sourceId);
+    return toOutput(
+        injectExpectationService.deleteInjectExpectationResult(expectationId, sourceId));
   }
 
   @Operation(
@@ -63,23 +66,25 @@ public class ExpectationApi extends RestBehavior {
   @GetMapping({INJECTS_EXPECTATIONS_URI, TENANT_INJECTS_EXPECTATIONS_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectExpectationsNotFilledAndNotExpired(
+  public List<InjectExpectationOutput> getInjectExpectationsNotFilledAndNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     if (expirationTime == null) {
-      return Stream.of(
-              injectExpectationService.manualExpectationsNotFill(),
-              injectExpectationService.preventionExpectationsNotFill(),
-              injectExpectationService.detectionExpectationsNotFill())
-          .flatMap(List::stream)
-          .toList();
+      return toOutputs(
+          Stream.of(
+                  injectExpectationService.manualExpectationsNotFill(),
+                  injectExpectationService.preventionExpectationsNotFill(),
+                  injectExpectationService.detectionExpectationsNotFill())
+              .flatMap(List::stream)
+              .toList());
     }
 
-    return Stream.of(
-            injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
-            injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
-            injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
-        .flatMap(List::stream)
-        .toList();
+    return toOutputs(
+        Stream.of(
+                injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
+                injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
+                injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
+            .flatMap(List::stream)
+            .toList());
   }
 
   @Operation(
@@ -92,14 +97,15 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectExpectationsNotFilledForSource(
+  public List<InjectExpectationOutput> getInjectExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
-    return Stream.concat(
-            injectExpectationService.manualExpectationsNotFill(sourceId).stream(),
-            Stream.concat(
-                injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-                injectExpectationService.detectionExpectationsNotFill(sourceId).stream()))
-        .toList();
+    return toOutputs(
+        Stream.concat(
+                injectExpectationService.manualExpectationsNotFill(sourceId).stream(),
+                Stream.concat(
+                    injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
+                    injectExpectationService.detectionExpectationsNotFill(sourceId).stream()))
+            .toList());
   }
 
   @Operation(
@@ -112,23 +118,25 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
+  public List<InjectExpectationOutput> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
       @PathVariable String sourceId,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
     if (expirationTime == null) {
-      return Stream.concat(
-              injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-              injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
-          .toList();
+      return toOutputs(
+          Stream.concat(
+                  injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
+                  injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
+              .toList());
     }
-    return Stream.concat(
-            injectExpectationService
-                .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
-                .stream(),
-            injectExpectationService
-                .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
-                .stream())
-        .toList();
+    return toOutputs(
+        Stream.concat(
+                injectExpectationService
+                    .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                    .stream(),
+                injectExpectationService
+                    .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                    .stream())
+            .toList());
   }
 
   @GetMapping({
@@ -137,8 +145,8 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectPreventionExpectationsNotFilled() {
-    return injectExpectationService.preventionExpectationsNotFill().stream().toList();
+  public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilled() {
+    return toOutputs(injectExpectationService.preventionExpectationsNotFill().stream().toList());
   }
 
   @Operation(
@@ -151,9 +159,10 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectPreventionExpectationsNotFilledForSource(
+  public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
-    return injectExpectationService.preventionExpectationsNotFill(sourceId).stream().toList();
+    return toOutputs(
+        injectExpectationService.preventionExpectationsNotFill(sourceId).stream().toList());
   }
 
   @GetMapping({
@@ -162,8 +171,8 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectDetectionExpectationsNotFilled() {
-    return injectExpectationService.detectionExpectationsNotFill().stream().toList();
+  public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilled() {
+    return toOutputs(injectExpectationService.detectionExpectationsNotFill().stream().toList());
   }
 
   @Operation(
@@ -176,9 +185,10 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
-  public List<InjectExpectation> getInjectDetectionExpectationsNotFilledForSource(
+  public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
-    return injectExpectationService.detectionExpectationsNotFill(sourceId).stream().toList();
+    return toOutputs(
+        injectExpectationService.detectionExpectationsNotFill(sourceId).stream().toList());
   }
 
   @Operation(
@@ -190,10 +200,10 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public InjectExpectation updateInjectExpectation(
+  public InjectExpectationOutput updateInjectExpectation(
       @PathVariable @NotBlank final String expectationId,
       @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
-    return injectExpectationService.updateInjectExpectation(expectationId, input);
+    return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
   }
 
   @Operation(

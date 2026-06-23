@@ -715,16 +715,30 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .result("Meh better...")
                     .build());
 
-        assertThatJson(response)
+        List<List<Object>> detectionResultsByType =
+            JsonPath.read(
+                response,
+                "$[?(@.inject_expectation_type == 'DETECTION')].inject_expectation_results");
+        assertFalse(detectionResultsByType.isEmpty());
+        assertThatJson(mapper.writeValueAsString(detectionResultsByType.getFirst()))
             .when(Option.IGNORING_ARRAY_ORDER)
-            .node("[1].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
-        assertThatJson(response)
+
+        List<Double> detectionScoresByType =
+            JsonPath.read(
+                response,
+                "$[?(@.inject_expectation_type == 'DETECTION')].inject_expectation_score");
+        assertFalse(detectionScoresByType.isEmpty());
+        assertEquals(100.0, detectionScoresByType.getFirst());
+
+        List<List<Object>> preventionResultsByType =
+            JsonPath.read(
+                response,
+                "$[?(@.inject_expectation_type == 'PREVENTION')].inject_expectation_results");
+        assertFalse(preventionResultsByType.isEmpty());
+        assertThatJson(mapper.writeValueAsString(preventionResultsByType.getFirst()))
             .when(Option.IGNORING_ARRAY_ORDER)
-            .node("[0].inject_expectation_results")
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
-        assertThatJson(response).node("[1].inject_expectation_score").isEqualTo("100.0");
-        // assertThatJson(response).node("[0].inject_expectation_score").isEqualTo("0.0");
       }
 
       @Test
