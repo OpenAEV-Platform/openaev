@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +35,17 @@ public interface AuditSignificanceAware {
   default Map<String, Object> significantState(ObjectMapper objectMapper) {
     Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
     resolveIgnoredFields(this.getClass()).forEach(state::remove);
+    // Sort all List<Comparable> values for stable comparison (Sets serialized as arrays have no
+    // guaranteed order). Lists of complex objects (e.g. Maps) are left unsorted.
+    state.replaceAll(
+        (key, value) -> {
+          if (value instanceof List<?> list
+              && !list.isEmpty()
+              && list.getFirst() instanceof Comparable) {
+            return list.stream().sorted().toList();
+          }
+          return value;
+        });
     return state;
   }
 

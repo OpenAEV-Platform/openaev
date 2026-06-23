@@ -189,6 +189,8 @@ public class Endpoint extends Asset implements AuditSignificanceAware {
   // method
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
+  // Since we're adding it manually in significantState(), we ignore it for now
+  @AuditDiffIgnore
   private List<Agent> agents = new ArrayList<>();
 
   // -- INJECT --
