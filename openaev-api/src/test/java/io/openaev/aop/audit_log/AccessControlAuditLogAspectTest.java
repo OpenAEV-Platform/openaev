@@ -499,7 +499,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
     void given_entityDiffsInContext_should_serializeAndPassToAuditLogger() throws Exception {
-      // Arrange — pre-populate EntityDiffContext via request attributes (the storage used during
+      // Arrange — pre-populate AuditLogContext via request attributes (the storage used during
       // HTTP requests) to simulate snapshots stored by @PreUpdate listener
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
       entityManager.flush();
@@ -514,7 +514,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
-      // Act — pass snapshots as request attribute so EntityDiffContext finds them during the
+      // Act — pass snapshots as request attribute so AuditLogContext finds them during the
       // request
       mvc.perform(
               delete(TEAM_URI + "/{teamId}", team.getId())
@@ -548,7 +548,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
     void given_noDiffsInContext_should_passEmptyEntityDiffs() throws Exception {
-      // Arrange — no snapshots in EntityDiffContext
+      // Arrange — no snapshots in AuditLogContext
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
       @SuppressWarnings("unchecked")

@@ -31,7 +31,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * <p>When an entity is annotated with {@link AuditDiffTracked}, this listener also captures
  * before/after snapshots and stores computed diffs in {@link AuditLogContext} for enrichment of the
- * audit log. A transaction synchronization is registered to guarantee cleanup of the thread- local
+ * audit log. A transaction synchronization is registered to guarantee cleanup of the thread-local
  * context after every transaction, regardless of whether the audit aspect consumed the diffs.
  *
  * <p>To enable this listener on an entity, use the {@link EntityListeners} annotation:

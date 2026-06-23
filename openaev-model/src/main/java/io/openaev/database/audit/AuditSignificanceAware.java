@@ -10,7 +10,7 @@ import java.util.Set;
  * worthy of audit logging.
  *
  * <p>The default {@link #significantState(ObjectMapper)} serializes the entity via Jackson and
- * strips fields listed in {@link #nonSignificantFields()}. Implementations only need to override
+ * strips fields listed in {@link #getNonSignificantFields()}. Implementations only need to override
  * {@code nonSignificantFields()} to exclude entity-specific timestamps or computed fields.
  */
 public interface AuditSignificanceAware {
