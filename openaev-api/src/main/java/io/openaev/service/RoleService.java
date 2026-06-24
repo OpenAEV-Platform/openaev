@@ -132,7 +132,10 @@ public class RoleService {
     Role role =
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)
-            .orElseThrow(() -> new ElementNotFoundException("Role not found with id: " + roleId));
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Role not found with id: " + roleId + " and tenant id: " + tenantId));
     role.setUpdatedAt(Instant.now());
     role.setName(roleName);
     role.setDescription(roleDescription);

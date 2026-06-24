@@ -40,9 +40,8 @@ public class ManagerIntegrationsSyncJob implements Job {
       for (String tenantId : tenantIds) {
         if (!runningTenantSyncs.add(tenantId)) {
           log.warn(
-              String.format(
-                  "Skipping integration sync for tenant '%s' because a previous run is still in progress",
-                  tenantId));
+              "Skipping integration sync for tenant '{}' because a previous run is still in progress",
+              tenantId);
           continue;
         }
         try {
@@ -63,9 +62,9 @@ public class ManagerIntegrationsSyncJob implements Job {
       long jobDuration = System.currentTimeMillis() - jobStart;
       if (jobDuration > EXECUTION_TIME_THRESHOLD) {
         log.warn(
-            String.format(
-                "==> ManagerIntegrationsSyncJob.execute took %d ms (>500ms threshold)",
-                jobDuration));
+            "==> ManagerIntegrationsSyncJob.execute took {} ms (threshold {} ms)",
+            jobDuration,
+            EXECUTION_TIME_THRESHOLD);
       }
     } catch (Exception e) {
       throw new JobExecutionException(e);
@@ -78,18 +77,16 @@ public class ManagerIntegrationsSyncJob implements Job {
       TenantContext.setCurrentTenant(tenantId);
       managerFactory.getManager(tenantId).monitorIntegrations();
     } catch (Exception e) {
-      log.error(
-          String.format(
-              "Failed to sync integrations for tenant '%s': %s", tenantId, e.getMessage()),
-          e);
+      log.error("Failed to sync integrations for tenant '{}': {}", tenantId, e.getMessage(), e);
     } finally {
       TenantContext.clearCurrentTenant();
       long tenantDuration = System.currentTimeMillis() - tenantStart;
-      if (tenantDuration > EXECUTION_TIME_THRESHOLD) {
+      if (tenantDuration > TENANT_EXECUTION_TIME_THRESHOLD) {
         log.warn(
-            String.format(
-                "==> managerFactory.getManager(tenantId).monitorIntegrations() for tenant '%s' took %d ms (threshold %d ms)",
-                tenantId, tenantDuration, TENANT_EXECUTION_TIME_THRESHOLD));
+            "==> managerFactory.getManager(tenantId).monitorIntegrations() for tenant '{}' took {} ms (threshold {} ms)",
+            tenantId,
+            tenantDuration,
+            TENANT_EXECUTION_TIME_THRESHOLD);
       }
     }
   }

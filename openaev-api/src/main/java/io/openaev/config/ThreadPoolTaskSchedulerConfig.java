@@ -16,7 +16,14 @@ public class ThreadPoolTaskSchedulerConfig {
   @Value("${spring.datasource.hikari.maximum-pool-size:20}")
   private int dbPoolSize;
 
-  // optional manual override per environment
+  // Optional per-environment override for the managerIntegrationsExecutor thread-pool size.
+  // When unset (the default), concurrency is auto-tuned to ~40% of the Hikari pool so that
+  // tenant-sync threads do not starve the rest of the application.
+  // Set manager.integrations.concurrency (or env var MANAGER_INTEGRATIONS_CONCURRENCY) to a
+  // positive integer to pin the pool size explicitly — useful when the auto-computed value is
+  // either too conservative or causes contention on a specific deployment.
+  // The boxed Integer (rather than primitive int) is intentional: it allows the SpEL default
+  // #{null} to work, avoiding a startup failure when the property is absent.
   @Value("${manager.integrations.concurrency:#{null}}")
   private Integer concurrencyOverride;
 
@@ -54,7 +61,9 @@ public class ThreadPoolTaskSchedulerConfig {
     // Bottleneck is the shared DB connection pool, not CPU.
     // Default to ~40% of the pool so the rest of the app keeps connections available.
     int concurrency =
-        concurrencyOverride != null ? concurrencyOverride : Math.max(1, dbPoolSize * 2 / 5);
+        concurrencyOverride != null
+            ? Math.max(1, concurrencyOverride)
+            : Math.max(1, dbPoolSize * 2 / 5);
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
     executor.setCorePoolSize(concurrency);
     executor.setMaxPoolSize(concurrency);
