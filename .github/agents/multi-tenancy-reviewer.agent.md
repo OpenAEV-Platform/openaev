@@ -21,6 +21,21 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 5. **Read `.github/instructions/database.instructions.md`** for schema and migration conventions
 6. **Follow `.github/skills/review-multi-tenancy/SKILL.md`** step-by-step — run every command
 
+## Model Policy
+
+Use **Opus 4.6** for this review — cross-tenant reasoning is subtle and false negatives are critical.
+
+## Responsibility Boundary — Tenant Isolation Tests
+
+**Multi-Tenancy Reviewer** and **Test Specialist** have complementary, non-overlapping responsibilities:
+
+| Responsibility | Owner |
+|---|---|
+| **Writing** tenant isolation test code | ✅ Test Specialist |
+| **Verifying correctness** of isolation logic (filters, queries, scoping) | ✅ Multi-Tenancy Reviewer |
+
+When the Test Specialist writes isolation tests, flag this agent to verify the production isolation logic is correct.
+
 ## Severity Rubric
 
 | Severity | Criteria | Action |
@@ -86,6 +101,7 @@ For tenant-scoped tables:
 - Migration using default tenant UUID `2cffad3a-0001-4078-b0e2-ef74274022c3` → standard seed data
 - Test fixtures setting tenant context explicitly → test-only setup
 - `@JsonIgnore` already present on tenant relation → already handled
+- `FetchType.EAGER` on `capabilities` / `permissions` collections → intentional for RBAC performance, not a tenant issue
 
 ## Output Format
 
@@ -115,4 +131,3 @@ Findings: 🔴 [n] Critical | 🟠 [n] High | 🟡 [n] Medium | 🟢 [n] Low
 - Focus exclusively on tenant isolation — leave RBAC to Security Reviewer, perf to Performance Reviewer
 - When unsure if an entity should be tenant-scoped, flag as 🟢 LOW with your reasoning
 - If you find a 🔴 CRITICAL leak, say so explicitly and recommend blocking the PR
-
