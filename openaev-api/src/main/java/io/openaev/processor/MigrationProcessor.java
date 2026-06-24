@@ -44,10 +44,10 @@ public class MigrationProcessor implements DependenciesManager {
   @PostConstruct
   public void process() {
     // Check all active tenants to add a Datapack migration if one is added
-    init(tenantRepository.findAllByDeletedAtIsNull());
+    init(tenantRepository.findAllByDeletedAtIsNull(), true);
   }
 
-  private void init(List<Tenant> tenants) {
+  private void init(List<Tenant> tenants, boolean cleanupContext) {
     // Merge migrations and datapacks into a single chronologically-ordered list.
     // Both follow the V{YYYYMMDD}_Description naming convention, so sorting by
     // simple class name (getSortKey) guarantees correct execution order regardless of package.
@@ -66,7 +66,9 @@ public class MigrationProcessor implements DependenciesManager {
                 .count();
         log.info("Tenant {}: processed {} migrations/datapacks.", tenant.getId(), processed);
       } finally {
-        TenantContext.clearCurrentTenant();
+        if (cleanupContext) {
+          TenantContext.clearCurrentTenant();
+        }
       }
     }
   }
@@ -75,7 +77,9 @@ public class MigrationProcessor implements DependenciesManager {
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     log.info("Tenant {} created — migrations and datapacks init", tenant.getId());
     try {
-      init(List.of(tenant));
+      // Do NOT cleanup TenantContext here — subsequent DependenciesManagers (e.g. ManagerFactory)
+      // rely on TenantContext being set to the new tenant after this method returns.
+      init(List.of(tenant), false);
     } catch (Exception e) {
       throw new DependenciesManagerException(
           "Failed to process migrations for tenant " + tenant.getId(), e);
