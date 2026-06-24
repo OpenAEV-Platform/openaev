@@ -33,10 +33,6 @@ class InjectExpectationServiceTest extends IntegrationTest {
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
 
   // Saved entities for test setup
-  @Autowired private InjectComposer injectComposer;
-  @Autowired private InjectExpectationComposer injectExpectationComposer;
-  @Autowired private AgentComposer agentComposer;
-  @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectorFixture injectorFixture;
 
   @Autowired private InjectExpectationRepository injectExpectationRepository;

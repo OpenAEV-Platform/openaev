@@ -5,7 +5,6 @@ import static io.openaev.collectors.expectations_expiration_manager.utils.Expect
 import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.isExpired;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
-import static io.openaev.utils.ExpectationUtils.isAgentExpectation;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;

@@ -662,7 +662,8 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of prevention expectations without results from the source
    */
-  public List<BaseInjectExpectation> preventionExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<BaseInjectExpectation> preventionExpectationsNotFill(
+      @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
         PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
