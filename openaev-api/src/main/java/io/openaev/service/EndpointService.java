@@ -601,7 +601,6 @@ public class EndpointService {
    *
    * @param agents the agents whose executor source tags should be removed from their endpoints
    */
-  @Transactional(rollbackFor = Exception.class)
   public void removeSourceTagsFromAgentEndpoints(Collection<Agent> agents) {
     if (agents == null || agents.isEmpty()) {
       return;
