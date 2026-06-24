@@ -246,6 +246,156 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("When multiple idpGroups map to the same userGroup")
+  class MultipleIdpGroupsToSameUserGroup {
+
+    @Test
+    @DisplayName(
+        "Given multiple mappings to same group and one matches token, should add user to group")
+    void given_multipleMappingsToSameGroupAndOneMatches_should_addUserToGroup() {
+      // -- ARRANGE --
+      String object =
+          "[{\"idpGroup\": \"Filigran\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Admin\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Manager\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true}]";
+      User user = UserFixture.getUser();
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+      // Token contains only "Filigran" — not "Admin" or "Manager"
+      List<String> groupsFromToken = List.of("Filigran");
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+      assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("GROUP_A");
+    }
+
+    @Test
+    @DisplayName(
+        "Given multiple mappings to same group and none matches token, should not add user to group")
+    void given_multipleMappingsToSameGroupAndNoneMatches_should_notAddUserToGroup() {
+      // -- ARRANGE --
+      String object =
+          "[{\"idpGroup\": \"Filigran\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Admin\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true}]";
+      User user = UserFixture.getUser();
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+      // Token contains "SomethingElse" — neither "Filigran" nor "Admin"
+      List<String> groupsFromToken = List.of("SomethingElse");
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName(
+        "Given user already in group and one mapping still matches token, should not remove user from group")
+    void given_userInGroupAndOneMappingStillMatches_should_notRemoveUser() {
+      // -- ARRANGE --
+      String object =
+          "[{\"idpGroup\": \"Filigran\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Admin\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Manager\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true}]";
+      Group groupA = TenantGroupFixture.getGroup("GROUP_A");
+      groupA.setId(tenantScopedGroupId());
+      groupA.setRoles(new ArrayList<>());
+      tenantGroupComposer.forGroup(groupA).persist();
+      entityManager.flush();
+      entityManager.clear();
+      User user = UserFixture.getUser();
+      user.getUnscopedGroups().add(groupA);
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+      // User is only in "Filigran" — removed from "Admin" and "Manager" in IdP
+      List<String> groupsFromToken = List.of("Filigran");
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+      assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("GROUP_A");
+    }
+
+    @Test
+    @DisplayName(
+        "Given user in group but no mapping matches token anymore, should remove user from group")
+    void given_userInGroupButNoMappingMatches_should_removeUserFromGroup() {
+      // -- ARRANGE --
+      String object =
+          "[{\"idpGroup\": \"Filigran\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Admin\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true}]";
+      Group groupA = TenantGroupFixture.getGroup("GROUP_A");
+      groupA.setId(tenantScopedGroupId());
+      groupA.setRoles(new ArrayList<>());
+      tenantGroupComposer.forGroup(groupA).persist();
+      entityManager.flush();
+      entityManager.clear();
+      User user = UserFixture.getUser();
+      user.getUnscopedGroups().add(groupA);
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+      // User is no longer in "Filigran" or "Admin" — completely removed from IdP groups
+      List<String> groupsFromToken = List.of("SomethingElse");
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
+    }
+  }
+
+  @Nested
+  @DisplayName("When mappings target different userGroups")
+  class DifferentUserGroups {
+
+    @Test
+    @DisplayName(
+        "Given mappings to GROUP_A and GROUP_B, only matching one removes the other correctly")
+    void given_mappingsToGroupAAndGroupB_should_removeUnmatchedGroupOnly() {
+      // -- ARRANGE --
+      String object =
+          "[{\"idpGroup\": \"Filigran\",\"userGroup\": \"GROUP_A\",\"autoCreate\": true},"
+              + "{\"idpGroup\": \"Engineers\",\"userGroup\": \"GROUP_B\",\"autoCreate\": true}]";
+      Group groupA = TenantGroupFixture.getGroup("GROUP_A");
+      groupA.setId(tenantScopedGroupId());
+      groupA.setRoles(new ArrayList<>());
+      tenantGroupComposer.forGroup(groupA).persist();
+      Group groupB = TenantGroupFixture.getGroup("GROUP_B");
+      groupB.setId(tenantScopedRoleId());
+      groupB.setRoles(new ArrayList<>());
+      tenantGroupComposer.forGroup(groupB).persist();
+      entityManager.flush();
+      entityManager.clear();
+      User user = UserFixture.getUser();
+      user.getUnscopedGroups().addAll(List.of(groupA, groupB));
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+      // User is in "Filigran" but NOT in "Engineers" anymore
+      List<String> groupsFromToken = List.of("Filigran");
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+
+      // -- ASSERT -- GROUP_A stays, GROUP_B is removed
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+      assertThat(user.getUnscopedGroups().getFirst().getName()).isEqualTo("GROUP_A");
+    }
+  }
+
+  @Nested
   class TestRolesAndGroupsExtraction {
     @Test
     @DisplayName("When oidc user, extract roles accordingly")
