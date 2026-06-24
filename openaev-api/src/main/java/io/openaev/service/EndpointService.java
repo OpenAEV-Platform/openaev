@@ -50,6 +50,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
@@ -440,21 +441,22 @@ public class EndpointService {
     assetService.saveAllAssets(endpointsToSave);
     List<Agent> savedAgents = agentService.saveAllAgents(agentsToSave);
 
-    // Add source tags after both endpoints and agents are saved
+    // Update source tags after both endpoints and agents are saved
     if (!savedAgents.isEmpty()) {
-      Executor executor =
-          savedAgents.stream()
-              .map(Agent::getExecutor)
-              .filter(Objects::nonNull)
-              .findFirst()
-              .orElse(null);
-      if (executor != null) {
-        for (Asset asset : endpointsToSave) {
-          if (asset instanceof Endpoint ep) {
-            addSourceTagToEndpoint(ep, executor);
+        Executor executor =
+                savedAgents.stream()
+                        .map(Agent::getExecutor)
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
+
+        if (executor != null) {
+          for (Asset asset : endpointsToSave) {
+            if (asset instanceof Endpoint ep) {
+              addSourceTagToEndpoint(ep, executor);
+            }
           }
         }
-      }
     }
 
     log.info(
@@ -570,11 +572,8 @@ public class EndpointService {
 
   private void addSourceTagToEndpoint(Endpoint endpoint, Executor executor) {
     Set<Tag> existingTags = loadEndpointTags(endpoint);
-    String tagName = "source:" + executor.getName().toLowerCase(Locale.ROOT);
-    String tenantId =
-        endpoint.getTenant() != null
-            ? endpoint.getTenant().getId()
-            : TenantContext.getCurrentTenant();
+    String tagName = getExecutorSourceTagName(executor);
+    String tenantId = endpoint.getTenant().getId();
 
     // Check if the tag already exists on this endpoint, if so, nothing to do.
     boolean alreadyHasTag = existingTags.stream().anyMatch(t -> tagName.equals(t.getName()));
@@ -637,7 +636,7 @@ public class EndpointService {
       List<Executor> executors = executorsByEndpointId.get(endpoint.getId());
       boolean modified = false;
       for (Executor executor : executors) {
-        String tagName = "source:" + executor.getName().toLowerCase(Locale.ROOT);
+        String tagName = getExecutorSourceTagName(executor);
         if (existingTags.removeIf(t -> t.getName() != null && t.getName().equals(tagName))) {
           modified = true;
         }
@@ -655,7 +654,11 @@ public class EndpointService {
     }
   }
 
-  /**
+    private String getExecutorSourceTagName(Executor executor) {
+        return "source:" + executor.getName().toLowerCase(Locale.ROOT);
+    }
+
+    /**
    * Remove the source tag for a specific executor from all endpoints that have agents for it.
    * Called when an executor is deleted to clean up orphaned tags.
    *
