@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_24__Add_chaining_rate_limit_support extends BaseJavaMigration {
+public class V5_26__Add_chaining_rate_limit_support extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -35,16 +35,8 @@ public class V5_24__Add_chaining_rate_limit_support extends BaseJavaMigration {
             WHERE status_name IN ('EXECUTED', 'PARTIAL', 'ERROR', 'MAYBE_PREVENTED', 'MAYBE_PARTIAL_PREVENTED');
           """);
 
-      // Add step_ready column to delay queue for rate-limit rescheduling
-      stmt.execute(
-          """
-          ALTER TABLE steps_delay_queue
-            ADD COLUMN IF NOT EXISTS steps_delay_queue_step_ready_id VARCHAR(255)
-            REFERENCES steps(step_id) ON DELETE CASCADE;
-          """);
-
       // Add rate_limit_count column to steps_delay_queue to carry the reschedule count
-      // through the delay queue without polluting the step input JSON.
+      // through the delay queue so it can be propagated to newly created READY steps.
       stmt.execute(
           """
           ALTER TABLE steps_delay_queue

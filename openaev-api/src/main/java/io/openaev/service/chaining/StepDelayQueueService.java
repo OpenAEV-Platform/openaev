@@ -121,7 +121,6 @@ public class StepDelayQueueService {
             .goal(goal)
             .delay(delayMillis)
             .stepTemplate(template)
-            .stepReady(step)
             .rateLimitCount(step.getRateLimitCount())
             .workflowRun(step.getWorkflow())
             .build();

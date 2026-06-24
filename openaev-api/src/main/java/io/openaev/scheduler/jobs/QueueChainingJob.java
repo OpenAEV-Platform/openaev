@@ -53,25 +53,21 @@ public class QueueChainingJob implements Job {
             }
 
             try {
-              Step existingReadyStep = stepDelayQueue.getStepReady();
-              if (existingReadyStep != null) {
-                // Rate-limit reschedule: re-enqueue the existing READY step directly.
-                // Propagate the rate-limit count from the delay queue entry to the step.
-                existingReadyStep.setRateLimitCount(stepDelayQueue.getRateLimitCount());
-                log.info(
-                    "Re-enqueuing existing READY step {} into ready queue",
-                    existingReadyStep.getId());
-                stepService.enqueueReadySteps(
-                    List.of(existingReadyStep), stepDelayQueue.getWorkflowRun());
-              } else {
-                // Normal delay: create a new READY step from the template.
-                stepService.enqueueReadySteps(
-                    stepService.createReadySteps(
-                        stepDelayQueue.getStepTemplate(),
-                        stepDelayQueue.getWorkflowRun(),
-                        stepDelayQueue.getInput()),
-                    stepDelayQueue.getWorkflowRun());
+              // Create new READY step(s) from the template.
+              List<Step> readySteps =
+                  stepService.createReadySteps(
+                      stepDelayQueue.getStepTemplate(),
+                      stepDelayQueue.getWorkflowRun(),
+                      stepDelayQueue.getInput());
+
+              // Propagate rate-limit count from the delay queue entry to the new steps
+              // so InjectExecutionStep can surface it as an INFO trace.
+              int rateLimitCount = stepDelayQueue.getRateLimitCount();
+              if (rateLimitCount > 0) {
+                readySteps.forEach(step -> step.setRateLimitCount(rateLimitCount));
               }
+
+              stepService.enqueueReadySteps(readySteps, stepDelayQueue.getWorkflowRun());
             } catch (ChainingException e) {
               log.error("Delay consume failed : {}", e.getMessage(), e);
             }

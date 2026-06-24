@@ -138,7 +138,7 @@ class RateLimitEndToEndTest {
     assertEquals(
         1, stepReady1.getRateLimitCount(), "rateLimitCount should be 1 after first reschedule");
 
-    // Assert — delay queue entry was persisted with the TEMPLATE step (not the READY step)
+    // Assert — delay queue entry was persisted with the TEMPLATE step only
     ArgumentCaptor<StepDelayQueue> delayCaptor = ArgumentCaptor.forClass(StepDelayQueue.class);
     verify(stepDelayQueueRepository).save(delayCaptor.capture());
     StepDelayQueue capturedEntry = delayCaptor.getValue();
@@ -146,11 +146,7 @@ class RateLimitEndToEndTest {
     assertSame(
         stepTemplate,
         capturedEntry.getStepTemplate(),
-        "Delay queue must reference the TEMPLATE step, not the READY step");
-    assertSame(
-        stepReady1,
-        capturedEntry.getStepReady(),
-        "Delay queue must reference the existing READY step for rate-limit rescheduling");
+        "Delay queue must reference the TEMPLATE step");
     assertSame(workflowRun, capturedEntry.getWorkflowRun());
     assertEquals(
         60_000L, capturedEntry.getDelay(), "Delay should be maxTemporalRateSeconds * 1000");
@@ -161,9 +157,10 @@ class RateLimitEndToEndTest {
     // PHASE 2 — Second attempt: still rate limited → count increments to 2
     // =====================================================================
 
-    // Simulate QueueChainingJob consuming the delay queue: it re-enqueues the
-    // existing READY step with the rateLimitCount from the delay queue entry.
-    stepReady1.setRateLimitCount(capturedEntry.getRateLimitCount());
+    // Simulate QueueChainingJob consuming the delay queue: it creates a new READY step
+    // from the template and propagates the rateLimitCount from the delay queue entry.
+    Step stepReady2 = buildReadyStep(stepTemplate, workflowRun, capturedEntry.getInput());
+    stepReady2.setRateLimitCount(capturedEntry.getRateLimitCount());
 
     reset(stepDelayQueueRepository);
     // Still at the limit
@@ -171,11 +168,11 @@ class RateLimitEndToEndTest {
         .thenReturn(3L);
 
     // Act — second run attempt
-    stepEventService.run(stepReady1);
+    stepEventService.run(stepReady2);
 
     // Assert — count incremented to 2
     assertEquals(
-        2, stepReady1.getRateLimitCount(), "rateLimitCount should be 2 after second reschedule");
+        2, stepReady2.getRateLimitCount(), "rateLimitCount should be 2 after second reschedule");
 
     // Assert — delay queue was saved again with count 2
     verify(stepDelayQueueRepository).save(delayCaptor.capture());
@@ -187,8 +184,9 @@ class RateLimitEndToEndTest {
     // PHASE 3 — Third attempt: rate limit now allows execution
     // =====================================================================
 
-    // Simulate QueueChainingJob: set count from delay queue onto the step
-    stepReady1.setRateLimitCount(secondEntry.getRateLimitCount());
+    // Simulate QueueChainingJob: create new READY step and set count from delay queue
+    Step stepReady3 = buildReadyStep(stepTemplate, workflowRun, secondEntry.getInput());
+    stepReady3.setRateLimitCount(secondEntry.getRateLimitCount());
 
     // Now only 2 terminal injects → under the limit of 3
     when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
@@ -200,23 +198,23 @@ class RateLimitEndToEndTest {
     stepRun.setId(UUID.randomUUID().toString());
     stepRun.setStatus(StepStatus.RUN);
 
-    when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), eq(stepReady1.getId())))
+    when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), eq(stepReady3.getId())))
         .thenReturn(actionStep);
-    when(actionStep.run(stepReady1)).thenReturn(Optional.of(stepRun));
+    when(actionStep.run(stepReady3)).thenReturn(Optional.of(stepRun));
     when(stepService.saveStep(stepRun)).thenReturn(stepRun);
 
     // Act — third run attempt, this time it should proceed
-    stepEventService.run(stepReady1);
+    stepEventService.run(stepReady3);
 
     // Assert — action step was executed
-    verify(actionStep).run(stepReady1);
+    verify(actionStep).run(stepReady3);
     verify(stepService).saveStep(stepRun);
     assertEquals(StepStatus.RUN, stepRun.getStatus());
 
     // Assert — the step still carries rateLimitCount=2 for INFO trace emission
     assertEquals(
         2,
-        stepReady1.getRateLimitCount(),
+        stepReady3.getRateLimitCount(),
         "The executed step should still carry rateLimitCount=2 for INFO trace emission");
   }
 

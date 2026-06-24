@@ -88,7 +88,8 @@ class StepServiceTimeoutGuardsTest {
       StepEvent event = StepEvent.builder().stepId(stepId).build();
       when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
-      when(simulationRateLimitService.isExecutionAllowed(runningWorkflow)).thenReturn(true);
+      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, runningWorkflow))
+          .thenReturn(false);
       when(stepService.factoryAction(stepReady.getStepAction(), stepId)).thenReturn(actionStep);
       when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
 
@@ -132,7 +133,8 @@ class StepServiceTimeoutGuardsTest {
       Step stepReady = buildStep(StepStatus.READY, runningWorkflow);
       String stepReadyId = stepReady.getId();
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
-      when(simulationRateLimitService.isExecutionAllowed(runningWorkflow)).thenReturn(true);
+      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, runningWorkflow))
+          .thenReturn(false);
 
       Step stepRun = buildStep(StepStatus.RUN, runningWorkflow);
       when(stepService.factoryAction(stepReady.getStepAction(), stepReadyId))
