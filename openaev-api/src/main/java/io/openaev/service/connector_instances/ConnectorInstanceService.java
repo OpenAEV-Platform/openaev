@@ -207,15 +207,16 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Retrieves all connector instances for a specific tenant, bypassing the Hibernate tenant filter.
-   * This method is intended for background contexts (e.g. Manager initialization) where the filter
-   * may not be active.
+   * Retrieves connector instances for a specific tenant and factory class name.
    *
    * @param tenantId the tenant ID to filter by
-   * @return the list of connector instances for the given tenant
+   * @param className the connector factory class name
+   * @return the list of matching connector instances for the given tenant
    */
-  public List<ConnectorInstancePersisted> connectorInstancesByTenantId(String tenantId) {
-    return connectorInstanceRepository.findAllByTenantId(tenantId);
+  public List<ConnectorInstancePersisted> connectorInstancesByTenantIdAndClassName(
+      String tenantId, String className) {
+    return connectorInstanceRepository.findAllByTenantIdAndCatalogConnectorClassName(
+        tenantId, className);
   }
 
   /**
