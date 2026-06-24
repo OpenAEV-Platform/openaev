@@ -8,7 +8,7 @@ import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation, type Team } from '../../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput, type Team } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { computeTeamsColors } from './DistributionUtils';
 
@@ -27,13 +27,13 @@ const ExerciseDistributionScoreByTeam: FunctionComponent<Props> = ({ exerciseId 
   }));
 
   const teamsTotalScores = R.pipe(
-    R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
+    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
     R.groupBy(R.prop('inject_expectation_team')),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => ({
+    R.map((n: [string, InjectExpectationOutput[]]) => ({
       ...teamsMap[n[0]],
       team_total_score: R.sum(
-        R.map((o: InjectExpectation) => o.inject_expectation_score, n[1]),
+        R.map((o: InjectExpectationOutput) => o.inject_expectation_score, n[1]),
       ),
     })),
   )(injectExpectations);

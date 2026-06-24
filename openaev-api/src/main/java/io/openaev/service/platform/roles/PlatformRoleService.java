@@ -39,6 +39,32 @@ public class PlatformRoleService {
     return roleRepository.save(role);
   }
 
+  /**
+   * Idempotently creates or updates a system-managed platform role under a fixed, well-known id
+   * (used by the bootstrap to seed the platform administrators role). This is an internal seeding
+   * path that keeps the role platform-scoped (no tenant); unlike the tenant-scoped role CRUD, it
+   * does not run the reserved-id validation. Fails fast if a role already exists under the id but
+   * is tenant-scoped, since {@code tenant_id} is {@code updatable=false} and silently reusing it
+   * would grant incorrect, tenant-scoped privileges.
+   */
+  public Role ensureInternalPlatformRole(
+      @NotBlank final String id,
+      @NotBlank final String name,
+      final String description,
+      @NotNull final Set<Capability> capabilities) {
+    Capability.validateForPlatformRole(capabilities);
+    Role role = roleRepository.findById(id).orElseGet(Role::new);
+    if (role.getTenant() != null) {
+      throw new IllegalStateException(
+          "Role " + id + " already exists as a tenant-scoped role; expected a platform role");
+    }
+    role.setId(id);
+    role.setName(name);
+    role.setDescription(description);
+    role.setCapabilities(Capability.resolveWithParents(capabilities));
+    return roleRepository.save(role);
+  }
+
   // -- READ --
 
   @Transactional(readOnly = true)
