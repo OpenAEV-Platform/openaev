@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -243,7 +242,7 @@ public class ServiceAccountPrivilegeServiceTest {
             eq(SERVICE_ROLE_NAME),
             eq(SERVICE_ROLE_DESCRIPTION),
             eq(SERVICE_ROLE_CAPABILITIES),
-            eq(TenantContext.getCurrentTenant()));
+            eq(TENANT_ID));
   }
 
   // endregion
