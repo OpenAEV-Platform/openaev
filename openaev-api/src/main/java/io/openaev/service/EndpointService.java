@@ -20,7 +20,6 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -50,7 +49,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
@@ -443,20 +441,20 @@ public class EndpointService {
 
     // Update source tags after both endpoints and agents are saved
     if (!savedAgents.isEmpty()) {
-        Executor executor =
-                savedAgents.stream()
-                        .map(Agent::getExecutor)
-                        .filter(Objects::nonNull)
-                        .findFirst()
-                        .orElse(null);
-
-        if (executor != null) {
-          for (Asset asset : endpointsToSave) {
-            if (asset instanceof Endpoint ep) {
-              addSourceTagToEndpoint(ep, executor);
-            }
-          }
+      List<Agent> inactiveAgents = new ArrayList<>();
+      for (Agent agent : savedAgents) {
+        if (!(agent.getAsset() instanceof Endpoint endpoint) || agent.getExecutor() == null) {
+          continue;
         }
+        if (agent.isActive()) {
+          addSourceTagToEndpoint(endpoint, agent.getExecutor());
+        } else {
+          inactiveAgents.add(agent);
+        }
+      }
+      if (!inactiveAgents.isEmpty()) {
+        removeSourceTagsFromAgentEndpoints(inactiveAgents);
+      }
     }
 
     log.info(
@@ -654,11 +652,11 @@ public class EndpointService {
     }
   }
 
-    private String getExecutorSourceTagName(Executor executor) {
-        return "source:" + executor.getName().toLowerCase(Locale.ROOT);
-    }
+  private String getExecutorSourceTagName(Executor executor) {
+    return "source:" + executor.getName().toLowerCase(Locale.ROOT);
+  }
 
-    /**
+  /**
    * Remove the source tag for a specific executor from all endpoints that have agents for it.
    * Called when an executor is deleted to clean up orphaned tags.
    *
