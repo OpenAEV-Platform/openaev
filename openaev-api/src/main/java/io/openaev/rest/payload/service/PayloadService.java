@@ -232,16 +232,13 @@ public class PayloadService {
         domains);
   }
 
-  private ContractExpectations expectations(BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
+  private ContractExpectations expectations(
+      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
     List<Expectation> predefined = new ArrayList<>();
     if (expectationTypes != null) {
       for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildTextExpectation()));
-          case DOCUMENT ->
+          case TEXT, DOCUMENT ->
               predefined.add(
                   withExpectedMultiSelectableFlag(
                       this.expectationBuilderService.buildDocumentExpectation()));

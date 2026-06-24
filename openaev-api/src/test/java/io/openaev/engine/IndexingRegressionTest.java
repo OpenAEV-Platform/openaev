@@ -252,7 +252,7 @@ class IndexingRegressionTest extends IntegrationTest {
       // Arrange — create an inject with an expectation inside a scenario
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-      InjectExpectation expectation =
+      BaseInjectExpectation expectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
       InjectExpectationComposer.Composer expectationWrapper =
           injectExpectationComposer.forExpectation(expectation).withEndpoint(endpointWrapper);

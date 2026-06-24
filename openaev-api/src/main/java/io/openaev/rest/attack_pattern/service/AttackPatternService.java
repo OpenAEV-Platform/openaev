@@ -198,23 +198,23 @@ public class AttackPatternService {
         List.of(
             coverageSeries(
                 COVERAGE_PREVENTION_SUCCESS,
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 simulationIds),
             coverageSeries(
                 COVERAGE_PREVENTION_FAILED,
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.FAILED,
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
                 simulationIds),
             coverageSeries(
                 COVERAGE_DETECTION_SUCCESS,
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 simulationIds),
             coverageSeries(
                 COVERAGE_DETECTION_FAILED,
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.FAILED,
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
                 simulationIds)));
 
     List<EsSeries> series =
@@ -303,8 +303,8 @@ public class AttackPatternService {
 
   private static WidgetConfigurationWithSeries.Series coverageSeries(
       String name,
-      InjectExpectation.EXPECTATION_TYPE type,
-      InjectExpectation.EXPECTATION_STATUS status,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      BaseInjectExpectation.EXPECTATION_STATUS status,
       List<String> simulationIds) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);

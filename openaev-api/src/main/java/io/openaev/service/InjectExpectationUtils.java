@@ -58,7 +58,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
     return expectationConverter(
         baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
@@ -68,7 +68,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
     baseInjectExpectation.setTeam(team);
     return expectationConverter(
         baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
@@ -80,7 +80,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
     baseInjectExpectation.setTeam(team);
     baseInjectExpectation.setUser(user);
     return expectationConverter(
@@ -113,7 +113,8 @@ public class InjectExpectationUtils {
         baseInjectExpectation.setType(DOCUMENT);
       }
       case Expectation ignored when expectation.type() == TEXT -> {
-        baseInjectExpectation.setType(TEXT);
+        throw new IllegalStateException(
+            "TEXT expectation type is deprecated and no longer supported");
       }
       case DetectionExpectation e when expectation.type() == DETECTION -> {
         baseInjectExpectation.setDetection(e.getAgent(), e.getAsset(), e.getAssetGroup());
@@ -134,6 +135,22 @@ public class InjectExpectationUtils {
       default -> throw new IllegalStateException("Unexpected value: " + expectation);
     }
     return baseInjectExpectation;
+  }
+
+  private static BaseInjectExpectation newExpectationByType(
+      @NotNull final Expectation expectation) {
+    return switch (expectation.type()) {
+      case DOCUMENT -> new DocumentInjectExpectation();
+      case ARTICLE -> new ArticleInjectExpectation();
+      case CHALLENGE -> new ChallengeInjectExpectation();
+      case MANUAL -> new ManualInjectExpectation();
+      case PREVENTION -> new PreventionInjectExpectation();
+      case DETECTION -> new DetectionInjectExpectation();
+      case VULNERABILITY -> new VulnerabilityInjectExpectation();
+      case TEXT ->
+          throw new IllegalStateException(
+              "TEXT expectation type is deprecated and no longer supported");
+    };
   }
 
   // -- RULES OF ENGAGEMENT --
