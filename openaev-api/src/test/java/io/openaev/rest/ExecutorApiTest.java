@@ -13,18 +13,23 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,6 +52,8 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExecutorRepository executorRepository;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
@@ -541,6 +548,77 @@ public class ExecutorApiTest extends IntegrationTest {
                           .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
                           .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
           .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Executor created in tenant X should NOT appear in tenant Y list")
+    void given_executorInTenantX_should_notAppearInTenantYList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      Executor executorInTenantX = getExecutor("Tenant-X-Executor");
+      String executorInTenantXId = Objects.requireNonNull(executorInTenantX.getId());
+      assertThat(executorInTenantXId).isNotNull();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/executors")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> executorIds = JsonPath.read(response, "$[*].executor_id");
+      assertThat(executorIds).doesNotContain(executorInTenantXId);
+    }
+
+    @Test
+    @DisplayName("Executor created in tenant X should appear in tenant X list")
+    void given_executorInTenantX_should_appearInTenantXList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      Executor executorInTenantX = getExecutor("Tenant-X-Visible-Executor");
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/executors")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> executorIds = JsonPath.read(response, "$[*].executor_id");
+      assertThat(executorIds).contains(executorInTenantX.getId());
     }
   }
 }
