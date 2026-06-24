@@ -128,7 +128,11 @@ public class EndpointService {
   public Endpoint createEndpoint(@NotNull final EndpointInput input) {
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
-    endpoint.setIps(EndpointMapper.setIps(input.getIps()));
+    String[] ips = EndpointMapper.setIps(input.getIps());
+    endpoint.setIps(ips);
+    if (ips != null && ips.length > 0) {
+      endpoint.setSeenIp(ips[0]);
+    }
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
     endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     endpoint.setEoL(input.isEol());
@@ -1054,7 +1058,11 @@ public class EndpointService {
       endpointToUpdate.setPlatform(input.getPlatform());
       // Optional fields
       if (input.getIps() != null) {
-        endpointToUpdate.setIps(EndpointMapper.setIps(input.getIps()));
+        String[] ips = EndpointMapper.setIps(input.getIps());
+        endpointToUpdate.setIps(ips);
+        if (endpointToUpdate.getSeenIp() == null && ips.length > 0) {
+          endpointToUpdate.setSeenIp(ips[0]);
+        }
       }
       if (input.getHostname() != null) {
         endpointToUpdate.setHostname(input.getHostname());
