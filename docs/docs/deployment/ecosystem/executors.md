@@ -544,3 +544,48 @@ Old implant directories are periodically cleaned up by the platform. At the inte
 !!! note "OpenAEV Agent"
 
     The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the [OpenAEV Agent documentation](../../usage/openaev-agent.md) for details.
+
+---
+
+## Troubleshooting
+
+When an inject fails to execute on an endpoint, follow this 5-step diagnostic process.
+This procedure applies to all EDR-based executors (CrowdStrike, Palo Alto Cortex, etc.).
+
+### Step 1 — Run the inject from OpenAEV
+
+Trigger the inject normally from the OpenAEV platform and wait for it to reach a **failed** or **timeout** state.
+
+### Step 2 — Check the executor for an execution trace
+
+Navigate to the executor console and look for a trace of the execution attempt.
+
+!!! note "Executor-dependent"
+    The availability of an execution trace depends on the executor. See the [per-executor sections below](#per-executor-how-to-find-the-execution-trace).
+
+- ✅ **Trace found** → proceed to Step 3
+- ❌ **No trace** → the issue is upstream: check connectivity, API credentials, whether the endpoint agent is properly registered in the executor platform, whether the script/payload pushed to the executor is correct, or whether the executor itself is misconfigured
+
+### Step 3 — Retrieve the command
+
+In the executor console, locate and copy the exact command that was pushed by OpenAEV.
+
+### Step 4 — Decode and inspect the command
+
+!!! warning "First potential failure point"
+    The command may appear valid in the executor but fail silently due to encoding issues invisible at the platform level.
+
+EDR-based executors use a Base64-encoded payload. Decode it before inspecting.
+
+Once decoded, verify:
+
+- Paths are correct for the target OS
+- Parameters are well-formed
+- No escaping or encoding issues are present
+
+### Step 5 — Execute the command directly on the endpoint
+
+!!! warning "Second potential failure point"
+    Running the command manually on the endpoint isolates whether the failure is in the delivery layer or the command itself.
+
+Connect to the target endpoint via CLI and run the decoded command directly. Capture the **full CLI output** — this is the most actionable error information for diagnosis.
