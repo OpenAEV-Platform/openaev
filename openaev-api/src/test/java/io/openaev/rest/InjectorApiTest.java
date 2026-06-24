@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCat
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjector;
+import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjectorCreateInput;
 import static io.openaev.utils.fixtures.InjectorFixture.createInjector;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -664,12 +665,9 @@ public class InjectorApiTest extends IntegrationTest {
           tenantHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
 
-      InjectorCreateInput input = new InjectorCreateInput();
-      input.setId("tenant-x-injector");
-      input.setName("Tenant X Injector");
-      input.setType("tenant_x_type");
-      input.setCategory("attack");
-      input.setContracts(List.of(buildContractInput("tenant-x-contract")));
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector", "Tenant X Injector", "tenant_x_type", "tenant-x-contract");
 
       mvc.perform(
               multipart("/api/tenants/" + tenantX.getId() + "/injectors")
@@ -707,12 +705,12 @@ public class InjectorApiTest extends IntegrationTest {
               "Tenant X",
               Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
 
-      InjectorCreateInput input = new InjectorCreateInput();
-      input.setId("tenant-x-injector-visible");
-      input.setName("Tenant X Injector Visible");
-      input.setType("tenant_x_visible_type");
-      input.setCategory("attack");
-      input.setContracts(List.of(buildContractInput("tenant-x-visible-contract")));
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector-visible",
+              "Tenant X Injector Visible",
+              "tenant_x_visible_type",
+              "tenant-x-visible-contract");
 
       mvc.perform(
               multipart("/api/tenants/" + tenantX.getId() + "/injectors")
