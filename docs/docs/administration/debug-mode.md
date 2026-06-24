@@ -128,9 +128,10 @@ environment variables). Every setting only takes effect when `openaev.debug.enab
 | `openaev.debug.masking.sensitive-keys` | see below | Field/column names whose value is always masked. |
 | `openaev.debug.masking.value-patterns` | see below | Regexes whose matches are masked anywhere. |
 
-The correlation ids follow the same flag automatically through
-`management.tracing.enabled=${openaev.debug.enabled:false}`, so the tracer adds nothing when the mode
-is off.
+The correlation ids follow the production barrier automatically: `DebugTracingEnvironmentPostProcessor`
+sets `management.tracing.enabled` to `true` only when the mode actually starts (enabled **and**
+allowed for the current profile). So the tracer adds nothing when the mode is off, and nothing when
+debug is requested but refused in production.
 
 ## Data masking
 

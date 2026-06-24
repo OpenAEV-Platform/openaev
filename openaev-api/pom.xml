@@ -301,13 +301,6 @@
             <artifactId>datasource-proxy</artifactId>
             <version>${datasource-proxy.version}</version>
         </dependency>
-        <!-- Must match the version Spring Data JPA uses (declared provided/optional there),
-             otherwise its native-query handling breaks at startup. -->
-        <dependency>
-            <groupId>com.github.jsqlparser</groupId>
-            <artifactId>jsqlparser</artifactId>
-            <version>5.2</version>
-        </dependency>
     </dependencies>
 
     <build>

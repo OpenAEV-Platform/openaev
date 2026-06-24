@@ -51,6 +51,8 @@ public final class SqlParameterColumnResolver {
   }
 
   private static List<Integer> placeholderOffsets(String sql) {
+    // Escaped quotes ('' and "") need no special case: they come in pairs, so each adds two toggles
+    // and the in-literal parity at every '?' stays correct (covered by tests).
     List<Integer> offsets = new ArrayList<>();
     boolean inSingle = false;
     boolean inDouble = false;

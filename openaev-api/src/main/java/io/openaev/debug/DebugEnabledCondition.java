@@ -18,7 +18,13 @@ public class DebugEnabledCondition implements Condition {
 
   @Override
   public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-    Environment env = context.getEnvironment();
+    return isDebugActive(context.getEnvironment());
+  }
+
+  /**
+   * The production barrier, reusable outside a {@link Condition} (e.g. an environment processor).
+   */
+  static boolean isDebugActive(Environment env) {
     if (!env.getProperty("openaev.debug.enabled", Boolean.class, false)) {
       return false;
     }

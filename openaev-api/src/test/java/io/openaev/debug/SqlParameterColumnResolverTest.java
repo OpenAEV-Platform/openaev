@@ -73,4 +73,47 @@ class SqlParameterColumnResolverTest {
     assertThat(columns.get(0)).isEqualTo("user_id");
     assertThat(columns.get(1)).isNull();
   }
+
+  @Test
+  @DisplayName("ignores a placeholder inside a literal that contains an escaped '' quote")
+  void escapedSingleQuoteInsideLiteral() {
+    // The literal holds an escaped quote AND a '?' character; only the real trailing ? is a param.
+    List<String> columns =
+        SqlParameterColumnResolver.resolve(
+            "select id from t where note = 'O''Brien ? maybe' and token = ?");
+
+    assertThat(columns).containsExactly("token");
+  }
+
+  @Test
+  @DisplayName(
+      "a trailing escaped '' quote does not flip the in-literal state for later placeholders")
+  void escapedQuoteAtEndOfLiteral() {
+    List<String> columns =
+        SqlParameterColumnResolver.resolve(
+            "update users set bio = 'ends with a quote ''' where user_id = ?");
+
+    assertThat(columns).containsExactly("user_id");
+  }
+
+  @Test
+  @DisplayName("handles an escaped \"\" quote inside a quoted identifier")
+  void escapedDoubleQuoteIdentifier() {
+    List<String> columns =
+        SqlParameterColumnResolver.resolve("select v from t where \"od''d\"\"col\" = ?");
+
+    assertThat(columns).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("two placeholders around a literal with an escaped quote stay aligned")
+  void placeholdersAroundEscapedLiteral() {
+    List<String> columns =
+        SqlParameterColumnResolver.resolve(
+            "update t set a = ?, note = 'it''s fine' where user_id = ?");
+
+    assertThat(columns).hasSize(2);
+    assertThat(columns.get(0)).isEqualTo("a");
+    assertThat(columns.get(1)).isEqualTo("user_id");
+  }
 }
