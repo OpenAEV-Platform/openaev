@@ -9,6 +9,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.Profiles;
 
 /**
  * Starts (or reuses) a PostgreSQL container before the application context is created, then
@@ -52,6 +53,11 @@ public class DevDatabaseEnvironmentPostProcessor implements EnvironmentPostProce
       ConfigurableEnvironment environment, SpringApplication application) {
 
     if (!"true".equalsIgnoreCase(environment.getProperty(ENABLED_PROPERTY))) {
+      return;
+    }
+
+    if (!environment.acceptsProfiles(Profiles.of("dev"))) {
+      log("Auto-start database is enabled, but active profile is not 'dev' — skipping.");
       return;
     }
 
