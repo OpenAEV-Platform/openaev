@@ -675,7 +675,7 @@ public class ExerciseService {
           run.forEach(
               workflow -> {
                 workflow.setStatus(WorkflowStatus.END);
-                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
+                List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
                 steps.forEach(step -> step.setStatus(StepStatus.END));
                 stepsToUpdate.addAll(steps);
               });
