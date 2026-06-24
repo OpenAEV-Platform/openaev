@@ -155,7 +155,8 @@ public class ExpectationUtils {
       final AssetGroup assetGroup,
       final List<Agent> executedAgents,
       final Function<AssetGroup, T> createExpectationForAsset,
-      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent) {
+      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent,
+      final boolean isAgentless) {
     List<T> returnList = new ArrayList<>();
 
     T expectation = createExpectationForAsset.apply(assetGroup);
@@ -164,7 +165,7 @@ public class ExpectationUtils {
             .map(agent -> createExpectationForAgent.apply(agent, assetGroup))
             .toList();
 
-    if (!expectationList.isEmpty()) {
+    if (!expectationList.isEmpty() || isAgentless) {
       returnList.add(expectation);
       returnList.addAll(expectationList);
     }
@@ -176,13 +177,18 @@ public class ExpectationUtils {
       AssetToExecute assetToExecute,
       final List<Agent> executedAgents,
       final Function<AssetGroup, T> createExpectationForAsset,
-      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent) {
+      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent,
+      final boolean isAgentless) {
     List<T> returnList = new ArrayList<>();
 
     if (assetToExecute.isDirectlyLinkedToInject()) {
       returnList.addAll(
           getExpectationForAsset(
-              null, executedAgents, createExpectationForAsset, createExpectationForAgent));
+              null,
+              executedAgents,
+              createExpectationForAsset,
+              createExpectationForAgent,
+              isAgentless));
     }
 
     assetToExecute
@@ -194,7 +200,8 @@ public class ExpectationUtils {
                         assetGroup,
                         executedAgents,
                         createExpectationForAsset,
-                        createExpectationForAgent)));
+                        createExpectationForAgent,
+                        isAgentless)));
 
     return returnList;
   }
@@ -244,7 +251,8 @@ public class ExpectationUtils {
                     OAEV_IMPLANT_CALDERA.equals(implantType)
                         ? agent.getParent().getId()
                         : agent.getId(),
-                    valueTargetedAssetsMap)));
+                    valueTargetedAssetsMap)),
+        isAgentlessAsset(assetToExecute.asset()));
   }
 
   /**
@@ -292,7 +300,8 @@ public class ExpectationUtils {
                     OAEV_IMPLANT_CALDERA.equals(implantType)
                         ? agent.getParent().getId()
                         : agent.getId(),
-                    valueTargetedAssetsMap)));
+                    valueTargetedAssetsMap)),
+        isAgentlessAsset(assetToExecute.asset()));
   }
 
   /**
@@ -328,7 +337,8 @@ public class ExpectationUtils {
                 OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
                 assetToExecute.asset(),
                 assetGroup,
-                expectation.getExpirationTime()));
+                expectation.getExpirationTime()),
+        isAgentlessAsset(assetToExecute.asset()));
   }
 
   /**
@@ -375,7 +385,8 @@ public class ExpectationUtils {
                     OAEV_IMPLANT_CALDERA.equals(implantType)
                         ? agent.getParent().getId()
                         : agent.getId(),
-                    valueTargetedAssetsMap)));
+                    valueTargetedAssetsMap)),
+        isAgentlessAsset(assetToExecute.asset()));
   }
 
   private static List<String> getIpsFromAsset(Asset asset) {
@@ -618,5 +629,15 @@ public class ExpectationUtils {
    */
   public static boolean isAssetGroupExpectation(InjectExpectation e) {
     return e.getAssetGroup() != null && e.getAsset() == null && e.getAgent() == null;
+  }
+
+  /**
+   * Determine if an asset is agentless or not
+   *
+   * @param asset to test
+   * @return true if is agentless, false if not
+   */
+  private static boolean isAgentlessAsset(Asset asset) {
+    return asset instanceof Endpoint endpoint && endpoint.getAgents().isEmpty();
   }
 }
