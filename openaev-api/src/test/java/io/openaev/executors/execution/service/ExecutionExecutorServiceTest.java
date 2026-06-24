@@ -22,6 +22,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.*;
@@ -49,6 +50,7 @@ public class ExecutionExecutorServiceTest {
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private EndpointService endpointService;
 
   @InjectMocks private ExecutionExecutorService executorService;
   @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
@@ -61,6 +63,7 @@ public class ExecutionExecutorServiceTest {
             null,
             connectorInstanceRepository,
             connectorInstanceConfigurationRepository,
+            null,
             null,
             null,
             null,

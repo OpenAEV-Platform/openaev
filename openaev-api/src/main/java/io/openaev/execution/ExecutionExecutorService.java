@@ -12,6 +12,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.util.*;
@@ -32,6 +33,7 @@ public class ExecutionExecutorService {
   private final InjectStatusRepository injectStatusRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
+  private final EndpointService endpointService;
   private final ConnectorInstanceService connectorInstanceService;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
@@ -52,6 +54,8 @@ public class ExecutionExecutorService {
     // Filter inactive and executor-less agents
     Set<Agent> inactiveAgents = executorUtils.findInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
+    // When an executor becomes inactive, remove its source tag from endpoints
+    endpointService.removeSourceTagsFromAgentEndpoints(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
     Set<Agent> overloadedAgents = executorUtils.findOverloadedAgents(agents);
