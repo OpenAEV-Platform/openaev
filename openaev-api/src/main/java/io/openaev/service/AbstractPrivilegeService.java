@@ -41,7 +41,7 @@ public abstract class AbstractPrivilegeService {
           id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
     }
     return roleService.updateRoleInternal(
-        id, getRoleName(), getRoleDescription(), getRoleCapabilities());
+        id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
   }
 
   protected Group createWellKnownGroupWithRole(Role role, String tenantId) {

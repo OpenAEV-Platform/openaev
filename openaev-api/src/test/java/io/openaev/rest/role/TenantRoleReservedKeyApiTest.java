@@ -271,7 +271,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
               reserved.getId(),
               "re-converged name",
               "re-converged description",
-              Set.of(Capability.AGENT_RUNTIME_ACCESS));
+              Set.of(Capability.AGENT_RUNTIME_ACCESS), TenantContext.getCurrentTenant());
 
       // -------- Assert --------
       assertThat(updated.getId()).isEqualTo(reserved.getId());
@@ -291,7 +291,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       assertThatThrownBy(
               () ->
                   roleService.updateRoleInternal(
-                      unknownId, "any-name", "any-desc", Set.of(Capability.AGENT_RUNTIME_ACCESS)))
+                      unknownId, "any-name", "any-desc", Set.of(Capability.AGENT_RUNTIME_ACCESS), TenantContext.getCurrentTenant()))
           .isInstanceOf(ElementNotFoundException.class);
     }
   }

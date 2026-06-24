@@ -117,7 +117,7 @@ public class RoleService {
       @NotNull final Set<Capability> capabilities) {
 
     ReservedKeyValidator.validateRoleId(roleId);
-    return updateRoleInternal(roleId, roleName, roleDescription, capabilities);
+    return updateRoleInternal(roleId, roleName, roleDescription, capabilities, TenantContext.getCurrentTenant());
   }
 
   /** Internal method for system-managed roles. Bypasses reserved name validation. */
@@ -125,9 +125,9 @@ public class RoleService {
       @NotBlank final String roleId,
       @NotBlank final String roleName,
       @NotBlank final String roleDescription,
-      @NotNull final Set<Capability> capabilities) {
+      @NotNull final Set<Capability> capabilities,
+      String tenantId) {
     Capability.validateForTenantRole(capabilities);
-    String tenantId = TenantContext.getCurrentTenant();
     Role role =
         roleRepository
             .findByIdAndTenantId(roleId, tenantId)

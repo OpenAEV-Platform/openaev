@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -68,7 +69,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldCreateNewUserWhenNoExistingUserFound() {
     // prepare
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
+    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet(), TenantContext.getCurrentTenant()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
@@ -93,7 +94,7 @@ public class ServiceAccountPrivilegeServiceTest {
     mockUser.setTokens(null);
 
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
+    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet(), TenantContext.getCurrentTenant()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
@@ -117,7 +118,7 @@ public class ServiceAccountPrivilegeServiceTest {
     mockUser.setTokens(new ArrayList<>(List.of(new Token())));
 
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
+    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet(), TenantContext.getCurrentTenant()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
@@ -143,7 +144,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldCreateNewGroupWhenNoExistingGroupFound() {
     // prepare
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
+    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet(), TenantContext.getCurrentTenant()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.empty());
     when(tenantGroupService.createInternalGroupWithRole(any(), any(), any(), any()))
@@ -166,7 +167,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldUpdateExistingGroupWhenOneMatchingGroupFound() {
     // prepare
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
+    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet(), TenantContext.getCurrentTenant()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
@@ -209,7 +210,7 @@ public class ServiceAccountPrivilegeServiceTest {
             eq(SERVICE_ROLE_DESCRIPTION),
             eq(SERVICE_ROLE_CAPABILITIES),
             eq(TENANT_ID));
-    verify(roleService, never()).updateRoleInternal(any(), any(), any(), any());
+    verify(roleService, never()).updateRoleInternal(any(), any(), any(), any(), TenantContext.getCurrentTenant());
   }
 
   @Test
@@ -217,7 +218,7 @@ public class ServiceAccountPrivilegeServiceTest {
   void shouldReuseExistingRoleWhenMatchingRoleFound() {
     // prepare
     when(roleService.findById(anyString())).thenReturn(Optional.of(mockRole));
-    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet()))
+    when(roleService.updateRoleInternal(anyString(), anyString(), anyString(), anySet(), TenantContext.getCurrentTenant()))
         .thenReturn(mockRole);
     when(tenantGroupService.findById(anyString())).thenReturn(Optional.of(mockGroup));
     when(tenantGroupService.updateGroupInfoWithRoles(any(), any(), any())).thenReturn(mockGroup);
@@ -235,7 +236,7 @@ public class ServiceAccountPrivilegeServiceTest {
             eq(mockRole.getId()),
             eq(SERVICE_ROLE_NAME),
             eq(SERVICE_ROLE_DESCRIPTION),
-            eq(SERVICE_ROLE_CAPABILITIES));
+            eq(SERVICE_ROLE_CAPABILITIES), TenantContext.getCurrentTenant());
   }
 
   // endregion
