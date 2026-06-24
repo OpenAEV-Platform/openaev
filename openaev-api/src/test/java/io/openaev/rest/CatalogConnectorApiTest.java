@@ -13,7 +13,6 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
 import io.openaev.service.FileService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer;
@@ -39,7 +38,6 @@ public class CatalogConnectorApiTest extends IntegrationTest {
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private CatalogConnectorConfigurationComposer catalogConfigurationComposer;
-  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private FileService fileService;
 
   @Test
