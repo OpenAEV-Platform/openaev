@@ -1,13 +1,11 @@
 package io.openaev.database.audit;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.database.model.Base;
+import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -17,6 +15,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>The default {@link #significantState(ObjectMapper)} serializes the entity via Jackson and
  * strips fields annotated with {@link AuditStateIgnore}. New fields are automatically included
  * unless explicitly annotated.
+ *
+ * <p>Collections of {@link AuditStateCapturable} entities are automatically resolved: each element
+ * delegates to its own {@code significantState()}, sorted by entity ID for stable comparison.
  */
 public interface AuditStateCapturable {
 
@@ -29,14 +30,40 @@ public interface AuditStateCapturable {
    * <p>Serializes the entity via {@code objectMapper.convertValue(this, Map)} and removes fields
    * annotated with {@link AuditStateIgnore}. New fields are automatically captured.
    *
+   * <p>For fields that are collections of {@link AuditStateCapturable} entities, the raw Jackson
+   * serialization is replaced by each element's own {@code significantState()}, sorted by ID.
+   *
    * @param objectMapper the ObjectMapper used to serialize the entity
    * @return a map of significant field names to their current values
    */
   default Map<String, Object> significantState(ObjectMapper objectMapper) {
     Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
     resolveIgnoredFields(this.getClass()).forEach(state::remove);
-    // Sort all List<Comparable> values for stable comparison (Sets serialized as arrays have no
-    // guaranteed order). Lists of complex objects (e.g. Maps) are left unsorted.
+
+    // Replace collections of AuditStateCapturable with each element's significantState()
+    for (Field field : FieldUtils.getAllFields(this.getClass())) {
+      if (FieldUtils.isStaticOrTransient(field)
+          || !Collection.class.isAssignableFrom(field.getType())) {
+        continue;
+      }
+      Object raw = FieldUtils.getField(this, field);
+      if (raw instanceof Collection<?> col
+          && !col.isEmpty()
+          && col.iterator().next() instanceof AuditStateCapturable) {
+        String key = FieldUtils.resolveFieldJsonName(field);
+        state.put(
+            key,
+            col.stream()
+                .map(AuditStateCapturable.class::cast)
+                .sorted(
+                    Comparator.comparing(
+                        e -> e instanceof Base b ? b.getId() : String.valueOf(e.hashCode())))
+                .map(e -> e.significantState(objectMapper))
+                .toList());
+      }
+    }
+
+    // Sort all List<Comparable> values for stable comparison
     state.replaceAll(
         (key, value) -> {
           if (value instanceof List<?> list
@@ -57,15 +84,14 @@ public interface AuditStateCapturable {
     return IGNORED_FIELDS_CACHE.computeIfAbsent(clazz, AuditStateCapturable::scanIgnoredFields);
   }
 
-  /** Walks the class hierarchy and collects JSON keys of fields annotated with @AuditDiffIgnore. */
+  /**
+   * Walks the class hierarchy and collects JSON keys of fields annotated with @AuditStateIgnore.
+   */
   private static Set<String> scanIgnoredFields(Class<?> clazz) {
     Set<String> ignored = new HashSet<>();
-    for (Class<?> c = clazz; c != null && c != Object.class; c = c.getSuperclass()) {
-      for (Field field : c.getDeclaredFields()) {
-        if (field.isAnnotationPresent(AuditStateIgnore.class)) {
-          JsonProperty jsonProp = field.getAnnotation(JsonProperty.class);
-          ignored.add(jsonProp != null ? jsonProp.value() : field.getName());
-        }
+    for (Field field : FieldUtils.getAllFields(clazz)) {
+      if (field.isAnnotationPresent(AuditStateIgnore.class)) {
+        ignored.add(FieldUtils.resolveFieldJsonName(field));
       }
     }
     return Set.copyOf(ignored);

@@ -3,13 +3,11 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateCapturable;
-import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -186,11 +184,8 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @Fetch(FetchMode.SUBSELECT)
-  // method
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
-  // Since we're adding it manually in significantState(), we ignore it for now
-  @AuditStateIgnore
   private List<Agent> agents = new ArrayList<>();
 
   // -- INJECT --
@@ -236,27 +231,5 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   public Endpoint(String id, String type, String name, PLATFORM_TYPE platform) {
     super(id, type, name);
     this.platform = platform;
-  }
-
-  /**
-   * Returns the significant state of this endpoint for audit comparison.
-   *
-   * <p>Serializes the entire entity via Jackson, then strips non-significant fields (annotated with
-   * {@link AuditStateIgnore}) and replaces the raw agents list with each agent's own {@link
-   * Agent#significantState}. Any new field added to the entity is automatically included without
-   * code changes.
-   */
-  @Override
-  public Map<String, Object> significantState(ObjectMapper objectMapper) {
-    Map<String, Object> state = AuditStateCapturable.super.significantState(objectMapper);
-    // Replace raw agent serialization with each agent's significant state (sorted by ID for stable
-    // comparison)
-    state.put(
-        "asset_agents",
-        agents.stream()
-            .sorted(Comparator.comparing(Agent::getId))
-            .map(agent -> agent.significantState(objectMapper))
-            .toList());
-    return state;
   }
 }
