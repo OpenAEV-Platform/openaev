@@ -9,11 +9,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
-import io.openaev.database.model.Tenant;
 import io.openaev.service.FileService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
@@ -22,7 +20,6 @@ import io.openaev.utils.fixtures.composers.CatalogConnectorConfigurationComposer
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -138,16 +135,16 @@ public class CatalogConnectorApiTest extends IntegrationTest {
         .containsExactlyInAnyOrderElementsOf(List.of("Collector1", "Collector2"));
   }
 
-    @Test
-    @DisplayName(
-            "Given catalog logo uploaded to platform storage should be retrievable without tenant context")
-    void given_catalogLogoUploadedToPlatformStorage_should_beRetrievable() throws Exception {
-        // Arrange
-        String fileName = "platform-logo.png";
-        fileService.uploadCatalogLogo(
-                FileService.CONNECTORS_LOGO_PATH, fileName, new ByteArrayInputStream(new byte[] {1, 2, 3}));
+  @Test
+  @DisplayName(
+      "Given catalog logo uploaded to platform storage should be retrievable without tenant context")
+  void given_catalogLogoUploadedToPlatformStorage_should_beRetrievable() throws Exception {
+    // Arrange
+    String fileName = "platform-logo.png";
+    fileService.uploadCatalogLogo(
+        FileService.CONNECTORS_LOGO_PATH, fileName, new ByteArrayInputStream(new byte[] {1, 2, 3}));
 
-        // Act / Assert
-        mvc.perform(get("/api/images/catalog/connectors/logos/" + fileName)).andExpect(status().isOk());
-    }
+    // Act / Assert
+    mvc.perform(get("/api/images/catalog/connectors/logos/" + fileName)).andExpect(status().isOk());
+  }
 }
