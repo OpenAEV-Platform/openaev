@@ -51,8 +51,7 @@ public class UserMappingService {
           List<Group> userGroups = user.getUnscopedGroups();
           boolean alreadyAssigned =
               userGroups.stream()
-                  .anyMatch(
-                      userG -> userG.getName().equals(groupOptional.get().getName()));
+                  .anyMatch(userG -> userG.getName().equals(groupOptional.get().getName()));
           if (!alreadyAssigned) {
             userGroups.add(groupOptional.get());
             user.setGroups(userGroups);
