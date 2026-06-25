@@ -1339,7 +1339,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
       String createResponse =
           mvc.perform(
-                  post(tenantUri(TENANT_THREAT_ARSENAL_URI))
+                  post(THREAT_ARSENAL_URI)
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(createInput)))
@@ -1366,6 +1366,14 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   @DisplayName("Get collector used in action remediation")
   class GetCollectorForActionRemediation {
+
+    @BeforeEach
+    void setUp() {
+      // Use a native query to delete ALL collectors regardless of active Hibernate tenant
+      // filter, ensuring no pre-existing collector from any tenant leaks into the count assertion.
+      entityManager.createNativeQuery("DELETE FROM collectors").executeUpdate();
+      entityManager.clear();
+    }
 
     @Test
     @DisplayName("Getting collectors for a non-payload-based action should fail")
