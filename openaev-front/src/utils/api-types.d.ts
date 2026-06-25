@@ -473,6 +473,21 @@ export interface AttackPattern {
   listened?: boolean;
 }
 
+export interface AttackPatternCoverageOutput {
+  attack_pattern_external_id?: string;
+  attack_pattern_id?: string;
+  attack_pattern_name?: string;
+  /** @format int64 */
+  detection_success?: number;
+  /** @format int64 */
+  detection_total?: number;
+  kill_chain_phases?: KillChainPhaseCoverage[];
+  /** @format int64 */
+  prevention_success?: number;
+  /** @format int64 */
+  prevention_total?: number;
+}
+
 export interface AttackPatternCreateInput {
   attack_pattern_description?: string;
   /** @minLength 1 */
@@ -941,7 +956,7 @@ export interface ChallengeInformation {
   /** @format int32 */
   challenge_attempt?: number;
   challenge_detail?: PublicChallenge;
-  challenge_expectation?: InjectExpectation;
+  challenge_expectation?: InjectExpectationOutput;
 }
 
 export interface ChallengeInput {
@@ -1257,7 +1272,14 @@ export interface ConditionCreateInput {
   /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
-  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_subtype?:
+    | "port"
+    | "ipv4"
+    | "ipv6"
+    | "username"
+    | "password"
+    | "service"
+    | "host";
   /** Path to the value in the output of the step from */
   condition_key_type?:
     | "execution_time"
@@ -1315,7 +1337,14 @@ export interface ConditionCreateInput {
 export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
-  condition_key_subtype?: "port" | "ipv4" | "ipv6" | "username" | "password";
+  condition_key_subtype?:
+    | "port"
+    | "ipv4"
+    | "ipv6"
+    | "username"
+    | "password"
+    | "service"
+    | "host";
   condition_key_type?:
     | "execution_time"
     | "step_template_id"
@@ -2952,6 +2981,7 @@ export interface Executor {
   /** @format date-time */
   executor_created_at: string;
   executor_doc?: string;
+  executor_external?: boolean;
   /** @minLength 1 */
   executor_id: string;
   /** @minLength 1 */
@@ -2961,7 +2991,6 @@ export interface Executor {
   executor_type: string;
   /** @format date-time */
   executor_updated_at: string;
-  external?: boolean;
   listened?: boolean;
 }
 
@@ -3176,25 +3205,6 @@ export interface ExercisesGlobalScoresInput {
 
 export interface ExercisesGlobalScoresOutput {
   global_scores_by_exercise_ids: Record<string, ExpectationResultsByType[]>;
-}
-
-export interface Expectation {
-  expectation_description?: string;
-  expectation_expectation_group?: boolean;
-  /** @format int64 */
-  expectation_expiration_time?: number;
-  expectation_name?: string;
-  /** @format double */
-  expectation_score?: number;
-  expectation_type?:
-    | "TEXT"
-    | "DOCUMENT"
-    | "ARTICLE"
-    | "CHALLENGE"
-    | "MANUAL"
-    | "PREVENTION"
-    | "DETECTION"
-    | "VULNERABILITY";
 }
 
 export interface ExpectationResultsByType {
@@ -3728,53 +3738,6 @@ export interface InjectExecutionInput {
   execution_status: string;
 }
 
-export interface InjectExpectation {
-  inject_expectation_agent?: string;
-  inject_expectation_article?: string;
-  inject_expectation_asset?: string;
-  inject_expectation_asset_group?: string;
-  inject_expectation_challenge?: string;
-  /** @format date-time */
-  inject_expectation_created_at?: string;
-  inject_expectation_description?: string;
-  inject_expectation_exercise?: string;
-  /** @format double */
-  inject_expectation_expected_score: number;
-  inject_expectation_group?: boolean;
-  /** @minLength 1 */
-  inject_expectation_id: string;
-  inject_expectation_inject?: string;
-  inject_expectation_name?: string;
-  inject_expectation_results?: InjectExpectationResult[];
-  /** @format double */
-  inject_expectation_score?: number;
-  inject_expectation_signatures?: InjectExpectationSignature[];
-  inject_expectation_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-  inject_expectation_team?: string;
-  inject_expectation_traces?: InjectExpectationTrace[];
-  inject_expectation_type:
-    | "TEXT"
-    | "DOCUMENT"
-    | "ARTICLE"
-    | "CHALLENGE"
-    | "MANUAL"
-    | "PREVENTION"
-    | "DETECTION"
-    | "VULNERABILITY";
-  /** @format date-time */
-  inject_expectation_updated_at?: string;
-  inject_expectation_user?: string;
-  /** @format int64 */
-  inject_expiration_time: number;
-  listened?: boolean;
-  target_id?: string;
-}
-
 /** Represents a single inject expectation with agent name */
 export interface InjectExpectationAgentOutput {
   inject_expectation_agent?: string;
@@ -3810,6 +3773,88 @@ export interface InjectExpectationAgentOutput {
 
 export interface InjectExpectationBulkUpdateInput {
   inputs: Record<string, InjectExpectationUpdateInput>;
+}
+
+export interface InjectExpectationOutput {
+  /** Agent ID associated with the inject expectation */
+  inject_expectation_agent?: string;
+  /** Article ID associated with the inject expectation */
+  inject_expectation_article?: string;
+  /** Asset ID associated with the inject expectation */
+  inject_expectation_asset?: string;
+  /** Asset group ID associated with the inject expectation */
+  inject_expectation_asset_group?: string;
+  /** Challenge ID associated with the inject expectation */
+  inject_expectation_challenge?: string;
+  /**
+   * Creation date of the inject expectation
+   * @format date-time
+   */
+  inject_expectation_created_at?: string;
+  /** Description of the inject expectation */
+  inject_expectation_description?: string;
+  /** Exercise ID associated with the inject expectation */
+  inject_expectation_exercise?: string;
+  /**
+   * Expected score of the inject expectation
+   * @format double
+   */
+  inject_expectation_expected_score: number;
+  /** Whether this expectation is a group expectation */
+  inject_expectation_group?: boolean;
+  /**
+   * ID of the inject expectation
+   * @minLength 1
+   */
+  inject_expectation_id: string;
+  /** Inject ID associated with the inject expectation */
+  inject_expectation_inject?: string;
+  /** Name of the inject expectation */
+  inject_expectation_name?: string;
+  /** Results associated with the inject expectation */
+  inject_expectation_results?: InjectExpectationResult[];
+  /**
+   * Current score of the inject expectation
+   * @format double
+   */
+  inject_expectation_score?: number;
+  /** Signatures associated with the inject expectation */
+  inject_expectation_signatures?: InjectExpectationSignature[];
+  /** Computed status of the inject expectation */
+  inject_expectation_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** Team ID associated with the inject expectation */
+  inject_expectation_team?: string;
+  /** Traces associated with the inject expectation */
+  inject_expectation_traces?: InjectExpectationTrace[];
+  /** Type of the inject expectation */
+  inject_expectation_type:
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY";
+  /**
+   * Last update date of the inject expectation
+   * @format date-time
+   */
+  inject_expectation_updated_at?: string;
+  /** User ID associated with the inject expectation */
+  inject_expectation_user?: string;
+  /**
+   * Expiration time in seconds
+   * @format int64
+   */
+  inject_expiration_time: number;
+  /** Target ID resolved from user, team, agent, asset, or asset group */
+  target_id?: string;
 }
 
 export interface InjectExpectationResult {
@@ -4604,6 +4649,14 @@ export interface KillChainPhase {
   phase_stix_id?: string;
   /** @format date-time */
   phase_updated_at: string;
+}
+
+export interface KillChainPhaseCoverage {
+  phase_external_id?: string;
+  phase_id?: string;
+  phase_name?: string;
+  /** @format int64 */
+  phase_order?: number;
 }
 
 export interface KillChainPhaseCreateInput {
@@ -5434,6 +5487,25 @@ export interface PageInjectTarget {
 
 export interface PageInjectTestStatusOutput {
   content?: InjectTestStatusOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageInjectorContractBaseOutput {
+  content?: InjectorContractBaseOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -6324,7 +6396,6 @@ export interface PlatformSettings {
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
-    | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
@@ -6595,7 +6666,6 @@ export interface PublicPlatformSettings {
     | "FEATURE_FLAG_ALL"
     | "STIX_SECURITY_COVERAGE_FOR_VULNERABILITIES"
     | "LEGACY_INGESTION_EXECUTION_TRACE"
-    | "MULTI_TENANCY"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
@@ -7261,6 +7331,18 @@ export interface ScenarioUpdateTagsInput {
 
 export interface ScenarioUpdateTeamsInput {
   scenario_teams?: string[];
+}
+
+/** An asset that is in scope (allowlisted and not denylisted) for a workflow. */
+export interface ScopeAssetOutput {
+  /** External reference of the asset */
+  asset_external_reference?: string;
+  /** ID of the asset */
+  asset_id?: string;
+  /** Name of the asset */
+  asset_name?: string;
+  /** Type of the asset (Endpoint, SecurityPlatform, …) */
+  asset_type?: string;
 }
 
 /** Input for a scope variable attached to a workflow. */
@@ -8393,6 +8475,7 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
+  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */

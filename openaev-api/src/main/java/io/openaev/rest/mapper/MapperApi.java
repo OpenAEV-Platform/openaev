@@ -30,7 +30,6 @@ import io.openaev.utils.constants.Constants;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -47,6 +46,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
@@ -69,6 +69,7 @@ public class MapperApi extends RestBehavior {
   private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
 
   @PostMapping("/search")
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
   public Page<RawPaginationImportMapper> getImportMapper(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -78,6 +79,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @GetMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.READ,
@@ -89,6 +91,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
   public ImportMapper createImportMapper(
       @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
@@ -96,6 +99,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping(value = "/export")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   public void exportMappers(
       @RequestBody @Valid final ExportMapperInput exportMapperInput, HttpServletResponse response) {
@@ -125,6 +129,7 @@ public class MapperApi extends RestBehavior {
 
   @Operation(description = "Export all datas from a specific target (endpoint,...)")
   @PostMapping(value = "/export/csv")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
   public void exportMappersCsv(
@@ -135,6 +140,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/import")
+  @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   public void importMappers(@RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
@@ -148,6 +154,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PostMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.DUPLICATE,
@@ -158,6 +165,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @PutMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.WRITE,
@@ -169,6 +177,7 @@ public class MapperApi extends RestBehavior {
   }
 
   @DeleteMapping("/{mapperId}")
+  @Transactional
   @AccessControl(
       resourceId = "#mapperId",
       actionPerformed = Action.DELETE,
@@ -183,7 +192,7 @@ public class MapperApi extends RestBehavior {
 
   @PostMapping("/store")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Import injects into an xls file")
   public ImportPostSummary importXLSFile(@RequestPart("file") @NotNull MultipartFile file) {
     validateUploadedFile(file);
@@ -195,7 +204,7 @@ public class MapperApi extends RestBehavior {
       resourceId = "#importId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
   public ImportTestSummary testImportXLSFile(
       @PathVariable @NotBlank final String importId,
@@ -222,7 +231,7 @@ public class MapperApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
   @PostMapping("/import/csv")
   @LogExecutionTime
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void importEndpoints(
       @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {

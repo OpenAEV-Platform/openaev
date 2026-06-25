@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.injectors.challenge;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.executors.InjectorContext;
@@ -24,6 +25,7 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
   private final InjectorService injectorService;
   private final InjectExpectationService injectExpectationService;
   private final ChallengeRepository challengeRepository;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   @QualifiedComponent(identifier = {ChallengeContract.TYPE, CHALLENGE_INJECTOR_ID})
   private ChallengeExecutor challengeExecutor;
@@ -37,7 +39,8 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
       EmailService emailService,
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
-      ChallengeRepository challengeRepository) {
+      ChallengeRepository challengeRepository,
+      UrlAccessTokenService urlAccessTokenService) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.injectorService = injectorService;
     this.challengeContract = challengeContract;
@@ -45,13 +48,18 @@ public class ChallengeInjectorIntegration extends IntegrationInMemory {
     this.emailService = emailService;
     this.injectorContext = injectorContext;
     this.injectExpectationService = injectExpectationService;
+    this.urlAccessTokenService = urlAccessTokenService;
   }
 
   @Override
   protected void innerStart() throws Exception {
     this.challengeExecutor =
         new ChallengeExecutor(
-            injectorContext, challengeRepository, emailService, injectExpectationService);
+            injectorContext,
+            challengeRepository,
+            emailService,
+            injectExpectationService,
+            urlAccessTokenService);
   }
 
   @Override

@@ -120,6 +120,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/healthchecks",
     TENANT_EXERCISE_URI + "/{exerciseId}/healthchecks"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -132,6 +133,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region logs
   @GetMapping({EXERCISE_URI + "/{exercise}/logs", TENANT_EXERCISE_URI + "/{exercise}/logs"})
+  @Transactional
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -198,6 +200,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exercise}/comchecks",
     TENANT_EXERCISE_URI + "/{exercise}/comchecks"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -210,6 +213,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exercise}/comchecks/{comcheck}",
     TENANT_EXERCISE_URI + "/{exercise}/comchecks/{comcheck}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -224,6 +228,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses",
     TENANT_EXERCISE_URI + "/{exercise}/comchecks/{comcheck}/statuses"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exercise",
       actionPerformed = Action.READ,
@@ -237,6 +242,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region teams
   @LogExecutionTime
+  @Transactional
   @GetMapping({EXERCISE_URI + "/{exerciseId}/teams", TENANT_EXERCISE_URI + "/{exerciseId}/teams"})
   @AccessControl(
       resourceId = "#exerciseId",
@@ -278,6 +284,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/players",
     TENANT_EXERCISE_URI + "/{exerciseId}/players"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -392,6 +399,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region exercises
   @PostMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
   public Exercise createExercise(@Valid @RequestBody CreateExerciseInput input) {
     if (input == null) {
@@ -525,6 +533,7 @@ public class ExerciseApi extends RestBehavior {
 
   // -- OPTION --
   @LogExecutionTime
+  @Transactional
   @GetMapping({EXERCISE_URI + "/findings/options", TENANT_EXERCISE_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
@@ -536,6 +545,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({EXERCISE_URI + "/options", TENANT_EXERCISE_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.exerciseRepository.findAllById(ids)).stream()
@@ -564,10 +574,9 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional
   public void deleteExercise(@PathVariable String exerciseId) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
-    exerciseRepository.delete(exercise);
+    exerciseService.deleteById(exerciseId);
   }
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -663,6 +672,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({
     EXERCISE_URI + "/{exerciseId}/results",
     TENANT_EXERCISE_URI + "/{exerciseId}/results"
@@ -679,6 +689,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({EXERCISE_URI + "/global-scores", TENANT_EXERCISE_URI + "/global-scores"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public ExercisesGlobalScoresOutput getExercisesGlobalScores(
       @Valid @RequestBody ExercisesGlobalScoresInput input) {
@@ -686,6 +697,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({
     EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns",
     TENANT_EXERCISE_URI + "/{exerciseId}/injects/results-by-attack-patterns"
@@ -732,6 +744,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/status", TENANT_EXERCISE_URI + "/{exerciseId}/status"})
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.LAUNCH,
@@ -744,6 +757,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<ExerciseSimple> exercises() {
@@ -752,6 +766,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({EXERCISE_URI + "/search-by-id", TENANT_EXERCISE_URI + "/search-by-id"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   @Operation(
       summary = "Get simulations by their id",
@@ -763,6 +778,7 @@ public class ExerciseApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({EXERCISE_URI + "/search", TENANT_EXERCISE_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public Page<ExerciseSimple> exercises(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
@@ -802,6 +818,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/communications",
     TENANT_EXERCISE_URI + "/{exerciseId}/communications"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -816,6 +833,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @GetMapping("/api/communications/attachment")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
   public void downloadAttachment(@RequestParam String file, HttpServletResponse response)
@@ -833,6 +851,7 @@ public class ExerciseApi extends RestBehavior {
 
   // region import/export
   @GetMapping({EXERCISE_URI + "/{exerciseId}/export", TENANT_EXERCISE_URI + "/{exerciseId}/export"})
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -859,6 +878,7 @@ public class ExerciseApi extends RestBehavior {
   }
 
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
+  @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
   public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
     importService.handleFileImport(file, null, null);
@@ -868,6 +888,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/check-rules",
     TENANT_EXERCISE_URI + "/{exerciseId}/check-rules"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -903,6 +924,7 @@ public class ExerciseApi extends RestBehavior {
       summary =
           "Get asset groups. Can only be called if the user has access to the given simulation.",
       description = "Get all asset groups used by injects for a given simulation")
+  @Transactional
   public List<AssetGroup> assetGroups(@PathVariable String exerciseId) {
     return this.assetGroupService.assetGroupsForSimulation(exerciseId);
   }
@@ -911,6 +933,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/asset-groups/find",
     TENANT_EXERCISE_URI + "/{exerciseId}/asset-groups/find"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -936,6 +959,7 @@ public class ExerciseApi extends RestBehavior {
   @Operation(
       summary = "Get channels. Can only be called if the user has access to the given simulation.",
       description = "Get all channels used by articles for a given simulation")
+  @Transactional
   public Iterable<Channel> channels(@PathVariable String exerciseId) {
     return this.channelService.channelsForSimulation(exerciseId);
   }
@@ -951,6 +975,7 @@ public class ExerciseApi extends RestBehavior {
   @Operation(
       summary = "Get endpoints. Can only be called if the user has access to the given simulation.",
       description = "Get all endpoints used by injects for a given simulation")
+  @Transactional
   public List<Endpoint> endpoints(@PathVariable String exerciseId) {
     return this.endpointService.endpointsForSimulation(exerciseId);
   }
@@ -959,6 +984,7 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/endpoints/find",
     TENANT_EXERCISE_URI + "/{exerciseId}/endpoints/find"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -984,6 +1010,7 @@ public class ExerciseApi extends RestBehavior {
   @Operation(
       summary = "Get documents. Can only be called if the user has access to the given simulation.",
       description = "Get all documents used by injects for a given simulation")
+  @Transactional
   public List<Document> documents(@PathVariable String exerciseId) {
     return this.documentService.documentsForSimulation(exerciseId);
   }
@@ -997,6 +1024,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Operation(summary = "Get the Scenario linked to the simulation")
+  @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(

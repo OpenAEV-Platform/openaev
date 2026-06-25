@@ -1,8 +1,7 @@
-name: E2E & API Types
+name: E2E Tests
 description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
-  download and run the backend JAR, run Playwright E2E tests, and verify
-  API types are up to date.
+  download and run the backend JAR, and run Playwright E2E tests.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
   SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD,
   MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_ACCESS_SECRET,
@@ -12,15 +11,16 @@ description: >
   SPRING_PROFILES_ACTIVE, GH_TOKEN.
 
 inputs:
-  is-pr:
-    description: "Whether this run is triggered by a pull request (true/false)."
-    required: false
-    default: "false"
+  playwright-config:
+    description: "Playwright config file to use (relative to openaev-front/)."
+    required: true
+  browser:
+    description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
+    required: true
 
 runs:
   using: composite
   steps:
-
     - name: Start all services (non-blocking)
       shell: bash
       run: |
@@ -67,7 +67,7 @@ runs:
     - name: Set up Node.js 22.11
       uses: actions/setup-node@v6
       with:
-        node-version: "22.22.3"
+        node-version: "22.23.0"
     - name: Install corepack
       run: npm install -g corepack
       shell: bash
@@ -92,30 +92,32 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-chromium-webkit-${{ runner.os }}-${{ hashFiles('openaev-front/yarn.lock') }}
-    - name: Install Playwright browsers (overlaps with artifact wait)
+        key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
+    - name: Install Playwright browser (${{ inputs.browser }})
       if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps chromium webkit
+      run: yarn playwright install --with-deps ${{ inputs.browser }}
       shell: bash
       working-directory: openaev-front
     - name: Install Playwright system dependencies (cache hit)
       if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps chromium webkit
+      run: yarn playwright install-deps ${{ inputs.browser }}
       shell: bash
       working-directory: openaev-front
 
-    - name: Wait for and download backend JAR artifact
+    - name: Wait for backend JAR artifact
       shell: bash
       run: |
         echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
         for i in $(seq 1 180); do
-          HTTP_CODE=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --include 2>&1 | head -1 | awk '{print $2}' || echo "000")
+          # Check if backend-compile has failed — abort immediately
+          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
+            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
+          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
+            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
+            exit 1
+          fi
           NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
             --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "000" ]; then
-            echo "⚠️ GitHub API returned HTTP $HTTP_CODE (attempt $i/180)"
-          fi
           if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
             echo "✅ Artifact available (after ~$((i * 5))s)"
             break
@@ -128,11 +130,11 @@ runs:
           sleep 5
         done
 
-        echo "📥 Downloading openaev-api-jar..."
-        if ! gh run download "${{ github.run_id }}" -n openaev-api-jar -D openaev-api/target; then
-          echo "❌ Failed to download openaev-api-jar artifact"
-          exit 1
-        fi
+    - name: Download backend JAR artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: openaev-api-jar
+        path: openaev-api/target
 
     - name: Verify backend JAR
       shell: bash
@@ -182,57 +184,102 @@ runs:
 
         echo "✅ All services ready"
 
-
     - name: Start application
-      run: java -jar openaev-api/target/openaev-api.jar &
+      run: java -jar openaev-api/target/openaev-api.jar > /tmp/openaev-app.log 2>&1 &
       shell: bash
     - name: Wait for application to be ready
       shell: bash
       run: |
-        echo "Waiting for application on port 8080..."
-        timeout 180 bash -c '
-          until curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080 | grep -q "200"; do
-            sleep 2
-          done
-        ' || {
-          echo "❌ Application failed to become ready within 180s"
-          echo "  Last HTTP response:"
-          curl -s -o /dev/null -w "  HTTP %{http_code}\n" http://localhost:8080 2>/dev/null || echo "  (no response)"
-          exit 1
-        }
-        echo "✅ Application is ready (HTTP 200)"
-    - name: Run E2E tests
+        ADMIN_TOKEN="${OPENAEV_ADMIN_TOKEN}"
+
+        echo "⏳ Waiting for API to be fully initialized (GET /api/me)..."
+        APP_UP=false
+        for i in $(seq 1 150); do
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            http://localhost:8080/api/me \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null || echo -e "\n000")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ API fully ready (HTTP 200 on /api/me after ~$((i * 2))s)"
+            break
+          fi
+
+          # Track when the app first starts responding
+          if [ "$APP_UP" = false ] && [ "$HTTP_CODE" -ne 000 ]; then
+            APP_UP=true
+            echo "  Application responding (HTTP ${HTTP_CODE} after ~$((i * 2))s), waiting for full init..."
+          fi
+
+          if [ $((i % 15)) -eq 0 ]; then
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            echo "  Attempt $i/150 — HTTP ${HTTP_CODE} — ${BODY}"
+            echo "  Last 10 lines of app log:"
+            tail -10 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+          fi
+
+          if [ "$i" -eq 150 ]; then
+            echo "❌ API /api/me not returning 200 after 300s (last HTTP ${HTTP_CODE})"
+            echo "  Last 80 lines of app log:"
+            tail -80 /tmp/openaev-app.log 2>/dev/null || echo "  (no app log)"
+            exit 1
+          fi
+          sleep 2
+        done
+
+    - name: Start XTM Composer
+      shell: bash
       run: |
-        if [ "${{ inputs.is-pr }}" = "true" ]; then
-          yarn playwright test
-        else
-          yarn playwright test --config playwright.push.config.ts
-        fi
+        echo "🔑 Generating RSA key for XTM Composer..."
+        mkdir -p /tmp/xtm-keys
+        openssl genpkey -algorithm RSA -out /tmp/xtm-keys/private_key.pem -pkeyopt rsa_keygen_bits:4096
+
+        echo "🚀 Starting XTM Composer..."
+        docker run -d --name xtm-composer \
+          --network host \
+          -e MANAGER__ID=8B67E8B6-D5CC-4BE6-9BF1-4D75A5F374E3 \
+          -e "MANAGER__NAME=XTM Integrations Manager" \
+          -e MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem \
+          -e OPENAEV__ENABLE=true \
+          -e OPENCTI__ENABLE=false \
+          -e OPENAEV__URL=http://localhost:8080 \
+          -e OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN} \
+          -e OPENAEV__DAEMON__SELECTOR=docker \
+          -e OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host \
+          -e OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /tmp/xtm-keys:/keys:ro \
+          filigran/xtm-composer:latest
+
+        echo "⏳ Waiting for XTM Composer to register..."
+        for i in $(seq 1 30); do
+          if docker logs xtm-composer 2>&1 | grep -qi "registered\|connected\|started"; then
+            echo "✅ XTM Composer ready (after ~$((i * 2))s)"
+            break
+          fi
+          if [ "$i" -eq 30 ]; then
+            echo "⚠️ XTM Composer may not be fully registered yet — continuing anyway"
+            docker logs xtm-composer 2>&1 | tail -20
+          fi
+          sleep 2
+        done
+
+    - name: Run E2E tests (${{ inputs.browser }})
+      run: yarn playwright test --config ${{ inputs.playwright-config }}
       shell: bash
       working-directory: openaev-front
       env:
         APP_URL: http://localhost:8080
         E2E_COVERAGE: "true"
-    - name: Verify API types are up to date
-      shell: bash
-      working-directory: openaev-front
-      run: |
-        API_URL=http://localhost:8080 yarn generate-types-from-api
-        if git diff --name-only | grep -q 'src/utils/api-types.d.ts'; then
-          echo "Detected changes in src/utils/api-types.d.ts:";
-          git diff -- src/utils/api-types.d.ts || git diff -- openaev-front/src/utils/api-types.d.ts;
-          echo "⚠️ Forgot to generate types! Please run 'yarn run generate-types-from-api' before committing."; exit 1;
-        fi
-    - name: Upload Playwright report
+    - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-report
+        name: playwright-report-${{ inputs.browser }}
         path: openaev-front/test-results/
-    - name: Upload E2E coverage report
-      if: ${{ !cancelled() }}
+    - name: Upload E2E coverage report (${{ inputs.browser }})
+      if: ${{ !cancelled() && inputs.browser == 'chrome' }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-coverage
+        name: playwright-coverage-${{ inputs.browser }}
         path: openaev-front/test-results/coverage/
-

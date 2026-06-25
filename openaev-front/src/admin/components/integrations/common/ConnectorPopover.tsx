@@ -6,10 +6,12 @@ import { deleteConnectorInstance } from '../../../../actions/connector_instances
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
+import { DATA_DELETE_SUCCESS } from '../../../../constants/ActionTypes';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UpdateConnectorInstanceDrawer from '../connector_instance/UpdateConnectorInstanceDrawer';
+import { ConnectorContext } from './ConnectorContext';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 
 type ConnectorPopoverProps = {
@@ -27,7 +29,8 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const ability = useContext(AbilityContext);
-  const { instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
+  const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
+  const { apiRequest, connectorType } = useContext(ConnectorContext);
 
   const [openDialogDelete, setOpenDialogDelete] = useState(false);
 
@@ -37,6 +40,19 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
 
   const submitDeleteConnectorInstance = async () => {
     await dispatch(deleteConnectorInstance(connectorInstanceId));
+    // The backend also deletes the associated connector entity (injector/collector/executor).
+    // Explicitly remove it from the Redux store so the list updates immediately without a manual refresh.
+    const connectorEntityType = `${connectorType}s`; // 'injectors', 'collectors', 'executors'
+    if (connector?.id) {
+      dispatch({
+        type: DATA_DELETE_SUCCESS,
+        payload: {
+          type: connectorEntityType,
+          id: connector.id,
+        },
+      });
+    }
+    await dispatch(apiRequest.fetchAll());
     setOpenDialogDelete(false);
     navigate('..');
   };

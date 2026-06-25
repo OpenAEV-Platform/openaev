@@ -16,7 +16,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.utils.fixtures.*;
@@ -27,7 +29,6 @@ import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
@@ -36,12 +37,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
 public class ScenarioInjectTestApiTest extends IntegrationTest {
 
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
+  @Autowired private ManagerFactory managerFactory;
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer simulationComposer;
@@ -60,7 +63,9 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   private InjectTestStatusComposer.Composer injectTestStatus1Wrapper, injectTestStatus2Wrapper;
 
   @BeforeEach
-  public void setup() {
+  public void setup() throws Exception {
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
     Mockito.reset(mailSender);
   }
 

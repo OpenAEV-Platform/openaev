@@ -2,11 +2,11 @@ name: "[Core] CI"
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,26 +17,20 @@ permissions:
   actions: read
 
 jobs:
-
-  spotless-check:
-    name: "🔍 Spotless Check"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/spotless-check
-
   backend-compile:
     name: "🔨 Backend Compile"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile
 
   frontend-build:
     name: "🎨 Frontend Build"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
 
   # ──────────────────────────────────────────────────────────────────
@@ -47,8 +41,6 @@ jobs:
   quality-gates:
     uses: ./.github/workflows/_quality-gates.yml
     secrets: inherit
-    with:
-      is-pr: ${{ github.event_name == 'pull_request' }}
 
   backend-package:
     name: "📦 Backend Package (glibc)"
@@ -71,7 +63,7 @@ jobs:
       }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package
         with:
           download-release-assets: ${{ needs.prepare-release-assets.result == 'success' }}
@@ -80,8 +72,9 @@ jobs:
   prepare-release-assets:
     name: "📦 Prepare Release Assets"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history needed for version tags
 
@@ -166,12 +159,13 @@ jobs:
   # Alpine/musl JAR build for Alpine-based Docker images
   backend-package-musl:
     name: "📦 Backend Package (musl)"
-    needs: [ frontend-build, backend-compile, prepare-release-assets ]
+    needs: [frontend-build, backend-compile, prepare-release-assets]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     container:
       image: maven:3.9.16-eclipse-temurin-21-alpine
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package-musl
 
   # Build all Docker images locally (standard + UBI9)
@@ -189,7 +183,7 @@ jobs:
       }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/docker-build-push
         with:
           build-ubi9: "true"
@@ -199,6 +193,13 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   # Final sanity check — download every artifact and Docker image,
   # verify presence and reasonable sizes.
+  #
+  # ⚠️  IMPORTANT: This job is a REQUIRED status check in the GitHub
+  #     branch-protection rules for merging PRs.
+  #     • Do NOT remove this job.
+  #     • Do NOT rename the job key ("sanity-check") or its display
+  #       name ("🩺 Artifact & Image Sanity Check") — the
+  #       branch-protection rule references it by name.
   # ──────────────────────────────────────────────────────────────────
   sanity-check:
     name: "🩺 Artifact & Image Sanity Check"
@@ -209,18 +210,47 @@ jobs:
       - backend-package-musl
       - docker-build
       - prepare-release-assets
-    if: >-
-      ${{
-        !cancelled() &&
-        needs.frontend-build.result == 'success' &&
-        needs.backend-compile.result == 'success' &&
-        needs.backend-package.result == 'success' &&
-        needs.backend-package-musl.result == 'success' &&
-        needs.docker-build.result == 'success'
-      }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check all upstream job results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          FAILED=0
+          TOTAL=0
+
+          echo "══════════════════════════════════════════════════"
+          echo "  🩺  Upstream Job Results"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+
+          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
+            result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
+            TOTAL=$((TOTAL + 1))
+
+            case "$result" in
+              success)   icon="✅" ;;
+              failure)   icon="❌"; FAILED=$((FAILED + 1)) ;;
+              skipped)   icon="⏭️" ;;
+              cancelled) icon="🚫"; FAILED=$((FAILED + 1)) ;;
+              *)         icon="❓" ;;
+            esac
+
+            printf "  %s  %-30s %s\n" "$icon" "$job" "$result"
+          done
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ $FAILED/$TOTAL upstream job(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All $TOTAL upstream jobs passed"
+
       - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:

@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.injectors.challenge;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -12,7 +13,6 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -31,6 +31,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   private final InjectorService injectorService;
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   private final ComponentRequestEngine componentRequestEngine;
   private final ChallengeRepository challengeRepository;
@@ -45,7 +46,8 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
       InjectorService injectorService,
       InjectExpectationService injectExpectationService,
       ChallengeRepository challengeRepository,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      UrlAccessTokenService urlAccessTokenService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -55,6 +57,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
     this.injectorService = injectorService;
     this.injectExpectationService = injectExpectationService;
     this.challengeRepository = challengeRepository;
+    this.urlAccessTokenService = urlAccessTokenService;
   }
 
   @Override
@@ -73,7 +76,7 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
@@ -97,24 +100,22 @@ public class ChallengeInjectorIntegrationFactory extends BuiltinIntegrationFacto
         emailService,
         injectorService,
         injectExpectationService,
-        challengeRepository);
+        challengeRepository,
+        urlAccessTokenService);
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
-    try {
-      injectorService.injector(ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID);
-    } catch (ElementNotFoundException e) {
-      injectorService.registerBuiltinInjector(
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
-          ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
-          challengeContract,
-          false,
-          "capture-the-flag",
-          null,
-          null,
-          false,
-          List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
-    }
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    injectorService.registerBuiltinInjector(
+        tenantId,
+        ChallengeInjectorIntegration.CHALLENGE_INJECTOR_ID,
+        ChallengeInjectorIntegration.CHALLENGE_INJECTOR_NAME,
+        challengeContract,
+        false,
+        "capture-the-flag",
+        null,
+        null,
+        false,
+        List.of(ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP));
   }
 }

@@ -45,7 +45,7 @@ public class OvhSmsExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    OvhSmsContent content = contentConvert(injection, OvhSmsContent.class);
+    OvhSmsContent content = injectExpectationService.contentConvert(injection, OvhSmsContent.class);
     String smsMessage = content.buildMessage(inject.getFooter(), inject.getHeader());
     List<ExecutionContext> users = injection.getUsers();
     if (users.isEmpty()) {

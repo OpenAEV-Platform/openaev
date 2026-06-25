@@ -5,11 +5,11 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -45,11 +45,6 @@ public class TenantService {
     Objects.requireNonNull(tenant.getName(), "tenant name must not be null");
 
     Tenant createdTenant = tenantRepository.save(tenant);
-
-    // Switch context to the new tenant so that subsequent dependency creation
-    // (domains, roles, etc.) is scoped to the new tenant via Hibernate filter.
-    String newTenantId = createdTenant.getId();
-    TenantContext.setCurrentTenant(newTenantId);
 
     for (DependenciesManager dependency : sortByPrerequisites(dependencies)) {
       dependency.createDependencyForTenant(createdTenant);
@@ -121,6 +116,11 @@ public class TenantService {
     return tenantRepository.findTenantsByUserId(userId);
   }
 
+  @Transactional(readOnly = true)
+  public List<String> findActiveTenantIds() {
+    return tenantRepository.findAllIdsByDeletedAtIsNull();
+  }
+
   /** Counts the number of active (non-soft-deleted) tenants. */
   @Transactional(readOnly = true)
   public long countActiveTenants() {
@@ -141,12 +141,12 @@ public class TenantService {
     Tenant tenant = findById(tenantId);
 
     if (tenant.getDeletedAt() == null) {
-      throw new IllegalStateException("Tenant is already enabled: " + tenantId);
+      throw new BadRequestException("Tenant is already enabled: " + tenantId);
     }
 
     Instant cutoff = tenant.getDeletedAt().plus(SOFT_DELETE_RETENTION_DAYS, ChronoUnit.DAYS);
     if (Instant.now().isAfter(cutoff)) {
-      throw new IllegalStateException(
+      throw new BadRequestException(
           "Reactivation of "
               + SOFT_DELETE_RETENTION_DAYS
               + " days period expired: "
@@ -166,10 +166,15 @@ public class TenantService {
    * has a grace period to reactivate the tenant before permanent deletion.
    */
   public Tenant softDelete(String tenantId) {
+    if (Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
+      throw new BadRequestException("Default tenant cannot be deleted: " + tenantId);
+    }
+
     Tenant tenant = findById(tenantId);
     if (tenant.getDeletedAt() != null) {
-      throw new IllegalStateException("Tenant is already deleted: " + tenantId);
+      throw new BadRequestException("Tenant is already deleted: " + tenantId);
     }
+
     tenant.setDeletedAt(Instant.now());
     return tenantRepository.save(tenant);
   }

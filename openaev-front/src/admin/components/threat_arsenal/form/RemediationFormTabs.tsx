@@ -35,7 +35,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
 
   const hasPlatformSettingsCapabilities = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
 
-  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getExistingCollectors() }));
+  const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
   useDataLoader(() => {
     if (hasPlatformSettingsCapabilities) {
       setLoading(true);
@@ -87,7 +87,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
                         label={(
                           <Box display="flex" alignItems="center">
                             <img
-                              src={buildTenantApiPath(`/api/images/collectors/${tab.collector_type}`)}
+                              src={buildTenantApiPath(`/api/collectors/${tab.collector_type}/image`)}
                               alt={tab.collector_type}
                               style={{
                                 width: 20,

@@ -177,7 +177,15 @@ public class InjectExecutionStep implements ActionStep {
 
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
-    prepareGetStatusPayloadFromInject(inject.getInjectorContract().get());
+    InjectorContract injectorContract =
+        inject
+            .getInjectorContract()
+            .orElseThrow(
+                () ->
+                    new ChainingException(
+                        "Injector contract missing on inject during run, step ID: "
+                            + readyStep.getId()));
+    prepareGetStatusPayloadFromInject(injectorContract);
 
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
@@ -492,6 +500,9 @@ public class InjectExecutionStep implements ActionStep {
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
         input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
+        input.put(
+            "keySubtype",
+            condition.getKeySubtype() != null ? condition.getKeySubtype().name() : null);
         input.put("path", condition.getValue());
         input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
@@ -578,16 +589,25 @@ public class InjectExecutionStep implements ActionStep {
       JsonNode root = mapper.readTree(step.getData());
 
       // GET INJECTOR CONTRACT
-      try {
-        Hibernate.initialize(inject.getInjectorContract().get());
-      } catch (Exception e) {
-        throw new ChainingException(
-            "Injector contract not found for step (READY) ID: " + step.getId());
-      }
-
       InjectorContract injectorContract =
-          injectorContractRepository
-              .findById(inject.getInjectorContract().get().getId())
+          inject
+              .getInjectorContract()
+              .map(
+                  contract -> {
+                    try {
+                      Hibernate.initialize(contract);
+                    } catch (Exception e) {
+                      throw new RuntimeException(
+                          "Injector contract not found for step (READY) ID: " + step.getId(), e);
+                    }
+                    return injectorContractRepository
+                        .findById(contract.getId())
+                        .orElseThrow(
+                            () ->
+                                new RuntimeException(
+                                    "Injector contract not found for step (READY) ID: "
+                                        + step.getId()));
+                  })
               .orElseThrow(
                   () ->
                       new ChainingException(
@@ -672,6 +692,7 @@ public class InjectExecutionStep implements ActionStep {
           .filter(conditionUtils::isMapperCondition)
           .forEach(mapping -> applyMapping(contentNode, mapping, inputValues));
 
+      // FIXME: this is probably a draft for something, adding this fixme to keep track of it
       conditionService.findAllConditionsByStepId(step.getId()).stream()
           .filter(conditionUtils::isMapperCondition)
           .toList();
@@ -728,8 +749,7 @@ public class InjectExecutionStep implements ActionStep {
       }
       map.put("agent_id", gson.toJsonTree(trace.getAgent().getId()));
       if (trace.getStructuredOutput() != null) {
-        log.info(
-            "[Chaining] Trace has structuredOutput: {}", trace.getStructuredOutput().toString());
+        log.info("[Chaining] Trace has structuredOutput: {}", trace.getStructuredOutput());
         map.put("parsed", JsonParser.parseString(trace.getStructuredOutput().toString()));
       } else {
         log.info("[Chaining] Trace has NO structuredOutput, message: {}", trace.getMessage());

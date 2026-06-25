@@ -8,9 +8,7 @@ import type React from 'react';
 import type { LoggedHelper } from '../../../actions/helper';
 import { useHelper } from '../../../store';
 import { isNotEmptyField } from '../../../utils/utils';
-
-export const TOP_BANNER_HEIGHT = 30;
-export const SYSTEM_BANNER_HEIGHT = 20;
+import { SYSTEM_BANNER_HEIGHT, TOP_BANNER_HEIGHT } from './constants';
 
 const TOPBANNER_COLORS = {
   gradient_blue: {

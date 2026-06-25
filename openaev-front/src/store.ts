@@ -1,6 +1,7 @@
 import { composeWithDevTools } from '@redux-devtools/extension';
 import { fromJS, isImmutable } from 'immutable';
 import * as R from 'ramda';
+import { useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { applyMiddleware, createStore } from 'redux';
 import { thunk } from 'redux-thunk';
@@ -57,12 +58,38 @@ const getJS = (selectorValue: any) => {
   return result;
 };
 
+type UseHelperCache = {
+  state: unknown;
+  selector: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  result: any;
+};
+
 // TODO type selector object
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useHelper = (selector: any) => {
+  // Memoization keyed on BOTH the Immutable store identity and the selector identity: selectors
+  // run on every dispatch for every subscriber, and getJS (Immutable.toJS) is expensive. The
+  // fast-path only applies when neither changed (inline selector closures capturing fresh props
+  // always recompute). When the output is deep-equal to the previous one we keep the previous
+  // identity so useSelector's reference equality can skip the re-render.
+  const cacheRef = useRef<UseHelperCache | null>(null);
   return useSelector(
-    state => getJS(selector(storeHelper(state))),
-    R.equals, // deep-equality to avoid re-renders when structurally equal
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (state: any) => {
+      const cache = cacheRef.current;
+      if (cache && cache.state === state && cache.selector === selector) {
+        return cache.result;
+      }
+      const computed = getJS(selector(storeHelper(state)));
+      const result = cache && R.equals(computed, cache.result) ? cache.result : computed;
+      cacheRef.current = {
+        state,
+        selector,
+        result,
+      };
+      return result;
+    },
   );
 };
 

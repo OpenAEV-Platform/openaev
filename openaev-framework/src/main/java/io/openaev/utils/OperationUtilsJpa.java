@@ -326,6 +326,10 @@ public final class OperationUtilsJpa {
       value = paths;
     }
 
+    if (type.equals(Instant.class) || type.isEnum()) {
+      return cb.isNotNull(value);
+    }
+
     return cb.and(cb.isNotNull(value), cb.notEqual(value, ""));
   }
 

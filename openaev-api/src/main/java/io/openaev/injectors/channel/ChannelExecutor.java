@@ -1,15 +1,15 @@
 package io.openaev.injectors.channel;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.database.model.ExecutionTrace.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.injectors.channel.model.ArticleVariable;
@@ -34,40 +34,45 @@ public class ChannelExecutor extends Injector {
   private final ArticleRepository articleRepository;
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   public ChannelExecutor(
       InjectorContext context,
       ArticleRepository articleRepository,
       EmailService emailService,
-      InjectExpectationService injectExpectationService) {
+      InjectExpectationService injectExpectationService,
+      UrlAccessTokenService urlAccessTokenService) {
     super(context);
     this.articleRepository = articleRepository;
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
+    this.urlAccessTokenService = urlAccessTokenService;
   }
 
   private String buildArticleUri(
-      ExecutionContext executionContext, Article article, String tenantId) {
-    String userId = executionContext.getUser().getId();
+      ExecutionContext executionContext, Article article, Exercise exercise, String tenantId) {
+    ProtectUser user = executionContext.getUser();
     String channelId = article.getChannel().getId();
-    String exerciseId = article.getExercise().getId();
-    String queryOptions = "article=" + article.getId() + "&user=" + userId;
-    return this.context.getOpenAEVConfig().getBaseUrl()
-        + "/"
-        + tenantId
-        + "/channels/"
-        + exerciseId
-        + "/"
-        + channelId
-        + "?"
-        + queryOptions;
+    String queryOptions = "article=" + article.getId();
+    String url =
+        this.context.getOpenAEVConfig().getBaseUrl()
+            + "/"
+            + tenantId
+            + "/channels/"
+            + exercise.getId()
+            + "/"
+            + channelId
+            + "?"
+            + queryOptions;
+    return urlAccessTokenService.generateTokenUrl(exercise, user, url);
   }
 
   @Override
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChannelContent content = contentConvert(injection, ChannelContent.class);
+      ChannelContent content =
+          injectExpectationService.contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
       if (articles.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one article");
@@ -104,6 +109,7 @@ public class ChannelExecutor extends Injector {
           String message =
               content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
           boolean encrypted = content.isEncrypted();
+          String tenantId = exercise.getTenant().getId();
           users.forEach(
               userInjectContext -> {
                 try {
@@ -116,9 +122,7 @@ public class ChannelExecutor extends Injector {
                                       article.getId(),
                                       article.getName(),
                                       buildArticleUri(
-                                          userInjectContext,
-                                          article,
-                                          exercise.getTenant().getId())))
+                                          userInjectContext, article, exercise, tenantId)))
                           .toList();
                   userInjectContext.put(VARIABLE_ARTICLES, articleVariables);
                   // Send the email.

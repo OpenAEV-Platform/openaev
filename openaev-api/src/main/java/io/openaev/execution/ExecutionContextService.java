@@ -2,6 +2,7 @@ package io.openaev.execution;
 
 import static io.openaev.injector_contract.variables.VariableHelper.*;
 
+import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Injection;
@@ -22,6 +23,7 @@ public class ExecutionContextService {
   @Resource private final OpenAEVConfig openAEVCOnfig;
 
   private final VariableService variableService;
+  private final UrlAccessTokenService urlAccessTokenService;
 
   public ExecutionContext executionContext(
       @NotNull final User user, Injection injection, String team) {
@@ -33,14 +35,18 @@ public class ExecutionContextService {
     ExecutionContext executionContext = new ExecutionContext(user, teams);
     if (injection.getExercise() != null) {
       String exerciseId = injection.getExercise().getId();
-      String queryParams = "?user=" + user.getId() + "&inject=" + injection.getId();
+      String queryParams = "?inject=" + injection.getId();
       String baseUrl =
           this.openAEVCOnfig.getBaseUrl() + "/" + injection.getExercise().getTenant().getId();
       executionContext.put(PLAYER_URI, baseUrl + "/private/" + exerciseId + queryParams);
       executionContext.put(CHALLENGES_URI, baseUrl + "/challenges/" + exerciseId + queryParams);
       executionContext.put(SCOREBOARD_URI, baseUrl + "/scoreboard/" + exerciseId + queryParams);
       executionContext.put(
-          LESSONS_URI, baseUrl + "/lessons/simulation/" + exerciseId + queryParams);
+          LESSONS_URI,
+          urlAccessTokenService.generateTokenUrl(
+              injection.getExercise(),
+              user,
+              baseUrl + "/lessons/simulation/" + exerciseId + queryParams));
       executionContext.put(EXERCISE, injection.getExercise());
       fillDynamicSimulationVariable(executionContext, exerciseId);
     } else if (injection.getScenario() != null) {

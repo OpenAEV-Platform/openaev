@@ -1,6 +1,6 @@
 import type { AxiosResponse } from 'axios';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts';
 
 import Loader from '../../../../components/Loader';
@@ -73,31 +73,49 @@ const CustomDashboardWrapper = ({
   const [dataReady, setDataReady] = useState(false);
   const [_gridReady, setGridReady] = useState(false);
   const loadingStartTime = useRef<number>(Date.now());
+  const dataReadyTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const [, setSearchParams] = useSearchParams();
-
-  const handleOpenWidgetDataDrawer = (conf: WidgetDataDrawerConf) => {
-    setSearchParams((prevParams) => {
-      const newParams = new URLSearchParams(prevParams);
-      newParams.set('widget_id', conf.widgetId);
-      newParams.set('series_index', (conf.series_index ?? '').toString());
-      if (conf.filter_values_map) {
-        Object.entries(conf.filter_values_map).forEach(([key, value]) => {
-          newParams.set(key, (value ?? []).join(','));
-        });
+  useEffect(() => {
+    return () => {
+      // Compare against undefined rather than truthiness: a valid timer handle
+      // can be 0 in some implementations/polyfills.
+      if (dataReadyTimeoutRef.current !== undefined) {
+        clearTimeout(dataReadyTimeoutRef.current);
+        dataReadyTimeoutRef.current = undefined;
       }
-      return newParams;
-    }, { replace: true });
-  };
+    };
+  }, []);
 
-  const handleCloseWidgetDataDrawer = () => {
-    setSearchParams(new URLSearchParams(), { replace: true });
-  };
+  // Drive the drawer through navigate() rather than useSearchParams(): the
+  // latter would subscribe this provider to every URL change, so opening or
+  // closing the drawer would re-render the whole dashboard subtree (re-running
+  // the parameter-init effect and re-fetching every widget). WidgetDataDrawer
+  // reads useSearchParams() on its own, so only it needs to react to the URL.
+  const navigate = useNavigate();
+
+  const handleOpenWidgetDataDrawer = useCallback((conf: WidgetDataDrawerConf) => {
+    const newParams = new URLSearchParams(window.location.search);
+    newParams.set('widget_id', conf.widgetId);
+    newParams.set('series_index', (conf.series_index ?? '').toString());
+    if (conf.filter_values_map) {
+      Object.entries(conf.filter_values_map).forEach(([key, value]) => {
+        newParams.set(key, (value ?? []).join(','));
+      });
+    }
+    navigate({ search: `?${newParams.toString()}` }, { replace: true });
+  }, [navigate]);
+
+  const handleCloseWidgetDataDrawer = useCallback(() => {
+    navigate({ search: '' }, { replace: true });
+  }, [navigate]);
 
   const setDataReadyWithDelay = () => {
     const elapsed = Date.now() - loadingStartTime.current;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
-    setTimeout(() => setDataReady(true), remainingTime);
+    if (dataReadyTimeoutRef.current !== undefined) {
+      clearTimeout(dataReadyTimeoutRef.current);
+    }
+    dataReadyTimeoutRef.current = setTimeout(() => setDataReady(true), remainingTime);
   };
 
   // Compute loading state: show loader until data is ready
@@ -193,8 +211,11 @@ const CustomDashboardWrapper = ({
     fetchEntities,
     fetchEntitiesRuntime,
     fetchCount,
+    fetchAverage,
     fetchSeries,
     fetchAttackPaths,
+    handleOpenWidgetDataDrawer,
+    handleCloseWidgetDataDrawer,
   ]);
 
   if (loading) {

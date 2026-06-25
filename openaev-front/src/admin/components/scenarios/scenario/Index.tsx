@@ -1,7 +1,7 @@
 import { NotificationsOutlined, UpdateOutlined } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, IconButton, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, lazy, Suspense, useEffect, useState } from 'react';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, Route, Routes, useLocation, useParams } from 'react-router';
 
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
@@ -47,11 +47,14 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
   const location = useLocation();
   const theme = useTheme();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  const permissionsContext: PermissionsContextType = {
-    permissions: useScenarioPermissions(scenario.scenario_id),
+  const permissions = useScenarioPermissions(scenario.scenario_id);
+  // Stable context identities: these providers wrap the whole scenario subtree and a
+  // new value each render forces every consumer (incl. the injects list) to re-render.
+  const permissionsContext: PermissionsContextType = useMemo(() => ({
+    permissions,
     inherited_context: INHERITED_CONTEXT.SCENARIO,
-  };
-  const documentContext: DocumentContextType = {
+  }), [permissions]);
+  const documentContext: DocumentContextType = useMemo(() => ({
     onInitDocument: () => ({
       document_tags: [],
       document_scenarios: scenario
@@ -62,7 +65,7 @@ const IndexScenarioComponent: FunctionComponent<{ scenario: ScenarioOutput }> = 
         : [],
       document_exercises: [],
     }),
-  };
+  }), [scenario?.scenario_id, scenario?.scenario_name]);
   let tabValue = location.pathname;
   if (location.pathname.includes(`/admin/scenarios/${scenario.scenario_id}/definition`)) {
     tabValue = `/admin/scenarios/${scenario.scenario_id}/definition`;

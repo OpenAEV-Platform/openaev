@@ -494,6 +494,7 @@ public class ScenarioService {
     }
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public void deleteScenario(@NotBlank final String scenarioId) {
     existsByIdAndTenantId(scenarioId);
     this.scenarioRepository.deleteById(scenarioId);

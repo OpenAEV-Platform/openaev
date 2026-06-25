@@ -1,5 +1,7 @@
 package io.openaev.utils.mapper;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -279,22 +281,25 @@ public class InjectMapper {
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
     String type = inject.getType();
-    return toInjectOutput(
-        inject.getId(),
-        inject.getTitle(),
-        inject.isEnabled(),
-        inject.getContent(),
-        inject.getExercise(),
-        inject.getScenario(),
-        inject.getDependsOn(),
-        inject.getDependsDuration(),
-        injectorContract,
-        inject.getTags(),
-        inject.getTeams(),
-        inject.getAssets(),
-        inject.getAssetGroups(),
-        type,
-        inject.getDependsOn(),
-        healthchecks);
+    InjectOutput output =
+        toInjectOutput(
+            inject.getId(),
+            inject.getTitle(),
+            inject.isEnabled(),
+            inject.getContent(),
+            inject.getExercise(),
+            inject.getScenario(),
+            inject.getDependsOn(),
+            inject.getDependsDuration(),
+            injectorContract,
+            inject.getTags(),
+            inject.getTeams(),
+            inject.getAssets(),
+            inject.getAssetGroups(),
+            type,
+            inject.getDependsOn(),
+            healthchecks);
+    output.setExpectations(toOutputs(inject.getExpectations()));
+    return output;
   }
 }

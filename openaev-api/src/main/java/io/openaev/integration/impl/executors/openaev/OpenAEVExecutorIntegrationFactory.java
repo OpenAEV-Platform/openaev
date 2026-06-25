@@ -9,7 +9,6 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -56,7 +55,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
@@ -75,23 +74,20 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
-    try {
-      executorService.executor(OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID);
-    } catch (ElementNotFoundException e) {
-      executorService.register(
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
-          OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_BACKGROUND_COLOR,
-          getClass().getResourceAsStream("/img/icon-openaev.png"),
-          getClass().getResourceAsStream("/img/banner-openaev.png"),
-          new String[] {
-            Endpoint.PLATFORM_TYPE.Windows.name(),
-            Endpoint.PLATFORM_TYPE.Linux.name(),
-            Endpoint.PLATFORM_TYPE.MacOS.name()
-          });
-    }
+  public void registerConnectorForTenant(String tenantId) throws Exception {
+    executorService.register(
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
+        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_BACKGROUND_COLOR,
+        getClass().getResourceAsStream("/img/icon-openaev.png"),
+        getClass().getResourceAsStream("/img/banner-openaev.png"),
+        new String[] {
+          Endpoint.PLATFORM_TYPE.Windows.name(),
+          Endpoint.PLATFORM_TYPE.Linux.name(),
+          Endpoint.PLATFORM_TYPE.MacOS.name()
+        },
+        false);
   }
 }

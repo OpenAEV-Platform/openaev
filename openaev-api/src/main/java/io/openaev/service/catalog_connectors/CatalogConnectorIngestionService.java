@@ -20,10 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class CatalogConnectorIngestionService {
-  private static final Set<String> PROTECTED_KEYS =
+  public static final Set<String> PROTECTED_KEYS =
       Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID");
-  private static final String openAEVKeyName = "OPENAEV_URL";
-  private static final String openAEVKeyToken = "OPENAEV_TOKEN";
+  public static final String OPENAEV_KEY_URL = "OPENAEV_URL";
+  public static final String OPENAEV_KEY_TOKEN = "OPENAEV_TOKEN";
+  public static final String OPENAEV_KEY_TENANT_ID = "OPENAEV_TENANT_ID";
   private final CatalogConnectorService catalogConnectorService;
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
@@ -154,7 +155,7 @@ public class CatalogConnectorIngestionService {
             schemaConf != null && isFormatPasswordButNotEncrypted(schemaConf, instConf);
 
         if ((keyRemovedFromSchema || mustDeleteBecausePassword)
-            && !instConf.getKey().equalsIgnoreCase(openAEVKeyToken)) {
+            && !instConf.getKey().equalsIgnoreCase(OPENAEV_KEY_TOKEN)) {
           toDelete.add(instConf);
         }
       }
@@ -191,9 +192,9 @@ public class CatalogConnectorIngestionService {
 
     for (Iterator<String> it = properties.fieldNames(); it.hasNext(); ) {
       String key = it.next();
-      if (openAEVKeyName.equals(key)) {
-        continue;
-      }
+      //      if (OPENAEV_KEY_URL.equals(key)) {
+      //        continue;
+      //      }
       JsonNode prop = properties.get(key);
 
       CatalogConnectorConfiguration conf =
@@ -296,7 +297,7 @@ public class CatalogConnectorIngestionService {
 
       String fileName = connectorSlug + "-logo.png";
 
-      fileService.uploadStream(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
+      fileService.uploadCatalogLogo(FileService.CONNECTORS_LOGO_PATH, fileName, dataStream);
 
       return fileName;
     } catch (Exception e) {

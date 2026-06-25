@@ -1,6 +1,8 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
+import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
 import static org.quartz.SimpleScheduleBuilder.*;
@@ -154,11 +156,31 @@ public class PlatformTriggers {
 
   @Bean
   @Profile("!test")
+  public Trigger executionTraceRetentionTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.executionTraceRetentionJobDetail())
+        .withIdentity(EXECUTION_TRACE_RETENTION_TRIGGER)
+        .withSchedule(cronSchedule("0 30 1 * * ?")) // Daily at 1:30 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
   public Trigger tenantPurgeTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.tenantPurgeJobDetail())
         .withIdentity(TENANT_PURGE_TRIGGER)
         .withSchedule(cronSchedule("0 0 2 * * ?")) // Daily at 2:00 AM
+        .build();
+  }
+
+  @Bean
+  @Profile("!test")
+  public Trigger urlAccessTokenPurgeTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.urlAccessTokenPurgeJobDetail())
+        .withIdentity(URL_ACCESS_TOKEN_PURGE_TRIGGER)
+        .withSchedule(cronSchedule("0 0 2 ? * SUN")) // Every Sunday at 2:00 AM
         .build();
   }
 }

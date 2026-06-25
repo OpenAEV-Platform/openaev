@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
@@ -46,6 +47,8 @@ public class MvcConfig implements WebMvcConfigurer {
     // https://springdoc.org/#why-am-i-getting-an-error-swagger-ui-unable-to-render-definition-when-overriding-the-default-spring-registered-httpmessageconverter
     messageConverters.add(new ByteArrayHttpMessageConverter());
     messageConverters.add(new StringHttpMessageConverter());
+    // Required for streamed binary responses (InputStreamResource on agent/implant downloads)
+    messageConverters.add(new ResourceHttpMessageConverter());
     messageConverters.add(customJackson2HttpMessageConverter());
   }
 

@@ -1,9 +1,10 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.WorkflowConfigurationMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.chaining.dto.ScopeAssetOutput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationOutput;
 import io.openaev.database.model.Action;
@@ -12,14 +13,17 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -32,6 +36,7 @@ public class WorkflowApi extends RestBehavior {
   public static final String TENANT_WORKFLOW_URI = TENANT_PREFIX + "/workflows";
 
   private final WorkflowService workflowService;
+  private final ScopeService scopeService;
   private final PreviewFeatureService previewFeatureService;
 
   // -- READ --
@@ -40,6 +45,7 @@ public class WorkflowApi extends RestBehavior {
       summary = "Fetch workflow configuration for a workflow",
       description =
           "Fetch the workflow configuration for a given workflow, including time-out, rate-limit, safe-mode and scope rules.")
+  @Transactional
   @ApiResponse(responseCode = "200", description = "Workflow configuration retrieved successfully")
   @ApiResponse(
       responseCode = "404",
@@ -47,11 +53,36 @@ public class WorkflowApi extends RestBehavior {
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @GetMapping("/{workflowId}/configuration")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW)
+  @LogExecutionTime
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
     checkWorkflowFeatureEnabled();
-    return toOutput(workflowService.getWorkflowConfiguration(workflowId));
+    return WorkflowConfigurationMapper.toOutput(
+        workflowService.getWorkflowConfiguration(workflowId));
+  }
+
+  @Operation(
+      summary = "Get the computed list of valid (allowed) assets for a workflow",
+      description =
+          "Returns assets that are in scope after applying allowlist/denylist rules. "
+              + "Assets from allowlisted groups are included, then any individually or group-denylisted assets are removed.")
+  @Transactional
+  @ApiResponse(responseCode = "200", description = "Valid assets retrieved successfully")
+  @ApiResponse(
+      responseCode = "404",
+      description = "Workflow not found or the INJECT_CHAINING feature is disabled")
+  @GetMapping("/{workflowId}/valid-assets")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @LogExecutionTime
+  public List<ScopeAssetOutput> getValidAssets(@PathVariable @NotBlank final String workflowId) {
+    checkWorkflowFeatureEnabled();
+    return scopeService.getValidAssets(workflowId).stream()
+        .map(ScopeAssetMapper::toOutput)
+        .toList();
   }
 
   // -- UPDATE --
@@ -65,12 +96,17 @@ public class WorkflowApi extends RestBehavior {
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @PutMapping("/{workflowId}/configuration")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.WORKFLOW)
+  @Transactional
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {
     checkWorkflowFeatureEnabled();
-    return toOutput(workflowService.updateWorkflowConfiguration(workflowId, input));
+    return WorkflowConfigurationMapper.toOutput(
+        workflowService.updateWorkflowConfiguration(workflowId, input));
   }
 
   // -- Helpers --

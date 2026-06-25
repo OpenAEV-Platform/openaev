@@ -18,12 +18,14 @@ const useStyles = makeStyles()(theme => ({
 
 interface InjectAddExpectationProps {
   predefinedExpectations: ExpectationInput[];
+  availableExpectations: ExpectationInput[];
   handleAddExpectation: (data: ExpectationInput) => void;
   disabled?: boolean;
 }
 
 const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
   predefinedExpectations,
+  availableExpectations,
   handleAddExpectation,
   disabled,
 }) => {
@@ -71,6 +73,7 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
       >
         <ExpectationFormCreate
           predefinedExpectations={predefinedExpectations}
+          availableExpectations={availableExpectations}
           onSubmit={onSubmit}
           handleClose={handleClose}
         />

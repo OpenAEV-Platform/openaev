@@ -13,10 +13,6 @@ name: "Quality Gates"
 on:
   workflow_call:
     inputs:
-      is-pr:
-        description: "Whether this run is triggered by a pull request (true/false)."
-        type: boolean
-        default: false
       upload-codecov:
         description: "Upload coverage reports to Codecov and save artifacts"
         type: boolean
@@ -27,12 +23,20 @@ permissions:
   actions: read
 
 jobs:
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/spotless-check
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-quality
 
   api-tests:
@@ -105,7 +109,7 @@ jobs:
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/api-tests
         with:
           includes: ${{ matrix.includes }}
@@ -114,9 +118,85 @@ jobs:
           shard-name: ${{ matrix.shard_name }}
 
   e2e-tests:
-    name: "🧪 E2E & API Types"
+    name: "🧪 E2E Tests (${{ matrix.browser }})"
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chrome
+            playwright-config: playwright.push.chrome_config.ts
+          - browser: webkit
+            playwright-config: playwright.push.webkit_config.ts
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/e2e-tests
+        with:
+          playwright-config: ${{ matrix.playwright-config }}
+          browser: ${{ matrix.browser }}
+
+  e2e-infra-tests:
+    name: "🧪 E2E Infra (${{ matrix.arch }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux-only: these tests start service containers via `docker run`,
+        # and Docker is not available on GitHub-hosted Windows/macOS runners.
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/e2e-tests
+        with:
+          playwright-config: playwright.infra.chromium_config.ts
+          browser: chromium
+
+  api-types-check:
+    name: "🔎 API Types Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
@@ -135,20 +215,20 @@ jobs:
       SPRING_PROFILES_ACTIVE: ci
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/e2e-tests
-        with:
-          is-pr: ${{ inputs.is-pr }}
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/api-types-check
 
   codecov:
     name: "📊 Coverage Merge & Upload"
-    needs: [ api-tests, frontend-quality, e2e-tests ]
+    needs:
+      [api-tests, frontend-quality, e2e-tests, e2e-infra-tests, api-types-check]
     # Always run so partial coverage (e.g. backend+frontend) is still
     # uploaded even when one upstream job fails or is cancelled.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -205,7 +285,8 @@ jobs:
 
       - name: Coverage report & threshold check
         if: steps.jacoco-merge.outcome == 'success'
-        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage
+        run:
+          mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage
           threshold check ⚠️"
 
       - name: Upload API coverage report
@@ -226,12 +307,13 @@ jobs:
           path: coverage/frontend
         continue-on-error: true
 
-      - name: Download playwright coverage report
+      - name: Download playwright coverage reports
         if: ${{ inputs.upload-codecov && needs.e2e-tests.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
-          name: playwright-coverage
+          pattern: playwright-coverage-*
           path: coverage/e2e
+          merge-multiple: true
         continue-on-error: true
 
       # ── Detect which reports are available ─────────────────────────
@@ -252,7 +334,7 @@ jobs:
       # ── Upload to Codecov ──────────────────────────────────────────
       - name: Upload backend coverage to Codecov
         if: ${{ inputs.upload-codecov && steps.check.outputs.has_backend == 'true' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: openaev-api/target/site/jacoco/jacoco.xml
@@ -262,7 +344,7 @@ jobs:
 
       - name: Upload frontend coverage to Codecov
         if: ${{ inputs.upload-codecov && steps.check.outputs.has_frontend == 'true' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/frontend/lcov.info
@@ -272,10 +354,74 @@ jobs:
 
       - name: Upload E2E coverage to Codecov
         if: ${{ inputs.upload-codecov && steps.check.outputs.has_e2e == 'true' }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/e2e/lcov.info
           flags: e2e
           disable_search: true
           fail_ci_if_error: false
+
+  # ──────────────────────────────────────────────────────────────────
+  # Gate: fail the workflow if ANY quality gate job failed.
+  #
+  # ⚠️  IMPORTANT: This job is a REQUIRED status check in the GitHub
+  #     branch-protection rules for merging PRs.
+  #     • Do NOT remove this job.
+  #     • Do NOT rename the job key ("quality-status") or its display
+  #       name ("🚦 Quality Status") — the branch-protection rule
+  #       references it by name.
+  #     • When adding a new quality gate job, add it to the `needs`
+  #       list AND the failure check below.
+  # ──────────────────────────────────────────────────────────────────
+  quality-status:
+    name: "🚦 Quality Status"
+    needs:
+      [
+        spotless-check,
+        frontend-quality,
+        api-tests,
+        e2e-tests,
+        e2e-infra-tests,
+        api-types-check,
+      ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check all quality gate results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          FAILED=0
+          TOTAL=0
+
+          echo "══════════════════════════════════════════════════"
+          echo "  🚦  Quality Gate Results"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+
+          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
+            result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
+            TOTAL=$((TOTAL + 1))
+
+            case "$result" in
+              success)   icon="✅" ;;
+              failure)   icon="❌"; FAILED=$((FAILED + 1)) ;;
+              skipped)   icon="⏭️" ;;
+              cancelled) icon="🚫"; FAILED=$((FAILED + 1)) ;;
+              *)         icon="❓" ;;
+            esac
+
+            printf "  %s  %-30s %s\n" "$icon" "$job" "$result"
+          done
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ $FAILED/$TOTAL quality gate(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All $TOTAL quality gates passed"

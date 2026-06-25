@@ -11,7 +11,6 @@ import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -30,7 +29,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   private final OpenAEVImplantContract openAEVImplantContract;
   private final OpenAEVConfig openAEVConfig;
   private final InjectorContext injectorContext;
-  private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final InjectService injectService;
 
@@ -43,7 +41,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
       CatalogConnectorService catalogConnectorService,
       HttpClientFactory httpClientFactory,
       InjectorContext injectorContext,
-      AssetGroupService assetGroupService,
       InjectExpectationService injectExpectationService,
       InjectService injectService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
@@ -53,7 +50,6 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
     this.openAEVImplantContract = openAEVImplantContract;
     this.openAEVConfig = openAEVConfig;
     this.injectorContext = injectorContext;
-    this.assetGroupService = assetGroupService;
     this.injectExpectationService = injectExpectationService;
     this.injectService = injectService;
   }
@@ -74,7 +70,7 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  public List<ConnectorInstance> findRelatedInstances() {
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return List.of(
         connectorInstanceService.createAutostartInstance(
             OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
@@ -97,18 +93,18 @@ public class OpenaevInjectorIntegrationFactory extends BuiltinIntegrationFactory
         openAEVImplantContract,
         openAEVConfig,
         injectorContext,
-        assetGroupService,
         injectExpectationService,
         injectService);
   }
 
   @Override
-  public void registerConnectorForTenant() throws Exception {
+  public void registerConnectorForTenant(String tenantId) throws Exception {
     Map<String, String> executorCommands =
         OpenaevImplantCommandBuilder.buildExecutorCommands(openAEVConfig);
     Map<String, String> executorClearCommands =
         OpenaevImplantCommandBuilder.buildExecutorClearCommands();
     injectorService.registerBuiltinInjector(
+        tenantId,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID,
         OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME,
         openAEVImplantContract,

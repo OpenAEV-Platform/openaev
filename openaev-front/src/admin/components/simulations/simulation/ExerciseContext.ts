@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { fetchExercise, fetchExerciseTeams } from '../../../../actions/Exercise';
 import { dryImportXlsForExercise, importXlsForExercise } from '../../../../actions/exercises/exercise-action';
@@ -33,7 +33,9 @@ const injectContextForExercise = (exercise: Exercise) => {
   const dispatch = useAppDispatch();
   const [injects, setInjects] = useState<InjectOutputType[]>([]);
 
-  return {
+  // This object is the value of InjectContext.Provider wrapping the whole simulation
+  // area: keep its identity stable so consumers don't re-render on unrelated updates.
+  return useMemo(() => ({
     injects,
     setInjects,
     searchInjects(input: SearchPaginationInput): Promise<{ data: Page<InjectOutputType> }> {
@@ -112,7 +114,7 @@ const injectContextForExercise = (exercise: Exercise) => {
         data: result.data,
       }));
     },
-  };
+  }), [dispatch, injects, exercise?.exercise_id]);
 };
 
 export default injectContextForExercise;

@@ -1,7 +1,8 @@
 import { AssignmentTurnedIn, BugReportOutlined, PublishedWithChangesOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { NewspaperVariantMultipleOutline } from 'mdi-material-ui';
 
-import { ExpectationType } from './Expectation';
+import { type InjectExpectationOutput, type InjectExpectationResult } from '../../../../../utils/api-types';
+import { ExpectationType, type InjectExpectationsStore } from './Expectation';
 
 export const FAILED = 'Failed';
 
@@ -32,4 +33,72 @@ export const isTechnicalExpectation = (type: string) => {
 };
 export const isManualExpectation = (type: string) => {
   return [ExpectationType.MANUAL.toString(), ExpectationType.ARTICLE.toString(), ExpectationType.CHALLENGE.toString()].includes(type);
+};
+
+/**
+ * Returns a formatted label for the source of an expectation result.
+ *
+ * @param {InjectExpectationResult | null | undefined} expectationResult - The result object containing source information.
+ * @returns {string} The formatted source label, e.g. "sourceName (sourcePlatform)" or "-" if not available.
+ */
+export const getSourceLabel = (
+  expectationResult?: InjectExpectationResult | null,
+): string => {
+  const sourceName = expectationResult?.sourceName?.trim();
+  const sourcePlatform = expectationResult?.sourcePlatform?.trim();
+
+  if (!sourceName) {
+    return '-';
+  }
+
+  return sourcePlatform ? `${sourceName} (${sourcePlatform})` : sourceName;
+};
+
+export const groupedByAsset = (es: InjectExpectationsStore[]): Map<string, InjectExpectationsStore[]> => {
+  return es.reduce((group, expectation) => {
+    const { inject_expectation_asset } = expectation;
+    if (inject_expectation_asset) {
+      const values = group.get(inject_expectation_asset) ?? [];
+      values.push(expectation);
+      group.set(inject_expectation_asset, values);
+    }
+    return group;
+  }, new Map());
+};
+
+export const isAssetGroupExpectation = (injectExpectation: InjectExpectationOutput) => {
+  return injectExpectation.inject_expectation_asset_group != null
+    && injectExpectation.inject_expectation_asset == null
+    && injectExpectation.inject_expectation_agent == null;
+};
+
+export const isAssetExpectation = (injectExpectation: InjectExpectationOutput) => {
+  return injectExpectation.inject_expectation_asset != null
+    && injectExpectation.inject_expectation_agent == null;
+};
+
+export const isAgentExpectation = (injectExpectation: InjectExpectationOutput) => {
+  return injectExpectation.inject_expectation_agent != null;
+};
+
+export const isPlayerExpectation = (injectExpectation: InjectExpectationOutput) => {
+  return injectExpectation.inject_expectation_user != null;
+};
+
+export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutput) => {
+  const expectationType = injectExpectation.inject_expectation_type;
+
+  // Technical
+  if (['DETECTION', 'PREVENTION'].includes(expectationType)) {
+    if (isAssetGroupExpectation(injectExpectation) || isAgentExpectation(injectExpectation)) return false;
+
+    return true;
+  }
+  // Human
+  if (isManualExpectation(expectationType)) {
+    if ((injectExpectation.inject_expectation_results?.length ?? 0) > 0) return false;
+
+    return true;
+  }
+  return false;
 };

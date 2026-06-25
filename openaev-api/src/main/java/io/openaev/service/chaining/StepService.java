@@ -36,6 +36,8 @@ public class StepService {
 
   private final StepRepository stepRepository;
 
+  static final List<StepStatus> ACTIVE_STEP_STATUS = List.of(StepStatus.READY, StepStatus.RUN);
+
   /**
    * Create a single step template.
    *
@@ -204,6 +206,16 @@ public class StepService {
   public int countExecutedStep(String workflowRunId, String stepTemplateId) {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
+  }
+
+  /**
+   * Count active step by status
+   *
+   * @param workflowRunId id of the executed workflow
+   * @return long
+   */
+  public long countActiveSteps(String workflowRunId) {
+    return stepRepository.countActiveSteps(workflowRunId, ACTIVE_STEP_STATUS);
   }
 
   /**
@@ -444,10 +456,9 @@ public class StepService {
    *
    * @return list of all step templates
    */
+  @Transactional(readOnly = true)
   public List<Step> findAllStepTemplates() {
-    return this.stepRepository.findAll().stream()
-        .filter(step -> step.getStepTemplate() == null)
-        .toList();
+    return this.stepRepository.findAllByStepTemplateIdIsNull();
   }
 
   /**
@@ -601,26 +612,24 @@ public class StepService {
   }
 
   /**
-   * Returns all RUN and READY steps for a given workflow execution.
+   * Returns all active steps for a given workflow execution.
    *
    * @param id workflow run ID
-   * @return list of steps currently executing or ready
+   * @return list of steps active
    */
-  public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
-    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-        id, List.of(StepStatus.RUN, StepStatus.READY));
+  public List<Step> findAllStepActiveByWorkflowRunId(String id) {
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, ACTIVE_STEP_STATUS);
   }
 
   /**
-   * Ends all active steps (READY or RUN) for the given workflow run.
+   * Ends all active steps for the given workflow run.
    *
    * @param workflowId the workflow run ID
    * @return number of steps terminated
    */
   public int endActiveStepsByWorkflowId(String workflowId) {
     List<Step> activeSteps =
-        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-            workflowId, List.of(StepStatus.READY, StepStatus.RUN));
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(workflowId, ACTIVE_STEP_STATUS);
     for (Step step : activeSteps) {
       step.setStatus(StepStatus.END);
     }

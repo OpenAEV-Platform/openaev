@@ -5,7 +5,8 @@ import { type FunctionComponent } from 'react';
 
 import CustomTooltip from '../../../../components/CustomTooltip';
 import { useFormatter } from '../../../../components/i18n';
-import { buildTenantApiPath } from '../../../../utils/url-helper';
+import CollectorIcon from '../collectors/CollectorIcon';
+import InjectorIcon from '../injectors/InjectorIcon';
 
 interface Props {
   type: string | undefined;
@@ -50,9 +51,7 @@ const InjectIcon: FunctionComponent<Props> = ({
     }
     if (isPayload) {
       if (type.startsWith('openaev_')) {
-        return (
-          <img onClick={onClick} src={buildTenantApiPath(`/api/images/collectors/${type}`)} alt={type} style={style} />
-        );
+        return (<CollectorIcon type={type} style={style} onClick={onClick} />);
       }
       switch (type) {
         case 'Command':
@@ -69,14 +68,7 @@ const InjectIcon: FunctionComponent<Props> = ({
           return <HelpOutlineOutlined color="primary" onClick={onClick} style={style} />;
       }
     }
-    return (
-      <img
-        src={buildTenantApiPath(`/api/images/injectors/${type}`)}
-        onClick={onClick}
-        alt={type}
-        style={style}
-      />
-    );
+    return (<InjectorIcon type={type} style={style} onClick={onClick} />);
   };
 
   return (
