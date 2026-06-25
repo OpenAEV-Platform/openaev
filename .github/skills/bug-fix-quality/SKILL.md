@@ -79,14 +79,16 @@ private void ensureSeenIp(Endpoint endpoint) {
   - If the field can legitimately be null in some scenarios → keep nullable + service-level enforcement
   - If the field must always have a value → add migration backfill + then NOT NULL constraint
 
-### Step 5 — Test Integration (Not Isolation)
+### Step 5 — Test Proportionality
 
 > **Lesson**: Don't create a separate `@Nested` class just for a bug fix.
-> Instead, enrich existing tests. This produces fewer tests, better coverage, and less code.
+> Instead, enrich existing tests. Keep testing **proportional to the change** —
+> a one-line fix doesn't need 4 new test methods.
 
 - [ ] **DO**: Add assertions to existing tests that exercise the affected code path
-- [ ] **DO**: Add edge cases (null inputs, empty arrays) to the existing `@Nested` group
 - [ ] **DON'T**: Create a `@Nested AgentlessBugXXX` class — it will be rejected in review
+- [ ] **DON'T**: Add many edge case tests for a small, straightforward fix — one assertion
+      in the existing happy-path test per CRUD path is usually enough
 
 **What to add to existing tests**:
 1. **Main path assertion**: In the existing "happy path" test, add an assertion for the fixed field
@@ -94,13 +96,10 @@ private void ensureSeenIp(Endpoint endpoint) {
    // In existing shouldCreateEndpointFromInput test:
    assertThat(result.getSeenIp()).isEqualTo("192.168.1.1");
    ```
-2. **Edge cases**: Add new test methods to the **existing** `@Nested` group
-   ```java
-   // In existing @Nested CreateEndpoint group:
-   @Test @DisplayName("Should leave seenIp null when no IPs provided")
-   void given_inputWithoutIps_should_leaveSeenIpNull() { ... }
-   ```
-3. **All CRUD paths**: If you fixed create + update + upsert, ensure tests exist for each path
+2. **All CRUD paths**: If you fixed create + update + upsert, add the assertion in each existing test
+3. **Edge cases**: Only add separate edge-case tests if the logic is complex (branching,
+   null-handling with side effects). For simple null-coalescing logic, the happy-path assertion
+   is sufficient
 
 ### Step 6 — BeanUtils.copyProperties Pitfalls
 
@@ -140,8 +139,9 @@ Before pushing, mentally review as if you were the reviewer:
 - [ ] Is the helper method **well-named** and **single-responsibility**?
 - [ ] Are **all write paths** covered (create, update, upsert)?
 - [ ] Is existing data **backfilled** if needed?
+- [ ] Are tests **proportional** to the change? (no excessive edge cases for simple fixes)
 - [ ] Are tests **integrated** into existing groups (not isolated @Nested classes)?
-- [ ] Does the commit message reference the issue? (`(#3723)`)
+- [ ] Are code comments **standalone**? (no issue number references in Javadoc)
 - [ ] Is the diff **clean**? No unrelated file changes?
 
 ## Common Reviewer Questions & How to Address Them
@@ -151,8 +151,11 @@ Before pushing, mentally review as if you were the reviewer:
 | "Can we have something more generic?" | Extract a reusable helper method | Create `private void ensureX()` called from all paths |
 | "Do we want to verify on DB level?" | Data migration for retrocompatibility | Add Flyway migration to backfill + explain why/why not NOT NULL |
 | "Can be better to modify existing tests" | Don't create separate bug-fix test classes | Move assertions into existing `@Nested` groups |
+| "Don't add a lot of testing for one little change" | Tests should be proportional to the fix | Keep only happy-path assertions, drop edge-case tests for simple logic |
 | "What about update?" | You missed a CRUD path | Check all service methods that write the field |
 | "Model level approach?" | Logic in entity instead of service | Explain BeanUtils.copyProperties risk if applicable |
+| "Not sure it's good to link to a specific issue" | Code comments should be standalone | Remove issue refs from Javadoc/comments — issues can be rewritten |
+| "Having a markdown to explain a bugfix seems overkill" | Don't add analysis docs for simple fixes | Only create analysis docs for complex multi-system bugs |
 
 ## Quick Reference
 
