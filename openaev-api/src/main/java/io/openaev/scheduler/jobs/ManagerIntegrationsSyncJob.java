@@ -65,7 +65,7 @@ public class ManagerIntegrationsSyncJob implements Job {
       long jobDuration = System.currentTimeMillis() - jobStart;
       if (jobDuration > EXECUTION_TIME_THRESHOLD) {
         log.warn(
-            "==> ManagerIntegrationsSyncJob.execute took {} ms (threshold {} ms)",
+            "ManagerIntegrationsSyncJob.execute took {} ms (threshold {} ms)",
             jobDuration,
             EXECUTION_TIME_THRESHOLD);
       }
@@ -87,7 +87,7 @@ public class ManagerIntegrationsSyncJob implements Job {
       if (tenantDuration > TENANT_EXECUTION_TIME_THRESHOLD
           && shouldLogSlowTenantExecution(tenantId)) {
         log.warn(
-            "==> managerFactory.getManager(tenantId).monitorIntegrations() for tenant '{}' took {} ms (threshold {} ms)",
+            "managerFactory.getManager(tenantId).monitorIntegrations() for tenant '{}' took {} ms (threshold {} ms)",
             tenantId,
             tenantDuration,
             TENANT_EXECUTION_TIME_THRESHOLD);
