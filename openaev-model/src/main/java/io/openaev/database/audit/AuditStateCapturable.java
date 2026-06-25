@@ -1,7 +1,10 @@
 package io.openaev.database.audit;
 
+import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ser.FilterProvider;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import io.openaev.database.model.Base;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
@@ -12,23 +15,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * Marks an entity as capable of determining whether a mutation represents a significant change
  * worthy of audit logging.
  *
- * <p>The default {@link #significantState(ObjectMapper)} serializes the entity via Jackson and
- * strips fields annotated with {@link AuditStateIgnore}. New fields are automatically included
- * unless explicitly annotated.
+ * <p>The default {@link #significantState(ObjectMapper)} serializes the entity via Jackson using a
+ * filter that excludes fields annotated with {@link AuditStateIgnore} at serialization time. New
+ * fields are automatically included unless explicitly annotated.
  *
  * <p>Collections of {@link AuditStateCapturable} entities are automatically resolved: each element
  * delegates to its own {@code significantState()}, sorted by entity ID for stable comparison.
  */
+@JsonFilter(AuditStateCapturable.AUDIT_STATE_FILTER)
 public interface AuditStateCapturable {
 
-  /** Cache of ignored JSON keys per class — computed once via reflection, reused thereafter. */
-  Map<Class<?>, Set<String>> IGNORED_FIELDS_CACHE = new ConcurrentHashMap<>();
+  /** Filter name used by the mix-in to activate property filtering. */
+  String AUDIT_STATE_FILTER = "auditStateFilter";
+
+  /**
+   * Cache of the filtered ObjectMapper — one copy per source ObjectMapper instance. Typically there
+   * is a single Spring-managed ObjectMapper, so this cache holds exactly one entry.
+   */
+  Map<ObjectMapper, ObjectMapper> FILTERED_MAPPER_CACHE = new ConcurrentHashMap<>();
 
   /**
    * Returns a map representing this entity's significant state.
    *
-   * <p>Serializes the entity via {@code objectMapper.convertValue(this, Map)} and removes fields
-   * annotated with {@link AuditStateIgnore}. New fields are automatically captured.
+   * <p>Uses a Jackson filter to exclude {@link AuditStateIgnore}-annotated fields during
+   * serialization (avoiding expensive serialization of ignored collections). New fields are
+   * automatically captured.
    *
    * <p>For fields that are collections of {@link AuditStateCapturable} entities, the raw Jackson
    * serialization is replaced by each element's own {@code significantState()}, sorted by ID.
@@ -37,8 +48,8 @@ public interface AuditStateCapturable {
    * @return a map of significant field names to their current values
    */
   default Map<String, Object> significantState(ObjectMapper objectMapper) {
-    Map<String, Object> state = objectMapper.convertValue(this, new TypeReference<>() {});
-    resolveIgnoredFields(this.getClass()).forEach(state::remove);
+    ObjectMapper filtered = getFilteredMapper(objectMapper);
+    Map<String, Object> state = filtered.convertValue(this, new TypeReference<>() {});
 
     // Replace collections of AuditStateCapturable with each element's significantState()
     for (Field field : FieldUtils.getAllFields(this.getClass())) {
@@ -77,23 +88,17 @@ public interface AuditStateCapturable {
   }
 
   /**
-   * Resolves the set of JSON property names to exclude for the given class. The result is cached
-   * per class so reflection is only performed once.
+   * Returns a cached copy of the given ObjectMapper configured with the audit state filter. The
+   * filter excludes fields annotated with {@link AuditStateIgnore} at serialization time.
    */
-  private static Set<String> resolveIgnoredFields(Class<?> clazz) {
-    return IGNORED_FIELDS_CACHE.computeIfAbsent(clazz, AuditStateCapturable::scanIgnoredFields);
-  }
-
-  /**
-   * Walks the class hierarchy and collects JSON keys of fields annotated with @AuditStateIgnore.
-   */
-  private static Set<String> scanIgnoredFields(Class<?> clazz) {
-    Set<String> ignored = new HashSet<>();
-    for (Field field : FieldUtils.getAllFields(clazz)) {
-      if (field.isAnnotationPresent(AuditStateIgnore.class)) {
-        ignored.add(FieldUtils.resolveFieldJsonName(field));
-      }
-    }
-    return Set.copyOf(ignored);
+  private static ObjectMapper getFilteredMapper(ObjectMapper source) {
+    return FILTERED_MAPPER_CACHE.computeIfAbsent(
+        source,
+        om -> {
+          FilterProvider filterProvider =
+              new SimpleFilterProvider()
+                  .addFilter(AUDIT_STATE_FILTER, new AuditStatePropertyFilter());
+          return om.copy().setFilterProvider(filterProvider);
+        });
   }
 }

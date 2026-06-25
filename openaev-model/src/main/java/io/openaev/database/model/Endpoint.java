@@ -8,6 +8,7 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -198,6 +199,7 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       joinColumns = @JoinColumn(name = "asset_id"),
       inverseJoinColumns = @JoinColumn(name = "inject_id"))
   @JsonIgnore
+  @AuditStateIgnore
   private List<Inject> injects = new ArrayList<>();
 
   public void setHostname(String hostname) {

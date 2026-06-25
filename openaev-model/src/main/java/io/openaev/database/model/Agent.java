@@ -111,6 +111,7 @@ public class Agent implements TenantBase, AuditStateCapturable {
   @JoinColumn(name = "agent_parent")
   @JsonProperty("agent_parent")
   @Schema(implementation = String.class)
+  @AuditStateIgnore
   private Agent parent;
 
   /** Used for Caldera only */
@@ -119,6 +120,7 @@ public class Agent implements TenantBase, AuditStateCapturable {
   @JoinColumn(name = "agent_inject")
   @JsonProperty("agent_inject")
   @Schema(implementation = String.class)
+  @AuditStateIgnore
   private Inject inject;
 
   @JsonProperty("agent_active")
