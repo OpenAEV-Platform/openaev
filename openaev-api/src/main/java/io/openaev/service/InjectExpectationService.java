@@ -1382,7 +1382,7 @@ public class InjectExpectationService {
                                 getActiveAgents(assetToExecute.asset(), inject),
                                 expectation,
                                 valueTargetedAssetsMap,
-                                inject.getId())
+                                inject)
                                 .stream();
                         case DETECTION ->
                             getDetectionExpectationsByAsset(
@@ -1391,7 +1391,7 @@ public class InjectExpectationService {
                                 getActiveAgents(assetToExecute.asset(), inject),
                                 expectation,
                                 valueTargetedAssetsMap,
-                                inject.getId())
+                                inject)
                                 .stream();
                         case VULNERABILITY ->
                             getVulnerabilityExpectationsByAsset(
@@ -1400,14 +1400,15 @@ public class InjectExpectationService {
                                 getActiveAgents(assetToExecute.asset(), inject),
                                 expectation,
                                 valueTargetedAssetsMap,
-                                inject.getId())
+                                inject)
                                 .stream();
                         case MANUAL ->
                             getManualExpectationsByAsset(
                                 implantType,
                                 assetToExecute,
                                 getActiveAgents(assetToExecute.asset(), inject),
-                                expectation)
+                                expectation,
+                                inject)
                                 .stream();
                         default -> Stream.of();
                       })
