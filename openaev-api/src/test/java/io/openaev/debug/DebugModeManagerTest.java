@@ -59,11 +59,14 @@ class DebugModeManagerTest {
 
       assertThat(anyMessageContains("OpenAEV DEBUG MODE IS ACTIVE")).isTrue();
       assertThat(anyMessageContains("JDK JFR recording is NOT started")).isTrue();
+      // Banner reflects the real state: Pyroscope owns profiling, JFR is not claimed to be running.
+      assertThat(anyMessageContains("Profiling is delegated to the Pyroscope agent")).isTrue();
+      assertThat(anyMessageContains("A Java Flight Recorder recording is running")).isFalse();
 
       boolean repeated = false;
       for (int i = 0; i < 30 && !repeated; i++) {
         Thread.sleep(100);
-        repeated = anyMessageContains("Verbose SQL/JFR tracing is");
+        repeated = anyMessageContains("Verbose debug tracing is");
       }
       assertThat(repeated).as("the warning should repeat on the interval").isTrue();
     } finally {
@@ -93,6 +96,9 @@ class DebugModeManagerTest {
       assertThat(events).anyMatch(e -> e.getFormattedMessage().contains("DEBUG MODE IS ACTIVE"));
       assertThat(events)
           .noneMatch(e -> e.getFormattedMessage().contains("JDK JFR recording is NOT started"));
+      // JFR is disabled here, so the banner must not claim a recording is running.
+      assertThat(events)
+          .noneMatch(e -> e.getFormattedMessage().contains("A Java Flight Recorder recording"));
     } finally {
       manager.stop();
     }

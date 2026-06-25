@@ -36,7 +36,6 @@ public class DebugModeManager {
 
   @PostConstruct
   public void start() {
-    logBanner();
     // One profiler at a time: JFR yields to the Pyroscope agent.
     if (pyroscopeEnabled) {
       if (properties.getJfr().isEnabled()) {
@@ -47,6 +46,7 @@ public class DebugModeManager {
     } else {
       jfrRecordingManager.start();
     }
+    logBanner(); // after the profiler decision, so it reflects the real JFR status
     scheduler =
         Executors.newSingleThreadScheduledExecutor(
             r -> {
@@ -63,8 +63,9 @@ public class DebugModeManager {
     if (scheduler != null) {
       scheduler.shutdownNow();
     }
+    boolean wasRecording = jfrRunning();
     jfrRecordingManager.stop();
-    log.warn("Debug mode: stopped, JFR recording flushed.");
+    log.warn(wasRecording ? "Debug mode: stopped, JFR recording flushed." : "Debug mode: stopped.");
   }
 
   private void scheduleAutoDisable() {
@@ -92,7 +93,7 @@ public class DebugModeManager {
             return; // auto-disabled
           }
           log.warn(
-              "Debug mode is ACTIVE (openaev.debug.enabled=true). Verbose SQL/JFR tracing is "
+              "Debug mode is ACTIVE (openaev.debug.enabled=true). Verbose debug tracing is "
                   + "running with extra overhead. This must NOT be left on in production.");
         },
         intervalSeconds,
@@ -101,15 +102,24 @@ public class DebugModeManager {
   }
 
   private void logBanner() {
-    log.warn(
-        """
+    String rule = "=".repeat(76);
+    StringBuilder b = new StringBuilder("\n").append(rule).append("\n");
+    b.append("OpenAEV DEBUG MODE IS ACTIVE (openaev.debug.enabled=true)\n");
+    if (properties.getSql().isEnabled()) {
+      b.append("  - SQL statements are logged with timing and (masked) parameters\n");
+    }
+    if (jfrRunning()) {
+      b.append("  - A Java Flight Recorder recording is running\n");
+    } else if (pyroscopeEnabled) {
+      b.append("  - Profiling is delegated to the Pyroscope agent (JFR not started)\n");
+    }
+    b.append("  - This adds overhead and writes extra files; do NOT use in production\n");
+    b.append("  - Disable by removing openaev.debug.enabled / OPENAEV_DEBUG_ENABLED\n");
+    b.append(rule);
+    log.warn(b.toString());
+  }
 
-        ============================================================================
-        OpenAEV DEBUG MODE IS ACTIVE (openaev.debug.enabled=true)
-          - SQL statements are logged with timing and (masked) parameters
-          - A Java Flight Recorder recording is running
-          - This adds overhead and writes extra files; do NOT use in production
-          - Disable by removing openaev.debug.enabled / OPENAEV_DEBUG_ENABLED
-        ============================================================================""");
+  private boolean jfrRunning() {
+    return jfrRecordingManager.getStatus() == JfrRecordingManager.Status.RUNNING;
   }
 }

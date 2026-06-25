@@ -67,6 +67,36 @@ What each field means:
 - The `ORM ...` line is the one summary per request: total queries and time, plus `N+1 SUSPECTED` --
   the same SELECT ran once per team (lazy loading), the classic N+1 to fix.
 
+## Reading the SQL log in practice
+
+The example above is filtered to a single request for clarity. The real `openaev-debug-sql.log` is
+**not meant to be read top to bottom** -- it is a flat, chronological stream that you query, not browse.
+Know this before you open it:
+
+- **Most lines are background noise.** Every statement the datasource runs is logged, including
+  scheduled jobs and pollers that have no request context (these show `[trace= tenant=]`). On a live
+  instance the handful of lines for your request are a small fraction of the file.
+- **Lines are long.** Hibernate selects every column, so a single statement can run past a few hundred
+  characters. Use a pager that does not wrap (`less -S`) or filter first.
+- **You filter by trace id.** Get the request's trace id from the application log or the response, then
+  pull just that request:
+
+```bash
+# every statement of one request, in order
+grep "trace=<trace-id>" openaev-debug-sql.log | less -S
+
+# only the masked values (sanity-check masking)
+grep MASKED openaev-debug-sql.log | less -S
+
+# drop the context-less background noise, keep correlated statements only
+grep -E "trace=[0-9a-f]" openaev-debug-sql.log | less -S
+```
+
+These limits are inherent to logging every statement globally. Scoping the SQL log to request context
+and emitting a per-request summary line as the entry point are tracked as a follow-up (see
+[#6384](https://github.com/OpenAEV-Platform/openaev/issues/6384)); until then, the grep-by-trace
+workflow above is the intended way to use the file.
+
 ## Enabling and disabling
 
 The mode is driven by a single flag, off by default. Enable it (preferably via the environment

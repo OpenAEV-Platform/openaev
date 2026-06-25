@@ -114,13 +114,15 @@ public class JfrRecordingManager {
   /** Dumps a final snapshot and stops the recording. Safe to call when not running. */
   public synchronized void stop() {
     if (scheduler != null) {
-      scheduler.shutdownNow();
-      // Let an in-flight dump finish before closing the recording.
+      // Graceful shutdown lets an in-flight dump finish; only interrupt if it overruns.
+      scheduler.shutdown();
       try {
         if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-          log.warn("Debug mode: JFR dump thread did not terminate in time");
+          log.warn("Debug mode: JFR dump thread did not finish in time; forcing shutdown");
+          scheduler.shutdownNow();
         }
       } catch (InterruptedException e) {
+        scheduler.shutdownNow();
         Thread.currentThread().interrupt();
       }
       scheduler = null;

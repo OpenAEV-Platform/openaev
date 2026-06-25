@@ -18,10 +18,17 @@ class DebugTracingEnvironmentPostProcessorTest {
   }
 
   @Test
-  @DisplayName("disabled debug mode keeps tracing off")
-  void disabledKeepsTracingOff() {
+  @DisplayName("disabled debug mode leaves tracing configuration untouched")
+  void disabledLeavesTracingUntouched() {
     MockEnvironment env = new MockEnvironment().withProperty("openaev.debug.enabled", "false");
-    assertThat(tracing(env)).isEqualTo("false");
+    assertThat(tracing(env)).isNull();
+  }
+
+  @Test
+  @DisplayName("does not override an operator's tracing setting when debug mode is off")
+  void preservesOperatorTracingWhenDebugOff() {
+    MockEnvironment env = new MockEnvironment().withProperty("management.tracing.enabled", "true");
+    assertThat(tracing(env)).isEqualTo("true");
   }
 
   @Test

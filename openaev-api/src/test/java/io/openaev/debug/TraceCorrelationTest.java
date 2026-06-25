@@ -64,8 +64,10 @@ class TraceCorrelationTest {
           // false (the rotated-file appender). Force INFO on the loggers this test uses and capture
           // the SQL logger directly, so the test does not depend on the order tests run in.
           Logger sqlLogger = (Logger) LoggerFactory.getLogger("io.openaev.debug.sql");
-          sqlLogger.setLevel(Level.INFO);
           Logger appLogger = (Logger) LoggerFactory.getLogger("io.openaev.test.app");
+          Level originalSqlLevel = sqlLogger.getLevel();
+          Level originalAppLevel = appLogger.getLevel();
+          sqlLogger.setLevel(Level.INFO);
           appLogger.setLevel(Level.INFO);
           ListAppender<ILoggingEvent> appender = new ListAppender<>();
           appender.start();
@@ -90,6 +92,8 @@ class TraceCorrelationTest {
             span.end();
             root.detachAppender(appender);
             sqlLogger.detachAppender(appender);
+            sqlLogger.setLevel(originalSqlLevel);
+            appLogger.setLevel(originalAppLevel);
           }
 
           List<ILoggingEvent> correlated =

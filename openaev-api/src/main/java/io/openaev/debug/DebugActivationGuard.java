@@ -31,8 +31,9 @@ public class DebugActivationGuard {
 
     if (production && !override) {
       log.error(
-          "Debug mode was requested (openaev.debug.enabled=true) but REFUSED: a production profile "
-              + "is active. Set openaev.debug.allow-in-production=true to override deliberately.");
+          "Debug mode was requested (openaev.debug.enabled=true) but REFUSED: production environment "
+              + "detected (no dev/test/ci profile active). Set openaev.debug.allow-in-production=true "
+              + "to override deliberately.");
     } else if (production) {
       log.warn(
           "Debug mode is ACTIVE IN PRODUCTION via openaev.debug.allow-in-production=true. This is a "

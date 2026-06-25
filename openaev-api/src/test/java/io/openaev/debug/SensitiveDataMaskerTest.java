@@ -76,6 +76,20 @@ class SensitiveDataMaskerTest {
   }
 
   @Test
+  @DisplayName("maskStatementText is bounded even when mask-all is off (tail dropped, no leak)")
+  void maskStatementTextIsBounded() {
+    SensitiveDataMasker masker = maskerWithDefaults(); // mask-all is off by default
+    String hugeSql = "select * from t where id in (" + "1,".repeat(10_000) + "alice@example.com)";
+
+    String result = masker.maskStatementText(hugeSql);
+
+    assertThat(result).contains("...(truncated)");
+    assertThat(result.length()).isLessThanOrEqualTo(SensitiveDataMasker.MAX_SCAN_LENGTH + 32);
+    // The address sits past the cap, so it is dropped rather than scanned and logged.
+    assertThat(result).doesNotContain("alice@example.com");
+  }
+
+  @Test
   @DisplayName("isSensitiveKey is case-insensitive and substring based")
   void sensitiveKeyDetection() {
     SensitiveDataMasker masker = maskerWithDefaults();

@@ -60,7 +60,7 @@ public class SensitiveDataMasker {
     return maskText(text);
   }
 
-  /** Masks value patterns in free text. Scans the whole text (statement text is logged in full). */
+  /** Masks value patterns in the text it is given. Scans the whole argument. */
   public String maskText(String text) {
     if (!enabled || text == null || text.isEmpty()) {
       return text;
@@ -72,19 +72,23 @@ public class SensitiveDataMasker {
     return result;
   }
 
-  /** Statement text for logging; mask-all also blanks string literals (bounded, tail dropped). */
+  /**
+   * Statement text for logging, bounded to {@link #MAX_SCAN_LENGTH} so a huge statement (e.g. a
+   * long {@code IN (...)} list) cannot burn the request thread or leak past the cap. Mask-all also
+   * blanks string literals.
+   */
   public String maskStatementText(String sql) {
     if (!enabled || sql == null || sql.isEmpty()) {
       return sql;
-    }
-    if (!maskAllParameters) {
-      return maskText(sql);
     }
     String bounded =
         sql.length() > MAX_SCAN_LENGTH
             ? sql.substring(0, MAX_SCAN_LENGTH) + " ...(truncated)"
             : sql;
     String masked = maskText(bounded);
+    if (!maskAllParameters) {
+      return masked;
+    }
     return SQL_STRING_LITERAL.matcher(masked).replaceAll(mask);
   }
 }
