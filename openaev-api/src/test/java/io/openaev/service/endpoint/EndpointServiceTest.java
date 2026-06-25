@@ -120,6 +120,7 @@ class EndpointServiceTest {
       // Arrange
       EndpointInput input = new EndpointInput();
       input.setName("agentless-endpoint");
+      input.setHostname("host1");
       input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
       input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
       input.setIps(new String[] {"192.168.1.10", "10.0.0.5"});
@@ -143,6 +144,7 @@ class EndpointServiceTest {
       // Arrange
       EndpointInput input = new EndpointInput();
       input.setName("agentless-no-ip");
+      input.setHostname("host2");
       input.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
       input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
       input.setIps(null);
@@ -165,6 +167,7 @@ class EndpointServiceTest {
       // Arrange
       EndpointInput input = new EndpointInput();
       input.setName("agentless-empty-ips");
+      input.setHostname("host3");
       input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
       input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
       input.setIps(new String[] {});

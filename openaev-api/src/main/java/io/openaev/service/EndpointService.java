@@ -1116,9 +1116,7 @@ public class EndpointService {
 
   /** Ensures seenIp is populated from the first available IP when not already set. */
   private void ensureSeenIp(Endpoint endpoint) {
-    if (endpoint.getSeenIp() == null
-        && endpoint.getIps() != null
-        && endpoint.getIps().length > 0) {
+    if (endpoint.getSeenIp() == null && endpoint.getIps() != null && endpoint.getIps().length > 0) {
       endpoint.setSeenIp(endpoint.getIps()[0]);
     }
   }
