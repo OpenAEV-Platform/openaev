@@ -1,8 +1,8 @@
 import type { Editor } from '@tiptap/core';
 import { lazy, Suspense } from 'react';
 
-import type { RichTextEditorProps } from './common/rich_text_editor';
 import Loader from './Loader';
+import { RichTextEditorProps } from './common/rich_text_editor/RichTextEditor.types';
 
 // ── CKEditor-compatible public API ─────────────────────────────────────────
 // Kept for backward compatibility with existing consumers.
