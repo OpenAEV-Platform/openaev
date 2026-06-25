@@ -190,7 +190,7 @@ public class MapperService {
       String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
     ImportMapper importMapper =
         importMapperRepository
-            .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
+            .findById(UUID.fromString(mapperId))
             .orElseThrow(ElementNotFoundException::new);
     importMapper.setUpdateAttributes(importMapperUpdateInput);
     importMapper.setUpdateDate(Instant.now());
