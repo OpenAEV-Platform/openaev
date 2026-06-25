@@ -62,7 +62,7 @@ public class OpenCTIExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    CaseContent content = contentConvert(injection, CaseContent.class);
+    CaseContent content = injectExpectationService.contentConvert(injection, CaseContent.class);
     List<Document> documents =
         inject.getDocuments().stream()
             .filter(InjectDocument::isAttached)

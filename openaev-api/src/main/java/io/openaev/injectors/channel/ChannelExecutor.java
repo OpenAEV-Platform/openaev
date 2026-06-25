@@ -71,7 +71,8 @@ public class ChannelExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChannelContent content = contentConvert(injection, ChannelContent.class);
+      ChannelContent content =
+          injectExpectationService.contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
       if (articles.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one article");
