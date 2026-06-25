@@ -190,7 +190,8 @@ class EndpointServiceTest {
       existing.setSeenIp(null);
       existing.setTags(Collections.emptySet());
 
-      when(endpointRepository.findByExternalReference("ext-ref-1")).thenReturn(List.of(existing));
+      when(endpointRepository.findByExternalReference("ext-ref-1", TenantContext.getCurrentTenant()))
+          .thenReturn(List.of(existing));
       when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
@@ -204,7 +205,7 @@ class EndpointServiceTest {
       input.setTagIds(List.of());
 
       // Act
-      Endpoint result = endpointService.upsertEndpoint(input);
+      Endpoint result = endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
 
       // Assert
       assertThat(result.getSeenIp()).isEqualTo("172.16.0.1");
@@ -219,7 +220,8 @@ class EndpointServiceTest {
       existing.setSeenIp("10.0.0.99");
       existing.setTags(Collections.emptySet());
 
-      when(endpointRepository.findByExternalReference("ext-ref-2")).thenReturn(List.of(existing));
+      when(endpointRepository.findByExternalReference("ext-ref-2", TenantContext.getCurrentTenant()))
+          .thenReturn(List.of(existing));
       when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
@@ -233,7 +235,7 @@ class EndpointServiceTest {
       input.setTagIds(List.of());
 
       // Act
-      Endpoint result = endpointService.upsertEndpoint(input);
+      Endpoint result = endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
 
       // Assert
       assertThat(result.getSeenIp()).isEqualTo("10.0.0.99");

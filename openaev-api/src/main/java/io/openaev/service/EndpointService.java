@@ -333,6 +333,9 @@ public class EndpointService {
       @NotNull final String tenantId) {
     Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
+    if (toUpdate.getSeenIp() == null && toUpdate.getIps() != null && toUpdate.getIps().length > 0) {
+      toUpdate.setSeenIp(toUpdate.getIps()[0]);
+    }
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     return updateEndpoint(toUpdate);
