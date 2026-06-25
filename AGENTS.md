@@ -56,6 +56,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [review-multi-tenancy](.github/skills/review-multi-tenancy/SKILL.md) | Auditing tenant isolation of a PR or module |
 | [review-performance](.github/skills/review-performance/SKILL.md) | Auditing performance of a PR or module |
 | [review-security](.github/skills/review-security/SKILL.md) | Auditing security of a PR or module |
+| [bug-fix-quality](.github/skills/bug-fix-quality/SKILL.md) | Post-fix quality checklist before PR (all CRUD paths, tests, retrocompat, formatting) |
 
 ## Specialized Agents
 
