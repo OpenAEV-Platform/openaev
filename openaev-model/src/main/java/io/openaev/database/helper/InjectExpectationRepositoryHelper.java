@@ -1,5 +1,6 @@
 package io.openaev.database.helper;
 
+import io.openaev.annotation.AllowRawJdbc;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Repository;
  * @see io.openaev.database.model.InjectExpectation
  * @see io.openaev.database.model.InjectExpectationSignature
  */
+@AllowRawJdbc(reason = "writes injects_expectations, a non-tenant table")
 @Repository
 public class InjectExpectationRepositoryHelper {
 

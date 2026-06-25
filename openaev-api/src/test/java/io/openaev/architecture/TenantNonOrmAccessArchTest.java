@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.annotation.AllowRawJdbc;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -16,9 +17,9 @@ import java.sql.Statement;
  * Guards the one structural assumption tenant isolation rests on: only Hibernate-emitted SQL passes
  * through the tenant statement inspector. Raw JDBC bypasses it, so a query could read or write
  * tenant data unscoped. This rule forbids new raw-JDBC access in production code; tenant access
- * must go through Hibernate. The few audited, non-tenant or soon-to-be-migrated exceptions are
- * allowlisted by name, so any new use fails the build and forces a deliberate decision. Flyway
- * migrations are platform code and are excluded.
+ * must go through Hibernate. The few audited exceptions on non-tenant tables opt out explicitly
+ * with {@code @AllowRawJdbc} (each carrying a reason), so any new use fails the build and forces a
+ * deliberate decision. Flyway migrations are platform code and are excluded.
  */
 @AnalyzeClasses(packages = "io.openaev", importOptions = ImportOption.DoNotIncludeTests.class)
 class TenantNonOrmAccessArchTest {
@@ -28,18 +29,9 @@ class TenantNonOrmAccessArchTest {
       noClasses()
           .that()
           .resideOutsideOfPackage("io.openaev.migration..")
-          // Audited exceptions, each a reviewed use of raw JDBC on non-tenant tables only:
-          //  - TenantFilteringConfig reads information_schema metadata (no tenant rows);
-          //  - InjectExpectationRepositoryHelper writes injects_expectations (a non-tenant table);
-          //  - ExecutionTraceRepositoryHelper writes execution_traces and injects_statuses
-          //    (non-tenant); its injects update is now routed through Hibernate.
+          // Audited exceptions opt out explicitly with @AllowRawJdbc (each carries its reason).
           .and()
-          .doNotHaveFullyQualifiedName("io.openaev.config.TenantFilteringConfig")
-          .and()
-          .doNotHaveFullyQualifiedName("io.openaev.database.helper.ExecutionTraceRepositoryHelper")
-          .and()
-          .doNotHaveFullyQualifiedName(
-              "io.openaev.database.helper.InjectExpectationRepositoryHelper")
+          .areNotAnnotatedWith(AllowRawJdbc.class)
           .should()
           .dependOnClassesThat(
               // Spring JDBC query API by package, so the interfaces (JdbcOperations,

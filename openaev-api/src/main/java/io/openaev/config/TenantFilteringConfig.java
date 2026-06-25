@@ -1,5 +1,6 @@
 package io.openaev.config;
 
+import io.openaev.annotation.AllowRawJdbc;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -23,6 +24,7 @@ import org.springframework.context.annotation.Configuration;
  * narrowed to the activation allowlist ({@code openaev.tenant.active-tables}), empty by default, so
  * the inspector stays inert until a table is onboarded.
  */
+@AllowRawJdbc(reason = "reads information_schema metadata only; no tenant rows are accessed")
 @Configuration
 public class TenantFilteringConfig {
 

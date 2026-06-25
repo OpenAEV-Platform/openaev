@@ -1,5 +1,6 @@
 package io.openaev.database.helper;
 
+import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.database.model.ExecutionTrace;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Repository;
  *
  * @see ExecutionTrace
  */
+@AllowRawJdbc(reason = "writes execution_traces and injects_statuses, both non-tenant tables")
 @Repository
 @RequiredArgsConstructor
 public class ExecutionTraceRepositoryHelper {
