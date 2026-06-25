@@ -128,7 +128,9 @@ public class EndpointService {
   public Endpoint createEndpoint(@NotNull final EndpointInput input) {
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
-    endpoint.setIps(EndpointMapper.setIps(input.getIps()));
+    String[] ips = EndpointMapper.setIps(input.getIps());
+    endpoint.setIps(ips);
+    ensureSeenIp(endpoint);
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
     endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     endpoint.setEoL(input.isEol());
@@ -329,6 +331,7 @@ public class EndpointService {
       @NotNull final String tenantId) {
     Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
+    ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     return updateEndpoint(toUpdate);
@@ -1054,7 +1057,9 @@ public class EndpointService {
       endpointToUpdate.setPlatform(input.getPlatform());
       // Optional fields
       if (input.getIps() != null) {
-        endpointToUpdate.setIps(EndpointMapper.setIps(input.getIps()));
+        String[] ips = EndpointMapper.setIps(input.getIps());
+        endpointToUpdate.setIps(ips);
+        ensureSeenIp(endpointToUpdate);
       }
       if (input.getHostname() != null) {
         endpointToUpdate.setHostname(input.getHostname());
@@ -1107,5 +1112,12 @@ public class EndpointService {
       if (!found.isEmpty()) return Optional.of(found.getFirst());
     }
     return Optional.empty();
+  }
+
+  /** Ensures seenIp is populated from the first available IP when not already set. */
+  private void ensureSeenIp(Endpoint endpoint) {
+    if (endpoint.getSeenIp() == null && endpoint.getIps() != null && endpoint.getIps().length > 0) {
+      endpoint.setSeenIp(endpoint.getIps()[0]);
+    }
   }
 }
