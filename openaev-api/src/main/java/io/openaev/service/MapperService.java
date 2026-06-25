@@ -139,7 +139,10 @@ public class MapperService {
   public ImportMapper getDuplicateImportMapper(@NotBlank String importMapperId) {
     if (StringUtils.isNotBlank(importMapperId)) {
       ImportMapper importMapperOrigin =
-          importMapperRepository.findById(UUID.fromString(importMapperId)).orElseThrow();
+          importMapperRepository
+              .findByIdAndTenantId(
+                  UUID.fromString(importMapperId), TenantContext.getCurrentTenant())
+              .orElseThrow();
       ImportMapper importMapper =
           CopyObjectListUtils.copyObjectWithoutId(importMapperOrigin, ImportMapper.class);
       importMapper.setName(duplicateString(importMapperOrigin.getName()));
@@ -176,7 +179,7 @@ public class MapperService {
       String mapperId, ImportMapperUpdateInput importMapperUpdateInput) {
     ImportMapper importMapper =
         importMapperRepository
-            .findById(UUID.fromString(mapperId))
+            .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     importMapper.setUpdateAttributes(importMapperUpdateInput);
     importMapper.setUpdateDate(Instant.now());
@@ -334,7 +337,7 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
-   * @param CsvType used to know which entity list we want to export
+   * @param csvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
@@ -537,7 +540,7 @@ public class MapperService {
    * Import CSV with options
    *
    * @param file file to import
-   * @param targetType entity to know which columns format we use for the import
+   * @param csvType entity to know which columns format we use for the import
    * @throws Exception exception if problem during the import
    */
   public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {

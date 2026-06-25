@@ -6,6 +6,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -85,7 +86,7 @@ public class MapperApi extends RestBehavior {
       resourceType = ResourceType.MAPPER)
   public ImportMapper getImportMapperById(@PathVariable String mapperId) {
     return importMapperRepository
-        .findById(UUID.fromString(mapperId))
+        .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -182,7 +183,11 @@ public class MapperApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.MAPPER)
   public void deleteImportMapper(@PathVariable String mapperId) {
-    importMapperRepository.deleteById(UUID.fromString(mapperId));
+    UUID id = UUID.fromString(mapperId);
+    if (!importMapperRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
+      throw new ElementNotFoundException();
+    }
+    importMapperRepository.deleteById(id);
   }
 
   @PostMapping("/store")
