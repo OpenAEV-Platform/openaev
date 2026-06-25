@@ -55,7 +55,7 @@ public abstract class IntegrationFactory {
     return list;
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   public List<ConnectorInstance> findRelatedInstances(String tenantId) {
     return new ArrayList<>(
         connectorInstanceService.connectorInstancesByTenantIdAndClassName(
