@@ -55,13 +55,11 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -83,9 +81,9 @@ public class InjectExpectationService {
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
+  private final InjectExpectationLockService injectExpectationLockService;
   private final AssetGroupService assetGroupService;
   private final InjectService injectService;
-  @Resource private ObjectProvider<InjectExpectationService> selfProvider;
 
   @Resource protected ObjectMapper mapper;
 
@@ -981,6 +979,9 @@ public class InjectExpectationService {
    * <p>If signatures were never initialized for an expectation, existing signatures are cleared
    * once, then new signatures are appended. Otherwise, signatures are only appended.
    *
+   * <p>Only Detection and prevention expectations are supported for structured output signatures.
+   * Other types will be ignored with a warning.
+   *
    * @param injectId the inject ID
    * @param agentId optional agent ID target
    * @param assetId optional asset ID target
@@ -988,7 +989,7 @@ public class InjectExpectationService {
    * @param expectationType the expectation type (DETECTION or PREVENTION)
    * @param signatures signatures to append
    */
-  public void applySignaturesFromStructuredOutput(
+  public void appendExpectationSignatures(
       @NotBlank String injectId,
       @Nullable String agentId,
       @Nullable String assetId,
@@ -999,13 +1000,19 @@ public class InjectExpectationService {
       return;
     }
     if (!List.of(DETECTION, PREVENTION).contains(expectationType)) {
-      throw new IllegalArgumentException(
-          "Signature structured output is only supported for DETECTION and PREVENTION expectations");
+      log.warn(
+          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          injectId,
+          agentId,
+          assetId,
+          assetGroupId,
+          expectationType);
+      return;
     }
 
     List<InjectExpectation> expectations =
         findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
-            .filter(expectation -> expectationType == expectation.getType())
+            .filter(expectation -> expectation.getType().equals(expectationType))
             .toList();
 
     if (expectations.isEmpty()) {
@@ -1019,36 +1026,31 @@ public class InjectExpectationService {
       return;
     }
 
-    for (InjectExpectation expectation : expectations) {
-      selfProvider
-          .getObject()
-          .applySignaturesForExpectationWithLock(expectation.getId(), signatures);
+    String signaturesJson = convertValidSignaturesToStringJson(signatures);
+    if (signaturesJson != null) {
+      for (InjectExpectation expectation : expectations) {
+        injectExpectationLockService.applySignaturesForExpectationWithLock(
+            expectation.getId(), signaturesJson);
+      }
     }
   }
 
-  @Lock(type = LockResourceType.INJECT_EXPECTATION, key = "#expectationId")
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void applySignaturesForExpectationWithLock(
-      @NotBlank String expectationId, @NotNull List<InjectExpectationSignature> signatures) {
-    InjectExpectation expectation = findInjectExpectation(expectationId);
-    if (!expectation.isSignaturesInitialized()) {
-      injectExpectationRepository.clearSignaturesAndMarkInitialized(expectation.getId());
-    }
-
+  private String convertValidSignaturesToStringJson(
+      @NotNull List<InjectExpectationSignature> signatures) {
     List<InjectExpectationSignature> validSignatures =
         signatures.stream()
             .filter(Objects::nonNull)
             .filter(signature -> signature.getType() != null && signature.getValue() != null)
             .toList();
     if (validSignatures.isEmpty()) {
-      return;
+      return null;
     }
 
     try {
-      String signaturesJson = mapper.writeValueAsString(validSignatures);
-      injectExpectationRepository.appendSignatures(expectation.getId(), signaturesJson);
+      return mapper.writeValueAsString(validSignatures);
     } catch (JsonProcessingException e) {
-      throw new IllegalStateException("Failed to serialize expectation signatures", e);
+      log.warn("Failed to serialize expectation signatures", e);
+      return null;
     }
   }
 
@@ -1188,11 +1190,6 @@ public class InjectExpectationService {
    */
   @Transactional
   public void buildAndSaveInjectExpectations(
-      ExecutableInject executableInject, List<Expectation> expectations) {
-    doBuildAndSaveInjectExpectations(executableInject, expectations);
-  }
-
-  private void doBuildAndSaveInjectExpectations(
       ExecutableInject executableInject, List<Expectation> expectations) {
     if (expectations == null || expectations.isEmpty()) {
       return;

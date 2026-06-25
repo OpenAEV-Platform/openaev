@@ -1,16 +1,9 @@
 package io.openaev.output_processor;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.ContractOutputTechnicalType;
@@ -22,6 +15,7 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.InjectExpectationLockService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
@@ -30,7 +24,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class SignatureOutputProcessorTest {
@@ -41,21 +34,22 @@ class SignatureOutputProcessorTest {
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
 
-  @SuppressWarnings("unchecked")
-  private final ObjectProvider<InjectExpectationService> selfProvider = mock(ObjectProvider.class);
+  private final InjectExpectationLockService injectExpectationLockService =
+      new InjectExpectationLockService(injectExpectationRepository);
 
   private final InjectExpectationService injectExpectationService =
       new InjectExpectationService(
-          injectExpectationRepository, collectorService, securityCoverageSendJobService);
+          injectExpectationRepository,
+          collectorService,
+          securityCoverageSendJobService,
+          injectExpectationLockService);
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService, previewFeatureService);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   SignatureOutputProcessorTest() {
-    ReflectionTestUtils.setField(injectExpectationService, "selfProvider", selfProvider);
     ReflectionTestUtils.setField(injectExpectationService, "mapper", objectMapper);
-    when(selfProvider.getObject()).thenReturn(injectExpectationService);
   }
 
   @Test
@@ -925,7 +919,7 @@ class SignatureOutputProcessorTest {
       // -- Act --
       processor.process(ctx, buildContractCtx(), objectMapper.readTree(payload));
 
-      // -- Assert -- (no agent/asset/assetGroup id → applySignaturesFromStructuredOutput receives
+      // -- Assert -- (no agent/asset/assetGroup id → appendExpectationSignatures receives
       // all null)
       verify(injectExpectationRepository, never()).findAllByInjectAndAgent(any(), any());
       verify(injectExpectationRepository, never()).findAllByInjectAndAsset(any(), any());

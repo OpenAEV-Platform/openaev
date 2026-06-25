@@ -331,7 +331,6 @@ public interface InjectExpectationRepository
           FROM injects i
           WHERE ie.inject_expectation_id = :id
             AND i.inject_id = ie.inject_id
-            AND i.tenant_id = :#{#tenantContext.currentTenant}
           """,
       nativeQuery = true)
   void appendSignatures(@Param("id") String id, @Param("signaturesJson") String signaturesJson);

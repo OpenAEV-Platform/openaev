@@ -1,11 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.utils.fixtures.InjectExpectationFixture.createVulnerabilityInjectExpectation;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -54,6 +50,7 @@ class InjectExpectationServiceTest {
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
+  @Mock private InjectExpectationLockService injectExpectationLockService;
   @Spy @InjectMocks private InjectExpectationService injectExpectationService;
   @Spy private ObjectMapper mapper = new ObjectMapper();
 
@@ -784,15 +781,15 @@ class InjectExpectationServiceTest {
   }
 
   @Nested
-  @DisplayName("applySignaturesFromStructuredOutput")
-  class ApplySignaturesFromStructuredOutputTests {
+  @DisplayName("appendExpectationSignatures")
+  class AppendExpectationSignaturesTests {
 
     @Test
     @DisplayName("Returns immediately when signatures are empty")
     void givenEmptySignaturesShouldReturnWithoutSideEffects() {
       assertDoesNotThrow(
           () ->
-              injectExpectationService.applySignaturesFromStructuredOutput(
+              injectExpectationService.appendExpectationSignatures(
                   "inject-id",
                   "agent-id",
                   null,
@@ -804,15 +801,14 @@ class InjectExpectationServiceTest {
     }
 
     @Test
-    @DisplayName("Throws an IllegalArgumentException for a non-technical expectation type")
-    void givenNonTechnicalExpectationTypeShouldThrowIllegalArgumentException() {
+    @DisplayName("Returns without side effects for a non-technical expectation type")
+    void givenNonTechnicalExpectationTypeShouldReturnWithoutSideEffects() {
       List<InjectExpectationSignature> signatures =
           List.of(new InjectExpectationSignature("signature-type", "signature-value"));
 
-      assertThrows(
-          IllegalArgumentException.class,
+      assertDoesNotThrow(
           () ->
-              injectExpectationService.applySignaturesFromStructuredOutput(
+              injectExpectationService.appendExpectationSignatures(
                   "inject-id",
                   "agent-id",
                   null,
@@ -821,63 +817,31 @@ class InjectExpectationServiceTest {
                   signatures));
 
       verifyNoInteractions(injectExpectationRepository);
-    }
-  }
-
-  @Nested
-  @DisplayName("applySignaturesForExpectationWithLock()")
-  class ApplySignaturesForExpectationWithLockTests {
-
-    @Test
-    @DisplayName("Appends all valid signatures in a single repository update")
-    void shouldAppendAllValidSignaturesInSingleRepositoryUpdate() {
-      InjectExpectation expectation = new InjectExpectation();
-      expectation.setId("expectation-id");
-      expectation.setSignaturesInitialized(false);
-      when(injectExpectationRepository.findById("expectation-id"))
-          .thenReturn(Optional.of(expectation));
-
-      List<InjectExpectationSignature> signatures =
-          Arrays.asList(
-              new InjectExpectationSignature("sig-type-1", "sig-value-1"),
-              null,
-              new InjectExpectationSignature(null, "ignored"),
-              new InjectExpectationSignature("sig-type-2", "sig-value-2"));
-
-      injectExpectationService.applySignaturesForExpectationWithLock("expectation-id", signatures);
-
-      verify(injectExpectationRepository, times(1))
-          .clearSignaturesAndMarkInitialized("expectation-id");
-      ArgumentCaptor<String> signaturesJsonCaptor = ArgumentCaptor.forClass(String.class);
-      verify(injectExpectationRepository, times(1))
-          .appendSignatures(eq("expectation-id"), signaturesJsonCaptor.capture());
-
-      String payload = signaturesJsonCaptor.getValue();
-      assertTrue(payload.contains("sig-type-1"));
-      assertTrue(payload.contains("sig-value-1"));
-      assertTrue(payload.contains("sig-type-2"));
-      assertTrue(payload.contains("sig-value-2"));
-      assertTrue(!payload.contains("ignored"));
+      verifyNoInteractions(injectExpectationLockService);
     }
 
     @Test
-    @DisplayName("Skips append update when no valid signature remains after filtering")
-    void shouldSkipAppendUpdateWhenNoValidSignatureRemainsAfterFiltering() {
-      InjectExpectation expectation = new InjectExpectation();
-      expectation.setId("expectation-id");
-      expectation.setSignaturesInitialized(true);
-      when(injectExpectationRepository.findById("expectation-id"))
-          .thenReturn(Optional.of(expectation));
+    @DisplayName("Delegates to lock service for each matching expectation")
+    void givenMatchingExpectationsShouldDelegateToLockService() {
+      InjectExpectation first = new InjectExpectation();
+      first.setId("exp-1");
+      first.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
+      InjectExpectation second = new InjectExpectation();
+      second.setId("exp-2");
+      second.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
+      when(injectExpectationRepository.findAllByInjectAndAgent("inject-id", "agent-id"))
+          .thenReturn(List.of(first, second));
 
-      List<InjectExpectationSignature> signatures =
-          List.of(
-              new InjectExpectationSignature(null, "value"),
-              new InjectExpectationSignature("type", null));
+      injectExpectationService.appendExpectationSignatures(
+          "inject-id",
+          "agent-id",
+          null,
+          null,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION,
+          List.of(new InjectExpectationSignature("signature-type", "signature-value")));
 
-      injectExpectationService.applySignaturesForExpectationWithLock("expectation-id", signatures);
-
-      verify(injectExpectationRepository, never()).clearSignaturesAndMarkInitialized(any());
-      verify(injectExpectationRepository, never()).appendSignatures(any(), any());
+      verify(injectExpectationLockService, times(2))
+          .applySignaturesForExpectationWithLock(anyString(), anyString());
     }
   }
 }

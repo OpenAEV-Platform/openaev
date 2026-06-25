@@ -10,11 +10,7 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -79,17 +75,8 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
 
         List<InjectExpectationSignature> signatures =
             extractSignatures(signatureValueNode.path(VALUES));
-        if (signatures.isEmpty()) {
-          continue;
-        }
-
-        injectExpectationService.applySignaturesFromStructuredOutput(
-            injectId,
-            StringUtils.hasText(agentId) ? agentId : null,
-            StringUtils.hasText(assetId) ? assetId : null,
-            StringUtils.hasText(assetGroupId) ? assetGroupId : null,
-            expectationType.get(),
-            signatures);
+        injectExpectationService.appendExpectationSignatures(
+            injectId, agentId, assetId, assetGroupId, expectationType.get(), signatures);
       }
     }
   }
@@ -99,13 +86,8 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
       return Optional.empty();
     }
     try {
-      InjectExpectation.EXPECTATION_TYPE mapped =
-          InjectExpectation.EXPECTATION_TYPE.valueOf(value.trim().toUpperCase(Locale.ROOT));
-      if (mapped == InjectExpectation.EXPECTATION_TYPE.DETECTION
-          || mapped == InjectExpectation.EXPECTATION_TYPE.PREVENTION) {
-        return Optional.of(mapped);
-      }
-      return Optional.empty();
+      return Optional.of(
+          InjectExpectation.EXPECTATION_TYPE.valueOf(value.trim().toUpperCase(Locale.ROOT)));
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }
