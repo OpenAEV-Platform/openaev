@@ -1,7 +1,10 @@
 package io.openaev.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.helper.ObjectMapperHelper;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.ExternalDocumentation;
@@ -13,6 +16,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import jakarta.annotation.Resource;
 import org.springdoc.core.converters.models.SortObject;
 import org.springdoc.core.utils.SpringDocUtils;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.data.domain.Sort;
@@ -63,6 +67,22 @@ public class AppConfig {
   @Bean
   ObjectMapper openAEVJsonMapper() {
     return ObjectMapperHelper.openAEVJsonMapper();
+  }
+
+  /**
+   * Registers a passthrough filter for {@link AuditStateCapturable#AUDIT_STATE_FILTER} on all
+   * Spring-managed ObjectMapper instances. This ensures that entities annotated with
+   * {@code @JsonFilter("auditStateFilter")} can be serialized normally (API responses, tests)
+   * without triggering a "no FilterProvider configured" error.
+   */
+  @Bean
+  Jackson2ObjectMapperBuilderCustomizer auditStateFilterCustomizer() {
+    return builder ->
+        builder.filters(
+            new SimpleFilterProvider()
+                .addFilter(
+                    AuditStateCapturable.AUDIT_STATE_FILTER,
+                    SimpleBeanPropertyFilter.serializeAll()));
   }
 
   @Bean
