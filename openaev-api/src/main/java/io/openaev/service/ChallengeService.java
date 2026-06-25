@@ -121,11 +121,12 @@ public class ChallengeService {
     List<ChallengeInformation> challenges =
         distinctExpectations.stream()
             .map(
-                BaseInjectExpectation -> {
-                  Challenge challenge = BaseInjectExpectation.getChallenge();
-                  challenge.setVirtualPublication(BaseInjectExpectation.getCreatedAt());
+                injectExpectation -> {
+                  Challenge challenge = injectExpectation.getChallenge();
+                  challenge.setVirtualPublication(injectExpectation.getCreatedAt());
                   InjectStatus injectStatus =
-                      BaseInjectExpectation.getInject()
+                      injectExpectation
+                          .getInject()
                           .getStatus()
                           .orElseThrow(() -> new ElementNotFoundException("Status should exist"));
                   ChallengeAttemptId challengeAttemptId =
@@ -136,7 +137,7 @@ public class ChallengeService {
                           .getChallengeAttempt(challengeAttemptId)
                           .orElse(buildChallengeAttempt(challengeAttemptId));
                   return new ChallengeInformation(
-                      challenge, toOutput(BaseInjectExpectation), challengeAttempt.getAttempt());
+                      challenge, toOutput(injectExpectation), challengeAttempt.getAttempt());
                 })
             .sorted(Comparator.comparing(o -> o.getChallenge().getVirtualPublication()))
             .toList();

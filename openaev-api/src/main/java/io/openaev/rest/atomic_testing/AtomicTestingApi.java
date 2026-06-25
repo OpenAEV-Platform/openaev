@@ -211,7 +211,7 @@ public class AtomicTestingApi extends RestBehavior {
         injectExpectationService
             .findMergedExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType)
             .stream()
-            .sorted(Comparator.comparingInt(expectation -> expectation.getType().ordinal()))
+            .sorted(Comparator.comparing(expectation -> expectation.getType().name()))
             .toList());
   }
 

@@ -161,21 +161,21 @@ public class InjectExpectationResultUtils {
     return expectations.stream()
         .filter(e -> types.contains(e.getType()))
         .map(
-            BaseInjectExpectation -> {
-              if (BaseInjectExpectation.getScore() == null) {
+            injectExpectation -> {
+              if (injectExpectation.getScore() == null) {
                 return null;
               }
-              if (BaseInjectExpectation.getTeam() != null) {
-                if (BaseInjectExpectation.getScore() >= BaseInjectExpectation.getExpectedScore()) {
+              if (injectExpectation.getTeam() != null) {
+                if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
                   return 1.0;
                 } else {
                   return 0.0;
                 }
               } else {
-                if (BaseInjectExpectation.getScore() >= BaseInjectExpectation.getExpectedScore()) {
+                if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
                   return 1.0;
                 }
-                if (BaseInjectExpectation.getScore() == 0) {
+                if (injectExpectation.getScore() == 0) {
                   return 0.0;
                 }
                 return 0.5;

@@ -341,22 +341,25 @@ public class InjectsExecutionJob implements Job {
           List<BaseInjectExpectation> expectations =
               injectExpectationRepository.findAllForExerciseAndInject(exerciseId, parent.getId());
           expectations.forEach(
-              expectation -> {
+              injectExpectation -> {
                 String name =
-                    StringUtils.capitalize(expectation.getType().toString().toLowerCase());
-                if (expectation.getType().equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)) {
-                  name = expectation.getName();
+                    StringUtils.capitalize(injectExpectation.getType().toString().toLowerCase());
+                if (injectExpectation
+                    .getType()
+                    .equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)) {
+                  name = injectExpectation.getName();
                 }
-                if (BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(expectation.getType())
+                if (BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(
+                        injectExpectation.getType())
                     || BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
-                        expectation.getType())) {
-                  if (expectation.getUser() == null && expectation.getScore() != null) {
+                        injectExpectation.getType())) {
+                  if (injectExpectation.getUser() == null && injectExpectation.getScore() != null) {
                     mapCondition.put(
-                        name, expectation.getScore() >= expectation.getExpectedScore());
+                        name, injectExpectation.getScore() >= injectExpectation.getExpectedScore());
                   }
                 } else {
                   mapCondition.put(
-                      name, expectationStatusesSuccess.contains(expectation.getResponse()));
+                      name, expectationStatusesSuccess.contains(injectExpectation.getResponse()));
                 }
               });
         });
