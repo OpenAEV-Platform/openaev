@@ -158,10 +158,17 @@ environment variables). Every setting only takes effect when `openaev.debug.enab
 | `openaev.debug.masking.sensitive-keys` | see below | Field/column names whose value is always masked. |
 | `openaev.debug.masking.value-patterns` | see below | Regexes whose matches are masked anywhere. |
 
-The correlation ids follow the production barrier automatically: `DebugTracingEnvironmentPostProcessor`
-sets `management.tracing.enabled` to `true` only when the mode actually starts (enabled **and**
-allowed for the current profile). So the tracer adds nothing when the mode is off, and nothing when
-debug is requested but refused in production.
+The correlation ids follow the production barrier automatically. The Brave bridge is on the classpath
+for debug mode, and Spring Boot creates a tracer (and span-producing handlers) as soon as it is
+present -- `management.tracing.enabled` only governs export, not span creation. So
+`DebugTracingContextInitializer` **excludes the tracing auto-configuration** unless debug mode is
+active (enabled **and** allowed for the current profile). With the mode off, or when debug is
+requested but refused in production, no tracer is created and no span or `traceId` is produced on any
+request, message or job path.
+
+Tracing in OpenAEV is owned by debug mode: it is on only when debug mode is active. There is no way
+to turn tracing on independently of debug mode, by design (it has no other consumer, and this keeps
+the default install free of tracing overhead).
 
 ## Data masking
 

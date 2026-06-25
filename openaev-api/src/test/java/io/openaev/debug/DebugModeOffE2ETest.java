@@ -35,6 +35,19 @@ class DebugModeOffE2ETest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Test
+  @DisplayName("no tracing handler when debug is off, so no span/traceId on any path")
+  void noTracingWhenDebugOff() {
+    // The Brave bridge is on the classpath for debug mode, but with the flag off the tracing
+    // auto-configuration is excluded, so no observation handler turns observations into spans.
+    // Without this, every request/message/job would pay for a span and leak a traceId into the logs
+    // by default (management.tracing.enabled only gates export, not span creation).
+    assertThat(
+            context.getBeanNamesForType(
+                io.micrometer.tracing.handler.TracingObservationHandler.class))
+        .isEmpty();
+  }
+
+  @Test
   @DisplayName("datasource is not proxied and no debug beans exist")
   void noDebugFootprintByDefault() {
     assertThat(dataSource)
