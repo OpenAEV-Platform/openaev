@@ -105,43 +105,14 @@ class EndpointServiceTest {
       // -------- Assert --------
       assertNotNull(result);
       assertTrue(result.isEoL());
+      assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
       verify(tagRepository).findAllById(List.of("tag-1"));
       verify(endpointRepository).save(any(Endpoint.class));
     }
-  }
-
-  @Nested
-  @DisplayName("Bug #3723: agentless seen_ip should be auto-filled")
-  class AgentlessSeenIpBug3723 {
 
     @Test
-    @DisplayName("createEndpoint should set seenIp to first IP when IPs are provided")
-    void given_inputWithIps_should_setSeenIpToFirstIp() {
-      // Arrange
-      EndpointInput input = new EndpointInput();
-      input.setName("agentless-endpoint");
-      input.setHostname("host1");
-      input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-      input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-      input.setIps(new String[] {"192.168.1.10", "10.0.0.5"});
-      input.setTagIds(List.of());
-
-      when(tagRepository.findAllById(List.of())).thenReturn(Collections.emptyList());
-      when(endpointRepository.save(any(Endpoint.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      // Act
-      Endpoint result = endpointService.createEndpoint(input);
-
-      // Assert
-      assertThat(result.getSeenIp()).isEqualTo("192.168.1.10");
-      assertThat(result.getIps()).containsExactly("192.168.1.10", "10.0.0.5");
-    }
-
-    @Test
-    @DisplayName("createEndpoint should leave seenIp null when no IPs are provided")
-    void given_inputWithoutIps_should_leaveSeenIpNull() {
-      // Arrange
+    void shouldLeaveSeenIpNull_whenNoIpsProvided() {
+      // -------- Prepare --------
       EndpointInput input = new EndpointInput();
       input.setName("agentless-no-ip");
       input.setHostname("host2");
@@ -154,17 +125,16 @@ class EndpointServiceTest {
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
-      // Act
+      // -------- Act --------
       Endpoint result = endpointService.createEndpoint(input);
 
-      // Assert
+      // -------- Assert --------
       assertThat(result.getSeenIp()).isNull();
     }
 
     @Test
-    @DisplayName("createEndpoint should leave seenIp null when IPs array is empty")
-    void given_inputWithEmptyIps_should_leaveSeenIpNull() {
-      // Arrange
+    void shouldLeaveSeenIpNull_whenIpsArrayIsEmpty() {
+      // -------- Prepare --------
       EndpointInput input = new EndpointInput();
       input.setName("agentless-empty-ips");
       input.setHostname("host3");
@@ -177,73 +147,11 @@ class EndpointServiceTest {
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
-      // Act
+      // -------- Act --------
       Endpoint result = endpointService.createEndpoint(input);
 
-      // Assert
+      // -------- Assert --------
       assertThat(result.getSeenIp()).isNull();
-    }
-
-    @Test
-    @DisplayName("upsertEndpoint should fill seenIp when updating endpoint with null seenIp")
-    void given_existingEndpointWithNullSeenIp_should_fillSeenIpOnUpsert() {
-      // Arrange
-      Endpoint existing = new Endpoint();
-      existing.setId("ep-existing");
-      existing.setSeenIp(null);
-      existing.setTags(Collections.emptySet());
-
-      when(endpointRepository.findByExternalReference(
-              "ext-ref-1", TenantContext.getCurrentTenant()))
-          .thenReturn(List.of(existing));
-      when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
-      when(endpointRepository.save(any(Endpoint.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      EndpointInput input = new EndpointInput();
-      input.setName("updated-endpoint");
-      input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-      input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-      input.setExternalReference("ext-ref-1");
-      input.setIps(new String[] {"172.16.0.1"});
-      input.setTagIds(List.of());
-
-      // Act
-      Endpoint result = endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
-
-      // Assert
-      assertThat(result.getSeenIp()).isEqualTo("172.16.0.1");
-    }
-
-    @Test
-    @DisplayName("upsertEndpoint should NOT overwrite existing seenIp")
-    void given_existingEndpointWithSeenIp_should_notOverwriteOnUpsert() {
-      // Arrange
-      Endpoint existing = new Endpoint();
-      existing.setId("ep-existing");
-      existing.setSeenIp("10.0.0.99");
-      existing.setTags(Collections.emptySet());
-
-      when(endpointRepository.findByExternalReference(
-              "ext-ref-2", TenantContext.getCurrentTenant()))
-          .thenReturn(List.of(existing));
-      when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
-      when(endpointRepository.save(any(Endpoint.class)))
-          .thenAnswer(invocation -> invocation.getArgument(0));
-
-      EndpointInput input = new EndpointInput();
-      input.setName("updated-endpoint-2");
-      input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
-      input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
-      input.setExternalReference("ext-ref-2");
-      input.setIps(new String[] {"172.16.0.2"});
-      input.setTagIds(List.of());
-
-      // Act
-      Endpoint result = endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
-
-      // Assert
-      assertThat(result.getSeenIp()).isEqualTo("10.0.0.99");
     }
   }
 
@@ -535,6 +443,7 @@ class EndpointServiceTest {
       input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
       input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
       input.setHostname("host-updated");
+      input.setIps(new String[] {"10.0.0.1"});
       input.setEol(false);
       input.setTagIds(List.of());
       when(tagRepository.findAllById(List.of())).thenReturn(Collections.emptyList());
@@ -547,7 +456,68 @@ class EndpointServiceTest {
       // -------- Assert --------
       assertNotNull(result);
       assertFalse(result.isEoL());
+      assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
       verify(endpointRepository).save(any(Endpoint.class));
+    }
+
+    @Test
+    void shouldFillSeenIpOnUpsert_whenSeenIpIsNull() {
+      // -------- Prepare --------
+      Endpoint existing = new Endpoint();
+      existing.setId("ep-existing");
+      existing.setSeenIp(null);
+      existing.setTags(Collections.emptySet());
+
+      when(endpointRepository.findByExternalReference(
+              "ext-ref-1", TenantContext.getCurrentTenant()))
+          .thenReturn(List.of(existing));
+      when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
+      when(endpointRepository.save(any(Endpoint.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      EndpointInput input = new EndpointInput();
+      input.setName("updated-endpoint");
+      input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+      input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+      input.setExternalReference("ext-ref-1");
+      input.setIps(new String[] {"172.16.0.1"});
+      input.setTagIds(List.of());
+
+      // -------- Act --------
+      Endpoint result = endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
+
+      // -------- Assert --------
+      assertThat(result.getSeenIp()).isEqualTo("172.16.0.1");
+    }
+
+    @Test
+    void shouldNotOverwriteExistingSeenIpOnUpsert() {
+      // -------- Prepare --------
+      Endpoint existing = new Endpoint();
+      existing.setId("ep-existing");
+      existing.setSeenIp("10.0.0.99");
+      existing.setTags(Collections.emptySet());
+
+      when(endpointRepository.findByExternalReference(
+              "ext-ref-2", TenantContext.getCurrentTenant()))
+          .thenReturn(List.of(existing));
+      when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
+      when(endpointRepository.save(any(Endpoint.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      EndpointInput input = new EndpointInput();
+      input.setName("updated-endpoint-2");
+      input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
+      input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
+      input.setExternalReference("ext-ref-2");
+      input.setIps(new String[] {"172.16.0.2"});
+      input.setTagIds(List.of());
+
+      // -------- Act --------
+      Endpoint result = endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
+
+      // -------- Assert --------
+      assertThat(result.getSeenIp()).isEqualTo("10.0.0.99");
     }
   }
 
