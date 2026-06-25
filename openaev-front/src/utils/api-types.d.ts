@@ -4861,7 +4861,7 @@ export interface InjectOutput {
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
   inject_exercise?: string;
-  inject_expectations?: string[];
+  inject_expectations?: InjectExpectationOutput[];
   inject_healthchecks?: HealthCheck[];
   /**
    * ID of the inject
