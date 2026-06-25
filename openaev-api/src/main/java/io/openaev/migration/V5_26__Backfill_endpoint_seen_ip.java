@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Backfills {@code endpoint_seen_ip} for existing endpoints that have IPs but a null seen_ip. This
- * fixes historical data affected by bug #3723 where agentless endpoint creation did not populate
- * seen_ip.
+ * fixes historical data where agentless endpoint creation did not populate seen_ip from the first
+ * known IP address.
  */
 @Component
 public class V5_26__Backfill_endpoint_seen_ip extends BaseJavaMigration {
