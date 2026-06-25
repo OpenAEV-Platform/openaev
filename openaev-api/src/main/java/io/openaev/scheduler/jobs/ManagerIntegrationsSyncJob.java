@@ -30,6 +30,9 @@ public class ManagerIntegrationsSyncJob implements Job {
   private final @Qualifier("managerIntegrationsExecutor") Executor managerIntegrationsExecutor;
   // Track in-flight tenant syncs to avoid scheduling overlapping runs.
   private final Set<String> runningTenantSyncs = ConcurrentHashMap.newKeySet();
+  // Track tenants that have already completed one sync run to avoid startup warm-up slow-call
+  // noise.
+  private final Set<String> tenantsWithFirstSyncCompleted = ConcurrentHashMap.newKeySet();
 
   @Override
   @LogExecutionTime
@@ -81,7 +84,8 @@ public class ManagerIntegrationsSyncJob implements Job {
     } finally {
       TenantContext.clearCurrentTenant();
       long tenantDuration = System.currentTimeMillis() - tenantStart;
-      if (tenantDuration > TENANT_EXECUTION_TIME_THRESHOLD) {
+      if (tenantDuration > TENANT_EXECUTION_TIME_THRESHOLD
+          && shouldLogSlowTenantExecution(tenantId)) {
         log.warn(
             "==> managerFactory.getManager(tenantId).monitorIntegrations() for tenant '{}' took {} ms (threshold {} ms)",
             tenantId,
@@ -89,5 +93,9 @@ public class ManagerIntegrationsSyncJob implements Job {
             TENANT_EXECUTION_TIME_THRESHOLD);
       }
     }
+  }
+
+  boolean shouldLogSlowTenantExecution(String tenantId) {
+    return !tenantsWithFirstSyncCompleted.add(tenantId);
   }
 }

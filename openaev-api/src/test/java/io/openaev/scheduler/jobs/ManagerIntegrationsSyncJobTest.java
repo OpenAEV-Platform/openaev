@@ -2,6 +2,8 @@ package io.openaev.scheduler.jobs;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -99,6 +101,39 @@ class ManagerIntegrationsSyncJobTest {
       assertDoesNotThrow(() -> job.execute(null));
       assertDoesNotThrow(() -> job.execute(null));
       verify(tenantAManager, times(2)).monitorIntegrations();
+    }
+  }
+
+  @Nested
+  @DisplayName("shouldLogSlowTenantExecution")
+  class ShouldLogSlowTenantExecutionTests {
+
+    @Test
+    void given_firstSyncForTenant_should_notLogSlowCall() {
+      // Arrange
+      ManagerIntegrationsSyncJob job =
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+
+      // Act
+      boolean shouldLog = job.shouldLogSlowTenantExecution("tenant-a");
+
+      // Assert
+      assertFalse(shouldLog);
+    }
+
+    @Test
+    void given_secondSyncForTenant_should_logSlowCall() {
+      // Arrange
+      ManagerIntegrationsSyncJob job =
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+
+      // Act
+      boolean firstCall = job.shouldLogSlowTenantExecution("tenant-a");
+      boolean secondCall = job.shouldLogSlowTenantExecution("tenant-a");
+
+      // Assert
+      assertFalse(firstCall);
+      assertTrue(secondCall);
     }
   }
 
