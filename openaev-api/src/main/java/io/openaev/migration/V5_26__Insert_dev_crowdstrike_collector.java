@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * times (IF NOT EXISTS guards).
  */
 @Component
-public class V5_24__Insert_dev_crowdstrike_collector extends BaseJavaMigration {
+public class V5_26__Insert_dev_crowdstrike_collector extends BaseJavaMigration {
 
   private static final String DEFAULT_TENANT_ID = "2cffad3a-0001-4078-b0e2-ef74274022c3";
   private static final String COLLECTOR_TYPE_ID = "dev-ct-0001-0000-0000-crowdstrike00";

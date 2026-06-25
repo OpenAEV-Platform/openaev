@@ -12,4 +12,3 @@ export interface RichTextEditorProps {
    */
   onReady?: (editor: unknown) => void;
 }
-
