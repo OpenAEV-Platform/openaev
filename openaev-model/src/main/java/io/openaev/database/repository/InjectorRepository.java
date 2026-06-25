@@ -20,6 +20,10 @@ public interface InjectorRepository
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
+  @NotNull
+  Optional<Injector> findFirstByContractsCompositeIdIdAndTenantId(
+      @NotNull String contractId, @NotNull String tenantId);
+
   List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);
 
   @Modifying

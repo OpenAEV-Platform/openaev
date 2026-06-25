@@ -71,9 +71,17 @@ public class InjectUtils {
           .orElseThrow(
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
     }
-    // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
-      return injectorContract.getFirstInjector();
+    // Auto-resolve from linked injectors (single-instance fallback)
+    if (injectorContract != null
+        && injectorContract.getInjectors() != null
+        && !injectorContract.getInjectors().isEmpty()) {
+      return injectorContract.getInjectors().getFirst();
+    }
+    if (injectorContract != null) {
+      return injectorRepository
+          .findFirstByContractsCompositeIdIdAndTenantId(
+              injectorContract.getId(), TenantContext.getCurrentTenant())
+          .orElse(null);
     }
     return null;
   }
@@ -96,9 +104,17 @@ public class InjectUtils {
     if (StringUtils.isNotBlank(injectorId)) {
       return injectorRepository.getReferenceById(injectorId);
     }
-    // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
-      return injectorContract.getFirstInjector();
+    // Auto-resolve from linked injectors (single-instance fallback)
+    if (injectorContract != null
+        && injectorContract.getInjectors() != null
+        && !injectorContract.getInjectors().isEmpty()) {
+      return injectorContract.getInjectors().getFirst();
+    }
+    if (injectorContract != null) {
+      return injectorRepository
+          .findFirstByContractsCompositeIdIdAndTenantId(
+              injectorContract.getId(), TenantContext.getCurrentTenant())
+          .orElse(null);
     }
     return null;
   }
