@@ -193,7 +193,8 @@ class EndpointServiceTest {
       existing.setSeenIp(null);
       existing.setTags(Collections.emptySet());
 
-      when(endpointRepository.findByExternalReference("ext-ref-1", TenantContext.getCurrentTenant()))
+      when(endpointRepository.findByExternalReference(
+              "ext-ref-1", TenantContext.getCurrentTenant()))
           .thenReturn(List.of(existing));
       when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
       when(endpointRepository.save(any(Endpoint.class)))
@@ -223,7 +224,8 @@ class EndpointServiceTest {
       existing.setSeenIp("10.0.0.99");
       existing.setTags(Collections.emptySet());
 
-      when(endpointRepository.findByExternalReference("ext-ref-2", TenantContext.getCurrentTenant()))
+      when(endpointRepository.findByExternalReference(
+              "ext-ref-2", TenantContext.getCurrentTenant()))
           .thenReturn(List.of(existing));
       when(tagRepository.findAllById(any())).thenReturn(Collections.emptyList());
       when(endpointRepository.save(any(Endpoint.class)))
