@@ -28,20 +28,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * #5718's mapper isolation tests (@johanah29), adapted to v2. The originals asserted v1 behaviour
- * (Hibernate {@code @Filter} + {@code findByIdAndTenantId}); this PR moves {@code import_mappers}
- * fully to v2, so the assertions are updated: a cross-tenant delete is a scoped no-op under v2
- * (2xx, the row survives), not a 404. The mapper is seeded straight into the table so no scope is
- * set during setup, and each test stays on a single tenant path so the per-request scope is set
- * once (the aspect forbids redefining the scope within one transaction). Ground-truth reads use raw
- * JDBC so the rewriter never touches them. This overlaps {@link ImportMapperHttpIsolationTest} by
- * design; kept until {@code import_mappers}' v1 path is fully retired, then consolidated via the
- * TENANT_ISOLATION.md skill.
+ * Mapper isolation tests through the real API, asserting v2 behaviour: cross-tenant reads and
+ * updates return 404, and a cross-tenant delete is a scoped no-op (2xx, the row survives). The
+ * mapper is seeded straight into the table so no scope is set during setup, and each test stays on
+ * a single tenant path so the per-request scope is set once (the aspect forbids redefining the
+ * scope within one transaction). Ground-truth reads use raw JDBC so the rewriter never touches
+ * them. Overlaps {@link ImportMapperHttpIsolationTest} by design; kept until {@code
+ * import_mappers}' v1 path is fully retired, then consolidated via the TENANT_ISOLATION.md skill.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
-@DisplayName("Tenant Isolation (mapper API, #5718 adapted to v2)")
+@DisplayName("Tenant Isolation (mapper API, adapted to v2)")
 class MapperApiTenantIsolationTest extends IntegrationTest {
 
   private static final String MAPPER_BY_ID = "/api/tenants/{tenantId}/mappers/{mapperId}";
