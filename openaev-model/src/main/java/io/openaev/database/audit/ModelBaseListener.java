@@ -239,6 +239,7 @@ public class ModelBaseListener {
   private boolean shouldCaptureAuditDiff(Object entity) {
     return auditLogProperties.isEnabled()
         && entity instanceof Base
-        && entity.getClass().isAnnotationPresent(AuditDiffTracked.class);
+        && entity.getClass().isAnnotationPresent(AuditDiffTracked.class)
+        && AuditLogContext.hasRequestContext();
   }
 }
