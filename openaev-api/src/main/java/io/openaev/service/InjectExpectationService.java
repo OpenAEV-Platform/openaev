@@ -20,8 +20,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.aop.lock.Lock;
-import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
@@ -39,7 +37,9 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -1190,6 +1190,11 @@ public class InjectExpectationService {
    */
   @Transactional
   public void buildAndSaveInjectExpectations(
+      ExecutableInject executableInject, List<Expectation> expectations) {
+    doBuildAndSaveInjectExpectations(executableInject, expectations);
+  }
+
+  private void doBuildAndSaveInjectExpectations(
       ExecutableInject executableInject, List<Expectation> expectations) {
     if (expectations == null || expectations.isEmpty()) {
       return;
