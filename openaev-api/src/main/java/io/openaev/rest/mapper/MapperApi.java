@@ -6,7 +6,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -63,6 +64,7 @@ public class MapperApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final MapperService mapperService;
   private final InjectImportService injectImportService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // 25mb in byte
   private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
@@ -72,7 +74,7 @@ public class MapperApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MAPPER)
   public Page<RawPaginationImportMapper> getImportMapper(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
             this.importMapperRepository::findAll, searchPaginationInput, ImportMapper.class)
         .map(RawPaginationImportMapper::new);
@@ -84,9 +86,11 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.MAPPER)
-  public ImportMapper getImportMapperById(@PathVariable String mapperId) {
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
+  // to the caller's tenants. The handler does not use it directly.
+  public ImportMapper getImportMapperById(TxCtx ctx, @PathVariable String mapperId) {
     return importMapperRepository
-        .findByIdAndTenantId(UUID.fromString(mapperId), TenantContext.getCurrentTenant())
+        .findById(UUID.fromString(mapperId))
         .orElseThrow(ElementNotFoundException::new);
   }
 
@@ -94,15 +98,20 @@ public class MapperApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.MAPPER)
   public ImportMapper createImportMapper(
-      @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
-    return mapperService.createAndSaveImportMapper(importMapperAddInput);
+      TxCtx ctx, @RequestBody @Valid final ImportMapperAddInput importMapperAddInput) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return mapperService.createAndSaveImportMapper(tenantId, importMapperAddInput);
   }
 
   @PostMapping(value = "/export")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
+  // TxCtx scopes the export to the caller's tenants; an id outside the scope resolves to nothing
+  // and is silently skipped. The handler does not use it directly.
   public void exportMappers(
-      @RequestBody @Valid final ExportMapperInput exportMapperInput, HttpServletResponse response) {
+      TxCtx ctx,
+      @RequestBody @Valid final ExportMapperInput exportMapperInput,
+      HttpServletResponse response) {
     try {
       String jsonMappers = mapperService.exportMappers(exportMapperInput.getIdsToExport());
 
@@ -142,10 +151,12 @@ public class MapperApi extends RestBehavior {
   @PostMapping("/import")
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MAPPER)
-  public void importMappers(@RequestPart("file") @NotNull MultipartFile file)
+  public void importMappers(TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file)
       throws ImportException {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     try {
       mapperService.importMappers(
+          tenantId,
           mapper.readValue(file.getInputStream().readAllBytes(), new TypeReference<>() {}));
     } catch (Exception e) {
       log.error(e.getMessage(), e);
@@ -160,7 +171,10 @@ public class MapperApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.MAPPER)
   @Operation(summary = "Duplicate XLS mapper by id")
-  public ImportMapper duplicateMapper(@PathVariable @NotBlank final String mapperId) {
+  // TxCtx scopes the lookup of the source mapper to the caller's tenants; the copy inherits the
+  // source's tenant. A source outside the scope is not found, so a cross-tenant duplicate cannot
+  // reach it. The handler does not use it directly.
+  public ImportMapper duplicateMapper(TxCtx ctx, @PathVariable @NotBlank final String mapperId) {
     return mapperService.getDuplicateImportMapper(mapperId);
   }
 
@@ -170,7 +184,10 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.MAPPER)
+  // TxCtx scopes the lookup and the update to the caller's tenants; a mapper outside the scope is
+  // not found, so a cross-tenant write cannot reach it. The handler does not use it directly.
   public ImportMapper updateImportMapper(
+      TxCtx ctx,
       @PathVariable String mapperId,
       @Valid @RequestBody ImportMapperUpdateInput importMapperUpdateInput) {
     return mapperService.updateImportMapper(mapperId, importMapperUpdateInput);
@@ -182,12 +199,10 @@ public class MapperApi extends RestBehavior {
       resourceId = "#mapperId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.MAPPER)
-  public void deleteImportMapper(@PathVariable String mapperId) {
-    UUID id = UUID.fromString(mapperId);
-    if (!importMapperRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
-      throw new ElementNotFoundException();
-    }
-    importMapperRepository.deleteById(id);
+  // TxCtx scopes the delete to the caller's tenants; a delete outside the scope matches no row and
+  // removes nothing. The handler does not use it directly.
+  public void deleteImportMapper(TxCtx ctx, @PathVariable String mapperId) {
+    importMapperRepository.deleteById(UUID.fromString(mapperId));
   }
 
   @PostMapping("/store")

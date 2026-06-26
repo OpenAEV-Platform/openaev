@@ -33,6 +33,7 @@ public class FindingService {
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
+  private final FindingWriter findingWriter;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -153,7 +154,7 @@ public class FindingService {
   public void saveAgentFinding(
       Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
 
-    findingRepository.saveCompleteFinding(
+    findingWriter.saveCompleteFinding(
         contractOutputContext.key(),
         contractOutputContext.type().name(),
         value,
