@@ -476,10 +476,7 @@ class QuickInjectComponent extends Component {
                       name={field.key}
                       label={t(field.label)}
                       fullWidth={true}
-                      style={{
-                        marginTop: theme.spacing(2.5),
-                        height: 250,
-                      }}
+                      style={{ marginTop: theme.spacing(2.5) }}
                       disabled={isDisabled}
                     />
                   )
