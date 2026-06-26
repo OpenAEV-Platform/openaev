@@ -7448,6 +7448,64 @@ export interface SearchTerm {
   searchTerm?: string;
 }
 
+export interface AiTarget {
+  ai_target_api_key_variable?: string;
+  ai_target_configuration?: Record<string, unknown>;
+  ai_target_endpoint?: string;
+  ai_target_model?: string;
+  ai_target_modality: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_provider:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP";
+  ai_target_system_prompt?: string;
+  /** @format date-time */
+  asset_created_at: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_id: string;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_tags?: string[];
+  asset_type?: string;
+  /** @format date-time */
+  asset_updated_at: string;
+  listened?: boolean;
+}
+
+export interface AiTargetInput {
+  ai_target_api_key_variable?: string | null;
+  ai_target_configuration?: Record<string, unknown>;
+  ai_target_endpoint?: string | null;
+  ai_target_model?: string | null;
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_provider:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP";
+  ai_target_system_prompt?: string | null;
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_tags?: string[];
+}
+
 export interface SecurityPlatform {
   /** @format date-time */
   asset_created_at: string;
@@ -7465,7 +7523,15 @@ export interface SecurityPlatform {
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];
-  security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
 }
 
 export interface SecurityPlatformInput {
@@ -7476,7 +7542,15 @@ export interface SecurityPlatformInput {
   asset_tags?: string[];
   security_platform_logo_dark?: string | null;
   security_platform_logo_light?: string | null;
-  security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
 }
 
 export interface SecurityPlatformUpsertInput {
@@ -7487,7 +7561,15 @@ export interface SecurityPlatformUpsertInput {
   asset_tags?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
-  security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
 }
 
 export interface Series {

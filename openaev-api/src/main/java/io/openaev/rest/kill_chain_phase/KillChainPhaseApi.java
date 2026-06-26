@@ -117,9 +117,14 @@ public class KillChainPhaseApi extends RestBehavior {
             newKillChainPhase.setShortName(shortName);
             newKillChainPhase.setName(killChainPhaseCreateInput.getName());
             newKillChainPhase.setDescription(killChainPhaseCreateInput.getDescription());
+            // Honor an explicit, non-zero order from the input (used by importers that know their own
+            // matrix ordering, e.g. MITRE ATLAS); otherwise resolve the canonical order from the
+            // kill chain name + short name (mitre-attack or mitre-atlas).
+            Long inputOrder = killChainPhaseCreateInput.getOrder();
             newKillChainPhase.setOrder(
-                Optional.ofNullable(KillChainPhaseUtils.orderFromMitreAttack().get(shortName))
-                    .orElse(0L));
+                inputOrder != null && inputOrder != 0L
+                    ? inputOrder
+                    : KillChainPhaseUtils.orderFor(killChainName, shortName));
             upserted.add(newKillChainPhase);
           } else {
             KillChainPhase killChainPhase = optionalKillChainPhase.get();

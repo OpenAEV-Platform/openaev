@@ -382,6 +382,18 @@ public class PayloadService {
         payloadUtils.duplicateCommonProperties(originNetworkTraffic, duplicateNetworkTraffic);
         yield duplicateNetworkTraffic;
       }
+      case AI_ATTACK -> {
+        AiAttack originAiAttack = (AiAttack) Hibernate.unproxy(originalPayload);
+        AiAttack duplicateAiAttack = new AiAttack();
+        payloadUtils.duplicateCommonProperties(originAiAttack, duplicateAiAttack);
+        duplicateAiAttack.setEngine(originAiAttack.getEngine());
+        duplicateAiAttack.setCategory(originAiAttack.getCategory());
+        duplicateAiAttack.setContent(originAiAttack.getContent());
+        duplicateAiAttack.setMultiTurn(originAiAttack.getMultiTurn());
+        duplicateAiAttack.setConverters(originAiAttack.getConverters());
+        duplicateAiAttack.setSuccessDetector(originAiAttack.getSuccessDetector());
+        yield duplicateAiAttack;
+      }
     };
   }
 

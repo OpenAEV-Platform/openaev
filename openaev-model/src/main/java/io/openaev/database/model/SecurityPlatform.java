@@ -62,6 +62,11 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     NDR,
     @JsonProperty("ISPM")
     ISPM,
+    // AI defense platforms (LLM firewalls / guardrails / AI gateways)
+    @JsonProperty("LLM_FIREWALL")
+    LLM_FIREWALL,
+    @JsonProperty("AI_GATEWAY")
+    AI_GATEWAY,
   }
 
   @Queryable(filterable = true, sortable = true)
