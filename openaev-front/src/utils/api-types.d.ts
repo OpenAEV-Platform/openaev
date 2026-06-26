@@ -1506,6 +1506,8 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
+  /** Whether the comparison is case-sensitive */
+  condition_case_sensitive?: boolean;
   /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
@@ -1569,11 +1571,10 @@ export interface ConditionCreateInput {
     | "DEPEND_ON";
   /** Value to be compared */
   condition_value?: string;
-  /** Whether the comparison is case-sensitive */
-  condition_case_sensitive?: boolean;
 }
 
 export interface ConditionOutput {
+  condition_case_sensitive?: boolean;
   condition_id?: string;
   condition_key?: string;
   condition_key_subtype?:
@@ -1613,7 +1614,6 @@ export interface ConditionOutput {
   condition_parent_id?: string;
   condition_type?: string;
   condition_value?: string;
-  condition_case_sensitive?: boolean;
 }
 
 export interface Configuration {
