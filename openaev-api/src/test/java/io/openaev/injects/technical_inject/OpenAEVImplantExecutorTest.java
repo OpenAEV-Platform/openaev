@@ -196,7 +196,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     // -- Arrange --
     Expectation expectation = new Expectation();
     expectation.setName("prevention");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.PREVENTION);
+    expectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
@@ -222,18 +222,18 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     openAEVImplantExecutor.process(execution, executableInject);
 
     // -- Assert --
-    List<InjectExpectation> expectations =
+    List<BaseInjectExpectation> expectations =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, expectations.size());
 
-    List<InjectExpectation> assetGroupExpectations =
+    List<BaseInjectExpectation> assetGroupExpectations =
         expectations.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
 
-    List<InjectExpectation> agentExpectations =
+    List<BaseInjectExpectation> agentExpectations =
         expectations.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
@@ -256,7 +256,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     // -- Arrange --
     Expectation expectation = new Expectation();
     expectation.setName("manual");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
+    expectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
@@ -282,18 +282,18 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     openAEVImplantExecutor.process(execution, executableInject);
 
     // -- Assert --
-    List<InjectExpectation> expectations =
+    List<BaseInjectExpectation> expectations =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, expectations.size());
 
-    List<InjectExpectation> assetGroupExpectations =
+    List<BaseInjectExpectation> assetGroupExpectations =
         expectations.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
 
-    List<InjectExpectation> agentExpectations =
+    List<BaseInjectExpectation> agentExpectations =
         expectations.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)

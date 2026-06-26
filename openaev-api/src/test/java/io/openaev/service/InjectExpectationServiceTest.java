@@ -46,8 +46,6 @@ class InjectExpectationServiceTest {
   static final Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
-  @Mock private CollectorService collectorService;
-  @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
@@ -110,7 +108,7 @@ class InjectExpectationServiceTest {
   }
 
   private static io.openaev.model.inject.form.Expectation createFormExpectation(
-      InjectExpectation.EXPECTATION_TYPE type) {
+      BaseInjectExpectation.EXPECTATION_TYPE type) {
     io.openaev.model.inject.form.Expectation expectation =
         ExpectationFixture.createExpectation(type, "test-" + type.name().toLowerCase());
     expectation.setExpectationGroup(false);
@@ -176,7 +174,7 @@ class InjectExpectationServiceTest {
       "Should map zero score to unsuccessful collector result when validating asset result")
   void given_zeroScoreResult_should_setIsSuccessToFalseInCollectorUpdate() {
     // Arrange
-    InjectExpectation expectation =
+    BaseInjectExpectation expectation =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceId("collector-id");
@@ -203,7 +201,7 @@ class InjectExpectationServiceTest {
       "Should map positive score to successful collector result when validating asset result")
   void given_positiveScoreResult_should_setIsSuccessToTrueInCollectorUpdate() {
     // Arrange
-    InjectExpectation expectation =
+    BaseInjectExpectation expectation =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceId("collector-id");
@@ -252,7 +250,7 @@ class InjectExpectationServiceTest {
     // Arrange
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
-        List.of(createFormExpectation(InjectExpectation.EXPECTATION_TYPE.ARTICLE)));
+        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
     List<io.openaev.model.Expectation> expectations = new ArrayList<>();
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
@@ -296,11 +294,11 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.ARTICLE)));
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
 
     Asset matchingAsset = AssetFixture.createDefaultAsset("matching");
     matchingAsset.setId("asset-matching-id");
@@ -375,10 +373,10 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)));
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)));
 
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
@@ -406,10 +404,10 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)));
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)));
 
     Asset matchingAsset = AssetFixture.createDefaultAsset("matching");
     matchingAsset.setId("asset-matching-id");
