@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_26__Rename_datapack_ids_to_new_package extends BaseJavaMigration {
+public class V5_27__Rename_datapack_ids_to_new_package extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
