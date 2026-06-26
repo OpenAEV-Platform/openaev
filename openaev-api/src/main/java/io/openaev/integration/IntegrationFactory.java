@@ -55,12 +55,11 @@ public abstract class IntegrationFactory {
     return list;
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   public List<ConnectorInstance> findRelatedInstances(String tenantId) {
-    return connectorInstanceService.connectorInstancesByTenantId(tenantId).stream()
-        .filter(ci -> this.getClassName().equals(ci.getClassName()))
-        .map(ci -> (ConnectorInstance) ci)
-        .toList();
+    return new ArrayList<>(
+        connectorInstanceService.connectorInstancesByTenantIdAndClassName(
+            tenantId, this.getClassName()));
   }
 
   public abstract Integration spawn(ConnectorInstance instance)
