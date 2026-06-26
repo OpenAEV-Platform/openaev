@@ -15,14 +15,18 @@ import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
 import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Integration tests verifying that {@code @AuditDiffTracked} entities produce field-level diffs in
@@ -43,7 +47,16 @@ class AuditDiffTrackedTest extends IntegrationTest {
 
   @BeforeEach
   void setup() {
+    // Ensure a RequestContext is available so AuditLogContext uses request-scoped storage
+    RequestContextHolder.setRequestAttributes(
+        new ServletRequestAttributes(new MockHttpServletRequest()));
     AuditLogContext.clear();
+  }
+
+  @AfterEach
+  void tearDown() {
+    AuditLogContext.clear();
+    RequestContextHolder.resetRequestAttributes();
   }
 
   @Nested
