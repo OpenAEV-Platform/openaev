@@ -14,7 +14,9 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationLockService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
@@ -33,6 +35,8 @@ class SignatureOutputProcessorTest {
   private final CollectorService collectorService = mock(CollectorService.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
+  private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
+  private final InjectService injectService = mock(InjectService.class);
 
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
@@ -42,7 +46,9 @@ class SignatureOutputProcessorTest {
           injectExpectationRepository,
           collectorService,
           securityCoverageSendJobService,
-          injectExpectationLockService);
+          injectExpectationLockService,
+          assetGroupService,
+          injectService);
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService, previewFeatureService);

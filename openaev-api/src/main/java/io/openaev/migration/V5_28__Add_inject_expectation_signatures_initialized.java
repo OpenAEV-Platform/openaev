@@ -1,10 +1,9 @@
 package io.openaev.migration;
 
+import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
-
-import java.sql.Statement;
 
 @Component
 public class V5_28__Add_inject_expectation_signatures_initialized extends BaseJavaMigration {
