@@ -10,6 +10,7 @@ import {
   type SelectChangeEvent,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -162,28 +163,30 @@ const EventConditionRow: FunctionComponent<Props> = ({
       }}
       >
         {showCaseSensitive && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-          }}
-          >
-            <Switch
-              size="small"
-              checked={condition.caseSensitive}
-              onChange={handleCaseSensitiveToggle}
-              color="primary"
-            />
-            <Typography
-              variant="caption"
-              sx={{
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
+          <Tooltip title={condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+            }}
             >
-              {t('Aa')}
-            </Typography>
-          </div>
+              <Switch
+                size="small"
+                checked={condition.caseSensitive}
+                onChange={handleCaseSensitiveToggle}
+                color="primary"
+              />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t('Aa')}
+              </Typography>
+            </div>
+          </Tooltip>
         )}
 
         {/* Delete button — only visible when more than one condition */}

@@ -30,6 +30,7 @@ interface EventCreationFormProps {
   onCancel: () => void;
   initialData?: EventFormData;
   submitLabel?: string;
+  defaultName?: string;
 }
 
 const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
@@ -37,13 +38,14 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
   onCancel,
   initialData,
   submitLabel,
+  defaultName,
 }) => {
   const { t } = useFormatter();
   const methods = useForm<EventBaseInput>({
     mode: 'onChange',
     resolver: zodResolver(eventBaseSchema),
     defaultValues: {
-      event_name: initialData?.name ?? '',
+      event_name: initialData?.name ?? defaultName ?? '',
       event_description: initialData?.description ?? '',
     },
   });
@@ -69,11 +71,14 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
 
   const handleAddConditionGroup = useCallback(() => {
     setConditionGroups(prev => [...prev, createEmptyGroup('AND')]);
-    setGroupOperators(prev => [...prev, 'AND']);
+    // Preserve the current operator so the new gap stays in sync with the others
+    setGroupOperators(prev => [...prev, prev[0] ?? 'AND']);
   }, []);
 
   const handleUpdateGroupOperator = useCallback((gapIndex: number, op: LogicalOperator) => {
-    setGroupOperators(prev => prev.map((o, i) => (i === gapIndex ? op : o)));
+    // The backend stores a single root operator for all groups.
+    // All gap operators must stay in sync — update every gap to the new value.
+    setGroupOperators(prev => prev.map(() => op));
   }, []);
 
   const cloneGroup = (conditionGroup: ConditionGroup): ConditionGroup => ({
@@ -107,20 +112,25 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
     const [moved] = srcGroup.conditions.splice(sourceIdx, 1); // remove from source
     dstGroup.conditions.splice(destinationIdx, 0, moved); // add in destination
 
-    // Remove any top-level group that became empty after the drag
-    const nonEmptyIndices: number[] = [];
-    const cleaned = next.filter((g, i) => {
-      const keep = g.conditions.length > 0 || g.subGroups.length > 0;
-      if (keep) nonEmptyIndices.push(i);
-      return keep;
-    });
+    // Remove top-level groups that became empty after the drag.
+    const emptyIndices = next
+      .map((_, i) => i)
+      .filter(i => next[i].conditions.length === 0 && next[i].subGroups.length === 0)
+      .reverse();
 
-    // Keep only the operators between groups that both survived
-    setConditionGroups(cleaned.length > 0 ? cleaned : next);
-    if (cleaned.length < next.length) {
-      setGroupOperators(prev => prev.filter((_, i) => nonEmptyIndices.includes(i)));
+    let groups = next;
+    let ops = groupOperators;
+
+    for (const k of emptyIndices) {
+      if (groups.length <= 1) break; // always keep at least one group
+      const opIndex = Math.max(0, k - 1);
+      groups = groups.filter((_, i) => i !== k);
+      ops = ops.filter((_, i) => i !== opIndex);
     }
-  }, [conditionGroups]);
+
+    setConditionGroups(groups);
+    setGroupOperators(ops);
+  }, [conditionGroups, groupOperators]);
 
   const conditionsValid = isEventFormValid({
     name: 'placeholder',

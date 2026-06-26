@@ -1569,6 +1569,8 @@ export interface ConditionCreateInput {
     | "DEPEND_ON";
   /** Value to be compared */
   condition_value?: string;
+  /** Whether the comparison is case-sensitive */
+  condition_case_sensitive?: boolean;
 }
 
 export interface ConditionOutput {
@@ -1611,6 +1613,7 @@ export interface ConditionOutput {
   condition_parent_id?: string;
   condition_type?: string;
   condition_value?: string;
+  condition_case_sensitive?: boolean;
 }
 
 export interface Configuration {

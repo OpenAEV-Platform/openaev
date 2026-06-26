@@ -48,6 +48,8 @@ interface ChainingFlowConfigurationProps {
     meta: EventMeta;
   } | null) => void;
   onStepCreated: () => void;
+  onEventCreated: () => void;
+  eventCount: number;
 }
 
 const ChainingFlowConfiguration = ({
@@ -60,6 +62,8 @@ const ChainingFlowConfiguration = ({
   editingEvent,
   onEditingEventChange,
   onStepCreated,
+  onEventCreated,
+  eventCount,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
 
@@ -253,11 +257,13 @@ const ChainingFlowConfiguration = ({
       } else {
         await createCondition(event);
         MESSAGING$.notifySuccess(t('Event added successfully.'));
+        onEventCreated();
       }
       handleCloseAll();
       onStepCreated();
     } catch {
-      MESSAGING$.notifyError(t('Failed to create event.'));
+      if (editingEvent) MESSAGING$.notifyError(t('Failed to update event.'));
+      else MESSAGING$.notifyError(t('Failed to create event.'));
     }
   };
 
@@ -295,6 +301,7 @@ const ChainingFlowConfiguration = ({
         onSave={handleSaveEvent}
         initialData={editingEvent?.meta.formData}
         isEditing={!!editingEvent}
+        defaultEventName={!editingEvent ? `Event ${eventCount + 1}` : undefined}
       />
     </>
   );

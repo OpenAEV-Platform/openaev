@@ -1,7 +1,7 @@
 import { ArrowDropDown } from '@mui/icons-material';
 import { Button, Menu, MenuItem } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import type { LogicalOperator } from './event-types';
@@ -16,7 +16,7 @@ const LogicalOperatorSelect: FunctionComponent<Props> = ({ value, onChange }) =>
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
-  const handleOpen = (e: React.MouseEvent<HTMLButtonElement>) => setAnchorEl(e.currentTarget);
+  const handleOpen = (e: MouseEvent<HTMLButtonElement>) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
   const handleSelect = (operator: LogicalOperator) => {
     onChange(operator);

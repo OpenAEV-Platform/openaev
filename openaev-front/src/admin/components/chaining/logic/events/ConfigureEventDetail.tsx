@@ -13,6 +13,7 @@ interface Props {
   onSave: (data: EventFormData) => void;
   initialData?: EventFormData;
   isEditing?: boolean;
+  defaultEventName?: string;
 }
 
 const ConfigureEventDetail: FunctionComponent<Props> = ({
@@ -22,6 +23,7 @@ const ConfigureEventDetail: FunctionComponent<Props> = ({
   onSave,
   initialData,
   isEditing = false,
+  defaultEventName,
 }) => {
   const { t } = useFormatter();
 
@@ -29,12 +31,12 @@ const ConfigureEventDetail: FunctionComponent<Props> = ({
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Add Events')}
+      title={isEditing ? t('Update Event') : t('Add Event')}
     >
       <div>
         <DrawerBreadcrumb
           parentLabel={t('Add Component')}
-          currentLabel={t('Add Event')}
+          currentLabel={isEditing ? t('Update Event') : t('Add Event')}
           onBack={onBack}
         />
         <EventCreationForm
@@ -42,6 +44,7 @@ const ConfigureEventDetail: FunctionComponent<Props> = ({
           onCancel={onClose}
           initialData={initialData}
           submitLabel={isEditing ? t('Update Event') : t('Add Event')}
+          defaultName={defaultEventName}
         />
       </div>
     </Drawer>

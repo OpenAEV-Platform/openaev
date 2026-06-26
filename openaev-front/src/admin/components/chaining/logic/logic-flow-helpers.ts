@@ -9,7 +9,7 @@ import {
   type ConditionKeyType,
   createEmptyCondition,
   createEmptyGroup,
-  type EventCondition,
+  type EventCondition, generateId,
   type LogicalOperator,
 } from './events/event-types';
 import type { ActionMeta, EventMeta } from './types';
@@ -131,7 +131,7 @@ const reconstructConditionGroups = (
   }
 
   const buildGroup = (groupNode: ConditionOutput): ConditionGroup => {
-    const groupId = groupNode.condition_id ?? crypto.randomUUID();
+    const groupId = groupNode.condition_id ?? generateId();
     const children = childrenOf[groupId] ?? [];
     const conditions: EventCondition[] = [];
     const subGroups: ConditionGroup[] = [];
@@ -142,11 +142,11 @@ const reconstructConditionGroups = (
         subGroups.push(buildGroup(child));
       } else {
         conditions.push({
-          id: child.condition_id ?? crypto.randomUUID(),
+          id: child.condition_id ?? generateId(),
           field: (child.condition_key_type as ConditionKeyType) ?? 'text',
           operator: (child.condition_type as ComparisonOperator) ?? 'IN',
           value: child.condition_value ?? '',
-          caseSensitive: true,
+          caseSensitive: child.condition_case_sensitive !== false,
         });
       }
     }
@@ -195,11 +195,11 @@ const reconstructConditionGroups = (
       id: rootId,
       operator: (rootNode.condition_type as LogicalOperator) ?? 'AND',
       conditions: topConditions.map(c => ({
-        id: c.condition_id ?? crypto.randomUUID(),
+        id: c.condition_id ?? generateId(),
         field: (c.condition_key_type as ConditionKeyType) ?? 'text',
         operator: (c.condition_type as ComparisonOperator) ?? 'IN',
         value: c.condition_value ?? '',
-        caseSensitive: true,
+        caseSensitive: c.condition_case_sensitive !== false,
       })),
       subGroups: [],
     };

@@ -23,12 +23,12 @@ export const UNARY_OPERATORS: ComparisonOperator[] = ['IS_NULL', 'IS_NOT_NULL'];
 // Operators where case sensitivity is relevant
 export const CASE_SENSITIVE_OPERATORS: ComparisonOperator[] = ['EQ', 'NEQ', 'IN', 'NIN'];
 
-// -- Operator labels --
+// -- Operator labels (function form so the extractor sees static t() calls) --
 export const OPERATOR_LABELS: Record<ComparisonOperator, string> = {
   EQ: 'Equals',
   NEQ: 'Not equals',
-  IS_NULL: 'IsNull',
-  IS_NOT_NULL: 'IsNotNull',
+  IS_NULL: 'Is null',
+  IS_NOT_NULL: 'Is not null',
   GT: 'Greater than',
   GTE: 'Greater than or equals',
   LT: 'Less than',
@@ -117,6 +117,7 @@ export const conditionGroupsToApi = (
         condition_key_type: cond.field,
         // Unary operators (IS_NULL / IS_NOT_NULL) need no value
         condition_value: UNARY_OPERATORS.includes(cond.operator) ? undefined : cond.value,
+        condition_case_sensitive: cond.caseSensitive,
       }),
     );
 
@@ -130,7 +131,9 @@ export const conditionGroupsToApi = (
     return result;
   }
 
-  // Multiple groups → emit a root logical node that wraps them all
+  // Multiple groups → emit a single root logical node wrapping them all.
+  // The backend stores one operator at the root, so all gap operators must be identical.
+  // EventCreationForm.handleUpdateGroupOperator keeps them in sync: groupOperators[0] is authoritative.
   const rootTempId = nextTempId();
   result.push({
     condition_temporary_id: rootTempId,
@@ -142,8 +145,10 @@ export const conditionGroupsToApi = (
   return result;
 };
 
+export const generateId = (): string => `tmp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
 export const createEmptyCondition = (): EventCondition => ({
-  id: crypto.randomUUID(),
+  id: generateId(),
   field: 'text',
   operator: 'IN',
   value: '',
@@ -151,7 +156,7 @@ export const createEmptyCondition = (): EventCondition => ({
 });
 
 export const createEmptyGroup = (operator: LogicalOperator = 'AND'): ConditionGroup => ({
-  id: crypto.randomUUID(),
+  id: generateId(),
   operator,
   conditions: [createEmptyCondition()],
   subGroups: [],

@@ -22,6 +22,8 @@ const Logic = ({ workflowId, context }: LogicProps) => {
   const [validAssets, setValidAssets] = useState<ScopeAssetOutput[]>([]);
   // Track whether existing steps/events exist
   const [hasExistingData, setHasExistingData] = useState<boolean | null>(null);
+  // Count of existing events (used to generate default names)
+  const [eventCount, setEventCount] = useState(0);
   // Key to force LogicFlow re-mount after adding a step
   const [refreshKey, setRefreshKey] = useState(0);
   // Drawer navigation state (shared with ChainingFlowConfiguration)
@@ -56,11 +58,18 @@ const Logic = ({ workflowId, context }: LogicProps) => {
       const steps: StepOutput[] = stepsRes.data ?? [];
       const events: EventOutput[] = conditionsRes.data ?? [];
       setHasExistingData(steps.length > 0 || events.length > 0);
+      setEventCount(events.length);
     });
   }, [workflowId]);
 
   const handleStepCreated = useCallback(() => {
     setHasExistingData(true);
+    setRefreshKey(k => k + 1);
+  }, []);
+
+  const handleEventCreated = useCallback(() => {
+    setHasExistingData(true);
+    setEventCount(c => c + 1);
     setRefreshKey(k => k + 1);
   }, []);
 
@@ -119,6 +128,8 @@ const Logic = ({ workflowId, context }: LogicProps) => {
         editingEvent={editingEvent}
         onEditingEventChange={setEditingEvent}
         onStepCreated={handleStepCreated}
+        onEventCreated={handleEventCreated}
+        eventCount={eventCount}
       />
     </div>
   );
