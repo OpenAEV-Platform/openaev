@@ -122,8 +122,8 @@ If the PR changes Output DTO fields, flag for frontend type regeneration:
 
 ## What NOT to Flag
 
-- `@JsonIgnore` on `tenant` relation → correct, prevents circular reference and data exposure
-- `skipRBAC = true` with an explanatory comment → intentional bypass, not missing `@AccessControl`
+In addition to **Shared Exceptions** in `AGENTS.md`:
+
 - Legacy controllers in `io.openaev.rest` that are NOT modified in this PR → migration is incremental
 - Output DTOs including `id` field → standard, required for client-side referencing
 - `@Transactional` on controller methods that coordinate multiple service calls → acceptable pattern

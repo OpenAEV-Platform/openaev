@@ -45,7 +45,8 @@ Escalate to **Opus 4.6** for reviews involving complex query optimization or arc
 
 ## What NOT to Flag
 
-- `FetchType.EAGER` on `capabilities` / `permissions` collections → small, always-needed for RBAC (intentional exception, documented in `security.instructions.md`)
+In addition to **Shared Exceptions** in `AGENTS.md`:
+
 - `findAll()` on reference data tables (enum-like, <50 rows) — e.g. `ResourceType`, `Capability`
 - In-memory filtering on collections already fetched for other reasons
 - Test code performance — only flag production code

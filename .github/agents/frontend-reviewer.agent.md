@@ -50,6 +50,8 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 
 ## What NOT to Flag
 
+In addition to **Shared Exceptions** in `AGENTS.md`:
+
 - Legacy `.jsx` files that are NOT being touched in this PR — migration is incremental
 - `makeStyles` in files not modified by this PR — only flag when the file is being changed
 - Redux store usage in existing features — only flag for new features

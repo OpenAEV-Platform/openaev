@@ -93,15 +93,11 @@ For tenant-scoped tables:
 
 ## What NOT to Flag
 
-- Platform-level entities (`Tenant`) without `@Filter` → correct by design
-- Dual-scope entities (Settings, User, Role, Group) without `@Filter` → correct by design, scope enforced by services
-- `TenantContext.getCurrentTenant()` used in **legacy `io.openaev.rest` controllers** to pass tenant as argument to services → acceptable (legacy), but new code must use `TENANT_PREFIX` + `@PathVariable`
+In addition to **Shared Exceptions** in `AGENTS.md`:
+
 - `@PathVariable String tenantId` in new `io.openaev.api` controllers → this is the correct pattern
 - Service receiving `tenantId` as a method parameter (not calling `TenantContext` directly) → correct
-- Migration using default tenant UUID `2cffad3a-0001-4078-b0e2-ef74274022c3` → standard seed data
-- Test fixtures setting tenant context explicitly → test-only setup
-- `@JsonIgnore` already present on tenant relation → already handled
-- `FetchType.EAGER` on `capabilities` / `permissions` collections → intentional for RBAC performance, not a tenant issue
+- Test fixtures setting tenant context explicitly → test-only setup (distinct from hardcoded credentials)
 
 ## Output Format
 
