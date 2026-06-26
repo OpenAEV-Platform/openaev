@@ -15,18 +15,18 @@ public class AuditStatePropertyFilter extends SimpleBeanPropertyFilter {
 
   @Override
   protected boolean include(BeanPropertyWriter writer) {
-    return !isAuditStateIgnored(writer);
+    return isAuditStateValid(writer);
   }
 
   @Override
   protected boolean include(PropertyWriter writer) {
     if (writer instanceof BeanPropertyWriter bpw) {
-      return !isAuditStateIgnored(bpw);
+      return include(bpw);
     }
     return true;
   }
 
-  private static boolean isAuditStateIgnored(BeanPropertyWriter writer) {
-    return writer.getAnnotation(AuditStateIgnore.class) != null;
+  private static boolean isAuditStateValid(BeanPropertyWriter writer) {
+    return writer.getAnnotation(AuditStateIgnore.class) == null;
   }
 }
