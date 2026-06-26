@@ -167,6 +167,7 @@ public class Asset implements TenantBase {
   @JsonIgnore
   @ManyToMany(mappedBy = "assets")
   @Queryable(filterable = true, dynamicValues = true, path = "assetGroups.id")
+  @AuditStateIgnore
   private Set<AssetGroup> assetGroups = new HashSet<>();
 
   // -- AUDIT --
@@ -175,6 +176,7 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_created_at")
   @NotNull
   @CreationTimestamp
+  @AuditStateIgnore
   private Instant createdAt = now();
 
   @AuditStateIgnore

@@ -65,6 +65,7 @@ public class Agent implements TenantBase, AuditStateCapturable {
   @JsonProperty("agent_asset")
   @Schema(implementation = String.class)
   @NotNull
+  @AuditStateIgnore
   private Asset asset;
 
   @Queryable(sortable = true)
@@ -145,6 +146,7 @@ public class Agent implements TenantBase, AuditStateCapturable {
   @Column(name = "agent_created_at")
   @JsonProperty("agent_created_at")
   @NotNull
+  @AuditStateIgnore
   private Instant createdAt = now();
 
   @AuditStateIgnore
@@ -155,6 +157,7 @@ public class Agent implements TenantBase, AuditStateCapturable {
 
   @Column(name = "agent_cleared_at")
   @JsonProperty("agent_cleared_at")
+  @AuditStateIgnore
   private Instant clearedAt = now();
 
   @Getter(onMethod_ = @JsonIgnore)

@@ -1,6 +1,7 @@
 package io.openaev.database.audit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.web.context.request.RequestAttributes;
@@ -24,17 +25,6 @@ public final class AuditLogContext {
   private static final String REQUEST_ATTR_CLEANUP_REGISTERED = "openaev.audit.cleanupRegistered";
   private static final String REQUEST_ATTR_ENABLED = "openaev.audit.enabled";
 
-  private static final ThreadLocal<Map<String, Map<String, Object>>> BEFORE_SNAPSHOTS_TL =
-      ThreadLocal.withInitial(LinkedHashMap::new);
-
-  private static final ThreadLocal<Map<String, EntitySnapshot>> SNAPSHOTS_TL =
-      ThreadLocal.withInitial(LinkedHashMap::new);
-
-  private static final ThreadLocal<Boolean> CLEANUP_REGISTERED_TL =
-      ThreadLocal.withInitial(() -> false);
-
-  private static final ThreadLocal<Boolean> ENABLED_TL = ThreadLocal.withInitial(() -> true);
-
   private AuditLogContext() {}
 
   // -- Before snapshot --
@@ -48,9 +38,7 @@ public final class AuditLogContext {
     if (hasRequestContext()) {
       requestAttributes()
           .setAttribute(REQUEST_ATTR_ENABLED, enabled, RequestAttributes.SCOPE_REQUEST);
-      return;
     }
-    ENABLED_TL.set(enabled);
   }
 
   /** Returns {@code true} if audit logging is enabled for the current request/thread. */
@@ -60,7 +48,7 @@ public final class AuditLogContext {
           requestAttributes().getAttribute(REQUEST_ATTR_ENABLED, RequestAttributes.SCOPE_REQUEST);
       return val == null || Boolean.TRUE.equals(val);
     }
-    return Boolean.TRUE.equals(ENABLED_TL.get());
+    return true;
   }
 
   public static void storeBefore(String entityId, Map<String, Object> snapshot) {
@@ -92,7 +80,7 @@ public final class AuditLogContext {
               .getAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
       return Boolean.TRUE.equals(val);
     }
-    return Boolean.TRUE.equals(CLEANUP_REGISTERED_TL.get());
+    return true;
   }
 
   public static void markCleanupRegistered() {
@@ -100,9 +88,7 @@ public final class AuditLogContext {
       requestAttributes()
           .setAttribute(
               REQUEST_ATTR_CLEANUP_REGISTERED, Boolean.TRUE, RequestAttributes.SCOPE_REQUEST);
-      return;
     }
-    CLEANUP_REGISTERED_TL.set(true);
   }
 
   public static void clear() {
@@ -112,11 +98,6 @@ public final class AuditLogContext {
       attrs.removeAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_ENABLED, RequestAttributes.SCOPE_REQUEST);
-    } else {
-      BEFORE_SNAPSHOTS_TL.remove();
-      SNAPSHOTS_TL.remove();
-      CLEANUP_REGISTERED_TL.remove();
-      ENABLED_TL.remove();
     }
   }
 
@@ -132,10 +113,6 @@ public final class AuditLogContext {
       attrs.removeAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
     }
-
-    BEFORE_SNAPSHOTS_TL.remove();
-    SNAPSHOTS_TL.remove();
-    CLEANUP_REGISTERED_TL.remove();
   }
 
   // -- Request/thread storage helpers --
@@ -153,7 +130,7 @@ public final class AuditLogContext {
       attrs.setAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, created, RequestAttributes.SCOPE_REQUEST);
       return created;
     }
-    return BEFORE_SNAPSHOTS_TL.get();
+    return Collections.emptyMap();
   }
 
   @SuppressWarnings("unchecked")
@@ -169,10 +146,10 @@ public final class AuditLogContext {
       attrs.setAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, created, RequestAttributes.SCOPE_REQUEST);
       return created;
     }
-    return SNAPSHOTS_TL.get();
+    return Collections.emptyMap();
   }
 
-  private static boolean hasRequestContext() {
+  public static boolean hasRequestContext() {
     return RequestContextHolder.getRequestAttributes() != null;
   }
 
