@@ -13,15 +13,8 @@ import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpect
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.Asset;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.*;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.database.model.InjectExpectationSignature;
-import io.openaev.database.model.Team;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
