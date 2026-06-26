@@ -5,12 +5,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.OutputParser;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Handler for processing inject executions triggered by an agent.

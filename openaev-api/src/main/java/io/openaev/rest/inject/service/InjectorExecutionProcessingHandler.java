@@ -7,11 +7,10 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Handler for processing inject executions triggered by an injector (not an agent).
