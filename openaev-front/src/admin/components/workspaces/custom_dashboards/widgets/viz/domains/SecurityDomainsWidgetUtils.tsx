@@ -1,6 +1,5 @@
-import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, SmartToy, WebAsset } from '@mui/icons-material';
+import { CloudOutlined, GroupsOutlined, HelpOutline, ImportantDevicesOutlined, LockOutlined, MailOutline, PublicOutlined, SmartToyOutlined, StorageOutlined, WebAssetOutlined } from '@mui/icons-material';
 import { type SvgIconProps, type Theme } from '@mui/material';
-import { Cloud, Database } from 'mdi-material-ui';
 import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
 
 import type { Domain, EsAvgs, EsDomainsAvgData, EsSeries, EsSeriesData } from '../../../../../../../utils/api-types';
@@ -62,45 +61,45 @@ interface DomainConfig {
 
 const DOMAIN_CONFIG: Record<string, DomainConfig> = {
   'Endpoint': {
-    icon: ImportantDevices,
+    icon: ImportantDevicesOutlined,
     order: 0,
   },
   'Network': {
-    icon: Language,
+    icon: PublicOutlined,
     order: 1,
   },
   'Web App': {
-    icon: WebAsset,
+    icon: WebAssetOutlined,
     order: 2,
   },
   'E-mail Infiltration': {
-    icon: Mail,
+    icon: MailOutline,
     order: 3,
   },
   'Data Exfiltration': {
-    icon: Database,
+    icon: StorageOutlined,
     order: 4,
   },
   'URL Filtering': {
-    icon: Lock,
+    icon: LockOutlined,
     order: 5,
   },
   'Cloud': {
-    icon: Cloud,
+    icon: CloudOutlined,
     order: 6,
   },
   'Artificial Intelligence': {
-    icon: SmartToy,
+    icon: SmartToyOutlined,
     order: 7,
   },
   'Tabletop': {
-    icon: Groups,
+    icon: GroupsOutlined,
     order: 8,
   },
 };
 
 const DEFAULT_CONFIG: DomainConfig = {
-  icon: HelpOutlined,
+  icon: HelpOutline,
   order: 9,
 };
 
