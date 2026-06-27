@@ -15,6 +15,7 @@ import {
   RowingOutlined,
   SchoolOutlined,
   SmartButtonOutlined,
+  SmartToyOutlined,
   TerminalOutlined,
   Widgets,
 } from '@mui/icons-material';
@@ -118,6 +119,12 @@ const LeftBar = () => {
               label: 'Security platforms',
               icon: () => (<SecurityNetwork fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
+            },
+            {
+              link: '/admin/assets/ai_targets',
+              label: 'AI targets',
+              icon: () => (<SmartToyOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
             },
           ],
         },

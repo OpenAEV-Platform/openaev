@@ -16,6 +16,11 @@ public class InjectExpectationSignature {
       "target_hostname_address";
   public static final String EXPECTATION_SIGNATURE_TYPE_START_DATE = "start_date";
   public static final String EXPECTATION_SIGNATURE_TYPE_END_DATE = "end_date";
+  // AI adversarial validation: correlate AI defense (LLM firewall / guardrail) events back to a
+  // specific AI inject execution. The injector emits a unique per-inject marker and the target
+  // endpoint it called; AI defense collectors match these against their logs.
+  public static final String EXPECTATION_SIGNATURE_TYPE_AI_REQUEST_MARKER = "ai_request_marker";
+  public static final String EXPECTATION_SIGNATURE_TYPE_AI_TARGET_ENDPOINT = "ai_target_endpoint";
 
   private String type;
   private String value;
@@ -49,5 +54,19 @@ public class InjectExpectationSignature {
   public static InjectExpectationSignature createHostnameSignature(String signatureValue) {
     return new InjectExpectationSignature(
         EXPECTATION_SIGNATURE_TYPE_TARGET_HOSTNAME_ADDRESS, signatureValue);
+  }
+
+  public static InjectExpectationSignature createAiRequestMarkerSignature(String marker) {
+    if (marker == null || marker.isEmpty()) {
+      return null;
+    }
+    return new InjectExpectationSignature(EXPECTATION_SIGNATURE_TYPE_AI_REQUEST_MARKER, marker);
+  }
+
+  public static InjectExpectationSignature createAiTargetEndpointSignature(String endpoint) {
+    if (endpoint == null || endpoint.isEmpty()) {
+      return null;
+    }
+    return new InjectExpectationSignature(EXPECTATION_SIGNATURE_TYPE_AI_TARGET_ENDPOINT, endpoint);
   }
 }

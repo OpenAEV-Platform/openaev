@@ -192,6 +192,21 @@ public class ExpectationApi extends RestBehavior {
   }
 
   @Operation(
+      summary = "Get agentless AI defense Inject Expectations for a Specific Source",
+      description =
+          "Retrieves agentless DETECTION/PREVENTION inject expectations not yet filled for a given source ID. Used by AI defense collectors (LLM firewall / guardrail) to validate AI adversarial injects, whose targets are AI models/agents rather than endpoints with an installed agent.")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/ai/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/ai/{sourceId}"
+  })
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
+  public List<InjectExpectationOutput> getAiDefenseExpectationsNotFilledForSource(
+      @PathVariable String sourceId) {
+    return toOutputs(injectExpectationService.aiDefenseExpectationsNotFill(sourceId));
+  }
+
+  @Operation(
       summary = "Update Inject Expectation",
       description = "Update Inject expectation from an external source, e.g., EDR collector.")
   @PutMapping({

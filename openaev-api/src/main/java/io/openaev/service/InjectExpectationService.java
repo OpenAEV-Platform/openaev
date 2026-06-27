@@ -739,6 +739,31 @@ public class InjectExpectationService {
   }
 
   /**
+   * Agentless DETECTION/PREVENTION expectations not yet filled by the given source. Used by AI
+   * defense collectors (LLM firewall / guardrail) for AI adversarial injects, whose targets are AI
+   * models/agents rather than endpoints with an installed agent.
+   *
+   * @param sourceId the collector source ID
+   * @return agentless detection + prevention expectations without a result from the source
+   */
+  public List<InjectExpectation> aiDefenseExpectationsNotFill(@NotBlank final String sourceId) {
+    // Combine agentless DETECTION + PREVENTION expectations, keep a single stable global order
+    // (oldest first) and cap the total so a polling collector receives a bounded, fairly ordered
+    // page across both expectation types rather than two separately-capped lists.
+    List<InjectExpectation> expectations = new ArrayList<>();
+    expectations.addAll(
+        this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
+            DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.addAll(
+        this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
+            PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.sort(
+        Comparator.comparing(
+            InjectExpectation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    return expectations.stream().limit(NOT_FILLED_FETCH_LIMIT).toList();
+  }
+
+  /**
    * Retrieves detection expectations without any results.
    *
    * @return a list of detection expectations without results
