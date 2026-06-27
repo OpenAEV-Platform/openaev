@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
  * Backfills the "Artificial Intelligence" security domain for every existing tenant, so AI
  * adversarial actions surface under the AI tab in the Threat Arsenal and in the "Performance by
  * Security Domain" dashboard widget. New tenants receive it from {@code
- * PresetDomain.getDomainsForTenant}. Idempotent: only inserts where the tenant does not already have
- * the domain.
+ * PresetDomain.getDomainsForTenant}. Idempotent: only inserts where the tenant does not already
+ * have the domain.
  */
 @Component
 public class V5_30__Add_artificial_intelligence_domain extends BaseJavaMigration {
