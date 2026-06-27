@@ -1067,6 +1067,34 @@ public class EndpointService {
       if (input.getMacAddresses() != null) {
         endpointToUpdate.setMacAddresses(input.getMacAddresses());
       }
+      // Categorization: only override when provided so an existing classification is preserved.
+      if (input.getCategory() != null) {
+        endpointToUpdate.setCategory(input.getCategory());
+      }
+      if (input.getSubcategory() != null) {
+        endpointToUpdate.setSubcategory(input.getSubcategory());
+      }
+      if (input.getCriticality() != null) {
+        endpointToUpdate.setCriticality(input.getCriticality());
+      }
+      if (input.getInternetFacing() != null) {
+        endpointToUpdate.setInternetFacing(input.getInternetFacing());
+      }
+      if (input.getCloudProvider() != null) {
+        endpointToUpdate.setCloudProvider(input.getCloudProvider());
+      }
+      if (input.getCloudNativeType() != null) {
+        endpointToUpdate.setCloudNativeType(input.getCloudNativeType());
+      }
+      if (input.getCloudRegion() != null) {
+        endpointToUpdate.setCloudRegion(input.getCloudRegion());
+      }
+      if (input.getUrl() != null) {
+        endpointToUpdate.setUrl(input.getUrl());
+      }
+      if (input.getMetadata() != null && !input.getMetadata().isEmpty()) {
+        endpointToUpdate.setMetadata(input.getMetadata());
+      }
       return updateEndpoint(endpointToUpdate);
     }
     return createEndpoint(input);

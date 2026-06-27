@@ -10,7 +10,6 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.*;
@@ -63,6 +62,10 @@ public class Endpoint extends Asset {
     Windows,
     @JsonProperty("MacOS")
     MacOS,
+    @JsonProperty("Android")
+    Android,
+    @JsonProperty("iOS")
+    iOS,
     @JsonProperty("Container")
     Container,
     @JsonProperty("Service")
@@ -141,18 +144,25 @@ public class Endpoint extends Asset {
   @JsonProperty("endpoint_hostname")
   private String hostname;
 
+  /**
+   * URL of the target for URL-based asset categories (web applications, cloud endpoints, ...). Not
+   * relevant for agent-managed hosts.
+   */
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "endpoint_url")
+  @JsonProperty("endpoint_url")
+  private String url;
+
   @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_platform")
   @JsonProperty("endpoint_platform")
   @Enumerated(EnumType.STRING)
-  @NotNull
   private PLATFORM_TYPE platform;
 
   @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_arch")
   @JsonProperty("endpoint_arch")
   @Enumerated(EnumType.STRING)
-  @NotNull
   private PLATFORM_ARCH arch;
 
   @Type(StringArrayType.class)
@@ -192,6 +202,26 @@ public class Endpoint extends Asset {
 
   public void setHostname(String hostname) {
     this.hostname = hostname.toLowerCase();
+  }
+
+  /**
+   * Keeps the legacy invariants while platform/arch are now optional at the API layer: agent and
+   * collector registrations always provide them, but the new category-driven forms (web app, cloud,
+   * ...) may omit them. Defaulting to {@code Unknown} satisfies the (still NOT NULL) {@code
+   * endpoint_arch} column, and every Endpoint without an explicit category is a HOST.
+   */
+  @PrePersist
+  @PreUpdate
+  public void applyEndpointDefaults() {
+    if (this.platform == null) {
+      this.platform = PLATFORM_TYPE.Unknown;
+    }
+    if (this.arch == null) {
+      this.arch = PLATFORM_ARCH.Unknown;
+    }
+    if (this.getCategory() == null) {
+      this.setCategory(AssetCategory.HOST);
+    }
   }
 
   public Endpoint() {}

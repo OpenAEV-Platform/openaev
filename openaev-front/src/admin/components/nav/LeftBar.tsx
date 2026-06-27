@@ -1,12 +1,13 @@
 import {
   DashboardOutlined,
   DescriptionOutlined,
-  DevicesOtherOutlined,
   DnsOutlined,
+  ExtensionOutlined,
   Groups3Outlined,
   GroupsOutlined,
   HubOutlined,
   InsertChartOutlined,
+  Inventory2Outlined,
   LayersOutlined,
   MovieFilterOutlined,
   OnlinePredictionOutlined,
@@ -103,9 +104,9 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
           subItems: [
             {
-              link: '/admin/assets/endpoints',
-              label: 'Endpoints',
-              icon: () => (<DevicesOtherOutlined fontSize="small" />),
+              link: '/admin/assets/inventory',
+              label: 'Inventory',
+              icon: () => (<Inventory2Outlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
             },
             {
@@ -115,16 +116,16 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
             },
             {
-              link: '/admin/assets/security_platforms',
-              label: 'Security platforms',
-              icon: () => (<SecurityNetwork fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-            },
-            {
               link: '/admin/assets/ai_targets',
               label: 'AI targets',
               icon: () => (<SmartToyOutlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
+            },
+            {
+              link: '/admin/assets/security_platforms',
+              label: 'Security platforms',
+              icon: () => (<SecurityNetwork fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
             },
           ],
         },
@@ -136,7 +137,7 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
           subItems: [
             {
-              link: '/admin/teams/players',
+              link: '/admin/teams/persons',
               label: 'Players',
               icon: () => (<PersonOutlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
@@ -192,7 +193,7 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/integrations`,
-          icon: () => (<DnsOutlined />),
+          icon: () => (<ExtensionOutlined />),
           label: 'Integrations',
           href: 'integrations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),

@@ -10,6 +10,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
@@ -112,6 +114,15 @@ public class AiTarget extends Asset {
   @Column(name = "ai_target_api_key_variable")
   @JsonProperty("ai_target_api_key_variable")
   private String apiKeyVariable;
+
+  /** An AI Target always belongs to the AI_TARGET asset category. */
+  @PrePersist
+  @PreUpdate
+  public void applyAiTargetDefaults() {
+    if (this.getCategory() == null) {
+      this.setCategory(AssetCategory.AI_TARGET);
+    }
+  }
 
   public AiTarget() {}
 
