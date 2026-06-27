@@ -78,7 +78,7 @@ const AddressesFieldComponent = ({ name, label, style = {}, disabled = false, re
                             marginTop: 1,
                           }}
                         >
-                          <Tooltip title={resolveTooltip}>
+                          <Tooltip title={resolveTooltip ?? ''}>
                             <span>
                               <IconButton
                                 size="small"

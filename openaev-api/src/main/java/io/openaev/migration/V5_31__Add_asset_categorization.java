@@ -70,8 +70,8 @@ public class V5_31__Add_asset_categorization extends BaseJavaMigration {
           "CREATE INDEX IF NOT EXISTS idx_assets_tenant_category"
               + " ON assets (tenant_id, asset_category);");
       statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_assets_cloud_provider"
-              + " ON assets (asset_cloud_provider);");
+          "CREATE INDEX IF NOT EXISTS idx_assets_tenant_cloud_provider"
+              + " ON assets (tenant_id, asset_cloud_provider);");
     }
   }
 }

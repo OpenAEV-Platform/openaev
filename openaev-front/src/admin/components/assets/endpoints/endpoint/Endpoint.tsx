@@ -61,7 +61,7 @@ const Endpoint = () => {
     if (endpoint?.asset_linked_person) {
       dispatch(fetchPlayers());
     }
-  });
+  }, [endpoint?.asset_linked_person]);
   const linkedPerson = endpoint?.asset_linked_person ? usersMap?.[endpoint.asset_linked_person] : undefined;
   const linkedPersonName = linkedPerson
     ? ([linkedPerson.user_firstname, linkedPerson.user_lastname].filter(Boolean).join(' ').trim() || linkedPerson.user_email)
