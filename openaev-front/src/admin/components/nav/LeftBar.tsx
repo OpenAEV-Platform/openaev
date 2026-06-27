@@ -7,7 +7,6 @@ import {
   GroupsOutlined,
   HubOutlined,
   InsertChartOutlined,
-  Inventory2Outlined,
   LayersOutlined,
   MovieFilterOutlined,
   OnlinePredictionOutlined,
@@ -97,38 +96,28 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
         {
-          path: `/admin/assets`,
+          path: `/admin/assets/inventory`,
           icon: () => (<DnsOutlined />),
           label: 'Assets',
-          href: 'assets',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-          subItems: [
-            {
-              link: '/admin/assets/inventory',
-              label: 'Inventory',
-              icon: () => (<Inventory2Outlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
-            },
-            {
-              link: '/admin/assets/asset_groups',
-              label: 'Asset groups',
-              icon: () => (<SelectGroup fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
-            },
-            {
-              link: '/admin/assets/ai_targets',
-              label: 'AI targets',
-              icon: () => (<SmartToyOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
-            },
-            {
-              link: '/admin/assets/security_platforms',
-              label: 'Security platforms',
-              icon: () => (<SecurityNetwork fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-            },
-          ],
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
+        {
+          path: `/admin/assets/asset_groups`,
+          icon: () => (<SelectGroup />),
+          label: 'Asset groups',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
+        },
+        {
+          path: `/admin/assets/ai_targets`,
+          icon: () => (<SmartToyOutlined />),
+          label: 'AI targets',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
+        },
+      ],
+    },
+    {
+      userRight: true,
+      items: [
         {
           path: `/admin/teams`,
           icon: () => (<Groups3Outlined />),
@@ -149,6 +138,17 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
             },
           ],
+        },
+      ],
+    },
+    {
+      userRight: true,
+      items: [
+        {
+          path: `/admin/assets/security_platforms`,
+          icon: () => (<SecurityNetwork />),
+          label: 'Security platforms',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
         {
           path: `/admin/components`,
@@ -186,11 +186,6 @@ const LeftBar = () => {
             },
           ],
         },
-      ],
-    },
-    {
-      userRight: true,
-      items: [
         {
           path: `/admin/integrations`,
           icon: () => (<ExtensionOutlined />),
