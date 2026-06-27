@@ -28,7 +28,7 @@ const AssetCategoryPicker: FunctionComponent<Props> = ({ onSelect }) => {
                 padding: theme.spacing(2),
                 height: '100%',
                 display: 'flex',
-                alignItems: 'flex-start',
+                alignItems: 'center',
                 justifyContent: 'flex-start',
                 gap: theme.spacing(2),
               }}
