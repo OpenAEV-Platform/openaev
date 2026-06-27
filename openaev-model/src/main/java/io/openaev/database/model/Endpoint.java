@@ -201,7 +201,9 @@ public class Endpoint extends Asset {
   private List<Inject> injects = new ArrayList<>();
 
   public void setHostname(String hostname) {
-    this.hostname = (hostname == null) ? null : hostname.toLowerCase();
+    // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale
+    // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
+    this.hostname = (hostname == null) ? null : hostname.toLowerCase(Locale.ROOT);
   }
 
   /**
