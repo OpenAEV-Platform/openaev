@@ -205,7 +205,7 @@ const AssetForm: FunctionComponent<Props> = ({
   }));
   const providerItems = CLOUD_PROVIDERS.map(p => ({
     value: p,
-    label: p,
+    label: t(humanizeEnum(p)),
   }));
 
   return (
