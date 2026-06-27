@@ -201,7 +201,7 @@ public class Endpoint extends Asset {
   private List<Inject> injects = new ArrayList<>();
 
   public void setHostname(String hostname) {
-    this.hostname = hostname.toLowerCase();
+    this.hostname = (hostname == null) ? null : hostname.toLowerCase();
   }
 
   /**
