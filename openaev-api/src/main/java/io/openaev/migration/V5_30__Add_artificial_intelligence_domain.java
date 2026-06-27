@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * the domain.
  */
 @Component
-public class V5_28__Add_artificial_intelligence_domain extends BaseJavaMigration {
+public class V5_30__Add_artificial_intelligence_domain extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
