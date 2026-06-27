@@ -47,6 +47,7 @@ public class EndpointMapper {
         .id(endpoint.getId())
         .name(endpoint.getName())
         .type(endpoint.getType())
+        .externalReference(endpoint.getExternalReference())
         .agents(agentMapper.toAgentOutputs(getPrimaryAgents(endpoint)))
         .platform(endpoint.getPlatform())
         .arch(endpoint.getArch())
