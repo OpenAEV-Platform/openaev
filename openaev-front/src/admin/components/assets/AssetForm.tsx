@@ -13,6 +13,7 @@ import {
 } from 'react-hook-form';
 import { z } from 'zod';
 
+import { resolveHostnameToIps } from '../../../actions/assets/endpoint-actions';
 import AddressesFieldComponent from '../../../components/fields/AddressesFieldComponent';
 import PersonFieldController from '../../../components/fields/PersonFieldController';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
@@ -172,6 +173,8 @@ const AssetForm: FunctionComponent<Props> = ({
     formState: { isSubmitting, isDirty },
   } = methods;
 
+  const watchedHostname = methods.watch('endpoint_hostname');
+
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -282,7 +285,20 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         {def.fields.ips !== 'hidden' && (
-          <AddressesFieldComponent name="endpoint_ips" helperText="Please provide one IP address per line." label={t('IP Addresses')} required={def.fields.ips === 'required'} />
+          <AddressesFieldComponent
+            name="endpoint_ips"
+            helperText="Please provide one IP address per line."
+            label={t('IP Addresses')}
+            required={def.fields.ips === 'required'}
+            onResolve={def.fields.hostname !== 'hidden'
+              ? async () => {
+                const result = await resolveHostnameToIps(methods.getValues('endpoint_hostname') ?? '');
+                return (result?.data ?? []) as string[];
+              }
+              : undefined}
+            resolveDisabled={!watchedHostname}
+            resolveTooltip={watchedHostname ? t('Resolve IP from hostname') : t('Set a hostname to resolve its IP')}
+          />
         )}
         {def.fields.macAddresses !== 'hidden' && (
           <AddressesFieldComponent name="endpoint_mac_addresses" helperText="Please provide one MAC address per line." label={t('MAC Addresses')} />

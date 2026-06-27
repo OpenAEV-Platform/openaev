@@ -39,6 +39,8 @@ import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
@@ -194,6 +196,22 @@ public class EndpointService {
 
   public void deleteEndpoint(@NotBlank final String endpointId) {
     this.endpointRepository.deleteById(endpointId);
+  }
+
+  /**
+   * Resolves a hostname to its IP address(es) via DNS. Returns an empty list when the hostname
+   * cannot be resolved so the caller can surface a friendly message rather than an error.
+   */
+  public List<String> resolveHostnameToIps(@NotBlank final String hostname) {
+    try {
+      return Arrays.stream(InetAddress.getAllByName(hostname))
+          .map(InetAddress::getHostAddress)
+          .distinct()
+          .toList();
+    } catch (UnknownHostException e) {
+      log.warn("Could not resolve hostname '{}': {}", hostname, e.getMessage());
+      return List.of();
+    }
   }
 
   public Endpoint getEndpoint(@NotBlank final String endpointId, @NotNull final String tenantId) {

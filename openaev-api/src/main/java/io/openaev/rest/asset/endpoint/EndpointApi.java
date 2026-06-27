@@ -206,6 +206,13 @@ public class EndpointApi extends RestBehavior {
     this.endpointService.deleteEndpoint(endpointId);
   }
 
+  @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public List<String> resolveHostname(@RequestParam @NotBlank final String hostname) {
+    return this.endpointService.resolveHostnameToIps(hostname);
+  }
+
   // -- OPTION --
 
   @GetMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
