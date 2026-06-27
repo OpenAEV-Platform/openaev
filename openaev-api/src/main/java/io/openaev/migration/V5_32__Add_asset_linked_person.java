@@ -21,11 +21,12 @@ public class V5_32__Add_asset_linked_person extends BaseJavaMigration {
           "ALTER TABLE assets ADD COLUMN IF NOT EXISTS asset_linked_person varchar(255);");
       statement.execute(
           "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname ="
-              + " 'fk_assets_linked_person') THEN ALTER TABLE assets ADD CONSTRAINT"
-              + " fk_assets_linked_person FOREIGN KEY (asset_linked_person) REFERENCES users"
-              + " (user_id) ON DELETE SET NULL; END IF; END $$;");
+              + " 'fk_assets_linked_person' AND conrelid = 'assets'::regclass) THEN ALTER TABLE"
+              + " assets ADD CONSTRAINT fk_assets_linked_person FOREIGN KEY (asset_linked_person)"
+              + " REFERENCES users (user_id) ON DELETE SET NULL; END IF; END $$;");
       statement.execute(
-          "CREATE INDEX IF NOT EXISTS idx_assets_linked_person ON assets (asset_linked_person);");
+          "CREATE INDEX IF NOT EXISTS idx_assets_tenant_linked_person"
+              + " ON assets (tenant_id, asset_linked_person);");
     }
   }
 }

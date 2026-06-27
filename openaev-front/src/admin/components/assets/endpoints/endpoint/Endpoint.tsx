@@ -156,7 +156,7 @@ const Endpoint = () => {
           <>
             <div>
               <Typography variant="h3" gutterBottom>{t('Cloud provider')}</Typography>
-              <Typography variant="body2" gutterBottom>{endpoint.asset_cloud_provider}</Typography>
+              <Typography variant="body2" gutterBottom>{endpoint.asset_cloud_provider ? t(humanizeEnum(endpoint.asset_cloud_provider)) : '-'}</Typography>
             </div>
             <div>
               <Typography variant="h3" gutterBottom>{t('Native type')}</Typography>

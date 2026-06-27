@@ -20,6 +20,7 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -28,6 +29,7 @@ import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -121,6 +123,7 @@ public class EndpointService {
   private final AssetService assetService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final TenantRepository tenantRepository;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -128,6 +131,7 @@ public class EndpointService {
   }
 
   public Endpoint createEndpoint(@NotNull final EndpointInput input) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), TenantContext.getCurrentTenant());
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
     String[] ips = EndpointMapper.setIps(input.getIps());
@@ -137,6 +141,16 @@ public class EndpointService {
     endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     endpoint.setEoL(input.isEol());
     return createEndpoint(endpoint);
+  }
+
+  // Rejects a linked person that is not a member of the current tenant, so an identity asset
+  // cannot reference a users row from another tenant. A blank value is a no-op (it unlinks).
+  private void validateLinkedPersonInTenant(String linkedPerson, String tenantId) {
+    if (StringUtils.isNotBlank(linkedPerson)
+        && !this.tenantRepository.existsByUserIdAndTenantId(linkedPerson, tenantId)) {
+      throw new BadRequestException(
+          "asset_linked_person must reference a user of the current tenant");
+    }
   }
 
   public Endpoint endpoint(@NotBlank final String endpointId, @NotNull final String tenantId) {
@@ -347,6 +361,7 @@ public class EndpointService {
       @NotBlank final String endpointId,
       @NotNull final EndpointInput input,
       @NotNull final String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
     ensureSeenIp(toUpdate);
@@ -1059,6 +1074,7 @@ public class EndpointService {
    * @return the created or updated Endpoint entity
    */
   public Endpoint upsertEndpoint(EndpointInput input, @NotNull String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Optional<Endpoint> endpoint = findExistingEndpoint(input, tenantId);
     if (endpoint.isPresent()) {
       Endpoint endpointToUpdate = endpoint.get();
