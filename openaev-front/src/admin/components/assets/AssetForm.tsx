@@ -156,7 +156,7 @@ const AssetForm: FunctionComponent<Props> = ({
     asset_cloud_native_type: def.fields.cloud ? '' : undefined,
     asset_cloud_region: def.fields.cloud ? '' : undefined,
     asset_linked_person: null,
-    asset_metadata: {},
+    asset_metadata: undefined,
     ...initialValues,
     endpoint_mac_addresses: def.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
     asset_category: def.value,
