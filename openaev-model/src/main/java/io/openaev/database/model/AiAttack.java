@@ -77,13 +77,17 @@ public class AiAttack extends Payload {
   @JsonProperty("ai_attack_content")
   private String content;
 
-  /** Optional multi-turn orchestration strategy configuration (e.g. PyRIT Crescendo / TAP / PAIR). */
+  /**
+   * Optional multi-turn orchestration strategy configuration (e.g. PyRIT Crescendo / TAP / PAIR).
+   */
   @Type(JsonType.class)
   @Column(name = "ai_attack_multi_turn")
   @JsonProperty("ai_attack_multi_turn")
   private Map<String, Object> multiTurn = new HashMap<>();
 
-  /** Obfuscation / evasion converters applied to the attack content (e.g. base64, rot13, leetspeak). */
+  /**
+   * Obfuscation / evasion converters applied to the attack content (e.g. base64, rot13, leetspeak).
+   */
   @Type(StringArrayType.class)
   @Column(name = "ai_attack_converters", columnDefinition = "text[]")
   @JsonProperty("ai_attack_converters")

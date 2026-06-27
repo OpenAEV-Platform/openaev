@@ -747,6 +747,9 @@ public class InjectExpectationService {
    * @return agentless detection + prevention expectations without a result from the source
    */
   public List<InjectExpectation> aiDefenseExpectationsNotFill(@NotBlank final String sourceId) {
+    // Combine agentless DETECTION + PREVENTION expectations, keep a single stable global order
+    // (oldest first) and cap the total so a polling collector receives a bounded, fairly ordered
+    // page across both expectation types rather than two separately-capped lists.
     List<InjectExpectation> expectations = new ArrayList<>();
     expectations.addAll(
         this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
@@ -754,7 +757,10 @@ public class InjectExpectationService {
     expectations.addAll(
         this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
             PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
-    return expectations;
+    expectations.sort(
+        Comparator.comparing(
+            InjectExpectation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    return expectations.stream().limit(NOT_FILLED_FETCH_LIMIT).toList();
   }
 
   /**
