@@ -74,7 +74,7 @@ test.describe('Agent implant registration', () => {
   test('installed agent registers an endpoint', async ({ page }) => {
     // Poll the endpoints UI until the agent registers (up to 150 s)
     await expect(async () => {
-      await page.goto(tenantUrl('/admin/assets/endpoints'));
+      await page.goto(tenantUrl('/admin/assets/inventory'));
       const endpointList = new EndpointListPage(page);
       await endpointList.waitForLoad();
       await expect(endpointList.getEndpointByHostname(hostname)).toBeVisible();
