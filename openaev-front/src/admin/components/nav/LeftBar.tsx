@@ -3,7 +3,6 @@ import {
   DescriptionOutlined,
   DnsOutlined,
   ExtensionOutlined,
-  Groups3Outlined,
   GroupsOutlined,
   HubOutlined,
   InsertChartOutlined,
@@ -119,25 +118,16 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/teams`,
-          icon: () => (<Groups3Outlined />),
-          label: 'People',
-          href: 'teams',
+          path: `/admin/teams/persons`,
+          icon: () => (<PersonOutlined />),
+          label: 'Players',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
-          subItems: [
-            {
-              link: '/admin/teams/persons',
-              label: 'Players',
-              icon: () => (<PersonOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
-            },
-            {
-              link: '/admin/teams/teams',
-              label: 'Teams',
-              icon: () => (<GroupsOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
-            },
-          ],
+        },
+        {
+          path: `/admin/teams/teams`,
+          icon: () => (<GroupsOutlined />),
+          label: 'Teams',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
       ],
     },
