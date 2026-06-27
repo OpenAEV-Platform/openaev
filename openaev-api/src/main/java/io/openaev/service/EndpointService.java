@@ -1071,9 +1071,14 @@ public class EndpointService {
               .distinct()
               .toList();
       endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
-      endpointToUpdate.setArch(input.getArch());
-      endpointToUpdate.setPlatform(input.getPlatform());
-      // Optional fields
+      // Optional fields: only override when provided so category inputs that omit
+      // platform/arch (web app, cloud, ...) do not reset existing values to Unknown.
+      if (input.getArch() != null) {
+        endpointToUpdate.setArch(input.getArch());
+      }
+      if (input.getPlatform() != null) {
+        endpointToUpdate.setPlatform(input.getPlatform());
+      }
       if (input.getIps() != null) {
         String[] ips = EndpointMapper.setIps(input.getIps());
         endpointToUpdate.setIps(ips);
