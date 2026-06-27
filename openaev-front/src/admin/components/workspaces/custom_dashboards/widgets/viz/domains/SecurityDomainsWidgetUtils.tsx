@@ -1,4 +1,4 @@
-import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, WebAsset } from '@mui/icons-material';
+import { Groups, HelpOutlined, ImportantDevices, Language, Lock, Mail, SmartToy, WebAsset } from '@mui/icons-material';
 import { type SvgIconProps, type Theme } from '@mui/material';
 import { Cloud, Database } from 'mdi-material-ui';
 import { type ComponentType, type CSSProperties, type ReactElement } from 'react';
@@ -89,15 +89,19 @@ const DOMAIN_CONFIG: Record<string, DomainConfig> = {
     icon: Cloud,
     order: 6,
   },
+  'Artificial Intelligence': {
+    icon: SmartToy,
+    order: 7,
+  },
   'Tabletop': {
     icon: Groups,
-    order: 7,
+    order: 8,
   },
 };
 
 const DEFAULT_CONFIG: DomainConfig = {
   icon: HelpOutlined,
-  order: 8,
+  order: 9,
 };
 
 export const getDomainConfig = (name: string | undefined): DomainConfig => {

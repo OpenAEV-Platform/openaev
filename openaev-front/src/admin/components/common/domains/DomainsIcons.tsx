@@ -2,6 +2,7 @@ import {
   Groups,
   ImportantDevices,
   Language,
+  SmartToy,
   WebAsset,
 } from '@mui/icons-material';
 import {
@@ -24,6 +25,7 @@ const DOMAIN_ICON_MAP: Record<string, () => ReactElement> = {
   'Data Exfiltration': () => <Database />,
   'URL Filtering': () => <Lock />,
   'Cloud': () => <Cloud />,
+  'Artificial Intelligence': () => <SmartToy />,
   'Tabletop': () => <Groups />,
 };
 
