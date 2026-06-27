@@ -25,9 +25,9 @@ const Index = () => {
     <div className={classes.root}>
       <Suspense fallback={<Loader />}>
         <Routes>
-          <Route path="" element={<Navigate to={ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) ? 'endpoints' : 'security_platforms'} replace={true} />} />
+          <Route path="" element={<Navigate to={ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) ? 'inventory' : 'security_platforms'} replace={true} />} />
           <Route
-            path="endpoints"
+            path="inventory"
             element={(
               <ProtectedRoute
                 checks={[{
@@ -38,6 +38,8 @@ const Index = () => {
               />
             )}
           />
+          {/* Back-compat alias for the previous Endpoints list route. */}
+          <Route path="endpoints" element={<Navigate to="../inventory" replace={true} />} />
           <Route
             path="endpoints/:endpointId/*"
             element={(

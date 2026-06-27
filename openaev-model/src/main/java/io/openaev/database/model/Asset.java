@@ -7,6 +7,7 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -16,7 +17,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
@@ -24,6 +27,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -65,6 +69,75 @@ public class Asset implements TenantBase {
   @Column(name = "asset_external_reference")
   @JsonProperty("asset_external_reference")
   private String externalReference;
+
+  // -- CATEGORIZATION --
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_category")
+  @JsonProperty("asset_category")
+  @Enumerated(EnumType.STRING)
+  private AssetCategory category;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_subcategory")
+  @JsonProperty("asset_subcategory")
+  @Enumerated(EnumType.STRING)
+  private AssetSubCategory subcategory;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_criticality")
+  @JsonProperty("asset_criticality")
+  @Enumerated(EnumType.STRING)
+  private AssetCriticality criticality;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_internet_facing")
+  @JsonProperty("asset_internet_facing")
+  private Boolean internetFacing;
+
+  // -- CLOUD (CLOUD_RESOURCE assets) --
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_cloud_provider")
+  @JsonProperty("asset_cloud_provider")
+  @Enumerated(EnumType.STRING)
+  private CloudProvider cloudProvider;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_cloud_native_type")
+  @JsonProperty("asset_cloud_native_type")
+  private String cloudNativeType;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_cloud_region")
+  @JsonProperty("asset_cloud_region")
+  private String cloudRegion;
+
+  /**
+   * For IDENTITY assets: the id of the {@link User} (person) this identity belongs to. Stored as
+   * the user id with a database FK (ON DELETE SET NULL); the link surfaces the physical person
+   * behind an identity asset.
+   */
+  @Queryable(filterable = true)
+  @Column(name = "asset_linked_person")
+  @JsonProperty("asset_linked_person")
+  private String linkedPerson;
+
+  // A blank linked-person id (e.g. an empty string from a cleared form field) is normalized to
+  // null so it can never violate the asset_linked_person -> users(user_id) foreign key.
+  public void setLinkedPerson(String linkedPerson) {
+    this.linkedPerson = (linkedPerson == null || linkedPerson.isBlank()) ? null : linkedPerson;
+  }
+
+  /**
+   * Free-form, category-specific attributes (cloud account id / resource id / ARN, vendor, model,
+   * OS version, protocol, image digest, identity principal, ...). Stored as {@code jsonb} so the
+   * single-table {@code SELECT DISTINCT a FROM Asset a} queries keep an equality operator.
+   */
+  @Type(JsonType.class)
+  @Column(name = "asset_metadata", columnDefinition = "jsonb")
+  @JsonProperty("asset_metadata")
+  private Map<String, Object> metadata = new HashMap<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

@@ -25,6 +25,11 @@ const DynamicAssetField: FunctionComponent<Props> = ({
   const [filterGroup, helpers] = useFiltersState(value ?? emptyFilterGroup, undefined, onChange);
 
   const availableFilterNames = [
+    'asset_category',
+    'asset_subcategory',
+    'asset_criticality',
+    'asset_cloud_provider',
+    'asset_internet_facing',
     'endpoint_arch',
     'endpoint_hostname',
     'endpoint_ips',
