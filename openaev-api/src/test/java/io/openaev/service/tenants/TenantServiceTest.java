@@ -99,10 +99,10 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // Verify the 9 domains from PresetDomain are created for this tenant
+    // Verify the 10 domains from PresetDomain are created for this tenant
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(domainRepository.findAll()).hasSize(9);
+    assertThat(domainRepository.findAll()).hasSize(10);
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
     assertThat(cweRepository.findAll()).hasSize(7);
