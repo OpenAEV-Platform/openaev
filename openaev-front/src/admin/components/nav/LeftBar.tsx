@@ -83,17 +83,17 @@ const LeftBar = () => {
           label: 'Atomic testings',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
         },
-      ],
-    },
-    {
-      userRight: true,
-      items: [
         {
           path: `/admin/threat-arsenal`,
           icon: () => (<LayersOutlined />),
           label: 'Threat Arsenal',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
+      ],
+    },
+    {
+      userRight: true,
+      items: [
         {
           path: `/admin/assets/inventory`,
           icon: () => (<DnsOutlined />),
@@ -134,12 +134,6 @@ const LeftBar = () => {
     {
       userRight: true,
       items: [
-        {
-          path: `/admin/assets/security_platforms`,
-          icon: () => (<SecurityNetwork />),
-          label: 'Security platforms',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-        },
         {
           path: `/admin/components`,
           icon: () => (<NewspaperVariantMultipleOutline />),
@@ -208,6 +202,12 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
           ],
+        },
+        {
+          path: `/admin/assets/security_platforms`,
+          icon: () => (<SecurityNetwork />),
+          label: 'Security platforms',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
       ],
     },
