@@ -123,6 +123,12 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_linked_person")
   private String linkedPerson;
 
+  // A blank linked-person id (e.g. an empty string from a cleared form field) is normalized to
+  // null so it can never violate the asset_linked_person -> users(user_id) foreign key.
+  public void setLinkedPerson(String linkedPerson) {
+    this.linkedPerson = (linkedPerson == null || linkedPerson.isBlank()) ? null : linkedPerson;
+  }
+
   /**
    * Free-form, category-specific attributes (cloud account id / resource id / ARN, vendor, model,
    * OS version, protocol, image digest, identity principal, ...). Stored as {@code jsonb} so the

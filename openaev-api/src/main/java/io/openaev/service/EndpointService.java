@@ -1113,6 +1113,10 @@ public class EndpointService {
       if (input.getMetadata() != null && !input.getMetadata().isEmpty()) {
         endpointToUpdate.setMetadata(input.getMetadata());
       }
+      // A blank value unlinks (the setter normalizes it to null); null preserves the existing link.
+      if (input.getLinkedPerson() != null) {
+        endpointToUpdate.setLinkedPerson(input.getLinkedPerson());
+      }
       return updateEndpoint(endpointToUpdate);
     }
     return createEndpoint(input);

@@ -42,7 +42,7 @@ const PersonFieldController: FunctionComponent<Props> = ({ name, label }) => {
           value={options.find(o => o.id === field.value) || null}
           fullWidth
           options={options}
-          onChange={(_, value) => field.onChange(value?.id || '')}
+          onChange={(_, value) => field.onChange(value?.id ?? null)}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, value) => option.id === value.id}
           renderOption={(props, option) => (

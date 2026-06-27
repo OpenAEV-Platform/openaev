@@ -155,7 +155,7 @@ const AssetForm: FunctionComponent<Props> = ({
     endpoint_arch: def.fields.arch !== 'hidden' ? 'x86_64' : undefined,
     asset_cloud_native_type: '',
     asset_cloud_region: '',
-    asset_linked_person: '',
+    asset_linked_person: null,
     asset_metadata: {},
     ...initialValues,
     endpoint_mac_addresses: normalizedMacs ?? [],

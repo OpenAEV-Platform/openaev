@@ -188,6 +188,38 @@ class EndpointApiTest extends IntegrationTest {
     assertThatJson(response).node("asset_cloud_region").isEqualTo("eu-west-1");
   }
 
+  @DisplayName(
+      "Given an identity input with a blank linked person, should not violate the person FK")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_identityInputWithBlankLinkedPerson_should_createWithoutFkViolation() throws Exception {
+    // --PREPARE--
+    // A cleared person picker submits an empty string; it must be normalized to null so the
+    // asset_linked_person -> users(user_id) foreign key is never violated.
+    EndpointInput input = new EndpointInput();
+    input.setName("svc-account");
+    input.setCategory(AssetCategory.IDENTITY);
+    input.setSubcategory(AssetSubCategory.SERVICE_ACCOUNT);
+    input.setLinkedPerson("");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("IDENTITY");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("SERVICE_ACCOUNT");
+  }
+
   @DisplayName("Given wrong input, can't create an endpoint agentless successfully")
   @Test
   @WithMockUser(isAdmin = true)
