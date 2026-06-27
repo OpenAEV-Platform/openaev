@@ -20,7 +20,6 @@ import static java.util.stream.Collectors.toList;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -131,7 +130,6 @@ public class EndpointService {
   }
 
   public Endpoint createEndpoint(@NotNull final EndpointInput input) {
-    validateLinkedPersonInTenant(input.getLinkedPerson(), TenantContext.getCurrentTenant());
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
     String[] ips = EndpointMapper.setIps(input.getIps());
@@ -141,6 +139,12 @@ public class EndpointService {
     endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     endpoint.setEoL(input.isEol());
     return createEndpoint(endpoint);
+  }
+
+  public Endpoint createEndpoint(
+      @NotNull final EndpointInput input, @NotNull final String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
+    return createEndpoint(input);
   }
 
   // Rejects a linked person that is not a member of the current tenant, so an identity asset

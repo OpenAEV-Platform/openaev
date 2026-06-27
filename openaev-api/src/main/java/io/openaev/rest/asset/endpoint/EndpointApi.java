@@ -59,7 +59,7 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.createEndpoint(input);
+    return this.endpointService.createEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})

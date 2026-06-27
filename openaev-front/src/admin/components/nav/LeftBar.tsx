@@ -120,7 +120,7 @@ const LeftBar = () => {
         {
           path: `/admin/teams/persons`,
           icon: () => (<PersonOutlined />),
-          label: 'Players',
+          label: 'Persons',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
