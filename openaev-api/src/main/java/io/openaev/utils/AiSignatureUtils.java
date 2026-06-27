@@ -10,13 +10,14 @@ import java.util.List;
 /**
  * Correlation helpers for AI adversarial validation.
  *
- * <p>Builds the deterministic per-inject canary marker and the AI expectation signatures
- * ({@code ai_request_marker}, {@code ai_target_endpoint}) used to correlate AI defense (LLM firewall
- * / guardrail) events back to a specific AI inject execution.
+ * <p>Builds the deterministic per-inject canary marker and the AI expectation signatures ({@code
+ * ai_request_marker}, {@code ai_target_endpoint}) used to correlate AI defense (LLM firewall /
+ * guardrail) events back to a specific AI inject execution.
  *
  * <p>The marker algorithm is intentionally identical to the one used by the {@code ai-redteam}
- * injector and the AI defense collectors ({@code pyoaev.signatures.ai_marker}), so all three compute
- * the same value independently: {@code "oaev" + sha256("<injectId>:<agentId>")[:16 hex chars]}.
+ * injector and the AI defense collectors ({@code pyoaev.signatures.ai_marker}), so all three
+ * compute the same value independently: {@code "oaev" + sha256("<injectId>:<agentId>")[:16 hex
+ * chars]}.
  */
 public final class AiSignatureUtils {
 

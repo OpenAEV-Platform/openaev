@@ -26,11 +26,11 @@ public class V5_29__Add_ai_attack_payload_columns extends BaseJavaMigration {
           "ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_category varchar(255);");
       statement.execute("ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_content text;");
       statement.execute(
-          "ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_multi_turn json;");
+          "ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_multi_turn jsonb;");
       statement.execute(
           "ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_converters text[];");
       statement.execute(
-          "ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_success_detector json;");
+          "ALTER TABLE payloads ADD COLUMN IF NOT EXISTS ai_attack_success_detector jsonb;");
     }
   }
 }

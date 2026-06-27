@@ -56,9 +56,7 @@ public class AiTargetApi {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   public AiTarget aiTarget(@PathVariable @NotBlank final String aiTargetId) {
-    return this.aiTargetRepository
-        .findById(aiTargetId)
-        .orElseThrow(ElementNotFoundException::new);
+    return this.aiTargetRepository.findById(aiTargetId).orElseThrow(ElementNotFoundException::new);
   }
 
   @PostMapping({AI_TARGET_URI + "/search", TENANT_AI_TARGET_URI + "/search"})

@@ -100,7 +100,7 @@ public class AiTarget extends Asset {
    * MCP definitions, agent routing, ...). Never put secrets here - use {@link #apiKeyVariable}.
    */
   @Type(JsonType.class)
-  @Column(name = "ai_target_configuration")
+  @Column(name = "ai_target_configuration", columnDefinition = "jsonb")
   @JsonProperty("ai_target_configuration")
   private Map<String, Object> configuration = new HashMap<>();
 

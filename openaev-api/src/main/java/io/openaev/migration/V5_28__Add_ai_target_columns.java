@@ -30,7 +30,7 @@ public class V5_28__Add_ai_target_columns extends BaseJavaMigration {
       statement.execute(
           "ALTER TABLE assets ADD COLUMN IF NOT EXISTS ai_target_system_prompt text;");
       statement.execute(
-          "ALTER TABLE assets ADD COLUMN IF NOT EXISTS ai_target_configuration json;");
+          "ALTER TABLE assets ADD COLUMN IF NOT EXISTS ai_target_configuration jsonb;");
       statement.execute(
           "ALTER TABLE assets ADD COLUMN IF NOT EXISTS ai_target_api_key_variable varchar(255);");
     }

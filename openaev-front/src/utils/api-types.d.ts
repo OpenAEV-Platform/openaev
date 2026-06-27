@@ -176,6 +176,67 @@ export interface AggregatedFindingOutput {
   finding_value: string;
 }
 
+export interface AiAttack {
+  ai_attack_category?: string;
+  ai_attack_content?: string;
+  ai_attack_converters?: string[];
+  ai_attack_engine: "native" | "garak" | "pyrit" | "promptfoo";
+  ai_attack_multi_turn?: Record<string, any>;
+  ai_attack_success_detector?: Record<string, any>;
+  listened?: boolean;
+  payload_arguments?: PayloadArgument[];
+  payload_cleanup_command?: string;
+  payload_cleanup_executor?: string;
+  payload_collector_type?: string;
+  /** @format date-time */
+  payload_created_at: string;
+  payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
+  payload_elevation_required?: boolean;
+  payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  payload_expectations?: (
+    | "TEXT"
+    | "DOCUMENT"
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  payload_external_id?: string;
+  /** @minLength 1 */
+  payload_id: string;
+  /** @minLength 1 */
+  payload_name: string;
+  /** @uniqueItems true */
+  payload_output_parsers?: OutputParser[];
+  /** @minItems 1 */
+  payload_platforms: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  payload_prerequisites?: PayloadPrerequisite[];
+  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_type?: string;
+  /** @format date-time */
+  payload_updated_at: string;
+  typeEnum?:
+    | "COMMAND"
+    | "EXECUTABLE"
+    | "FILE_DROP"
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
+}
+
 export interface AiGenericTextInput {
   /** @minLength 1 */
   ai_content: string;
@@ -211,6 +272,64 @@ export interface AiMessageInput {
 export interface AiResult {
   chunk_content?: string;
   chunk_id?: string;
+}
+
+export interface AiTarget {
+  ai_target_api_key_variable?: string;
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string;
+  ai_target_modality: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string;
+  ai_target_provider:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP";
+  ai_target_system_prompt?: string;
+  /** @format date-time */
+  asset_created_at: string;
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_id: string;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_tags?: string[];
+  asset_type?: string;
+  /** @format date-time */
+  asset_updated_at: string;
+  listened?: boolean;
+}
+
+export interface AiTargetInput {
+  ai_target_api_key_variable?: string | null;
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string | null;
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string | null;
+  ai_target_provider:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP";
+  ai_target_system_prompt?: string | null;
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_tags?: string[];
 }
 
 export interface ArgumentTypeOutput {
@@ -664,7 +783,8 @@ interface BasePayload {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 interface BasePayloadCreateInput {
@@ -1233,7 +1353,8 @@ export interface Command {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface Communication {
@@ -2016,7 +2137,8 @@ export interface DnsResolution {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface Document {
@@ -2888,7 +3010,8 @@ export interface Executable {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface ExecutionTrace {
@@ -3285,7 +3408,8 @@ export interface FileDrop {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface Filter {
@@ -5131,7 +5255,8 @@ export interface NetworkTraffic {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface NotificationRuleOutput {
@@ -5259,6 +5384,25 @@ export interface OutputParserSimple {
 
 export interface PageAggregatedFindingOutput {
   content?: AggregatedFindingOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageAiTarget {
+  content?: AiTarget[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -5956,6 +6100,7 @@ export type Payload = BasePayload &
     | BasePayloadPayloadTypeMapping<"FileDrop", FileDrop>
     | BasePayloadPayloadTypeMapping<"DnsResolution", DnsResolution>
     | BasePayloadPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
+    | BasePayloadPayloadTypeMapping<"AiAttack", AiAttack>
   );
 
 export interface PayloadArgument {
@@ -7446,64 +7591,6 @@ export interface SearchPaginationInput {
 
 export interface SearchTerm {
   searchTerm?: string;
-}
-
-export interface AiTarget {
-  ai_target_api_key_variable?: string;
-  ai_target_configuration?: Record<string, unknown>;
-  ai_target_endpoint?: string;
-  ai_target_model?: string;
-  ai_target_modality: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
-  ai_target_provider:
-    | "OPENAI_COMPATIBLE"
-    | "ANTHROPIC"
-    | "AZURE_OPENAI"
-    | "AWS_BEDROCK"
-    | "GOOGLE_VERTEX"
-    | "HUGGINGFACE"
-    | "OLLAMA"
-    | "CUSTOM_HTTP"
-    | "MCP_SERVER"
-    | "AGENT_HTTP";
-  ai_target_system_prompt?: string;
-  /** @format date-time */
-  asset_created_at: string;
-  asset_description?: string;
-  asset_external_reference?: string;
-  /** @minLength 1 */
-  asset_id: string;
-  /** @minLength 1 */
-  asset_name: string;
-  asset_tags?: string[];
-  asset_type?: string;
-  /** @format date-time */
-  asset_updated_at: string;
-  listened?: boolean;
-}
-
-export interface AiTargetInput {
-  ai_target_api_key_variable?: string | null;
-  ai_target_configuration?: Record<string, unknown>;
-  ai_target_endpoint?: string | null;
-  ai_target_model?: string | null;
-  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
-  ai_target_provider:
-    | "OPENAI_COMPATIBLE"
-    | "ANTHROPIC"
-    | "AZURE_OPENAI"
-    | "AWS_BEDROCK"
-    | "GOOGLE_VERTEX"
-    | "HUGGINGFACE"
-    | "OLLAMA"
-    | "CUSTOM_HTTP"
-    | "MCP_SERVER"
-    | "AGENT_HTTP";
-  ai_target_system_prompt?: string | null;
-  asset_description?: string;
-  asset_external_reference?: string;
-  /** @minLength 1 */
-  asset_name: string;
-  asset_tags?: string[];
 }
 
 export interface SecurityPlatform {

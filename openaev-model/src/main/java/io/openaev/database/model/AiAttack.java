@@ -81,7 +81,7 @@ public class AiAttack extends Payload {
    * Optional multi-turn orchestration strategy configuration (e.g. PyRIT Crescendo / TAP / PAIR).
    */
   @Type(JsonType.class)
-  @Column(name = "ai_attack_multi_turn")
+  @Column(name = "ai_attack_multi_turn", columnDefinition = "jsonb")
   @JsonProperty("ai_attack_multi_turn")
   private Map<String, Object> multiTurn = new HashMap<>();
 
@@ -98,7 +98,7 @@ public class AiAttack extends Payload {
    * vulnerable): refusal detection, canary/marker leakage, regex, or LLM-as-judge.
    */
   @Type(JsonType.class)
-  @Column(name = "ai_attack_success_detector")
+  @Column(name = "ai_attack_success_detector", columnDefinition = "jsonb")
   @JsonProperty("ai_attack_success_detector")
   private Map<String, Object> successDetector = new HashMap<>();
 
