@@ -492,6 +492,23 @@ jobs:
           path: ${{ runner.temp }}/app.log
           if-no-files-found: warn
 
+      - name: Wait for API readiness (XTM Composer prerequisite)
+        run: |
+          echo "⏳ Waiting for API readiness on /api/me before starting XTM Composer..."
+          for i in $(seq 1 90); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${OPENAEV_ADMIN_TOKEN}" \
+              http://localhost:8080/api/me || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API ready for XTM Composer after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ API is not ready on /api/me after 180s"
+          tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || true
+          exit 1
+
       - name: Start XTM Composer
         uses: ./.github/actions/start-xtm-composer
         with:
@@ -729,6 +746,23 @@ jobs:
           name: app-log-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
           path: ${{ runner.temp }}/app.log
           if-no-files-found: warn
+
+      - name: Wait for API readiness (XTM Composer prerequisite)
+        run: |
+          echo "⏳ Waiting for API readiness on /api/me before starting XTM Composer..."
+          for i in $(seq 1 90); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${OPENAEV_ADMIN_TOKEN}" \
+              http://localhost:8080/api/me || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API ready for XTM Composer after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ API is not ready on /api/me after 180s"
+          tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || true
+          exit 1
 
       - name: Start XTM Composer
         uses: ./.github/actions/start-xtm-composer
