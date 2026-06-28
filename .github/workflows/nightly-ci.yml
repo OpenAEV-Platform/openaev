@@ -328,6 +328,7 @@ jobs:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
+      CI_ARCH: arm64
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
