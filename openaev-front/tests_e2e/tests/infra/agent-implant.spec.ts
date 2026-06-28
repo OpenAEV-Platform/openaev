@@ -59,12 +59,12 @@ test.describe('Agent implant registration', () => {
 
     // Windows PowerShell 5.1 prompts for confirmation when iwr parses HTML;
     // -UseBasicParsing avoids the interactive security prompt.
-    if (os.platform() === 'win32') {
-      installCommand = installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
-    }
+    const commandToExecute = os.platform() === 'win32'
+      ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
+      : installCommand;
 
     // Execute the install command
-    execSync(installCommand, {
+    execSync(commandToExecute, {
       stdio: 'inherit',
       timeout: 60_000,
       shell: os.platform() === 'win32' ? 'powershell' : undefined,
