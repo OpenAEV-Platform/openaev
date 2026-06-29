@@ -43,6 +43,9 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private DomainRepository domainRepository;
+  @Autowired private WorkflowRepository workflowRepository;
+  @Autowired private StepRepository stepRepository;
+  @Autowired private ConditionRepository conditionRepository;
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   private JsonNode importNode;
@@ -301,6 +304,67 @@ class V1_DataImporterTest extends IntegrationTest {
     assertTrue(
         prerequisites == null || prerequisites.isEmpty(),
         "Prerequisites should be empty when field is explicit null in JSON");
+  }
+
+  @Test
+  @Transactional
+  void given_scenarioWithWorkflow_should_importWorkflowStepsAndConditions() throws Exception {
+    // -- Arrange --
+    JsonNode workflowImport =
+        new ObjectMapper()
+            .readTree(
+                Files.readAllBytes(
+                    Paths.get(
+                        "src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+
+    // Workflow
+    List<Workflow> workflows =
+        workflowRepository.findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE);
+    assertEquals(1, workflows.size());
+    Workflow workflow = workflows.getFirst();
+    assertEquals(2, workflow.getVersion());
+    assertTrue(workflow.isRateLimitEnabled());
+    assertEquals(5, workflow.getMaxAttempts());
+    assertTrue(workflow.isTimeoutEnabled());
+    assertEquals(300L, workflow.getTimeoutSeconds());
+    assertEquals(1, workflow.getWorkflowScopeRules().size());
+    assertEquals(1, workflow.getWorkflowScopeVariables().size());
+
+    // Steps
+    List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
+    assertEquals(2, steps.size());
+    assertTrue(steps.stream().allMatch(s -> s.getStatus() == StepStatus.TEMPLATE));
+
+    Step step1 = steps.stream().filter(s -> s.getLimitExecution() == 3).findFirst().orElseThrow();
+    Step step2 = steps.stream().filter(s -> s.getLimitExecution() == 1).findFirst().orElseThrow();
+
+    // Conditions on step 1: root + child
+    List<Condition> conds1 = conditionRepository.findAllLinkedToStepId(step1.getId());
+    assertEquals(2, conds1.size());
+    Condition root =
+        conds1.stream().filter(c -> c.getConditionParent() == null).findFirst().orElseThrow();
+    Condition child =
+        conds1.stream().filter(c -> c.getConditionParent() != null).findFirst().orElseThrow();
+    assertEquals(ConditionType.EQ, root.getType());
+    assertEquals("SUCCESS", root.getValue());
+    assertEquals(root.getId(), child.getConditionParent().getId());
+
+    // Condition on step 2: references step 1 via stepFrom
+    List<Condition> conds2 = conditionRepository.findAllLinkedToStepId(step2.getId());
+    assertEquals(1, conds2.size());
+    assertEquals(step1.getId(), conds2.getFirst().getStepFrom().getId());
   }
 
   // -- UTILS --

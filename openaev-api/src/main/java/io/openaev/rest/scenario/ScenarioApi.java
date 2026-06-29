@@ -47,7 +47,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -155,21 +154,8 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional
-  public Scenario duplicateScenario(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
-    Scenario duplicated = scenarioService.getDuplicateScenario(scenarioId);
-    // If the source scenario is chaining, duplicate the workflow and steps
-    if (workflowService.isScenarioChaining(scenarioId)) {
-      Workflow workflowTo = workflowService.duplicateScenario(scenarioId, duplicated);
-      if (workflowTo != null) {
-        Optional<Workflow> workflowFromOpt =
-            workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
-        workflowFromOpt.ifPresent(
-            workflowFrom -> stepService.copyStepTemplate(workflowFrom, workflowTo));
-      }
-    }
-    return duplicated;
+  public Scenario duplicateScenario(@PathVariable @NotBlank final String scenarioId) {
+    return scenarioService.getDuplicateScenario(scenarioId);
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})

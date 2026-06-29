@@ -74,7 +74,7 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
               <TableRow>
                 <TableCell>
                   {isChaining
-                    ? t('Steps & Events')
+                    ? t('Actions & Events')
                     : t('Injects (including attached files)')}
                 </TableCell>
                 <TableCell style={{ textAlign: 'center' }}>

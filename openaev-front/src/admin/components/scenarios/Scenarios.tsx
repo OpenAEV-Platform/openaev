@@ -24,6 +24,7 @@ import { type Scenario, type SearchPaginationInput } from '../../../utils/api-ty
 import useAuth from '../../../utils/hooks/useAuth';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
@@ -52,6 +53,7 @@ const Scenarios = () => {
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -239,7 +241,11 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={['Duplicate', 'Export', 'Delete']}
+                        actions={
+                          isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id
+                            ? ['Export', 'Delete']
+                            : ['Duplicate', 'Export', 'Delete']
+                        }
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

@@ -1834,7 +1834,8 @@ public class V1_DataImporter implements Importer {
         importWorkflowSteps(workflowNode.get("workflow_steps"), workflow);
       }
     } catch (Exception e) {
-      log.warn("Failed to import workflow (chaining): {}", e.getMessage(), e);
+      log.warn("Failed to import workflow (chaining)", e);
+      throw new ImportException(e);
     }
   }
 
@@ -1948,13 +1949,15 @@ public class V1_DataImporter implements Importer {
                 .keyType(
                     condNode.has("condition_key_type")
                             && !condNode.get("condition_key_type").isNull()
-                        ? ConditionKeyType.valueOf(condNode.get("condition_key_type").asText())
+                        ? mapper.convertValue(
+                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
                         : null)
                 .keySubtype(
                     condNode.has("condition_key_subtype")
                             && !condNode.get("condition_key_subtype").isNull()
-                        ? ConditionKeySubtype.valueOf(
-                            condNode.get("condition_key_subtype").asText())
+                        ? mapper.convertValue(
+                            condNode.get("condition_key_subtype").asText(),
+                            ConditionKeySubtype.class)
                         : null)
                 .type(
                     condNode.has("condition_type") && !condNode.get("condition_type").isNull()
