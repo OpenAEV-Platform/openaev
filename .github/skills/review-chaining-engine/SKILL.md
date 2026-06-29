@@ -129,11 +129,12 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 
 ## Test Fixtures & Composers
 
-| Class | Purpose |
-|---|---|
-| `WorkflowFixture` | Creates test workflow entities |
-| `WorkflowComposer` | Builds complex workflow test scenarios |
-| `ConditionComposer` | Builds condition trees for tests |
+| Class               | Purpose                                |
+|---------------------|----------------------------------------|
+| `WorkflowFixture`   | Creates test workflow entities         |
+| `WorkflowComposer`  | Builds complex workflow test scenarios |
+| `ConditionComposer` | Builds condition trees for tests       |
+| `StepComposer`      | Builds Step tests            |
 
 ## Key Test Classes
 
