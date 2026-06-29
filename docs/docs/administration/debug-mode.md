@@ -10,7 +10,8 @@ no parameter capture, no extra per-request work and no extra files written.
 ## What it produces
 
 - **Correlation id on every log line (tenant in the SQL detail).** Each request carries a `traceId`
-  (and `spanId`) in the MDC, shown on the console as the `[traceId-spanId]` slot, so all the lines
+  (and `spanId`) in the MDC (Mapped Diagnostic Context, the per-thread key/value bag the logging
+  library attaches to every line it emits), shown on the console as the `[traceId-spanId]` slot, so all the lines
   emitted while handling it can be grouped together. Tenant-scoped requests also carry the `tenant` in
   the MDC; it is rendered in the SQL file (not the console slot), so the SQL can be filtered per
   tenant. This uses Micrometer Tracing; no tracing backend is required, the ids are written to the
@@ -230,10 +231,16 @@ Everything debug mode writes goes under `openaev.debug.output-dir` (default `./l
 
 The application's own logs (with `traceId` and `tenant` in the MDC) keep going to their usual sink.
 
+The default `./logs/debug` is relative to the working directory, so in a container it lives on the
+ephemeral layer and is wiped on every recycle. To keep the SQL logs and JFR dumps across restarts,
+point `openaev.debug.output-dir` at a persistent volume (see below). Capture the files you need before
+recycling the container if the directory is not persisted.
+
 ## Running in a container
 
-The debug output directory needs a writable location. A hardened container with a read-only root
-filesystem must mount a writable volume and point the debug output there:
+The debug output directory needs a writable, and ideally persistent, location. A hardened container
+with a read-only root filesystem must mount a volume and point the debug output there; a named volume
+also keeps the output across container recycles:
 
 ```yaml
 services:
