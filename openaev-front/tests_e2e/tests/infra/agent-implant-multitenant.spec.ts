@@ -81,7 +81,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await page.goto(tenantUrl('/admin/agents', newTenantId!));
     const agentInstallPage = new AgentInstallPage(page);
     await agentInstallPage.waitForLoad();
-    let installCommand = await agentInstallPage.getInstallCommand(platform);
+    const installCommand = await agentInstallPage.getInstallCommand(platform);
 
     // ─── Create a command-line payload in the new tenant ───
     await page.goto(tenantUrl('/admin', newTenantId!));
@@ -95,10 +95,10 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await context.close();
 
     // ─── Execute the install command ───
-    if (os.platform() === 'win32') {
-      installCommand = installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
-    }
-    execSync(installCommand, {
+    const commandToExecute = os.platform() === 'win32'
+      ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
+      : installCommand;
+    execSync(commandToExecute, {
       stdio: 'inherit',
       timeout: 60_000,
       shell: os.platform() === 'win32' ? 'powershell' : undefined,
