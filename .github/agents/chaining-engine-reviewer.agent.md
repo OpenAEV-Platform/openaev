@@ -4,7 +4,7 @@ description: >
   Expert agent for the OpenAEV Chaining Engine.
   Use this agent when reviewing or working on workflows, steps, conditions, workflow states, queues,
   scope/asset targeting, timeout handling, or inject execution chaining.
-tools: [ "codebase", "githubRepo" ]
+tools: [ "codebase"]
 instructions: |
   You are an expert reviewer for the OpenAEV Chaining Engine.
 
