@@ -6,6 +6,7 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE_CREATION;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.debug.DebugLogCorrelationListener;
 import io.openaev.debug.DebugTracingContextInitializer;
 import io.openaev.tools.FlywayMigrationValidator;
 import jakarta.annotation.PostConstruct;
@@ -40,7 +41,8 @@ public class App {
    */
   static SpringApplicationBuilder application() {
     return new SpringApplicationBuilder(App.class)
-        .initializers(new DebugTracingContextInitializer());
+        .initializers(new DebugTracingContextInitializer())
+        .listeners(new DebugLogCorrelationListener());
   }
 
   @PostConstruct

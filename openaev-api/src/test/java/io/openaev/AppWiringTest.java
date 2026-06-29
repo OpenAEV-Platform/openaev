@@ -2,6 +2,7 @@ package io.openaev;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.debug.DebugLogCorrelationListener;
 import io.openaev.debug.DebugTracingContextInitializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,12 @@ class AppWiringTest {
         .count();
   }
 
+  private long debugLogCorrelationListenerCount(SpringApplicationBuilder builder) {
+    return builder.build().getListeners().stream()
+        .filter(DebugLogCorrelationListener.class::isInstance)
+        .count();
+  }
+
   @Test
   @DisplayName(
       "App.application() explicitly registers the debug tracing initializer for production")
@@ -27,5 +34,16 @@ class AppWiringTest {
     long baseline = debugTracingInitializerCount(new SpringApplicationBuilder(App.class));
 
     assertThat(debugTracingInitializerCount(App.application())).isEqualTo(baseline + 1);
+  }
+
+  @Test
+  @DisplayName(
+      "App.application() explicitly registers the debug log correlation listener for production")
+  void registersDebugLogCorrelationListener() {
+    // The listener is only wired via App (not spring.factories), so production must add exactly
+    // one.
+    long baseline = debugLogCorrelationListenerCount(new SpringApplicationBuilder(App.class));
+
+    assertThat(debugLogCorrelationListenerCount(App.application())).isEqualTo(baseline + 1);
   }
 }

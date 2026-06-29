@@ -9,10 +9,12 @@ no parameter capture, no extra per-request work and no extra files written.
 
 ## What it produces
 
-- **Correlation id and tenant in every log line.** Each request carries a `traceId` (and `spanId`)
-  and, for tenant-scoped requests, the `tenant` in the MDC, so all the lines emitted while handling it
-  can be grouped together and filtered per tenant. This uses Micrometer Tracing; no tracing backend is
-  required, the ids are written to the normal log output.
+- **Correlation id on every log line (tenant in the SQL detail).** Each request carries a `traceId`
+  (and `spanId`) in the MDC, shown on the console as the `[traceId-spanId]` slot, so all the lines
+  emitted while handling it can be grouped together. Tenant-scoped requests also carry the `tenant` in
+  the MDC; it is rendered in the SQL file (not the console slot), so the SQL can be filtered per
+  tenant. This uses Micrometer Tracing; no tracing backend is required, the ids are written to the
+  normal log output.
 - **SQL detail.** Every SQL statement (ORM-generated and native) is logged with its execution time
   and its masked parameters, on the dedicated `io.openaev.debug.sql` logger. To keep this high-volume
   output off the console and the production log pipeline, it is written to a rotated file
@@ -32,15 +34,18 @@ Per-request scoping is out of scope.
 A single request, `GET /api/scenarios/sc-42`, with debug mode on. Two sinks: the console keeps the
 application logs and the ORM summary; the verbose per-statement SQL goes to the rotated file.
 
-Console (application logs + the per-request ORM summary), every line carrying the request's `trace`
-and `tenant`:
+Console (application logs + the per-request ORM summary). Each line carries Spring Boot's correlation
+slot `[traceId-spanId]` (ids shortened here for readability):
 
 ```text
-INFO  [trace=6a3c4dea tenant=0e7c2f1a-tenant-acme] ...ScenarioApi : Loading scenario sc-42
-INFO  [trace=6a3c4dea tenant=0e7c2f1a-tenant-acme] ...ScenarioApi : Scenario sc-42 loaded
-WARN  [trace=6a3c4dea tenant=0e7c2f1a-tenant-acme] ...debug.orm   : ORM GET /api/scenarios/sc-42: 13 queries (2 distinct), 7ms
+INFO  [OpenAEV API] [http-nio-exec-3] [6a3c4dea…0b-7bd42e33…] ...ScenarioApi : Loading scenario sc-42
+INFO  [OpenAEV API] [http-nio-exec-3] [6a3c4dea…0b-7bd42e33…] ...ScenarioApi : Scenario sc-42 loaded
+WARN  [OpenAEV API] [http-nio-exec-3] [6a3c4dea…0b-7bd42e33…] ...debug.orm   : ORM GET /api/scenarios/sc-42: 13 queries (2 distinct), 7ms
   N+1 SUSPECTED: 'select team_name from teams where team_id = ?' executed 12x (6ms total)
 ```
+
+The console slot is just `[traceId-spanId]` (no tenant). The tenant is carried in the MDC and rendered
+only in the SQL file below, which uses its own pattern.
 
 The rotated SQL file `openaev-debug-sql.log`, one line per statement, with masked parameters:
 
@@ -53,11 +58,11 @@ The rotated SQL file `openaev-debug-sql.log`, one line per statement, with maske
 
 What each field means:
 
-- `trace=6a3c4dea...` -- the correlation id shared by every line of the request (application, SQL,
-  ORM summary). It is the full 32-hex id in the logs (shortened here for readability). Filter on it to
-  reconstruct the whole request.
-- `tenant=...` -- the tenant the request targets (the default tenant when the request is not
-  tenant-scoped).
+- The correlation id (`traceId`) is the same value on both sinks: the console prints it as the
+  `[traceId-spanId]` slot, the SQL file as `trace=...`. It is the full 32-hex id (shortened here).
+  Filter on it to reconstruct the whole request across application logs and SQL.
+- `tenant=...` (SQL file only) -- the tenant the request targets (the default tenant when the request
+  is not tenant-scoped). It is not rendered in the console slot.
 - `time=1ms` -- the statement's JDBC execution time, so slow statements stand out.
 - `statement=...` -- the real SQL sent to PostgreSQL (Hibernate-generated or native), with `?`
   placeholders.
@@ -66,6 +71,17 @@ What each field means:
   are not sensitive, so they are shown.
 - The `ORM ...` line is the one summary per request: total queries and time, plus `N+1 SUSPECTED` --
   the same SELECT ran once per team (lazy loading), the classic N+1 to fix.
+
+### The console correlation slot
+
+The `[traceId-spanId]` slot is Spring Boot's, driven by Micrometer Tracing. It has three states:
+
+- **debug off** -- no slot at all. Tracing is excluded when the mode is off, so the logs are not
+  padded with an empty correlation field (no `[ ]` noise by default).
+- **debug on, outside a request** (startup, schedulers, background threads) -- the slot is present but
+  empty, because no span is active on that thread.
+- **debug on, during a request** -- the slot is filled, and that same `traceId` appears on the
+  matching SQL lines, so application logs and SQL correlate.
 
 ## Reading the SQL log in practice
 
