@@ -219,7 +219,10 @@ public class BatchingInjectStatusService {
         injectTraceQueueService.publish(callback);
         callbacksToRequeue.poll();
       } catch (Exception e) {
-        log.warn("Unable to requeue inject execution callback, keeping it in memory for retry", e);
+        log.warn(
+            "Unable to requeue inject execution callback {}, keeping it in memory for retry",
+            callback,
+            e);
         break;
       }
     }
