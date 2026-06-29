@@ -69,7 +69,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [Performance Reviewer](.github/agents/performance-reviewer.agent.md) | Audit N+1, lazy loading, query efficiency, pagination | `AGENTS.md` → `copilot-instructions.md` → `performance.instructions.md` | `review-performance` skill |
 | [Security Reviewer](.github/agents/security-reviewer.agent.md) | Audit auth, RBAC, data exposure, secrets | `AGENTS.md` → `copilot-instructions.md` → `security.instructions.md` | `review-security` skill |
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
-| [Chaining Reviewer](.github/agents/chaining-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
+| [Chaining Engine Reviewer](.github/agents/chaining-engine-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
 
 ## When to Use Which Agent
 
@@ -81,7 +81,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR touches tenant-scoped entities, migrations with `tenant_id`, `TenantContext` | **Multi-Tenancy Reviewer** |
 | PR touches frontend (`.tsx`, `.ts`, forms, components) | **Frontend Reviewer** |
 | PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
-| PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Reviewer** |
+| PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Engine Reviewer** |
 | Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
 
 ### Composition Rules

@@ -43,6 +43,14 @@ Key checks: `@Nested` + `@DisplayName` grouping, `given_X_should_Y` naming, AAA 
 
 Key checks: no MUI for layout (native HTML), `sx` prop only (no `makeStyles`), `t()` called early, auto-generated `api-types.d.ts` (no manual types).
 
+## Chaining Engine
+
+> Full rules: [chaining-engine.instructions.md](chaining-engine.instructions.md)
+> Review skill: [review-chaining-engine](../skills/review-chaining-engine/SKILL.md)
+> Agent: `chaining-engine-reviewer`
+
+Key checks: `PreviewFeature.INJECT_CHAINING` gate on endpoints, step lifecycle (TEMPLATE → READY → RUN → END), `workflowService.isWorkflowEnded()` guard before execution, queue interactions only via `QueueChainingService`, global state updated before local propagation, time delays via `StepDelayQueueService` (never `Thread.sleep()`), `@WorkflowUpdateEvent` on inject-mutating methods.
+
 ## Review Style
 
 - Use **conventional comments**: `suggestion:`, `issue:`, `todo:`, `nitpick:`, `praise:`

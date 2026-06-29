@@ -1,5 +1,5 @@
 ---
-name: Chaining Reviewer
+name: Chaining Engine Reviewer
 description: >
   Expert agent for the OpenAEV Chaining Engine.
   Use this agent when reviewing or working on workflows, steps, conditions, workflow states, queues,
