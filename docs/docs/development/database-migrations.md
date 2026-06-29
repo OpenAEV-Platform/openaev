@@ -39,3 +39,20 @@ Optionally, give a "reason" argument to customise the class name and give it a h
 (openaev-api) $ mvn openaev:migration -Dreason="add columns to some table"
 ```
 The new migration class file and skeleton contents are now created in the `migration` directory. 
+
+## Out-of-order migration processing
+By default, Flyway imposes a strictly sequential order for running migrations, which means that
+if, between two app boots, one or more new migrations classes are detected and their class names are not all ranked at the 
+end of the lexicographical order, Flyway will output an error and exit, preventing schema changes.
+
+OpenAEV exposes an environment variable to enable the "out-of-order" mode in Flyway, which allows migrations to
+run in any order, as they are detected from boot to boot.
+```shell
+OPENAEV_FLYWAY_OUT_OF_ORDER=true|false
+```
+* `true`: enable the out-of-order mode
+* `false` (default): enforce strictly sequential processing of migrations
+
+Alternatively, set the following Spring property: `spring.flyway.out-of-order` (`true|false`).
+
+Note that at any one time, all unprocessed migrations are still run sequentially in lexicographical order.
