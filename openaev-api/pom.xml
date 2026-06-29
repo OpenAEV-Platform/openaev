@@ -24,6 +24,8 @@
         <opentelemetry.version>1.63.0</opentelemetry.version>
         <elasticsearch.version>8.19.17</elasticsearch.version>
         <opentelemetry-semconv.version>1.42.0</opentelemetry-semconv.version>
+        <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
+        <datasource-proxy.version>1.10</datasource-proxy.version>
     </properties>
 
     <profiles>
@@ -291,6 +293,19 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <!-- Debug mode: correlation ids in the MDC via Micrometer Tracing (Brave bridge, from the
+             Spring Boot BOM). Aligning on the OpenTelemetry bridge is deferred (ADR 0002): the
+             metrics-only OpenTelemetry bean blocks it, a metrics-owner change. Apache-2.0. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <!-- Debug mode: SQL statement logging with timing and masked parameters. Apache-2.0. -->
+        <dependency>
+            <groupId>net.ttddyy</groupId>
+            <artifactId>datasource-proxy</artifactId>
+            <version>${datasource-proxy.version}</version>
         </dependency>
         <!-- Must match the version Spring Data JPA uses (declared provided/optional there),
              otherwise its native-query handling breaks at startup. -->
