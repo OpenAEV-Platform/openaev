@@ -80,18 +80,22 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     // No
   }
 
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE);
+  }
+
   @Override
   protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE),
+        getLogoFilename(),
         getClass().getResourceAsStream("/img/icon-paloaltocortex.png"));
   }
 
   @Override
   protected void insertCatalogEntry() throws Exception {
     ensureCatalogLogo();
-    String logoFilename = "%s-logo.png".formatted(PALOALTOCORTEX_EXECUTOR_TYPE);
+    String logoFilename = getLogoFilename();
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Palo Alto Cortex Executor");
     connector.setSlug(PALOALTOCORTEX_EXECUTOR_TYPE);

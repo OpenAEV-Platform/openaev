@@ -83,18 +83,22 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     calderaExecutorConfigurationMigration.migrate();
   }
 
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE);
+  }
+
   @Override
   protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE),
+        getLogoFilename(),
         getClass().getResourceAsStream("/img/icon-caldera.png"));
   }
 
   @Override
   protected void insertCatalogEntry() throws Exception {
     ensureCatalogLogo();
-    String logoFilename = "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE);
+    String logoFilename = getLogoFilename();
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Caldera Executor");
     connector.setSlug(CALDERA_EXECUTOR_TYPE);

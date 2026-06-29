@@ -126,11 +126,6 @@ const ConnectorTitle = ({
   };
 
   const [isStatusLoading, setIsStatusLoading] = useState<boolean>(false);
-  const [imgError, setImgError] = useState(false);
-
-  useEffect(() => {
-    setImgError(false);
-  }, [connector.connectorLogoUrl]);
 
   useEffect(() => {
     const isLoading = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
@@ -139,11 +134,9 @@ const ConnectorTitle = ({
     setIsStatusLoading(isLoading);
   }, [instanceCurrentStatus, instanceRequestedStatus]);
 
-  const showPlaceholder = imgError || connector.connectorLogoName?.includes('dummy') || !connector.connectorLogoUrl;
-
   return (
     <div className={classes.content}>
-      {showPlaceholder ? (
+      {connector.connectorLogoName.includes('dummy') ? (
         <HelpCenterOutlined className={classes.img} />
       )
         : (
@@ -151,7 +144,6 @@ const ConnectorTitle = ({
               src={connector.connectorLogoUrl}
               alt={connector.connectorLogoName}
               className={classes.img}
-              onError={() => setImgError(true)}
             />
           )}
 

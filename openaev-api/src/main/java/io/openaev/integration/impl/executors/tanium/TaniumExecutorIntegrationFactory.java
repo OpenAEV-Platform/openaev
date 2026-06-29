@@ -87,18 +87,22 @@ public class TaniumExecutorIntegrationFactory extends IntegrationFactory {
     taniumExecutorConfigurationMigration.migrate();
   }
 
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(TANIUM_EXECUTOR_TYPE);
+  }
+
   @Override
   protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        "%s-logo.png".formatted(TANIUM_EXECUTOR_TYPE),
+        getLogoFilename(),
         getClass().getResourceAsStream("/img/icon-tanium.png"));
   }
 
   @Override
   protected void insertCatalogEntry() throws Exception {
     ensureCatalogLogo();
-    String logoFilename = "%s-logo.png".formatted(TANIUM_EXECUTOR_TYPE);
+    String logoFilename = getLogoFilename();
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Tanium Executor");
     connector.setSlug(TANIUM_EXECUTOR_TYPE);
