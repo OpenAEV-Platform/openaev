@@ -88,9 +88,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       Collector collector,
       CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
-      boolean existingCollector) {
+      boolean existingCollector,
+      String displayName) {
     return collectorMapper.toCollectorOutput(
-        collector, catalogConnector, connectorInstance, existingCollector);
+        collector, catalogConnector, connectorInstance, existingCollector, displayName);
   }
 
   @Override

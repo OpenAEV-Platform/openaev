@@ -84,8 +84,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       Executor executor,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
-      boolean existingExecutor) {
-    return executorMapper.toExecutorOutput(executor, catalogConnector, instance, existingExecutor);
+      boolean existingExecutor,
+      String displayName) {
+    return executorMapper.toExecutorOutput(
+        executor, catalogConnector, instance, existingExecutor, displayName);
   }
 
   @Override

@@ -21,10 +21,11 @@ public class CollectorMapper {
       Collector collector,
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
-      boolean existingCollector) {
+      boolean existingCollector,
+      String displayName) {
     return CollectorOutput.builder()
         .id(collector.getId())
-        .name(collector.getName())
+        .name(displayName)
         .type(collector.getType())
         .external(collector.isExternal())
         .lastExecution(collector.getUpdatedAt())
