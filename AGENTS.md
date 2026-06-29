@@ -31,16 +31,17 @@ yarn generate-types-from-api           # Sync API types
 
 Do NOT look for conventions here — they live in dedicated instruction files, activated automatically based on the files you touch.
 
-| Domain | File | Applies to |
-|---|---|---|
-| **Backend** (entities, services, DTOs, API) | [backend.instructions.md](.github/instructions/backend.instructions.md) | `openaev-api/**`, `openaev-model/**` |
-| **Frontend** (components, hooks, folders) | [frontend.instructions.md](.github/instructions/frontend.instructions.md) | `openaev-front/**` |
-| **Database** (migrations, schema, indexes) | [database.instructions.md](.github/instructions/database.instructions.md) | `**/db/migration/**`, `**/model/**` |
-| **Security** (auth, RBAC, tenant isolation) | [security.instructions.md](.github/instructions/security.instructions.md) | All Java & TypeScript files |
-| **Performance** (queries, caching, patterns) | [performance.instructions.md](.github/instructions/performance.instructions.md) | All Java files |
-| **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Entities, repositories, migrations |
-| **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `**/*Test.java`, `**/*.test.tsx` |
-| **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
+| Domain                                                            | File | Applies to |
+|-------------------------------------------------------------------|---|---|
+| **Backend** (entities, services, DTOs, API)                       | [backend.instructions.md](.github/instructions/backend.instructions.md) | `openaev-api/**`, `openaev-model/**` |
+| **Frontend** (components, hooks, folders)                         | [frontend.instructions.md](.github/instructions/frontend.instructions.md) | `openaev-front/**` |
+| **Database** (migrations, schema, indexes)                        | [database.instructions.md](.github/instructions/database.instructions.md) | `**/db/migration/**`, `**/model/**` |
+| **Security** (auth, RBAC, tenant isolation)                       | [security.instructions.md](.github/instructions/security.instructions.md) | All Java & TypeScript files |
+| **Performance** (queries, caching, patterns)                      | [performance.instructions.md](.github/instructions/performance.instructions.md) | All Java files |
+| **Multi-Tenancy** (isolation, filters, context)                   | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Entities, repositories, migrations |
+| **Testing** (unit, integration, coverage)                         | [testing.instructions.md](.github/instructions/testing.instructions.md) | `**/*Test.java`, `**/*.test.tsx` |
+| **Code Review** (review checklist)                                | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
+| **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `**/QueueChainingJob.java`, `**/WorkflowTimeoutJob.java` |
 
 
 ## Skills (step-by-step procedures)
@@ -56,6 +57,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [review-multi-tenancy](.github/skills/review-multi-tenancy/SKILL.md) | Auditing tenant isolation of a PR or module |
 | [review-performance](.github/skills/review-performance/SKILL.md) | Auditing performance of a PR or module |
 | [review-security](.github/skills/review-security/SKILL.md) | Auditing security of a PR or module |
+| [review-chaining-engine](.github/skills/review-chaining-engine/SKILL.md) | Reviewing or modifying the Chaining Engine |
 
 ## Specialized Agents
 
@@ -67,6 +69,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [Performance Reviewer](.github/agents/performance-reviewer.agent.md) | Audit N+1, lazy loading, query efficiency, pagination | `AGENTS.md` → `copilot-instructions.md` → `performance.instructions.md` | `review-performance` skill |
 | [Security Reviewer](.github/agents/security-reviewer.agent.md) | Audit auth, RBAC, data exposure, secrets | `AGENTS.md` → `copilot-instructions.md` → `security.instructions.md` | `review-security` skill |
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
+| [Chaining Reviewer](.github/agents/chaining-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
 
 ## When to Use Which Agent
 
@@ -78,6 +81,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR touches tenant-scoped entities, migrations with `tenant_id`, `TenantContext` | **Multi-Tenancy Reviewer** |
 | PR touches frontend (`.tsx`, `.ts`, forms, components) | **Frontend Reviewer** |
 | PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
+| PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Reviewer** |
 | Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
 
 ### Composition Rules
@@ -129,5 +133,5 @@ To keep token consumption under control, pick the model that matches the task:
 
 We have a limited token budget — being mindful of the model you pick makes a
 real difference at scale. Think of Opus as a specialist you call in when you
-really need it.
+really need it. 
 <!-- filigran-model-policy:end -->
