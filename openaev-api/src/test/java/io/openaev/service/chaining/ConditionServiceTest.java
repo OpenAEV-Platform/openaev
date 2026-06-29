@@ -1089,9 +1089,14 @@ public class ConditionServiceTest {
   class IsFilterConditionValid {
 
     private Condition leaf(ConditionType type, String value) {
+      return leaf(type, value, true);
+    }
+
+    private Condition leaf(ConditionType type, String value, boolean caseSensitive) {
       Condition c = new Condition();
       c.setType(type);
       c.setValue(value);
+      c.setCaseSensitive(caseSensitive);
       return c;
     }
 
@@ -1215,7 +1220,8 @@ public class ConditionServiceTest {
 
       @Test
       void eq_shouldReturnTrue_whenValuesMatch_caseInsensitive() {
-        assertTrue(conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin")));
+        assertTrue(
+            conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin", false)));
       }
 
       @Test
@@ -1265,7 +1271,8 @@ public class ConditionServiceTest {
       @Test
       void in_shouldBeCaseInsensitive() {
         assertTrue(
-            conditionUtils.isFilterConditionValid("ADMIN", leaf(ConditionType.IN, "admin, root")));
+            conditionUtils.isFilterConditionValid(
+                "ADMIN", leaf(ConditionType.IN, "admin, root", false)));
       }
 
       @Test

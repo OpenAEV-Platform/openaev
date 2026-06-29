@@ -67,7 +67,7 @@ runs:
     - name: Set up Node.js 22.11
       uses: actions/setup-node@v6
       with:
-        node-version: "22.23.0"
+        node-version: "22.23.1"
     - name: Install corepack
       run: npm install -g corepack
       shell: bash
@@ -77,7 +77,7 @@ runs:
       shell: bash
       working-directory: openaev-front
     - name: Cache Yarn dependencies
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
@@ -89,7 +89,7 @@ runs:
       working-directory: openaev-front
     - name: Cache Playwright browsers
       id: playwright-cache
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
@@ -228,41 +228,9 @@ runs:
         done
 
     - name: Start XTM Composer
-      shell: bash
-      run: |
-        echo "🔑 Generating RSA key for XTM Composer..."
-        mkdir -p /tmp/xtm-keys
-        openssl genpkey -algorithm RSA -out /tmp/xtm-keys/private_key.pem -pkeyopt rsa_keygen_bits:4096
-
-        echo "🚀 Starting XTM Composer..."
-        docker run -d --name xtm-composer \
-          --network host \
-          -e MANAGER__ID=8B67E8B6-D5CC-4BE6-9BF1-4D75A5F374E3 \
-          -e "MANAGER__NAME=XTM Integrations Manager" \
-          -e MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem \
-          -e OPENAEV__ENABLE=true \
-          -e OPENCTI__ENABLE=false \
-          -e OPENAEV__URL=http://localhost:8080 \
-          -e OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN} \
-          -e OPENAEV__DAEMON__SELECTOR=docker \
-          -e OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host \
-          -e OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -v /tmp/xtm-keys:/keys:ro \
-          filigran/xtm-composer:latest
-
-        echo "⏳ Waiting for XTM Composer to register..."
-        for i in $(seq 1 30); do
-          if docker logs xtm-composer 2>&1 | grep -qi "registered\|connected\|started"; then
-            echo "✅ XTM Composer ready (after ~$((i * 2))s)"
-            break
-          fi
-          if [ "$i" -eq 30 ]; then
-            echo "⚠️ XTM Composer may not be fully registered yet — continuing anyway"
-            docker logs xtm-composer 2>&1 | tail -20
-          fi
-          sleep 2
-        done
+      uses: ./.github/actions/start-xtm-composer
+      with:
+        openaev-url: http://localhost:8080
 
     - name: Run E2E tests (${{ inputs.browser }})
       run: yarn playwright test --config ${{ inputs.playwright-config }}

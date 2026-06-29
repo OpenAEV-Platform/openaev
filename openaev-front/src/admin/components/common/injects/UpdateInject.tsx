@@ -201,7 +201,8 @@ const UpdateInject: React.FC<Props> = ({
                 || !injectorContractContent
                 || permissions.readOnly
                 || (inherited_context === INHERITED_CONTEXT.NONE
-                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId))
+                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId)
+                  && ability.cannot(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT))
               }
               isAtomic={isAtomic}
               defaultInject={inject}

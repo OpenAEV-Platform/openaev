@@ -43,7 +43,7 @@ class ExpectationUtilsTest extends IntegrationTest {
             List.of(agent),
             ExpectationFixture.createExpectation(),
             new HashMap<>(),
-            inject.getId());
+            inject);
 
     List<DetectionExpectation> detectionExpectations =
         getDetectionExpectationsByAsset(
@@ -52,7 +52,7 @@ class ExpectationUtilsTest extends IntegrationTest {
             List.of(agent),
             ExpectationFixture.createExpectation(),
             new HashMap<>(),
-            inject.getId());
+            inject);
 
     // -- ASSERT --
     InjectExpectationSignature signature =
@@ -190,7 +190,7 @@ class ExpectationUtilsTest extends IntegrationTest {
             List.of(agent),
             ExpectationFixture.createExpectation(),
             targetValues,
-            inject.getId());
+            inject);
 
     List<String> preventionSourceIpv4SignatureValues = new ArrayList<>();
     List<String> preventionSourceIpv6SignatureValues = new ArrayList<>();

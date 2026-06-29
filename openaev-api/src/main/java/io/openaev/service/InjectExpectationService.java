@@ -5,27 +5,41 @@ import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_S
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
+import static io.openaev.model.expectation.ManualExpectation.manualExpectationForAssetGroup;
+import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAssetGroup;
 import static io.openaev.service.InjectExpectationUtils.computeScores;
 import static io.openaev.service.InjectExpectationUtils.expectationConverter;
+import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static io.openaev.utils.ExpectationUtils.*;
+import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.injectors.common.model.BaseInjectContent;
 import io.openaev.model.Expectation;
+import io.openaev.model.expectation.DetectionExpectation;
+import io.openaev.model.expectation.ManualExpectation;
+import io.openaev.model.expectation.PreventionExpectation;
+import io.openaev.model.expectation.VulnerabilityExpectation;
 import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -67,6 +81,8 @@ public class InjectExpectationService {
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
+  private final AssetGroupService assetGroupService;
+  private final InjectService injectService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -723,6 +739,31 @@ public class InjectExpectationService {
   }
 
   /**
+   * Agentless DETECTION/PREVENTION expectations not yet filled by the given source. Used by AI
+   * defense collectors (LLM firewall / guardrail) for AI adversarial injects, whose targets are AI
+   * models/agents rather than endpoints with an installed agent.
+   *
+   * @param sourceId the collector source ID
+   * @return agentless detection + prevention expectations without a result from the source
+   */
+  public List<InjectExpectation> aiDefenseExpectationsNotFill(@NotBlank final String sourceId) {
+    // Combine agentless DETECTION + PREVENTION expectations, keep a single stable global order
+    // (oldest first) and cap the total so a polling collector receives a bounded, fairly ordered
+    // page across both expectation types rather than two separately-capped lists.
+    List<InjectExpectation> expectations = new ArrayList<>();
+    expectations.addAll(
+        this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
+            DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.addAll(
+        this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
+            PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.sort(
+        Comparator.comparing(
+            InjectExpectation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    return expectations.stream().limit(NOT_FILLED_FETCH_LIMIT).toList();
+  }
+
+  /**
    * Retrieves detection expectations without any results.
    *
    * @return a list of detection expectations without results
@@ -1047,6 +1088,11 @@ public class InjectExpectationService {
   @Transactional
   public void buildAndSaveInjectExpectations(
       ExecutableInject executableInject, List<Expectation> expectations) {
+    doBuildAndSaveInjectExpectations(executableInject, expectations);
+  }
+
+  private void doBuildAndSaveInjectExpectations(
+      ExecutableInject executableInject, List<Expectation> expectations) {
     if (expectations == null || expectations.isEmpty()) {
       return;
     }
@@ -1292,5 +1338,245 @@ public class InjectExpectationService {
                     .result(injectExpectationResult.getResult())
                     .isSuccess(injectExpectationResult.getScore() != 0.0)
                     .build()));
+  }
+
+  /**
+   * Converts the inject content payload to a typed object.
+   *
+   * <p>The content is read from {@link Inject#getContent()} and deserialized with Jackson using the
+   * provided target class.
+   *
+   * @param injection the executable inject containing the source content
+   * @param converter the target class used for conversion
+   * @return the converted content instance
+   * @param <T> the target content type
+   * @throws JsonProcessingException if the JSON content cannot be converted to the requested type
+   */
+  public <T> T contentConvert(
+      @NotNull final ExecutableInject injection, @NotNull final Class<T> converter)
+      throws JsonProcessingException {
+    Inject inject = injection.getInjection().getInject();
+    ObjectNode content = inject.getContent();
+    return this.mapper.treeToValue(content, converter);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public void computeAndSaveExpectations(
+      ExecutableInject injection,
+      Inject inject,
+      String implantType,
+      List<AssetToExecute> assetToExecutes)
+      throws JsonProcessingException {
+    BaseInjectContent content = contentConvert(injection, BaseInjectContent.class);
+
+    List<Expectation> expectations = new ArrayList<>();
+
+    assetToExecutes.forEach(
+        assetToExecute ->
+            computeExpectationsForAssetAndAgents(
+                expectations, content, assetToExecute, inject, implantType));
+
+    List<AssetGroup> assetGroups = injection.getAssetGroups();
+    assetGroups.forEach(
+        (assetGroup -> computeExpectationsForAssetGroup(expectations, content, assetGroup)));
+
+    doBuildAndSaveInjectExpectations(injection, expectations);
+  }
+
+  /** In case of direct assetToExecute, we have an individual expectation for the assetToExecute */
+  private void computeExpectationsForAssetAndAgents(
+      @NotNull final List<Expectation> expectations,
+      @NotNull final BaseInjectContent content,
+      @NotNull final AssetToExecute assetToExecute,
+      final Inject inject,
+      String implantType) {
+
+    if (!content.getExpectations().isEmpty()) {
+
+      Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
+
+      expectations.addAll(
+          content.getExpectations().stream()
+              .flatMap(
+                  expectation ->
+                      switch (expectation.getType()) {
+                        case PREVENTION ->
+                            getPreventionExpectationsByAsset(
+                                implantType,
+                                assetToExecute,
+                                getActiveAgents(assetToExecute.asset(), inject),
+                                expectation,
+                                valueTargetedAssetsMap,
+                                inject)
+                                .stream();
+                        case DETECTION ->
+                            getDetectionExpectationsByAsset(
+                                implantType,
+                                assetToExecute,
+                                getActiveAgents(assetToExecute.asset(), inject),
+                                expectation,
+                                valueTargetedAssetsMap,
+                                inject)
+                                .stream();
+                        case VULNERABILITY ->
+                            getVulnerabilityExpectationsByAsset(
+                                implantType,
+                                assetToExecute,
+                                getActiveAgents(assetToExecute.asset(), inject),
+                                expectation,
+                                valueTargetedAssetsMap,
+                                inject)
+                                .stream();
+                        case MANUAL ->
+                            getManualExpectationsByAsset(
+                                implantType,
+                                assetToExecute,
+                                getActiveAgents(assetToExecute.asset(), inject),
+                                expectation,
+                                inject)
+                                .stream();
+                        default -> Stream.of();
+                      })
+              .toList());
+    }
+  }
+
+  /**
+   * In case of asset group if expectation group -> we have an expectation for the group and one for
+   * each asset if not expectation group -> we have an individual expectation for each asset
+   */
+  private void computeExpectationsForAssetGroup(
+      @NotNull final List<Expectation> expectations,
+      @NotNull final BaseInjectContent content,
+      @NotNull final AssetGroup assetGroup) {
+    if (!content.getExpectations().isEmpty()) {
+      List<Asset> assets = this.assetGroupService.assetsFromAssetGroup(assetGroup.getId());
+      expectations.addAll(
+          content.getExpectations().stream()
+              .flatMap(
+                  expectation ->
+                      switch (expectation.getType()) {
+                        case PREVENTION -> {
+                          // Verify that at least one asset in the group has been executed
+                          if (assets.stream()
+                              .anyMatch(
+                                  asset ->
+                                      expectations.stream()
+                                          .filter(
+                                              prevExpectation ->
+                                                  InjectExpectation.EXPECTATION_TYPE.PREVENTION
+                                                      == prevExpectation.type())
+                                          .anyMatch(
+                                              prevExpectation ->
+                                                  ((PreventionExpectation) prevExpectation)
+                                                              .getAsset()
+                                                          != null
+                                                      && ((PreventionExpectation) prevExpectation)
+                                                          .getAsset()
+                                                          .getId()
+                                                          .equals(asset.getId())))) {
+                            yield Stream.of(
+                                preventionExpectationForAssetGroup(
+                                    expectation.getScore(),
+                                    expectation.getName(),
+                                    expectation.getDescription(),
+                                    assetGroup,
+                                    expectation.isExpectationGroup(),
+                                    expectation.getExpirationTime()));
+                          }
+                          yield Stream.of();
+                        }
+                        case DETECTION -> {
+                          // Verify that at least one asset in the group has been executed
+                          if (assets.stream()
+                              .anyMatch(
+                                  asset ->
+                                      expectations.stream()
+                                          .filter(
+                                              detExpectation ->
+                                                  InjectExpectation.EXPECTATION_TYPE.DETECTION
+                                                      == detExpectation.type())
+                                          .anyMatch(
+                                              detExpectation ->
+                                                  ((DetectionExpectation) detExpectation).getAsset()
+                                                          != null
+                                                      && ((DetectionExpectation) detExpectation)
+                                                          .getAsset()
+                                                          .getId()
+                                                          .equals(asset.getId())))) {
+                            yield Stream.of(
+                                detectionExpectationForAssetGroup(
+                                    expectation.getScore(),
+                                    expectation.getName(),
+                                    expectation.getDescription(),
+                                    assetGroup,
+                                    expectation.isExpectationGroup(),
+                                    expectation.getExpirationTime()));
+                          }
+                          yield Stream.of();
+                        }
+                        case VULNERABILITY -> {
+                          // Verify that at least one asset in the group has been executed
+                          if (assets.stream()
+                              .anyMatch(
+                                  asset ->
+                                      expectations.stream()
+                                          .filter(
+                                              vulExpectation ->
+                                                  InjectExpectation.EXPECTATION_TYPE.VULNERABILITY
+                                                      == vulExpectation.type())
+                                          .anyMatch(
+                                              vulExpectation ->
+                                                  ((VulnerabilityExpectation) vulExpectation)
+                                                              .getAsset()
+                                                          != null
+                                                      && ((VulnerabilityExpectation) vulExpectation)
+                                                          .getAsset()
+                                                          .getId()
+                                                          .equals(asset.getId())))) {
+                            yield Stream.of(
+                                vulnerabilityExpectationForAssetGroup(
+                                    expectation.getScore(),
+                                    expectation.getName(),
+                                    expectation.getDescription(),
+                                    assetGroup,
+                                    expectation.isExpectationGroup(),
+                                    expectation.getExpirationTime()));
+                          }
+                          yield Stream.of();
+                        }
+                        case MANUAL -> {
+                          // Verify that at least one asset in the group has been executed
+                          if (assets.stream()
+                              .anyMatch(
+                                  asset ->
+                                      expectations.stream()
+                                          .filter(
+                                              manExpectation ->
+                                                  InjectExpectation.EXPECTATION_TYPE.MANUAL
+                                                      == manExpectation.type())
+                                          .anyMatch(
+                                              manExpectation ->
+                                                  ((ManualExpectation) manExpectation).getAsset()
+                                                          != null
+                                                      && ((ManualExpectation) manExpectation)
+                                                          .getAsset()
+                                                          .getId()
+                                                          .equals(asset.getId())))) {
+                            yield Stream.of(
+                                manualExpectationForAssetGroup(
+                                    expectation.getScore(),
+                                    expectation.getName(),
+                                    expectation.getDescription(),
+                                    assetGroup,
+                                    expectation.getExpirationTime(),
+                                    expectation.isExpectationGroup()));
+                          }
+                          yield Stream.of();
+                        }
+                        default -> Stream.of();
+                      })
+              .toList());
+    }
   }
 }

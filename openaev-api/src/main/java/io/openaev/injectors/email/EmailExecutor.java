@@ -87,7 +87,7 @@ public class EmailExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    EmailContent content = contentConvert(injection, EmailContent.class);
+    EmailContent content = injectExpectationService.contentConvert(injection, EmailContent.class);
     List<Document> documents =
         inject.getDocuments().stream()
             .filter(InjectDocument::isAttached)

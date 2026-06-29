@@ -39,10 +39,10 @@ public class ManagerFactory implements DependenciesManager {
 
   /**
    * Creates a new {@link Manager} for the given tenant. Integration discovery and startup are
-   * handled by the next {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle via
-   * {@link #monitorAllTenants()} — no immediate {@link Manager#monitorIntegrations()} call here to
-   * avoid connecting to external services (Caldera, Tanium, etc.) during bean initialization or
-   * tenant creation, where those services may not be reachable.
+   * handled by the next {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle — no
+   * immediate {@link Manager#monitorIntegrations()} call here to avoid connecting to external
+   * services (Caldera, Tanium, etc.) during bean initialization or tenant creation, where those
+   * services may not be reachable.
    */
   private Manager createManager(@NotBlank final String tenantId) {
     try {

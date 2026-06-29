@@ -62,6 +62,11 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     NDR,
     @JsonProperty("ISPM")
     ISPM,
+    // AI defense platforms (LLM firewalls / guardrails / AI gateways)
+    @JsonProperty("LLM_FIREWALL")
+    LLM_FIREWALL,
+    @JsonProperty("AI_GATEWAY")
+    AI_GATEWAY,
   }
 
   @Queryable(filterable = true, sortable = true)
@@ -96,6 +101,26 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.SECURITY_PLATFORM;
+
+  /**
+   * A Security Platform always belongs to the SECURITY_PLATFORM asset category; its subcategory
+   * mirrors the platform type (EDR / SIEM / ...) so it shows up consistently in the inventory and
+   * filters.
+   */
+  @PrePersist
+  @PreUpdate
+  public void applySecurityPlatformDefaults() {
+    if (this.getCategory() == null) {
+      this.setCategory(AssetCategory.SECURITY_PLATFORM);
+    }
+    if (this.getSubcategory() == null && this.securityPlatformType != null) {
+      try {
+        this.setSubcategory(AssetSubCategory.valueOf(this.securityPlatformType.name()));
+      } catch (IllegalArgumentException ignored) {
+        // No matching subcategory for this platform type; leave it unset.
+      }
+    }
+  }
 
   public SecurityPlatform() {}
 
