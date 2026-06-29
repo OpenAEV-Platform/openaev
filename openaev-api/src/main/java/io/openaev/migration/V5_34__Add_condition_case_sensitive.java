@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_28__Add_condition_case_sensitive extends BaseJavaMigration {
+public class V5_34__Add_condition_case_sensitive extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
