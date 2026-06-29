@@ -10,7 +10,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 import baseConfig from './playwright.config';
 
-const isArmNightly = process.env.CI_ARCH === 'arm64';
+const isArmNightly = process.env.CI === 'true' && process.arch === 'arm64';
 const armExternalConnectorIgnore = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
 const nightlyTestIgnore = isArmNightly ? [armExternalConnectorIgnore] : [];
 
