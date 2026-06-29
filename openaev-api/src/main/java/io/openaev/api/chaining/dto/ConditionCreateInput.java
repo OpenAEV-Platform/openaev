@@ -47,7 +47,8 @@ public class ConditionCreateInput {
   /** Whether the comparison is case-sensitive (default: true) */
   @Schema(description = "Whether the comparison is case-sensitive")
   @JsonProperty("condition_case_sensitive")
-  private Boolean caseSensitive;
+  @Builder.Default
+  private boolean caseSensitive = true;
 
   /** Condition key: Property to be mapped */
   @Schema(description = "Property to be mapped")

@@ -1,6 +1,6 @@
 import { Draggable, Droppable } from '@hello-pangea/dnd';
 import { AddOutlined, DeleteOutline } from '@mui/icons-material';
-import { Button } from '@mui/material';
+import { Box, Button, Stack } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -77,25 +77,14 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
   };
 
   return (
-    <div style={{
+    <Box sx={{
       border: `1px solid ${theme.palette.divider}`,
-      borderRadius: theme.spacing(1),
-      padding: theme.spacing(2),
+      borderRadius: 1,
+      p: 2,
     }}
     >
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: theme.spacing(2),
-      }}
-      >
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(1),
-        }}
-        >
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
           <LogicalOperatorSelect
             value={group.operator}
             onChange={handleOperatorChange}
@@ -111,7 +100,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
               {t('Remove group')}
             </Button>
           )}
-        </div>
+        </Stack>
         <Button
           size="small"
           color="primary"
@@ -120,20 +109,18 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
         >
           {t('Add Condition')}
         </Button>
-      </div>
+      </Stack>
 
       {/* Droppable conditions list */}
       <Droppable droppableId={group.id} type="condition">
         {(provided, snapshot) => (
-          <div
+          <Stack
             ref={provided.innerRef}
             {...provided.droppableProps}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing(1),
+            spacing={1}
+            sx={{
               minHeight: 40,
-              borderRadius: theme.spacing(1),
+              borderRadius: 1,
               transition: 'background 0.2s',
               background: snapshot.isDraggingOver ? `${theme.palette.primary.main}0F` : 'transparent',
             }}
@@ -141,7 +128,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
             {group.conditions.map((condition, index) => (
               <Draggable key={condition.id} draggableId={condition.id} index={index}>
                 {(providedDrag, snapshotDrag) => (
-                  <div
+                  <Box
                     ref={providedDrag.innerRef}
                     {...providedDrag.draggableProps}
                     style={{
@@ -156,12 +143,12 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
                       onDelete={() => handleDeleteCondition(index)}
                       canDelete={group.conditions.length > 1}
                     />
-                  </div>
+                  </Box>
                 )}
               </Draggable>
             ))}
             {provided.placeholder}
-          </div>
+          </Stack>
         )}
       </Droppable>
 
@@ -175,7 +162,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
         />
       ))}
 
-    </div>
+    </Box>
   );
 };
 

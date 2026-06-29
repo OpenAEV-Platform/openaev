@@ -121,7 +121,7 @@ public class ConditionMapper {
         .keySubtype(input.getKeySubtype())
         .type(input.getType())
         .value(input.getValue())
-        .caseSensitive(input.getCaseSensitive() == null || input.getCaseSensitive())
+        .caseSensitive(input.isCaseSensitive())
         .conditionParent(conditionParent)
         .mappingType(resolveMappingType(input))
         .build();

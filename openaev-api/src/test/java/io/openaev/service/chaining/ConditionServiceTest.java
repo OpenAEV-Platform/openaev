@@ -1221,8 +1221,7 @@ public class ConditionServiceTest {
       @Test
       void eq_shouldReturnTrue_whenValuesMatch_caseInsensitive() {
         assertTrue(
-            conditionUtils.isFilterConditionValid(
-                "Admin", leaf(ConditionType.EQ, "admin", false)));
+            conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin", false)));
       }
 
       @Test
