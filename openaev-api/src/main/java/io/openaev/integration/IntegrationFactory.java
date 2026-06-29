@@ -25,11 +25,25 @@ public abstract class IntegrationFactory {
 
   protected abstract String getClassName();
 
+  /**
+   * Ensures the catalog logo exists in MinIO. Called on every startup, even when the catalog entry
+   * already exists in the database. Override in subclasses that upload a logo during {@link
+   * #insertCatalogEntry()}.
+   *
+   * <p>Default implementation is a no-op for factories that do not manage a catalog logo (e.g.
+   * built-in executors).
+   */
+  protected void ensureCatalogLogo() throws Exception {
+    // no-op by default
+  }
+
   @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
     String className = this.getClassName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
       insertCatalogEntry();
+    } else {
+      ensureCatalogLogo();
     }
 
     runMigrations();

@@ -87,12 +87,17 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(CROWDSTRIKE_EXECUTOR_TYPE);
+  protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
+        "%s-logo.png".formatted(CROWDSTRIKE_EXECUTOR_TYPE),
         getClass().getResourceAsStream("/img/icon-crowdstrike.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    ensureCatalogLogo();
+    String logoFilename = "%s-logo.png".formatted(CROWDSTRIKE_EXECUTOR_TYPE);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("CrowdStrike Executor");
     connector.setSlug(CROWDSTRIKE_EXECUTOR_TYPE);

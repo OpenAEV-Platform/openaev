@@ -76,13 +76,18 @@ public class OvhInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    CatalogConnector connector = new CatalogConnector();
-    String logoFilename = "%s-logo.png".formatted(ovhSmsContract.getType());
+  protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
+        "%s-logo.png".formatted(ovhSmsContract.getType()),
         getClass().getResourceAsStream("/img/icon-ovh-sms.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    ensureCatalogLogo();
+    CatalogConnector connector = new CatalogConnector();
+    String logoFilename = "%s-logo.png".formatted(ovhSmsContract.getType());
     connector.setTitle("OVHCloud SMS Platform");
     connector.setSlug(ovhSmsContract.getType());
     connector.setLogoUrl(logoFilename);

@@ -51,12 +51,17 @@ public class TestIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(getClassName());
+  protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
+        "%s-logo.png".formatted(getClassName()),
         getClass().getResourceAsStream("/img/icon-default.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    ensureCatalogLogo();
+    String logoFilename = "%s-logo.png".formatted(getClassName());
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Test Integration");
     connector.setSlug(getClassName());

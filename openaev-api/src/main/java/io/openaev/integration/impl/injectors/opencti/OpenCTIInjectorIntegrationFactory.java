@@ -80,12 +80,17 @@ public class OpenCTIInjectorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(openCTIContract.TYPE);
+  protected void ensureCatalogLogo() throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
+        "%s-logo.png".formatted(openCTIContract.TYPE),
         getClass().getResourceAsStream("/img/icon-opencti.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    ensureCatalogLogo();
+    String logoFilename = "%s-logo.png".formatted(openCTIContract.TYPE);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle(OPENCTI_INJECTOR_NAME);
     connector.setSlug(openCTIContract.TYPE);
