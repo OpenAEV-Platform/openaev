@@ -30,7 +30,7 @@ public class ManualExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
 
-    ManualContent content = contentConvert(injection, ManualContent.class);
+    ManualContent content = injectExpectationService.contentConvert(injection, ManualContent.class);
 
     List<Expectation> expectations =
         content.getExpectations().stream()

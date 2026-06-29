@@ -8,7 +8,11 @@ import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.injector.form.InjectorCreateInput;
+import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -43,6 +47,25 @@ public class InjectorFixture {
   public static Injector createDefaultInjector(String injectorName) {
     return createInjector(
         UUID.randomUUID().toString(), injectorName, injectorName.toLowerCase().replace(" ", "-"));
+  }
+
+  public static InjectorCreateInput createDefaultInjectorCreateInput(
+      String id, String name, String type, String contractId) {
+    InjectorCreateInput input = new InjectorCreateInput();
+    input.setId(id);
+    input.setName(name);
+    input.setType(type);
+    input.setCategory("attack");
+    input.setContracts(List.of(createDefaultInjectorContractInput(contractId)));
+    return input;
+  }
+
+  public static InjectorContractInput createDefaultInjectorContractInput(String contractId) {
+    InjectorContractInput contract = new InjectorContractInput();
+    contract.setId(contractId);
+    contract.setLabels(Map.of("en", "Test Contract"));
+    contract.setContent("{\"fields\":[]}");
+    return contract;
   }
 
   private Injector initializeBuiltInInjector(

@@ -884,19 +884,19 @@ public class WorkflowService {
     }
 
     // At least one template generated one or more ready execution steps.
-    boolean hasReadySteps = false;
+    boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
 
     for (Step step : stepsTemplate) {
       List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
       if (!stepReadys.isEmpty()) {
-        hasReadySteps = true;
+        hasActiveSteps = true;
         stepService.enqueueReadySteps(stepReadys, workflowRun);
       }
     }
 
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
     // status END
-    if (!hasReadySteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+    if (!hasActiveSteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
     }
 

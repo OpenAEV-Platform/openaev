@@ -47,7 +47,6 @@ import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyPr
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -67,8 +66,6 @@ public class PlatformSettingsService {
   private final EngineService engineService;
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
-
-  @Autowired private TransactionTemplate transactionTemplate;
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;

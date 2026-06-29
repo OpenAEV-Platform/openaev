@@ -8,7 +8,6 @@ import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -36,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class CrowdstrikeExecutorServiceTest {
 
   private static final String HOST_GROUP_CS = "hostGroupCs";
+  private static final String TENANT_ID = "test-tenant-id";
 
   @Mock private CrowdStrikeExecutorClient client;
   @Mock private CrowdStrikeExecutorConfig config;
@@ -59,7 +59,7 @@ public class CrowdstrikeExecutorServiceTest {
     crowdstrikeExecutor = new Executor();
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
-    crowdstrikeExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    crowdstrikeExecutor.setTenant(new Tenant(TENANT_ID));
   }
 
   @Test
@@ -79,12 +79,12 @@ public class CrowdstrikeExecutorServiceTest {
     // Asserts
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
     verify(agentService)
-        .getAgentsByExecutorIdAndTenantId(
-            executorIdCaptor.capture(), eq(TenantContext.getCurrentTenant()));
+        .getAgentsByExecutorIdAndTenantId(executorIdCaptor.capture(), eq(TENANT_ID));
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agents = ArgumentCaptor.forClass(List.class);
-    verify(endpointService).syncAgentsEndpoints(inputsCaptor.capture(), agents.capture(), any());
+    verify(endpointService)
+        .syncAgentsEndpoints(inputsCaptor.capture(), agents.capture(), eq(TENANT_ID));
     assertEquals(1, inputsCaptor.getValue().size());
     assertEquals(0, agents.getValue().size());
 

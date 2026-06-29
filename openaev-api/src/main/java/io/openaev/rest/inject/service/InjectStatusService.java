@@ -205,7 +205,7 @@ public class InjectStatusService {
         && (agent == null || isAllInjectAgentsExecuted(inject))) {
       // We update the status of the inject
       updateFinalInjectStatus(injectStatus);
-      executionTraceRepositoryHelper.updateInjectUpdateDate(
+      injectRepository.updateUpdatedAt(
           injectStatus.getInject().getId(), injectStatus.getInject().getUpdatedAt());
       executionTraceRepositoryHelper.updateInjectStatus(
           injectStatus.getId(), injectStatus.getName().name(), injectStatus.getTrackingEndDate());

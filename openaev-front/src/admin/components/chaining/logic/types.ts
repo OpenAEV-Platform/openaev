@@ -1,6 +1,7 @@
 import type { EndpointOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
 import type { FieldLink } from './drawer/InjectDataFieldItem';
+import type { EventFormData } from './events/event-types';
 import type { MapperConditionRow } from './forms/MapperConditionRow';
 
 export interface LogicAction {
@@ -41,12 +42,6 @@ export interface ActionMeta {
 }
 
 export interface EventMeta {
-  event_name: string;
-  event_description: string;
-  root_logical_type: string;
-  conditions: Array<{
-    condition_type: string;
-    condition_key_type: string;
-    condition_value: string;
-  }>;
+  eventId: string;
+  formData: EventFormData;
 }

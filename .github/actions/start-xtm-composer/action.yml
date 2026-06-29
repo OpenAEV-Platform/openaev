@@ -1,0 +1,58 @@
+name: Start XTM Composer
+description: >
+  Generates an ephemeral RSA key, starts xtm-composer, and waits for startup logs.
+
+inputs:
+  openaev-url:
+    description: OpenAEV base URL reachable by the composer container
+    required: false
+    default: http://localhost:8080
+
+runs:
+  using: composite
+  steps:
+    - name: Start XTM Composer
+      shell: bash
+      env:
+        OPENAEV_URL: ${{ inputs.openaev-url }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${OPENAEV_ADMIN_TOKEN:-}" ]; then
+          echo "❌ OPENAEV_ADMIN_TOKEN is required to start XTM Composer"
+          exit 1
+        fi
+
+        echo "🔑 Generating RSA key for XTM Composer..."
+        mkdir -p /tmp/xtm-keys
+        openssl genpkey -algorithm RSA -out /tmp/xtm-keys/private_key.pem -pkeyopt rsa_keygen_bits:4096
+
+        echo "🚀 Starting XTM Composer..."
+        docker run -d --name xtm-composer \
+          --network host \
+          -e MANAGER__ID=8B67E8B6-D5CC-4BE6-9BF1-4D75A5F374E3 \
+          -e "MANAGER__NAME=XTM Integrations Manager" \
+          -e MANAGER__CREDENTIALS_KEY_FILEPATH=/keys/private_key.pem \
+          -e OPENAEV__ENABLE=true \
+          -e OPENCTI__ENABLE=false \
+          -e OPENAEV__URL=${OPENAEV_URL} \
+          -e OPENAEV__TOKEN=${OPENAEV_ADMIN_TOKEN} \
+          -e OPENAEV__DAEMON__SELECTOR=docker \
+          -e OPENCTI__DAEMON__DOCKER__NETWORK_MODE=host \
+          -e OPENAEV__DAEMON__DOCKER__NETWORK_MODE=host \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /tmp/xtm-keys:/keys:ro \
+          filigran/xtm-composer:latest
+
+        echo "⏳ Waiting for XTM Composer to register..."
+        for i in $(seq 1 30); do
+          if docker logs xtm-composer 2>&1 | grep -qi "registered\|connected\|started"; then
+            echo "✅ XTM Composer ready (after ~$((i * 2))s)"
+            exit 0
+          fi
+          sleep 2
+        done
+
+        echo "⚠️ XTM Composer may not be fully registered yet"
+        docker logs xtm-composer 2>&1 | tail -20
+

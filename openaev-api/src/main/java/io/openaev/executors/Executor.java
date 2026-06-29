@@ -12,17 +12,18 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
+import io.openaev.rest.inject.service.AssetToExecute;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.annotation.Resource;
-import java.io.IOException;
 import java.time.Instant;
-import java.util.concurrent.TimeoutException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -31,8 +32,6 @@ import org.springframework.stereotype.Component;
 public class Executor {
 
   @Resource protected ObjectMapper mapper;
-
-  private final ApplicationContext context;
 
   private final InjectStatusRepository injectStatusRepository;
   private final InjectorRepository injectorRepository;
@@ -43,20 +42,26 @@ public class Executor {
 
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
+  private final InjectService injectService;
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
+  private final InjectExpectationService injectExpectationService;
 
   public static final String CMD = "cmd";
   public static final String PSH = "psh";
 
   private InjectStatus executeExternal(ExecutableInject executableInject, Injector injector)
-      throws IOException, TimeoutException {
+      throws Exception {
     Inject inject = executableInject.getInjection().getInject();
     String jsonInject =
         mapper.writeValueAsString(
             executableInjectDTOMapper.toExecutableInjectDTO(executableInject));
     InjectStatus injectStatus =
         this.injectStatusRepository.findByInjectId(inject.getId()).orElseThrow();
+
+    List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, inject, injector.getType(), assetToExecutes);
 
     rabbitmqService.publish(injector.getId(), jsonInject);
     injectStatus.addInfoTrace(
@@ -100,8 +105,7 @@ public class Executor {
               .orElseThrow(
                   () ->
                       new IllegalStateException(
-                          "Injector not found for type: "
-                              + injectorContract.getFirstInjector().getType()));
+                          "Injector not found for type: " + inject.getType()));
     }
 
     // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,

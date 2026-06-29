@@ -101,6 +101,21 @@ public interface InjectExpectationRepository
   List<InjectExpectation> findExpectationsNotFilledForSource(
       @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
 
+  // Agentless detection/prevention expectations (e.g. AI adversarial injects whose target is an AI
+  // model/agent rather than an endpoint with an installed agent). Used by AI defense collectors
+  // (LLM firewall / guardrail) which correlate via the per-inject AI request marker.
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "WHERE e.inject_expectation_type = :type "
+              + "AND e.agent_id IS NULL "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findAgentlessExpectationsNotFilledForSource(
+      @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
+
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "

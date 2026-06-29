@@ -32,6 +32,9 @@ public class ConditionOutput {
   @JsonProperty("condition_value")
   private String value;
 
+  @JsonProperty("condition_case_sensitive")
+  private boolean caseSensitive;
+
   @JsonProperty("condition_parent_id")
   private String conditionParentId;
 
