@@ -133,5 +133,5 @@ To keep token consumption under control, pick the model that matches the task:
 
 We have a limited token budget — being mindful of the model you pick makes a
 real difference at scale. Think of Opus as a specialist you call in when you
-really need it. 
+really need it.
 <!-- filigran-model-policy:end -->
