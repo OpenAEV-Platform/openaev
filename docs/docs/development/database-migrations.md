@@ -13,7 +13,7 @@ To update the schema, create a new migration class ranked at the end of the lexi
 pattern:
 `V6_{nanosecond_timestamp}__name_of_the_migration`
 
-where `nanosecond_timestamp` is of the form `yyyyMMMMddddhhmmssSSS`.
+where `nanosecond_timestamp` is of the form `yyyyMMddhhmmssSSS`.
 
 Example contents of the `migration` directory:
 ```shell
