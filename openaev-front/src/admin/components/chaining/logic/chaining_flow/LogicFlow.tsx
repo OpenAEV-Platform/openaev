@@ -45,6 +45,7 @@ interface LogicFlowProps {
   reloadTrigger?: number;
   onAddComponent: () => void;
   onEditStep?: (stepId: string, meta: ActionMeta) => void;
+  onEditEvent?: (eventId: string, meta: EventMeta) => void;
 }
 
 const proOptions = {
@@ -57,7 +58,7 @@ const proOptions = {
  * grouped into MITRE tactic columns. Supports connecting events to actions, editing,
  * deleting nodes, and adding new components.
  */
-const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: LogicFlowProps) => {
+const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEditEvent }: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -82,7 +83,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
 
   // Extra metadata per node (keyed by node id)
   const [actionMetas, setActionMetas] = useState<Record<string, ActionMeta>>({});
-  const [_eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
+  const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
   // Graph loading state — true until first data load completes
   const [loading, setLoading] = useState(true);
@@ -303,12 +304,19 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
      * @param nodeId the step ID to edit
      * @param _type the node type (unused)
      */
-  const editNode = useCallback((nodeId: string, _type: string) => {
-    const meta = actionMetas[nodeId];
-    if (meta && onEditStep) {
-      onEditStep(nodeId, meta);
+  const editNode = useCallback((nodeId: string, type: string) => {
+    if (type === 'action') {
+      const meta = actionMetas[nodeId];
+      if (meta && onEditStep) {
+        onEditStep(nodeId, meta);
+      }
+    } else if (type === 'event') {
+      const meta = eventMetas[nodeId];
+      if (meta && onEditEvent) {
+        onEditEvent(nodeId, meta);
+      }
     }
-  }, [actionMetas, onEditStep]);
+  }, [actionMetas, eventMetas, onEditStep, onEditEvent]);
 
   /**
      * Enrich all nodes with edit/delete callbacks so custom node components can trigger actions.

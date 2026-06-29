@@ -1,8 +1,17 @@
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
 
 import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
-import type { EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
+import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
+import {
+  type ComparisonOperator,
+  type ConditionGroup,
+  type ConditionKeyType,
+  createEmptyCondition,
+  createEmptyGroup,
+  type EventCondition, generateId,
+  type LogicalOperator,
+} from './events/event-types';
 import type { ActionMeta, EventMeta } from './types';
 
 // Layout design tokens for tactic groups (px)
@@ -89,6 +98,126 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
 };
 
 /**
+ * Reconstruct a ConditionGroup tree from a flat list of ConditionOutput nodes.
+ * The tree is built by finding the root (no parent), then recursively building children.
+ */
+const reconstructConditionGroups = (
+  allConditions: ConditionOutput[],
+): {
+  groups: ConditionGroup[];
+  groupOperators: LogicalOperator[];
+} => {
+  if (allConditions.length === 0) {
+    return {
+      groups: [createEmptyGroup('AND')],
+      groupOperators: [],
+    };
+  }
+
+  const LOGICAL_TYPES: Set<string> = new Set(['AND', 'OR']);
+
+  // Index by ID for O(1) lookup
+  const byId: Record<string, ConditionOutput> = {};
+  for (const c of allConditions) {
+    if (c.condition_id) byId[c.condition_id] = c;
+  }
+
+  // Group children by parent_id
+  const childrenOf: Record<string, ConditionOutput[]> = {};
+  for (const c of allConditions) {
+    const parentId = c.condition_parent_id ?? '__root__';
+    childrenOf[parentId] = childrenOf[parentId] ?? [];
+    childrenOf[parentId].push(c);
+  }
+
+  const buildGroup = (groupNode: ConditionOutput): ConditionGroup => {
+    const groupId = groupNode.condition_id ?? generateId();
+    const children = childrenOf[groupId] ?? [];
+    const conditions: EventCondition[] = [];
+    const subGroups: ConditionGroup[] = [];
+
+    for (const child of children) {
+      const isLogical = LOGICAL_TYPES.has(child.condition_type ?? '');
+      if (isLogical) {
+        subGroups.push(buildGroup(child));
+      } else {
+        conditions.push({
+          id: child.condition_id ?? generateId(),
+          field: (child.condition_key_type as ConditionKeyType) ?? 'text',
+          operator: (child.condition_type as ComparisonOperator) ?? 'IN',
+          value: child.condition_value ?? '',
+          caseSensitive: child.condition_case_sensitive !== false,
+        });
+      }
+    }
+
+    return {
+      id: groupId,
+      operator: (groupNode.condition_type as LogicalOperator) ?? 'AND',
+      conditions: conditions.length > 0 ? conditions : [createEmptyCondition()],
+      subGroups,
+    };
+  };
+
+  // Find roots: conditions with no parent
+  const roots = allConditions.filter(c => !c.condition_parent_id);
+
+  if (roots.length === 0) {
+    return {
+      groups: [createEmptyGroup('AND')],
+      groupOperators: [],
+    };
+  }
+
+  // Single root logical node → its children are top-level groups
+  if (roots.length === 1 && LOGICAL_TYPES.has(roots[0].condition_type ?? '')) {
+    const rootNode = roots[0];
+    const rootId = rootNode.condition_id ?? '';
+    const topChildren = childrenOf[rootId] ?? [];
+
+    const topGroups = topChildren.filter(c => LOGICAL_TYPES.has(c.condition_type ?? ''));
+    const topConditions = topChildren.filter(c => !LOGICAL_TYPES.has(c.condition_type ?? ''));
+
+    if (topGroups.length > 0) {
+      // Multiple groups under root: rootNode operator goes between them
+      const groups = topGroups.map(g => buildGroup(g));
+      const groupOperators: LogicalOperator[] = groups.slice(1).map(
+        () => (rootNode.condition_type as LogicalOperator) ?? 'AND',
+      );
+      return {
+        groups,
+        groupOperators,
+      };
+    }
+
+    // Root has direct leaf conditions → single group
+    const group: ConditionGroup = {
+      id: rootId,
+      operator: (rootNode.condition_type as LogicalOperator) ?? 'AND',
+      conditions: topConditions.map(c => ({
+        id: c.condition_id ?? generateId(),
+        field: (c.condition_key_type as ConditionKeyType) ?? 'text',
+        operator: (c.condition_type as ComparisonOperator) ?? 'IN',
+        value: c.condition_value ?? '',
+        caseSensitive: c.condition_case_sensitive !== false,
+      })),
+      subGroups: [],
+    };
+    return {
+      groups: [group],
+      groupOperators: [],
+    };
+  }
+
+  // Multiple roots (each a logical group)
+  const groups = roots.filter(r => LOGICAL_TYPES.has(r.condition_type ?? '')).map(buildGroup);
+  return {
+    groups: groups.length > 0 ? groups : [createEmptyGroup('AND')],
+    groupOperators: groups.slice(1).map(() => 'AND' as LogicalOperator),
+  };
+};
+
+/**
  * Parse events API response into EventMeta records and preliminary event nodes.
  */
 export const buildEventData = (events: EventOutput[]): {
@@ -99,26 +228,16 @@ export const buildEventData = (events: EventOutput[]): {
 
   const eventNodes: Node[] = events.map((e, i) => {
     const allConditions = e.event_conditions ?? [];
-    const rootCondition = allConditions.find(c => !c.condition_parent_id);
-    const leafConditions = allConditions
-      .filter(c => !!c.condition_parent_id)
-      .map(c => ({
-        condition_type: (c.condition_type as string) ?? 'EQ',
-        condition_key_type: (c.condition_key_type as string) ?? 'status',
-        condition_value: c.condition_value ?? '',
-      }));
+    const { groups, groupOperators } = reconstructConditionGroups(allConditions);
 
     eventMetas[e.event_id] = {
-      event_name: e.event_name ?? '',
-      event_description: e.event_description ?? '',
-      root_logical_type: (rootCondition?.condition_type as string) ?? 'AND',
-      conditions: leafConditions.length > 0
-        ? leafConditions
-        : [{
-            condition_type: 'EQ',
-            condition_key_type: 'status',
-            condition_value: 'SUCCESS',
-          }],
+      eventId: e.event_id,
+      formData: {
+        name: e.event_name ?? '',
+        description: e.event_description ?? '',
+        groupOperators,
+        conditionGroups: groups,
+      },
     };
 
     return {
