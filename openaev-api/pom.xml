@@ -25,7 +25,7 @@
         <elasticsearch.version>8.19.17</elasticsearch.version>
         <opentelemetry-semconv.version>1.42.0</opentelemetry-semconv.version>
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
-        <datasource-proxy.version>1.10</datasource-proxy.version>
+        <datasource-proxy.version>1.11.0</datasource-proxy.version>
     </properties>
 
     <profiles>
