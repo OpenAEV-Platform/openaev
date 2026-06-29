@@ -20,7 +20,7 @@ git diff --stat HEAD~1
 ## Step 2 — Check PR metadata
 
 Verify:
-- ☐ PR title follows conventional commits (`[context] type(scope): description`)
+- ☐ PR title follows conventional commits (`type(scope?): description (#issue)` — NO `[context]` prefix; `[context]` is for commit messages only)
 - ☐ PR description explains WHAT and WHY
 - ☐ Linked issue/ticket exists
 
