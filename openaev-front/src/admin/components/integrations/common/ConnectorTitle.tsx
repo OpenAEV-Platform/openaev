@@ -139,7 +139,7 @@ const ConnectorTitle = ({
     setIsStatusLoading(isLoading);
   }, [instanceCurrentStatus, instanceRequestedStatus]);
 
-  const showPlaceholder = imgError || connector.connectorLogoName.includes('dummy') || !connector.connectorLogoUrl;
+  const showPlaceholder = imgError || connector.connectorLogoName?.includes('dummy') || !connector.connectorLogoUrl;
 
   return (
     <div className={classes.content}>
