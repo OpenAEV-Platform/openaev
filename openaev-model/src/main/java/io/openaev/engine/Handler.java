@@ -21,4 +21,25 @@ public interface Handler<T extends EsBase> {
    * @return list data to index
    */
   List<T> fetch(Instant from, int limit);
+
+  /**
+   * Variant of {@link #fetch(Instant, int)} using a compound keyset cursor (timestamp + last entity
+   * ID) to avoid missing items that share the same {@code updated_at} timestamp when the previous
+   * batch was full.
+   *
+   * <p>The default implementation ignores {@code lastId} and falls back to the basic cursor,
+   * providing backward-compatible behaviour for handlers that do not need compound pagination.
+   * Override in handlers where the same-millisecond duplicate issue is observable (e.g.
+   * InjectExpectationHandler).
+   *
+   * @param from lower-bound timestamp (exclusive unless lastId is provided)
+   * @param lastId ID of the last successfully indexed entity at {@code from}; when non-null the
+   *     query returns items at {@code from} with ID strictly greater than this value, plus all
+   *     items strictly after {@code from}
+   * @param limit maximum number of records to fetch per batch
+   * @return list data to index
+   */
+  default List<T> fetch(Instant from, String lastId, int limit) {
+    return fetch(from, limit);
+  }
 }

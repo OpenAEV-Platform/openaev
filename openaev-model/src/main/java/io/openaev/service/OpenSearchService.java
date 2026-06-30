@@ -409,8 +409,9 @@ public class OpenSearchService implements EngineService {
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
                   long fetchStart = System.currentTimeMillis();
+                  String lastId = indexingStatus.map(IndexingStatus::getLastId).orElse(null);
                   List<? extends EsBase> results =
-                      handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                      handler.fetch(fetchInstant, lastId, engineConfig.getIndexingBatchSize());
                   long fetchMs = System.currentTimeMillis() - fetchStart;
                   if (fetchMs > 1000) {
                     log.warn(
@@ -443,14 +444,23 @@ public class OpenSearchService implements EngineService {
                         }
                       } else {
                         // Update the status for the next round
+                        EsBase lastResult = results.getLast();
+                        // When the batch is full, more items may share the same timestamp;
+                        // track lastId so the compound cursor skips already-processed ones.
+                        String nextLastId =
+                            results.size() == engineConfig.getIndexingBatchSize()
+                                ? lastResult.getBase_id()
+                                : null;
                         if (indexingStatus.isPresent()) {
                           IndexingStatus status = indexingStatus.get();
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
+                          status.setLastIndexing(lastResult.getBase_updated_at());
+                          status.setLastId(nextLastId);
                           return status;
                         } else {
                           IndexingStatus status = new IndexingStatus();
                           status.setType(model.getName());
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
+                          status.setLastIndexing(lastResult.getBase_updated_at());
+                          status.setLastId(nextLastId);
                           return status;
                         }
                       }

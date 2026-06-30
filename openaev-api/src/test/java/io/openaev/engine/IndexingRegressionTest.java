@@ -25,6 +25,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
@@ -804,6 +805,72 @@ class IndexingRegressionTest extends IntegrationTest {
       Endpoint endpoint = endpointWrapper.get();
       String expectedBaseId = endpoint.getId() + "_" + exercise.getId();
       assertThat(results).anyMatch(es -> es.getBase_id().equals(expectedBaseId));
+    }
+
+    @Test
+    @DisplayName(
+        "Compound cursor: all expectations sharing the same timestamp are returned across"
+            + " batches")
+    void compound_cursor_returns_all_expectations_at_same_timestamp() {
+      // Arrange — 3 expectations in the same inject, all forced to identical updated_at
+      // (simulates bulkComputeTechnicalExpectations saving many rows in a single saveAll())
+      Instant sharedTimestamp = FROM.plus(30, ChronoUnit.MINUTES);
+
+      InjectExpectation exp1 = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      InjectExpectation exp2 = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      InjectExpectation exp3 = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withExpectation(
+                      injectExpectationComposer
+                          .forExpectation(exp1)
+                          .withEndpoint(
+                              endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+                  .withExpectation(
+                      injectExpectationComposer
+                          .forExpectation(exp2)
+                          .withEndpoint(
+                              endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
+                  .withExpectation(
+                      injectExpectationComposer
+                          .forExpectation(exp3)
+                          .withEndpoint(
+                              endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))))
+          .persist();
+      entityManager.flush();
+
+      // Force all 3 expectations to the exact same timestamp
+      for (InjectExpectation exp : List.of(exp1, exp2, exp3)) {
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
+                    + " WHERE inject_expectation_id = :id")
+            .setParameter("ts", sharedTimestamp)
+            .setParameter("id", exp.getId())
+            .executeUpdate();
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — first batch (limit=2): returns 2 expectations ordered by (updated_at, id)
+      List<EsInjectExpectation> batch1 = injectExpectationHandler.fetch(FROM, 2);
+      assertThat(batch1).hasSize(2);
+
+      // Act — compound cursor continues from last item of batch1; must return the 3rd
+      String lastId = batch1.getLast().getBase_id();
+      List<EsInjectExpectation> batch2 = injectExpectationHandler.fetch(FROM, lastId, 2);
+
+      // Assert — all 3 expectations are covered across both batches (none skipped)
+      List<String> allReturnedIds =
+          Stream.concat(batch1.stream(), batch2.stream())
+              .map(EsInjectExpectation::getBase_id)
+              .toList();
+      assertThat(allReturnedIds)
+          .containsExactlyInAnyOrder(exp1.getId(), exp2.getId(), exp3.getId());
     }
   }
 }
