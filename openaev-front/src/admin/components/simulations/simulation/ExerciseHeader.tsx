@@ -249,7 +249,7 @@ const ExerciseHeader = ({ onLoading, isLoading }: {
   }, [exerciseId, exercise, isChainingFeatureEnabled, workflowConfiguration]);
 
   const actions: ExerciseActionPopover[] = isSimulationChaining
-    ? ['Update', 'Export', 'Delete', 'Access reports']
+    ? ['Update', 'Export', 'Delete']
     : ['Update', 'Duplicate', 'Export', 'Delete', 'Access reports'];
 
   return (
