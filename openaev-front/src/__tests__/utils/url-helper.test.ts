@@ -521,5 +521,17 @@ describe('url-helper', () => {
       // Assert
       expect(result).toBe('/api/settings');
     });
+
+    it('given xtmComposer API path should build scoped API URI', async () => {
+      // Arrange
+      setPathname(`/${VALID_UUID}/admin/tags`);
+      const { buildTenantApiPath } = await importHelper();
+
+      // Act
+      const result = buildTenantApiPath('/api/xtm-composer/reachable');
+
+      // Assert
+      expect(result).toBe(`/api/tenants/${VALID_UUID}/xtm-composer/reachable`);
+    });
   });
 });
