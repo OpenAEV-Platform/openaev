@@ -227,7 +227,17 @@ public class BatchingInjectStatusService {
                 + " retryCount="
                 + callback.getRetryCount()
                 + " message="
-                + callback.getInjectExecutionInput().getMessage()
+                + (callback.getInjectExecutionInput() != null
+                    ? callback.getInjectExecutionInput().getMessage()
+                    : null)
+                + " outputStructured="
+                + (callback.getInjectExecutionInput() != null
+                    ? callback.getInjectExecutionInput().getOutputStructured()
+                    : null)
+                + " outputRaw="
+                + (callback.getInjectExecutionInput() != null
+                    ? callback.getInjectExecutionInput().getOutputRaw()
+                    : null)
                 + " , keeping it in memory for retry",
             e);
         break;
