@@ -1,5 +1,11 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.expectation.DetectionExpectation.*;
+import static io.openaev.expectation.ExpectationBuilderService.*;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAsset;
+import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
+
 import io.openaev.database.model.*;
 import io.openaev.expectation.DetectionExpectation;
 import io.openaev.expectation.ExpectationSignature;
@@ -9,17 +15,10 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import static io.openaev.expectation.DetectionExpectation.*;
-import static io.openaev.expectation.ExpectationBuilderService.*;
-import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
-import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAsset;
-import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 
 public class ExpectationFixture {
 

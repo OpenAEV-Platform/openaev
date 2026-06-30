@@ -10,12 +10,11 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
+import java.util.*;
+import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-
-import java.util.*;
-import java.util.stream.StreamSupport;
 
 @Slf4j
 @Component

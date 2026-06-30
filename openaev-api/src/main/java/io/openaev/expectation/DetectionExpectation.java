@@ -9,6 +9,11 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+import java.util.Objects;
+
+import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.DETECTION;
+
 /**
  * Expectation that requires security tools to detect an injected activity.
  *

@@ -7,8 +7,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class ExpectationSignature {
 
-    private String type;
+  private String type;
 
-    private String value;
-
+  private String value;
 }

@@ -1,15 +1,14 @@
 package io.openaev.utils;
 
-import io.openaev.expectation.ExpectationSignature;
+import static io.openaev.utils.ExpectationSignatureUtils.createAiRequestMarkerSignature;
+import static io.openaev.utils.ExpectationSignatureUtils.createAiTargetEndpointSignature;
 
+import io.openaev.expectation.ExpectationSignature;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-
-import static io.openaev.utils.ExpectationSignatureUtils.createAiRequestMarkerSignature;
-import static io.openaev.utils.ExpectationSignatureUtils.createAiTargetEndpointSignature;
 
 /**
  * Correlation helpers for AI adversarial validation.

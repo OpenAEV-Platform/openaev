@@ -1,5 +1,10 @@
 package io.openaev.injectors.challenge;
 
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
+
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
@@ -17,16 +22,10 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 
 public class ChallengeExecutor extends Injector {
 

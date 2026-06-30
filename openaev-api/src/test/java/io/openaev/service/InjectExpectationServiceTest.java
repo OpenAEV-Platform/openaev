@@ -141,9 +141,7 @@ class InjectExpectationServiceTest {
   }
 
   private void invokeComputeExpectationsForAssetGroup(
-      List<Expectation> expectations,
-      BaseInjectContent content,
-      AssetGroup assetGroup)
+      List<Expectation> expectations, BaseInjectContent content, AssetGroup assetGroup)
       throws Exception {
     Method method =
         InjectExpectationService.class.getDeclaredMethod(
