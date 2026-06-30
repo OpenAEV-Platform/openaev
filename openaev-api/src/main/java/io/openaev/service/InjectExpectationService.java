@@ -1238,8 +1238,7 @@ public class InjectExpectationService {
    * @param tenantId the tenant ID to scope collector lookup
    */
   private void setupDefaultExpectationResults(
-      @NotNull final List<InjectExpectation> injectExpectations,
-      @NotBlank final String tenantId) {
+      @NotNull final List<InjectExpectation> injectExpectations, @NotBlank final String tenantId) {
     List<Collector> collectors = collectorService.securityPlatformCollectors(tenantId);
 
     injectExpectations.forEach(

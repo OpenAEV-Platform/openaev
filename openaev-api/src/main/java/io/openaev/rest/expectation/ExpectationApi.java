@@ -146,7 +146,8 @@ public class ExpectationApi extends RestBehavior {
     return toOutputs(
         Stream.concat(
                 injectExpectationService
-                    .preventionExpectationsNotFilledAndNotExpired(tenantId, expirationTime, sourceId)
+                    .preventionExpectationsNotFilledAndNotExpired(
+                        tenantId, expirationTime, sourceId)
                     .stream(),
                 injectExpectationService
                     .detectionExpectationsNotFilledAndNotExpired(tenantId, expirationTime, sourceId)
@@ -180,9 +181,7 @@ public class ExpectationApi extends RestBehavior {
       @PathVariable String sourceId) {
     String tenantId = TenantContext.getCurrentTenant();
     return toOutputs(
-        injectExpectationService
-            .preventionExpectationsNotFill(tenantId, sourceId)
-            .stream()
+        injectExpectationService.preventionExpectationsNotFill(tenantId, sourceId).stream()
             .toList());
   }
 
@@ -212,7 +211,8 @@ public class ExpectationApi extends RestBehavior {
       @PathVariable String sourceId) {
     String tenantId = TenantContext.getCurrentTenant();
     return toOutputs(
-        injectExpectationService.detectionExpectationsNotFill(tenantId, sourceId).stream().toList());
+        injectExpectationService.detectionExpectationsNotFill(tenantId, sourceId).stream()
+            .toList());
   }
 
   @Operation(
