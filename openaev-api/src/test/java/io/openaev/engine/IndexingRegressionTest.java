@@ -6,12 +6,16 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.engine.model.endpoint.EndpointHandler;
 import io.openaev.engine.model.endpoint.EsEndpoint;
+import io.openaev.engine.model.inject.EsInject;
+import io.openaev.engine.model.inject.InjectHandler;
 import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
 import io.openaev.engine.model.injectexpectation.InjectExpectationHandler;
 import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.scenario.ScenarioHandler;
 import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
+import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
+import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -44,10 +48,12 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("findForIndexing non-regression tests")
 class IndexingRegressionTest extends IntegrationTest {
 
+  @Autowired private InjectHandler injectHandler;
   @Autowired private EndpointHandler endpointHandler;
   @Autowired private SimulationHandler simulationHandler;
   @Autowired private ScenarioHandler scenarioHandler;
   @Autowired private InjectExpectationHandler injectExpectationHandler;
+  @Autowired private VulnerableEndpointHandler vulnerableEndpointHandler;
 
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -57,6 +63,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private AgentComposer agentComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
+  @Autowired private FindingComposer findingComposer;
 
   /** A point in time used as the {@code :from} parameter — 1 hour ago. */
   private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
@@ -74,6 +81,7 @@ class IndexingRegressionTest extends IntegrationTest {
     agentComposer.reset();
     collectorComposer.reset();
     securityPlatformComposer.reset();
+    findingComposer.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -129,6 +137,79 @@ class IndexingRegressionTest extends IntegrationTest {
         .setParameter("ts", Instant.now())
         .setParameter("id", injectId)
         .executeUpdate();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Inject
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("InjectHandler.findForIndexing")
+  class InjectIndexing {
+
+    @Test
+    @DisplayName("Inject appears when its own updated_at is after :from")
+    void inject_reindexed_when_updated() {
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject());
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+
+      Inject inject = injectWrapper.get();
+      pushInjectToPast(inject.getId());
+      touchInject(inject.getId());
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInject> results = injectHandler.fetch(FROM, 5000);
+
+      assertThat(results).anyMatch(es -> es.getBase_id().equals(inject.getId()));
+    }
+
+    @Test
+    @DisplayName("Inject correlated subqueries return correct data")
+    void inject_correlated_subqueries_return_correct_data() {
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject());
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      Inject inject = injectWrapper.get();
+      List<EsInject> results = injectHandler.fetch(null, 5000);
+
+      EsInject esInject =
+          results.stream()
+              .filter(es -> es.getBase_id().equals(inject.getId()))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("Inject not found in indexing results"));
+
+      assertThat(esInject.getInject_title()).isEqualTo(inject.getTitle());
+      assertThat(esInject.getBase_id()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Inject batch size limit is respected by ranked CTE")
+    void inject_batch_limit_is_respected() {
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+          .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+          .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInject> results = injectHandler.fetch(null, 2);
+
+      assertThat(results).hasSize(2);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -361,6 +442,74 @@ class IndexingRegressionTest extends IntegrationTest {
               es ->
                   assertThat(es.getBase_security_platforms_side())
                       .contains(securityPlatform.get().getId()));
+    }
+
+    @Test
+    @DisplayName("Agent-level expectations are excluded by the CTE filter")
+    void agent_expectations_are_excluded() {
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      endpointWrapper.withAgent(agentWrapper);
+      InjectExpectation expectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      InjectExpectationComposer.Composer expectationWrapper =
+          injectExpectationComposer.forExpectation(expectation).withAgent(agentWrapper);
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withExpectation(expectationWrapper);
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(null, 5000);
+
+      assertThat(results).noneMatch(es -> es.getBase_id().equals(expectation.getId()));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // VulnerableEndpoint
+  // ---------------------------------------------------------------------------
+
+  @Nested
+  @DisplayName("VulnerableEndpointHandler.findForIndexing")
+  class VulnerableEndpointIndexing {
+
+    @Test
+    @DisplayName("VulnerableEndpoint appears when its exercise was updated after :from")
+    void vulnerable_endpoint_reindexed_when_exercise_updated() {
+      // Arrange — endpoint with a CVE finding from an inject in an exercise
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      FindingComposer.Composer findingWrapper =
+          findingComposer
+              .forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle())
+              .withEndpoint(endpointWrapper);
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+      Exercise exercise =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(injectWrapper)
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<EsVulnerableEndpoint> results = vulnerableEndpointHandler.fetch(FROM, 5000);
+
+      // Assert — the endpoint+exercise combo must appear
+      Endpoint endpoint = endpointWrapper.get();
+      String expectedBaseId = endpoint.getId() + "_" + exercise.getId();
+      assertThat(results).anyMatch(es -> es.getBase_id().equals(expectedBaseId));
     }
   }
 }
