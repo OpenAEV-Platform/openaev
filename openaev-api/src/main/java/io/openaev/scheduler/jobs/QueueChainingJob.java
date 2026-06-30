@@ -3,6 +3,7 @@ package io.openaev.scheduler.jobs;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepDelayQueue;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.service.chaining.SimulationRateLimitService;
 import io.openaev.service.chaining.StepDelayQueueService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
@@ -24,6 +25,7 @@ public class QueueChainingJob implements Job {
   private final StepDelayQueueService stepDelayQueueService;
   private final StepService stepService;
   private final WorkflowService workflowService;
+  private final SimulationRateLimitService simulationRateLimitService;
   private final TransactionTemplate transactionTemplate;
 
   /** Periodically processes the next eligible step from the delay queue. */
@@ -53,19 +55,21 @@ public class QueueChainingJob implements Job {
             }
 
             try {
+              // Guard: rate limit — if still rate limited, re-push into delay queue.
+              if (simulationRateLimitService.delayIfRateLimitReached(
+                  stepDelayQueue.getStepTemplate(),
+                  stepDelayQueue.getInput(),
+                  stepDelayQueue.getWorkflowRun(),
+                  0)) {
+                continue;
+              }
+
               // Create new READY step(s) from the template.
               List<Step> readySteps =
                   stepService.createReadySteps(
                       stepDelayQueue.getStepTemplate(),
                       stepDelayQueue.getWorkflowRun(),
                       stepDelayQueue.getInput());
-
-              // Propagate rate-limit count from the delay queue entry to the new steps
-              // so InjectExecutionStep can surface it as an INFO trace.
-              int rateLimitCount = stepDelayQueue.getRateLimitCount();
-              if (rateLimitCount > 0) {
-                readySteps.forEach(step -> step.setRateLimitCount(rateLimitCount));
-              }
 
               stepService.enqueueReadySteps(readySteps, stepDelayQueue.getWorkflowRun());
             } catch (ChainingException e) {

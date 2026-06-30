@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V5_26__Add_chaining_rate_limit_support extends BaseJavaMigration {
+public class V6_20260630151557065__Add_chaining_rate_limit_support extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -33,22 +33,6 @@ public class V5_26__Add_chaining_rate_limit_support extends BaseJavaMigration {
           CREATE INDEX IF NOT EXISTS idx_injects_statuses_terminal_sent_date
             ON injects_statuses (status_inject, tracking_sent_date)
             WHERE status_name IN ('EXECUTED', 'PARTIAL', 'ERROR', 'MAYBE_PREVENTED', 'MAYBE_PARTIAL_PREVENTED');
-          """);
-
-      // Add rate_limit_count column to steps_delay_queue to carry the reschedule count
-      // through the delay queue so it can be propagated to newly created READY steps.
-      stmt.execute(
-          """
-          ALTER TABLE steps_delay_queue
-            ADD COLUMN IF NOT EXISTS steps_delay_queue_rate_limit_count INTEGER DEFAULT 0;
-          """);
-
-      // Add rate_limit_count column to steps to store the count on the READY step
-      // so it can be read by InjectExecutionStep to emit an INFO trace.
-      stmt.execute(
-          """
-          ALTER TABLE steps
-            ADD COLUMN IF NOT EXISTS step_rate_limit_count INTEGER DEFAULT 0;
           """);
     }
   }

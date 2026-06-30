@@ -93,12 +93,6 @@ public class Step implements Base {
   @JsonProperty("step_condition_key_types")
   private List<ConditionKeyType> conditionKeyTypes;
 
-  @Column(name = "step_rate_limit_count")
-  @JsonProperty("step_rate_limit_count")
-  @Schema(description = "Number of times this step was rescheduled due to rate limiting")
-  @Builder.Default
-  private int rateLimitCount = 0;
-
   @Column(name = "step_created_at")
   @JsonProperty("step_created_at")
   @CreationTimestamp

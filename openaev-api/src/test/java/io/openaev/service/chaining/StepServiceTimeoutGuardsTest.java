@@ -25,10 +25,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 class StepServiceTimeoutGuardsTest {
 
   @Mock private StepRepository stepRepository;
+  @Mock private ChainingConfig chainingConfig;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
-  @Mock private SimulationRateLimitService simulationRateLimitService;
-  @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private TransactionTemplate transactionTemplate;
   @Mock private ActionStep actionStep;
@@ -88,8 +87,6 @@ class StepServiceTimeoutGuardsTest {
       StepEvent event = StepEvent.builder().stepId(stepId).build();
       when(stepRepository.findById(stepId)).thenReturn(Optional.of(stepReady));
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
-      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, runningWorkflow))
-          .thenReturn(false);
       when(stepService.factoryAction(stepReady.getStepAction(), stepId)).thenReturn(actionStep);
       when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
 
@@ -133,8 +130,6 @@ class StepServiceTimeoutGuardsTest {
       Step stepReady = buildStep(StepStatus.READY, runningWorkflow);
       String stepReadyId = stepReady.getId();
       when(workflowService.isWorkflowEnded(runningWorkflow.getId())).thenReturn(false);
-      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, runningWorkflow))
-          .thenReturn(false);
 
       Step stepRun = buildStep(StepStatus.RUN, runningWorkflow);
       when(stepService.factoryAction(stepReady.getStepAction(), stepReadyId))

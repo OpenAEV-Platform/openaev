@@ -25,14 +25,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class StepEventService implements StepEventHandler, ExternalUpdateEventHandler {
 
-  /** Maximum number of times an event can be re-queued after a transactional failure. */
-  static final int MAX_RETRY_COUNT = 3;
-
+  private final ChainingConfig chainingConfig;
   private final StepService stepService;
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
-  private final SimulationRateLimitService simulationRateLimitService;
-  private final StepDelayQueueService stepDelayQueueService;
   private final QueueChainingService queueChainingService;
 
   /**
@@ -77,13 +73,13 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
                               "Ready consume: Step not found for StepEvent ID: {}",
                               stepEvent.getStepId())));
     } catch (Exception e) {
-      if (stepEvent.getRetryCount() < MAX_RETRY_COUNT) {
+      if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
         stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
         log.warn(
             "Transaction failed for StepEvent {}. Re-queuing (retry {}/{}).",
             stepEvent.getStepId(),
             stepEvent.getRetryCount(),
-            MAX_RETRY_COUNT,
+            chainingConfig.getMaxRetryCount(),
             e);
         try {
           queueChainingService.republishReadyEvent(stepEvent);
@@ -97,7 +93,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         log.error(
             "Transaction failed for StepEvent {} after {} retries. Event is dropped.",
             stepEvent.getStepId(),
-            MAX_RETRY_COUNT,
+            chainingConfig.getMaxRetryCount(),
             e);
       }
     }
@@ -119,9 +115,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           workflowRun.getId());
       return;
     }
-
-    // Check for rate limit, stop the run here and delay the step ready if reached
-    if (simulationRateLimitService.requeueIfRateLimitReached(stepReady, workflowRun)) return;
 
     Step stepRun;
     try {

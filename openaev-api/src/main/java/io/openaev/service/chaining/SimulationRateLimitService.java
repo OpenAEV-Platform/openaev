@@ -30,9 +30,11 @@ public class SimulationRateLimitService {
    * rate limit configuration.
    *
    * @param workflowRun the workflow run to evaluate
+   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
+   *     yet reflected in the database (e.g. READY steps just created in the same loop)
    * @return {@code true} if execution is allowed, {@code false} if the rate limit has been reached
    */
-  public boolean isExecutionAllowed(Workflow workflowRun) {
+  public boolean isExecutionAllowed(Workflow workflowRun, int pendingCount) {
     if (!workflowRun.isRateLimitEnabled()) {
       return true;
     }
@@ -48,15 +50,17 @@ public class SimulationRateLimitService {
         Instant.now().minus(workflowRun.getMaxTemporalRateSeconds(), ChronoUnit.SECONDS);
     String simulationId = workflowRun.getSimulation().getId();
 
-    long count = injectStatusRepository.countLaunchedInjectsSince(simulationId, since);
+    long count =
+        injectStatusRepository.countLaunchedInjectsSince(simulationId, since) + pendingCount;
 
     if (count >= workflowRun.getMaxAttempts()) {
       log.info(
-          "Rate limit reached for workflow {} ({}/{} in {}s window)",
+          "Rate limit reached for workflow {} ({}/{} in {}s window, including {} pending)",
           workflowRun.getId(),
           count,
           workflowRun.getMaxAttempts(),
-          workflowRun.getMaxTemporalRateSeconds());
+          workflowRun.getMaxTemporalRateSeconds(),
+          pendingCount);
       return false;
     }
 
@@ -64,26 +68,34 @@ public class SimulationRateLimitService {
   }
 
   /**
-   * Check that a rate limit has been reached and re-schedule the step if necessary. Returns true if
-   * the step was re-scheduled, false otherwise.
+   * Checks if the rate limit has been reached and, if so, pushes the step template into the delay
+   * queue for later retry.
    *
-   * @param stepReady the step to check
-   * @param workflowRun the workflow being run
-   * @return true if the step was re-scheduled, false otherwise.
+   * @param stepTemplate the step template to potentially delay
+   * @param input the input data for the step
+   * @param workflowRun the workflow run to evaluate
+   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
+   *     yet reflected in the database
+   * @return {@code true} if the step was delayed (rate limit reached), {@code false} if execution
+   *     can proceed
    */
-  public boolean requeueIfRateLimitReached(Step stepReady, Workflow workflowRun) {
-    // Guard: rate limit — re-schedule the step if the workflow has reached its rate limit.
-    if (workflowRun != null && !this.isExecutionAllowed(workflowRun)) {
-      long backoffSeconds =
-          workflowRun.getMaxTemporalRateSeconds() != null
-              ? workflowRun.getMaxTemporalRateSeconds()
-              : 60L;
-      // Increment the rate-limit count on the step itself so it propagates through the delay
-      // queue and can be surfaced as an INFO trace when the inject is eventually executed.
-      stepReady.setRateLimitCount(stepReady.getRateLimitCount() + 1);
-      stepDelayQueueService.reschedule(stepReady, backoffSeconds);
-      return true;
+  public boolean delayIfRateLimitReached(
+      Step stepTemplate, String input, Workflow workflowRun, int pendingCount) {
+    if (workflowRun == null || isExecutionAllowed(workflowRun, pendingCount)) {
+      return false;
     }
-    return false;
+    long backoffMillis =
+        workflowRun.getMaxTemporalRateSeconds() != null
+            ? workflowRun.getMaxTemporalRateSeconds() * 1000L
+            : 60_000L;
+    Instant now = Instant.now();
+    stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
+        stepTemplate, now, input, backoffMillis, workflowRun, now.plusMillis(backoffMillis));
+    log.info(
+        "Rate limit reached — delaying template {} for workflow {} (backoff: {}ms)",
+        stepTemplate.getId(),
+        workflowRun.getId(),
+        backoffMillis);
+    return true;
   }
 }

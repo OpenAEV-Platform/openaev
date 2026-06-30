@@ -207,21 +207,6 @@ public class InjectExecutionStep implements ActionStep {
 
       executor.directExecute(executableInject);
 
-      // Surface rate-limit delays as an INFO trace on the inject status, so the user
-      // can see in the UI that execution was throttled before proceeding.
-      int rateLimitCount = readyStep.getRateLimitCount();
-      if (rateLimitCount > 0) {
-        inject
-            .getStatus()
-            .ifPresent(
-                status ->
-                    status.addInfoTrace(
-                        String.format(
-                            "Inject execution was delayed %d time(s) by rate limiting before proceeding.",
-                            rateLimitCount),
-                        ExecutionTraceAction.EXECUTION));
-      }
-
       return Optional.of(readyStep);
     } catch (Exception e) {
       throw new ChainingException(

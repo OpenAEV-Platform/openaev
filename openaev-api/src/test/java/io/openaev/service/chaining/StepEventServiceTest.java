@@ -31,11 +31,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ExtendWith(MockitoExtension.class)
 class StepEventServiceTest {
 
+  @Mock private ChainingConfig chainingConfig;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
   @Mock private StepRepository stepRepository;
-  @Mock private SimulationRateLimitService simulationRateLimitService;
-  @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private TransactionTemplate transactionTemplate;
   @Mock private ActionStep actionStep;
@@ -45,6 +44,7 @@ class StepEventServiceTest {
   @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
+    lenient().when(chainingConfig.getMaxRetryCount()).thenReturn(3);
     lenient()
         .doAnswer(
             invocation -> {
@@ -281,7 +281,7 @@ class StepEventServiceTest {
     void given_transactionFailure_should_drop_whenMaxRetriesReached() throws IOException {
       // Arrange
       StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
-      event.setRetryCount(StepEventService.MAX_RETRY_COUNT);
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
 
       doAnswer(
               invocation -> {
@@ -421,84 +421,6 @@ class StepEventServiceTest {
       verify(stepService).saveStep(updated);
       verify(workflowService).evaluateWorkflowProgress(workflowRun);
       verify(workflowService).saveWorkflowRun(workflowRun);
-    }
-  }
-
-  // -- RATE LIMIT GUARD --
-
-  @Nested
-  class RateLimitGuard {
-
-    @Test
-    void shouldDelegateToSimulationRateLimitService_whenWorkflowRunIsNotNull()
-        throws ChainingException {
-      // -------- Prepare --------
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-1");
-
-      Step stepReady = mock(Step.class);
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-
-      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, workflowRun))
-          .thenReturn(true);
-
-      // -------- Act --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert — execution was blocked, step was not run --------
-      verify(simulationRateLimitService).requeueIfRateLimitReached(stepReady, workflowRun);
-      verify(stepService, never()).factoryAction(any(), any());
-      verify(stepService, never()).saveStep(any());
-    }
-
-    @Test
-    void shouldProceedWithExecution_whenRateLimitNotReached() throws ChainingException {
-      // -------- Prepare --------
-      Workflow workflowRun = mock(Workflow.class);
-      when(workflowRun.getId()).thenReturn("wf-1");
-
-      Step stepReady = mock(Step.class);
-      when(stepReady.getWorkflow()).thenReturn(workflowRun);
-      when(stepReady.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
-
-      Step stepRun = mock(Step.class);
-
-      when(workflowService.isWorkflowEnded("wf-1")).thenReturn(false);
-      when(simulationRateLimitService.requeueIfRateLimitReached(stepReady, workflowRun))
-          .thenReturn(false);
-
-      ActionStep localActionStep = mock(ActionStep.class);
-      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
-          .thenReturn(localActionStep);
-      when(localActionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
-
-      // -------- Act --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert --------
-      verify(stepRun).setStatus(StepStatus.RUN);
-      verify(stepService).saveStep(stepRun);
-    }
-
-    @Test
-    void shouldSkipRateLimitCheck_whenWorkflowRunIsNull() throws ChainingException {
-      // -------- Prepare --------
-      Step stepReady = new Step();
-      stepReady.setStepAction(StepActionClass.INJECT_EXECUTION);
-      Step stepRun = new Step();
-
-      when(stepService.factoryAction(eq(StepActionClass.INJECT_EXECUTION), any()))
-          .thenReturn(actionStep);
-      when(actionStep.run(stepReady)).thenReturn(Optional.of(stepRun));
-
-      // -------- Act --------
-      stepEventService.run(stepReady);
-
-      // -------- Assert --------
-      verify(simulationRateLimitService).requeueIfRateLimitReached(stepReady, null);
-      assertEquals(StepStatus.RUN, stepRun.getStatus());
-      verify(stepService).saveStep(stepRun);
     }
   }
 }

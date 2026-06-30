@@ -43,6 +43,7 @@ class StepServiceTest {
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
+  @Mock private SimulationRateLimitService simulationRateLimitService;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
@@ -70,7 +71,11 @@ class StepServiceTest {
         .executeWithoutResult(any());
     queueChainingJob =
         new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, transactionTemplate);
+            stepDelayQueueService,
+            stepService,
+            workflowService,
+            simulationRateLimitService,
+            transactionTemplate);
     workflow = mock(Workflow.class);
   }
 
