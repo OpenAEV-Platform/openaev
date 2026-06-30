@@ -49,4 +49,6 @@ public interface CollectorRepository
   void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
 
   Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
+
+  List<Collector> findAllByTenantIdAndSecurityPlatformIsNotNull(@NotNull String tenantId);
 }

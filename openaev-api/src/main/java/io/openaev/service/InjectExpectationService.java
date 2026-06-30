@@ -1202,7 +1202,8 @@ public class InjectExpectationService {
     }
 
     if (!injectExpectations.isEmpty()) {
-      setupDefaultExpectationResults(injectExpectations);
+      String tenantId = executableInject.getInjection().getInject().getTenant().getId();
+      setupDefaultExpectationResults(injectExpectations, tenantId);
       injectExpectationRepository.saveAll(injectExpectations);
     }
   }
@@ -1220,10 +1221,12 @@ public class InjectExpectationService {
    * = null
    *
    * @param injectExpectations the list of expectations to initialize
+   * @param tenantId the tenant ID to scope collector lookup
    */
   private void setupDefaultExpectationResults(
-      @NotNull final List<InjectExpectation> injectExpectations) {
-    List<Collector> collectors = collectorService.securityPlatformCollectors();
+      @NotNull final List<InjectExpectation> injectExpectations,
+      @NotBlank final String tenantId) {
+    List<Collector> collectors = collectorService.securityPlatformCollectors(tenantId);
 
     injectExpectations.forEach(
         ie -> {
