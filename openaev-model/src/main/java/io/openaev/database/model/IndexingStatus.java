@@ -23,4 +23,10 @@ public class IndexingStatus {
   @Column(name = "indexing_status_indexing_date")
   @JsonProperty("indexing_status_indexing_date")
   private Instant lastIndexing;
+
+  /** Last processed entity ID within the current indexing timestamp window (compound cursor). */
+  @Getter
+  @Column(name = "indexing_last_id")
+  @JsonProperty("indexing_last_id")
+  private String lastId;
 }
