@@ -389,6 +389,7 @@ public interface InjectExpectationRepository
           LEFT JOIN collectors c2 ON r2.elem->>'sourceId' = c2.collector_id::text
           WHERE ie2.inject_id = ie.inject_id
             AND ie2.agent_id IS NOT NULL
+            AND (ie.asset_id IS NULL OR ie2.asset_id = ie.asset_id)
       ) AS security_platform_ids
     FROM injects_expectations ie
     JOIN changed_expectations ce ON ie.inject_expectation_id = ce.inject_expectation_id
