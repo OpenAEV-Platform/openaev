@@ -9,22 +9,19 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Set;
-
 @Transactional
 @DisplayName("XTM Composer API tenant scope tests")
 class XtmComposerApiTenantScopeTest extends IntegrationTest {
 
-  @Autowired
-  private MockMvc mvc;
-  @Autowired
-  private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private MockMvc mvc;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
 
   @WithMockUser(withCapabilities = {Capability.ACCESS_TENANT_SETTINGS})
   @Test
@@ -49,5 +46,3 @@ class XtmComposerApiTenantScopeTest extends IntegrationTest {
         .andExpect(status().isOk());
   }
 }
-
-
