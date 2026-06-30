@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import static io.openaev.helper.InjectExpectationHelper.computeStatus;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -160,6 +161,11 @@ public class InjectExpectation implements Base, Cloneable {
   @Column(name = "inject_expectation_group")
   @JsonProperty("inject_expectation_group")
   private boolean expectationGroup;
+
+  @Setter
+  @Column(name = "inject_expectation_signatures_initialized")
+  @JsonIgnore
+  private boolean signaturesInitialized = false;
 
   // endregion
 
