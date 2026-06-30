@@ -44,20 +44,22 @@ instructions: |
   When reviewing chaining code, verify:
 
   1. **Feature flag**: All new endpoints check `PreviewFeature.INJECT_CHAINING` is enabled.
-  2. **Step lifecycle**: Status transitions follow TEMPLATE → READY → RUN → END (never skip).
-  3. **Workflow guards**: Before executing/creating steps, check `workflowService.isWorkflowEnded()`.
-  4. **Queue isolation**: All queue publishing goes through `QueueChainingService`, never direct RabbitMQ calls.
-  5. **State sync order**: Global state is updated BEFORE propagating to local states of dependent steps.
-  6. **Time delays**: Uses `StepDelayQueueService`, never `Thread.sleep()`.
-  7. **Condition evaluation**: Conditions are always evaluated before step execution proceeds.
-  8. **DTO boundary**: Controllers return DTOs (StepOutput, EventOutput, etc.), never JPA entities.
-  9. **Mapper correctness**: Static mapper methods (ConditionMapper.toOutput, StepMapper.toOutput) — NOT MapStruct annotations.
-  10. **@AccessControl**: Every endpoint has proper `Action` and `ResourceType`.
-  11. **@Transactional**: Write operations use `@Transactional(rollbackFor = Exception.class)`.
-  12. **Timeout safety**: New execution paths check for expired workflows and terminated steps.
-  13. **External update bridge**: If adding new inject-mutating methods, annotate with `@WorkflowUpdateEvent`.
-  14. **Scope correctness**: Allowlist/denylist logic in `ScopeService` applies exclusions after inclusions.
-  15. **DEPEND_ON conditions**: Step dependencies use `ConditionFactory.dependOn()`.
+  2. **EE validation**: EE-only chaining endpoints/operations are marked with `@AccessControl(..., isEnterpriseEdition = true)` so `AccessControlAspect` enforces Enterprise Edition license validation.
+  3. **Frontend EE validation**: EE-only chaining UI/actions are gated in frontend with Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`), in addition to chaining feature-flag checks.
+  4. **Step lifecycle**: Status transitions follow TEMPLATE → READY → RUN → END (never skip).
+  5. **Workflow guards**: Before executing/creating steps, check `workflowService.isWorkflowEnded()`.
+  6. **Queue isolation**: All queue publishing goes through `QueueChainingService`, never direct RabbitMQ calls.
+  7. **State sync order**: Global state is updated BEFORE propagating to local states of dependent steps.
+  8. **Time delays**: Uses `StepDelayQueueService`, never `Thread.sleep()`.
+  9. **Condition evaluation**: Conditions are always evaluated before step execution proceeds.
+  10. **DTO boundary**: Controllers return DTOs (StepOutput, EventOutput, etc.), never JPA entities.
+  11. **Mapper correctness**: Static mapper methods (ConditionMapper.toOutput, StepMapper.toOutput) — NOT MapStruct annotations.
+  12. **@AccessControl**: Every endpoint has proper `Action` and `ResourceType`.
+  13. **@Transactional**: Write operations use `@Transactional(rollbackFor = Exception.class)`.
+  14. **Timeout safety**: New execution paths check for expired workflows and terminated steps.
+  15. **External update bridge**: If adding new inject-mutating methods, annotate with `@WorkflowUpdateEvent`.
+  16. **Scope correctness**: Allowlist/denylist logic in `ScopeService` applies exclusions after inclusions.
+  17. **DEPEND_ON conditions**: Step dependencies use `ConditionFactory.dependOn()`.
 
   ## How to help
 
