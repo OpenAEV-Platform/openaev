@@ -3,7 +3,6 @@ package io.openaev.rest.inject.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -43,11 +42,6 @@ public class InjectorExecutionProcessingHandler extends AbstractExecutionProcess
    */
   public Optional<ObjectNode> processContext(ExecutionProcessingContext executionContext)
       throws JsonProcessingException {
-    if (!executionContext.isSuccess()
-        || !ExecutionTraceAction.COMPLETE.equals(executionContext.getAction())) {
-      return Optional.empty();
-    }
-
     String outputStructured = executionContext.input().getOutputStructured();
     if (outputStructured == null || outputStructured.isBlank()) {
       log.debug("No structured output provided; skipping injector execution post-processing.");

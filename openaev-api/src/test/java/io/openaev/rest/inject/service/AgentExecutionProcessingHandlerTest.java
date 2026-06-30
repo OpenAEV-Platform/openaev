@@ -48,26 +48,6 @@ class AgentExecutionProcessingHandlerTest {
   }
 
   @Test
-  @DisplayName("Should return empty when status is not SUCCESS or action is not command execution")
-  void shouldReturnEmptyWhenStatusNotSuccessOrActionNotExecution() throws Exception {
-    InjectExecutionInput inputError =
-        buildInput(ExecutionTraceStatus.ERROR, InjectExecutionAction.command_execution);
-    assertTrue(
-        handler
-            .processContext(new ExecutionProcessingContext(inject, agent, inputError, Map.of()))
-            .isEmpty());
-
-    InjectExecutionInput inputComplete =
-        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.complete);
-    assertTrue(
-        handler
-            .processContext(new ExecutionProcessingContext(inject, agent, inputComplete, Map.of()))
-            .isEmpty());
-
-    verifyNoInteractions(structuredOutputUtils);
-  }
-
-  @Test
   @DisplayName("Should return empty when computeStructuredOutput returns no result")
   void shouldReturnEmptyWhenComputeStructuredOutputReturnsEmpty() throws Exception {
     ExecutionProcessingContext ctx = createValidCtx();

@@ -1,9 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.utils.fixtures.InjectExpectationFixture.createVulnerabilityInjectExpectation;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -52,6 +50,7 @@ class InjectExpectationServiceTest {
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
+  @Mock private InjectExpectationLockService injectExpectationLockService;
   @Spy @InjectMocks private InjectExpectationService injectExpectationService;
   @Spy private ObjectMapper mapper = new ObjectMapper();
 
@@ -63,6 +62,7 @@ class InjectExpectationServiceTest {
     agent = AgentFixture.createDefaultAgentService();
     inject = InjectFixture.getDefaultInject();
     inject.setExpectations(List.of(createVulnerabilityInjectExpectation(inject, agent)));
+    injectExpectationService.mapper = mapper;
   }
 
   private void mockExpectation(InjectExpectation expectation) {
@@ -777,6 +777,71 @@ class InjectExpectationServiceTest {
       assertEquals(expectedInjectIds.size(), result.size());
       assertEquals(expectedInjectIds, result);
       verifyNoMoreInteractions(injectExpectationRepository);
+    }
+  }
+
+  @Nested
+  @DisplayName("appendExpectationSignatures")
+  class AppendExpectationSignaturesTests {
+
+    @Test
+    @DisplayName("Returns immediately when signatures are empty")
+    void givenEmptySignaturesShouldReturnWithoutSideEffects() {
+      assertDoesNotThrow(
+          () ->
+              injectExpectationService.appendExpectationSignatures(
+                  "inject-id",
+                  "agent-id",
+                  null,
+                  null,
+                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  List.of()));
+
+      verifyNoInteractions(injectExpectationRepository);
+    }
+
+    @Test
+    @DisplayName("Returns without side effects for a non-technical expectation type")
+    void givenNonTechnicalExpectationTypeShouldReturnWithoutSideEffects() {
+      List<InjectExpectationSignature> signatures =
+          List.of(new InjectExpectationSignature("signature-type", "signature-value"));
+
+      assertDoesNotThrow(
+          () ->
+              injectExpectationService.appendExpectationSignatures(
+                  "inject-id",
+                  "agent-id",
+                  null,
+                  null,
+                  InjectExpectation.EXPECTATION_TYPE.MANUAL,
+                  signatures));
+
+      verifyNoInteractions(injectExpectationRepository);
+      verifyNoInteractions(injectExpectationLockService);
+    }
+
+    @Test
+    @DisplayName("Delegates to lock service for each matching expectation")
+    void givenMatchingExpectationsShouldDelegateToLockService() {
+      InjectExpectation first = new InjectExpectation();
+      first.setId("exp-1");
+      first.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
+      InjectExpectation second = new InjectExpectation();
+      second.setId("exp-2");
+      second.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
+      when(injectExpectationRepository.findAllByInjectAndAgent("inject-id", "agent-id"))
+          .thenReturn(List.of(first, second));
+
+      injectExpectationService.appendExpectationSignatures(
+          "inject-id",
+          "agent-id",
+          null,
+          null,
+          InjectExpectation.EXPECTATION_TYPE.DETECTION,
+          List.of(new InjectExpectationSignature("signature-type", "signature-value")));
+
+      verify(injectExpectationLockService, times(2))
+          .applySignaturesForExpectationWithLock(anyString(), anyString());
     }
   }
 }

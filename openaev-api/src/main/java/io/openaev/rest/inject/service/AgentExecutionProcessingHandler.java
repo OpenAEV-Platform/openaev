@@ -2,7 +2,6 @@ package io.openaev.rest.inject.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.OutputParser;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
@@ -44,11 +43,6 @@ public class AgentExecutionProcessingHandler extends AbstractExecutionProcessing
    */
   public Optional<ObjectNode> processContext(ExecutionProcessingContext executionContext)
       throws JsonProcessingException {
-    if (!executionContext.isSuccess()
-        || !ExecutionTraceAction.EXECUTION.equals(executionContext.getAction())) {
-      return Optional.empty();
-    }
-
     Set<OutputParser> outputParsers =
         structuredOutputUtils.extractOutputParsers(executionContext.inject());
 
