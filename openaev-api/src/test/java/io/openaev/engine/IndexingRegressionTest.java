@@ -54,6 +54,9 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
+  @Autowired private AgentComposer agentComposer;
+  @Autowired private CollectorComposer collectorComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
 
   /** A point in time used as the {@code :from} parameter — 1 hour ago. */
   private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
@@ -68,6 +71,9 @@ class IndexingRegressionTest extends IntegrationTest {
     injectComposer.reset();
     endpointComposer.reset();
     injectExpectationComposer.reset();
+    agentComposer.reset();
+    collectorComposer.reset();
+    securityPlatformComposer.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -281,6 +287,76 @@ class IndexingRegressionTest extends IntegrationTest {
 
       // Assert — expectation must appear because its linked inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(expectation.getId()));
+    }
+
+    @Test
+    @DisplayName(
+        "Asset-level expectation has base_security_platforms_side from child agent expectations")
+    void given_agent_expectation_with_collector_result_should_populate_security_platforms_side() {
+      // Arrange — security platform + collector that identifies it
+      SecurityPlatformComposer.Composer spWrapper =
+          securityPlatformComposer.forSecurityPlatform(
+              SecurityPlatformFixture.createDefault("TestEDR", "EDR"));
+      CollectorComposer.Composer collectorWrapper =
+          collectorComposer
+              .forCollector(CollectorFixture.createDefaultCollector("test-edr-collector"))
+              .withSecurityPlatform(spWrapper)
+              .persist();
+      SecurityPlatform securityPlatform = spWrapper.get();
+
+      // Arrange — endpoint with an attached agent
+      AgentComposer.Composer agentWrapper =
+          agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).withAgent(agentWrapper);
+
+      // Arrange — agent-level expectation with a collector result (sourceId = collector ID)
+      InjectExpectation agentExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      agentExpectation.setAgent(agentWrapper.get());
+      agentExpectation.setAsset(endpointWrapper.get());
+      agentExpectation.setResults(
+          List.of(
+              InjectExpectationResult.builder()
+                  .sourceId(collectorWrapper.get().getId())
+                  .result("not_found")
+                  .score(0.0)
+                  .build()));
+      InjectExpectationComposer.Composer agentExpWrapper =
+          injectExpectationComposer.forExpectation(agentExpectation);
+
+      // Arrange — asset-level expectation (agent_id IS NULL) for the same inject
+      InjectExpectation assetExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      assetExpectation.setAsset(endpointWrapper.get());
+      InjectExpectationComposer.Composer assetExpWrapper =
+          injectExpectationComposer.forExpectation(assetExpectation);
+
+      // Wire both expectations into one inject inside a scenario
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointWrapper)
+              .withExpectation(agentExpWrapper)
+              .withExpectation(assetExpWrapper);
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
+
+      // Assert — the asset-level expectation must carry the security platform ID
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(assetExpectation.getId()))
+          .singleElement()
+          .satisfies(
+              es ->
+                  assertThat(es.getBase_security_platforms_side())
+                      .contains(securityPlatform.getId()));
     }
   }
 }

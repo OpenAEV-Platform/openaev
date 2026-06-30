@@ -380,7 +380,16 @@ public interface InjectExpectationRepository
       array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL ) AS domain_ids,
       MAX(se.scenario_id) AS scenario_id,
       array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
-      array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
+      array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) ||
+      (
+          SELECT array_agg(DISTINCT c2.collector_security_platform)
+                 FILTER (WHERE c2.collector_security_platform IS NOT NULL)
+          FROM injects_expectations ie2
+          LEFT JOIN LATERAL jsonb_array_elements(ie2.inject_expectation_results::jsonb) AS r2(elem) ON true
+          LEFT JOIN collectors c2 ON r2.elem->>'sourceId' = c2.collector_id::text
+          WHERE ie2.inject_id = ie.inject_id
+            AND ie2.agent_id IS NOT NULL
+      ) AS security_platform_ids
     FROM injects_expectations ie
     JOIN changed_expectations ce ON ie.inject_expectation_id = ce.inject_expectation_id
     LEFT JOIN exercises ex ON ex.exercise_id = ie.exercise_id
