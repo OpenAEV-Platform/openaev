@@ -1,0 +1,258 @@
+name: "CI Pipeline"
+
+# ════════════════════════════════════════════════════════════════════
+# Single reusable workflow for the entire CI/CD pipeline.
+# Called by core-ci.yml (defaults) and nightly-ci.yml (all flags on).
+# Nightly-only jobs are gated behind boolean inputs.
+# ════════════════════════════════════════════════════════════════════
+
+on:
+  workflow_call:
+    inputs:
+      api-matrix:
+        description: "JSON array of API test matrix entries"
+        type: string
+        required: true
+      e2e-matrix:
+        description: "JSON array of E2E test matrix entries"
+        type: string
+        required: true
+      e2e-infra-matrix:
+        description: "JSON array of E2E infra test matrix entries"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # Build
+  # ════════════════════════════════════════════════════════════════════
+
+  backend-compile:
+    name: "🔨 Backend Compile"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/backend-compile
+
+  frontend-build:
+    name: "🎨 Frontend Build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/frontend-build
+
+  prepare-bundled-assets:
+    name: "📦 Prepare Bundled Assets"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/prepare-bundled-assets
+
+  # ════════════════════════════════════════════════════════════════════
+  # Quality gates (Elasticsearch, standard browsers)
+  # ════════════════════════════════════════════════════════════════════
+
+  quality-gates:
+    uses: ./.github/workflows/_quality-gates.yml
+    with:
+      api-matrix: ${{ inputs.api-matrix }}
+      e2e-matrix: ${{ inputs.e2e-matrix }}
+      e2e-infra-matrix: ${{ inputs.e2e-infra-matrix }}
+    secrets: inherit
+
+  # ════════════════════════════════════════════════════════════════════
+  # Packaging
+  # ════════════════════════════════════════════════════════════════════
+
+  backend-package:
+    name: "📦 Backend Package (glibc)"
+    needs: [frontend-build, backend-compile, prepare-bundled-assets]
+    timeout-minutes: 15
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.frontend-build.result == 'success' &&
+        needs.backend-compile.result == 'success' &&
+        (needs.prepare-bundled-assets.result == 'success' || needs.prepare-bundled-assets.result == 'skipped')
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
+
+  backend-package-musl:
+    name: "📦 Backend Package (musl)"
+    needs: [frontend-build, backend-compile, prepare-bundled-assets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: maven:3.9.16-eclipse-temurin-21-alpine
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/backend-package-musl
+
+  # ════════════════════════════════════════════════════════════════════
+  # Docker
+  # ════════════════════════════════════════════════════════════════════
+
+  docker-build:
+    name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
+    needs: [prepare-bundled-assets]
+    if: ${{ !cancelled() && (needs.prepare-bundled-assets.result == 'success' || needs.prepare-bundled-assets.result == 'skipped') }}
+    timeout-minutes: 20
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+            dockerfile: ./Dockerfile
+            artifact-name: openaev-image
+            jar-path: /openaev-api.jar
+            cache-scope: docker-standard
+            tags: openaev:ci-${{ github.run_id }}
+          - variant: standard
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: ./Dockerfile
+            artifact-name: openaev-image
+            jar-path: /openaev-api.jar
+            cache-scope: docker-standard
+            tags: openaev:ci-${{ github.run_id }}
+          - variant: ubi9
+            arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+            dockerfile: ./Dockerfile_ubi9
+            artifact-name: openaev-ubi9-image
+            jar-path: /opt/openaev/openaev-api.jar
+            cache-scope: docker-ubi9
+            tags: openaev-ubi9:ci-${{ github.run_id }}
+          - variant: ubi9
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            dockerfile: ./Dockerfile_ubi9
+            artifact-name: openaev-ubi9-image
+            jar-path: /opt/openaev/openaev-api.jar
+            cache-scope: docker-ubi9
+            tags: openaev-ubi9:ci-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/docker-build
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          artifact-name: ${{ matrix.artifact-name }}
+          platform: ${{ matrix.platform }}
+          jar-path: ${{ matrix.jar-path }}
+          cache-scope: ${{ matrix.cache-scope }}
+          tags: ${{ matrix.tags }}
+          download-release-assets: ${{ needs.prepare-bundled-assets.result == 'success' }}
+
+  docker-merge:
+    name: "🐳 Merge Platforms (${{ matrix.variant }})"
+    needs: [docker-build]
+    if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            artifact-name: openaev-image
+          - variant: ubi9
+            artifact-name: openaev-ubi9-image
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/docker-merge-platforms
+        with:
+          artifact-name: ${{ matrix.artifact-name }}
+
+  snyk-docker:
+    name: "🔒 Snyk Container Scan"
+    needs: [docker-build]
+    if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/snyk-docker
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # Sanity check
+  #
+  # ⚠️  REQUIRED status check for branch protection.
+  #     The full check name is "<caller-job> / 🩺 Artifact & Image Sanity Check".
+  #     If the caller job key changes, update the branch-protection rule.
+  # ════════════════════════════════════════════════════════════════════
+
+  sanity-check:
+    name: "🩺 Artifact & Image Sanity Check"
+    needs:
+      - frontend-build
+      - backend-compile
+      - backend-package
+      - backend-package-musl
+      - docker-merge
+      - prepare-bundled-assets
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check all upstream job results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          FAILED=0
+          TOTAL=0
+
+          echo "══════════════════════════════════════════════════"
+          echo "  🩺  Upstream Job Results"
+          echo "══════════════════════════════════════════════════"
+          echo ""
+
+          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
+            result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
+            TOTAL=$((TOTAL + 1))
+
+            case "$result" in
+              success)   icon="✅" ;;
+              failure)   icon="❌"; FAILED=$((FAILED + 1)) ;;
+              skipped)   icon="⏭️" ;;
+              cancelled) icon="🚫"; FAILED=$((FAILED + 1)) ;;
+              *)         icon="❓" ;;
+            esac
+
+            printf "  %s  %-30s %s\n" "$icon" "$job" "$result"
+          done
+
+          echo ""
+          echo "══════════════════════════════════════════════════"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "❌ $FAILED/$TOTAL upstream job(s) failed"
+            exit 1
+          fi
+
+          echo "✅ All $TOTAL upstream jobs passed"
+
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/sanity-check

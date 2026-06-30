@@ -21,6 +21,18 @@ inputs:
   shard-name:
     description: Shard display name
     required: true
+  search-engine:
+    description: "Search engine type: elasticsearch or opensearch"
+    required: false
+    default: "elasticsearch"
+  search-engine-image:
+    description: "Docker image for the search engine (default from .github/versions.env)"
+    required: false
+    default: ""
+  artifact-suffix:
+    description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -28,33 +40,47 @@ runs:
     - name: Start all services (non-blocking)
       shell: bash
       run: |
+        source .github/versions.env
         docker run -d --name pgsql \
           -p 5432:5432 \
           -e POSTGRES_USER=openaev \
           -e POSTGRES_PASSWORD=openaev \
           -e POSTGRES_DB=openaev \
-          postgres:17-alpine \
+          $POSTGRES_IMAGE \
           -c max_connections=1000
-        docker run -d --name elasticsearch \
-          -p 9200:9200 \
-          -e discovery.type=single-node \
-          -e xpack.security.enabled=false \
-          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
-          docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+        SEARCH_IMAGE="${{ inputs.search-engine-image }}"
+        if [ -z "$SEARCH_IMAGE" ]; then
+          SEARCH_IMAGE=$([ "${{ inputs.search-engine }}" = "opensearch" ] && echo "$OPENSEARCH_IMAGE" || echo "$ELASTICSEARCH_IMAGE")
+        fi
+        if [ "${{ inputs.search-engine }}" = "opensearch" ]; then
+          docker run -d --name search-engine \
+            -p 9200:9200 \
+            -e discovery.type=single-node \
+            -e DISABLE_SECURITY_PLUGIN=true \
+            -e "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g" \
+            $SEARCH_IMAGE
+        else
+          docker run -d --name search-engine \
+            -p 9200:9200 \
+            -e discovery.type=single-node \
+            -e xpack.security.enabled=false \
+            -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+            $SEARCH_IMAGE
+        fi
         docker run -d --name rabbitmq \
           -p 5672:5672 \
           -p 15672:15672 \
           -e RABBITMQ_DEFAULT_USER=guest \
           -e RABBITMQ_DEFAULT_PASS=guest \
-          rabbitmq:4.1-management
+          $RABBITMQ_IMAGE
         docker run -d --name minio \
           -p 11000:9000 \
           -e MINIO_ROOT_USER=minioadmin \
           -e MINIO_ROOT_PASSWORD=minioadmin \
-          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
+          $MINIO_IMAGE server /data
 
         echo "🔍 Verifying containers started..."
-        for name in pgsql elasticsearch rabbitmq minio; do
+        for name in pgsql search-engine rabbitmq minio; do
           if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
             echo "❌ Container '$name' failed to start"
             docker logs "$name" 2>/dev/null || true
@@ -172,12 +198,12 @@ runs:
         done
         docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
 
-        echo "⏳ Waiting for Elasticsearch..."
+        echo "⏳ Waiting for ${{ inputs.search-engine }}..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:9200/_cluster/health && break
           sleep 2
         done
-        curl -sf http://localhost:9200/_cluster/health || { echo "❌ Elasticsearch failed to start"; exit 1; }
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ inputs.search-engine }} failed to start"; exit 1; }
 
         echo "⏳ Waiting for RabbitMQ..."
         for i in $(seq 1 30); do
@@ -257,6 +283,6 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: jacoco-exec-shard-${{ inputs.shard }}
+        name: jacoco-exec-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}
         path: openaev-api/target/jacoco.exec
         if-no-files-found: error

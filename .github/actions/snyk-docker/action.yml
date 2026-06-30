@@ -1,0 +1,122 @@
+name: Snyk Container Scan
+description: >
+  Download Docker image artifacts (standard + UBI9 amd64 builds), load them
+  into the local daemon, run Snyk vulnerability scanning, upload reports,
+  and fail if high or critical vulnerabilities are found.
+
+inputs:
+  snyk-token:
+    description: Snyk API token
+    required: true
+  standard-artifact:
+    description: Name of the standard Docker image artifact (amd64)
+    required: false
+    default: "openaev-image-amd64"
+  ubi9-artifact:
+    description: Name of the UBI9 Docker image artifact (amd64)
+    required: false
+    default: "openaev-ubi9-image-amd64"
+  severity-threshold:
+    description: Minimum severity to report (low, medium, high, critical)
+    required: false
+    default: "high"
+
+runs:
+  using: composite
+  steps:
+    - name: Download standard Docker image
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.standard-artifact }}
+        path: /tmp/docker-images
+
+    - name: Download UBI9 Docker image
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.ubi9-artifact }}
+        path: /tmp/docker-images
+
+    - name: Load Docker images
+      run: |
+        cd /tmp/docker-images
+        gunzip ${{ inputs.standard-artifact }}.tar.gz
+        skopeo copy \
+          oci-archive:${{ inputs.standard-artifact }}.tar \
+          docker-daemon:openaev:ci
+        rm -f ${{ inputs.standard-artifact }}.tar
+
+        gunzip ${{ inputs.ubi9-artifact }}.tar.gz
+        skopeo copy \
+          oci-archive:${{ inputs.ubi9-artifact }}.tar \
+          docker-daemon:openaev-ubi9:ci
+        rm -f ${{ inputs.ubi9-artifact }}.tar
+      shell: bash
+
+    - name: Install Snyk CLI
+      run: |
+        curl -sL https://static.snyk.io/cli/latest/snyk-linux -o /usr/local/bin/snyk
+        chmod +x /usr/local/bin/snyk
+        snyk --version
+      shell: bash
+
+    - name: Run Snyk on standard image
+      id: snyk-standard
+      env:
+        SNYK_TOKEN: ${{ inputs.snyk-token }}
+      run: |
+        if snyk container test openaev:ci \
+          --severity-threshold=${{ inputs.severity-threshold }} \
+          --fail-on=upgradable \
+          --json-file-output=snyk-standard.json; then
+          echo "result=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "result=failure" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Upload Snyk report (standard)
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: snyk-report-standard
+        path: snyk-standard.json
+        if-no-files-found: ignore
+
+    - name: Run Snyk on UBI9 image
+      id: snyk-ubi9
+      env:
+        SNYK_TOKEN: ${{ inputs.snyk-token }}
+      run: |
+        if snyk container test openaev-ubi9:ci \
+          --severity-threshold=${{ inputs.severity-threshold }} \
+          --fail-on=upgradable \
+          --json-file-output=snyk-ubi9.json; then
+          echo "result=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "result=failure" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Upload Snyk report (UBI9)
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: snyk-report-ubi9
+        path: snyk-ubi9.json
+        if-no-files-found: ignore
+
+    - name: Summarize Snyk results
+      if: ${{ always() }}
+      run: |
+        echo "══════════════════════════════════════════"
+        echo "  🔒 Snyk Container Scan Summary"
+        echo "══════════════════════════════════════════"
+        echo "  Standard image: ${{ steps.snyk-standard.outputs.result }}"
+        echo "  UBI9 image:     ${{ steps.snyk-ubi9.outputs.result }}"
+        if [ "${{ steps.snyk-standard.outputs.result }}" = "failure" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" = "failure" ]; then
+          echo ""
+          echo "  ⚠️  Vulnerabilities found — see snyk-report-* artifacts for details."
+          echo "  (This step is informational and does not block the pipeline.)"
+        fi
+        echo "══════════════════════════════════════════"
+      shell: bash

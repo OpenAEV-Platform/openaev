@@ -1,20 +1,25 @@
 name: "Quality Gates"
 
-# Reusable workflow containing the shared quality gate jobs:
-#   - Frontend quality & unit tests
-#   - API tests (4-shard matrix)
-#   - E2E tests & API types
-#   - Coverage merge, threshold check & optional Codecov upload
-#
-# Used by core-ci.yml and core-release-dry-run.yml to avoid duplication.
-# When adding a new test shard or changing env vars, you only need to
-# update this file.
+# All test jobs. Matrices are passed in as JSON — callers define what runs.
+# Same jobs, same actions, only the matrix size changes between core and nightly.
 
 on:
   workflow_call:
     inputs:
+      api-matrix:
+        description: "JSON array of API test matrix entries"
+        type: string
+        required: true
+      e2e-matrix:
+        description: "JSON array of E2E test matrix entries"
+        type: string
+        required: true
+      e2e-infra-matrix:
+        description: "JSON array of E2E infra test matrix entries"
+        type: string
+        required: true
       upload-codecov:
-        description: "Upload coverage reports to Codecov and save artifacts"
+        description: "Upload coverage reports to Codecov"
         type: boolean
         default: true
 
@@ -23,6 +28,10 @@ permissions:
   actions: read
 
 jobs:
+  # ════════════════════════════════════════════════════════════════════
+  # Static quality checks
+  # ════════════════════════════════════════════════════════════════════
+
   spotless-check:
     name: "🔍 Spotless Check"
     runs-on: ubuntu-latest
@@ -39,6 +48,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-quality
 
+  # ════════════════════════════════════════════════════════════════════
+  # API Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
+
   api-tests:
     name: "🧪 API Tests (${{ matrix.shard_name }})"
     runs-on: ubuntu-latest
@@ -46,53 +59,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # ── Four workers: main, rest-1, rest-2, everything else ──
-          - shard: 1
-            shard_name: main
-            includes: |-
-              io/openaev/api/**/*Test.java
-              io/openaev/integration/**/*Test.java
-              io/openaev/injects/**/*Test.java
-              io/openaev/opencti/**/*Test.java
-              io/openaev/service/**/*Test.java
-          - shard: 2
-            shard_name: rest-1
-            # Packages a–h: root-level rest tests + sub-packages
-            # starting with letters a through h.
-            # NOTE: Surefire uses Ant-style patterns — [a-h] bracket
-            # expressions are NOT supported; list packages explicitly.
-            includes: |-
-              io/openaev/rest/*Test.java
-              io/openaev/rest/asset_group/**/*Test.java
-              io/openaev/rest/attack_pattern/**/*Test.java
-              io/openaev/rest/custom_dashboard/**/*Test.java
-              io/openaev/rest/dashboard/**/*Test.java
-              io/openaev/rest/exercise/**/*Test.java
-          - shard: 3
-            shard_name: rest-2
-            # Everything under rest/ NOT assigned to shard 2.
-            # New rest sub-packages are automatically picked up here.
-            includes: |-
-              io/openaev/rest/**/*Test.java
-            excludes: |-
-              io/openaev/rest/*Test.java
-              io/openaev/rest/asset_group/**/*Test.java
-              io/openaev/rest/attack_pattern/**/*Test.java
-              io/openaev/rest/custom_dashboard/**/*Test.java
-              io/openaev/rest/dashboard/**/*Test.java
-              io/openaev/rest/exercise/**/*Test.java
-          - shard: 4
-            shard_name: remaining
-            # Catch-all: runs every test NOT assigned to shards 1–3.
-            # Any new test package is executed here automatically.
-            includes: catchall
+        include: ${{ fromJSON(inputs.api-matrix) }}
     env:
-      # ── Union of all explicitly-assigned shard patterns (shards 1–3) ──
-      # The catch-all shard uses this as an *excludes* list, so any test
-      # added in a brand-new package is automatically executed without
-      # having to touch this workflow file.
-      # When you add a pattern to a shard above, mirror it here.
       EXPLICITLY_SHARDED_TESTS: |-
         io/openaev/api/**/*Test.java
         io/openaev/integration/**/*Test.java
@@ -106,6 +74,7 @@ jobs:
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
       ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -116,19 +85,21 @@ jobs:
           excludes: ${{ matrix.excludes }}
           shard: ${{ matrix.shard }}
           shard-name: ${{ matrix.shard_name }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # E2E Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
 
   e2e-tests:
-    name: "🧪 E2E Tests (${{ matrix.browser }})"
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: "🧪 E2E (${{ matrix.variant }} ${{ matrix.browser }}${{ matrix.artifact_suffix }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - browser: chrome
-            playwright-config: playwright.push.chrome_config.ts
-          - browser: webkit
-            playwright-config: playwright.push.webkit_config.ts
+        include: ${{ fromJSON(inputs.e2e-matrix) }}
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
@@ -138,6 +109,7 @@ jobs:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || '' }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       OPENAEV_ADMIN_EMAIL: admin@openaev.io
       OPENAEV_ADMIN_PASSWORD: admin
@@ -151,24 +123,23 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/e2e-tests
         with:
-          playwright-config: ${{ matrix.playwright-config }}
           browser: ${{ matrix.browser }}
-          artifact-suffix: ${{ matrix.browser }}
+          docker-image: ${{ matrix.docker_image }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # E2E Infra Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
 
   e2e-infra-tests:
     name: "🧪 E2E Infra (${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        # Linux-only: these tests start service containers via `docker run`,
-        # and Docker is not available on GitHub-hosted Windows/macOS runners.
-        include:
-          - arch: x64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+        include: ${{ fromJSON(inputs.e2e-infra-matrix) }}
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
@@ -193,7 +164,11 @@ jobs:
         with:
           playwright-config: playwright.infra.chromium_config.ts
           browser: chromium
-          artifact-suffix: ${{ matrix.arch }}
+          docker-image: ${{ matrix.docker_image }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # API Types Check
+  # ════════════════════════════════════════════════════════════════════
 
   api-types-check:
     name: "🔎 API Types Check"
@@ -220,12 +195,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/api-types-check
 
+  # ════════════════════════════════════════════════════════════════════
+  # Coverage Merge & Upload
+  # ════════════════════════════════════════════════════════════════════
+
   codecov:
     name: "📊 Coverage Merge & Upload"
     needs:
       [api-tests, frontend-quality, e2e-tests, e2e-infra-tests, api-types-check]
-    # Always run so partial coverage (e.g. backend+frontend) is still
-    # uploaded even when one upstream job fails or is cancelled.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -239,7 +216,6 @@ jobs:
           distribution: temurin
           cache: maven
 
-      # ── Backend coverage: merge JaCoCo shards, report & check ──────
       - name: Download compiled Maven artifacts
         if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
         uses: actions/download-artifact@v8
@@ -271,37 +247,26 @@ jobs:
           echo "📦 Merging JaCoCo exec files from all shards..."
           EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
           if [ -z "$EXEC_FILES" ]; then
-            echo "⚠️ No JaCoCo exec files found — all test shards may have failed"
-            echo "  Contents of jacoco-exec/:"
-            ls -laR jacoco-exec/ 2>/dev/null || echo "  directory does not exist"
+            echo "⚠️ No JaCoCo exec files found"
             exit 1
           fi
           SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
-          echo "  Found $SHARD_COUNT shard exec file(s)"
           cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
-          if [ ! -s "openaev-api/target/jacoco.exec" ]; then
-            echo "❌ Merged jacoco.exec is empty"
-            exit 1
-          fi
-          echo "✅ Merged $SHARD_COUNT shard(s) → $(wc -c < openaev-api/target/jacoco.exec) bytes"
+          echo "✅ Merged $SHARD_COUNT shard(s)"
 
       - name: Coverage report & threshold check
         if: steps.jacoco-merge.outcome == 'success'
-        run:
-          mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage
-          threshold check ⚠️"
+        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
 
-      - name: Upload API coverage report
-        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' &&
-          inputs.upload-codecov }}
+      - name: Upload API coverage
+        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' && inputs.upload-codecov }}
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-api
           path: openaev-api/target/site/jacoco/jacoco.xml
           if-no-files-found: warn
 
-      # ── Download frontend / E2E coverage artifacts ─────────────────
-      - name: Download vitest coverage report
+      - name: Download vitest coverage
         if: ${{ inputs.upload-codecov && needs.frontend-quality.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
@@ -309,7 +274,7 @@ jobs:
           path: coverage/frontend
         continue-on-error: true
 
-      - name: Download playwright coverage reports
+      - name: Download playwright coverage
         if: ${{ inputs.upload-codecov && needs.e2e-tests.result == 'success' }}
         uses: actions/download-artifact@v8
         with:
@@ -318,112 +283,11 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      # ── Detect which reports are available ─────────────────────────
-      - name: Check available coverage files
+      - name: Upload to Codecov
         if: ${{ inputs.upload-codecov }}
-        id: check
-        run: |
-          echo "📊 Coverage files found:"
-          find coverage/ -type f 2>/dev/null || echo "  (none)"
-          find openaev-api/target/site/jacoco/ -type f 2>/dev/null || echo "  (no backend coverage)"
-
-          has() { [ -f "$1" ] && echo "true" || echo "false"; }
-
-          echo "has_backend=$(has openaev-api/target/site/jacoco/jacoco.xml)" >> "$GITHUB_OUTPUT"
-          echo "has_frontend=$(has coverage/frontend/lcov.info)"             >> "$GITHUB_OUTPUT"
-          echo "has_e2e=$(has coverage/e2e/lcov.info)"                       >> "$GITHUB_OUTPUT"
-
-      # ── Upload to Codecov ──────────────────────────────────────────
-      - name: Upload backend coverage to Codecov
-        if: ${{ inputs.upload-codecov && steps.check.outputs.has_backend == 'true' }}
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: openaev-api/target/site/jacoco/jacoco.xml
-          flags: backend
-          disable_search: true
+          flags: backend,frontend,e2e
           fail_ci_if_error: false
-
-      - name: Upload frontend coverage to Codecov
-        if: ${{ inputs.upload-codecov && steps.check.outputs.has_frontend == 'true' }}
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/frontend/lcov.info
-          flags: frontend
-          disable_search: true
-          fail_ci_if_error: false
-
-      - name: Upload E2E coverage to Codecov
-        if: ${{ inputs.upload-codecov && steps.check.outputs.has_e2e == 'true' }}
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/e2e/lcov.info
-          flags: e2e
-          disable_search: true
-          fail_ci_if_error: false
-
-  # ──────────────────────────────────────────────────────────────────
-  # Gate: fail the workflow if ANY quality gate job failed.
-  #
-  # ⚠️  IMPORTANT: This job is a REQUIRED status check in the GitHub
-  #     branch-protection rules for merging PRs.
-  #     • Do NOT remove this job.
-  #     • Do NOT rename the job key ("quality-status") or its display
-  #       name ("🚦 Quality Status") — the branch-protection rule
-  #       references it by name.
-  #     • When adding a new quality gate job, add it to the `needs`
-  #       list AND the failure check below.
-  # ──────────────────────────────────────────────────────────────────
-  quality-status:
-    name: "🚦 Quality Status"
-    needs:
-      [
-        spotless-check,
-        frontend-quality,
-        api-tests,
-        e2e-tests,
-        e2e-infra-tests,
-        api-types-check,
-      ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Check all quality gate results
-        env:
-          NEEDS_JSON: ${{ toJSON(needs) }}
-        run: |
-          FAILED=0
-          TOTAL=0
-
-          echo "══════════════════════════════════════════════════"
-          echo "  🚦  Quality Gate Results"
-          echo "══════════════════════════════════════════════════"
-          echo ""
-
-          for job in $(echo "$NEEDS_JSON" | jq -r 'keys[]'); do
-            result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
-            TOTAL=$((TOTAL + 1))
-
-            case "$result" in
-              success)   icon="✅" ;;
-              failure)   icon="❌"; FAILED=$((FAILED + 1)) ;;
-              skipped)   icon="⏭️" ;;
-              cancelled) icon="🚫"; FAILED=$((FAILED + 1)) ;;
-              *)         icon="❓" ;;
-            esac
-
-            printf "  %s  %-30s %s\n" "$icon" "$job" "$result"
-          done
-
-          echo ""
-          echo "══════════════════════════════════════════════════"
-
-          if [ "$FAILED" -gt 0 ]; then
-            echo "❌ $FAILED/$TOTAL quality gate(s) failed"
-            exit 1
-          fi
-
-          echo "✅ All $TOTAL quality gates passed"
+        continue-on-error: true

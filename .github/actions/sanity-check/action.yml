@@ -1,0 +1,110 @@
+name: Sanity Check
+description: >
+  Download all workflow artifacts and validate their presence, file sizes,
+  and directory structure. Reports a summary with pass/warn/fail counts.
+
+runs:
+  using: composite
+  steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v8
+      with:
+        path: /tmp/artifacts
+
+    - name: Sanity check — artifacts & images
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        PASS=0
+        FAIL=0
+        WARN=0
+
+        check_file() {
+          local path="$1" min_bytes="$2" label="$3"
+          if [ ! -f "$path" ]; then
+            echo "❌ MISSING: $label ($path)"
+            FAIL=$((FAIL + 1))
+            return
+          fi
+          local size
+          size=$(stat --format=%s "$path" 2>/dev/null || stat -f%z "$path" 2>/dev/null)
+          local size_human
+          if [ "$size" -ge 1073741824 ]; then
+            size_human="$(awk "BEGIN {printf \"%.2f GB\", $size / 1073741824}")"
+          elif [ "$size" -ge 1048576 ]; then
+            size_human="$(awk "BEGIN {printf \"%.1f MB\", $size / 1048576}")"
+          else
+            size_human="$(awk "BEGIN {printf \"%.1f KB\", $size / 1024}")"
+          fi
+          if [ "$size" -lt "$min_bytes" ]; then
+            echo "⚠️  TOO SMALL: $label — $size_human (expected ≥ $(numfmt --to=iec "$min_bytes"))"
+            WARN=$((WARN + 1))
+          else
+            echo "✅ $label — $size_human"
+            PASS=$((PASS + 1))
+          fi
+        }
+
+        check_dir() {
+          local path="$1" min_files="$2" label="$3"
+          if [ ! -d "$path" ]; then
+            echo "❌ MISSING: $label ($path)"
+            FAIL=$((FAIL + 1))
+            return
+          fi
+          local count
+          count=$(find "$path" -type f | wc -l)
+          if [ "$count" -lt "$min_files" ]; then
+            echo "⚠️  TOO FEW FILES: $label — $count file(s) (expected ≥ $min_files)"
+            WARN=$((WARN + 1))
+          else
+            echo "✅ $label — $count file(s)"
+            PASS=$((PASS + 1))
+          fi
+        }
+
+        echo "══════════════════════════════════════════════════════════"
+        echo "  🩺  Artifact & Image Sanity Check"
+        echo "══════════════════════════════════════════════════════════"
+        echo ""
+
+        echo "── Frontend ──"
+        check_dir "/tmp/artifacts/frontend-build" 5 "Frontend build bundle"
+        echo ""
+
+        echo "── Backend JARs ──"
+        check_file "/tmp/artifacts/openaev-api-jar/openaev-api.jar" 52428800 "Backend JAR (glibc)"
+        check_file "/tmp/artifacts/openaev-api-jar-musl/openaev-api.jar" 52428800 "Backend JAR (musl)"
+        echo ""
+
+        echo "── Release Assets ──"
+        check_dir "/tmp/artifacts/release-assets" 1 "Release assets (agents/implants/catalog)"
+        CATALOG=$(find /tmp/artifacts/release-assets -name 'catalog-integrators.json' 2>/dev/null | head -1)
+        if [ -n "$CATALOG" ]; then
+          check_file "$CATALOG" 1024 "Catalog JSON (catalog-integrators.json)"
+        else
+          echo "⚠️  Catalog JSON not found in release-assets"
+          WARN=$((WARN + 1))
+        fi
+        echo ""
+
+        echo "── Docker Images ──"
+        check_file "/tmp/artifacts/openaev-image/openaev-image.tar.gz" 157286400 "Standard Docker image (OCI archive)"
+        check_file "/tmp/artifacts/openaev-ubi9-image/openaev-ubi9-image.tar.gz" 157286400 "UBI9 Docker image (OCI archive)"
+        echo ""
+
+        echo "══════════════════════════════════════════════════════════"
+        echo "  Summary: ✅ $PASS passed  ⚠️ $WARN warnings  ❌ $FAIL failures"
+        echo "══════════════════════════════════════════════════════════"
+
+        if [ "$FAIL" -gt 0 ]; then
+          echo ""
+          echo "❌ Sanity check FAILED — $FAIL critical artifact(s) missing"
+          exit 1
+        fi
+
+        if [ "$WARN" -gt 0 ]; then
+          echo ""
+          echo "⚠️ Sanity check passed with $WARN warning(s) — some artifacts are smaller than expected"
+        fi

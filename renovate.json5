@@ -104,6 +104,24 @@
             ],
             rebaseWhen: 'auto',
         },
+        // Group container image updates (docker-compose.yml + .github/versions.env)
+        // into a single PR per image so CI and local dev stay in sync.
+        {
+            groupName: 'container images',
+            description: 'Group container image updates across docker-compose and CI versions.env',
+            matchDatasources: [
+                'docker'
+            ],
+            matchPackageNames: [
+                'postgres',
+                'docker.elastic.co/elasticsearch/elasticsearch',
+                'opensearchproject/opensearch',
+                'rabbitmq',
+                'minio/minio',
+                'docker.elastic.co/kibana/kibana',
+                'alpine/openssl',
+            ],
+        },
     ],
     // do lock file maintenance once a week on Sunday
     lockFileMaintenance: {
@@ -113,4 +131,24 @@
         rebaseWhen: 'auto',
         enabled: true,
     },
+    // ── Container image version tracking ──────────────────────────
+    // Image versions live in two places:
+    //   - .github/versions.env        → used by CI (sourced by composite actions)
+    //   - openaev-dev/docker-compose.yml → used by local dev (hardcoded tags)
+    //
+    // Renovate tracks docker-compose.yml natively (built-in docker-compose manager).
+    // The regex manager below tracks .github/versions.env.
+    // The groupName ensures both files are updated in a SINGLE PR.
+    customManagers: [
+        {
+            customType: 'regex',
+            fileMatch: [
+                '^\\.github/versions\\.env$',
+            ],
+            matchStrings: [
+                '(?:POSTGRES_IMAGE|ELASTICSEARCH_IMAGE|OPENSEARCH_IMAGE|RABBITMQ_IMAGE|MINIO_IMAGE|KIBANA_IMAGE|OPENSSL_IMAGE)=(?<depName>[^:]+):(?<currentValue>[^\\s]+)',
+            ],
+            datasourceTemplate: 'docker',
+        },
+    ],
 }

@@ -1,0 +1,98 @@
+name: "[Core] Deploy Feature Branch Build"
+
+# Unprivileged build workflow dispatched by deploy-feature-branch.yml.
+# SECURITY: This workflow has contents:read ONLY — no secrets, no write token.
+# It checks out and builds untrusted PR code in a safe sandbox.
+#
+# The Docker image is built from source via a multi-stage Dockerfile — no
+# pre-compiled artifacts are needed.  On success, the OCI archive is uploaded
+# as an artifact for downstream promotion and deployment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number"
+        required: true
+        type: string
+      head_ref:
+        description: "PR branch name"
+        required: true
+        type: string
+      head_sha:
+        description: "PR head commit SHA"
+        required: true
+        type: string
+      comment_id:
+        description: "PR comment ID to update"
+        required: true
+        type: string
+
+permissions:
+  contents: read # strictly read-only — no secrets, no write token
+
+jobs:
+  docker-build:
+    name: "🐳 Docker Build (${{ matrix.arch }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/docker-build
+        with:
+          tags: openaev:feat-${{ inputs.head_ref }}
+          platform: ${{ matrix.platform }}
+
+  docker-merge:
+    name: "🐳 Merge Platforms"
+    needs: docker-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head_sha }}
+      - uses: ./.github/actions/docker-merge-platforms
+        with:
+          artifact-name: openaev-image
+
+  # Save metadata as artifact for the workflow_run follow-up
+  save-metadata:
+    name: "💾 Save metadata"
+    needs: docker-merge
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write metadata file
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          COMMENT_ID: ${{ inputs.comment_id }}
+          BUILD_RESULT: ${{ needs.docker-merge.result }}
+        run: |
+          mkdir -p metadata
+          jq -n \
+            --arg pr "$PR_NUMBER" \
+            --arg ref "$HEAD_REF" \
+            --arg sha "$HEAD_SHA" \
+            --arg cid "$COMMENT_ID" \
+            --arg res "$BUILD_RESULT" \
+            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, comment_id: $cid, build_result: $res}' \
+            > metadata/deploy-metadata.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deploy-metadata
+          path: metadata/

@@ -14,7 +14,12 @@ jobs:
     name: "🤖 On-demand agent review"
     if: >-
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/review')
+      startsWith(github.event.comment.body, '/review') &&
+      (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Parse review command
@@ -93,4 +98,3 @@ jobs:
                 '| `/review all` | All agents |',
               ].join('\n'),
             });
-
