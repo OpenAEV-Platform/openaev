@@ -3,6 +3,7 @@ package io.openaev.utils;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.TableTopInjectExpectation;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.expectation.ExpectationType;
 import jakarta.validation.constraints.NotNull;
@@ -165,7 +166,8 @@ public class InjectExpectationResultUtils {
               if (injectExpectation.getScore() == null) {
                 return null;
               }
-              if (injectExpectation.getTeam() != null) {
+              if (injectExpectation instanceof TableTopInjectExpectation tableTopExpectation
+                  && tableTopExpectation.getTeam() != null) {
                 if (injectExpectation.getScore() >= injectExpectation.getExpectedScore()) {
                   return 1.0;
                 } else {

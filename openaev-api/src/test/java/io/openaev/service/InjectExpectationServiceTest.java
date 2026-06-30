@@ -173,7 +173,7 @@ class InjectExpectationServiceTest {
       "Should map zero score to unsuccessful collector result when validating asset result")
   void given_zeroScoreResult_should_setIsSuccessToFalseInCollectorUpdate() {
     // Arrange
-    BaseInjectExpectation expectation =
+    DetectionInjectExpectation expectation =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceId("collector-id");
@@ -200,7 +200,7 @@ class InjectExpectationServiceTest {
       "Should map positive score to successful collector result when validating asset result")
   void given_positiveScoreResult_should_setIsSuccessToTrueInCollectorUpdate() {
     // Arrange
-    BaseInjectExpectation expectation =
+    DetectionInjectExpectation expectation =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceId("collector-id");

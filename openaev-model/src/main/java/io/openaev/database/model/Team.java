@@ -232,7 +232,7 @@ public class Team implements TenantBase {
   @OneToMany(mappedBy = "team", fetch = FetchType.LAZY)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_inject_expectations")
-  private List<BaseInjectExpectation> injectExpectations = new ArrayList<>();
+  private List<TableTopInjectExpectation> injectExpectations = new ArrayList<>();
 
   @JsonProperty("team_injects_expectations_number")
   @Schema(description = "Number of expectations linked to this team")

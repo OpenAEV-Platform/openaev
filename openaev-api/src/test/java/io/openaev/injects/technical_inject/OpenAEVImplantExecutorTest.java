@@ -155,23 +155,28 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for asset group - 1 for the endpoint - 1 per agent
-    List<BaseInjectExpectation> injectExpectationList =
+    List<BaseInjectExpectation> expectationList =
         injectExpectationRepository.findAllByInjectId(inject.getId());
-    assertEquals(4, injectExpectationList.size());
-    List<BaseInjectExpectation> assetGroupExpectations =
-        injectExpectationList.stream()
+    List<TechnicalInjectExpectation> technicalInjectExpectationList =
+        expectationList.stream()
+            .filter(e -> e instanceof TechnicalInjectExpectation)
+            .map(TechnicalInjectExpectation.class::cast)
+            .toList();
+    assertEquals(4, expectationList.size());
+    List<TechnicalInjectExpectation> assetGroupExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
-    List<BaseInjectExpectation> endpointExpectations =
-        injectExpectationList.stream()
+    List<TechnicalInjectExpectation> endpointExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, endpointExpectations.size());
-    List<BaseInjectExpectation> agentExpectations =
-        injectExpectationList.stream()
+    List<TechnicalInjectExpectation> agentExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
@@ -225,16 +230,21 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     List<BaseInjectExpectation> expectations =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, expectations.size());
-
-    List<BaseInjectExpectation> assetGroupExpectations =
+    List<TechnicalInjectExpectation> technicalInjectExpectationList =
         expectations.stream()
+            .filter(e -> e instanceof TechnicalInjectExpectation)
+            .map(TechnicalInjectExpectation.class::cast)
+            .toList();
+
+    List<TechnicalInjectExpectation> assetGroupExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
 
-    List<BaseInjectExpectation> agentExpectations =
-        expectations.stream()
+    List<TechnicalInjectExpectation> agentExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
@@ -285,16 +295,21 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     List<BaseInjectExpectation> expectations =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, expectations.size());
-
-    List<BaseInjectExpectation> assetGroupExpectations =
+    List<TechnicalInjectExpectation> technicalInjectExpectationList =
         expectations.stream()
+            .filter(e -> e instanceof TechnicalInjectExpectation)
+            .map(TechnicalInjectExpectation.class::cast)
+            .toList();
+
+    List<TechnicalInjectExpectation> assetGroupExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
 
-    List<BaseInjectExpectation> agentExpectations =
-        expectations.stream()
+    List<TechnicalInjectExpectation> agentExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();

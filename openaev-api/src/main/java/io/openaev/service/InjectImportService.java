@@ -947,8 +947,7 @@ public class InjectImportService {
         }
         // If the rule type is of an expectation,
         if (expectation.get() == null) {
-          expectation.set(new BaseInjectExpectation());
-          expectation.get().setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
+          expectation.set(new ManualInjectExpectation());
         }
         if (ruleAttribute.getName().contains("_")) {
           if ("score".equals(ruleAttribute.getName().split("_")[1])) {

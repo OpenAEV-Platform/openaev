@@ -1,23 +1,23 @@
 package io.openaev.database.model;
 
-import jakarta.persistence.DiscriminatorValue;
-import jakarta.persistence.Entity;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.helper.MonoIdSerializer;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
-@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.ARTICLE)
+@Getter
+@Setter
+@DiscriminatorValue(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE_VALUE)
 public class ArticleInjectExpectation extends TableTopInjectExpectation {
 
-  public ArticleInjectExpectation() {
-    setType(EXPECTATION_TYPE.ARTICLE);
-  }
-
-  @Override
-  public String getSuccessLabel() {
-    return "Successful";
-  }
-
-  @Override
-  public String getFailureLabel() {
-    return "Failed";
-  }
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "article_id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("inject_expectation_article")
+  @Schema(implementation = String.class)
+  private Article article;
 }

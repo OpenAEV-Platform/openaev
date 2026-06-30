@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -71,22 +72,17 @@ public class BaseInjectExpectation implements Base, Cloneable {
     MANUAL,
     PREVENTION,
     DETECTION,
-    VULNERABILITY
-  }
+    VULNERABILITY;
 
-  public static final class ExpectationTypeString {
-    private ExpectationTypeString() {
-      // Private constructor to prevent instantiation
-    }
-
-    public static final String TEXT = "TEXT";
-    public static final String DOCUMENT = "DOCUMENT";
-    public static final String ARTICLE = "ARTICLE";
-    public static final String CHALLENGE = "CHALLENGE";
-    public static final String MANUAL = "MANUAL";
-    public static final String PREVENTION = "PREVENTION";
-    public static final String DETECTION = "DETECTION";
-    public static final String VULNERABILITY = "VULNERABILITY";
+    // Compile-time constants for @DiscriminatorValue (annotations require String constants)
+    public static final String TEXT_VALUE = "TEXT";
+    public static final String DOCUMENT_VALUE = "DOCUMENT";
+    public static final String ARTICLE_VALUE = "ARTICLE";
+    public static final String CHALLENGE_VALUE = "CHALLENGE";
+    public static final String MANUAL_VALUE = "MANUAL";
+    public static final String PREVENTION_VALUE = "PREVENTION";
+    public static final String DETECTION_VALUE = "DETECTION";
+    public static final String VULNERABILITY_VALUE = "VULNERABILITY";
   }
 
   public enum EXPECTATION_STATUS {
@@ -98,7 +94,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   }
 
   @Queryable(filterable = true, label = "inject expectation type")
-  @Setter
   @Column(name = "inject_expectation_type", insertable = false, updatable = false)
   @JsonProperty("inject_expectation_type")
   @Enumerated(EnumType.STRING)
@@ -203,62 +198,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Schema(implementation = String.class)
   private Inject inject;
 
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_user")
-  @Schema(implementation = String.class)
-  private User user;
-
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "team_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_team")
-  @Schema(implementation = String.class)
-  private Team team;
-
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "agent_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_agent")
-  @Schema(implementation = String.class)
-  private Agent agent;
-
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "asset_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_asset")
-  @Schema(implementation = String.class)
-  private Asset asset;
-
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "asset_group_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_asset_group")
-  @Schema(implementation = String.class)
-  private AssetGroup assetGroup;
-
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "article_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_article")
-  @Schema(implementation = String.class)
-  private Article article;
-
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "challenge_id")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("inject_expectation_challenge")
-  @Schema(implementation = String.class)
-  private Challenge challenge;
-
   // endregion
 
   @OneToMany(
@@ -269,86 +208,13 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @JsonProperty("inject_expectation_traces")
   private List<InjectExpectationTrace> traces = new ArrayList<>();
 
-  public String getSuccessLabel() {
-    return switch (type) {
-      case DETECTION -> "Detected";
-      case PREVENTION -> "Prevented";
-      case VULNERABILITY -> "Not vulnerable";
-      default -> "Successful";
-    };
-  }
+  @Setter(AccessLevel.PROTECTED)
+  @Transient
+  private String successLabel = "Successful";
 
-  public String getFailureLabel() {
-    return switch (type) {
-      case DETECTION -> "Not Detected";
-      case PREVENTION -> "Not Prevented";
-      case VULNERABILITY -> "Vulnerable";
-      default -> "Failed";
-    };
-  }
-
-  public void setArticle(Article article) {
-    this.type = EXPECTATION_TYPE.ARTICLE;
-    this.article = article;
-  }
-
-  public void setChallenge(Challenge challenge) {
-    this.type = EXPECTATION_TYPE.CHALLENGE;
-    this.challenge = challenge;
-  }
-
-  public void setManual(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
-    this.type = EXPECTATION_TYPE.MANUAL;
-    this.agent = agent;
-    this.asset = asset;
-    this.assetGroup = assetGroup;
-  }
-
-  public void setPrevention(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
-    this.type = EXPECTATION_TYPE.PREVENTION;
-    this.agent = agent;
-    this.asset = asset;
-    this.assetGroup = assetGroup;
-  }
-
-  public void setDetection(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
-    this.type = EXPECTATION_TYPE.DETECTION;
-    this.agent = agent;
-    this.asset = asset;
-    this.assetGroup = assetGroup;
-  }
-
-  public void setVulnerability(final Agent agent, final Asset asset, final AssetGroup assetGroup) {
-    this.type = EXPECTATION_TYPE.VULNERABILITY;
-    this.agent = agent;
-    this.asset = asset;
-    this.assetGroup = assetGroup;
-  }
-
-  public boolean isUserHasAccess(User user) {
-    if (getExercise() != null) {
-      return getExercise().isUserHasAccess(user);
-    }
-    return user.isAdmin();
-  }
-
-  @JsonProperty("target_id")
-  public String getTargetId() {
-    if (getUser() != null) {
-      return getUser().getId();
-    } else if (getTeam() != null) {
-      return getTeam().getId();
-    } else if (getAgent() != null) {
-      return getAgent().getId();
-    } else if (getAsset() != null) {
-      return getAsset().getId();
-    } else if (getAssetGroup() != null) {
-      return getAssetGroup().getId();
-    } else {
-      throw new IllegalStateException(
-          "InjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
-    }
-  }
+  @Setter(AccessLevel.PROTECTED)
+  @Transient
+  private String failureLabel = "Failed";
 
   @Override
   public boolean equals(Object o) {

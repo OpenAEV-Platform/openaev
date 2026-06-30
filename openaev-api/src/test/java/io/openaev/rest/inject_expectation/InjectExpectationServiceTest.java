@@ -322,7 +322,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    List<BaseInjectExpectation> agentExpectations =
+    List<TechnicalInjectExpectation> agentExpectations =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
@@ -330,6 +330,8 @@ class InjectExpectationServiceTest extends IntegrationTest {
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
                     .stream())
+            .filter(expectation -> expectation instanceof TechnicalInjectExpectation)
+            .map(expectation -> (TechnicalInjectExpectation) expectation)
             .toList();
     assertEquals(2, agentExpectations.size());
     Map<String, InjectExpectationUpdateInput> inputsById =
@@ -373,7 +375,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
 
     // Parent propagation: the asset and asset group expectations are recomputed once per distinct
     // parent and end up successful since all their children succeeded
-    Map<String, List<BaseInjectExpectation>> parents =
+    Map<String, List<TechnicalInjectExpectation>> parents =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())
@@ -381,6 +383,8 @@ class InjectExpectationServiceTest extends IntegrationTest {
                 injectExpectationRepository
                     .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
                     .stream())
+            .filter(TechnicalInjectExpectation.class::isInstance)
+            .map(TechnicalInjectExpectation.class::cast)
             .collect(
                 Collectors.groupingBy(
                     expectation ->

@@ -76,9 +76,8 @@ class ChannelServiceTest {
       inject.setContent(contentNode);
 
       Double expectedScore = 100.0;
-      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      ArticleInjectExpectation expectation = new ArticleInjectExpectation();
       expectation.setId("expectation-1");
-      expectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE);
       expectation.setExpectedScore(expectedScore);
       expectation.setArticle(article);
       expectation.setUser(user);

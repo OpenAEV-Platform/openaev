@@ -1,6 +1,9 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.ArticleInjectExpectation;
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.ChallengeInjectExpectation;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -172,14 +175,14 @@ public interface InjectExpectationRepository
       value =
           "select i from InjectExpectation i where i.exercise.id = :exerciseId "
               + "and i.type = 'CHALLENGE' and i.user.id = :userId ")
-  List<BaseInjectExpectation> findChallengeExpectationsByExerciseAndUser(
+  List<ChallengeInjectExpectation> findChallengeExpectationsByExerciseAndUser(
       @Param("exerciseId") String exerciseId, @Param("userId") String userId);
 
   @Query(
       value =
           "select i from InjectExpectation i where i.user.id = :userId and i.exercise.id = :exerciseId "
               + "and i.challenge.id = :challengeId and i.type = 'CHALLENGE' ")
-  List<BaseInjectExpectation> findByUserAndExerciseAndChallenge(
+  List<ChallengeInjectExpectation> findByUserAndExerciseAndChallenge(
       @Param("userId") String userId,
       @Param("exerciseId") String exerciseId,
       @Param("challengeId") String challengeId);
@@ -188,7 +191,7 @@ public interface InjectExpectationRepository
       value =
           "select i from InjectExpectation i where i.inject.id in (:injectIds) "
               + "and i.article.id in (:articlesIds) and i.team.id in (:teamIds) and i.type = 'ARTICLE'")
-  List<BaseInjectExpectation> findChannelExpectations(
+  List<ArticleInjectExpectation> findChannelExpectations(
       @Param("injectIds") List<String> injectIds,
       @Param("teamIds") List<String> teamIds,
       @Param("articlesIds") List<String> articlesIds);
@@ -242,7 +245,7 @@ public interface InjectExpectationRepository
               + "AND i.type = :expectationType "
               + "AND i.agent IS NOT NULL "
               + "ORDER BY i.type, i.createdAt")
-  List<BaseInjectExpectation> findAllWithAgentsByInjectAndAsset(
+  List<TechnicalInjectExpectation> findAllWithAgentsByInjectAndAsset(
       @Param("injectId") @NotBlank String injectId,
       @Param("assetId") @NotBlank String assetId,
       @Param("expectationType") @NotBlank BaseInjectExpectation.EXPECTATION_TYPE expectationType);

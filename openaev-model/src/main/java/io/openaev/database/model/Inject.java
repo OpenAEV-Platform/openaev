@@ -472,10 +472,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     return ofNullable(this.status);
   }
 
-  public List<BaseInjectExpectation> getUserExpectationsForArticle(User user, Article article) {
+  public List<ArticleInjectExpectation> getUserExpectationsForArticle(User user, Article article) {
     return this.expectations.stream()
-        .filter(
-            execution -> execution.getType().equals(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE))
+        .filter(ArticleInjectExpectation.class::isInstance)
+        .map(ArticleInjectExpectation.class::cast)
         .filter(execution -> execution.getArticle().equals(article))
         .filter(
             execution ->

@@ -69,7 +69,9 @@ public class InjectExpectationUtils {
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
     BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
-    baseInjectExpectation.setTeam(team);
+    if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
+      tableTop.setTeam(team);
+    }
     return expectationConverter(
         baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
@@ -81,8 +83,10 @@ public class InjectExpectationUtils {
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
     BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
-    baseInjectExpectation.setTeam(team);
-    baseInjectExpectation.setUser(user);
+    if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
+      tableTop.setTeam(team);
+      tableTop.setUser(user);
+    }
     return expectationConverter(
         baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
@@ -103,35 +107,39 @@ public class InjectExpectationUtils {
             .orElse(expectationPropertiesConfig.getExpirationTimeByType(expectation.type())));
 
     switch (expectation) {
-      case ChannelExpectation e when expectation.type() == ARTICLE -> {
-        baseInjectExpectation.setArticle(e.getArticle());
-      }
-      case ChallengeExpectation e when expectation.type() == CHALLENGE -> {
-        baseInjectExpectation.setChallenge(e.getChallenge());
-      }
+      case ChannelExpectation e when expectation.type() == ARTICLE ->
+          ((ArticleInjectExpectation) baseInjectExpectation).setArticle(e.getArticle());
+      case ChallengeExpectation e when expectation.type() == CHALLENGE ->
+          ((ChallengeInjectExpectation) baseInjectExpectation).setChallenge(e.getChallenge());
       case Expectation ignored when expectation.type() == DOCUMENT -> {
-        baseInjectExpectation.setType(DOCUMENT);
+        // No extra setup needed — DocumentInjectExpectation constructor handles type
       }
-      case Expectation ignored when expectation.type() == TEXT -> {
-        throw new IllegalStateException(
-            "TEXT expectation type is deprecated and no longer supported");
-      }
+      case Expectation ignored when expectation.type() == TEXT ->
+          throw new IllegalStateException(
+              "TEXT expectation type is deprecated and no longer supported");
       case DetectionExpectation e when expectation.type() == DETECTION -> {
-        baseInjectExpectation.setDetection(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
+        tech.setAgent(e.getAgent());
+        tech.setAsset(e.getAsset());
+        tech.setAssetGroup(e.getAssetGroup());
         baseInjectExpectation.setSignatures(e.getInjectExpectationSignatures());
       }
       case PreventionExpectation e when expectation.type() == PREVENTION -> {
-        baseInjectExpectation.setPrevention(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
+        tech.setAgent(e.getAgent());
+        tech.setAsset(e.getAsset());
+        tech.setAssetGroup(e.getAssetGroup());
         baseInjectExpectation.setSignatures(e.getInjectExpectationSignatures());
       }
       case VulnerabilityExpectation e when expectation.type() == VULNERABILITY -> {
-        baseInjectExpectation.setVulnerability(e.getAgent(), e.getAsset(), e.getAssetGroup());
+        TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
+        tech.setAgent(e.getAgent());
+        tech.setAsset(e.getAsset());
+        tech.setAssetGroup(e.getAssetGroup());
         baseInjectExpectation.setSignatures(e.getInjectExpectationSignatures());
       }
-      case ManualExpectation e when expectation.type() == MANUAL -> {
-        baseInjectExpectation.setManual(e.getAgent(), e.getAsset(), e.getAssetGroup());
-        baseInjectExpectation.setDescription(e.getDescription());
-      }
+      case ManualExpectation e when expectation.type() == MANUAL ->
+          baseInjectExpectation.setDescription(e.getDescription());
       default -> throw new IllegalStateException("Unexpected value: " + expectation);
     }
     return baseInjectExpectation;
@@ -156,8 +164,8 @@ public class InjectExpectationUtils {
   // -- RULES OF ENGAGEMENT --
 
   public static void computeScores(
-      @NotNull final List<BaseInjectExpectation> childrenExpectations,
-      @NotNull final List<BaseInjectExpectation> parentExpectations,
+      @NotNull final List<? extends BaseInjectExpectation> childrenExpectations,
+      @NotNull final List<? extends BaseInjectExpectation> parentExpectations,
       @NotNull final BaseInjectExpectation baseInjectExpectation,
       @Nullable final Function<Double, InjectExpectationResult> addResult) {
     @NotNull Double expectedScore = baseInjectExpectation.getExpectedScore();
@@ -231,7 +239,8 @@ public class InjectExpectationUtils {
         .collect(Collectors.toSet());
   }
 
-  private static boolean noExpectationScore(final List<BaseInjectExpectation> expectations) {
+  private static boolean noExpectationScore(
+      final List<? extends BaseInjectExpectation> expectations) {
     if (expectations == null || expectations.isEmpty()) {
       return true;
     }
@@ -239,7 +248,7 @@ public class InjectExpectationUtils {
   }
 
   private static boolean allExpectationsMatch(
-      final List<BaseInjectExpectation> expectations, final Predicate<Double> predicate) {
+      final List<? extends BaseInjectExpectation> expectations, final Predicate<Double> predicate) {
     if (expectations == null || expectations.isEmpty()) {
       return false;
     }
@@ -249,7 +258,7 @@ public class InjectExpectationUtils {
   }
 
   private static boolean anyExpectationsMatch(
-      final List<BaseInjectExpectation> expectations, final Predicate<Double> predicate) {
+      final List<? extends BaseInjectExpectation> expectations, final Predicate<Double> predicate) {
     if (expectations == null || expectations.isEmpty()) {
       return false;
     }

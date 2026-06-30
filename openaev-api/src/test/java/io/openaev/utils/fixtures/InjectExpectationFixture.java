@@ -15,9 +15,8 @@ public class InjectExpectationFixture {
   public static BaseInjectExpectation createExpectationWithTypeAndStatus(
       BaseInjectExpectation.EXPECTATION_TYPE type,
       BaseInjectExpectation.EXPECTATION_STATUS status) {
-    BaseInjectExpectation expectation = new BaseInjectExpectation();
+    BaseInjectExpectation expectation = createExpectationForType(type);
     expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    expectation.setType(type);
     expectation.setExpectedScore(EXPECTED_SCORE);
     switch (status) {
       case SUCCESS -> expectation.setScore(EXPECTED_SCORE);
@@ -29,75 +28,69 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
-  public static BaseInjectExpectation createPreventionInjectExpectation(
+  public static PreventionInjectExpectation createPreventionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
-    baseInjectExpectation.setInject(inject);
-    baseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
-    baseInjectExpectation.setAgent(agent);
-    baseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
-    baseInjectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    return baseInjectExpectation;
+    PreventionInjectExpectation expectation = new PreventionInjectExpectation();
+    expectation.setInject(inject);
+    expectation.setAgent(agent);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return expectation;
   }
 
-  public static BaseInjectExpectation createDetectionInjectExpectation(
+  public static DetectionInjectExpectation createDetectionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    BaseInjectExpectation baseInjectExpectation = createDefaultDetectionInjectExpectation();
-    baseInjectExpectation.setInject(inject);
-    baseInjectExpectation.setAgent(agent);
-    return baseInjectExpectation;
+    DetectionInjectExpectation expectation = createDefaultDetectionInjectExpectation();
+    expectation.setInject(inject);
+    expectation.setAgent(agent);
+    return expectation;
   }
 
-  public static BaseInjectExpectation createVulnerabilityInjectExpectation(
+  public static VulnerabilityInjectExpectation createVulnerabilityInjectExpectation(
       Inject inject, @Nullable Agent agent) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
-    baseInjectExpectation.setInject(inject);
-    baseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY);
-    baseInjectExpectation.setAgent(agent);
-    baseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
-    baseInjectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    return baseInjectExpectation;
+    VulnerabilityInjectExpectation expectation = new VulnerabilityInjectExpectation();
+    expectation.setInject(inject);
+    expectation.setAgent(agent);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return expectation;
   }
 
-  public static BaseInjectExpectation createManualInjectExpectation(Team team, Inject inject) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
-    baseInjectExpectation.setInject(inject);
-    baseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
-    baseInjectExpectation.setTeam(team);
-    baseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
-    baseInjectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
-    return baseInjectExpectation;
+  public static ManualInjectExpectation createManualInjectExpectation(Team team, Inject inject) {
+    ManualInjectExpectation expectation = new ManualInjectExpectation();
+    expectation.setInject(inject);
+    expectation.setTeam(team);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
+    return expectation;
   }
 
-  public static BaseInjectExpectation createArticleInjectExpectation(Team team, Inject inject) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
-    baseInjectExpectation.setInject(inject);
-    baseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE);
-    baseInjectExpectation.setTeam(team);
-    baseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
-    baseInjectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
-    return baseInjectExpectation;
+  public static ArticleInjectExpectation createArticleInjectExpectation(Team team, Inject inject) {
+    ArticleInjectExpectation expectation = new ArticleInjectExpectation();
+    expectation.setInject(inject);
+    expectation.setTeam(team);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
+    return expectation;
   }
 
-  public static BaseInjectExpectation createManualInjectExpectationWithExercise(
+  public static ManualInjectExpectation createManualInjectExpectationWithExercise(
       Team team, Inject inject, Exercise exercise, String expectationName) {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
-    baseInjectExpectation.setInject(inject);
-    baseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
-    baseInjectExpectation.setTeam(team);
-    baseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
-    baseInjectExpectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
-    baseInjectExpectation.setExercise(exercise);
-    baseInjectExpectation.setName(expectationName);
-    return baseInjectExpectation;
+    ManualInjectExpectation expectation = new ManualInjectExpectation();
+    expectation.setInject(inject);
+    expectation.setTeam(team);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_ONE_HOUR);
+    expectation.setExercise(exercise);
+    expectation.setName(expectationName);
+    return expectation;
   }
 
-  public static BaseInjectExpectation createDefaultDetectionInjectExpectation() {
-    BaseInjectExpectation baseInjectExpectation = new BaseInjectExpectation();
-    baseInjectExpectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
-    baseInjectExpectation.setExpectedScore(EXPECTED_SCORE);
-    baseInjectExpectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
-    return baseInjectExpectation;
+  public static DetectionInjectExpectation createDefaultDetectionInjectExpectation() {
+    DetectionInjectExpectation expectation = new DetectionInjectExpectation();
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return expectation;
   }
 
   public static InjectExpectationUpdateInput getInjectExpectationUpdateInput(
@@ -108,5 +101,19 @@ public class InjectExpectationFixture {
         .isSuccess(isSuccess)
         .metadata(Map.of("alertId", "alertId"))
         .build();
+  }
+
+  private static BaseInjectExpectation createExpectationForType(
+      BaseInjectExpectation.EXPECTATION_TYPE type) {
+    return switch (type) {
+      case DETECTION -> new DetectionInjectExpectation();
+      case PREVENTION -> new PreventionInjectExpectation();
+      case VULNERABILITY -> new VulnerabilityInjectExpectation();
+      case MANUAL -> new ManualInjectExpectation();
+      case ARTICLE -> new ArticleInjectExpectation();
+      case CHALLENGE -> new ChallengeInjectExpectation();
+      case DOCUMENT -> new DocumentInjectExpectation();
+      case TEXT -> throw new UnsupportedOperationException("TEXT expectation type not yet mapped");
+    };
   }
 }

@@ -167,8 +167,13 @@ public class EmailExecutorTest extends IntegrationTest {
     List<BaseInjectExpectation> injectExpectationList =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, injectExpectationList.size());
-    List<BaseInjectExpectation> teamExpectations =
+    List<TableTopInjectExpectation> tableTopInjectExpectationList =
         injectExpectationList.stream()
+            .filter(ie -> ie instanceof TableTopInjectExpectation)
+            .map(ie -> (TableTopInjectExpectation) ie)
+            .toList();
+    List<TableTopInjectExpectation> teamExpectations =
+        tableTopInjectExpectationList.stream()
             .filter(ie -> ie.getUser() == null && ie.getTeam() != null)
             .toList();
     assertEquals(2, teamExpectations.size());
@@ -176,8 +181,8 @@ public class EmailExecutorTest extends IntegrationTest {
         1, teamExpectations.stream().filter(ie -> expectationAName.equals(ie.getName())).count());
     assertEquals(
         1, teamExpectations.stream().filter(ie -> expectationBName.equals(ie.getName())).count());
-    List<BaseInjectExpectation> userExpectations =
-        injectExpectationList.stream()
+    List<TableTopInjectExpectation> userExpectations =
+        tableTopInjectExpectationList.stream()
             .filter(ie -> ie.getUser() != null && ie.getTeam() != null)
             .toList();
     assertEquals(2, userExpectations.size());

@@ -4,20 +4,5 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 
 @Entity
-@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.MANUAL)
-public class ManualInjectExpectation extends TechnicalInjectExpectation {
-
-  public ManualInjectExpectation() {
-    setType(EXPECTATION_TYPE.MANUAL);
-  }
-
-  @Override
-  public String getSuccessLabel() {
-    return "Successful";
-  }
-
-  @Override
-  public String getFailureLabel() {
-    return "Failed";
-  }
-}
+@DiscriminatorValue(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL_VALUE)
+public class ManualInjectExpectation extends TableTopInjectExpectation {}

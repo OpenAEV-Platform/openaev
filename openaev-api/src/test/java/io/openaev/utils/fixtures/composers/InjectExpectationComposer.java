@@ -1,6 +1,8 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.TableTopInjectExpectation;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,33 +26,52 @@ public class InjectExpectationComposer extends ComposerBase<BaseInjectExpectatio
 
     public Composer withTeam(TeamComposer.Composer teamComposer) {
       this.teamComposer = Optional.of(teamComposer);
-      this.baseInjectExpectation.setTeam(teamComposer.get());
+      asTableTop().setTeam(teamComposer.get());
       return this;
     }
 
     public Composer withUser(UserComposer.Composer userComposer) {
       this.userComposer = Optional.of(userComposer);
-      this.baseInjectExpectation.setUser(userComposer.get());
+      asTableTop().setUser(userComposer.get());
       return this;
     }
 
     public Composer withAssetGroup(AssetGroupComposer.Composer assetGroupComposer) {
       this.assetGroupComposer = Optional.of(assetGroupComposer);
-      this.baseInjectExpectation.setAssetGroup(assetGroupComposer.get());
+      asTechnical().setAssetGroup(assetGroupComposer.get());
       return this;
     }
 
     public Composer withEndpoint(EndpointComposer.Composer endpointComposer) {
       this.endpointComposer = Optional.of(endpointComposer);
-      this.baseInjectExpectation.setAsset(endpointComposer.get());
+      asTechnical().setAsset(endpointComposer.get());
       return this;
     }
 
     public Composer withAgent(AgentComposer.Composer agentComposer) {
       this.agentComposer = Optional.of(agentComposer);
-      this.baseInjectExpectation.setAgent(agentComposer.get());
-      this.baseInjectExpectation.setAsset(agentComposer.get().getAsset());
+      TechnicalInjectExpectation technical = asTechnical();
+      technical.setAgent(agentComposer.get());
+      technical.setAsset(agentComposer.get().getAsset());
       return this;
+    }
+
+    private TableTopInjectExpectation asTableTop() {
+      if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
+        return tableTop;
+      }
+      throw new IllegalStateException(
+          "Expected a TableTopInjectExpectation (ARTICLE, CHALLENGE, MANUAL) but got "
+              + baseInjectExpectation.getClass().getSimpleName());
+    }
+
+    private TechnicalInjectExpectation asTechnical() {
+      if (baseInjectExpectation instanceof TechnicalInjectExpectation technical) {
+        return technical;
+      }
+      throw new IllegalStateException(
+          "Expected a TechnicalInjectExpectation (DETECTION, PREVENTION, VULNERABILITY) but got "
+              + baseInjectExpectation.getClass().getSimpleName());
     }
 
     @Override

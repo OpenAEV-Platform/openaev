@@ -10,6 +10,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -59,10 +60,12 @@ public class ExpectationsExpirationManagerService {
   // -- PRIVATE --
   private void processAgentExpectations(
       @NotNull final List<BaseInjectExpectation> expectations, @NotNull final Collector collector) {
-    List<BaseInjectExpectation> expiredExpectations = new ArrayList<>();
+    List<TechnicalInjectExpectation> expiredExpectations = new ArrayList<>();
     Map<String, InjectExpectationUpdateInput> inputsById = new LinkedHashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
-      if (!ExpectationUtils.isAgentExpectation(expectation) || !isExpired(expectation)) {
+      if (!(expectation instanceof TechnicalInjectExpectation technicalExpectation)
+          || !ExpectationUtils.isAgentExpectation(technicalExpectation)
+          || !isExpired(expectation)) {
         continue;
       }
       InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
@@ -75,7 +78,7 @@ public class ExpectationsExpirationManagerService {
         input.setResult(computeFailedMessage(expectation.getType()));
         expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
       }
-      expiredExpectations.add(expectation);
+      expiredExpectations.add(technicalExpectation);
       inputsById.put(expectation.getId(), input);
     }
     // Batched: one save for all agent expirations plus one propagation per distinct parent,
@@ -101,10 +104,10 @@ public class ExpectationsExpirationManagerService {
               updated.add(
                   injectExpectationService.computeInjectExpectationForHumanResponse(
                       expectation, input, collector));
-            } else {
+            } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
               updated.add(
                   injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
-                      expectation, input, collector));
+                      technicalExpectation, input, collector));
             }
           }
         });

@@ -293,13 +293,17 @@ public class InjectUtils {
         .filter(
             expectation -> {
               boolean teamMatch =
-                  expectation.getTeam() != null && firstIds.contains(expectation.getTeam().getId());
+                  expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
+                      && tableTopInjectExpectation.getTeam() != null
+                      && firstIds.contains(tableTopInjectExpectation.getTeam().getId());
               boolean assetMatch =
-                  isAssetExpectation(expectation)
-                      && firstIds.contains(expectation.getAsset().getId());
+                  expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                      && isAssetExpectation(technicalInjectExpectation)
+                      && firstIds.contains(technicalInjectExpectation.getAsset().getId());
               boolean assetGroupMatch =
-                  isAssetGroupExpectation(expectation)
-                      && firstIds.contains(expectation.getAssetGroup().getId());
+                  expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                      && isAssetGroupExpectation(technicalInjectExpectation)
+                      && firstIds.contains(technicalInjectExpectation.getAssetGroup().getId());
               return teamMatch || assetMatch || assetGroupMatch;
             })
         .collect(Collectors.toList());

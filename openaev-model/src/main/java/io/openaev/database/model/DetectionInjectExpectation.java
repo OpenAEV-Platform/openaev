@@ -4,20 +4,11 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 
 @Entity
-@DiscriminatorValue(BaseInjectExpectation.ExpectationTypeString.DETECTION)
+@DiscriminatorValue(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION_VALUE)
 public class DetectionInjectExpectation extends TechnicalInjectExpectation {
 
   public DetectionInjectExpectation() {
-    setType(EXPECTATION_TYPE.DETECTION);
-  }
-
-  @Override
-  public String getSuccessLabel() {
-    return "Detected";
-  }
-
-  @Override
-  public String getFailureLabel() {
-    return "Not Detected";
+    setSuccessLabel("Detected");
+    setFailureLabel("Not Detected");
   }
 }

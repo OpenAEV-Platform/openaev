@@ -349,11 +349,12 @@ public class InjectsExecutionJob implements Job {
                     .equals(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)) {
                   name = injectExpectation.getName();
                 }
-                if (BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(
-                        injectExpectation.getType())
-                    || BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
-                        injectExpectation.getType())) {
-                  if (injectExpectation.getUser() == null && injectExpectation.getScore() != null) {
+                if (injectExpectation instanceof TableTopInjectExpectation tableTop
+                    && (BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE.equals(
+                            injectExpectation.getType())
+                        || BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE.equals(
+                            injectExpectation.getType()))) {
+                  if (tableTop.getUser() == null && injectExpectation.getScore() != null) {
                     mapCondition.put(
                         name, injectExpectation.getScore() >= injectExpectation.getExpectedScore());
                   }
