@@ -1356,7 +1356,8 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Collector> collectors =
+        this.collectorService.securityPlatformCollectors(inject.getTenant().getId());
     List<Injector> injectors = this.injectorService.findAll();
     List<HealthCheck> healthChecks = new ArrayList<>();
 
