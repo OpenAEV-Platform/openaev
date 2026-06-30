@@ -842,8 +842,8 @@ class InjectExpectationServiceTest {
     @Test
     @DisplayName("Returns without side effects for a non-technical expectation type")
     void givenNonTechnicalExpectationTypeShouldReturnWithoutSideEffects() {
-      List<InjectExpectationSignature> signatures =
-          List.of(new InjectExpectationSignature("signature-type", "signature-value"));
+      List<ExpectationSignature> signatures =
+          List.of(new ExpectationSignature("signature-type", "signature-value"));
 
       assertDoesNotThrow(
           () ->
@@ -875,10 +875,10 @@ class InjectExpectationServiceTest {
           null,
           null,
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
-          List.of(new InjectExpectationSignature("signature-type", "signature-value")));
+          List.of(new ExpectationSignature("signature-type", "signature-value")));
 
       verify(injectExpectationLockService, times(2))
-          .applySignaturesForExpectationWithLock(anyString(), anyString());
+          .applySignaturesForExpectationWithLock(anyString(), any());
     }
   }
 }

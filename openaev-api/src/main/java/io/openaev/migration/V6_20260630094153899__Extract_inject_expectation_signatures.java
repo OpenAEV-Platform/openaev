@@ -110,4 +110,3 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
 // WHERE ie.inject_expectation_id = sub.inject_expectation_id;
 //
 // DROP TABLE IF EXISTS injects_expectations_signatures;
-

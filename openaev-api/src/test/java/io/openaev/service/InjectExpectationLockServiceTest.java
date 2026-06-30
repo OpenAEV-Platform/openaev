@@ -1,13 +1,14 @@
 package io.openaev.service;
 
+import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,15 +30,21 @@ class InjectExpectationLockServiceTest {
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("expectation-id");
     expectation.setSignaturesInitialized(false);
+    expectation.setSignatures(
+        new ArrayList<>(
+            List.of(new InjectExpectationSignature(expectation, "old-k", "old-v", now()))));
     when(injectExpectationRepository.findById("expectation-id"))
         .thenReturn(Optional.of(expectation));
 
+    InjectExpectationSignature signature =
+        new InjectExpectationSignature(expectation, "k", "v", now());
+    List<InjectExpectationSignature> signatures = new ArrayList<>();
+    signatures.add(signature);
     injectExpectationLockService.applySignaturesForExpectationWithLock(
-        "expectation-id", "[{\"type\":\"k\",\"value\":\"v\"}]");
+        "expectation-id", signatures);
 
-    verify(injectExpectationRepository).clearSignaturesAndMarkInitialized("expectation-id");
-    verify(injectExpectationRepository)
-        .appendSignatures("expectation-id", "[{\"type\":\"k\",\"value\":\"v\"}]");
+    expectation.setSignatures(signatures);
+    verify(injectExpectationRepository).save(expectation);
   }
 
   @Test
@@ -46,16 +53,21 @@ class InjectExpectationLockServiceTest {
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("expectation-id");
     expectation.setSignaturesInitialized(true);
+    expectation.setSignatures(
+        new ArrayList<>(
+            List.of(new InjectExpectationSignature(expectation, "old-k", "old-v", now()))));
     when(injectExpectationRepository.findById("expectation-id"))
         .thenReturn(Optional.of(expectation));
 
+    InjectExpectationSignature signature =
+        new InjectExpectationSignature(expectation, "k", "v", now());
+    List<InjectExpectationSignature> signatures = new ArrayList<>();
+    signatures.add(signature);
     injectExpectationLockService.applySignaturesForExpectationWithLock(
-        "expectation-id", "[{\"type\":\"k\",\"value\":\"v\"}]");
+        "expectation-id", signatures);
 
-    verify(injectExpectationRepository, never())
-        .clearSignaturesAndMarkInitialized("expectation-id");
-    verify(injectExpectationRepository)
-        .appendSignatures("expectation-id", "[{\"type\":\"k\",\"value\":\"v\"}]");
+    expectation.getSignatures().addAll(signatures);
+    verify(injectExpectationRepository).save(expectation);
   }
 
   @Test
@@ -63,13 +75,21 @@ class InjectExpectationLockServiceTest {
   void givenUnknownExpectation_shouldThrowElementNotFoundException() {
     when(injectExpectationRepository.findById("expectation-id")).thenReturn(Optional.empty());
 
+    InjectExpectation expectation = new InjectExpectation();
+    expectation.setId("expectation-id");
+    expectation.setSignaturesInitialized(true);
+
+    InjectExpectationSignature signature =
+        new InjectExpectationSignature(expectation, "k", "v", now());
+    List<InjectExpectationSignature> signatures = new ArrayList<>();
+    signatures.add(signature);
+
     assertThrows(
         ElementNotFoundException.class,
         () ->
             injectExpectationLockService.applySignaturesForExpectationWithLock(
-                "expectation-id", "[{\"type\":\"k\",\"value\":\"v\"}]"));
+                "expectation-id", signatures));
 
-    verify(injectExpectationRepository, never())
-        .appendSignatures("expectation-id", "[{\"type\":\"k\",\"value\":\"v\"}]");
+    verify(injectExpectationRepository, never()).save(any());
   }
 }

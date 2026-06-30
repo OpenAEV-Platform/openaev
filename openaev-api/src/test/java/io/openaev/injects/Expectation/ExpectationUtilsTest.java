@@ -1,5 +1,6 @@
 package io.openaev.injects.Expectation;
 
+import static io.openaev.utils.ExpectationSignatureUtils.*;
 import static io.openaev.utils.ExpectationUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,7 +71,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         preventionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(prev -> prev.getInjectExpectationSignatures().stream())
+            .flatMap(prev -> prev.getExpectationSignatures().stream())
             .toList()
             .getFirst());
 
@@ -78,7 +79,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         detectionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(det -> det.getInjectExpectationSignatures().stream())
+            .flatMap(det -> det.getExpectationSignatures().stream())
             .toList()
             .getFirst());
   }
@@ -139,7 +140,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         preventionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(prev -> prev.getInjectExpectationSignatures().stream())
+            .flatMap(prev -> prev.getExpectationSignatures().stream())
             .toList()
             .getFirst());
 
@@ -147,7 +148,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         detectionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(det -> det.getInjectExpectationSignatures().stream())
+            .flatMap(det -> det.getExpectationSignatures().stream())
             .toList()
             .getFirst());
   }
@@ -201,7 +202,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         .filter(expectation -> expectation.getAgent() != null)
         .toList()
         .getFirst()
-        .getInjectExpectationSignatures()
+        .getExpectationSignatures()
         .forEach(
             signature -> {
               switch (signature.getType()) {
