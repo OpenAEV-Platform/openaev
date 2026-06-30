@@ -5,7 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.DetectionInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.Optional;
@@ -26,7 +26,7 @@ class InjectExpectationLockServiceTest {
   @Test
   @DisplayName("Should clear signatures before append when signatures are not initialized")
   void givenUninitializedExpectation_shouldClearThenAppend() {
-    InjectExpectation expectation = new InjectExpectation();
+    DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("expectation-id");
     expectation.setSignaturesInitialized(false);
     when(injectExpectationRepository.findById("expectation-id"))
@@ -43,7 +43,7 @@ class InjectExpectationLockServiceTest {
   @Test
   @DisplayName("Should append signatures without clearing when signatures are initialized")
   void givenInitializedExpectation_shouldAppendWithoutClearing() {
-    InjectExpectation expectation = new InjectExpectation();
+    DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("expectation-id");
     expectation.setSignaturesInitialized(true);
     when(injectExpectationRepository.findById("expectation-id"))

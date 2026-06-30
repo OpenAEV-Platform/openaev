@@ -934,7 +934,7 @@ public class InjectExpectationService {
    * @param targetType the type of target (TEAMS, PLAYERS, AGENT, ASSETS, ASSETS_GROUPS)
    * @return a list of matching expectations
    */
-  public List<BaseInjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
+  public List<? extends BaseInjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
       @NotBlank final String injectId,
       @NotBlank final String targetId,
       @NotBlank final String parentTargetId,
@@ -1033,7 +1033,7 @@ public class InjectExpectationService {
       @Nullable String agentId,
       @Nullable String assetId,
       @Nullable String assetGroupId,
-      @NotNull InjectExpectation.EXPECTATION_TYPE expectationType,
+      @NotNull BaseInjectExpectation.EXPECTATION_TYPE expectationType,
       @NotNull List<InjectExpectationSignature> signatures) {
     if (signatures.isEmpty()) {
       return;
@@ -1049,7 +1049,7 @@ public class InjectExpectationService {
       return;
     }
 
-    List<InjectExpectation> expectations =
+    List<TechnicalInjectExpectation> expectations =
         findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
             .filter(expectation -> expectation.getType().equals(expectationType))
             .toList();
@@ -1067,7 +1067,7 @@ public class InjectExpectationService {
 
     String signaturesJson = convertValidSignaturesToStringJson(signatures);
     if (signaturesJson != null) {
-      for (InjectExpectation expectation : expectations) {
+      for (TechnicalInjectExpectation expectation : expectations) {
         injectExpectationLockService.applySignaturesForExpectationWithLock(
             expectation.getId(), signaturesJson);
       }
@@ -1093,7 +1093,7 @@ public class InjectExpectationService {
     }
   }
 
-  private List<InjectExpectation> findTechnicalExpectationsForTarget(
+  private List<TechnicalInjectExpectation> findTechnicalExpectationsForTarget(
       @NotBlank String injectId,
       @Nullable String agentId,
       @Nullable String assetId,
@@ -1168,7 +1168,7 @@ public class InjectExpectationService {
    * @return a list with one expectation per type containing merged results
    */
   private List<BaseInjectExpectation> mergeExpectationResultsByExpectationType(
-      List<BaseInjectExpectation> expectations) {
+      List<? extends BaseInjectExpectation> expectations) {
     List<String> notCopiedSourceTypes = List.of(COLLECTOR);
 
     HashMap<BaseInjectExpectation.EXPECTATION_TYPE, BaseInjectExpectation> electedExpectations =

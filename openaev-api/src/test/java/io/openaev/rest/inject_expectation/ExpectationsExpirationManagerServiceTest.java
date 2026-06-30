@@ -116,7 +116,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       // -- VERIFY --
       // Agent Expectation
-      List<BaseInjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
@@ -176,7 +176,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           executableInject, detectionExpectations);
 
       // Update one expectation from one agent with source collector-id
-      List<BaseInjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
@@ -259,7 +259,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           executableInject, detectionExpectations);
 
       // Update agent expectations with source collector-id
-      List<BaseInjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           List.of(
               injectExpectationRepository
                   .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
@@ -348,7 +348,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           executableInject, detectionExpectations);
 
       // Delete agent inject expectations to test behavior of assets without agents
-      List<BaseInjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           List.of(
               injectExpectationRepository
                   .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
@@ -357,7 +357,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                   .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
                   .getFirst());
 
-      List<String> ids = injectExpectations.stream().map(BaseInjectExpectation::getId).toList();
+      List<String> ids =
+          injectExpectations.stream().map(TechnicalInjectExpectation::getId).toList();
 
       injectExpectationRepository.deleteAllById(ids);
 
@@ -403,7 +404,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
           executableInject, List.of(expectation));
 
       // -- VERIFY --
-      List<BaseInjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());

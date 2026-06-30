@@ -792,7 +792,7 @@ class InjectExpectationServiceTest {
                   "agent-id",
                   null,
                   null,
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
                   List.of()));
 
       verifyNoInteractions(injectExpectationRepository);
@@ -811,7 +811,7 @@ class InjectExpectationServiceTest {
                   "agent-id",
                   null,
                   null,
-                  InjectExpectation.EXPECTATION_TYPE.MANUAL,
+                  BaseInjectExpectation.EXPECTATION_TYPE.MANUAL,
                   signatures));
 
       verifyNoInteractions(injectExpectationRepository);
@@ -821,12 +821,10 @@ class InjectExpectationServiceTest {
     @Test
     @DisplayName("Delegates to lock service for each matching expectation")
     void givenMatchingExpectationsShouldDelegateToLockService() {
-      InjectExpectation first = new InjectExpectation();
+      DetectionInjectExpectation first = new DetectionInjectExpectation();
       first.setId("exp-1");
-      first.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
-      InjectExpectation second = new InjectExpectation();
+      DetectionInjectExpectation second = new DetectionInjectExpectation();
       second.setId("exp-2");
-      second.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
       when(injectExpectationRepository.findAllByInjectAndAgent("inject-id", "agent-id"))
           .thenReturn(List.of(first, second));
 
@@ -835,7 +833,7 @@ class InjectExpectationServiceTest {
           "agent-id",
           null,
           null,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
           List.of(new InjectExpectationSignature("signature-type", "signature-value")));
 
       verify(injectExpectationLockService, times(2))

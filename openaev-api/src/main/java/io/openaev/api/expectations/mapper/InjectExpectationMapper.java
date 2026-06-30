@@ -60,7 +60,8 @@ public final class InjectExpectationMapper {
         resolveTargetId(expectation));
   }
 
-  public static List<InjectExpectationOutput> toOutputs(List<BaseInjectExpectation> expectations) {
+  public static List<InjectExpectationOutput> toOutputs(
+      List<? extends BaseInjectExpectation> expectations) {
     Objects.requireNonNull(expectations, "expectations must not be null");
     return expectations.stream().map(InjectExpectationMapper::toOutput).toList();
   }
