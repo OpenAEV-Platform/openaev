@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -20,16 +22,17 @@ public class InjectExpectationLockService {
   @Lock(type = LockResourceType.INJECT_EXPECTATION, key = "#expectationId")
   @Transactional
   public void applySignaturesForExpectationWithLock(
-      @NotBlank String expectationId, @NotNull String signaturesJson) {
-    BaseInjectExpectation expectation =
+      @NotBlank String expectationId, @NotNull List<InjectExpectationSignature> signatures) {
+      BaseInjectExpectation expectation =
         this.injectExpectationRepository
             .findById(expectationId)
             .orElseThrow(ElementNotFoundException::new);
 
     if (!expectation.isSignaturesInitialized()) {
-      injectExpectationRepository.clearSignaturesAndMarkInitialized(expectation.getId());
+      expectation.setSignatures(signatures);
+    } else {
+      expectation.getSignatures().addAll(signatures);
     }
-
-    injectExpectationRepository.appendSignatures(expectation.getId(), signaturesJson);
+    injectExpectationRepository.save(expectation);
   }
 }

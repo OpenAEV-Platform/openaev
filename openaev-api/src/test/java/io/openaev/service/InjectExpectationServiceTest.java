@@ -116,7 +116,7 @@ class InjectExpectationServiceTest {
   }
 
   private void invokeComputeExpectationsForAssetAndAgents(
-      List<io.openaev.model.Expectation> expectations,
+      List<Expectation> expectations,
       BaseInjectContent content,
       AssetToExecute assetToExecute,
       Inject currentInject,
@@ -141,7 +141,7 @@ class InjectExpectationServiceTest {
   }
 
   private void invokeComputeExpectationsForAssetGroup(
-      List<io.openaev.model.Expectation> expectations,
+      List<Expectation> expectations,
       BaseInjectContent content,
       AssetGroup assetGroup)
       throws Exception {
@@ -272,7 +272,7 @@ class InjectExpectationServiceTest {
       throws Exception {
     // Arrange
     BaseInjectContent content = new BaseInjectContent();
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
 
@@ -293,7 +293,7 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
     inject.setId("inject-id");
@@ -314,7 +314,7 @@ class InjectExpectationServiceTest {
   void given_emptyContentExpectations_should_notComputeAssetGroupExpectations() throws Exception {
     // Arrange
     BaseInjectContent content = new BaseInjectContent();
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
     AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
     assetGroup.setId("ag-id");
 
@@ -426,7 +426,7 @@ class InjectExpectationServiceTest {
     inject.setId("inject-id");
 
     when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
 
     // Act
     invokeComputeExpectationsForAssetAndAgents(
@@ -475,7 +475,7 @@ class InjectExpectationServiceTest {
         ManualExpectation.manualExpectationForAsset(
             100.0, "m", "desc", matchingAsset, assetGroup, 60L);
 
-    List<io.openaev.model.Expectation> expectations =
+    List<Expectation> expectations =
         new ArrayList<>(
             List.of(preventionMatching, detectionMatching, vulnerabilityMatching, manualMatching));
     int initialSize = expectations.size();

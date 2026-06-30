@@ -10,11 +10,12 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
-import java.util.*;
-import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+
+import java.util.*;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 @Component
@@ -73,8 +74,7 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
           continue;
         }
 
-        List<InjectExpectationSignature> signatures =
-            extractSignatures(signatureValueNode.path(VALUES));
+        List<ExpectationSignature> signatures = extractSignatures(signatureValueNode.path(VALUES));
         injectExpectationService.appendExpectationSignatures(
             injectId, agentId, assetId, assetGroupId, expectationType.get(), signatures);
       }
@@ -93,14 +93,14 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
     }
   }
 
-  private List<InjectExpectationSignature> extractSignatures(JsonNode valuesNode) {
+  private List<ExpectationSignature> extractSignatures(JsonNode valuesNode) {
     if (!valuesNode.isArray()) {
       return List.of();
     }
     return StreamSupport.stream(valuesNode.spliterator(), false)
         .map(
             valueNode ->
-                new InjectExpectationSignature(
+                new ExpectationSignature(
                     readText(valueNode, SIGNATURE_TYPE, "type"),
                     readText(valueNode, SIGNATURE_VALUE, "value")))
         .filter(

@@ -1,23 +1,24 @@
 package io.openaev.injectors.email;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
-
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 
 public class EmailExecutor extends Injector {
 

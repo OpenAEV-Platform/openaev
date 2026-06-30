@@ -14,6 +14,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Objects;
+
+import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+
 /**
  * Expectation that requires manual verification by an operator.
  *

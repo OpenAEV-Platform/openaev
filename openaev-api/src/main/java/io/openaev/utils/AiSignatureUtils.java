@@ -1,11 +1,15 @@
 package io.openaev.utils;
 
-import io.openaev.database.model.InjectExpectationSignature;
+import io.openaev.expectation.ExpectationSignature;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static io.openaev.utils.ExpectationSignatureUtils.createAiRequestMarkerSignature;
+import static io.openaev.utils.ExpectationSignatureUtils.createAiTargetEndpointSignature;
 
 /**
  * Correlation helpers for AI adversarial validation.
@@ -46,16 +50,14 @@ public final class AiSignatureUtils {
    * independently, so these signatures are an explicit, first-class representation of the same
    * correlation key.
    */
-  public static List<InjectExpectationSignature> computeAiSignatures(
+  public static List<ExpectationSignature> computeAiSignatures(
       String injectId, String agentId, String targetEndpoint) {
-    List<InjectExpectationSignature> signatures = new ArrayList<>();
-    InjectExpectationSignature marker =
-        InjectExpectationSignature.createAiRequestMarkerSignature(computeMarker(injectId, agentId));
+    List<ExpectationSignature> signatures = new ArrayList<>();
+    ExpectationSignature marker = createAiRequestMarkerSignature(computeMarker(injectId, agentId));
     if (marker != null) {
       signatures.add(marker);
     }
-    InjectExpectationSignature endpoint =
-        InjectExpectationSignature.createAiTargetEndpointSignature(targetEndpoint);
+    ExpectationSignature endpoint = createAiTargetEndpointSignature(targetEndpoint);
     if (endpoint != null) {
       signatures.add(endpoint);
     }

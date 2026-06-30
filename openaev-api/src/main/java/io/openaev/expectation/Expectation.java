@@ -1,4 +1,4 @@
-package io.openaev.model;
+package io.openaev.expectation;
 
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 
@@ -21,10 +21,10 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
  *
  * <p>All expectation implementations should provide immutable instances through factory methods.
  *
- * @see io.openaev.model.expectation.DetectionExpectation
- * @see io.openaev.model.expectation.PreventionExpectation
- * @see io.openaev.model.expectation.ManualExpectation
- * @see io.openaev.model.expectation.VulnerabilityExpectation
+ * @see io.openaev.expectation.DetectionExpectation
+ * @see io.openaev.expectation.PreventionExpectation
+ * @see io.openaev.expectation.ManualExpectation
+ * @see io.openaev.expectation.VulnerabilityExpectation
  */
 public interface Expectation {
 

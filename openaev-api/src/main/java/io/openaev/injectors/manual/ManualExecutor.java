@@ -6,12 +6,13 @@ import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.manual.model.ManualContent;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.List;
 import java.util.stream.Stream;
 

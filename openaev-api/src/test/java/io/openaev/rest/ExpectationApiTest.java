@@ -1,7 +1,37 @@
 package io.openaev.rest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
+import io.openaev.IntegrationTest;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.*;
+import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.Expectation;
+import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
+import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.service.InjectExpectationService;
+import io.openaev.utils.fixtures.*;
+import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
+import jakarta.validation.constraints.NotNull;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
-import static io.openaev.expectation.ExpectationType.*;
+import static io.openaev.expectation.ExpectationType.DETECTION;
+import static io.openaev.expectation.ExpectationType.PREVENTION;
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
@@ -16,34 +46,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
-import io.openaev.execution.ExecutableInject;
-import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
-import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
-import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
-import io.openaev.model.Expectation;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
-import io.openaev.service.InjectExpectationService;
-import io.openaev.utils.fixtures.*;
-import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.persistence.EntityManager;
-import jakarta.validation.constraints.NotNull;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @WithMockUser(isAdmin = true)

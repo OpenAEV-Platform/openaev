@@ -1,8 +1,5 @@
 package io.openaev.database.model;
 
-import static io.openaev.helper.InjectExpectationHelper.computeStatus;
-import static java.time.Instant.now;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -25,6 +22,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import static io.openaev.helper.InjectExpectationHelper.computeStatus;
+import static java.time.Instant.now;
 
 @Getter
 @Entity(name = "InjectExpectation")
@@ -135,8 +140,11 @@ public class BaseInjectExpectation implements Base, Cloneable {
   private String description;
 
   @Setter
-  @Type(JsonType.class)
-  @Column(name = "inject_expectation_signatures")
+  @OneToMany(
+      mappedBy = "injectExpectation",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
   @JsonProperty("inject_expectation_signatures")
   private List<InjectExpectationSignature> signatures = new ArrayList<>();
 

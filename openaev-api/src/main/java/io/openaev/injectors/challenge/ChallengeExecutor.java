@@ -1,10 +1,5 @@
 package io.openaev.injectors.challenge;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
-
 import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
@@ -13,19 +8,25 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.ChallengeExpectation;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.challenge.model.ChallengeVariable;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ChallengeExpectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
+import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 
 public class ChallengeExecutor extends Injector {
 

@@ -4679,8 +4679,10 @@ export interface InjectExpectationResultsByType {
 }
 
 export interface InjectExpectationSignature {
-  type?: string;
-  value?: string;
+  /** @minLength 1 */
+  type: string;
+  /** @minLength 1 */
+  value: string;
 }
 
 export interface InjectExpectationSimple {

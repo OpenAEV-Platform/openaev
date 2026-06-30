@@ -1,23 +1,25 @@
 package io.openaev.utils.fixtures;
 
-import static io.openaev.expectation.ExpectationBuilderService.*;
-import static io.openaev.model.expectation.DetectionExpectation.*;
-import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAgent;
-import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAsset;
-import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
-
 import io.openaev.database.model.*;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.model.expectation.VulnerabilityExpectation;
+import io.openaev.expectation.DetectionExpectation;
+import io.openaev.expectation.ExpectationSignature;
+import io.openaev.expectation.PreventionExpectation;
+import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static io.openaev.expectation.DetectionExpectation.*;
+import static io.openaev.expectation.ExpectationBuilderService.*;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAsset;
+import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 
 public class ExpectationFixture {
 
@@ -66,7 +68,7 @@ public class ExpectationFixture {
       Asset asset,
       AssetGroup assetGroup,
       Long expirationTime,
-      List<InjectExpectationSignature> signatures) {
+      List<ExpectationSignature> signatures) {
     return detectionExpectationForAgent(
         SCORE,
         DETECTION_NAME,
@@ -90,12 +92,12 @@ public class ExpectationFixture {
         SCORE, DETECTION_NAME, "Detection Expectation", assetGroup, false, expirationTime);
   }
 
-  public static List<io.openaev.model.Expectation> createDetectionExpectations(
+  public static List<io.openaev.expectation.Expectation> createDetectionExpectations(
       @NotNull final List<Agent> agents,
       @NotNull final Asset asset,
       @Nullable final AssetGroup assetGroup,
       @NotNull final Long expirationTime) {
-    List<io.openaev.model.Expectation> detectionExpectations = new ArrayList<>();
+    List<io.openaev.expectation.Expectation> detectionExpectations = new ArrayList<>();
     // Agent
     detectionExpectations.addAll(
         agents.stream()
@@ -122,7 +124,7 @@ public class ExpectationFixture {
       Asset asset,
       AssetGroup assetGroup,
       Long expirationTime,
-      List<InjectExpectationSignature> signatures) {
+      List<ExpectationSignature> signatures) {
     return preventionExpectationForAgent(
         SCORE,
         PREVENTION_NAME,
@@ -146,12 +148,12 @@ public class ExpectationFixture {
         SCORE, PREVENTION_NAME, "Prevention Expectation", assetGroup, false, expirationTime);
   }
 
-  public static List<io.openaev.model.Expectation> createPreventionExpectations(
+  public static List<io.openaev.expectation.Expectation> createPreventionExpectations(
       @NotNull final List<Agent> agents,
       @NotNull final Asset asset,
       @Nullable final AssetGroup assetGroup,
       @NotNull final Long expirationTime) {
-    List<io.openaev.model.Expectation> preventionExpectations = new ArrayList<>();
+    List<io.openaev.expectation.Expectation> preventionExpectations = new ArrayList<>();
     // Agent
     preventionExpectations.addAll(
         agents.stream()
@@ -177,7 +179,7 @@ public class ExpectationFixture {
       Asset asset,
       AssetGroup assetGroup,
       Long expirationTime,
-      List<InjectExpectationSignature> signatures) {
+      List<ExpectationSignature> signatures) {
     return vulnerabilityExpectationForAgent(
         SCORE,
         VULNERABILITY_NAME,

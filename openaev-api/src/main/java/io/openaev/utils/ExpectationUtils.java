@@ -440,28 +440,28 @@ public class ExpectationUtils {
     }
   }
 
-  public static List<InjectExpectationSignature> computeSignatures(
+  private static List<ExpectationSignature> computeSignatures(
       String prefixSignature,
       String injectId,
       Asset sourceAsset,
       String agentId,
       Map<String, Endpoint> valueTargetedAssetsMap) {
-    List<InjectExpectationSignature> signatures = new ArrayList<>();
+    List<ExpectationSignature> signatures = new ArrayList<>();
 
     signatures.add(
-        new InjectExpectationSignature(
+        new ExpectationSignature(
             EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME,
             prefixSignature + injectId + "-agent-" + agentId));
 
     getIpsFromAsset(sourceAsset)
-        .forEach(ip -> signatures.add(InjectExpectationSignature.createIpSignature(ip, false)));
+        .forEach(ip -> signatures.add(ExpectationSignatureUtils.createIpSignature(ip, false)));
 
     valueTargetedAssetsMap.forEach(
         (value, endpoint) -> {
           if (value.equals(endpoint.getHostname())) {
-            signatures.add(InjectExpectationSignature.createHostnameSignature(value));
+            signatures.add(ExpectationSignatureUtils.createHostnameSignature(value));
           } else {
-            signatures.add(InjectExpectationSignature.createIpSignature(value, true));
+            signatures.add(ExpectationSignatureUtils.createIpSignature(value, true));
           }
         });
 

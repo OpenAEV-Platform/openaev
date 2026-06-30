@@ -1118,7 +1118,7 @@ public class InjectExpectationService {
       @Nullable String assetId,
       @Nullable String assetGroupId,
       @NotNull BaseInjectExpectation.EXPECTATION_TYPE expectationType,
-      @NotNull List<InjectExpectationSignature> signatures) {
+      @NotNull List<ExpectationSignature> signatures) {
     if (signatures.isEmpty()) {
       return;
     }
@@ -1149,31 +1149,9 @@ public class InjectExpectationService {
       return;
     }
 
-    String signaturesJson = convertValidSignaturesToStringJson(signatures);
-    if (signaturesJson != null) {
-      for (TechnicalInjectExpectation expectation : expectations) {
-        injectExpectationLockService.applySignaturesForExpectationWithLock(
-            expectation.getId(), signaturesJson);
-      }
-    }
-  }
-
-  private String convertValidSignaturesToStringJson(
-      @NotNull List<InjectExpectationSignature> signatures) {
-    List<InjectExpectationSignature> validSignatures =
-        signatures.stream()
-            .filter(Objects::nonNull)
-            .filter(signature -> signature.getType() != null && signature.getValue() != null)
-            .toList();
-    if (validSignatures.isEmpty()) {
-      return null;
-    }
-
-    try {
-      return mapper.writeValueAsString(validSignatures);
-    } catch (JsonProcessingException e) {
-      log.warn("Failed to serialize expectation signatures", e);
-      return null;
+    for (InjectExpectation expectation : expectations) {
+      injectExpectationLockService.applySignaturesForExpectationWithLock(
+          expectation.getId(), convertToInjectExpectationSignatures(signatures, expectation));
     }
   }
 

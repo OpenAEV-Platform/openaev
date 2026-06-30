@@ -42,7 +42,7 @@ public class InjectExpectationSignature {
 
   @NotNull
   @JsonIgnore
-  @Column(name = "inject_expectation_created_at", updatable = false)
+  @Column(name = "inject_expectation_signature_created_at", updatable = false)
   @JsonProperty("inject_expectation_signature_created_at")
   private Instant createdAt = now();
 
