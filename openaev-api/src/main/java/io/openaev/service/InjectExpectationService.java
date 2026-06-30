@@ -617,6 +617,7 @@ public class InjectExpectationService {
    * @return a list of matching inject expectations
    */
   public List<InjectExpectation> expectationsNotFilledAndNotExpiredBySourceId(
+      @NotBlank String tenantId,
       @NotNull InjectExpectation.EXPECTATION_TYPE type,
       @NotNull Integer expirationTime,
       @NotBlank String sourceId) {
@@ -624,7 +625,7 @@ public class InjectExpectationService {
     Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
 
     return injectExpectationRepository.findAgentExpectationsNotFilledForSourceCreatedAfter(
-        type.name(), sourceId, expirationThreshold, NOT_FILLED_FETCH_LIMIT);
+        tenantId, type.name(), sourceId, expirationThreshold, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -635,12 +636,14 @@ public class InjectExpectationService {
    * @return a list of matching inject expectations
    */
   public List<InjectExpectation> expectationsNotFilledAndNotExpired(
-      @NotNull InjectExpectation.EXPECTATION_TYPE type, @NotNull Integer expirationTime) {
+      @NotBlank String tenantId,
+      @NotNull InjectExpectation.EXPECTATION_TYPE type,
+      @NotNull Integer expirationTime) {
 
     Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
 
     return injectExpectationRepository.findAgentExpectationsNotFilledCreatedAfter(
-        type.name(), expirationThreshold, NOT_FILLED_FETCH_LIMIT);
+        tenantId, type.name(), expirationThreshold, NOT_FILLED_FETCH_LIMIT);
   }
 
   // -- PREVENTION --
@@ -669,19 +672,21 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of prevention expectations without results from the source
    */
-  public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> preventionExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
-        PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+        tenantId, PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
    * Retrieves prevention expectations without any results.
    *
+   * @param tenantId the tenant ID to scope the query
    * @return a list of prevention expectations without results
    */
-  public List<InjectExpectation> preventionExpectationsNotFill() {
+  public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilled(
-        PREVENTION.name(), NOT_FILLED_FETCH_LIMIT);
+        tenantId, PREVENTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -691,20 +696,22 @@ public class InjectExpectationService {
    * @return a list of non-expired prevention expectations without results
    */
   public List<InjectExpectation> preventionExpectationsNotFillAndNotExpired(
-      @NotNull Integer expirationTime) {
-    return expectationsNotFilledAndNotExpired(PREVENTION, expirationTime);
+      @NotBlank String tenantId, @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(tenantId, PREVENTION, expirationTime);
   }
 
   /**
    * Retrieves prevention expectations without results from a specific source that have not expired.
    *
+   * @param tenantId the tenant ID to scope the query
    * @param expirationTime the expiration threshold in minutes
    * @param sourceId the source ID to check for existing results
    * @return a list of non-expired prevention expectations without results from the source
    */
   public List<InjectExpectation> preventionExpectationsNotFilledAndNotExpired(
-      @NotNull Integer expirationTime, @NotBlank String sourceId) {
-    return expectationsNotFilledAndNotExpiredBySourceId(PREVENTION, expirationTime, sourceId);
+      @NotBlank String tenantId, @NotNull Integer expirationTime, @NotBlank String sourceId) {
+    return expectationsNotFilledAndNotExpiredBySourceId(
+        tenantId, PREVENTION, expirationTime, sourceId);
   }
 
   // -- DETECTION --
@@ -733,9 +740,10 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of detection expectations without results from the source
    */
-  public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> detectionExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
-        DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+        tenantId, DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -746,17 +754,18 @@ public class InjectExpectationService {
    * @param sourceId the collector source ID
    * @return agentless detection + prevention expectations without a result from the source
    */
-  public List<InjectExpectation> aiDefenseExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> aiDefenseExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     // Combine agentless DETECTION + PREVENTION expectations, keep a single stable global order
     // (oldest first) and cap the total so a polling collector receives a bounded, fairly ordered
     // page across both expectation types rather than two separately-capped lists.
     List<InjectExpectation> expectations = new ArrayList<>();
     expectations.addAll(
         this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
-            DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+            tenantId, DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
     expectations.addAll(
         this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
-            PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+            tenantId, PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
     expectations.sort(
         Comparator.comparing(
             InjectExpectation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
@@ -768,9 +777,9 @@ public class InjectExpectationService {
    *
    * @return a list of detection expectations without results
    */
-  public List<InjectExpectation> detectionExpectationsNotFill() {
+  public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilled(
-        DETECTION.name(), NOT_FILLED_FETCH_LIMIT);
+        tenantId, DETECTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -780,21 +789,23 @@ public class InjectExpectationService {
    * @return a list of non-expired detection expectations without results
    */
   public List<InjectExpectation> detectionExpectationsNotFillAndNotExpired(
-      @NotNull Integer expirationTime) {
-    return expectationsNotFilledAndNotExpired(DETECTION, expirationTime);
+      @NotBlank String tenantId, @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(tenantId, DETECTION, expirationTime);
   }
 
   /**
    * Retrieves detection expectations without results from a specific source that have not expired.
    *
+   * @param tenantId the tenant ID to scope the query
    * @param expirationTime the expiration threshold in minutes
    * @param sourceId the source ID to check for existing results
    * @return a list of non-expired detection expectations without results from the source
    */
   public List<InjectExpectation> detectionExpectationsNotFilledAndNotExpired(
-      @NotNull Integer expirationTime, @NotBlank String sourceId) {
+      @NotBlank String tenantId, @NotNull Integer expirationTime, @NotBlank String sourceId) {
 
-    return expectationsNotFilledAndNotExpiredBySourceId(DETECTION, expirationTime, sourceId);
+    return expectationsNotFilledAndNotExpiredBySourceId(
+        tenantId, DETECTION, expirationTime, sourceId);
   }
 
   // -- MANUAL
@@ -823,30 +834,33 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of manual expectations without results from the source
    */
-  public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> manualExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findExpectationsNotFilledForSource(
-        MANUAL.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+        tenantId, MANUAL.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
    * Retrieves manual expectations without any results.
    *
+   * @param tenantId the tenant ID to scope the query
    * @return a list of manual expectations without results
    */
-  public List<InjectExpectation> manualExpectationsNotFill() {
+  public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findExpectationsNotFilled(
-        MANUAL.name(), NOT_FILLED_FETCH_LIMIT);
+        tenantId, MANUAL.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
    * Retrieves manual expectations without results that have not expired.
    *
+   * @param tenantId the tenant ID to scope the query
    * @param expirationTime the expiration threshold in minutes
    * @return a list of non-expired manual expectations without results
    */
   public List<InjectExpectation> manualExpectationsNotFillAndNotExpired(
-      @NotNull Integer expirationTime) {
-    return expectationsNotFilledAndNotExpired(MANUAL, expirationTime);
+      @NotBlank String tenantId, @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(tenantId, MANUAL, expirationTime);
   }
 
   // -- BY TARGET TYPE

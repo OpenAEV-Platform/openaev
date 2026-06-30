@@ -794,7 +794,7 @@ class InjectServiceTest {
 
     // MOCK
     when(smtpService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -830,7 +830,7 @@ class InjectServiceTest {
 
     // MOCK
     when(imapService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -859,7 +859,7 @@ class InjectServiceTest {
     inject.getInjectorContract().get().setNeedsExecutor(true);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -904,7 +904,7 @@ class InjectServiceTest {
     inject.setContent(content);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -940,7 +940,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     Injector nmapInjector = new Injector();
     nmapInjector.setId("testNmap");
     nmapInjector.setType("openaev_nmap");
@@ -969,7 +969,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -1003,7 +1003,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
