@@ -50,5 +50,18 @@ public interface CollectorRepository
 
   Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
-  List<Collector> findAllByTenantIdAndSecurityPlatformIsNotNull(@NotNull String tenantId);
+  /**
+   * Native query to bypass Hibernate's @Filter("tenantFilter"). This is called from
+   * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations().
+   * InjectHelper disables the tenant filter at the start of the job, but the @Transactional on
+   * buildAndSaveInjectExpectations() re-enables it via HibernateFilterTransactionAspect with a
+   * potentially different TenantContext. Two options exist: disableFilter before the call, or use a
+   * native query. Native query is more robust as it is immune to filter re-activation.
+   */
+  @Query(
+      nativeQuery = true,
+      value =
+          "SELECT * FROM collectors WHERE tenant_id = :tenantId AND collector_security_platform IS NOT NULL")
+  List<Collector> findAllByTenantIdAndSecurityPlatformIsNotNull(
+      @Param("tenantId") @NotNull String tenantId);
 }

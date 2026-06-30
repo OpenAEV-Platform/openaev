@@ -21,13 +21,11 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,8 +46,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   private final CollectorMapper collectorMapper;
 
-  private final EntityManager entityManager;
-
   @Autowired
   public CollectorService(
       CollectorRepository collectorRepository,
@@ -60,8 +56,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       CollectorMapper collectorMapper,
-      CatalogConnectorMapper catalogConnectorMapper,
-      EntityManager entityManager) {
+      CatalogConnectorMapper catalogConnectorMapper) {
     super(
         ConnectorType.COLLECTOR,
         connectorInstanceConfigurationRepository,
@@ -73,7 +68,6 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     this.fileService = fileService;
     this.collectorMapper = collectorMapper;
     this.securityPlatformRepository = securityPlatformRepository;
-    this.entityManager = entityManager;
   }
 
   @Override
@@ -141,12 +135,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
-    // Disable tenant filter — called from scheduler context where TenantContext may differ
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-
-    List<Collector> result =
-        collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
-    return result;
+    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
