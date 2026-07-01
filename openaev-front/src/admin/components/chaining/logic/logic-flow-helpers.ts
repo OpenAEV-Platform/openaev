@@ -410,17 +410,21 @@ export const buildTacticNodes = (
   };
 };
 
+// Layout design tokens for event column (px)
+const EVENT_NODE_HEIGHT = 70;
+const EVENT_GAP = 20;
+
 /**
  * Position event nodes to the left of the first tactic group.
- * Todo : update this when we'll do event creation
  */
 export const positionEventNodes = (eventNodes: Node[]): Node[] =>
   eventNodes.map((en, i) => ({
     ...en,
     position: {
       x: -300,
-      y: 50 + i * 140,
+      y: 50 + i * (EVENT_NODE_HEIGHT + EVENT_GAP),
     },
+    style: { width: 180 },
   }));
 
 /**

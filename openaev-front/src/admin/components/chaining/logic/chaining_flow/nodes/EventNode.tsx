@@ -23,9 +23,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
     setAnchorEl(e.currentTarget);
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleMenuClose = () => setAnchorEl(null);
 
   const handleEdit = () => {
     handleMenuClose();
@@ -40,74 +38,89 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
   return (
     <div
       style={{
-        border: `1px solid ${theme.palette.warning.main}50`,
-        borderRadius: theme.spacing(1),
-        padding: '12px 16px',
-        background: `${theme.palette.warning.main}14`,
-        minWidth: 180,
-        textAlign: 'center',
         position: 'relative',
+        minWidth: 200,
+        paddingTop: 20,
       }}
     >
-      <IconButton
-        size="small"
-        onClick={handleMenuOpen}
-        sx={{
+
+      {/* Bolt circle — same color as canvas background, overlapping card top to create a notch illusion */}
+      <div
+        style={{
           position: 'absolute',
-          top: 4,
-          right: 4,
-          padding: '2px',
+          top: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 35,
+          height: 35,
+          borderRadius: '50%',
+          background: theme.palette.background.default,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1,
         }}
       >
-        <MoreVert sx={{ fontSize: 16 }} />
-      </IconButton>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
+        <BoltOutlined sx={{
+          fontSize: 22,
+          fill: 'none',
+          stroke: theme.palette.warning.main,
+        }}
+        />
+      </div>
+
+      {/* Card body */}
+      <div
+        style={{
+          background: `${theme.palette.primary.main}10`,
+          borderRadius: theme.spacing(1),
+          padding: '24px 12px 16px',
+          display: 'grid',
+          gridTemplateColumns: '26px 1fr 26px',
+          alignItems: 'center',
+          position: 'relative',
+        }}
       >
+        <span />
+        <Typography
+          variant="body2"
+          fontWeight={600}
+          sx={{
+            textAlign: 'center',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {data.label}
+        </Typography>
+        <IconButton size="small" onClick={handleMenuOpen} sx={{ padding: '2px' }}>
+          <MoreVert sx={{
+            fontSize: 18,
+            color: theme.palette.primary.main,
+          }}
+          />
+        </IconButton>
+        <Handle
+          type="source"
+          position={Position.Right}
+          style={{
+            background: 'transparent',
+            border: 'none',
+          }}
+        />
+      </div>
+
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <EditOutlined fontSize="small" />
-          </ListItemIcon>
+          <ListItemIcon><EditOutlined fontSize="small" /></ListItemIcon>
           <ListItemText>{t('Edit')}</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleDelete}>
-          <ListItemIcon>
-            <DeleteOutlined fontSize="small" />
-          </ListItemIcon>
+          <ListItemIcon><DeleteOutlined fontSize="small" /></ListItemIcon>
           <ListItemText>{t('Delete')}</ListItemText>
         </MenuItem>
       </Menu>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        justifyContent: 'center',
-      }}
-      >
-        <BoltOutlined sx={{
-          color: theme.palette.warning.main,
-          fontSize: 20,
-        }}
-        />
-        <Typography variant="body2" fontWeight={600}>
-          {data.label}
-        </Typography>
-      </div>
-      {data.conditions && data.conditions.length > 0 && (
-        <Typography
-          variant="caption"
-          sx={{
-            color: 'text.secondary',
-            mt: 0.5,
-            display: 'block',
-          }}
-        >
-          {data.conditions.join(', ')}
-        </Typography>
-      )}
-      <Handle type="source" position={Position.Bottom} />
     </div>
   );
 };
