@@ -18,8 +18,10 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -62,7 +64,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class EndpointService {
+public class EndpointService implements AuditLoggedService {
 
   private static final String ASSET_GROUP_FILTER = "assetGroups";
 
@@ -91,6 +93,7 @@ public class EndpointService {
   @Resource private OpenAEVConfig openAEVConfig;
 
   private final EndpointMapper endpointMapper;
+  private final ObjectMapper objectMapper;
 
   /** Cache of raw install/upgrade script templates keyed by platform/script name. */
   private final Map<String, String> agentScriptTemplateCache = new ConcurrentHashMap<>();
@@ -722,27 +725,36 @@ public class EndpointService {
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
+    Agent agent = createOrUpdateAgent(endpoint, input);
     updateEndpoint(endpoint);
-    return createOrUpdateAgent(endpoint, input);
+    return agent;
   }
 
   private Agent updateExistingAgent(Agent agent, AgentRegisterInput input) {
     Endpoint endpoint = (Endpoint) agent.getAsset();
+    // Capture significant state before mutation
+    Map<String, Object> before = endpoint.significantState(objectMapper);
+
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
-    updateEndpoint(endpoint);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    updateEndpoint(endpoint);
+
+    // Suppress audit logging for heartbeat-only updates (no significant endpoint change)
+    suppressAuditIfUnchanged(before, endpoint.significantState(objectMapper));
+
+    return agent;
   }
 
   private Agent updateExistingEndpointAndCreateAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
-    updateEndpoint(endpoint);
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    endpoint.getAgents().add(agent);
+    updateEndpoint(endpoint);
+    return agent;
   }
 
   private Agent createOrUpdateAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -765,7 +777,10 @@ public class EndpointService {
       setNewAgentAttributes(input, agent);
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    if (!endpoint.getAgents().contains(agent)) {
+      endpoint.getAgents().add(agent);
+    }
+    return agent;
   }
 
   private void setUpdatedEndpointAttributes(Endpoint endpoint, AgentRegisterInput input) {
@@ -801,12 +816,13 @@ public class EndpointService {
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
     endpoint.setTenant(input.getExecutor().getTenant());
+    Agent agent = new Agent();
+    setNewAgentAttributes(input, agent);
+    setUpdatedAgentAttributes(agent, input, endpoint);
+    endpoint.getAgents().add(agent);
     createEndpoint(endpoint);
     addSourceTagToEndpoint(endpoint, input);
-    Agent agent = new Agent();
-    setUpdatedAgentAttributes(agent, input, endpoint);
-    setNewAgentAttributes(input, agent);
-    return agentService.createOrUpdateAgent(agent);
+    return agent;
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {

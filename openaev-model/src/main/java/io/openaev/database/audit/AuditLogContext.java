@@ -1,6 +1,7 @@
 package io.openaev.database.audit;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.web.context.request.RequestAttributes;
@@ -17,24 +18,38 @@ import org.springframework.web.context.request.RequestContextHolder;
  *   <li>Otherwise, a ThreadLocal fallback is used for non-web execution paths.
  * </ul>
  */
-public final class EntityDiffContext {
+public final class AuditLogContext {
 
   private static final String REQUEST_ATTR_BEFORE_SNAPSHOTS = "openaev.audit.beforeSnapshots";
   private static final String REQUEST_ATTR_ENTITY_SNAPSHOTS = "openaev.audit.entitySnapshots";
   private static final String REQUEST_ATTR_CLEANUP_REGISTERED = "openaev.audit.cleanupRegistered";
+  private static final String REQUEST_ATTR_ENABLED = "openaev.audit.enabled";
 
-  private static final ThreadLocal<Map<String, Map<String, Object>>> BEFORE_SNAPSHOTS_TL =
-      ThreadLocal.withInitial(LinkedHashMap::new);
-
-  private static final ThreadLocal<Map<String, EntitySnapshot>> SNAPSHOTS_TL =
-      ThreadLocal.withInitial(LinkedHashMap::new);
-
-  private static final ThreadLocal<Boolean> CLEANUP_REGISTERED_TL =
-      ThreadLocal.withInitial(() -> false);
-
-  private EntityDiffContext() {}
+  private AuditLogContext() {}
 
   // -- Before snapshot --
+
+  /**
+   * Sets whether audit logging is enabled for the current request/thread.
+   *
+   * @param enabled {@code true} to enable audit logging (default), {@code false} to suppress it
+   */
+  public static void setEnabled(boolean enabled) {
+    if (hasRequestContext()) {
+      requestAttributes()
+          .setAttribute(REQUEST_ATTR_ENABLED, enabled, RequestAttributes.SCOPE_REQUEST);
+    }
+  }
+
+  /** Returns {@code true} if audit logging is enabled for the current request/thread. */
+  public static boolean isEnabled() {
+    if (hasRequestContext()) {
+      Object val =
+          requestAttributes().getAttribute(REQUEST_ATTR_ENABLED, RequestAttributes.SCOPE_REQUEST);
+      return val == null || Boolean.TRUE.equals(val);
+    }
+    return true;
+  }
 
   public static void storeBefore(String entityId, Map<String, Object> snapshot) {
     beforeSnapshots().put(entityId, snapshot);
@@ -65,7 +80,7 @@ public final class EntityDiffContext {
               .getAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
       return Boolean.TRUE.equals(val);
     }
-    return Boolean.TRUE.equals(CLEANUP_REGISTERED_TL.get());
+    return true;
   }
 
   public static void markCleanupRegistered() {
@@ -73,9 +88,7 @@ public final class EntityDiffContext {
       requestAttributes()
           .setAttribute(
               REQUEST_ATTR_CLEANUP_REGISTERED, Boolean.TRUE, RequestAttributes.SCOPE_REQUEST);
-      return;
     }
-    CLEANUP_REGISTERED_TL.set(true);
   }
 
   public static void clear() {
@@ -84,10 +97,7 @@ public final class EntityDiffContext {
       attrs.removeAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
-    } else {
-      BEFORE_SNAPSHOTS_TL.remove();
-      SNAPSHOTS_TL.remove();
-      CLEANUP_REGISTERED_TL.remove();
+      attrs.removeAttribute(REQUEST_ATTR_ENABLED, RequestAttributes.SCOPE_REQUEST);
     }
   }
 
@@ -103,10 +113,6 @@ public final class EntityDiffContext {
       attrs.removeAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, RequestAttributes.SCOPE_REQUEST);
       attrs.removeAttribute(REQUEST_ATTR_CLEANUP_REGISTERED, RequestAttributes.SCOPE_REQUEST);
     }
-
-    BEFORE_SNAPSHOTS_TL.remove();
-    SNAPSHOTS_TL.remove();
-    CLEANUP_REGISTERED_TL.remove();
   }
 
   // -- Request/thread storage helpers --
@@ -124,7 +130,7 @@ public final class EntityDiffContext {
       attrs.setAttribute(REQUEST_ATTR_BEFORE_SNAPSHOTS, created, RequestAttributes.SCOPE_REQUEST);
       return created;
     }
-    return BEFORE_SNAPSHOTS_TL.get();
+    return Collections.emptyMap();
   }
 
   @SuppressWarnings("unchecked")
@@ -140,10 +146,10 @@ public final class EntityDiffContext {
       attrs.setAttribute(REQUEST_ATTR_ENTITY_SNAPSHOTS, created, RequestAttributes.SCOPE_REQUEST);
       return created;
     }
-    return SNAPSHOTS_TL.get();
+    return Collections.emptyMap();
   }
 
-  private static boolean hasRequestContext() {
+  public static boolean hasRequestContext() {
     return RequestContextHolder.getRequestAttributes() != null;
   }
 

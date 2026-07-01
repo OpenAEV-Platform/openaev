@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
@@ -22,7 +24,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Endpoint extends Asset {
+public class Endpoint extends Asset implements AuditStateCapturable {
 
   public static final Set<String> BAD_MAC_ADDRESS =
       new HashSet<>(Arrays.asList("ffffffffffff", "000000000000", "0180c2000000"));
@@ -183,7 +185,6 @@ public class Endpoint extends Asset {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @Fetch(FetchMode.SUBSELECT)
-  // method
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
   private List<Agent> agents = new ArrayList<>();
@@ -198,6 +199,7 @@ public class Endpoint extends Asset {
       joinColumns = @JoinColumn(name = "asset_id"),
       inverseJoinColumns = @JoinColumn(name = "inject_id"))
   @JsonIgnore
+  @AuditStateIgnore
   private List<Inject> injects = new ArrayList<>();
 
   public void setHostname(String hostname) {
