@@ -21,6 +21,7 @@ import java.io.IOException;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,7 @@ public class ScenarioExportTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private TagComposer tagComposer;
+  @Autowired private DocumentComposer documentComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -49,62 +51,124 @@ public class ScenarioExportTest extends IntegrationTest {
     injectorContractComposer.reset();
     payloadComposer.reset();
     tagComposer.reset();
+    documentComposer.reset();
   }
 
   private String getJsonExportFromZip(byte[] zipBytes, String entryName) throws IOException {
     return ZipUtils.getZipEntry(zipBytes, "%s.json".formatted(entryName), ZipUtils::streamToString);
   }
 
-  @Test
-  @WithMockUser(isAdmin = true)
-  @DisplayName("When payloads have tags, scenario export has these tags")
-  public void WhenPayloadsHaveTags_ScenarioExportHasTheseTags() throws Exception {
+  @Nested
+  @DisplayName("Scenario document export")
+  class ScenarioDocumentExport {
 
-    ObjectMapper objectMapper = mapper.copy();
-    Scenario scenario =
-        scenarioComposer
-            .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-            .withTag(tagComposer.forTag(TagFixture.getTagWithText("scenario tag")))
-            .withInject(
-                injectComposer
-                    .forInject(InjectFixture.getDefaultInject())
-                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("inject tag")))
-                    .withInjectorContract(
-                        injectorContractComposer
-                            .forInjectorContract(
-                                InjectorContractFixture.createDefaultInjectorContract())
-                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
-                            .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
-                            .withTag(
-                                tagComposer.forTag(
-                                    TagFixture.getTagWithText("this is a payload tag")))
-                            .withPayload(
-                                payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))))
-            .persist()
-            .get();
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments")
+    public void given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments()
+        throws Exception {
+      // Arrange
+      DocumentComposer.Composer docComposer =
+          documentComposer.forDocument(DocumentFixture.getDocumentJpeg());
 
-    manager.flush();
-    manager.clear();
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withDocument(docComposer))
+              .persist()
+              .get();
 
-    byte[] response =
-        mvc.perform(
-                get(SCENARIO_URI + "/" + scenario.getId() + "/export")
-                    .accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().is2xxSuccessful())
-            .andReturn()
-            .getResponse()
-            .getContentAsByteArray();
+      manager.flush();
+      manager.clear();
 
-    String actualJson = getJsonExportFromZip(response, scenario.getName());
+      // Act
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
 
-    objectMapper.addMixIn(Base.class, Mixins.Base.class);
-    objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
-    String tagsJson = objectMapper.writeValueAsString(tagComposer.generatedItems.stream().toList());
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
 
-    assertThatJson(actualJson)
-        .when(Option.IGNORING_ARRAY_ORDER)
-        .node("scenario_tags")
-        .isArray()
-        .isEqualTo(tagsJson);
+      // Assert — inject-attached document must appear in scenario_documents
+      assertThatJson(actualJson)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("scenario_documents")
+          .isArray()
+          .isNotEmpty();
+
+      assertThatJson(actualJson)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("scenario_documents[0].document_id")
+          .isEqualTo(docComposer.get().getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Scenario tag export")
+  class ScenarioTagExport {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("When payloads have tags, scenario export has these tags")
+    public void WhenPayloadsHaveTags_ScenarioExportHasTheseTags() throws Exception {
+
+      ObjectMapper objectMapper = mapper.copy();
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withTag(tagComposer.forTag(TagFixture.getTagWithText("scenario tag")))
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withTag(tagComposer.forTag(TagFixture.getTagWithText("inject tag")))
+                      .withInjectorContract(
+                          injectorContractComposer
+                              .forInjectorContract(
+                                  InjectorContractFixture.createDefaultInjectorContract())
+                              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                              .withDomain(
+                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                              .withTag(
+                                  tagComposer.forTag(
+                                      TagFixture.getTagWithText("this is a payload tag")))
+                              .withPayload(
+                                  payloadComposer.forPayload(
+                                      PayloadFixture.createDefaultCommand()))))
+              .persist()
+              .get();
+
+      manager.flush();
+      manager.clear();
+
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+
+      objectMapper.addMixIn(Base.class, Mixins.Base.class);
+      objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
+      String tagsJson =
+          objectMapper.writeValueAsString(tagComposer.generatedItems.stream().toList());
+
+      assertThatJson(actualJson)
+          .when(Option.IGNORING_ARRAY_ORDER)
+          .node("scenario_tags")
+          .isArray()
+          .isEqualTo(tagsJson);
+    }
   }
 }
