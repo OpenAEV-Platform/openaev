@@ -31,26 +31,30 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :#{#tenantContext.currentTenant} "
+          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
               + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
-      @Param("hostname") String hostname, @Param("macAddresses") String[] macAddresses);
+      @Param("hostname") String hostname,
+      @Param("macAddresses") String[] macAddresses,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
-      @NotNull final @Param("macAddresses") String[] macAddresses);
+      @NotNull final @Param("macAddresses") String[] macAddresses,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :#{#tenantContext.currentTenant} order by e.asset_id",
+          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
-      @NotNull final @Param("externalReference") String externalReference);
+      @NotNull final @Param("externalReference") String externalReference,
+      @NotNull @Param("tenantId") String tenantId);
 
   @Query(
       "SELECT a FROM Inject i"
@@ -116,7 +120,38 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "WITH endpoint_data AS ("
+          "WITH changed_assets AS ("
+              + "SELECT a.asset_id FROM assets a WHERE a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' AND a.asset_updated_at > :from "
+              + "UNION "
+              + "SELECT ia.asset_id FROM injects_assets ia "
+              + "JOIN injects i ON ia.inject_id = i.inject_id "
+              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' WHERE i.inject_updated_at > :from "
+              + "UNION "
+              + "SELECT ia.asset_id FROM injects_assets ia "
+              + "JOIN injects i ON ia.inject_id = i.inject_id "
+              + "JOIN exercises e ON i.inject_exercise = e.exercise_id "
+              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' WHERE e.exercise_updated_at > :from "
+              + "UNION "
+              + "SELECT ia.asset_id FROM injects_assets ia "
+              + "JOIN injects i ON ia.inject_id = i.inject_id "
+              + "JOIN scenarios s ON i.inject_scenario = s.scenario_id "
+              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' WHERE s.scenario_updated_at > :from "
+              + "UNION "
+              + "SELECT fa.asset_id FROM findings_assets fa "
+              + "JOIN findings f ON fa.finding_id = f.finding_id "
+              + "JOIN assets a ON fa.asset_id = a.asset_id AND a.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' WHERE f.finding_updated_at > :from"
+              + "), "
+              + "endpoint_data AS ("
               + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
               + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
               + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
@@ -126,6 +161,7 @@ public interface EndpointRepository
               + "array_agg(DISTINCT i.inject_exercise) FILTER ( WHERE i.inject_exercise IS NOT NULL ) as endpoint_exercises, "
               + "array_agg(DISTINCT i.inject_scenario) FILTER ( WHERE i.inject_scenario IS NOT NULL ) as endpoint_scenarios "
               + "FROM assets a "
+              + "JOIN changed_assets ca ON a.asset_id = ca.asset_id "
               + "LEFT JOIN findings_assets fa ON a.asset_id = fa.asset_id "
               + "LEFT JOIN findings f ON fa.finding_id = f.finding_id "
               + "LEFT JOIN assets_tags at ON a.asset_id = at.asset_id "
@@ -133,13 +169,9 @@ public interface EndpointRepository
               + "LEFT JOIN injects i ON ia.inject_id = i.inject_id "
               + "LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id "
               + "LEFT JOIN scenarios s ON i.inject_scenario = s.scenario_id "
-              + "WHERE a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' "
               + "GROUP BY a.asset_id"
               + ") "
               + "SELECT * FROM endpoint_data ed "
-              + "WHERE ed.endpoint_updated_at > :from "
               + "ORDER BY ed.endpoint_updated_at ASC LIMIT :limit;",
       nativeQuery = true)
   List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);

@@ -26,6 +26,7 @@ import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
+import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
 import { useChatbot } from '../ariane/useChatbotHooks';
 
 const useStyles = makeStyles()(theme => ({
@@ -240,6 +241,24 @@ const TopBar: FunctionComponent = () => {
             <div className={classes.barRightContainer}>
               { settings.platform_license?.license_type === 'nfr' && <ItemBoolean variant="large" label="EE DEV LICENSE" status={false} /> }
               <AskArianeButton />
+              <CtemCommandCenterButton />
+              {/* Discrete separator between the AI (XTM One) actions and the
+                  standard platform actions. A plain inline-block rule (not a MUI
+                  Divider): the container floats its children, so a block <hr>
+                  would wrap the icons to a new line. */}
+              {settings.filigran_chatbot_ai_cgu_status !== 'disabled' && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-block',
+                    verticalAlign: 'middle',
+                    width: '1px',
+                    height: 32,
+                    backgroundColor: 'divider',
+                    mx: 1.5,
+                  }}
+                />
+              )}
               <Tooltip title={t('Install simulation agents')}>
                 <IconButton
                   size="medium"

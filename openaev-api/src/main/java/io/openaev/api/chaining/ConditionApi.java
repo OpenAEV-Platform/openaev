@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -49,6 +50,7 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @Transactional
   public EventOutput create(@Valid @RequestBody EventInput input) {
     return toOutput(conditionService.createConditionTree(input));
   }
@@ -57,11 +59,15 @@ public class ConditionApi extends RestBehavior {
   @Operation(
       summary = "Get a condition tree by root ID",
       description = "Retrieves a condition tree by its root condition ID")
+  @Transactional
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "Condition tree found"),
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#conditionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.CONDITION)
   @GetMapping("/{conditionId}")
   public EventOutput findById(@PathVariable String conditionId) {
     return toOutput(conditionService.findConditionRootById(conditionId));
@@ -70,8 +76,12 @@ public class ConditionApi extends RestBehavior {
   @Operation(
       summary = "Get condition trees by workflow",
       description = "Lists all root conditions for a given workflow")
+  @Transactional
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Condition trees retrieved")})
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW)
   @GetMapping(params = "workflow_id")
   public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
     return conditionService.findNonMapperConditionsByWorkflowId(workflowId).stream()
@@ -89,8 +99,12 @@ public class ConditionApi extends RestBehavior {
     @ApiResponse(responseCode = "400", description = "Invalid input"),
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+  @AccessControl(
+      resourceId = "#conditionId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.CONDITION)
   @PutMapping("/{conditionId}")
+  @Transactional
   public EventOutput update(
       @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
     return toOutput(conditionService.updateConditionTree(conditionId, input));
@@ -106,10 +120,12 @@ public class ConditionApi extends RestBehavior {
     @ApiResponse(responseCode = "404", description = "Condition tree not found")
   })
   @AccessControl(
+      resourceId = "#conditionId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+      resourceType = ResourceType.CONDITION)
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Transactional
   public void delete(@PathVariable String conditionId) {
     conditionService.deleteConditionTree(conditionId);
   }

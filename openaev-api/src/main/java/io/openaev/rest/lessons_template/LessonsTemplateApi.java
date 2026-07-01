@@ -18,10 +18,10 @@ import io.openaev.rest.lessons_template.form.LessonsTemplateCategoryInput;
 import io.openaev.rest.lessons_template.form.LessonsTemplateInput;
 import io.openaev.rest.lessons_template.form.LessonsTemplateQuestionInput;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,7 +39,7 @@ public class LessonsTemplateApi extends RestBehavior {
 
   @PostMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.LESSON_LEARNED)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsTemplate createLessonsTemplate(@Valid @RequestBody LessonsTemplateInput input) {
     LessonsTemplate lessonsTemplate = new LessonsTemplate();
     lessonsTemplate.setUpdateAttributes(input);
@@ -47,12 +47,14 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping({LESSON_TEMPLATE_URI, TENANT_LESSON_TEMPLATE_URI})
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.LESSON_LEARNED)
   public Iterable<LessonsTemplate> lessonsTemplates() {
     return fromIterable(lessonsTemplateRepository.findAll()).stream().toList();
   }
 
   @PostMapping({LESSON_TEMPLATE_URI + "/search", TENANT_LESSON_TEMPLATE_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.LESSON_LEARNED)
   public Page<LessonsTemplate> lessonsTemplates(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -64,6 +66,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -83,6 +86,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.DELETE,
@@ -103,7 +107,7 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsTemplateCategory createLessonsTemplateCategory(
       @PathVariable String lessonsTemplateId,
       @Valid @RequestBody LessonsTemplateCategoryInput input) {
@@ -118,6 +122,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping({LESSON_CATEGORY_URI, TENANT_LESSON_CATEGORY_URI})
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -136,7 +141,7 @@ public class LessonsTemplateApi extends RestBehavior {
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.LESSON_LEARNED)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public LessonsTemplateCategory updateLessonsTemplateCategory(
       @PathVariable String lessonsTemplateId,
       @PathVariable String lessonsTemplateCategoryId,
@@ -154,6 +159,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}",
     TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -169,6 +175,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions",
     TENANT_LESSON_TEMPLATE_URI + "/{lessonsTemplateId}/lessons_template_questions"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -194,6 +201,7 @@ public class LessonsTemplateApi extends RestBehavior {
       TENANT_LESSON_CATEGORY_URI + "/{lessonsTemplateCategoryId}/lessons_template_questions";
 
   @PostMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -213,6 +221,7 @@ public class LessonsTemplateApi extends RestBehavior {
   }
 
   @GetMapping({LESSON_QUESTION_URI, TENANT_LESSON_QUESTION_URI})
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.READ,
@@ -227,6 +236,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
     TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,
@@ -249,6 +259,7 @@ public class LessonsTemplateApi extends RestBehavior {
     LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}",
     TENANT_LESSON_QUESTION_URI + "/{lessonsTemplateQuestionId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#lessonsTemplateId",
       actionPerformed = Action.WRITE,

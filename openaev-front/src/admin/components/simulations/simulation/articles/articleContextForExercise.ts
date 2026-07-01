@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { type FullArticleStore } from '../../../../../actions/channels/Article';
 import {
   addExerciseArticle,
@@ -12,7 +14,8 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 
 const articleContextForExercise = (exerciseId: Exercise['exercise_id']) => {
   const dispatch = useAppDispatch();
-  return {
+  // Stable identity: used as a context provider value on hot screens
+  return useMemo(() => ({
     previewArticleUrl: (article: FullArticleStore) => `/channels/${exerciseId}/${article.article_fullchannel?.channel_id}?preview=true`,
     fetchArticles: () => dispatch(fetchExerciseArticles(exerciseId)),
     fetchChannels: () => dispatch(fetchSimulationChannels(exerciseId)),
@@ -24,7 +27,7 @@ const articleContextForExercise = (exerciseId: Exercise['exercise_id']) => {
     onDeleteArticle: (article: Article) => dispatch(
       deleteExerciseArticle(exerciseId, article.article_id),
     ),
-  };
+  }), [dispatch, exerciseId]);
 };
 
 export default articleContextForExercise;

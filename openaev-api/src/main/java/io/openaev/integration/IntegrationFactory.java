@@ -25,23 +25,41 @@ public abstract class IntegrationFactory {
 
   protected abstract String getClassName();
 
+  /**
+   * Ensures the catalog logo exists in MinIO. Called on every startup (best-effort), even when the
+   * catalog entry already exists in the database. Override in subclasses that upload a logo during
+   * {@link #insertCatalogEntry()}.
+   *
+   * <p>Default implementation is a no-op for factories that do not manage a catalog logo (e.g.
+   * built-in executors).
+   */
+  protected void ensureCatalogLogo() throws Exception {
+    // no-op by default
+  }
+
   @Transactional(rollbackFor = Exception.class)
   public void initialise() throws Exception {
     String className = this.getClassName();
     if (catalogConnectorService.findByFactoryClassName(className).isEmpty()) {
       insertCatalogEntry();
+    } else {
+      try {
+        ensureCatalogLogo();
+      } catch (Exception e) {
+        log.warn("Failed to ensure catalog logo for {}: {}", className, e.getMessage());
+      }
     }
 
     runMigrations();
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public List<Integration> sync(List<ConnectorInstance> instances) {
     List<Integration> list = new ArrayList<>();
     for (ConnectorInstance connectorInstance : instances) {
       try {
         Integration integration = this.spawn(connectorInstance);
         integration.initialise();
-
         list.add(integration);
       } catch (Exception e) {
         log.error(
@@ -55,12 +73,11 @@ public abstract class IntegrationFactory {
     return list;
   }
 
-  @Transactional
-  public List<ConnectorInstance> findRelatedInstances() {
-    return connectorInstanceService.connectorInstances().stream()
-        .filter(ci -> this.getClassName().equals(ci.getClassName()))
-        .map(ci -> (ConnectorInstance) ci)
-        .toList();
+  @Transactional(readOnly = true)
+  public List<ConnectorInstance> findRelatedInstances(String tenantId) {
+    return new ArrayList<>(
+        connectorInstanceService.connectorInstancesByTenantIdAndClassName(
+            tenantId, this.getClassName()));
   }
 
   public abstract Integration spawn(ConnectorInstance instance)

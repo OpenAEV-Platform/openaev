@@ -10,6 +10,7 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -36,11 +37,12 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -52,6 +54,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -82,6 +85,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired private ExecutorRepository executorRepository;
   @Autowired private InjectorRepository injectorRepository;
   @MockitoBean private ManagerFactory managerFactory;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
@@ -321,8 +326,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       Set<ConnectorInstanceConfiguration> configurations =
           instanceDb.getFirst().getConfigurations();
-      // 2 from input + token = 3 (COLLECTOR_ID is already in input, not auto-generated)
-      assertEquals(3, configurations.size());
+      // key_string  + COLLECTOR_ID + OPENAEV_TOKEN + OPENAEV_TENANT_ID= 4 configurations
+      assertEquals(4, configurations.size());
 
       // Verify the COLLECTOR_ID matches the existing collector
       Optional<ConnectorInstanceConfiguration> confValueCollectorId =
@@ -464,9 +469,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           ConnectorInstance.REQUESTED_STATUS_TYPE.stopping,
           instanceDb.getFirst().getRequestedStatus());
       assertEquals(ConnectorInstance.SOURCE.CATALOG_DEPLOYMENT, instanceDb.getFirst().getSource());
-      assertEquals(
-          5,
-          instanceDb.getFirst().getConfigurations().size()); // 3 from input + token + collector_id
+      assertEquals(6, instanceDb.getFirst().getConfigurations().size());
       Set<ConnectorInstanceConfiguration> configurations =
           instanceDb.getFirst().getConfigurations();
       TriConsumer<String, String, Boolean> assertConfiguration =
@@ -520,7 +523,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -563,7 +566,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -607,7 +610,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -636,7 +639,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Manager manager = mock(Manager.class);
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
 
       // Act
@@ -675,7 +678,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       Map<ConnectorInstance, Integration> spawnedIntegrations = new HashMap<>();
       spawnedIntegrations.put(connectorInstance, integration);
 
-      when(managerFactory.getManager()).thenReturn(manager);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
       when(manager.getSpawnedIntegrations()).thenReturn(spawnedIntegrations);
       doThrow(new RuntimeException("Integration failed to stop")).when(integration).initialise();
 
@@ -729,6 +732,11 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     CatalogConnector catalogConnector = getCatalogConnector();
     ConnectorInstance instance =
         getConnectorInstance(catalogConnector, Set.of(confValue1, confValue3));
+    // confValue2 must belong to a different instance to satisfy @NotNull on connectorInstance
+    // while still being absent from `instance`'s configuration results
+    ConnectorInstancePersisted otherInstance =
+        getConnectorInstance(catalogConnector, new HashSet<>());
+    confValue2.setConnectorInstance(otherInstance);
     connectorInstanceConfigurationRepository.save(confValue2);
 
     String response =
@@ -1094,5 +1102,113 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         .inPath("[*].connector_instance_log")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("log 3"));
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Connector instance created in tenant X should NOT be readable from tenant Y")
+    void given_connectorInstanceInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act + Assert --------
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Connector instance created in tenant X should be readable from tenant X")
+    void given_connectorInstanceInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/"
+                          + tenantX.getId()
+                          + "/connector-instances/"
+                          + connectorInstance.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertThatJson(response).inPath("connector_instance_id").isEqualTo(connectorInstance.getId());
+    }
+
+    @Test
+    @DisplayName("Connector instance configs from tenant X should NOT be readable from tenant Y")
+    void given_connectorInstanceInTenantX_should_notExposeConfigurationsToTenantY()
+        throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act + Assert --------
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId()
+                      + "/configurations")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
   }
 }

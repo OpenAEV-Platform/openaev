@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +29,7 @@ public class PayloadArgumentApi {
   @Operation(
       summary = "Get all argument types with their sub-types",
       description = "Returns the argument types availables for payload arguments.")
+  @Transactional
   @GetMapping("/types")
   public ResponseEntity<List<ArgumentTypeOutput>> getArgumentTypes() {
     List<ArgumentTypeOutput> types =

@@ -3,6 +3,7 @@ package io.openaev.rest.connector_instance;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.rest.connector_instance.dto.*;
 import io.openaev.rest.helper.RestBehavior;
@@ -22,6 +23,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -37,6 +39,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   private final ConnectorOrchestrationService orchestrationService;
 
   @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
+  @Transactional
   @Operation(
       summary = "Create a new connector instance",
       description = "Create a new connector instance in the platform")
@@ -57,7 +60,8 @@ public class ConnectorInstanceApi extends RestBehavior {
     // --- /!\ --- SECURITY END
 
     // only instance managed by XTM Composer can be created through this API
-    return orchestrationService.createConnectorInstance(catalogConnectorWithConfigMap, safeInput);
+    return orchestrationService.createConnectorInstance(
+        catalogConnectorWithConfigMap, safeInput, TenantContext.getCurrentTenant());
   }
 
   @GetMapping(
@@ -66,6 +70,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}"
       })
   @Operation(summary = "Retrieve connector Instance by id")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {
@@ -84,6 +89,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations"
       })
   @Operation(summary = "Retrieve connector Instance configuratiosn by instance id")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
@@ -104,6 +110,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations",
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/configurations"
       })
+  @Transactional
   @Operation(summary = "Update connector instance configuration")
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @ApiResponse(
@@ -135,6 +142,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/logs"
       })
   @Operation(summary = "Retrieve connector instance logs")
+  @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   @ApiResponse(
       responseCode = "200",
@@ -152,6 +160,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status",
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}/requested-status"
       })
+  @Transactional
   @Operation(
       summary = "Update requested status",
       description = "Update requested status of connector instance")
@@ -173,6 +182,7 @@ public class ConnectorInstanceApi extends RestBehavior {
         TENANT_CONNECTOR_INSTANCE_URI + "/{connectorInstanceId}"
       })
   @Operation(summary = "Delete connector instance")
+  @Transactional
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.CATALOG)
   @ApiResponses(
       value = {

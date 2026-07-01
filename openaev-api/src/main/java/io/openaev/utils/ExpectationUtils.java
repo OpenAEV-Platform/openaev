@@ -21,7 +21,6 @@ import io.openaev.model.expectation.PreventionExpectation;
 import io.openaev.model.expectation.VulnerabilityExpectation;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.AssetToExecute;
-import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -155,7 +154,8 @@ public class ExpectationUtils {
       final AssetGroup assetGroup,
       final List<Agent> executedAgents,
       final Function<AssetGroup, T> createExpectationForAsset,
-      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent) {
+      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent,
+      final boolean isAgentless) {
     List<T> returnList = new ArrayList<>();
 
     T expectation = createExpectationForAsset.apply(assetGroup);
@@ -164,7 +164,7 @@ public class ExpectationUtils {
             .map(agent -> createExpectationForAgent.apply(agent, assetGroup))
             .toList();
 
-    if (!expectationList.isEmpty()) {
+    if (!expectationList.isEmpty() || isAgentless) {
       returnList.add(expectation);
       returnList.addAll(expectationList);
     }
@@ -176,13 +176,18 @@ public class ExpectationUtils {
       AssetToExecute assetToExecute,
       final List<Agent> executedAgents,
       final Function<AssetGroup, T> createExpectationForAsset,
-      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent) {
+      final BiFunction<Agent, AssetGroup, T> createExpectationForAgent,
+      final boolean isAgentless) {
     List<T> returnList = new ArrayList<>();
 
     if (assetToExecute.isDirectlyLinkedToInject()) {
       returnList.addAll(
           getExpectationForAsset(
-              null, executedAgents, createExpectationForAsset, createExpectationForAgent));
+              null,
+              executedAgents,
+              createExpectationForAsset,
+              createExpectationForAgent,
+              isAgentless));
     }
 
     assetToExecute
@@ -194,7 +199,8 @@ public class ExpectationUtils {
                         assetGroup,
                         executedAgents,
                         createExpectationForAsset,
-                        createExpectationForAgent)));
+                        createExpectationForAgent,
+                        isAgentless)));
 
     return returnList;
   }
@@ -207,7 +213,7 @@ public class ExpectationUtils {
    * @param executedAgents the list of executed agents
    * @param expectation the expectation details
    * @param valueTargetedAssetsMap a map of value targeted assets
-   * @param injectId the ID of the inject
+   * @param inject the inject details
    * @return a list of prevention expectations
    */
   public static List<PreventionExpectation> getPreventionExpectationsByAsset(
@@ -216,7 +222,8 @@ public class ExpectationUtils {
       List<io.openaev.database.model.Agent> executedAgents,
       io.openaev.model.inject.form.Expectation expectation,
       Map<String, Endpoint> valueTargetedAssetsMap,
-      String injectId) {
+      Inject inject) {
+    String injectId = inject != null ? inject.getId() : null;
     return getExpectations(
         assetToExecute,
         executedAgents,
@@ -244,7 +251,8 @@ public class ExpectationUtils {
                     OAEV_IMPLANT_CALDERA.equals(implantType)
                         ? agent.getParent().getId()
                         : agent.getId(),
-                    valueTargetedAssetsMap)));
+                    valueTargetedAssetsMap)),
+        isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 
   /**
@@ -255,7 +263,7 @@ public class ExpectationUtils {
    * @param executedAgents the list of executed agents
    * @param expectation the expectation details
    * @param valueTargetedAssetsMap a map of value targeted assets
-   * @param injectId the ID of the inject
+   * @param inject the inject details
    * @return a list of detection expectations
    */
   public static List<DetectionExpectation> getDetectionExpectationsByAsset(
@@ -264,7 +272,8 @@ public class ExpectationUtils {
       List<io.openaev.database.model.Agent> executedAgents,
       io.openaev.model.inject.form.Expectation expectation,
       Map<String, Endpoint> valueTargetedAssetsMap,
-      String injectId) {
+      Inject inject) {
+    String injectId = inject != null ? inject.getId() : null;
     return getExpectations(
         assetToExecute,
         executedAgents,
@@ -292,7 +301,8 @@ public class ExpectationUtils {
                     OAEV_IMPLANT_CALDERA.equals(implantType)
                         ? agent.getParent().getId()
                         : agent.getId(),
-                    valueTargetedAssetsMap)));
+                    valueTargetedAssetsMap)),
+        isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 
   /**
@@ -302,13 +312,15 @@ public class ExpectationUtils {
    * @param assetToExecute the asset to execute the expectation on
    * @param executedAgents the list of executed agents
    * @param expectation the expectation details
+   * @param inject the inject details
    * @return a list of manual expectations
    */
   public static List<ManualExpectation> getManualExpectationsByAsset(
       String implantType,
       AssetToExecute assetToExecute,
       List<io.openaev.database.model.Agent> executedAgents,
-      io.openaev.model.inject.form.Expectation expectation) {
+      io.openaev.model.inject.form.Expectation expectation,
+      Inject inject) {
     return getExpectations(
         assetToExecute,
         executedAgents,
@@ -328,7 +340,8 @@ public class ExpectationUtils {
                 OAEV_IMPLANT_CALDERA.equals(implantType) ? agent.getParent() : agent,
                 assetToExecute.asset(),
                 assetGroup,
-                expectation.getExpirationTime()));
+                expectation.getExpirationTime()),
+        isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 
   /**
@@ -339,6 +352,7 @@ public class ExpectationUtils {
    * @param executedAgents the list of executed agents
    * @param expectation the expectation details
    * @param valueTargetedAssetsMap a map of value targeted assets
+   * @param inject the inject details
    * @return a list of vulnerability expectations
    */
   public static List<VulnerabilityExpectation> getVulnerabilityExpectationsByAsset(
@@ -347,7 +361,8 @@ public class ExpectationUtils {
       List<io.openaev.database.model.Agent> executedAgents,
       io.openaev.model.inject.form.Expectation expectation,
       Map<String, Endpoint> valueTargetedAssetsMap,
-      @Nullable String injectId) {
+      Inject inject) {
+    String injectId = inject != null ? inject.getId() : null;
     return getExpectations(
         assetToExecute,
         executedAgents,
@@ -375,7 +390,8 @@ public class ExpectationUtils {
                     OAEV_IMPLANT_CALDERA.equals(implantType)
                         ? agent.getParent().getId()
                         : agent.getId(),
-                    valueTargetedAssetsMap)));
+                    valueTargetedAssetsMap)),
+        isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject));
   }
 
   private static List<String> getIpsFromAsset(Asset asset) {
@@ -618,5 +634,20 @@ public class ExpectationUtils {
    */
   public static boolean isAssetGroupExpectation(InjectExpectation e) {
     return e.getAssetGroup() != null && e.getAsset() == null && e.getAgent() == null;
+  }
+
+  /**
+   * Determine if an asset is agentless and need to have expectations created
+   *
+   * @param asset to test
+   * @param inject the inject details
+   * @return true if is agentless and injector payload, false if not
+   */
+  private static boolean isAgentlessAssetExpectationNecessary(Asset asset, Inject inject) {
+    return inject != null
+        && inject.getInjector() != null
+        && !inject.getInjector().isPayloads()
+        && asset instanceof Endpoint endpoint
+        && endpoint.getAgents().isEmpty();
   }
 }

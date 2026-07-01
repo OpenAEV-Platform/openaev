@@ -24,6 +24,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -33,6 +34,7 @@ public class ScenarioSimulationApi {
   private final ExerciseService exerciseService;
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({
     SCENARIO_URI + "/{scenarioId}/exercises",
     TENANT_SCENARIO_URI + "/{scenarioId}/exercises"
@@ -51,6 +53,7 @@ public class ScenarioSimulationApi {
     SCENARIO_URI + "/{scenarioId}/exercises/search",
     TENANT_SCENARIO_URI + "/{scenarioId}/exercises/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -79,6 +82,7 @@ public class ScenarioSimulationApi {
     SCENARIO_URI + "/{scenarioId}/simulations/options",
     TENANT_SCENARIO_URI + "/{scenarioId}/simulations/options"
   })
+  @Transactional
   public List<FilterUtilsJpa.Option> optionsByName(
       @PathVariable @NotBlank final String scenarioId,
       @RequestParam(required = false) final String searchText) {

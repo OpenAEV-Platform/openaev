@@ -1,5 +1,6 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.tenants.TenantService.SOFT_DELETE_RETENTION_DAYS;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.TENANT_NAME;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
@@ -17,9 +18,11 @@ import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.MinioConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.*;
 import io.openaev.datapack.packs.V20260330_Default_tenant_data;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.RoleService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -67,6 +70,7 @@ class TenantServiceTest extends IntegrationTest {
     // -- ACT --
     Tenant created = tenantService.create(tenant);
     TenantContext.setCurrentTenant(tenant.getId());
+
     // Simulate for tenant creation because Dataprocessor has @Profile("!test")
     datapack.process(created);
 
@@ -95,16 +99,19 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // Verify the 9 domains from PresetDomain are created for this tenant
+    // Verify the 10 domains from PresetDomain are created for this tenant
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(domainRepository.findAll()).hasSize(9);
+    assertThat(domainRepository.findAll()).hasSize(10);
     // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
     assertThat(cweRepository.findAll()).hasSize(7);
-    assertThat(roleService.findAll(created.getId())).hasSize(3);
+    List<Role> roles = roleService.findAll(created.getId());
+    assertThat(roles).extracting(Role::getName).contains("Admin", "Manager", "Observer");
+    assertThat(roles).hasSizeGreaterThanOrEqualTo(3);
     List<Group> groups = groupRepository.findAllByTenantId(created.getId());
-    assertThat(groups).hasSize(3);
+    assertThat(groups).extracting(Group::getName).contains("Admin", "Manager", "Observer");
+    assertThat(groups).hasSizeGreaterThanOrEqualTo(3);
     assertThat(
             groups.stream()
                 .filter(group -> group.getName().equals("Admin"))
@@ -188,6 +195,14 @@ class TenantServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertThat(softDeleted.getDeletedAt()).isNotNull();
     assertThat(tenantRepository.findById(created.getId())).isPresent();
+  }
+
+  @Test
+  void should_fail_when_soft_deleting_default_tenant() {
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> tenantService.softDelete(DEFAULT_TENANT_UUID))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("Default tenant cannot be deleted");
   }
 
   @Test

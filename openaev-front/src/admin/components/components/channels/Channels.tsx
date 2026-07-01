@@ -1,5 +1,5 @@
 import { ChevronRightOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
+import { List, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -34,23 +34,19 @@ const useStyles = makeStyles()(() => ({
     gap: '10px',
   },
   itemHead: {
-    paddingLeft: 10,
     textTransform: 'uppercase',
     cursor: 'pointer',
     height: 40,
   },
-  item: {
-    paddingLeft: 10,
-    height: 50,
-  },
+  item: { height: 50 },
 }));
 
 const headerStyles: Record<string, CSSProperties> = {
   iconSort: {
     position: 'absolute',
-    margin: '0 0 0 5px',
+    margin: '0',
     padding: 0,
-    top: '0px',
+    top: '8px',
   },
   channel_type: {
     width: '15%',
@@ -126,10 +122,15 @@ const Channels = () => {
       </div>
       <div className="clearfix" />
       <List>
-        <ListItem
+        <ListItemButton
           classes={{ root: classes.itemHead }}
+          component="div"
+          disableRipple
           divider={false}
-          style={{ paddingTop: 0 }}
+          sx={{
+            'cursor': 'pointer',
+            '&:hover': { backgroundColor: 'transparent' },
+          }}
         >
           <ListItemIcon>
             <span
@@ -167,7 +168,7 @@ const Channels = () => {
             )}
           />
           <ListItemSecondaryAction>&nbsp;</ListItemSecondaryAction>
-        </ListItem>
+        </ListItemButton>
         {sortedChannels.map(channel => (
           <ListItemButton
             key={channel.channel_id}

@@ -1,6 +1,7 @@
 package io.openaev.service.catalog_connectors;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.*;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.CatalogConnectorConfiguration;
@@ -12,15 +13,18 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
 public class CatalogConnectorService {
-  private final String EXCLUDED_CONFIG_KEY = "OPENAEV_TOKEN";
   private static final Set<String> EXCLUDED_CONFIG_KEYS =
-      Set.of("EXECUTOR_ID", "INJECTOR_ID", "COLLECTOR_ID");
+      Stream.concat(
+              PROTECTED_KEYS.stream(),
+              Stream.of(OPENAEV_KEY_URL, OPENAEV_KEY_TOKEN, OPENAEV_KEY_TENANT_ID))
+          .collect(Collectors.toUnmodifiableSet());
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final CatalogConnectorMapper catalogConnectorMapper;
   private final ConnectorInstanceService connectorInstanceService;
@@ -106,7 +110,6 @@ public class CatalogConnectorService {
         .map(CatalogConnector::getCatalogConnectorConfigurations)
         .orElse(Collections.emptySet())
         .stream()
-        .filter(config -> !EXCLUDED_CONFIG_KEY.equals(config.getConnectorConfigurationKey()))
         .filter(config -> !EXCLUDED_CONFIG_KEYS.contains(config.getConnectorConfigurationKey()))
         .collect(
             Collectors.toCollection(

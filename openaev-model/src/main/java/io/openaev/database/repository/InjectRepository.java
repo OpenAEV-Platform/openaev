@@ -51,6 +51,16 @@ public interface InjectRepository
 
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /**
+   * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
+   * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of
+   * rows updated.
+   */
+  @Modifying
+  @Query("UPDATE Inject i SET i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
+  int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
+
   // -- SIMULATION --
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);
@@ -100,20 +110,24 @@ public interface InjectRepository
               + "LEFT JOIN injects_teams ite ON ite.inject_id = f.inject_id "
               + "LEFT JOIN exercises_teams et ON et.exercise_id = f.inject_exercise AND f.inject_all_teams "
               + "LEFT JOIN scenarios_teams st ON st.scenario_id = f.inject_scenario AND f.inject_all_teams "
-              + "WHERE f.inject_updated_at > :from "
-              + "OR ic.injector_contract_updated_at > :from  "
-              + "OR EXISTS ("
-              + "    SELECT 1 "
-              + "    FROM injects_dependencies sub_idp "
-              + "    WHERE sub_idp.inject_parent_id = f.inject_id "
-              + "      AND sub_idp.dependency_updated_at > :from"
-              + ")"
-              + "OR EXISTS ("
-              + "    SELECT 1 "
-              + "    FROM injectors_contracts sub_ic "
-              + "    WHERE sub_ic.injector_contract_id = inject_children.inject_injector_contract "
-              + "      AND sub_ic.injector_contract_updated_at > :from "
-              + ")"
+              // Semi-join on a UNION of independently index-backed branches: the previous flat
+              // OR across joined tables (plus a GREATEST sort) forced a sequential scan of the
+              // whole join product on every indexing tick.
+              + "WHERE f.inject_id IN ("
+              + "    SELECT i2.inject_id FROM injects i2 WHERE i2.inject_updated_at > :from "
+              + "    UNION "
+              + "    SELECT i2.inject_id FROM injects i2 "
+              + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = i2.inject_injector_contract "
+              + "      WHERE c2.injector_contract_updated_at > :from "
+              + "    UNION "
+              + "    SELECT d2.inject_parent_id FROM injects_dependencies d2 "
+              + "      WHERE d2.dependency_updated_at > :from "
+              + "    UNION "
+              + "    SELECT d2.inject_parent_id FROM injects_dependencies d2 "
+              + "      JOIN injects child2 ON child2.inject_id = d2.inject_children_id "
+              + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract "
+              + "      WHERE c2.injector_contract_updated_at > :from "
+              + ") "
               + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);

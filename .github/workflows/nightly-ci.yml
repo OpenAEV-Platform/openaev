@@ -23,15 +23,68 @@ jobs:
     name: Backend Compile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile
 
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/frontend-build
+
+  prepare-release-assets:
+    name: Prepare Release Assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compute versions
+        id: versions
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "binary_version=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "catalog_version=${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "binary_version=latest" >> "$GITHUB_OUTPUT"
+            echo "catalog_version=rolling" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download agent & implant binaries
+        run: |
+          BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
+
+          if [[ "${{ steps.versions.outputs.catalog_version }}" == "rolling" || "${{ steps.versions.outputs.catalog_version }}" == "prerelease" ]]; then
+            LOCAL_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "$BINARY_VERSION")"
+          else
+            LOCAL_VERSION="$BINARY_VERSION"
+          fi
+
+          chmod +x scripts/download-binaries.sh
+          bash scripts/download-binaries.sh "$BINARY_VERSION" "$LOCAL_VERSION"
+
+      - name: Patch catalog version
+        run: |
+          CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+          CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
+
+          jq --arg ver "$CATALOG_VERSION" \
+            '.contracts[].container_version = $ver | .version = $ver' \
+            "$CATALOG_FILE" > catalog.tmp
+          mv catalog.tmp "$CATALOG_FILE"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: |
+            openaev-api/src/main/resources/agents/
+            openaev-api/src/main/resources/implants/
+            openaev-api/src/main/resources/catalog/
 
   # ────────────────────────────────────────────────────────────────────
   # Backend API tests — full suite (no sharding)
@@ -87,7 +140,7 @@ jobs:
       ENGINE_URL: http://localhost:9200
       OPENBAS_RABBITMQ_HOSTNAME: localhost
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -144,7 +197,7 @@ jobs:
           --health-cmd "pg_isready -U openaev" --health-interval 10s
           --health-timeout 5s --health-retries 5
       opensearch:
-        image: opensearchproject/opensearch:3.6.0
+        image: opensearchproject/opensearch:3.7.0
         ports:
           - 9200:9200
         env:
@@ -175,7 +228,7 @@ jobs:
       ENGINE_ENGINESELECTOR: opensearch
       OPENBAS_RABBITMQ_HOSTNAME: localhost
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -221,11 +274,13 @@ jobs:
 
   backend-package:
     name: Backend Package
-    needs: [ frontend-build, backend-compile ]
+    needs: [ frontend-build, backend-compile, prepare-release-assets ]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package
+        with:
+          download-release-assets: 'true'
 
   # ────────────────────────────────────────────────────────────────────
   # E2E tests — browser × engine matrix (Linux x64, services managed by GitHub)
@@ -286,8 +341,9 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Search engine — conditional per matrix (services: can't vary by matrix)
       - name: Start ${{ matrix.engine.name }}
@@ -334,7 +390,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.22.3"
+          node-version: "22.23.1"
 
       - name: Install corepack
         run: npm install -g corepack
@@ -345,7 +401,7 @@ jobs:
         working-directory: openaev-front
 
       - name: Cache Yarn dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ steps.yarn-cache-dir.outputs.dir }}
           key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
@@ -436,6 +492,28 @@ jobs:
           path: ${{ runner.temp }}/app.log
           if-no-files-found: warn
 
+      - name: Wait for API readiness (XTM Composer prerequisite)
+        run: |
+          echo "⏳ Waiting for API readiness on /api/me before starting XTM Composer..."
+          for i in $(seq 1 90); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${OPENAEV_ADMIN_TOKEN}" \
+              http://localhost:8080/api/me || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API ready for XTM Composer after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ API is not ready on /api/me after 180s"
+          tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || true
+          exit 1
+
+      - name: Start XTM Composer
+        uses: ./.github/actions/start-xtm-composer
+        with:
+          openaev-url: http://localhost:8080
+
       - name: Run E2E tests (${{ matrix.engine.name }} / ${{ matrix.browser }})
         working-directory: openaev-front
         run: >-
@@ -521,8 +599,9 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Start ${{ matrix.engine.name }}
         run: |
@@ -567,7 +646,7 @@ jobs:
       - name: Set up Node.js 22.11
         uses: actions/setup-node@v6
         with:
-          node-version: "22.22.3"
+          node-version: "22.23.1"
 
       - name: Install corepack
         run: npm install -g corepack
@@ -578,7 +657,7 @@ jobs:
         working-directory: openaev-front
 
       - name: Cache Yarn dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ steps.yarn-cache-dir.outputs.dir }}
           key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
@@ -668,6 +747,28 @@ jobs:
           path: ${{ runner.temp }}/app.log
           if-no-files-found: warn
 
+      - name: Wait for API readiness (XTM Composer prerequisite)
+        run: |
+          echo "⏳ Waiting for API readiness on /api/me before starting XTM Composer..."
+          for i in $(seq 1 90); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${OPENAEV_ADMIN_TOKEN}" \
+              http://localhost:8080/api/me || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API ready for XTM Composer after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ API is not ready on /api/me after 180s"
+          tail -200 "${{ runner.temp }}/app.log" 2>/dev/null || true
+          exit 1
+
+      - name: Start XTM Composer
+        uses: ./.github/actions/start-xtm-composer
+        with:
+          openaev-url: http://localhost:8080
+
       - name: Run E2E tests (${{ matrix.engine.name }} / ${{ matrix.browser }})
         working-directory: openaev-front
         run: >-
@@ -684,4 +785,3 @@ jobs:
         with:
           name: playwright-report-arm-${{ matrix.engine.name }}-${{ matrix.browser }}
           path: openaev-front/test-results/
-

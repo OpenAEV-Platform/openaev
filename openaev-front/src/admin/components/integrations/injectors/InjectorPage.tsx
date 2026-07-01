@@ -21,11 +21,12 @@ const InjectorPage = () => {
     <>
       {catalogConnector
         ? (
-            <ConnectorPage extraInfoComponent={(
-              <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
-                <InjectorContracts />
-              </Paper>
-            )}
+            <ConnectorPage
+              extraInfoComponent={(
+                <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
+                  <InjectorContracts />
+                </Paper>
+              )}
             />
           )
         : (

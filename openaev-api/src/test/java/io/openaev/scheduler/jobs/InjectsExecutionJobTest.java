@@ -250,7 +250,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
 
     Manager mockManager = mock(Manager.class);
     when(mockManager.requestEmailInjector()).thenReturn(mockEmailExecutor);
-    doReturn(mockManager).when(managerFactory).getManager();
+    doReturn(mockManager).when(managerFactory).getManager(anyString());
 
     // -- ACT --
     comchecksExecutionJob.execute(null);

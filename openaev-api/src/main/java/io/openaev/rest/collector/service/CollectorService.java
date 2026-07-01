@@ -22,7 +22,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -30,6 +29,7 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -184,6 +184,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   @Transactional
   public Collector register(
+      @NotNull final String tenantId,
       @NotNull String id,
       @NotNull String type,
       @NotNull String name,
@@ -199,41 +200,31 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector =
-        collectorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
             ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
             : null;
 
-    if (collector != null) {
-      collector.setName(name);
-      collector.setType(type);
-      collector.setCollectorType(collectorType);
-      collector.setExternal(external);
-      if (external) {
-        collector.setUpdatedAt(Instant.now());
-      }
-      if (securityPlatform != null) {
-        collector.setSecurityPlatform(securityPlatform);
-      }
-      return collectorRepository.save(collector);
+    if (collector == null) {
+      collector = new Collector();
+      collector.setId(id);
+      collector.setTenant(new Tenant(tenantId));
+      collector.setPeriod(period); // immutable after creation
     }
 
-    Collector newCollector = new Collector();
-    newCollector.setId(id);
-    newCollector.setName(name);
-    newCollector.setType(type);
-    newCollector.setCollectorType(collectorType);
-    newCollector.setExternal(external);
-    newCollector.setPeriod(period);
-    if (securityPlatform != null) {
-      newCollector.setSecurityPlatform(securityPlatform);
+    collector.setName(name);
+    collector.setType(type);
+    collector.setCollectorType(collectorType);
+    collector.setExternal(external);
+    if (external) {
+      collector.setUpdatedAt(Instant.now());
     }
-    // For new entities, isNew()=true triggers persist() via Spring Data save().
-    newCollector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-    return collectorRepository.save(newCollector);
+    if (securityPlatform != null) {
+      collector.setSecurityPlatform(securityPlatform);
+    }
+    return collectorRepository.save(collector);
   }
 
   public List<Collector> collectorsForPayload(String payloadId) {

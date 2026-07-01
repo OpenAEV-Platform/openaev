@@ -152,6 +152,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  // NOTE: do NOT add @Fetch(FetchMode.SUBSELECT) to the collections of this entity. Contracts are
+  // loaded through Inject's EAGER @JoinColumnsOrFormulas association; subselect-fetching their
+  // collections re-renders the loading query's SQL AST and triggers an infinite recursion
+  // (StackOverflowError) in Hibernate's AbstractSqlAstWalker on paginated inject searches.
+  // hibernate.default_batch_fetch_size keeps these collections batched instead.
   @Schema(implementation = String[].class)
   @Getter
   @ManyToMany(fetch = FetchType.EAGER)

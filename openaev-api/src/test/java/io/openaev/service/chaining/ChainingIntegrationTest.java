@@ -77,7 +77,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   @MockitoBean private io.openaev.executors.Executor executor;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
-  @MockitoSpyBean UserService userService;
+  @MockitoSpyBean private UserService userService;
   @Autowired private TestUserHolder testUserHolder;
   String injectInputJson;
   InjectorContract injectorContractSaved;
@@ -479,7 +479,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowRun = executionWorkflows.getFirst();
       // Retrieve the inject created from the step
       Step createdStep =
-          stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId()).stream()
+          stepService.findAllStepActiveByWorkflowRunId(workflowRun.getId()).stream()
               .findFirst()
               .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {

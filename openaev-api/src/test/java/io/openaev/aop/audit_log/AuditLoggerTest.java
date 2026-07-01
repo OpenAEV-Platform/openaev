@@ -1,5 +1,7 @@
 package io.openaev.aop.audit_log;
 
+import static io.openaev.aop.audit_log.AuditLogTestHelper.setupFileAppender;
+import static io.openaev.aop.audit_log.AuditLogTestHelper.teardownFileAppender;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -9,9 +11,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
-import ch.qos.logback.core.FileAppender;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Team;
@@ -27,13 +26,10 @@ import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,11 +38,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -62,10 +55,6 @@ import org.springframework.transaction.annotation.Transactional;
     })
 class AuditLoggerTest extends IntegrationTest {
 
-  static {
-    System.setProperty("AUDIT_LOG_DIR", "target/test-audit-logger");
-  }
-
   private static final Path AUDIT_LOG_FILE = Paths.get("target/test-audit-logger/audit.log");
   private static final String TEST_APPENDER_NAME = "AUDIT_LOG_TEST_APPENDER";
 
@@ -78,46 +67,14 @@ class AuditLoggerTest extends IntegrationTest {
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @MockitoBean private PreviewFeatureService previewFeatureService;
 
-  @DynamicPropertySource
-  static void registerProperties(DynamicPropertyRegistry registry) {
-    registry.add("openaev.audit-logs.transports", () -> "file");
-    registry.add("openaev.audit-logs.halt-on-failure", () -> "false");
-  }
-
   @BeforeAll
   void setupAuditFileAppender() throws Exception {
-    Files.createDirectories(AUDIT_LOG_FILE.getParent());
-    Files.deleteIfExists(AUDIT_LOG_FILE);
-
-    LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-    ch.qos.logback.classic.Logger auditLogger = context.getLogger("AUDIT_LOG");
-
-    if (auditLogger.getAppender(TEST_APPENDER_NAME) == null) {
-      PatternLayoutEncoder encoder = new PatternLayoutEncoder();
-      encoder.setContext(context);
-      encoder.setPattern("%msg%n");
-      encoder.start();
-
-      FileAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender = new FileAppender<>();
-      appender.setName(TEST_APPENDER_NAME);
-      appender.setContext(context);
-      appender.setFile(AUDIT_LOG_FILE.toString());
-      appender.setAppend(true);
-      appender.setEncoder(encoder);
-      appender.start();
-
-      auditLogger.addAppender(appender);
-      auditLogger.setAdditive(false);
-    }
+    setupFileAppender(AUDIT_LOG_FILE, TEST_APPENDER_NAME);
   }
 
   @AfterAll
   void teardownAuditFileAppender() {
-    LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
-    ch.qos.logback.classic.Logger auditLogger = context.getLogger("AUDIT_LOG");
-    if (auditLogger.getAppender(TEST_APPENDER_NAME) != null) {
-      auditLogger.detachAppender(TEST_APPENDER_NAME);
-    }
+    teardownFileAppender(TEST_APPENDER_NAME);
   }
 
   @BeforeEach
@@ -269,22 +226,8 @@ class AuditLoggerTest extends IntegrationTest {
   }
 
   private void assertAuditLogContainsNewContent(long sizeBefore, String... expectedSnippets) {
-    Awaitility.await()
-        .atMost(10, TimeUnit.SECONDS)
-        .untilAsserted(
-            () -> {
-              assertThat(Files.exists(AUDIT_LOG_FILE)).isTrue();
-              long sizeAfter = Files.size(AUDIT_LOG_FILE);
-              assertThat(sizeAfter).isGreaterThan(sizeBefore);
-
-              String fullContent = Files.readString(AUDIT_LOG_FILE, StandardCharsets.UTF_8);
-              String newContent =
-                  fullContent.substring((int) Math.min(sizeBefore, fullContent.length()));
-
-              for (String expectedSnippet : expectedSnippets) {
-                assertThat(newContent).contains(expectedSnippet);
-              }
-            });
+    AuditLogTestHelper.assertAuditLogContainsNewContent(
+        AUDIT_LOG_FILE, sizeBefore, expectedSnippets);
   }
 
   /**
@@ -295,11 +238,7 @@ class AuditLoggerTest extends IntegrationTest {
    */
   private void assertAuditLogDoesNotContainNewContent(long sizeBefore, String unexpectedSnippet)
       throws Exception {
-    if (!Files.exists(AUDIT_LOG_FILE)) {
-      return;
-    }
-    String fullContent = Files.readString(AUDIT_LOG_FILE, StandardCharsets.UTF_8);
-    String newContent = fullContent.substring((int) Math.min(sizeBefore, fullContent.length()));
-    assertThat(newContent).doesNotContain(unexpectedSnippet);
+    AuditLogTestHelper.assertAuditLogDoesNotContainNewContent(
+        AUDIT_LOG_FILE, sizeBefore, unexpectedSnippet);
   }
 }

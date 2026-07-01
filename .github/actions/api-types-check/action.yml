@@ -61,7 +61,7 @@ runs:
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: "22.22.3"
+        node-version: "22.23.1"
 
     - name: Install corepack
       run: npm install -g corepack
@@ -74,7 +74,7 @@ runs:
       working-directory: openaev-front
 
     - name: Cache Yarn dependencies
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
@@ -86,7 +86,7 @@ runs:
       shell: bash
       working-directory: openaev-front
 
-    - name: Wait for and download backend JAR artifact
+    - name: Wait for backend JAR artifact
       shell: bash
       run: |
         echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
@@ -112,11 +112,11 @@ runs:
           sleep 5
         done
 
-        echo "📥 Downloading openaev-api-jar..."
-        if ! gh run download "${{ github.run_id }}" -n openaev-api-jar -D openaev-api/target; then
-          echo "❌ Failed to download openaev-api-jar artifact"
-          exit 1
-        fi
+    - name: Download backend JAR artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: openaev-api-jar
+        path: openaev-api/target
 
     - name: Verify backend JAR
       shell: bash

@@ -6,12 +6,12 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.14</version>
+        <version>3.5.16</version>
     </parent>
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.260604.0</version>
+    <version>2.260623.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -29,10 +29,10 @@
         <commons-validator.version>1.10.1</commons-validator.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
-        <pyroscope.version>2.5.4</pyroscope.version>
-        <spring-security-crypto.version>6.5.10</spring-security-crypto.version>
+        <pyroscope.version>2.6.0</pyroscope.version>
+        <spring-security-crypto.version>6.5.11</spring-security-crypto.version>
         <bouncycastle.version>1.84</bouncycastle.version>
-        <netty.version>4.1.133.Final</netty.version>
+        <netty.version>4.1.135.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <tools-jackson-core.version>3.1.4</tools-jackson-core.version>
         <tomcat.version>10.1.55</tomcat.version>
@@ -179,7 +179,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.7.0</version>
                 <configuration>
                     <java>
                         <includes>
@@ -199,8 +199,10 @@
     </build>
 
     <modules>
+        <module>openaev-annotation-processor</module>
         <module>openaev-model</module>
         <module>openaev-framework</module>
         <module>openaev-api</module>
+        <module>openaev-maven-plugin</module>
     </modules>
 </project>

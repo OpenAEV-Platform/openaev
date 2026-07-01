@@ -1,17 +1,15 @@
 package io.openaev.integration;
 
 import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
-import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.lock.Lock;
-import io.openaev.database.audit.TenantAssertionControl;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.repository.TenantRepository;
 import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
-import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,63 +20,62 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ManagerFactory implements DependenciesManager {
   private final List<IntegrationFactory> factories;
-  private final TenantRepository tenantRepository;
-  private final TenantRegistrationExecutor tenantRegistrationExecutor;
+  private final List<BuiltinTenantRegistrable> builtinRegistrables;
 
-  private volatile Manager manager = null;
+  private final ConcurrentHashMap<String, Manager> managers = new ConcurrentHashMap<>();
 
+  /**
+   * Returns the {@link Manager} for the given tenant, creating and initializing it on first access.
+   * One Manager instance is maintained per tenant.
+   *
+   * @param tenantId the tenant identifier
+   * @return the Manager for that tenant
+   */
   @Transactional
-  @Lock(type = MANAGER_FACTORY, key = "manager-factory")
-  public Manager getManager() {
-    if (manager == null) {
-      try {
-        registerBuiltinsForAllTenants();
-        this.manager = new Manager(factories);
-        this.manager.monitorIntegrations();
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize Manager", e);
-      }
-    }
-    return this.manager;
+  @Lock(type = MANAGER_FACTORY, key = "#tenantId")
+  public Manager getManager(String tenantId) {
+    return managers.computeIfAbsent(tenantId, this::createManager);
   }
 
   /**
-   * Ensures built-in connectors are registered for every existing tenant. Each tenant registration
-   * runs in its own transaction and persistence context (via {@link TenantRegistrationExecutor}) to
-   * avoid JPA entity identity collisions when connector IDs are reused across tenants.
+   * Creates a new {@link Manager} for the given tenant. Integration discovery and startup are
+   * handled by the next {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle — no
+   * immediate {@link Manager#monitorIntegrations()} call here to avoid connecting to external
+   * services (Caldera, Tanium, etc.) during bean initialization or tenant creation, where those
+   * services may not be reachable.
    */
-  private void registerBuiltinsForAllTenants() {
-    List<Tenant> tenants = fromIterable(tenantRepository.findAll());
-    TenantAssertionControl.suppress();
+  private Manager createManager(@NotBlank final String tenantId) {
     try {
-      for (Tenant tenant : tenants) {
-        try {
-          // Use isolated transaction per tenant to avoid JPA L1 cache identity collisions
-          // (connector IDs are reused across tenants).
-          tenantRegistrationExecutor.registerForTenantIsolated(tenant);
-        } catch (DependenciesManagerException e) {
-          log.error(
-              "Failed to register built-in connectors for tenant '{}': {}",
-              tenant.getName(),
-              e.getMessage(),
-              e);
-        }
+      for (BuiltinTenantRegistrable component : builtinRegistrables) {
+        component.registerForTenant(tenantId);
       }
-    } finally {
-      TenantAssertionControl.restore();
+      Manager manager = new Manager(tenantId, factories);
+      manager.monitorIntegrations();
+      return manager;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize Manager for tenant " + tenantId, e);
     }
   }
 
   // -- TENANT DEPENDENCIES --
 
+  /**
+   * Creates (or retrieves) the {@link Manager} for the given tenant. Called by the {@link
+   * DependenciesManager} framework on every new tenant creation.
+   *
+   * <p>Also registers all built-in connectors (injectors, executor) for the new tenant. {@link
+   * io.openaev.context.TenantContext} is already set to the new tenant by {@link
+   * io.openaev.service.tenants.TenantService} before this method is called.
+   */
   @Override
-  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    tenantRegistrationExecutor.registerForTenant(tenant);
+  public void createDependencyForTenant(Tenant tenant) {
+    // Create the Manager for this tenant (must run after registration so connectors exist in DB).
+    managers.computeIfAbsent(tenant.getId(), this::createManager);
   }
 
   @Override
   public void deleteDependencyForTenant(String tenantId) {
-    // Built-in connectors are tenant-scoped and deleted by CASCADE.
+    managers.remove(tenantId);
   }
 
   @Override

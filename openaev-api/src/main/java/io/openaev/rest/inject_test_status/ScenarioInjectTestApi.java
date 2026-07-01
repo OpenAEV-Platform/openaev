@@ -39,6 +39,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/injects/test/search",
     TENANT_SCENARIO_URI + "/{scenarioId}/injects/test/search"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,

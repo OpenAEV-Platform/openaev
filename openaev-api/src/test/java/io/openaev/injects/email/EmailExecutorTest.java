@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.UserRepository;
@@ -24,7 +25,6 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @SpringBootTest
@@ -109,7 +110,7 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);
@@ -155,7 +156,7 @@ public class EmailExecutorTest extends IntegrationTest {
     Execution execution = new Execution(executableInject.isRuntime());
 
     // -- EXECUTE --
-    emailInjectorIntegrationFactory.registerConnectorForTenant();
+    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     io.openaev.executors.Injector emailExecutor =
         new EmailExecutor(injectorContext, emailService, injectExpectationService);
     emailExecutor.process(execution, executableInject);

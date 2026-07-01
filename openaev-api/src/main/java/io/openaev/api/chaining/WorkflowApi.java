@@ -23,6 +23,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -44,6 +45,7 @@ public class WorkflowApi extends RestBehavior {
       summary = "Fetch workflow configuration for a workflow",
       description =
           "Fetch the workflow configuration for a given workflow, including time-out, rate-limit, safe-mode and scope rules.")
+  @Transactional
   @ApiResponse(responseCode = "200", description = "Workflow configuration retrieved successfully")
   @ApiResponse(
       responseCode = "404",
@@ -51,7 +53,10 @@ public class WorkflowApi extends RestBehavior {
           "Workflow configuration not found for the specified workflow, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @GetMapping("/{workflowId}/configuration")
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.WORKFLOW)
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.WORKFLOW)
   @LogExecutionTime
   public WorkflowConfigurationOutput getWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId) {
@@ -65,6 +70,7 @@ public class WorkflowApi extends RestBehavior {
       description =
           "Returns assets that are in scope after applying allowlist/denylist rules. "
               + "Assets from allowlisted groups are included, then any individually or group-denylisted assets are removed.")
+  @Transactional
   @ApiResponse(responseCode = "200", description = "Valid assets retrieved successfully")
   @ApiResponse(
       responseCode = "404",
@@ -90,7 +96,11 @@ public class WorkflowApi extends RestBehavior {
           "Workflow or workflow configuration not found, or the INJECT_CHAINING feature is disabled")
   @ApiResponse(responseCode = "500", description = "Unexpected server error")
   @PutMapping("/{workflowId}/configuration")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.WORKFLOW)
+  @Transactional
+  @AccessControl(
+      resourceId = "#workflowId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.WORKFLOW)
   public WorkflowConfigurationOutput updateWorkflowConfiguration(
       @PathVariable @NotBlank final String workflowId,
       @Valid @RequestBody final WorkflowConfigurationInput input) {

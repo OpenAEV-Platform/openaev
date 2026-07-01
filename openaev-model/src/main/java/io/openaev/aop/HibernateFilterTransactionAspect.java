@@ -22,9 +22,7 @@ public class HibernateFilterTransactionAspect {
 
   private final EntityManager entityManager;
 
-  @Before(
-      "@annotation(org.springframework.transaction.annotation.Transactional) || "
-          + "@annotation(jakarta.transaction.Transactional)")
+  @Before("@annotation(org.springframework.transaction.annotation.Transactional)")
   public void enableFilters() {
     String tenantId = TenantContext.getCurrentTenant();
     Session session = entityManager.unwrap(Session.class);
