@@ -239,6 +239,7 @@ runs:
           -e MINIO_ACCESS_KEY \
           -e MINIO_ACCESS_SECRET \
           -e ENGINE_URL \
+          -e ENGINE_ENGINESELECTOR \
           -e OPENBAS_RABBITMQ_HOSTNAME \
           -e OPENAEV_ADMIN_EMAIL \
           -e OPENAEV_ADMIN_PASSWORD \
