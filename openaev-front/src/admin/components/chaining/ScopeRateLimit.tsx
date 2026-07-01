@@ -1,3 +1,4 @@
+import { InfoOutlined } from '@mui/icons-material';
 import {
   Box,
   FormControl,
@@ -7,6 +8,7 @@ import {
   Select,
   type SelectChangeEvent,
   Switch,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -52,20 +54,29 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
         variant="h4"
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          gap: theme.spacing(1),
           m: 0,
         }}
       >
         {t('Simulation rate limit')}
-        <Switch checked={rateLimitEnabled} onChange={handleToggleRateLimit} />
+        <Tooltip title={t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}>
+          <InfoOutlined
+            color="primary"
+            sx={{
+              fontSize: 18,
+              cursor: 'pointer',
+            }}
+          />
+        </Tooltip>
+        <Switch checked={rateLimitEnabled} onChange={handleToggleRateLimit} sx={{ ml: 'auto' }} />
       </Typography>
 
       <Paper sx={{ p: 2 }} variant="outlined">
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: '80px 80px 1fr',
+            gridTemplateColumns: '80px 80px',
             gap: theme.spacing(2),
             alignItems: 'end',
           }}
@@ -99,16 +110,6 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
               ))}
             </Select>
           </FormControl>
-
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.grey['500'],
-              alignSelf: 'center',
-            }}
-          >
-            {t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}
-          </Typography>
         </Box>
       </Paper>
     </Box>

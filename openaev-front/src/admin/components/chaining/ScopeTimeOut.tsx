@@ -1,3 +1,4 @@
+import { InfoOutlined } from '@mui/icons-material';
 import {
   Box,
   FormControl,
@@ -7,6 +8,7 @@ import {
   Select,
   type SelectChangeEvent,
   Switch,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -60,16 +62,28 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
         variant="h4"
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          gap: theme.spacing(1),
           m: 0,
         }}
       >
         {t('Simulation time out')}
+        <Tooltip title={t('Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached.')}>
+          <InfoOutlined
+            color="primary"
+            sx={{
+              fontSize: 18,
+              cursor: 'pointer',
+            }}
+          />
+        </Tooltip>
         <Switch
           checked={timeoutEnabled}
           onChange={handleToggleTimeout}
-          sx={{ m: 0 }}
+          sx={{
+            m: 0,
+            ml: 'auto',
+          }}
         />
       </Typography>
 
@@ -77,7 +91,7 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: '80px 80px 1fr',
+            gridTemplateColumns: '80px 80px',
             gap: theme.spacing(2),
             alignItems: 'end',
           }}
@@ -115,18 +129,6 @@ const ScopeTimeOut = ({ workflowConfiguration, onUpdate }: Props) => {
               ))}
             </Select>
           </FormControl>
-
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.grey['500'],
-              alignSelf: 'center',
-            }}
-          >
-            {t(
-              'Maximum total runtime for the entire attack chaining scenario. Execution stops automatically once the timeout is reached.',
-            )}
-          </Typography>
         </Box>
       </Paper>
     </Box>
