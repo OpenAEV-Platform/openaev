@@ -28,8 +28,6 @@ public interface ReportRepository
   Optional<ReportInjectComment> findReportInjectComment(
       @NotNull final UUID reportId, @NotNull final String injectId);
 
-  Optional<Report> findByIdAndExercise_Id(@NotNull UUID reportId, @NotBlank String exerciseId);
-
   @Query(
       "SELECT r FROM Report r JOIN r.exercise e WHERE r.id = :id AND e.id = :exerciseId AND e.tenant.id = :tenantId")
   Optional<Report> findByIdAndExercise_IdAndTenantId(

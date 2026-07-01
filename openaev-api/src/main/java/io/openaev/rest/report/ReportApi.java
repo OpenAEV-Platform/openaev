@@ -76,7 +76,7 @@ public class ReportApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Report> exerciseReports(@PathVariable String exerciseId) {
-    return this.reportService.reportsFromExercise(exerciseId);
+    return this.reportService.reportsFromExercise(exerciseId, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({

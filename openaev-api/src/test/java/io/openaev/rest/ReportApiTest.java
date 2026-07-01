@@ -17,10 +17,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Report;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.form.ExerciseInput;
-import io.openaev.database.model.Report;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.mapper.MapperApi;
@@ -127,7 +127,7 @@ public class ReportApiTest extends IntegrationTest {
     void retrieveReportForExercise() throws Exception {
       // PREPARE
       List<Report> reports = List.of(report);
-      when(reportService.reportsFromExercise(anyString())).thenReturn(reports);
+      when(reportService.reportsFromExercise(anyString(), anyString())).thenReturn(reports);
 
       // -- EXECUTE --
       String response =
@@ -141,7 +141,7 @@ public class ReportApiTest extends IntegrationTest {
               .getContentAsString();
 
       // -- ASSERT --
-      verify(reportService).reportsFromExercise("fakeExercisesId123");
+      verify(reportService).reportsFromExercise(eq("fakeExercisesId123"), any());
       assertNotNull(response);
       assertEquals(JsonPath.read(response, "$[0].report_id"), report.getId());
     }
@@ -347,6 +347,39 @@ public class ReportApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Reports in tenant X should NOT be listed from tenant Y")
+    void given_reportInTenantX_should_notBeListableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+
+      String exerciseId = createTenantExercise(tenantX.getId());
+      String reportId = createTenantReport(tenantX.getId(), exerciseId);
+
+      // -------- Act --------
+      // Same exerciseId, but queried via tenant Y — reportsFromExercise now filters by tenantId,
+      // so the report belonging to tenant X must not appear.
+      String response =
+          integrationMvc
+              .perform(
+                  get("/api/tenants/" + tenantY.getId() + "/exercises/" + exerciseId + "/reports")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> reportIds = JsonPath.read(response, "$[*].report_id");
+      assertThat(reportIds).doesNotContain(reportId);
     }
 
     @Test

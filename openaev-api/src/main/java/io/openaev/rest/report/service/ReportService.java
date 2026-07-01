@@ -48,8 +48,10 @@ public class ReportService {
         .orElseThrow(ElementNotFoundException::new);
   }
 
-  public List<Report> reportsFromExercise(@NotNull final String exerciseId) {
-    return this.reportRepository.findAll(ReportSpecification.fromExercise(exerciseId));
+  public List<Report> reportsFromExercise(
+      @NotNull final String exerciseId, @NotBlank final String tenantId) {
+    return this.reportRepository.findAll(
+        ReportSpecification.fromExerciseAndTenant(exerciseId, tenantId));
   }
 
   public Report updateReport(@NotNull final Report report, @NotNull final ReportInput input) {
