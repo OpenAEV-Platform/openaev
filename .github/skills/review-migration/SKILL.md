@@ -17,23 +17,24 @@ git diff --name-only HEAD~1 | grep "migration"
 If no migration files are changed: skip this skill entirely.
 If migrations are present: review each one following the steps below.
 
-## Step 2 — Verify naming and sequencing
+## Step 2 — Verify naming format and uniqueness
 
 ```bash
-# List the last 10 migrations to check the expected next sequence number
+# List the last 10 migrations to verify naming format consistency
 ls openaev-api/src/main/java/io/openaev/migration/ | sort | tail -10
 ```
 
 Verify for each new migration:
-- ☐ Name follows `V{Y}_{XX}__{Description}.java` (PascalCase description, double underscore)
-- ☐ `{XX}` is exactly the next sequential number (no gaps, no duplicates)
-- ☐ When `{XX}` would exceed 99, `{Y}` increments and `{XX}` restarts at 01
+- ☐ Name follows `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`
+- ☐ `yyyyMMddHHmmssSSS` timestamp block is present (17 digits)
+- ☐ `{description}` uses snake_case (letters, digits, underscores)
+- ☐ Migration filename is unique
 - ☐ No existing migration file was modified (Flyway checksums will break)
 
 ## Step 3 — Verify class structure
 
 ```bash
-cat openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java
+cat openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
 Verify:
@@ -59,7 +60,7 @@ Every DDL statement must be guarded:
 ```bash
 # Check for unguarded DDL
 grep -n "CREATE TABLE\|ADD COLUMN\|DROP TABLE\|DROP COLUMN\|CREATE INDEX" \
-  openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java | grep -v "IF NOT EXISTS\|IF EXISTS"
+  openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java | grep -v "IF NOT EXISTS\|IF EXISTS"
 ```
 
 Any result = 🟠 HIGH — not idempotent, will fail on re-run.
@@ -69,7 +70,7 @@ Any result = 🟠 HIGH — not idempotent, will fail on re-run.
 ```bash
 # Check if new tables include tenant_id
 grep -n "CREATE TABLE\|tenant_id\|REFERENCES tenants\|ON DELETE CASCADE" \
-  openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java
+  openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
 Cross-reference with the entity class:
@@ -88,7 +89,7 @@ For tenant-scoped tables, verify:
 
 ```bash
 # Check for NOT NULL columns without DEFAULT
-grep -n "NOT NULL" openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java | grep -v "DEFAULT\|tenant_id\|id"
+grep -n "NOT NULL" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java | grep -v "DEFAULT\|tenant_id\|id"
 ```
 
 For each `NOT NULL` column on an existing (non-new) table:
@@ -97,14 +98,14 @@ For each `NOT NULL` column on an existing (non-new) table:
 
 ```bash
 # Check for DROP statements
-grep -n "DROP TABLE\|DROP COLUMN" openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java
+grep -n "DROP TABLE\|DROP COLUMN" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
 Any `DROP` without a prior deprecation migration = 🔴 CRITICAL.
 
 ```bash
 # Check for large data migrations (UPDATE/INSERT without WHERE or LIMIT)
-grep -n "UPDATE\|INSERT INTO\|DELETE FROM" openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java
+grep -n "UPDATE\|INSERT INTO\|DELETE FROM" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
 Large data migrations must be batched in chunks of 1000 rows.
@@ -113,7 +114,7 @@ Large data migrations must be batched in chunks of 1000 rows.
 
 ```bash
 # Check if the migrated entity is indexed
-grep -rn "indexing_status" openaev-api/src/main/java/io/openaev/migration/V{Y}_{XX}__*.java
+grep -rn "indexing_status" openaev-api/src/main/java/io/openaev/migration/V{major}_{yyyyMMddHHmmssSSS}__*.java
 ```
 
 If the migration modifies a table that has a corresponding Elasticsearch index:

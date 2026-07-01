@@ -40,7 +40,7 @@ Additional migration-specific levels:
 |---|---|
 | 🔴 **CRITICAL** | `DROP TABLE` / `DROP COLUMN` without deprecation migration, `NOT NULL` without `DEFAULT` on populated table, modified existing migration (Flyway checksum break), missing `tenant_id` on new tenant-scoped table |
 | 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` guards, unique constraint without `tenant_id` on tenant-scoped table, missing FK `ON DELETE CASCADE` on tenant FK, missing index on `tenant_id` |
-| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows), missing `DELETE FROM indexing_status` after ES-indexed entity change, sequential number gap |
+| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows), missing `DELETE FROM indexing_status` after ES-indexed entity change, invalid migration naming format |
 | 🟢 **LOW** | Non-descriptive migration name, minor style inconsistency |
 
 ## What NOT to Flag
@@ -57,7 +57,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 Follow `.github/skills/review-migration/SKILL.md` step-by-step for all bash commands.
 
 The SKILL covers:
-1. **Naming & sequencing** — `V{Y}_{XX}__{Description}.java`, PascalCase, next sequential number, no existing migration modified
+1. **Naming format & uniqueness** — `V{major}_{yyyyMMddHHmmssSSS}__{description}.java`, timestamp block present, unique filename, no existing migration modified
 2. **Class structure** — extends `BaseJavaMigration`, `@Component`, `migrate(Context context)`, `try (Statement statement = ...)` pattern
 3. **Idempotency** — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DROP TABLE IF EXISTS`, `CREATE INDEX IF NOT EXISTS`
 4. **Tenant isolation** — `tenant_id NOT NULL`, FK with `ON DELETE CASCADE`, index on `tenant_id`, composite unique constraints
@@ -68,13 +68,13 @@ The SKILL covers:
 
 ```
 🗄️ Migration Review Summary
-Migration: [V{Y}_{XX}__{Description}.java]
+Migration: [V{major}_{yyyyMMddHHmmssSSS}__{description}.java]
 Findings: 🔴 [n] Critical | 🟠 [n] High | 🟡 [n] Medium | 🟢 [n] Low
 
 ## Findings
 
 ### [Severity emoji] [Category] — [Short description]
-- **File**: `path/to/V{Y}_{XX}__Migration.java:line`
+- **File**: `path/to/V{major}_{yyyyMMddHHmmssSSS}__migration.java:line`
 - **Rule**: [Which rule from migration.instructions.md]
 - **Risk**: [What could go wrong in production]
 - **Fix**: [Concrete SQL or code change]
