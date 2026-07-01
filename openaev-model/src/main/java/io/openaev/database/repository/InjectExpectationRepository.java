@@ -438,24 +438,33 @@ public interface InjectExpectationRepository
   List<RawInjectExpectationIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
 
+  /**
+   * Fetches inject expectations updated after {@code from}, using a compound keyset cursor when
+   * {@code lastId} is non-null to avoid skipping items that share the same {@code updated_at}
+   * timestamp across batch boundaries.
+   *
+   * <p>When {@code lastId} is {@code null} the query degrades to a simple {@code > :from} cursor
+   * (first-batch behaviour). When non-null it additionally returns rows at exactly {@code from}
+   * whose ID is strictly greater than {@code lastId}.
+   */
   @Query(
       value =
           """
     WITH changed_expectations AS (
-        SELECT ie.inject_expectation_id FROM injects_expectations ie
-          WHERE ie.inject_expectation_updated_at > :from
-          OR (ie.inject_expectation_updated_at = :from AND ie.inject_expectation_id > :lastId)
-        UNION
-        SELECT ie.inject_expectation_id FROM injects_expectations ie
-          JOIN injects i ON i.inject_id = ie.inject_id
-          WHERE i.inject_updated_at > :from
-          OR (i.inject_updated_at = :from AND ie.inject_expectation_id > :lastId)
-        UNION
-        SELECT ie.inject_expectation_id FROM injects_expectations ie
-          JOIN injects i ON i.inject_id = ie.inject_id
-          JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
-          WHERE ic.injector_contract_updated_at > :from
-          OR (ic.injector_contract_updated_at = :from AND ie.inject_expectation_id > :lastId)
+      SELECT ie.inject_expectation_id FROM injects_expectations ie
+        WHERE ie.inject_expectation_updated_at > :from
+        OR (:lastId IS NOT NULL AND ie.inject_expectation_updated_at = :from AND ie.inject_expectation_id > :lastId)
+      UNION
+      SELECT ie.inject_expectation_id FROM injects_expectations ie
+        JOIN injects i ON i.inject_id = ie.inject_id
+        WHERE i.inject_updated_at > :from
+        OR (:lastId IS NOT NULL AND i.inject_updated_at = :from AND ie.inject_expectation_id > :lastId)
+      UNION
+      SELECT ie.inject_expectation_id FROM injects_expectations ie
+        JOIN injects i ON i.inject_id = ie.inject_id
+        JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
+        WHERE ic.injector_contract_updated_at > :from
+        OR (:lastId IS NOT NULL AND ic.injector_contract_updated_at = :from AND ie.inject_expectation_id > :lastId)
     ),
     inject_expectation_data AS (
       SELECT
@@ -506,7 +515,7 @@ public interface InjectExpectationRepository
       ie.inject_expectation_id,
       ic.injector_contract_id,
       i.inject_title,
-        i.tenant_id
+      i.tenant_id
     )
     SELECT * FROM inject_expectation_data ied
     WHERE ied.agent_id IS NULL

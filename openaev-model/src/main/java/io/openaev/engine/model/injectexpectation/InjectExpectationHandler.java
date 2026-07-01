@@ -25,7 +25,7 @@ public class InjectExpectationHandler implements Handler<EsInjectExpectation> {
   @Override
   public List<EsInjectExpectation> fetch(Instant from, int limit) {
     Instant queryFrom = from != null ? from : Instant.ofEpochMilli(0);
-    return this.injectExpectationRepository.findForIndexing(queryFrom, limit).stream()
+    return this.injectExpectationRepository.findForIndexingAfter(queryFrom, null, limit).stream()
         .map(this::map)
         .toList();
   }
