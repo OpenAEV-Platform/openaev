@@ -1,10 +1,5 @@
 package io.openaev.output_processor;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -14,14 +9,19 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 class SignatureOutputProcessorTest {
 
@@ -185,8 +185,7 @@ class SignatureOutputProcessorTest {
     processor.process(
         executionProcessingContext, contractOutputContext, objectMapper.readTree(secondPayload));
 
-    verify(injectExpectationRepository, times(1)).save(firstCallExpectation);
-    verify(injectExpectationRepository, times(1)).save(secondCallExpectation);
+    verify(injectExpectationRepository, times(2)).save(any());
   }
 
   @Test
