@@ -725,8 +725,9 @@ public class EndpointService implements AuditLoggedService {
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
+    Agent agent = createOrUpdateAgent(endpoint, input);
     updateEndpoint(endpoint);
-    return createOrUpdateAgent(endpoint, input);
+    return agent;
   }
 
   private Agent updateExistingAgent(Agent agent, AgentRegisterInput input) {
@@ -736,25 +737,24 @@ public class EndpointService implements AuditLoggedService {
 
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
-    updateEndpoint(endpoint);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    Agent saved = agentService.createOrUpdateAgent(agent);
+    updateEndpoint(endpoint);
 
     // Suppress audit logging for heartbeat-only updates (no significant endpoint change)
-    Endpoint after = (Endpoint) saved.getAsset();
-    suppressAuditIfUnchanged(before, after.significantState(objectMapper));
+    suppressAuditIfUnchanged(before, endpoint.significantState(objectMapper));
 
-    return saved;
+    return agent;
   }
 
   private Agent updateExistingEndpointAndCreateAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
-    updateEndpoint(endpoint);
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    endpoint.getAgents().add(agent);
+    updateEndpoint(endpoint);
+    return agent;
   }
 
   private Agent createOrUpdateAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -777,7 +777,10 @@ public class EndpointService implements AuditLoggedService {
       setNewAgentAttributes(input, agent);
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    if (!endpoint.getAgents().contains(agent)) {
+      endpoint.getAgents().add(agent);
+    }
+    return agent;
   }
 
   private void setUpdatedEndpointAttributes(Endpoint endpoint, AgentRegisterInput input) {
@@ -813,12 +816,13 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
     endpoint.setTenant(input.getExecutor().getTenant());
+    Agent agent = new Agent();
+    setNewAgentAttributes(input, agent);
+    setUpdatedAgentAttributes(agent, input, endpoint);
+    endpoint.getAgents().add(agent);
     createEndpoint(endpoint);
     addSourceTagToEndpoint(endpoint, input);
-    Agent agent = new Agent();
-    setUpdatedAgentAttributes(agent, input, endpoint);
-    setNewAgentAttributes(input, agent);
-    return agentService.createOrUpdateAgent(agent);
+    return agent;
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
