@@ -1,6 +1,5 @@
 import { InfoOutlined } from '@mui/icons-material';
 import {
-  Alert,
   Box,
   FormControl,
   InputLabel,
@@ -8,13 +7,11 @@ import {
   Paper,
   Select,
   type SelectChangeEvent,
-  Snackbar,
   Switch,
   Tooltip,
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import React from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '../../../utils/api-types';
@@ -29,34 +26,21 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const [validationError, setValidationError] = React.useState(false);
-
   const rateLimitEnabled = workflowConfiguration?.workflow_configuration_rate_limit_enabled ?? false;
   const maxAttempts = workflowConfiguration?.workflow_configuration_max_attempts ?? 1;
   const maxTemporalRateSeconds = workflowConfiguration?.workflow_configuration_max_temporal_rate_seconds ?? 1800;
   const minutes = Math.floor(maxTemporalRateSeconds / 60) || 1;
-
-  const handleSaveAttempt = (overrides: Partial<WorkflowConfigurationInput>) => {
-    const effectiveRateLimitEnabled = overrides.workflow_configuration_rate_limit_enabled ?? rateLimitEnabled;
-    const effectiveMaxAttempts = overrides.workflow_configuration_max_attempts ?? maxAttempts;
-    const effectiveMaxTemporalRateSeconds = overrides.workflow_configuration_max_temporal_rate_seconds ?? maxTemporalRateSeconds;
-    if (effectiveRateLimitEnabled && (!effectiveMaxAttempts || !effectiveMaxTemporalRateSeconds)) {
-      setValidationError(true);
-      return;
-    }
-    onUpdate(overrides);
-  };
 
   const handleToggleRateLimit = () => {
     onUpdate({ workflow_configuration_rate_limit_enabled: !rateLimitEnabled });
   };
 
   const handleMaxAttemptsChange = (event: SelectChangeEvent<number>) => {
-    handleSaveAttempt({ workflow_configuration_max_attempts: Number(event.target.value) });
+    onUpdate({ workflow_configuration_max_attempts: Number(event.target.value) });
   };
 
   const handleMinutesChange = (event: SelectChangeEvent<number>) => {
-    handleSaveAttempt({ workflow_configuration_max_temporal_rate_seconds: Number(event.target.value) * 60 });
+    onUpdate({ workflow_configuration_max_temporal_rate_seconds: Number(event.target.value) * 60 });
   };
 
   return (
@@ -70,20 +54,29 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
         variant="h4"
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          gap: theme.spacing(1),
           m: 0,
         }}
       >
         {t('Simulation rate limit')}
-        <Switch checked={rateLimitEnabled} onChange={handleToggleRateLimit} />
+        <Tooltip title={t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}>
+          <InfoOutlined
+            color="primary"
+            sx={{
+              fontSize: 18,
+              cursor: 'pointer',
+            }}
+          />
+        </Tooltip>
+        <Switch checked={rateLimitEnabled} onChange={handleToggleRateLimit} sx={{ ml: 'auto' }} />
       </Typography>
 
       <Paper sx={{ p: 2 }} variant="outlined">
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: '80px 80px auto',
+            gridTemplateColumns: '80px 80px',
             gap: theme.spacing(2),
             alignItems: 'end',
           }}
@@ -117,37 +110,8 @@ const ScopeRateLimit = ({ workflowConfiguration, onUpdate }: ScopeRateLimitProps
               ))}
             </Select>
           </FormControl>
-
-          <Tooltip
-            title={t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}
-            placement="top"
-          >
-            <InfoOutlined sx={{
-              color: theme.palette.grey['500'],
-              alignSelf: 'center',
-              cursor: 'help',
-            }}
-            />
-          </Tooltip>
         </Box>
       </Paper>
-      <Snackbar
-        open={validationError}
-        autoHideDuration={4000}
-        onClose={() => setValidationError(false)}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-      >
-        <Alert
-          onClose={() => setValidationError(false)}
-          severity="error"
-          sx={{ width: '100%' }}
-        >
-          {t('Rate limit is enabled but no values are configured. Please set Max Attempts and Minutes before saving.')}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
