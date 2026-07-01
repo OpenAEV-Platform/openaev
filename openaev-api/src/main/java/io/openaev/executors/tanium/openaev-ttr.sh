@@ -65,12 +65,19 @@ detach_with_nohup() {
     # macOS: no setsid, double-fork via subshell
     ( nohup /bin/sh -c "$WRAPPED_CMD" >/dev/null 2>&1 & ) &
   fi
+  LAUNCHER_PID=$!
+  # Brief pause to let the launcher start; if it exits non-zero, the spawn failed.
+  sleep 1
+  if ! kill -0 "$LAUNCHER_PID" 2>/dev/null && ! wait "$LAUNCHER_PID" 2>/dev/null; then
+    return 1
+  fi
 }
 
 detach_with_systemd() {
   # Requires elevated privileges (Tanium agent runs as root)
   command -v systemd-run >/dev/null 2>&1 || return 1
-  systemd-run --quiet /bin/sh -c "$WRAPPED_CMD" 2>/dev/null
+  # --wait makes systemd-run block until the transient unit exits, giving us a real exit code.
+  systemd-run --quiet --wait /bin/sh -c "$WRAPPED_CMD" 2>/dev/null
 }
 
 detach_with_at() {

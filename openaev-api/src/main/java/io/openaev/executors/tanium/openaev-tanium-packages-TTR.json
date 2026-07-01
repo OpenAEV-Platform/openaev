@@ -11,8 +11,10 @@
         "display_name": "OpenAEV Subprocessor (Unix) TTR",
         "files": [
           {
+            "hash": "41e2e27dfb399a4431caa5efe12d6b5749b9f23800185fdf7a5c39786026b033",
             "name": "openaev-ttr.sh",
             "source": "",
+            "size": 4648,
             "download_seconds": 0,
             "direct_download_flag": false
           }
