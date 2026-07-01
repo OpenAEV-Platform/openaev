@@ -14,11 +14,7 @@ on:
         type: string
         required: true
       e2e-matrix:
-        description: "JSON array of E2E test matrix entries"
-        type: string
-        required: true
-      e2e-infra-matrix:
-        description: "JSON array of E2E infra test matrix entries"
+        description: "JSON array of E2E test matrix entries (includes both regular and infra)"
         type: string
         required: true
 
@@ -58,16 +54,229 @@ jobs:
       - uses: ./.github/actions/prepare-bundled-assets
 
   # ════════════════════════════════════════════════════════════════════
-  # Quality gates (Elasticsearch, standard browsers)
+  # Static quality checks
   # ════════════════════════════════════════════════════════════════════
 
-  quality-gates:
-    uses: ./.github/workflows/_quality-gates.yml
-    with:
-      api-matrix: ${{ inputs.api-matrix }}
-      e2e-matrix: ${{ inputs.e2e-matrix }}
-      e2e-infra-matrix: ${{ inputs.e2e-infra-matrix }}
-    secrets: inherit
+  spotless-check:
+    name: "🔍 Spotless Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/spotless-check
+
+  frontend-quality:
+    name: "🧪 Frontend Quality & Unit Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/frontend-quality
+
+  # ════════════════════════════════════════════════════════════════════
+  # API Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
+
+  api-tests:
+    name: "🧪 API Tests (${{ matrix.shard_name }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.api-matrix) }}
+    env:
+      EXPLICITLY_SHARDED_TESTS: |-
+        io/openaev/api/**/*Test.java
+        io/openaev/integration/**/*Test.java
+        io/openaev/injects/**/*Test.java
+        io/openaev/opencti/**/*Test.java
+        io/openaev/service/**/*Test.java
+        io/openaev/rest/**/*Test.java
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/api-tests
+        with:
+          includes: ${{ matrix.includes }}
+          excludes: ${{ matrix.excludes }}
+          shard: ${{ matrix.shard }}
+          shard-name: ${{ matrix.shard_name }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # E2E Tests — matrix passed from caller
+  # ════════════════════════════════════════════════════════════════════
+
+  e2e-tests:
+    name: "🧪 E2E (${{ matrix.variant }} ${{ matrix.project }}${{ matrix.artifact_suffix }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.e2e-matrix) }}
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || 'elk' }}
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/e2e-tests
+        with:
+          browser: ${{ matrix.browser }}
+          project: ${{ matrix.project }}
+          docker-image: ${{ matrix.docker_image }}
+          search-engine: ${{ matrix.search_engine }}
+          artifact-suffix: ${{ matrix.artifact_suffix }}
+
+  # ════════════════════════════════════════════════════════════════════
+  # API Types Check
+  # ════════════════════════════════════════════════════════════════════
+
+  api-types-check:
+    name: "🔎 API Types Check"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_ACCESS_SECRET: minioadmin
+      ENGINE_URL: http://localhost:9200
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      OPENAEV_ADMIN_EMAIL: admin@openaev.io
+      OPENAEV_ADMIN_PASSWORD: admin
+      OPENAEV_ADMIN_TOKEN: 0d17ce9a-f3a8-4c6d-9721-c98dc3dc023f
+      OPENAEV_ADMIN_ENCRYPTION_KEY: ThisIsMyUltraSecureEncryptionKey
+      OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
+      SPRING_PROFILES_ACTIVE: ci
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/api-types-check
+
+  # ════════════════════════════════════════════════════════════════════
+  # Coverage Merge & Upload
+  # ════════════════════════════════════════════════════════════════════
+
+  codecov:
+    name: "📊 Coverage Merge & Upload"
+    needs: [api-tests, frontend-quality, e2e-tests, api-types-check]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Download compiled Maven artifacts
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: backend-compiled
+          path: ~/.m2/repository/io/openaev/
+        continue-on-error: true
+
+      - name: Download API build output
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: api-build-output
+          path: openaev-api/target
+        continue-on-error: true
+
+      - name: Download all JaCoCo exec shards
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: jacoco-exec-shard-*
+          path: jacoco-exec
+        continue-on-error: true
+
+      - name: Merge JaCoCo exec files
+        id: jacoco-merge
+        if: needs.api-tests.result == 'success' || needs.api-tests.result == 'failure'
+        run: |
+          echo "📦 Merging JaCoCo exec files from all shards..."
+          EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
+          if [ -z "$EXEC_FILES" ]; then
+            echo "⚠️ No JaCoCo exec files found"
+            exit 1
+          fi
+          SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
+          cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
+          echo "✅ Merged $SHARD_COUNT shard(s)"
+
+      - name: Coverage report & threshold check
+        if: steps.jacoco-merge.outcome == 'success'
+        run: mvn -B -ntp -pl openaev-api jacoco:report jacoco:check || echo "⚠️ Coverage threshold check ⚠️"
+
+      - name: Upload API coverage
+        if: ${{ !cancelled() && steps.jacoco-merge.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-api
+          path: openaev-api/target/site/jacoco/jacoco.xml
+          if-no-files-found: warn
+
+      - name: Download vitest coverage
+        if: ${{ needs.frontend-quality.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: vitest-coverage
+          path: coverage/frontend
+        continue-on-error: true
+
+      - name: Download playwright coverage
+        if: ${{ needs.e2e-tests.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          pattern: playwright-coverage-*
+          path: coverage/e2e
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: backend,frontend,e2e
+          fail_ci_if_error: false
+        continue-on-error: true
 
   # ════════════════════════════════════════════════════════════════════
   # Packaging
