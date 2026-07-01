@@ -22,7 +22,9 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
@@ -210,6 +212,63 @@ class IndexingRegressionTest extends IntegrationTest {
 
       assertThat(results).hasSize(2);
     }
+
+    @Test
+    @DisplayName("Multi-batch cursor loop indexes all injects without skips or duplicates")
+    void multi_batch_cursor_no_skips_or_duplicates() {
+      // Arrange — create 7 injects with distinct timestamps so ordering is deterministic
+      int totalInjects = 7;
+      int batchSize = 3;
+      ScenarioComposer.Composer scenarioWrapper =
+          scenarioComposer.forScenario(ScenarioFixture.createDefaultIncidentResponseScenario());
+      Set<String> expectedIds = new HashSet<>();
+      for (int i = 0; i < totalInjects; i++) {
+        InjectComposer.Composer inj = injectComposer.forInject(InjectFixture.getDefaultInject());
+        scenarioWrapper.withInject(inj);
+      }
+      scenarioWrapper.persist();
+      entityManager.flush();
+
+      // Assign distinct updated_at timestamps so each batch has a clear ordering
+      List<?> injectIds =
+          entityManager
+              .createNativeQuery(
+                  "SELECT inject_id FROM injects WHERE inject_scenario = :sid ORDER BY inject_id")
+              .setParameter("sid", scenarioWrapper.get().getId())
+              .getResultList();
+      Instant base = FROM.plusSeconds(1);
+      for (int i = 0; i < injectIds.size(); i++) {
+        entityManager
+            .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
+            .setParameter("ts", base.plusSeconds(i))
+            .setParameter("id", injectIds.get(i).toString())
+            .executeUpdate();
+        expectedIds.add(injectIds.get(i).toString());
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — simulate the indexing cursor loop
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      int maxIterations = (totalInjects / batchSize) + 2; // safety bound
+
+      while (iterations < maxIterations) {
+        List<EsInject> batch = injectHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsInject es : batch) {
+          assertThat(collectedIds.add(es.getBase_id()))
+              .as("Duplicate detected: %s at iteration %d", es.getBase_id(), iterations)
+              .isTrue();
+        }
+        cursor = batch.getLast().getBase_updated_at();
+        iterations++;
+      }
+
+      // Assert — every inject was indexed exactly once
+      assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -246,6 +305,63 @@ class IndexingRegressionTest extends IntegrationTest {
       // Assert — scenario must appear because its inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(scenario.getId()));
     }
+
+    @Test
+    @DisplayName("Multi-batch cursor loop indexes all scenarios without skips or duplicates")
+    void multi_batch_cursor_no_skips_or_duplicates() {
+      int total = 5;
+      int batchSize = 2;
+      Set<String> expectedIds = new HashSet<>();
+
+      for (int i = 0; i < total; i++) {
+        Scenario s =
+            scenarioComposer
+                .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+                .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+                .persist()
+                .get();
+        expectedIds.add(s.getId());
+      }
+      entityManager.flush();
+
+      // Assign distinct timestamps on scenarios AND their injects so GREATEST is deterministic
+      int i = 0;
+      for (String id : expectedIds) {
+        Instant ts = FROM.plusSeconds(++i);
+        entityManager
+            .createNativeQuery(
+                "UPDATE scenarios SET scenario_updated_at = :ts WHERE scenario_id = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects SET inject_updated_at = :ts WHERE inject_scenario = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Simulate cursor loop
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 2) {
+        List<EsScenario> batch = scenarioHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsScenario es : batch) {
+          assertThat(collectedIds.add(es.getBase_id()))
+              .as("Duplicate: %s", es.getBase_id())
+              .isTrue();
+        }
+        cursor = batch.getLast().getBase_updated_at();
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -280,6 +396,62 @@ class IndexingRegressionTest extends IntegrationTest {
 
       // Assert — exercise must appear because its inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(exercise.getId()));
+    }
+
+    @Test
+    @DisplayName("Multi-batch cursor loop indexes all exercises without skips or duplicates")
+    void multi_batch_cursor_no_skips_or_duplicates() {
+      int total = 5;
+      int batchSize = 2;
+      Set<String> expectedIds = new HashSet<>();
+
+      for (int i = 0; i < total; i++) {
+        Exercise ex =
+            exerciseComposer
+                .forExercise(ExerciseFixture.createDefaultExercise())
+                .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()))
+                .persist()
+                .get();
+        expectedIds.add(ex.getId());
+      }
+      entityManager.flush();
+
+      // Set distinct timestamps on exercises AND their injects so GREATEST is deterministic
+      int i = 0;
+      for (String id : expectedIds) {
+        Instant ts = FROM.plusSeconds(++i);
+        entityManager
+            .createNativeQuery(
+                "UPDATE exercises SET exercise_updated_at = :ts WHERE exercise_id = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects SET inject_updated_at = :ts WHERE inject_exercise = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 2) {
+        List<EsSimulation> batch = simulationHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsSimulation es : batch) {
+          assertThat(collectedIds.add(es.getBase_id()))
+              .as("Duplicate: %s", es.getBase_id())
+              .isTrue();
+        }
+        cursor = batch.getLast().getBase_updated_at();
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
   }
 
@@ -322,6 +494,64 @@ class IndexingRegressionTest extends IntegrationTest {
 
       // Assert — endpoint must appear because its linked inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(endpoint.getId()));
+    }
+
+    @Test
+    @DisplayName("Multi-batch cursor loop indexes all endpoints without skips or duplicates")
+    void multi_batch_cursor_no_skips_or_duplicates() {
+      int total = 5;
+      int batchSize = 2;
+      Set<String> expectedIds = new HashSet<>();
+
+      for (int i = 0; i < total; i++) {
+        EndpointComposer.Composer ep =
+            endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+        InjectComposer.Composer inj =
+            injectComposer.forInject(InjectFixture.getDefaultInject()).withEndpoint(ep);
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(inj)
+            .persist();
+        expectedIds.add(ep.get().getId());
+      }
+      entityManager.flush();
+
+      // Set distinct timestamps on endpoints AND their injects so GREATEST is deterministic
+      int i = 0;
+      for (String id : expectedIds) {
+        Instant ts = FROM.plusSeconds(++i);
+        entityManager
+            .createNativeQuery("UPDATE assets SET asset_updated_at = :ts WHERE asset_id = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects SET inject_updated_at = :ts WHERE inject_id IN"
+                    + " (SELECT inject_id FROM injects_assets WHERE asset_id = :id)")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 2) {
+        List<EsEndpoint> batch = endpointHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsEndpoint es : batch) {
+          assertThat(collectedIds.add(es.getBase_id()))
+              .as("Duplicate: %s", es.getBase_id())
+              .isTrue();
+        }
+        cursor = batch.getLast().getBase_updated_at();
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
   }
 
@@ -471,6 +701,69 @@ class IndexingRegressionTest extends IntegrationTest {
       List<EsInjectExpectation> results = injectExpectationHandler.fetch(null, 5000);
 
       assertThat(results).noneMatch(es -> es.getBase_id().equals(expectation.getId()));
+    }
+
+    @Test
+    @DisplayName("Multi-batch cursor loop indexes all expectations without skips or duplicates")
+    void multi_batch_cursor_no_skips_or_duplicates() {
+      int total = 5;
+      int batchSize = 2;
+      Set<String> expectedIds = new HashSet<>();
+
+      for (int i = 0; i < total; i++) {
+        EndpointComposer.Composer ep =
+            endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+        InjectExpectation exp = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+        InjectExpectationComposer.Composer expWrapper =
+            injectExpectationComposer.forExpectation(exp).withEndpoint(ep);
+        InjectComposer.Composer inj =
+            injectComposer.forInject(InjectFixture.getDefaultInject()).withExpectation(expWrapper);
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(inj)
+            .persist();
+        expectedIds.add(exp.getId());
+      }
+      entityManager.flush();
+
+      // Set distinct timestamps on expectations AND their injects so GREATEST is deterministic
+      int i = 0;
+      for (String id : expectedIds) {
+        Instant ts = FROM.plusSeconds(++i);
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
+                    + " WHERE inject_expectation_id = :id")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects SET inject_updated_at = :ts WHERE inject_id = "
+                    + "(SELECT inject_id FROM injects_expectations WHERE inject_expectation_id = :id)")
+            .setParameter("ts", ts)
+            .setParameter("id", id)
+            .executeUpdate();
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 2) {
+        List<EsInjectExpectation> batch = injectExpectationHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsInjectExpectation es : batch) {
+          assertThat(collectedIds.add(es.getBase_id()))
+              .as("Duplicate: %s", es.getBase_id())
+              .isTrue();
+        }
+        cursor = batch.getLast().getBase_updated_at();
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
   }
 
