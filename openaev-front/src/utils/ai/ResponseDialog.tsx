@@ -1,3 +1,4 @@
+import { RichTextEditor } from '@filigran/rich-text-editor';
 import { RefreshOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
 import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField } from '@mui/material';
@@ -11,7 +12,6 @@ import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 
 // eslint-disable-next-line import/no-cycle
 import TextFieldAskAI, { type AgentAction } from '../../admin/components/common/form/TextFieldAskAI';
-import CKEditor from '../../components/CKEditor';
 import { useFormatter } from '../../components/i18n';
 import { isNotEmptyField } from '../utils';
 import { type AgentOption, fetchAgentsForIntent } from './agentApi';
@@ -80,6 +80,7 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
 }) => {
   const textFieldRef = useRef<HTMLTextAreaElement>(null);
   const markdownFieldRef = useRef<HTMLTextAreaElement>(null);
+  const richTextEditorRef = useRef<HTMLDivElement>(null);
   const { t } = useFormatter();
   const isLegacyMode = !agentMode;
 
@@ -179,10 +180,8 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
         markdownFieldRef.current.scrollTop = markdownFieldRef.current.scrollHeight;
       }
     } else if (format === 'html') {
-      const elementCkEditor = document.querySelector(
-        '.ck-content.ck-editor__editable.ck-editor__editable_inline',
-      );
-      elementCkEditor?.lastElementChild?.scrollIntoView();
+      const proseMirror = richTextEditorRef.current?.querySelector('.rich-text-editor-wrapper .ProseMirror');
+      proseMirror?.lastElementChild?.scrollIntoView();
     }
   }, [content]);
 
@@ -239,17 +238,18 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
         />
       )}
       {format === 'html' && (
-        <CKEditor
-          id="response-dialog-editor"
-          data={content}
-          onChange={(_, editor) => {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            setContent(editor.getData());
-          }}
-          disabled={effectiveDisabled}
-          disableWatchdog={true}
-        />
+        <div ref={richTextEditorRef}>
+          <RichTextEditor
+            variant="outlined"
+            id="response-dialog-editor"
+            data={content}
+            onChange={(_, editor) => {
+              setContent(editor.getData());
+            }}
+            disabled={effectiveDisabled}
+            disableWatchdog={true}
+          />
+        </div>
       )}
       { format === 'markdown' && (
         <MDEditor

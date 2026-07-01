@@ -1,9 +1,9 @@
+import { RichTextEditor } from '@filigran/rich-text-editor';
 import { FormHelperText, InputLabel } from '@mui/material';
 import { type CSSProperties } from 'react';
 import { type Control, Controller } from 'react-hook-form';
 
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
-import CKEditor from '../CKEditor';
 
 interface Props {
   label: string;
@@ -50,7 +50,8 @@ const RichTextField = ({
             >
               {label}
             </InputLabel>
-            <CKEditor
+            <RichTextEditor
+              variant="outlined"
               data={value || ''}
               onChange={(_, editor) => {
                 onChange(editor.getData());

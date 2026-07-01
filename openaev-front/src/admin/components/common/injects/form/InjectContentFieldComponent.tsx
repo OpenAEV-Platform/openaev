@@ -74,7 +74,6 @@ const InjectContentFieldComponent = ({
             key={field.key}
             name={field.key}
             label={t(label)}
-            style={{ height: 250 }}
             disabled={readOnly}
             askAi={true}
             inInject={true}
