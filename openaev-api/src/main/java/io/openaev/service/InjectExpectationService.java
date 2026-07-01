@@ -81,6 +81,7 @@ public class InjectExpectationService {
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
+  private final InjectExpectationLockService injectExpectationLockService;
   private final AssetGroupService assetGroupService;
   private final InjectService injectService;
 
@@ -980,6 +981,108 @@ public class InjectExpectationService {
     injectExpectationAgentOutputs.sort(
         Comparator.comparing(InjectExpectationAgentOutput::getAgentName));
     return injectExpectationAgentOutputs;
+  }
+
+  // -- STRUCTURED OUTPUT SIGNATURES --
+
+  /**
+   * Applies signatures emitted by structured output on matching technical expectations.
+   *
+   * <p>The target is resolved using this priority: agent, then asset, then asset group.
+   *
+   * <p>If signatures were never initialized for an expectation, existing signatures are cleared
+   * once, then new signatures are appended. Otherwise, signatures are only appended.
+   *
+   * <p>Only Detection and prevention expectations are supported for structured output signatures.
+   * Other types will be ignored with a warning.
+   *
+   * @param injectId the inject ID
+   * @param agentId optional agent ID target
+   * @param assetId optional asset ID target
+   * @param assetGroupId optional asset group ID target
+   * @param expectationType the expectation type (DETECTION or PREVENTION)
+   * @param signatures signatures to append
+   */
+  public void appendExpectationSignatures(
+      @NotBlank String injectId,
+      @Nullable String agentId,
+      @Nullable String assetId,
+      @Nullable String assetGroupId,
+      @NotNull InjectExpectation.EXPECTATION_TYPE expectationType,
+      @NotNull List<InjectExpectationSignature> signatures) {
+    if (signatures.isEmpty()) {
+      return;
+    }
+    if (!List.of(DETECTION, PREVENTION).contains(expectationType)) {
+      log.warn(
+          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          injectId,
+          agentId,
+          assetId,
+          assetGroupId,
+          expectationType);
+      return;
+    }
+
+    List<InjectExpectation> expectations =
+        findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
+            .filter(expectation -> expectation.getType().equals(expectationType))
+            .toList();
+
+    if (expectations.isEmpty()) {
+      log.warn(
+          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          injectId,
+          agentId,
+          assetId,
+          assetGroupId,
+          expectationType);
+      return;
+    }
+
+    String signaturesJson = convertValidSignaturesToStringJson(signatures);
+    if (signaturesJson != null) {
+      for (InjectExpectation expectation : expectations) {
+        injectExpectationLockService.applySignaturesForExpectationWithLock(
+            expectation.getId(), signaturesJson);
+      }
+    }
+  }
+
+  private String convertValidSignaturesToStringJson(
+      @NotNull List<InjectExpectationSignature> signatures) {
+    List<InjectExpectationSignature> validSignatures =
+        signatures.stream()
+            .filter(Objects::nonNull)
+            .filter(signature -> signature.getType() != null && signature.getValue() != null)
+            .toList();
+    if (validSignatures.isEmpty()) {
+      return null;
+    }
+
+    try {
+      return mapper.writeValueAsString(validSignatures);
+    } catch (JsonProcessingException e) {
+      log.warn("Failed to serialize expectation signatures", e);
+      return null;
+    }
+  }
+
+  private List<InjectExpectation> findTechnicalExpectationsForTarget(
+      @NotBlank String injectId,
+      @Nullable String agentId,
+      @Nullable String assetId,
+      @Nullable String assetGroupId) {
+    if (agentId != null) {
+      return injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+    }
+    if (assetId != null) {
+      return injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId);
+    }
+    if (assetGroupId != null) {
+      return injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId);
+    }
+    return Collections.emptyList();
   }
 
   /**

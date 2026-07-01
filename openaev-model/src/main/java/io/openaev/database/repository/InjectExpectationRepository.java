@@ -328,6 +328,38 @@ public interface InjectExpectationRepository
       @Param("injectId") String injectId,
       @Param("agentId") String agentId);
 
+  // -- SIGNATURE PROCESSING --
+
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE injects_expectations ie
+          SET inject_expectation_signatures = '[]'::jsonb,
+              inject_expectation_signatures_initialized = true
+          FROM injects i
+          WHERE ie.inject_expectation_id = :id
+            AND i.inject_id = ie.inject_id
+            AND i.tenant_id = :#{#tenantContext.currentTenant}
+          """,
+      nativeQuery = true)
+  void clearSignaturesAndMarkInitialized(@Param("id") String id);
+
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE injects_expectations ie
+          SET inject_expectation_signatures =
+              COALESCE(ie.inject_expectation_signatures, '[]'::jsonb) || CAST(:signaturesJson AS jsonb),
+              inject_expectation_signatures_initialized = true
+          FROM injects i
+          WHERE ie.inject_expectation_id = :id
+            AND i.inject_id = ie.inject_id
+          """,
+      nativeQuery = true)
+  void appendSignatures(@Param("id") String id, @Param("signaturesJson") String signaturesJson);
+
   // -- INDEXING --
 
   @Query(
