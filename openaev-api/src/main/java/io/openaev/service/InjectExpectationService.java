@@ -1373,40 +1373,28 @@ public class InjectExpectationService {
     injectExpectations.forEach(
         ie -> {
           if (ie instanceof TechnicalInjectExpectation tech) {
-            switch (ie.getType()) {
-              case PREVENTION, DETECTION -> {
-                if (tech.getAgent() != null) {
-                  ie.setResults(setUpFromCollectors(collectors));
-                }
-              }
-              case VULNERABILITY -> {
-                if (tech.getAgent() != null) {
-                  ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
-                }
-              }
-              default -> {}
+            if (tech.getAgent() == null) {
+              return;
             }
+            if (ie instanceof PreventionInjectExpectation
+                || ie instanceof DetectionInjectExpectation) {
+              ie.setResults(setUpFromCollectors(collectors));
+            } else if (ie instanceof VulnerabilityInjectExpectation) {
+              ie.setResults(List.of(buildDefaultForVulnerabilityManagerInFailed()));
+            }
+
           } else if (ie instanceof TableTopInjectExpectation tableTop) {
-            switch (ie.getType()) {
-              case MANUAL -> {
-                if (tableTop.getUser() != null) {
-                  ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
-                }
-              }
+            if (tableTop.getUser() == null) {
+              return;
+            }
+            if (ie instanceof ManualInjectExpectation) {
+              ie.setResults(List.of(buildDefaultForPlayerManualValidation()));
+            } else if (ie instanceof ChallengeInjectExpectation) {
               // TODO : The UI needs to be fixed: when the score and result are initialized to
               // null, the user can no longer validate the flag.
-              //  case CHALLENGE -> {
-              //    if (tableTop.getUser() != null) {
-              //
               // ie.setResults(List.of(ChallengeExpectationUtils.buildDefaultChallengeInjectExpectationResult()));
-              //    }
-              //  }
-              case ARTICLE -> {
-                if (tableTop.getUser() != null) {
-                  ie.setResults(List.of(buildDefaultForMediaPressure()));
-                }
-              }
-              default -> {}
+            } else if (ie instanceof ArticleInjectExpectation) {
+              ie.setResults(List.of(buildDefaultForMediaPressure()));
             }
           }
         });

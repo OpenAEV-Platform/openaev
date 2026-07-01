@@ -97,7 +97,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Column(name = "inject_expectation_type", insertable = false, updatable = false)
   @JsonProperty("inject_expectation_type")
   @Enumerated(EnumType.STRING)
-  @NotNull
   private EXPECTATION_TYPE type;
 
   // region basic

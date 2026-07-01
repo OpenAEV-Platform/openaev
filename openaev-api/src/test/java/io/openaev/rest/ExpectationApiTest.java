@@ -407,6 +407,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // Update one expectation from one agent with source collector-id
       List<TechnicalInjectExpectation> injectExpectations =
@@ -471,6 +473,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, preventionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
       String response =
@@ -557,6 +561,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
       String response =
