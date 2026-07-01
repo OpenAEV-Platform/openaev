@@ -1,10 +1,9 @@
 package io.openaev.migration;
 
+import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
-
-import java.sql.Statement;
 
 @Component
 public class V6_20260630094153899__Extract_inject_expectation_signatures extends BaseJavaMigration {
@@ -31,6 +30,15 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
           """
                   CREATE INDEX IF NOT EXISTS idx_injects_expectations_signatures_expectation_id
                       ON injects_expectations_signatures (inject_expectation_signature_inject_expectation_id);
+                  """);
+
+      statement.execute(
+          """
+                  ALTER TABLE injects_expectations_signatures
+                      ADD CONSTRAINT fk_injects_expectations_signatures_expectation
+                      FOREIGN KEY (inject_expectation_signature_inject_expectation_id)
+                      REFERENCES injects_expectations(inject_expectation_id)
+                      ON DELETE CASCADE;
                   """);
 
       statement.execute(
