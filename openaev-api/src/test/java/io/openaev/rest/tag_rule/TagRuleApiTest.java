@@ -52,8 +52,6 @@ public class TagRuleApiTest extends IntegrationTest {
   @Autowired private TagRuleRepository tagRuleRepository;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
 
-  private List<TagRule> defaultRules;
-
   @BeforeEach
   public void setup() {
     // We remove any tagrule existing by default
@@ -446,6 +444,34 @@ public class TagRuleApiTest extends IntegrationTest {
 
       // Assert
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
+    }
+
+    @Test
+    @DisplayName("TagRule created in tenant X should NOT be listed from tenant Y")
+    void given_tagRuleInTenantX_should_notBeListedFromTenantY() throws Exception {
+      // Arrange
+      Tenant tenantX = tenantIsolationHelper.createTenantWithCurrentUser("Tenant X");
+      Tenant tenantY = tenantIsolationHelper.createTenantWithCurrentUser("Tenant Y");
+
+      TagRule rule = createTagRuleInTenant(tenantX.getId());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — list from tenant Y
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/tag-rules")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert — tag rule from tenant X must not appear
+      List<String> ids = JsonPath.read(response, "$[*].tag_rule_id");
+      assertFalse(ids.contains(rule.getId()));
     }
 
     @Test

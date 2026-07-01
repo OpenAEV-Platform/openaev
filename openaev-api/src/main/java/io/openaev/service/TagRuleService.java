@@ -3,7 +3,6 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
@@ -33,8 +32,8 @@ public class TagRuleService {
   private final TagService tagService;
   private final AssetGroupRepository assetGroupRepository;
 
-  public Optional<TagRule> findById(String id) {
-    return tagRuleRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant());
+  public Optional<TagRule> findById(String id, String tenantId) {
+    return tagRuleRepository.findByIdAndTenantId(id, tenantId);
   }
 
   public Optional<TagRule> findByTagName(String name) {
@@ -75,11 +74,16 @@ public class TagRuleService {
   }
 
   public TagRule updateTagRule(
-      @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
-    // verify that the tag rule exists
+      @NotBlank final String tagRuleId,
+      final String tagName,
+      final List<String> assetGroupIds,
+      @NotBlank final String tenantId) {
+    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, tenantId)) {
+      throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
+    }
     TagRule tagRule =
         tagRuleRepository
-            .findByIdAndTenantId(tagRuleId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(tagRuleId, tenantId)
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
@@ -125,14 +129,13 @@ public class TagRuleService {
     return tagRule.getTag() != null && !tagRule.getTag().equals(newTag);
   }
 
-  public void deleteTagRule(@NotBlank final String tagRuleId) {
-    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, TenantContext.getCurrentTenant())) {
+  public void deleteTagRule(@NotBlank final String tagRuleId, @NotBlank final String tenantId) {
+    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, tenantId)) {
       throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
     }
-    // verify that the TagRule is not protected (e.g. opencti tag)
     TagRule tagRule =
         tagRuleRepository
-            .findByIdAndTenantId(tagRuleId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(tagRuleId, tenantId)
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
     if (tagRule.isProtected()) {
