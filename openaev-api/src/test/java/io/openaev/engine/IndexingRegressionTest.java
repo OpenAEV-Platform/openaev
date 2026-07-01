@@ -860,9 +860,11 @@ class IndexingRegressionTest extends IntegrationTest {
       List<EsInjectExpectation> batch1 = injectExpectationHandler.fetch(FROM, 2);
       assertThat(batch1).hasSize(2);
 
-      // Act — compound cursor continues from last item of batch1; must return the 3rd
+      // Act — compound cursor: from = updated_at of last item (simulates lastIndexing after full
+      // batch), lastId = id of last item. Must return the 3rd expectation only.
       String lastId = batch1.getLast().getBase_id();
-      List<EsInjectExpectation> batch2 = injectExpectationHandler.fetch(FROM, lastId, 2);
+      Instant lastUpdatedAt = batch1.getLast().getBase_updated_at();
+      List<EsInjectExpectation> batch2 = injectExpectationHandler.fetch(lastUpdatedAt, lastId, 2);
 
       // Assert — all 3 expectations are covered across both batches (none skipped)
       List<String> allReturnedIds =
