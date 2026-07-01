@@ -64,8 +64,7 @@ public class ScenarioExportTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName(
-        "given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments")
+    @DisplayName("given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments")
     public void given_injectWithDirectDocument_should_includeDocumentInScenarioDocuments()
         throws Exception {
       // Arrange
@@ -134,8 +133,7 @@ public class ScenarioExportTest extends IntegrationTest {
                               .forInjectorContract(
                                   InjectorContractFixture.createDefaultInjectorContract())
                               .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
-                              .withDomain(
-                                  domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
                               .withTag(
                                   tagComposer.forTag(
                                       TagFixture.getTagWithText("this is a payload tag")))

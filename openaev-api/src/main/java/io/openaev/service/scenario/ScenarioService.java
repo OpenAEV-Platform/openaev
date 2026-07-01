@@ -548,8 +548,7 @@ public class ScenarioService {
                 scenario.getDocuments().stream(),
                 scenario.getInjects().stream()
                     .flatMap(
-                        inject ->
-                            inject.getDocuments().stream().map(InjectDocument::getDocument)),
+                        inject -> inject.getDocuments().stream().map(InjectDocument::getDocument)),
                 scenario.getInjects().stream()
                     .flatMap(
                         inject -> {
@@ -567,8 +566,7 @@ public class ScenarioService {
 
     scenarioFileExport.setDocuments(documentExports);
     objectMapper.addMixIn(Document.class, Mixins.Document.class);
-    scenarioTags.addAll(
-        documentExports.stream().flatMap(doc -> doc.getTags().stream()).toList());
+    scenarioTags.addAll(documentExports.stream().flatMap(doc -> doc.getTags().stream()).toList());
     List<String> documentIds =
         new ArrayList<>(documentExports.stream().map(Document::getId).toList());
 
