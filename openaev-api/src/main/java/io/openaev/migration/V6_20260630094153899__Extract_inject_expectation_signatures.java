@@ -1,9 +1,10 @@
 package io.openaev.migration;
 
-import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
+
+import java.sql.Statement;
 
 @Component
 public class V6_20260630094153899__Extract_inject_expectation_signatures extends BaseJavaMigration {
@@ -20,7 +21,8 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
                       inject_expectation_signature_created_at TIMESTAMP NOT NULL DEFAULT now(),
                       CONSTRAINT pk_injects_expectations_signatures PRIMARY KEY (
                           inject_expectation_signature_inject_expectation_id,
-                          inject_expectation_signature_type
+                          inject_expectation_signature_type,
+                          inject_expectation_signature_value
                       )
                   );
                   """);
@@ -75,7 +77,8 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
                           ORDER BY raw.inject_expectation_id, raw.signature_type, raw.ordinality
                           ON CONFLICT (
                               inject_expectation_signature_inject_expectation_id,
-                              inject_expectation_signature_type
+                              inject_expectation_signature_type,
+                              inject_expectation_signature_value
                           ) DO NOTHING;
 
                           ALTER TABLE injects_expectations

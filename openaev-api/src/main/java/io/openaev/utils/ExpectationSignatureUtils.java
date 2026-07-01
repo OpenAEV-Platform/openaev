@@ -8,6 +8,7 @@ import io.openaev.expectation.ExpectationSignature;
 import io.openaev.validator.Ipv4OrIpv6Validator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ExpectationSignatureUtils {
 
@@ -73,7 +74,7 @@ public class ExpectationSignatureUtils {
     }
     return expectationSignatures.stream()
         .map(signature -> convertToInjectExpectationSignature(signature, injectExpectation))
-        .toList();
+        .collect(Collectors.toCollection(ArrayList::new));
   }
 
   public static InjectExpectationSignature convertToInjectExpectationSignature(

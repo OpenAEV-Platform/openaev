@@ -1,15 +1,16 @@
 package io.openaev.database.model;
 
-import static java.time.Instant.now;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
+
 import java.io.Serializable;
 import java.time.Instant;
-import lombok.*;
+
+import static java.time.Instant.now;
 
 @Getter
 @Setter
@@ -34,6 +35,7 @@ public class InjectExpectationSignature {
   @JsonProperty("type")
   private String type;
 
+  @Id
   @NotBlank
   @Column(name = "inject_expectation_signature_value")
   @JsonProperty("value")
@@ -52,5 +54,6 @@ public class InjectExpectationSignature {
   public static class InjectExpectationSignatureId implements Serializable {
     private String injectExpectation;
     private String type;
+    private String value;
   }
 }
