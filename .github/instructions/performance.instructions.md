@@ -106,5 +106,6 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - ❌ Iterating a list to call `repository.findById()` in a loop — use `ReferenceResolver` or `findAllById()` instead
 - ❌ Opening a transaction for read-only operations without `readOnly = true`
 - ❌ Returning JPA entities with LAZY collections from `@RestController` (triggers proxy outside session)
+- ❌ Duplicate native `@Query` methods that differ only by an optional parameter — merge into one method using SQL null-guards (e.g. `OR (:lastId IS NOT NULL AND ...)`) to avoid maintaining two copies of large query blocks
 - ❌ Performing MinIO / S3 / file I/O inside `@Transactional` — split into DB method + separate best-effort upload method called after the transaction commits
 
