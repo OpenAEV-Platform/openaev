@@ -1,0 +1,46 @@
+name: Validate PR Title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-pr-title:
+    name: Validate Conventional PR title
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login != 'renovate[bot]' && !startsWith(github.event.pull_request.title, '[Snyk]')
+    steps:
+      - name: Check Conventional Commit title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          echo "PR title: ${TITLE}"
+
+          # Filigran-wide Conventional Commits convention.
+          ALLOWED_TYPES='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+
+          # Required format: type(scope?)!?: description (#123)
+          PATTERN="^(${ALLOWED_TYPES})(\([a-z0-9]+([_-][a-z0-9]+)*(\/[a-z0-9]+([_-][a-z0-9]+)*)*\))?!?: [a-z0-9].* \(#[0-9]+\)$"
+
+          if [[ "${TITLE}" =~ ${PATTERN} ]]; then
+            echo "PR title is valid."
+            exit 0
+          fi
+
+          echo "Invalid PR title."
+          echo ""
+          echo "Required format:"
+          echo "  type(scope?): description (#123)"
+          echo ""
+          echo "Allowed types:"
+          echo "  feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+          echo ""
+          echo "Examples:"
+          echo "  feat(api): add bulk export endpoint (#871)"
+          echo "  fix: handle missing auth token (#456)"
+          exit 1

@@ -118,6 +118,108 @@ class EndpointApiTest extends IntegrationTest {
     assertThatJson(response).node("asset_agents").isEqualTo(endpointInput.getAgents());
   }
 
+  @DisplayName(
+      "Given a web application input without platform/arch, should create it as WEB_APPLICATION")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_webApplicationInput_should_createWithCategory() throws Exception {
+    // --PREPARE--
+    EndpointInput input = new EndpointInput();
+    input.setName("Filigran website");
+    input.setCategory(AssetCategory.WEB_APPLICATION);
+    input.setSubcategory(AssetSubCategory.WEBSITE);
+    input.setUrl("https://filigran.io");
+    input.setInternetFacing(true);
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("WEB_APPLICATION");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("WEBSITE");
+    assertThatJson(response).node("endpoint_url").isEqualTo("https://filigran.io");
+    assertThatJson(response).node("asset_internet_facing").isEqualTo(true);
+    // platform / arch default to Unknown server-side when omitted
+    assertThatJson(response).node("endpoint_platform").isEqualTo("Unknown");
+    assertThatJson(response).node("endpoint_arch").isEqualTo("Unknown");
+  }
+
+  @DisplayName("Given a cloud resource input, should persist provider and native type")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_cloudResourceInput_should_persistCloudFields() throws Exception {
+    // --PREPARE--
+    EndpointInput input = new EndpointInput();
+    input.setName("prod-data-bucket");
+    input.setCategory(AssetCategory.CLOUD_RESOURCE);
+    input.setSubcategory(AssetSubCategory.STORAGE);
+    input.setCloudProvider(CloudProvider.AWS);
+    input.setCloudNativeType("s3_bucket");
+    input.setCloudRegion("eu-west-1");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("CLOUD_RESOURCE");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("STORAGE");
+    assertThatJson(response).node("asset_cloud_provider").isEqualTo("AWS");
+    assertThatJson(response).node("asset_cloud_native_type").isEqualTo("s3_bucket");
+    assertThatJson(response).node("asset_cloud_region").isEqualTo("eu-west-1");
+  }
+
+  @DisplayName(
+      "Given an identity input with a blank linked person, should not violate the person FK")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_identityInputWithBlankLinkedPerson_should_createWithoutFkViolation() throws Exception {
+    // --PREPARE--
+    // A cleared person picker submits an empty string; it must be normalized to null so the
+    // asset_linked_person -> users(user_id) foreign key is never violated.
+    EndpointInput input = new EndpointInput();
+    input.setName("svc-account");
+    input.setCategory(AssetCategory.IDENTITY);
+    input.setSubcategory(AssetSubCategory.SERVICE_ACCOUNT);
+    input.setLinkedPerson("");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("IDENTITY");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("SERVICE_ACCOUNT");
+  }
+
   @DisplayName("Given wrong input, can't create an endpoint agentless successfully")
   @Test
   @WithMockUser(isAdmin = true)

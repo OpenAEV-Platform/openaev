@@ -16,6 +16,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
+import io.openaev.service.EndpointService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
@@ -48,6 +49,7 @@ public class ConnectorInstanceService {
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
   private final EntityManager entityManager;
+  private final EndpointService endpointService;
 
   public ConnectorInstanceService(
       ObjectMapper objectMapper,
@@ -60,6 +62,7 @@ public class ConnectorInstanceService {
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
       EntityManager entityManager,
+      EndpointService endpointService,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
     this.objectMapper = objectMapper;
@@ -72,6 +75,7 @@ public class ConnectorInstanceService {
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
     this.entityManager = entityManager;
+    this.endpointService = endpointService;
     this.managerFactory = managerFactory;
   }
 
@@ -207,15 +211,16 @@ public class ConnectorInstanceService {
   }
 
   /**
-   * Retrieves all connector instances for a specific tenant, bypassing the Hibernate tenant filter.
-   * This method is intended for background contexts (e.g. Manager initialization) where the filter
-   * may not be active.
+   * Retrieves connector instances for a specific tenant and factory class name.
    *
    * @param tenantId the tenant ID to filter by
-   * @return the list of connector instances for the given tenant
+   * @param className the connector factory class name
+   * @return the list of matching connector instances for the given tenant
    */
-  public List<ConnectorInstancePersisted> connectorInstancesByTenantId(String tenantId) {
-    return connectorInstanceRepository.findAllByTenantId(tenantId);
+  public List<ConnectorInstancePersisted> connectorInstancesByTenantIdAndClassName(
+      String tenantId, String className) {
+    return connectorInstanceRepository.findAllByTenantIdAndCatalogConnectorClassName(
+        tenantId, className);
   }
 
   /**
@@ -392,7 +397,10 @@ public class ConnectorInstanceService {
     if (connectorId != null) {
       String tenantId = connectorInstance.getTenant().getId();
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
-        case EXECUTOR -> executorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+        case EXECUTOR -> {
+          endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
+          executorRepository.deleteByIdAndTenantId(connectorId, tenantId);
+        }
         case INJECTOR -> injectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
         case COLLECTOR -> collectorRepository.deleteByIdAndTenantId(connectorId, tenantId);
       }

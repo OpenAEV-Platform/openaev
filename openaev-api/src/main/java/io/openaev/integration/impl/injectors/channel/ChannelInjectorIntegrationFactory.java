@@ -15,7 +15,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectorService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import java.lang.reflect.InvocationTargetException;
@@ -34,7 +33,6 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
   private final ConnectorInstanceService connectorInstanceService;
   private final ComponentRequestEngine componentRequestEngine;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   public ChannelInjectorIntegrationFactory(
       ComponentRequestEngine componentRequestEngine,
@@ -47,8 +45,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
       InjectExpectationService injectExpectationService,
       ArticleRepository articleRepository,
       HttpClientFactory httpClientFactory,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
@@ -59,7 +56,6 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
     this.injectExpectationService = injectExpectationService;
     this.articleRepository = articleRepository;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   @Override
@@ -103,8 +99,7 @@ public class ChannelInjectorIntegrationFactory extends BuiltinIntegrationFactory
         injectorService,
         injectExpectationService,
         articleRepository,
-        urlAccessTokenService,
-        previewFeatureService);
+        urlAccessTokenService);
   }
 
   @Override

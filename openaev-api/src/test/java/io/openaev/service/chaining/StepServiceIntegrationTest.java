@@ -10,7 +10,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.*;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -25,32 +28,34 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.*;
-import org.junit.jupiter.api.AfterEach;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.transaction.TestTransaction;
+import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@Transactional
 @WithMockUser(isAdmin = true)
 class StepServiceIntegrationTest extends IntegrationTest {
 
-  @Autowired private StepService stepService;
+  @MockitoSpyBean private StepService spyStepService;
 
   @Autowired private StepRepository stepRepository;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private ExerciseComposer simulationComposer;
-  @MockBean private InjectorContractService injectorContractService;
-  @MockBean private UserService userService;
-  @MockBean private TeamService teamService;
-  @MockBean private AssetService assetService;
-  @MockBean private TagService tagService;
-  @MockBean private DocumentService documentService;
-  @MockBean private InjectService injectService;
-  @MockBean private io.openaev.executors.Executor executor;
+  @MockitoBean private InjectorContractService injectorContractService;
+  @MockitoBean private UserService userService;
+  @MockitoBean private TeamService teamService;
+  @MockitoBean private AssetService assetService;
+  @MockitoBean private TagService tagService;
+  @MockitoBean private DocumentService documentService;
+  @MockitoBean private InjectService injectService;
+  @MockitoBean private io.openaev.executors.Executor executor;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -58,8 +63,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectTestHelper injectTestHelper;
   String injectInputJson;
   InjectorContract injectorContractSaved;
-  @SpyBean private StepService spyStepService;
-  @Autowired private WorkflowRepository workflowRepository;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -154,11 +157,6 @@ class StepServiceIntegrationTest extends IntegrationTest {
             .formatted(injectorContractSaved.getId(), asset.getId());
   }
 
-  @AfterEach
-  void afterEach() {
-    workflowRepository.deleteAll();
-  }
-
   @Test
   void should_rollback_when_condition_fails() throws JsonProcessingException {
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -171,20 +169,17 @@ class StepServiceIntegrationTest extends IntegrationTest {
     StepsCreateInput.StepInput input = buildInvalidInputCondition();
     input.setDataStep(injectInput);
 
-    long countBefore = stepRepository.count();
-
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> stepService.createStepTemplates(workflow, List.of(input)));
+            () -> spyStepService.createStepTemplates(workflow, List.of(input)));
 
     // vérification du message
     assertEquals(
         "New step (TEMPLATE): Only 1 condition can be first parent", exception.getMessage());
 
     verify(spyStepService, atLeastOnce()).saveStep(any());
-    long countAfter = stepRepository.count();
-    assertEquals(countBefore, countAfter);
+    assertTrue(TestTransaction.isFlaggedForRollback());
   }
 
   @Test
@@ -204,7 +199,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
 
     long countBefore = stepRepository.count();
 
-    stepService.createStepTemplates(workflow, List.of(input1, input2));
+    spyStepService.createStepTemplates(workflow, List.of(input1, input2));
 
     // vérification du message
 
@@ -228,12 +223,10 @@ class StepServiceIntegrationTest extends IntegrationTest {
     input1.setDataStep(injectInput);
     StepsCreateInput.StepInput input2 = buildInvalidInput();
 
-    long countBefore = stepRepository.count();
-
     IllegalArgumentException exception =
         assertThrows(
             IllegalArgumentException.class,
-            () -> stepService.createStepTemplates(workflow, List.of(input1, input2)));
+            () -> spyStepService.createStepTemplates(workflow, List.of(input1, input2)));
 
     // vérification du message
     assertEquals(
@@ -241,8 +234,7 @@ class StepServiceIntegrationTest extends IntegrationTest {
         exception.getMessage());
 
     verify(spyStepService, atLeastOnce()).saveStep(any());
-    long countAfter = stepRepository.count();
-    assertEquals(countBefore, countAfter);
+    assertTrue(TestTransaction.isFlaggedForRollback());
   }
 
   private StepsCreateInput.StepInput buildInvalidInputCondition() {

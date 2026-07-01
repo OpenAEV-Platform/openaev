@@ -1,8 +1,6 @@
 package io.openaev.injectors.channel;
 
-import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
-import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
+import static io.openaev.database.model.ExecutionTrace.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 
@@ -21,9 +19,7 @@ import io.openaev.model.ExecutionProcess;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.ChannelExpectation;
 import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.service.PreviewFeatureService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,21 +35,18 @@ public class ChannelExecutor extends Injector {
   private final EmailService emailService;
   private final InjectExpectationService injectExpectationService;
   private final UrlAccessTokenService urlAccessTokenService;
-  private final PreviewFeatureService previewFeatureService;
 
   public ChannelExecutor(
       InjectorContext context,
       ArticleRepository articleRepository,
       EmailService emailService,
       InjectExpectationService injectExpectationService,
-      UrlAccessTokenService urlAccessTokenService,
-      PreviewFeatureService previewFeatureService) {
+      UrlAccessTokenService urlAccessTokenService) {
     super(context);
     this.articleRepository = articleRepository;
     this.emailService = emailService;
     this.injectExpectationService = injectExpectationService;
     this.urlAccessTokenService = urlAccessTokenService;
-    this.previewFeatureService = previewFeatureService;
   }
 
   private String buildArticleUri(
@@ -61,11 +54,6 @@ public class ChannelExecutor extends Injector {
     ProtectUser user = executionContext.getUser();
     String channelId = article.getChannel().getId();
     String queryOptions = "article=" + article.getId();
-
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      queryOptions = queryOptions + "&user=" + user.getId();
-    }
-
     String url =
         this.context.getOpenAEVConfig().getBaseUrl()
             + "/"
@@ -76,10 +64,6 @@ public class ChannelExecutor extends Injector {
             + channelId
             + "?"
             + queryOptions;
-
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.URL_ACCESS_TOKEN)) {
-      return url;
-    }
     return urlAccessTokenService.generateTokenUrl(exercise, user, url);
   }
 
@@ -87,7 +71,8 @@ public class ChannelExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChannelContent content = contentConvert(injection, ChannelContent.class);
+      ChannelContent content =
+          injectExpectationService.contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
       if (articles.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one article");

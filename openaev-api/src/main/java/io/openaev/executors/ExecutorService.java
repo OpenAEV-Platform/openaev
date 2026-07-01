@@ -13,6 +13,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
+import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -20,12 +21,12 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
@@ -40,6 +41,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final ExecutorMapper executorMapper;
 
+  private final EndpointService endpointService;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -49,7 +52,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      EndpointService endpointService) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -60,6 +64,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
+    this.endpointService = endpointService;
   }
 
   @Override
@@ -204,7 +209,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
   public void remove(String id) {
     executorRepository
         .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .ifPresent(executor -> executorRepository.delete(executor));
+        .ifPresent(
+            executor -> {
+              endpointService.removeSourceTagsForExecutor(id, TenantContext.getCurrentTenant());
+              executorRepository.delete(executor);
+            });
   }
 
   /**

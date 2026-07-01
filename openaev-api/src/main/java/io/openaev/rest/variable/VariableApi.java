@@ -17,6 +17,7 @@ import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class VariableApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/variables",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -54,6 +56,7 @@ public class VariableApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/variables",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
@@ -66,6 +69,7 @@ public class VariableApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -84,6 +88,7 @@ public class VariableApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/variables/{variableId}",
     TENANT_EXERCISE_URI + "/{exerciseId}/variables/{variableId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
@@ -102,6 +107,7 @@ public class VariableApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/variables",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -120,6 +126,7 @@ public class VariableApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/variables",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -132,6 +139,7 @@ public class VariableApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -150,6 +158,7 @@ public class VariableApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/variables/{variableId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/variables/{variableId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

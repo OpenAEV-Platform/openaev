@@ -1,3 +1,4 @@
+import { Button } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { addEndpointAgentless } from '../../../../actions/assets/endpoint-actions';
@@ -6,7 +7,9 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import type { Endpoint, EndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import EndpointForm from './EndpointForm';
+import { type AssetCategory, getCategoryDef } from '../asset-categories';
+import AssetCategoryPicker from '../AssetCategoryPicker';
+import AssetForm from '../AssetForm';
 
 interface Props {
   agentless?: boolean;
@@ -14,14 +17,20 @@ interface Props {
 }
 
 const EndpointCreation: FunctionComponent<Props> = ({
-  agentless,
+  agentless = true,
   onCreate,
 }) => {
-  // Standard hooks
   const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<AssetCategory | null>(null);
   const { t } = useFormatter();
 
   const dispatch = useAppDispatch();
+
+  const handleClose = () => {
+    setOpen(false);
+    setCategory(null);
+  };
+
   const onSubmit = (data: EndpointInput) => {
     dispatch(addEndpointAgentless(data)).then(
       (result: {
@@ -33,7 +42,7 @@ const EndpointCreation: FunctionComponent<Props> = ({
             const endpointCreated = result.entities.endpoints[result.result];
             onCreate(endpointCreated);
           }
-          setOpen(false);
+          handleClose();
         }
         return result;
       },
@@ -45,14 +54,24 @@ const EndpointCreation: FunctionComponent<Props> = ({
       <ButtonCreate onClick={() => setOpen(true)} />
       <Drawer
         open={open}
-        handleClose={() => setOpen(false)}
-        title={t('Create a new endpoint')}
+        handleClose={handleClose}
+        title={category ? t(getCategoryDef(category).label) : t('Create a new asset')}
       >
-        <EndpointForm
-          onSubmit={onSubmit}
-          agentless={agentless}
-          handleClose={() => setOpen(false)}
-        />
+        {!category
+          ? (<AssetCategoryPicker onSelect={setCategory} />)
+          : (
+              <>
+                <Button size="small" onClick={() => setCategory(null)} style={{ alignSelf: 'flex-start' }}>
+                  {t('Change category')}
+                </Button>
+                <AssetForm
+                  category={category}
+                  agentless={agentless}
+                  onSubmit={onSubmit}
+                  handleClose={handleClose}
+                />
+              </>
+            )}
       </Drawer>
     </>
   );

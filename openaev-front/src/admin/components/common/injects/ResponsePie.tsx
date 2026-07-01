@@ -2,9 +2,9 @@ import { BugReportOutlined, InfoOutlined, SensorOccupiedOutlined, ShieldOutlined
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
-import Chart from 'react-apexcharts';
 import { Link } from 'react-router';
 
+import Chart from '../../../../components/Chart';
 import { useFormatter } from '../../../../components/i18n';
 import { type ExpectationResultsByType, type ResultDistribution } from '../../../../utils/api-types';
 import { donutChartOptions } from '../../../../utils/Charts';

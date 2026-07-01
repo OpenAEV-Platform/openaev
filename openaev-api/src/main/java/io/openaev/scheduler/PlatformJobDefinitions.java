@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
@@ -88,6 +89,14 @@ public class PlatformJobDefinitions {
   public JobDetail getExecutionTracesBatchRequeueJob() {
     return JobBuilder.newJob(ExecutionTracesBatchRequeueJob.class)
         .withIdentity("executionTracesBatchRequeueJob")
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail executionTraceRetentionJobDetail() {
+    return JobBuilder.newJob(ExecutionTraceRetentionJob.class)
+        .withIdentity(EXECUTION_TRACE_RETENTION_JOB)
         .storeDurably()
         .build();
   }

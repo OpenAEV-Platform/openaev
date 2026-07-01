@@ -8,6 +8,8 @@ import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Setter
@@ -20,6 +22,7 @@ public class InjectTestStatus extends BaseInjectStatus {
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.EAGER)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("status_traces")
   private List<ExecutionTrace> traces = new ArrayList<>();
 

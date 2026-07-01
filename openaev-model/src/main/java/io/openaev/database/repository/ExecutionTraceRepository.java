@@ -1,12 +1,15 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.ExecutionTrace;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface ExecutionTraceRepository
@@ -54,4 +57,23 @@ public interface ExecutionTraceRepository
       nativeQuery = true)
   List<ExecutionTrace> findByInjectIdAndPlayerId(
       @Param("injectId") String injectId, @Param("targetId") String targetId);
+
+  /**
+   * Deletes one bounded batch of execution traces older than the given threshold. Batched so the
+   * retention job never holds a long transaction or large lock set on this hot-write table.
+   *
+   * @param threshold traces created strictly before this instant are deleted
+   * @param batchSize maximum number of traces deleted in this batch
+   * @return the number of deleted traces
+   */
+  @Modifying
+  @Transactional
+  @Query(
+      value =
+          "DELETE FROM execution_traces WHERE execution_trace_id IN ("
+              + "SELECT execution_trace_id FROM execution_traces "
+              + "WHERE execution_created_at < :threshold LIMIT :batchSize)",
+      nativeQuery = true)
+  int deleteBatchOlderThan(
+      @Param("threshold") Instant threshold, @Param("batchSize") int batchSize);
 }

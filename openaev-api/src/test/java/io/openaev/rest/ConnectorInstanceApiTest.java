@@ -37,11 +37,12 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -53,6 +54,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -83,6 +85,8 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired private ExecutorRepository executorRepository;
   @Autowired private InjectorRepository injectorRepository;
   @MockitoBean private ManagerFactory managerFactory;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
@@ -1098,5 +1102,113 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         .inPath("[*].connector_instance_log")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("log 3"));
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Connector instance created in tenant X should NOT be readable from tenant Y")
+    void given_connectorInstanceInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act + Assert --------
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Connector instance created in tenant X should be readable from tenant X")
+    void given_connectorInstanceInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/"
+                          + tenantX.getId()
+                          + "/connector-instances/"
+                          + connectorInstance.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertThatJson(response).inPath("connector_instance_id").isEqualTo(connectorInstance.getId());
+    }
+
+    @Test
+    @DisplayName("Connector instance configs from tenant X should NOT be readable from tenant Y")
+    void given_connectorInstanceInTenantX_should_notExposeConfigurationsToTenantY()
+        throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act + Assert --------
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId()
+                      + "/configurations")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
   }
 }

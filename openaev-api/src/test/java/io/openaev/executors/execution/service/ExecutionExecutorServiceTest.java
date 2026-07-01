@@ -12,6 +12,7 @@ import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.executors.ExecutorContextService;
@@ -21,6 +22,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.fixtures.*;
@@ -43,11 +45,12 @@ public class ExecutionExecutorServiceTest {
 
   @Mock private InjectService injectService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
-  @Mock private ExecutorContextService executorContextService;
+  @Mock private InjectStatusRepository injectStatusRepository;
   @Mock private ManagerFactory managerFactory;
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private EndpointService endpointService;
 
   @InjectMocks private ExecutionExecutorService executorService;
   @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
@@ -60,6 +63,7 @@ public class ExecutionExecutorServiceTest {
             null,
             connectorInstanceRepository,
             connectorInstanceConfigurationRepository,
+            null,
             null,
             null,
             null,
@@ -321,6 +325,11 @@ public class ExecutionExecutorServiceTest {
           .launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());
       verify(mockContextService)
           .launchExecutorSubprocess(eq(inject), any(Endpoint.class), any(), anyString());
+      // The agent count resolved at launch is persisted on the status so the COMPLETE callback
+      // path can decide completion without re-resolving the asset/agent graph.
+      ArgumentCaptor<InjectStatus> statusCaptor = ArgumentCaptor.forClass(InjectStatus.class);
+      verify(injectStatusRepository).save(statusCaptor.capture());
+      assertThat(statusCaptor.getValue().getExpectedAgentCount()).isEqualTo(1);
     }
 
     @Test

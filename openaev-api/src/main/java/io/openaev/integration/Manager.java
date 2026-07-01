@@ -125,19 +125,6 @@ public class Manager {
           factory.findRelatedInstances(tenantId).stream()
               .filter(ci -> !spawnedIntegrations.containsKey(ci))
               .toList();
-      log.info(
-          "==> Found {} new instances for factory {}, tenantId={}",
-          newInstances.size(),
-          factory.getClassName(),
-          tenantId);
-      if (!newInstances.isEmpty()) {
-        log.info(
-            "==> monitorIntegrations: found {} new instance(s) for factory {}: {}",
-            newInstances.size(),
-            factory.getClassName(),
-            newInstances.stream().map(ConnectorInstance::getId).toList());
-      }
-
       List<Integration> newIntegrations = factory.sync(newInstances);
 
       for (Integration integration : newIntegrations) {

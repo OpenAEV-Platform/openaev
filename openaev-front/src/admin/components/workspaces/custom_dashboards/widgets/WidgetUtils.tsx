@@ -11,7 +11,7 @@ import {
   type Exercise,
   type Filter,
   type FilterGroup,
-  type InjectExpectation,
+  type InjectExpectationOutput,
   type Series,
   type Widget,
 } from '../../../../../utils/api-types';
@@ -204,7 +204,7 @@ const statusFailedFilter: Filter = {
   operator: 'eq',
   values: ['FAILED'],
 };
-const typeFilter: (injectExpectationType: InjectExpectation['inject_expectation_type']) => Filter = injectExpectationType => ({
+const typeFilter: (injectExpectationType: InjectExpectationOutput['inject_expectation_type']) => Filter = injectExpectationType => ({
   id: generateFilterId(),
   key: 'inject_expectation_type',
   mode: 'and',
@@ -219,7 +219,7 @@ const simulationFilter: (simulationId: Exercise['exercise_id']) => Filter = simu
   values: [simulationId],
 });
 
-const getSuccessSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series = (injectExpectationType, simulationId) => {
+const getSuccessSeries: (injectExpectationType: InjectExpectationOutput['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series = (injectExpectationType, simulationId) => {
   return {
     filter: {
       mode: 'and',
@@ -234,7 +234,7 @@ const getSuccessSeries: (injectExpectationType: InjectExpectation['inject_expect
   };
 };
 
-const getFailedSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series = (injectExpectationType, simulationId) => {
+const getFailedSeries: (injectExpectationType: InjectExpectationOutput['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series = (injectExpectationType, simulationId) => {
   return {
     filter: {
       mode: 'and',
@@ -249,7 +249,7 @@ const getFailedSeries: (injectExpectationType: InjectExpectation['inject_expecta
   };
 };
 
-export const getSeries: (injectExpectationType: InjectExpectation['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series[] = (injectExpectationType, simulationId) => {
+export const getSeries: (injectExpectationType: InjectExpectationOutput['inject_expectation_type'], simulationId?: Exercise['exercise_id']) => Series[] = (injectExpectationType, simulationId) => {
   return [getSuccessSeries(injectExpectationType, simulationId), getFailedSeries(injectExpectationType, simulationId)];
 };
 

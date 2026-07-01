@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>2.260604.0</version>
+        <version>2.260623.0</version>
     </parent>
 
     <artifactId>openaev-model</artifactId>
@@ -14,9 +14,9 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>8.19.16</elasticsearch.version>
+        <elasticsearch.version>8.19.17</elasticsearch.version>
         <opensearch.version>3.8.0</opensearch.version>
-        <amqp-client.version>5.31.0</amqp-client.version>
+        <amqp-client.version>5.32.0</amqp-client.version>
     </properties>
 
     <dependencyManagement>
@@ -146,4 +146,31 @@
             <scope>compile</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>io.openaev</groupId>
+                            <artifactId>openaev-annotation-processor</artifactId>
+                            <version>${project.parent.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Aio.openaev.annotation.processor.NoTransactionalRule=false</arg>
+                        <arg>-Aio.openaev.annotation.processor.NoWebLayerRule=true</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

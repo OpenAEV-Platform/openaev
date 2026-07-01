@@ -113,13 +113,15 @@ public enum Capability {
       pair(ResourceType.ASSET, Action.DELETE),
       pair(ResourceType.ASSET_GROUP, Action.DELETE)),
 
-  // Payloads -- PAYLOAD CAPABILITIES ARE DEPRECATED
+  // Payloads -- PAYLOAD CAPABILITIES ARE DEPRECATED.
+  // Tenant-scoped (Payload is a TenantBase) so a tenant BYPASS covers /api/payloads/**; an empty
+  // scope previously made ACCESS_PAYLOADS unreachable via BYPASS (issues #6331 / #6332).
   @Deprecated(
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   ACCESS_PAYLOADS(
       null,
       CapabilityGroup.THREAT_ARSENALS,
-      Set.of(),
+      EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.PAYLOAD, Action.READ),
       pair(ResourceType.PAYLOAD, Action.SEARCH)),
   @Deprecated(

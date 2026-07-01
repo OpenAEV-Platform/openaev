@@ -1,6 +1,5 @@
 package io.openaev.rest.scenario;
 
-import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
@@ -14,10 +13,12 @@ import io.openaev.rest.challenge.response.ScenarioChallengesReader;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChallengeService;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,20 +41,19 @@ public class ScenarioChallengesApi extends RestBehavior {
   }
 
   @GetMapping("/api/player/scenarios/{scenarioId}/documents")
+  @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String scenarioId, @RequestParam Optional<String> userId) {
+      @PathVariable String scenarioId, @RequestParam Optional<String> userId)
+      throws AuthenticationError {
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
     final User user = impersonateUser(userRepository, userId);
-    if (user.getId().equals(ANONYMOUS)) {
-      throw new UnsupportedOperationException("User must be logged or dynamic player is required");
-    }
     if (scenarioOpt.isPresent()) {
       if (!scenarioOpt.get().isUserHasAccess(user)
           && !scenarioOpt.get().getUsers().contains(user)) {
-        throw new UnsupportedOperationException("The given player is not in this exercise");
+        throw new AuthenticationError("The given player is not in this exercise");
       }
       return getScenarioPlayerDocuments(scenarioOpt.get());
     } else {
@@ -62,6 +62,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   }
 
   @GetMapping("/api/observer/scenarios/{scenarioId}/challenges")
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
