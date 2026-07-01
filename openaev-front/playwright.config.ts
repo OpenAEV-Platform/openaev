@@ -7,15 +7,16 @@ import { defineConfig, devices } from '@playwright/test';
 import coverageOptions from './tests_e2e/conf/mcr.config';
 
 const isArm = process.env.CI === 'true' && process.arch === 'arm64';
-const armExternalConnectorIgnore = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
-const testIgnore = isArm ? [armExternalConnectorIgnore] : [];
+const armUnsupportedTests = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
+const globalTestIgnore = isArm ? [armUnsupportedTests] : [];
+const nonInfraTestIgnore = isArm ? [/infra\/.*/, armUnsupportedTests] : [/infra\/.*/];
 
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
   testDir: './tests_e2e',
-  testIgnore: testIgnore,
+  testIgnore: globalTestIgnore,
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -76,7 +77,7 @@ export default defineConfig({
     },
     {
       name: 'chrome',
-      testIgnore: /infra\/.*/,
+      testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
@@ -90,7 +91,7 @@ export default defineConfig({
     },
     {
       name: 'chromium',
-      testIgnore: /infra\/.*/,
+      testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -103,7 +104,7 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      testIgnore: /infra\/.*/,
+      testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Firefox'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -116,7 +117,7 @@ export default defineConfig({
     },
     {
       name: 'webkit',
-      testIgnore: /infra\/.*/,
+      testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Safari'],
         storageState: 'tests_e2e/.auth/user.json',
@@ -129,7 +130,7 @@ export default defineConfig({
     },
     {
       name: 'edge',
-      testIgnore: /infra\/.*/,
+      testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
