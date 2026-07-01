@@ -141,5 +141,72 @@ export default defineConfig({
       },
       dependencies: ['setup'],
     },
+    {
+      name: 'infra-chrome',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-chromium',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-firefox',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-webkit',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'infra-edge',
+      testMatch: /infra\/.*\.spec\.ts/,
+      use: {
+        ...devices['Desktop Edge'],
+        channel: 'msedge',
+        storageState: 'tests_e2e/.auth/user.json',
+        viewport: {
+          width: 1920,
+          height: 1080,
+        },
+      },
+      dependencies: ['setup'],
+    },
   ],
 });

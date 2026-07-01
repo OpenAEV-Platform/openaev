@@ -58,7 +58,7 @@ jobs:
       # ── E2E Infra: x64 + arm64 ──
       e2e-infra-matrix: >
         [
-          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64"},
-          {"arch":"arm64","runner":"ubuntu-24.04-arm","docker_image":"openaev-image-arm64"}
+          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64","browser":"chromium","project":"infra-chromium","artifact_suffix":""},
+          {"arch":"arm64","runner":"ubuntu-24.04-arm","docker_image":"openaev-image-arm64","browser":"chromium","project":"infra-chromium","artifact_suffix":""}
         ]
     secrets: inherit

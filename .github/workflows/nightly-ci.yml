@@ -52,10 +52,15 @@ jobs:
           {"browser":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-22.04","search_engine":"elasticsearch","artifact_suffix":"-ubuntu22"},
           {"browser":"firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-22.04","search_engine":"elasticsearch","artifact_suffix":"-ubuntu22"}
         ]
-      # ── E2E Infra: x64 + arm64 ──
+      # ── E2E Infra: all browsers × x64 + arm64 ──
       e2e-infra-matrix: >
         [
-          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64"},
-          {"arch":"arm64","runner":"ubuntu-24.04-arm","docker_image":"openaev-image-arm64"}
+          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64","browser":"chrome","project":"infra-chrome","artifact_suffix":""},
+          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64","browser":"firefox","project":"infra-firefox","artifact_suffix":"-firefox"},
+          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64","browser":"webkit","project":"infra-webkit","artifact_suffix":"-webkit"},
+          {"arch":"x64","runner":"ubuntu-latest","docker_image":"openaev-image-amd64","browser":"edge","project":"infra-edge","artifact_suffix":"-edge"},
+          {"arch":"arm64","runner":"ubuntu-24.04-arm","docker_image":"openaev-image-arm64","browser":"chromium","project":"infra-chromium","artifact_suffix":""},
+          {"arch":"arm64","runner":"ubuntu-24.04-arm","docker_image":"openaev-image-arm64","browser":"firefox","project":"infra-firefox","artifact_suffix":"-firefox"},
+          {"arch":"arm64","runner":"ubuntu-24.04-arm","docker_image":"openaev-image-arm64","browser":"webkit","project":"infra-webkit","artifact_suffix":"-webkit"}
         ]
     secrets: inherit

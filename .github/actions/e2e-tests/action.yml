@@ -32,6 +32,10 @@ inputs:
     description: "Docker image for the search engine (default from .github/versions.env)"
     required: false
     default: ""
+  project:
+    description: "Playwright project name to run (defaults to the browser input value)."
+    required: false
+    default: ""
   artifact-suffix:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
     required: false
@@ -292,11 +296,12 @@ runs:
       with:
         openaev-url: http://localhost:8080
 
-    - name: Run E2E tests (${{ inputs.browser }})
+    - name: Run E2E tests (${{ inputs.project || inputs.browser }})
       run: |
         CONFIG="${{ inputs.playwright-config }}"
+        PROJECT="${{ inputs.project || inputs.browser }}"
         ARGS="--config $CONFIG"
-        ARGS="$ARGS --project=setup --project=${{ inputs.browser }}"
+        ARGS="$ARGS --project=setup --project=$PROJECT"
         yarn playwright test $ARGS
       shell: bash
       working-directory: openaev-front
