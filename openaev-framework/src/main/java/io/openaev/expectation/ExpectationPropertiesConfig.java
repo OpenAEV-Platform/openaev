@@ -199,7 +199,6 @@ public class ExpectationPropertiesConfig {
       case CHALLENGE -> getChallengeExpirationTime();
       case ARTICLE -> getArticleExpirationTime();
       case MANUAL -> getManualExpirationTime();
-      case DOCUMENT, TEXT -> getHumanExpirationTimeOrDefault();
     };
   }
 

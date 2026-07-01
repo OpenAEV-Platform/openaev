@@ -238,14 +238,6 @@ public class PayloadService {
     if (expectationTypes != null) {
       for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildTextExpectation()));
-          case DOCUMENT ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildDocumentExpectation()));
           case ARTICLE ->
               predefined.add(
                   withExpectedMultiSelectableFlag(

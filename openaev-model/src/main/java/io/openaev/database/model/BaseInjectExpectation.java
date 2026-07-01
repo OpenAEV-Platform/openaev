@@ -65,8 +65,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
   }
 
   public enum EXPECTATION_TYPE {
-    TEXT,
-    DOCUMENT,
     ARTICLE,
     CHALLENGE,
     MANUAL,
@@ -75,8 +73,6 @@ public class BaseInjectExpectation implements Base, Cloneable {
     VULNERABILITY;
 
     // Compile-time constants for @DiscriminatorValue (annotations require String constants)
-    public static final String TEXT_VALUE = "TEXT";
-    public static final String DOCUMENT_VALUE = "DOCUMENT";
     public static final String ARTICLE_VALUE = "ARTICLE";
     public static final String CHALLENGE_VALUE = "CHALLENGE";
     public static final String MANUAL_VALUE = "MANUAL";

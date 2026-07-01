@@ -111,12 +111,6 @@ public class InjectExpectationUtils {
           ((ArticleInjectExpectation) baseInjectExpectation).setArticle(e.getArticle());
       case ChallengeExpectation e when expectation.type() == CHALLENGE ->
           ((ChallengeInjectExpectation) baseInjectExpectation).setChallenge(e.getChallenge());
-      case Expectation ignored when expectation.type() == DOCUMENT -> {
-        // No extra setup needed — DocumentInjectExpectation constructor handles type
-      }
-      case Expectation ignored when expectation.type() == TEXT ->
-          throw new IllegalStateException(
-              "TEXT expectation type is deprecated and no longer supported");
       case DetectionExpectation e when expectation.type() == DETECTION -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
@@ -148,16 +142,12 @@ public class InjectExpectationUtils {
   private static BaseInjectExpectation newExpectationByType(
       @NotNull final Expectation expectation) {
     return switch (expectation.type()) {
-      case DOCUMENT -> new DocumentInjectExpectation();
       case ARTICLE -> new ArticleInjectExpectation();
       case CHALLENGE -> new ChallengeInjectExpectation();
       case MANUAL -> new ManualInjectExpectation();
       case PREVENTION -> new PreventionInjectExpectation();
       case DETECTION -> new DetectionInjectExpectation();
       case VULNERABILITY -> new VulnerabilityInjectExpectation();
-      case TEXT ->
-          throw new IllegalStateException(
-              "TEXT expectation type is deprecated and no longer supported");
     };
   }
 

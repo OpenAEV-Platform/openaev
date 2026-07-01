@@ -112,8 +112,6 @@ public class InjectExpectationFixture {
       case MANUAL -> new ManualInjectExpectation();
       case ARTICLE -> new ArticleInjectExpectation();
       case CHALLENGE -> new ChallengeInjectExpectation();
-      case DOCUMENT -> new DocumentInjectExpectation();
-      case TEXT -> throw new UnsupportedOperationException("TEXT expectation type not yet mapped");
     };
   }
 }

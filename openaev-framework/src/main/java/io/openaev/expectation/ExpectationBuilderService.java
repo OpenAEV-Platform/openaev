@@ -118,15 +118,6 @@ public class ExpectationBuilderService {
   }
 
   /**
-   * Builds a text expectation with default configuration.
-   *
-   * @return a configured text expectation
-   */
-  public Expectation buildTextExpectation() {
-    return buildExpectation(TEXT, TEXT_NAME, expectationPropertiesConfig.getManualExpirationTime());
-  }
-
-  /**
    * Builds a manual expectation with default configuration MANUAL expectations are not limited (can
    * be added multiple times).
    *
@@ -135,16 +126,6 @@ public class ExpectationBuilderService {
   public Expectation buildManualExpectation() {
     return buildExpectation(
         MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime(), true);
-  }
-
-  /**
-   * Builds a document upload expectation with default configuration.
-   *
-   * @return a configured document expectation
-   */
-  public Expectation buildDocumentExpectation() {
-    return buildExpectation(
-        DOCUMENT, DOCUMENT_NAME, expectationPropertiesConfig.getManualExpirationTime());
   }
 
   /**

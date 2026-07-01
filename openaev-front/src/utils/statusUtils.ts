@@ -53,6 +53,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
 
   const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
     // -- Common --
+    'SUCCESS': colorStyles.green,
     'EXECUTED': colorStyles.green,
     'ERROR': colorStyles.red,
 
@@ -107,7 +108,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'FINISHED': colorStyles.grey,
     'NOT_PLANNED': colorStyles.grey,
   };
-
+  console.log(`computeStatusStyle: ${statusMap[normalized] ?? colorStyles.blueGrey}, normalized=${normalized}, style=${JSON.stringify(statusMap[normalized])}`);
   return statusMap[normalized] ?? colorStyles.blueGrey;
 };
 
