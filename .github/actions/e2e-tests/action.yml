@@ -125,14 +125,14 @@ runs:
       with:
         path: ~/.cache/ms-playwright
         key: playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('openaev-front/yarn.lock') }}
-    - name: Install Playwright browser (${{ inputs.browser }})
+    - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
-      run: yarn playwright install --with-deps ${{ inputs.browser }}
+      run: yarn playwright install --with-deps chromium ${{ inputs.browser }}
       shell: bash
       working-directory: openaev-front
     - name: Install Playwright system dependencies (cache hit)
       if: steps.playwright-cache.outputs.cache-hit == 'true'
-      run: yarn playwright install-deps ${{ inputs.browser }}
+      run: yarn playwright install-deps chromium ${{ inputs.browser }}
       shell: bash
       working-directory: openaev-front
 
