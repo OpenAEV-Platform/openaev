@@ -785,6 +785,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -821,6 +822,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -856,6 +858,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
     inject.getInjectorContract().get().setNeedsExecutor(true);
 
     // MOCK
@@ -886,6 +889,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     ObjectNode expectationDetection = mapper.createObjectNode();
     expectationDetection.put(
@@ -933,6 +937,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
     inject
         .getInjectorContract()
         .get()
@@ -961,6 +966,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -995,6 +1001,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
