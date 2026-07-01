@@ -16,8 +16,8 @@ public class V5_35__Add_indexing_last_id extends BaseJavaMigration {
       // Force a one-time full reindex for expectations so that any rows that were previously
       // skipped (same-timestamp batch overflow before this fix) are picked up on next cycle.
       statement.execute(
-          "UPDATE indexing_status SET indexing_last_id = NULL, indexing_last = '1970-01-01 00:00:00'"
-              + " WHERE indexing_type = 'expectation-inject'");
+          "UPDATE indexing_status SET indexing_last_id = NULL, indexing_status_indexing_date = '1970-01-01 00:00:00'"
+              + " WHERE indexing_status_type = 'expectation-inject'");
     }
   }
 }
