@@ -1,7 +1,6 @@
-package io.openaev.datapack.packs;
+package io.openaev.processor.datapack;
 
 import io.openaev.database.model.*;
-import io.openaev.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.DataPackService;

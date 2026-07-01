@@ -1,9 +1,8 @@
-package io.openaev.datapack.packs;
+package io.openaev.processor.datapack;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.datapack.DataPack;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class V20260101_Starter_pack extends DataPack {
+
   public V20260101_Starter_pack(
       DataPackService dataPackService,
       SettingRepository settingRepository,

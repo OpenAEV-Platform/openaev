@@ -1,4 +1,4 @@
-package io.openaev.datapack.packs;
+package io.openaev.processor.datapack;
 
 import static io.openaev.config.SessionHelper.currentUser;
 
@@ -8,8 +8,6 @@ import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
-import io.openaev.datapack.DataPack;
-import io.openaev.datapack.PresetTenantData;
 import io.openaev.service.DataPackService;
 import io.openaev.service.RoleService;
 import jakarta.persistence.EntityManager;
