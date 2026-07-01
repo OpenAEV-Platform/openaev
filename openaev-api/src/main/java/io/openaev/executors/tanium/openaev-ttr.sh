@@ -28,8 +28,8 @@ fi
 # ── 1. URL-decode ─────────────────────────────────────────────────────────────
 # Tanium URL-encodes the base64 payload; restore the 3 non-alphanumeric
 # characters of standard base64: + = /
-# Note: [xX] bracket notation is used instead of sed's 'i' flag because
-# the 'i' flag is a GNU extension not available on macOS/BSD sed.
+# Note: [bB]/[dD]/[fF] bracket notation is used instead of sed's 'i' flag
+# because the 'i' flag is a GNU extension not available on macOS/BSD sed.
 DECODED=$(echo -n "$1" \
   | sed -e 's#%2[bB]#+#g' -e 's#%3[dD]#=#g' -e 's#%2[fF]#/#g')
 
@@ -48,7 +48,7 @@ trap 'rm -f "$PAYLOAD_SCRIPT"' EXIT INT TERM
 
 {
   echo '#!/bin/sh'
-  echo "$PAYLOAD"
+  printf '%s\n' "$PAYLOAD"
 } > "$PAYLOAD_SCRIPT"
 
 chmod 700 "$PAYLOAD_SCRIPT"
