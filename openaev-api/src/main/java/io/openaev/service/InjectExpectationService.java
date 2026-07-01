@@ -710,7 +710,8 @@ public class InjectExpectationService {
    * @param tenantId the tenant ID to scope the query
    * @return a list of prevention expectations without results
    */
-  public List<BaseInjectExpectation> preventionExpectationsNotFill(@NotBlank final String tenantId) {
+  public List<BaseInjectExpectation> preventionExpectationsNotFill(
+      @NotBlank final String tenantId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilled(
         tenantId, PREVENTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
@@ -1367,7 +1368,8 @@ public class InjectExpectationService {
    * @param tenantId the tenant ID to scope collector lookup
    */
   private void setupDefaultExpectationResults(
-      @NotNull final List<BaseInjectExpectation> injectExpectations, @NotBlank final String tenantId) {
+      @NotNull final List<BaseInjectExpectation> injectExpectations,
+      @NotBlank final String tenantId) {
     List<Collector> collectors = collectorService.securityPlatformCollectors(tenantId);
 
     injectExpectations.forEach(
