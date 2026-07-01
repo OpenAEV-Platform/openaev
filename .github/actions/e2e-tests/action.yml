@@ -182,12 +182,14 @@ runs:
         cd /tmp/openaev-image
         echo "🐳 Loading Docker image (${{ inputs.docker-image }})..."
         gunzip -k ${{ inputs.docker-image }}.tar.gz
+        # Convert OCI archive → docker-archive (file-based, avoids pipe issues with docker-daemon)
         skopeo copy \
-          --dest-daemon-host unix:///var/run/docker.sock \
           oci-archive:${{ inputs.docker-image }}.tar \
-          docker-daemon:openaev:ci \
-          --retry-times 3
+          docker-archive:docker-image.tar:openaev:ci
         rm -f ${{ inputs.docker-image }}.tar ${{ inputs.docker-image }}.tar.gz
+        # Load into Docker daemon from file (reliable)
+        docker load -i docker-image.tar
+        rm -f docker-image.tar
         IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')
         if [ -z "$IMAGE_ID" ]; then
           echo "❌ Failed to load Docker image"
