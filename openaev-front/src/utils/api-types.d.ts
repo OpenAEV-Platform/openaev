@@ -4536,6 +4536,7 @@ export interface InjectExecutionInput {
     | "dns_resolution"
     | "file_execution"
     | "file_drop"
+    | "data"
     | "complete";
   /**
    * Duration of the execution in miliseconds
