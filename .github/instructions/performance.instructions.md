@@ -71,6 +71,11 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - Pattern: materialize data inside a short transaction (`TransactionTemplate` in Quartz jobs),
   perform the network calls outside, persist results in a second short transaction
 - Cache static remote content (e.g. installer script templates) instead of re-fetching per request
+- **Factory startup pattern**: when a factory must both write to DB (`@Transactional`) and upload
+  to MinIO/S3, split into two methods — `initialise()` (DB-only, `@Transactional`) and
+  `refreshLogo()` / `refreshAssets()` (MinIO-only, **no** `@Transactional`). The caller invokes
+  `refreshLogo()` *after* `initialise()` returns so the DB transaction is already committed. Make
+  the asset upload best-effort (catch + warn, don't throw).
 
 ## Scheduled Jobs & Data Retention
 
@@ -101,4 +106,5 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - ❌ Iterating a list to call `repository.findById()` in a loop — use `ReferenceResolver` or `findAllById()` instead
 - ❌ Opening a transaction for read-only operations without `readOnly = true`
 - ❌ Returning JPA entities with LAZY collections from `@RestController` (triggers proxy outside session)
+- ❌ Performing MinIO / S3 / file I/O inside `@Transactional` — split into DB method + separate best-effort upload method called after the transaction commits
 

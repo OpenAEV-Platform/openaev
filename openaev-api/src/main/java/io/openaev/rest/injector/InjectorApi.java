@@ -79,7 +79,7 @@ public class InjectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve injectors",
       description = "Retrieve all injectors and pending injectors if includeNext is true")
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   @ApiResponse(
       responseCode = "200",
