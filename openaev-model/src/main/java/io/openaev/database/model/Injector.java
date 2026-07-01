@@ -8,7 +8,7 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.database.audit.TenantIdBaseListener;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -24,15 +24,21 @@ import org.hibernate.annotations.Type;
 @Setter
 @Entity
 @Table(name = "injectors")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({ModelBaseListener.class, TenantIdBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Injector extends BaseConnectorEntity implements TenantBase {
+@IdClass(ConnectorCompositeId.class)
+public class Injector extends BaseConnectorEntity implements TenantIdBase {
 
   @Id
   @Column(name = "injector_id")
   @JsonProperty("injector_id")
   @NotBlank
   private String id;
+
+  @Id
+  @Column(name = "tenant_id")
+  @JsonIgnore
+  private String tenantId;
 
   @Column(name = "injector_name")
   @JsonProperty("injector_name")
@@ -89,24 +95,15 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "injectors_injector_contracts",
-      joinColumns = @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
-      inverseJoinColumns = {
-        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
+      joinColumns = {
+        @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
         @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
-      })
+      },
+      inverseJoinColumns =
+          @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"))
   @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private Set<InjectorContract> contracts = new HashSet<>();
-
-  @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
-  @JsonIgnore
-  private Tenant tenant;
-
-  // Read-only mapping so Hibernate registers the logical column name "tenant_id" in this table
-  @Column(name = "tenant_id", insertable = false, updatable = false)
-  @JsonIgnore
-  private String tenantId;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient

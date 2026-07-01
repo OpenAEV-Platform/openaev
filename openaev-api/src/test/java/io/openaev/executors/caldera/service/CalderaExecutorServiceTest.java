@@ -88,11 +88,11 @@ public class CalderaExecutorServiceTest {
     calderaExecutor = new Executor();
     calderaExecutor.setName(CALDERA_EXECUTOR_NAME);
     calderaExecutor.setType(CALDERA_EXECUTOR_TYPE);
-    calderaExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    calderaExecutor.setTenantId(TenantContext.getCurrentTenant());
     randomExecutor = new Executor();
     randomExecutor.setName("NAME");
     randomExecutor.setType("TYPE");
-    randomExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    randomExecutor.setTenantId(TenantContext.getCurrentTenant());
     calderaExecutorService.setExecutor(calderaExecutor);
 
     calderaAgent =

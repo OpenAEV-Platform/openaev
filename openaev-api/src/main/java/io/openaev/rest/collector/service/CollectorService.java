@@ -209,7 +209,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     if (collector == null) {
       collector = new Collector();
       collector.setId(id);
-      collector.setTenant(new Tenant(tenantId));
+      collector.setTenantId(tenantId);
       collector.setPeriod(period); // immutable after creation
     }
 

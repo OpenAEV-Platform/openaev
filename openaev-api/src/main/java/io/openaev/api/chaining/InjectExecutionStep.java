@@ -644,7 +644,7 @@ public class InjectExecutionStep implements ActionStep {
                   + " and step (READY) ID "
                   + step.getId());
         }
-        injector.setTenant(injectorContract.getTenant());
+        injector.setTenantId(injectorContract.getTenant().getId());
         inject.setInjector(injector);
       }
 

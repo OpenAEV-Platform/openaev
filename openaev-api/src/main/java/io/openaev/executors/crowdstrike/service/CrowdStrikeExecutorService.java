@@ -83,14 +83,14 @@ public class CrowdStrikeExecutorService implements Runnable {
         List<CrowdStrikeDevice> devices = this.client.devices(hostGroup);
         if (!devices.isEmpty()) {
           Optional<AssetGroup> existingAssetGroup =
-              assetGroupService.findByExternalReference(hostGroup, executor.getTenant().getId());
+              assetGroupService.findByExternalReference(hostGroup, executor.getTenantId());
           AssetGroup assetGroup;
           if (existingAssetGroup.isPresent()) {
             assetGroup = existingAssetGroup.get();
           } else {
             assetGroup = new AssetGroup();
             assetGroup.setExternalReference(hostGroup);
-            assetGroup.setTenant(executor.getTenant());
+            assetGroup.setTenant(new Tenant(executor.getTenantId()));
           }
           crowdStrikeHostGroup = crowdStrikeResourceGroup.getResources().getFirst();
           assetGroup.setName(crowdStrikeHostGroup.getName());
@@ -104,8 +104,8 @@ public class CrowdStrikeExecutorService implements Runnable {
               endpointService.syncAgentsEndpoints(
                   toAgentEndpoint(devices),
                   agentService.getAgentsByExecutorIdAndTenantId(
-                      executor.getId(), executor.getTenant().getId()),
-                  executor.getTenant().getId());
+                      executor.getId(), executor.getTenantId()),
+                  executor.getTenantId());
           assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
           assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
         }

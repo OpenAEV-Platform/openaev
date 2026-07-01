@@ -54,7 +54,7 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
-    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    sentinelOneExecutor.setTenantId(TenantContext.getCurrentTenant());
   }
 
   @Test

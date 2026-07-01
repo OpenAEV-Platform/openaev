@@ -260,7 +260,7 @@ public class InjectorContractService implements DependenciesManager {
     if (injector != null) {
       target.getInjectors().add(injector);
     }
-    target.setTenant(injector.getTenant());
+    target.setTenant(new Tenant(injector.getTenantId()));
 
     applyBuiltinContractData(target, source, isPayloads, injector);
     return target;
@@ -288,7 +288,7 @@ public class InjectorContractService implements DependenciesManager {
       List<AttackPattern> attackPatterns =
           fromIterable(
               attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                  source.getAttackPatternsExternalIds(), injector.getTenant().getId()));
+                  source.getAttackPatternsExternalIds(), injector.getTenantId()));
       target.setAttackPatterns(attackPatterns);
     } else {
       target.setAttackPatterns(new ArrayList<>());
@@ -303,13 +303,12 @@ public class InjectorContractService implements DependenciesManager {
 
     if (!isPayloads && injector != null) {
       Set<Domain> currentDomains =
-          this.domainService.upsertDomainEntities(
-              target.getDomains(), injector.getTenant().getId());
+          this.domainService.upsertDomainEntities(target.getDomains(), injector.getTenantId());
       Set<Domain> domainsToAdd =
-          this.domainService.upsertDomainEntities(
-              source.getDomains(), injector.getTenant().getId());
+          this.domainService.upsertDomainEntities(source.getDomains(), injector.getTenantId());
       target.setDomains(
-          this.domainService.mergeDomains(currentDomains, domainsToAdd, injector.getTenant()));
+          this.domainService.mergeDomains(
+              currentDomains, domainsToAdd, new Tenant(injector.getTenantId())));
     }
     setupImportAvailable(target);
   }
@@ -791,7 +790,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setManual(in.isManual());
     injectorContract.setLabels(in.getLabels());
     injectorContract.addInjector(injector);
-    injectorContract.setTenant(injector.getTenant());
+    injectorContract.setTenant(new Tenant(injector.getTenantId()));
     injectorContract.setContent(in.getContent());
     injectorContract.setAtomicTesting(in.isAtomicTesting());
     injectorContract.setPlatforms(in.getPlatforms());
@@ -799,14 +798,14 @@ public class InjectorContractService implements DependenciesManager {
       List<AttackPattern> attackPatterns =
           fromIterable(
               attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
-                  in.getAttackPatternsExternalIds(), injector.getTenant().getId()));
+                  in.getAttackPatternsExternalIds(), injector.getTenantId()));
       injectorContract.setAttackPatterns(attackPatterns);
     } else {
       injectorContract.setAttackPatterns(new ArrayList<>());
     }
     if (!injector.isPayloads() && in.getDomains() != null) {
       injectorContract.setDomains(
-          this.domainService.upserts(in.getDomains(), injector.getTenant().getId()));
+          this.domainService.upserts(in.getDomains(), injector.getTenantId()));
     }
     return injectorContract;
   }

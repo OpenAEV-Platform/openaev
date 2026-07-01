@@ -642,7 +642,7 @@ public class InjectorApiTest extends IntegrationTest {
           .as("Inject should have an injector (not null)")
           .isNotNull();
 
-      assertThat(reloadedInject.getInjector().getTenant().getId())
+      assertThat(reloadedInject.getInjector().getTenantId())
           .as("Injector should belong to tenant A")
           .isEqualTo(tenantA);
     }

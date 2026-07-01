@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.database.audit.TenantIdBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -23,15 +23,21 @@ import org.hibernate.annotations.Type;
 @Setter
 @Entity
 @Table(name = "collectors")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({ModelBaseListener.class, TenantIdBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Collector extends BaseConnectorEntity implements TenantBase {
+@IdClass(ConnectorCompositeId.class)
+public class Collector extends BaseConnectorEntity implements TenantIdBase {
 
   @Id
   @Column(name = "collector_id")
   @JsonProperty("collector_id")
   @NotBlank
   private String id;
+
+  @Id
+  @Column(name = "tenant_id")
+  @JsonIgnore
+  private String tenantId;
 
   @Column(name = "collector_name")
   @JsonProperty("collector_name")
@@ -80,11 +86,6 @@ public class Collector extends BaseConnectorEntity implements TenantBase {
   @Column(name = "collector_state")
   @Type(JsonType.class)
   private ObjectNode state;
-
-  @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
-  @JsonIgnore
-  private Tenant tenant;
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
