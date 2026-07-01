@@ -6,11 +6,16 @@ import { defineConfig, devices } from '@playwright/test';
 
 import coverageOptions from './tests_e2e/conf/mcr.config';
 
+const isArm = process.env.CI === 'true' && process.arch === 'arm64';
+const armExternalConnectorIgnore = /.*external-injector.*|.*external-executor.*|.*external-collector.*/;
+const testIgnore = isArm ? [armExternalConnectorIgnore] : [];
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
   testDir: './tests_e2e',
+  testIgnore: testIgnore,
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -59,7 +64,6 @@ export default defineConfig({
   timeout: 300000,
   // Configure projects for major browsers.
   // Select via CLI: yarn playwright test --project=setup --project=<browser>
-  // On arm64 runners, pass --ignore-pattern to exclude external connector tests.
   projects: [
     {
       name: 'setup',
@@ -85,7 +89,6 @@ export default defineConfig({
       dependencies: ['setup'],
     },
     {
-      // arm64 CI variant: uses bundled Chromium (no Chrome channel install available on arm64 runners)
       name: 'chromium',
       testIgnore: /infra\/.*/,
       use: {

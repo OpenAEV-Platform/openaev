@@ -109,7 +109,7 @@ jobs:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || '' }}
+      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || 'elk' }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       OPENAEV_ADMIN_EMAIL: admin@openaev.io
       OPENAEV_ADMIN_PASSWORD: admin

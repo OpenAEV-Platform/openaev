@@ -38,10 +38,10 @@ jobs:
       # ── API Tests: 4 shards × Elasticsearch ──
       api-matrix: >
         [
-          {"shard":"1","shard_name":"main","search_engine":"elasticsearch","engine_selector":"","artifact_suffix":"","includes":"io/openaev/api/**/*Test.java\nio/openaev/integration/**/*Test.java\nio/openaev/injects/**/*Test.java\nio/openaev/opencti/**/*Test.java\nio/openaev/service/**/*Test.java","excludes":""},
-          {"shard":"2","shard_name":"rest-1","search_engine":"elasticsearch","engine_selector":"","artifact_suffix":"","includes":"io/openaev/rest/*Test.java\nio/openaev/rest/asset_group/**/*Test.java\nio/openaev/rest/attack_pattern/**/*Test.java\nio/openaev/rest/custom_dashboard/**/*Test.java\nio/openaev/rest/dashboard/**/*Test.java\nio/openaev/rest/exercise/**/*Test.java","excludes":""},
-          {"shard":"3","shard_name":"rest-2","search_engine":"elasticsearch","engine_selector":"","artifact_suffix":"","includes":"io/openaev/rest/**/*Test.java","excludes":"io/openaev/rest/*Test.java\nio/openaev/rest/asset_group/**/*Test.java\nio/openaev/rest/attack_pattern/**/*Test.java\nio/openaev/rest/custom_dashboard/**/*Test.java\nio/openaev/rest/dashboard/**/*Test.java\nio/openaev/rest/exercise/**/*Test.java"},
-          {"shard":"4","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"","artifact_suffix":"","includes":"catchall","excludes":""}
+          {"shard":"1","shard_name":"main","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"io/openaev/api/**/*Test.java\nio/openaev/integration/**/*Test.java\nio/openaev/injects/**/*Test.java\nio/openaev/opencti/**/*Test.java\nio/openaev/service/**/*Test.java","excludes":""},
+          {"shard":"2","shard_name":"rest-1","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"io/openaev/rest/*Test.java\nio/openaev/rest/asset_group/**/*Test.java\nio/openaev/rest/attack_pattern/**/*Test.java\nio/openaev/rest/custom_dashboard/**/*Test.java\nio/openaev/rest/dashboard/**/*Test.java\nio/openaev/rest/exercise/**/*Test.java","excludes":""},
+          {"shard":"3","shard_name":"rest-2","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"io/openaev/rest/**/*Test.java","excludes":"io/openaev/rest/*Test.java\nio/openaev/rest/asset_group/**/*Test.java\nio/openaev/rest/attack_pattern/**/*Test.java\nio/openaev/rest/custom_dashboard/**/*Test.java\nio/openaev/rest/dashboard/**/*Test.java\nio/openaev/rest/exercise/**/*Test.java"},
+          {"shard":"4","shard_name":"remaining","search_engine":"elasticsearch","engine_selector":"elk","artifact_suffix":"","includes":"catchall","excludes":""}
         ]
       # ── E2E Tests: 4 images × 2 browsers (chrome/webkit) ──
       e2e-matrix: >
