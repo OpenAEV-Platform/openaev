@@ -1,13 +1,13 @@
 package io.openaev.utilstest;
 
+import static io.openaev.utils.ExpectationSignatureUtils.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 import io.openaev.expectation.ExpectationSignature;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
-import static io.openaev.utils.ExpectationSignatureUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 @DisplayName("ExpectationSignatureUtils")
 class ExpectationSignatureUtilsTest {
@@ -156,4 +156,3 @@ class ExpectationSignatureUtilsTest {
     }
   }
 }
-

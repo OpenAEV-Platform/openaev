@@ -16,7 +16,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(of = {"type", "value"})
+@EqualsAndHashCode(of = {"injectExpectation", "type", "value"})
 @Entity
 @IdClass(InjectExpectationSignature.InjectExpectationSignatureId.class)
 @Table(name = "injects_expectations_signatures")
@@ -40,16 +40,17 @@ public class InjectExpectationSignature {
   @JsonProperty("value")
   private String value;
 
+  @Builder.Default
   @NotNull
   @JsonIgnore
   @Column(name = "inject_expectation_signature_created_at", updatable = false)
-  @JsonProperty("inject_expectation_signature_created_at")
   private Instant createdAt = now();
 
   @Getter
   @Setter
   @NoArgsConstructor
   @AllArgsConstructor
+  @EqualsAndHashCode
   public static class InjectExpectationSignatureId implements Serializable {
     private String injectExpectation;
     private String type;

@@ -385,6 +385,7 @@ public class EndpointService implements AuditLoggedService {
    * @param existingAgents in the database
    * @return OpenAEV agents
    */
+  @Transactional
   public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents, @NotNull String tenantId) {
     log.info(

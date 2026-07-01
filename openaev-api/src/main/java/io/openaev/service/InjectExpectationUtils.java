@@ -123,21 +123,33 @@ public class InjectExpectationUtils {
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-        baseInjectExpectation.setSignatures(convertToInjectExpectationSignatures(e.getExpectationSignatures(), injectExpectation));
+          baseInjectExpectation
+                  .getSignatures()
+                  .addAll(
+                          convertToInjectExpectationSignatures(
+                                  e.getExpectationSignatures(), baseInjectExpectation));
       }
       case PreventionExpectation e when expectation.type() == PREVENTION -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-        baseInjectExpectation.setSignatures(convertToInjectExpectationSignatures(e.getExpectationSignatures(), injectExpectation));
+          baseInjectExpectation
+                  .getSignatures()
+                  .addAll(
+                          convertToInjectExpectationSignatures(
+                                  e.getExpectationSignatures(), baseInjectExpectation));
       }
       case VulnerabilityExpectation e when expectation.type() == VULNERABILITY -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-        baseInjectExpectation.setSignatures(convertToInjectExpectationSignatures(e.getExpectationSignatures(), injectExpectation));
+          baseInjectExpectation
+                  .getSignatures()
+                  .addAll(
+                          convertToInjectExpectationSignatures(
+                                  e.getExpectationSignatures(), baseInjectExpectation));
       }
       case ManualExpectation e when expectation.type() == MANUAL ->
           baseInjectExpectation.setDescription(e.getDescription());

@@ -94,7 +94,7 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
 
   private List<ExpectationSignature> extractSignatures(JsonNode valuesNode) {
     if (!valuesNode.isArray()) {
-      return List.of();
+      return new ArrayList<>();
     }
     return StreamSupport.stream(valuesNode.spliterator(), false)
         .map(
@@ -106,7 +106,7 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
             signature ->
                 StringUtils.hasText(signature.getType())
                     && StringUtils.hasText(signature.getValue()))
-        .toList();
+        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
   }
 
   private String readText(JsonNode node, String... keys) {

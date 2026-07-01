@@ -34,11 +34,20 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
 
       statement.execute(
           """
-                  ALTER TABLE injects_expectations_signatures
-                      ADD CONSTRAINT fk_injects_expectations_signatures_expectation
-                      FOREIGN KEY (inject_expectation_signature_inject_expectation_id)
-                      REFERENCES injects_expectations(inject_expectation_id)
-                      ON DELETE CASCADE;
+                  DO $$
+                  BEGIN
+                      IF NOT EXISTS (
+                          SELECT 1
+                          FROM pg_constraint
+                          WHERE conname = 'fk_injects_expectations_signatures_expectation'
+                      ) THEN
+                          ALTER TABLE injects_expectations_signatures
+                              ADD CONSTRAINT fk_injects_expectations_signatures_expectation
+                              FOREIGN KEY (inject_expectation_signature_inject_expectation_id)
+                              REFERENCES injects_expectations(inject_expectation_id)
+                              ON DELETE CASCADE;
+                      END IF;
+                  END $$;
                   """);
 
       statement.execute(
@@ -49,6 +58,7 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
                           SELECT 1
                           FROM information_schema.columns
                           WHERE table_name = 'injects_expectations'
+                            AND table_schema = current_schema()
                             AND column_name = 'inject_expectation_signatures'
                       ) THEN
                           INSERT INTO injects_expectations_signatures (
