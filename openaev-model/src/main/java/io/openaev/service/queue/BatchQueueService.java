@@ -409,7 +409,7 @@ public class BatchQueueService<T extends Queueable> {
     } catch (IOException e) {
       log.error(String.format("Error publishing batch: %s", e.getMessage()), e);
       throw e;
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       log.error(
           String.format("Error publishing batch, unhandled exception: %s", e.getMessage()), e);
       throw e;
