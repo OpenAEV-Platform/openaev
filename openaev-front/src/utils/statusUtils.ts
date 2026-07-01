@@ -108,7 +108,6 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'FINISHED': colorStyles.grey,
     'NOT_PLANNED': colorStyles.grey,
   };
-  console.log(`computeStatusStyle: ${statusMap[normalized] ?? colorStyles.blueGrey}, normalized=${normalized}, style=${JSON.stringify(statusMap[normalized])}`);
   return statusMap[normalized] ?? colorStyles.blueGrey;
 };
 
