@@ -180,12 +180,14 @@ runs:
       shell: bash
       run: |
         cd /tmp/openaev-image
-        gunzip ${{ inputs.docker-image }}.tar.gz
         echo "🐳 Loading Docker image (${{ inputs.docker-image }})..."
+        gunzip -k ${{ inputs.docker-image }}.tar.gz
         skopeo copy \
+          --dest-daemon-host unix:///var/run/docker.sock \
           oci-archive:${{ inputs.docker-image }}.tar \
-          docker-daemon:openaev:ci
-        rm -f ${{ inputs.docker-image }}.tar
+          docker-daemon:openaev:ci \
+          --retry-times 3
+        rm -f ${{ inputs.docker-image }}.tar ${{ inputs.docker-image }}.tar.gz
         IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')
         if [ -z "$IMAGE_ID" ]; then
           echo "❌ Failed to load Docker image"
