@@ -49,8 +49,6 @@ jobs:
           {"browser":"webkit","project":"webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"opensearch","artifact_suffix":"-opensearch"},
           {"browser":"chromium","project":"chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"opensearch","artifact_suffix":"-opensearch"},
           {"browser":"webkit","project":"webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"opensearch","artifact_suffix":"-opensearch"},
-          {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-22.04","search_engine":"elasticsearch","artifact_suffix":"-ubuntu22"},
-          {"browser":"firefox","project":"firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-22.04","search_engine":"elasticsearch","artifact_suffix":"-ubuntu22"},
           {"browser":"chrome","project":"infra-chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra"},
           {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra-firefox"},
           {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra-webkit"},

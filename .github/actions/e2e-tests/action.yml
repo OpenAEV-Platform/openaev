@@ -146,12 +146,24 @@ runs:
       shell: bash
       run: |
         echo "⏳ Waiting for Docker image artifact (services booting in parallel)..."
+        API_FAILURES=0
         for i in $(seq 1 180); do
           # Check if the matching docker-build job has failed — abort immediately
           ARCH="${{ inputs.docker-image }}"
           ARCH="${ARCH##*-}"
           BUILD_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq "[.jobs[] | select(.name | test(\"Docker Build.*$ARCH\")) | .conclusion] | first // \"\"" 2>/dev/null || echo "")
+            --jq "[.jobs[] | select(.name | test(\"Docker Build.*$ARCH\")) | .conclusion] | first // \"\"" 2>/dev/null || echo "__API_ERROR__")
+          if [ "$BUILD_CONCLUSION" = "__API_ERROR__" ]; then
+            API_FAILURES=$((API_FAILURES + 1))
+            if [ "$API_FAILURES" -ge 10 ]; then
+              echo "⚠️ GitHub API unreachable ($API_FAILURES consecutive failures) — skipping artifact poll, will try download directly"
+              break
+            fi
+            [ $((i % 10)) -eq 0 ] && echo "  ⚠️ API call failed ($API_FAILURES times) — network may be degraded"
+            sleep 5
+            continue
+          fi
+          API_FAILURES=0
           if [ "$BUILD_CONCLUSION" = "failure" ] || [ "$BUILD_CONCLUSION" = "cancelled" ]; then
             echo "❌ Docker Build ($ARCH) job $BUILD_CONCLUSION — aborting"
             exit 1
