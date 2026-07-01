@@ -97,7 +97,26 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @Column(name = "inject_expectation_type", insertable = false, updatable = false)
   @JsonProperty("inject_expectation_type")
   @Enumerated(EnumType.STRING)
+  @Getter(AccessLevel.NONE)
   private EXPECTATION_TYPE type;
+
+  /**
+   * Returns the expectation type. When the entity has been read from the database, Hibernate
+   * populates the field via the discriminator column. For newly created (not yet persisted)
+   * instances the field is {@code null} because it is {@code insertable = false}; in that case we
+   * derive the value from the {@link DiscriminatorValue} annotation present on the concrete
+   * subclass, so callers always get a non-null result without relying on persistence.
+   */
+  public EXPECTATION_TYPE getType() {
+    if (type != null) {
+      return type;
+    }
+    DiscriminatorValue dv = this.getClass().getAnnotation(DiscriminatorValue.class);
+    if (dv != null) {
+      return EXPECTATION_TYPE.valueOf(dv.value());
+    }
+    return null;
+  }
 
   // region basic
   @Id

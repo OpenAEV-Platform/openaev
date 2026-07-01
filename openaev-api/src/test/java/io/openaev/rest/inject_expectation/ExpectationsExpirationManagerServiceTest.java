@@ -16,6 +16,7 @@ import io.openaev.model.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
@@ -29,6 +30,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
 
   public static final long EXPIRATION_TIME_1_s = 1L;
+
+  @Autowired private EntityManager em;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private AgentRepository agentRepository;
@@ -114,6 +117,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
+      em.flush();
+      em.clear();
+
       // -- VERIFY --
       // Agent Expectation
       List<TechnicalInjectExpectation> injectExpectations =
@@ -174,6 +180,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               EXPIRATION_TIME_1_s);
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+
+      em.flush();
+      em.clear();
 
       // Update one expectation from one agent with source collector-id
       List<TechnicalInjectExpectation> injectExpectations =
@@ -257,6 +266,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               EXPIRATION_TIME_1_s);
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+
+      em.flush();
+      em.clear();
 
       // Update agent expectations with source collector-id
       List<TechnicalInjectExpectation> injectExpectations =
@@ -347,6 +359,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
+      em.flush();
+      em.clear();
+
       // Delete agent inject expectations to test behavior of assets without agents
       List<TechnicalInjectExpectation> injectExpectations =
           List.of(
@@ -402,6 +417,9 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, List.of(expectation));
+
+      em.flush();
+      em.clear();
 
       // -- VERIFY --
       List<TechnicalInjectExpectation> injectExpectations =

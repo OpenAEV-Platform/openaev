@@ -2488,7 +2488,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .withAssetGroup(assetGroupWrapper);
         InjectExpectationComposer.Composer expectationHumanResponseWrapper =
             getExpectationWrapperWithResult(
-                    BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                    BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
                     BaseInjectExpectation.EXPECTATION_STATUS.PENDING)
                 .withAssetGroup(assetGroupWrapper);
         injectWrapper.withAssetGroup(assetGroupWrapper);
@@ -2529,7 +2529,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
             BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         expectedAssetGroup.setTargetPreventionStatus(
             BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
-        expectedAssetGroup.setTargetHumanResponseStatus(
+        expectedAssetGroup.setTargetVulnerabilityStatus(
             BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<AssetGroupTarget> expected = List.of(expectedAssetGroup);
 
