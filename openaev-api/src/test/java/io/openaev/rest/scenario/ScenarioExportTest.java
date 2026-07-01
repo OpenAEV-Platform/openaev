@@ -96,17 +96,15 @@ public class ScenarioExportTest extends IntegrationTest {
 
       String actualJson = getJsonExportFromZip(response, scenario.getName());
 
-      // Assert — inject-attached document must appear in scenario_documents
+      // Assert — inject-attached document must appear in scenario_documents regardless of order
+      String docId = docComposer.get().getId();
       assertThatJson(actualJson)
-          .when(Option.IGNORING_ARRAY_ORDER)
+          .when(
+              Option.IGNORING_ARRAY_ORDER,
+              Option.IGNORING_EXTRA_FIELDS,
+              Option.IGNORING_EXTRA_ARRAY_ITEMS)
           .node("scenario_documents")
-          .isArray()
-          .isNotEmpty();
-
-      assertThatJson(actualJson)
-          .when(Option.IGNORING_ARRAY_ORDER)
-          .node("scenario_documents[0].document_id")
-          .isEqualTo(docComposer.get().getId());
+          .isEqualTo("[{\"document_id\": \"%s\"}]".formatted(docId));
     }
   }
 
