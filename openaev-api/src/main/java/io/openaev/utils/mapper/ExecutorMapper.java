@@ -20,11 +20,10 @@ public class ExecutorMapper {
       Executor executor,
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
-      boolean existingExecutor,
-      String displayName) {
+      boolean existingExecutor) {
     return ExecutorOutput.builder()
         .id(executor.getId())
-        .name(displayName)
+        .name(executor.getName())
         .type(executor.getType())
         .updatedAt(executor.getUpdatedAt())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))

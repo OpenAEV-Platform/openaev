@@ -38,8 +38,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
       T connector,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
-      boolean existingConnector,
-      String displayName);
+      boolean existingConnector);
 
   protected abstract T createNewConnector();
 
@@ -72,18 +71,15 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
-    // Resolve display name from instance config without mutating the managed entity
-    String displayName = connector.getName();
     if (instance instanceof ConnectorInstancePersisted persistedInstance) {
-      displayName = getConfiguredConnectorName(persistedInstance).orElse(displayName);
+      getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
     }
-    return mapToOutput(connector, catalogConnector, instance, true, displayName);
+    return mapToOutput(connector, catalogConnector, instance, true);
   }
 
   private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
     T newConnector = createNewConnector();
     newConnector.setId(collectorId);
-    // Safe: newConnector is transient (not managed by Hibernate), no dirty-check risk
     newConnector.setName(resolveConnectorName(instance));
     newConnector.setExternal(true);
     newConnector.setType(instance.getCatalogConnector().getSlug());
@@ -160,8 +156,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
                         newConnector,
                         entry.getValue().getCatalogConnector(),
                         entry.getValue(),
-                        false,
-                        newConnector.getName()));
+                        false));
               });
     }
 

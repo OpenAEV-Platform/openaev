@@ -20,11 +20,10 @@ public class InjectorMapper {
       Injector injector,
       @Nullable CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
-      boolean existingInjector,
-      String displayName) {
+      boolean existingInjector) {
     return InjectorOutput.builder()
         .id(injector.getId())
-        .name(displayName)
+        .name(injector.getName())
         .type(injector.getType())
         .external(injector.isExternal())
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))

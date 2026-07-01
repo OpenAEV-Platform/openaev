@@ -109,10 +109,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       Injector injector,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
-      boolean existingInjector,
-      String displayName) {
-    return injectorMapper.toInjectorOutput(
-        injector, catalogConnector, instance, existingInjector, displayName);
+      boolean existingInjector) {
+    return injectorMapper.toInjectorOutput(injector, catalogConnector, instance, existingInjector);
   }
 
   @Override
