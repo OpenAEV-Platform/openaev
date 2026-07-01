@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import io.openaev.aop.lock.LockAcquisitionException;
+import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.*;
@@ -162,6 +163,21 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantSelectorRequiredException.class)
+  public ResponseEntity<ErrorMessage> handleTenantSelectorRequiredException(
+      TenantSelectorRequiredException ex) {
+    return new ResponseEntity<>(
+        new ErrorMessage("TENANT_SELECTOR_REQUIRED"), HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantWriteScopeException.class)
+  public ResponseEntity<ErrorMessage> handleTenantWriteScopeException(
+      TenantWriteScopeException ex) {
+    return new ResponseEntity<>(new ErrorMessage("TENANT_WRITE_SCOPE"), HttpStatus.BAD_REQUEST);
+  }
+
   // -- 401 UNAUTHORIZED --
 
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
@@ -211,6 +227,18 @@ public class RestBehavior {
   public ResponseEntity<ErrorMessage> handleTenantAccessDeniedException(
       TenantAccessDeniedException ex) {
     return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
+  }
+
+  // -- 500 INTERNAL_SERVER_ERROR --
+
+  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+  @ExceptionHandler(TenantFilteringException.class)
+  public ResponseEntity<ErrorMessage> handleTenantFilteringException(TenantFilteringException ex) {
+    // The inspector refused a statement it could not guarantee to filter (fail-closed). Spring
+    // matches this handler even when Hibernate wraps the exception, since it walks the cause chain.
+    log.warn("Tenant isolation refused a statement it cannot filter: {}", ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("TENANT_FILTERING_REFUSED"), HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   // -- 404 NOT_FOUND --

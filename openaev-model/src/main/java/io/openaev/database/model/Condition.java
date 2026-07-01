@@ -71,6 +71,11 @@ public class Condition implements Base {
   @Schema(description = "Value")
   private String value;
 
+  @Column(name = "condition_case_sensitive")
+  @Schema(description = "Whether the comparison is case-sensitive")
+  @Builder.Default
+  private boolean caseSensitive = true;
+
   @Column(name = "condition_name")
   @Schema(description = "Name")
   private String name;

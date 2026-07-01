@@ -81,6 +81,7 @@ public class InjectExpectationService {
   private final CollectorService collectorService;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
+  private final InjectExpectationLockService injectExpectationLockService;
   private final AssetGroupService assetGroupService;
   private final InjectService injectService;
 
@@ -617,6 +618,7 @@ public class InjectExpectationService {
    * @return a list of matching inject expectations
    */
   public List<InjectExpectation> expectationsNotFilledAndNotExpiredBySourceId(
+      @NotBlank String tenantId,
       @NotNull InjectExpectation.EXPECTATION_TYPE type,
       @NotNull Integer expirationTime,
       @NotBlank String sourceId) {
@@ -624,7 +626,7 @@ public class InjectExpectationService {
     Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
 
     return injectExpectationRepository.findAgentExpectationsNotFilledForSourceCreatedAfter(
-        type.name(), sourceId, expirationThreshold, NOT_FILLED_FETCH_LIMIT);
+        tenantId, type.name(), sourceId, expirationThreshold, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -635,12 +637,14 @@ public class InjectExpectationService {
    * @return a list of matching inject expectations
    */
   public List<InjectExpectation> expectationsNotFilledAndNotExpired(
-      @NotNull InjectExpectation.EXPECTATION_TYPE type, @NotNull Integer expirationTime) {
+      @NotBlank String tenantId,
+      @NotNull InjectExpectation.EXPECTATION_TYPE type,
+      @NotNull Integer expirationTime) {
 
     Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
 
     return injectExpectationRepository.findAgentExpectationsNotFilledCreatedAfter(
-        type.name(), expirationThreshold, NOT_FILLED_FETCH_LIMIT);
+        tenantId, type.name(), expirationThreshold, NOT_FILLED_FETCH_LIMIT);
   }
 
   // -- PREVENTION --
@@ -669,19 +673,21 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of prevention expectations without results from the source
    */
-  public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> preventionExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
-        PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+        tenantId, PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
    * Retrieves prevention expectations without any results.
    *
+   * @param tenantId the tenant ID to scope the query
    * @return a list of prevention expectations without results
    */
-  public List<InjectExpectation> preventionExpectationsNotFill() {
+  public List<InjectExpectation> preventionExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilled(
-        PREVENTION.name(), NOT_FILLED_FETCH_LIMIT);
+        tenantId, PREVENTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -691,20 +697,22 @@ public class InjectExpectationService {
    * @return a list of non-expired prevention expectations without results
    */
   public List<InjectExpectation> preventionExpectationsNotFillAndNotExpired(
-      @NotNull Integer expirationTime) {
-    return expectationsNotFilledAndNotExpired(PREVENTION, expirationTime);
+      @NotBlank String tenantId, @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(tenantId, PREVENTION, expirationTime);
   }
 
   /**
    * Retrieves prevention expectations without results from a specific source that have not expired.
    *
+   * @param tenantId the tenant ID to scope the query
    * @param expirationTime the expiration threshold in minutes
    * @param sourceId the source ID to check for existing results
    * @return a list of non-expired prevention expectations without results from the source
    */
   public List<InjectExpectation> preventionExpectationsNotFilledAndNotExpired(
-      @NotNull Integer expirationTime, @NotBlank String sourceId) {
-    return expectationsNotFilledAndNotExpiredBySourceId(PREVENTION, expirationTime, sourceId);
+      @NotBlank String tenantId, @NotNull Integer expirationTime, @NotBlank String sourceId) {
+    return expectationsNotFilledAndNotExpiredBySourceId(
+        tenantId, PREVENTION, expirationTime, sourceId);
   }
 
   // -- DETECTION --
@@ -733,9 +741,36 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of detection expectations without results from the source
    */
-  public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> detectionExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilledForSource(
-        DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+        tenantId, DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+  }
+
+  /**
+   * Agentless DETECTION/PREVENTION expectations not yet filled by the given source. Used by AI
+   * defense collectors (LLM firewall / guardrail) for AI adversarial injects, whose targets are AI
+   * models/agents rather than endpoints with an installed agent.
+   *
+   * @param sourceId the collector source ID
+   * @return agentless detection + prevention expectations without a result from the source
+   */
+  public List<InjectExpectation> aiDefenseExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
+    // Combine agentless DETECTION + PREVENTION expectations, keep a single stable global order
+    // (oldest first) and cap the total so a polling collector receives a bounded, fairly ordered
+    // page across both expectation types rather than two separately-capped lists.
+    List<InjectExpectation> expectations = new ArrayList<>();
+    expectations.addAll(
+        this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
+            tenantId, DETECTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.addAll(
+        this.injectExpectationRepository.findAgentlessExpectationsNotFilledForSource(
+            tenantId, PREVENTION.name(), sourceId, NOT_FILLED_FETCH_LIMIT));
+    expectations.sort(
+        Comparator.comparing(
+            InjectExpectation::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    return expectations.stream().limit(NOT_FILLED_FETCH_LIMIT).toList();
   }
 
   /**
@@ -743,9 +778,9 @@ public class InjectExpectationService {
    *
    * @return a list of detection expectations without results
    */
-  public List<InjectExpectation> detectionExpectationsNotFill() {
+  public List<InjectExpectation> detectionExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findAgentExpectationsNotFilled(
-        DETECTION.name(), NOT_FILLED_FETCH_LIMIT);
+        tenantId, DETECTION.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
@@ -755,21 +790,23 @@ public class InjectExpectationService {
    * @return a list of non-expired detection expectations without results
    */
   public List<InjectExpectation> detectionExpectationsNotFillAndNotExpired(
-      @NotNull Integer expirationTime) {
-    return expectationsNotFilledAndNotExpired(DETECTION, expirationTime);
+      @NotBlank String tenantId, @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(tenantId, DETECTION, expirationTime);
   }
 
   /**
    * Retrieves detection expectations without results from a specific source that have not expired.
    *
+   * @param tenantId the tenant ID to scope the query
    * @param expirationTime the expiration threshold in minutes
    * @param sourceId the source ID to check for existing results
    * @return a list of non-expired detection expectations without results from the source
    */
   public List<InjectExpectation> detectionExpectationsNotFilledAndNotExpired(
-      @NotNull Integer expirationTime, @NotBlank String sourceId) {
+      @NotBlank String tenantId, @NotNull Integer expirationTime, @NotBlank String sourceId) {
 
-    return expectationsNotFilledAndNotExpiredBySourceId(DETECTION, expirationTime, sourceId);
+    return expectationsNotFilledAndNotExpiredBySourceId(
+        tenantId, DETECTION, expirationTime, sourceId);
   }
 
   // -- MANUAL
@@ -798,30 +835,33 @@ public class InjectExpectationService {
    * @param sourceId the source ID to check for existing results
    * @return a list of manual expectations without results from the source
    */
-  public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String sourceId) {
+  public List<InjectExpectation> manualExpectationsNotFill(
+      @NotBlank final String tenantId, @NotBlank final String sourceId) {
     return this.injectExpectationRepository.findExpectationsNotFilledForSource(
-        MANUAL.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
+        tenantId, MANUAL.name(), sourceId, NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
    * Retrieves manual expectations without any results.
    *
+   * @param tenantId the tenant ID to scope the query
    * @return a list of manual expectations without results
    */
-  public List<InjectExpectation> manualExpectationsNotFill() {
+  public List<InjectExpectation> manualExpectationsNotFill(@NotBlank final String tenantId) {
     return this.injectExpectationRepository.findExpectationsNotFilled(
-        MANUAL.name(), NOT_FILLED_FETCH_LIMIT);
+        tenantId, MANUAL.name(), NOT_FILLED_FETCH_LIMIT);
   }
 
   /**
    * Retrieves manual expectations without results that have not expired.
    *
+   * @param tenantId the tenant ID to scope the query
    * @param expirationTime the expiration threshold in minutes
    * @return a list of non-expired manual expectations without results
    */
   public List<InjectExpectation> manualExpectationsNotFillAndNotExpired(
-      @NotNull Integer expirationTime) {
-    return expectationsNotFilledAndNotExpired(MANUAL, expirationTime);
+      @NotBlank String tenantId, @NotNull Integer expirationTime) {
+    return expectationsNotFilledAndNotExpired(tenantId, MANUAL, expirationTime);
   }
 
   // -- BY TARGET TYPE
@@ -941,6 +981,108 @@ public class InjectExpectationService {
     injectExpectationAgentOutputs.sort(
         Comparator.comparing(InjectExpectationAgentOutput::getAgentName));
     return injectExpectationAgentOutputs;
+  }
+
+  // -- STRUCTURED OUTPUT SIGNATURES --
+
+  /**
+   * Applies signatures emitted by structured output on matching technical expectations.
+   *
+   * <p>The target is resolved using this priority: agent, then asset, then asset group.
+   *
+   * <p>If signatures were never initialized for an expectation, existing signatures are cleared
+   * once, then new signatures are appended. Otherwise, signatures are only appended.
+   *
+   * <p>Only Detection and prevention expectations are supported for structured output signatures.
+   * Other types will be ignored with a warning.
+   *
+   * @param injectId the inject ID
+   * @param agentId optional agent ID target
+   * @param assetId optional asset ID target
+   * @param assetGroupId optional asset group ID target
+   * @param expectationType the expectation type (DETECTION or PREVENTION)
+   * @param signatures signatures to append
+   */
+  public void appendExpectationSignatures(
+      @NotBlank String injectId,
+      @Nullable String agentId,
+      @Nullable String assetId,
+      @Nullable String assetGroupId,
+      @NotNull InjectExpectation.EXPECTATION_TYPE expectationType,
+      @NotNull List<InjectExpectationSignature> signatures) {
+    if (signatures.isEmpty()) {
+      return;
+    }
+    if (!List.of(DETECTION, PREVENTION).contains(expectationType)) {
+      log.warn(
+          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          injectId,
+          agentId,
+          assetId,
+          assetGroupId,
+          expectationType);
+      return;
+    }
+
+    List<InjectExpectation> expectations =
+        findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
+            .filter(expectation -> expectation.getType().equals(expectationType))
+            .toList();
+
+    if (expectations.isEmpty()) {
+      log.warn(
+          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          injectId,
+          agentId,
+          assetId,
+          assetGroupId,
+          expectationType);
+      return;
+    }
+
+    String signaturesJson = convertValidSignaturesToStringJson(signatures);
+    if (signaturesJson != null) {
+      for (InjectExpectation expectation : expectations) {
+        injectExpectationLockService.applySignaturesForExpectationWithLock(
+            expectation.getId(), signaturesJson);
+      }
+    }
+  }
+
+  private String convertValidSignaturesToStringJson(
+      @NotNull List<InjectExpectationSignature> signatures) {
+    List<InjectExpectationSignature> validSignatures =
+        signatures.stream()
+            .filter(Objects::nonNull)
+            .filter(signature -> signature.getType() != null && signature.getValue() != null)
+            .toList();
+    if (validSignatures.isEmpty()) {
+      return null;
+    }
+
+    try {
+      return mapper.writeValueAsString(validSignatures);
+    } catch (JsonProcessingException e) {
+      log.warn("Failed to serialize expectation signatures", e);
+      return null;
+    }
+  }
+
+  private List<InjectExpectation> findTechnicalExpectationsForTarget(
+      @NotBlank String injectId,
+      @Nullable String agentId,
+      @Nullable String assetId,
+      @Nullable String assetGroupId) {
+    if (agentId != null) {
+      return injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+    }
+    if (assetId != null) {
+      return injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId);
+    }
+    if (assetGroupId != null) {
+      return injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId);
+    }
+    return Collections.emptyList();
   }
 
   /**
@@ -1177,7 +1319,8 @@ public class InjectExpectationService {
     }
 
     if (!injectExpectations.isEmpty()) {
-      setupDefaultExpectationResults(injectExpectations);
+      String tenantId = executableInject.getInjection().getInject().getTenant().getId();
+      setupDefaultExpectationResults(injectExpectations, tenantId);
       injectExpectationRepository.saveAll(injectExpectations);
     }
   }
@@ -1195,10 +1338,11 @@ public class InjectExpectationService {
    * = null
    *
    * @param injectExpectations the list of expectations to initialize
+   * @param tenantId the tenant ID to scope collector lookup
    */
   private void setupDefaultExpectationResults(
-      @NotNull final List<InjectExpectation> injectExpectations) {
-    List<Collector> collectors = collectorService.securityPlatformCollectors();
+      @NotNull final List<InjectExpectation> injectExpectations, @NotBlank final String tenantId) {
+    List<Collector> collectors = collectorService.securityPlatformCollectors(tenantId);
 
     injectExpectations.forEach(
         ie -> {

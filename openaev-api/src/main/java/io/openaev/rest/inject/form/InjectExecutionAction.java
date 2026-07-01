@@ -10,5 +10,7 @@ public enum InjectExecutionAction {
   file_execution,
   file_drop,
 
+  data, // generic option, for use e.g. by external non-implant injectors
+
   complete,
 }

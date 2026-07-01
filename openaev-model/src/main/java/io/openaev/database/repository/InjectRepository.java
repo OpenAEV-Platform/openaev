@@ -51,6 +51,16 @@ public interface InjectRepository
 
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /**
+   * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
+   * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of
+   * rows updated.
+   */
+  @Modifying
+  @Query("UPDATE Inject i SET i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
+  int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
+
   // -- SIMULATION --
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);

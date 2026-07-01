@@ -53,7 +53,7 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
-  @Transactional
+  @Transactional(readOnly = true)
   @ApiResponse(
       responseCode = "200",
       content =

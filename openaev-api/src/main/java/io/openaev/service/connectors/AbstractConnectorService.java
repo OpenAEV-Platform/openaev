@@ -71,7 +71,6 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
-    // Override connector name with instance-specific name (e.g. EXECUTOR_NAME) if present
     if (instance instanceof ConnectorInstancePersisted persistedInstance) {
       getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
     }

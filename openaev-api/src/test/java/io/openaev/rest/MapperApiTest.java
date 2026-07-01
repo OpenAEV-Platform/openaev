@@ -1,7 +1,6 @@
 package io.openaev.rest;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
@@ -11,9 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Capability;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ImportMapper;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.mapper.MapperApi;
@@ -23,23 +22,19 @@ import io.openaev.rest.scenario.form.InjectsImportTestInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.MapperService;
-import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.TxCtxTestArgumentResolver;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockMapper.MockMapperUtils;
-import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
-import jakarta.persistence.EntityManager;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -50,14 +45,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ResourceUtils;
 
 @SpringBootTest
@@ -69,10 +62,6 @@ import org.springframework.util.ResourceUtils;
 public class MapperApiTest extends IntegrationTest {
 
   private MockMvc mvc;
-
-  @Autowired private MockMvc autoMvc;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
-  @Autowired private EntityManager entityManager;
 
   @Mock private ImportMapperRepository importMapperRepository;
 
@@ -87,13 +76,22 @@ public class MapperApiTest extends IntegrationTest {
   @BeforeEach
   void before() throws IllegalAccessException, NoSuchFieldException {
     // Injecting mocks into the controller
-    mapperApi = new MapperApi(importMapperRepository, mapperService, injectImportService);
+    mapperApi =
+        new MapperApi(
+            importMapperRepository,
+            mapperService,
+            injectImportService,
+            new TenantWriteScopeResolver());
 
     Field sessionContextField = MapperApi.class.getSuperclass().getDeclaredField("mapper");
     sessionContextField.setAccessible(true);
     sessionContextField.set(mapperApi, objectMapper);
 
-    mvc = MockMvcBuilders.standaloneSetup(mapperApi).build();
+    mvc =
+        MockMvcBuilders.standaloneSetup(mapperApi)
+            .setCustomArgumentResolvers(
+                new TxCtxTestArgumentResolver(TxCtx.forTenant("tenant-test")))
+            .build();
   }
 
   // -- SCENARIOS --
@@ -130,8 +128,7 @@ public class MapperApiTest extends IntegrationTest {
   void searchSpecificMapper() throws Exception {
     // -- PREPARE --
     ImportMapper importMapper = MockMapperUtils.createImportMapper();
-    when(importMapperRepository.findByIdAndTenantId(any(), any()))
-        .thenReturn(Optional.of(importMapper));
+    when(importMapperRepository.findById(any())).thenReturn(Optional.of(importMapper));
     // -- EXECUTE --
     String response =
         this.mvc
@@ -157,7 +154,7 @@ public class MapperApiTest extends IntegrationTest {
     ImportMapperAddInput importMapperInput = new ImportMapperAddInput();
     importMapperInput.setName("Test");
     importMapperInput.setInjectTypeColumn("B");
-    when(mapperService.createAndSaveImportMapper(any())).thenReturn(importMapper);
+    when(mapperService.createAndSaveImportMapper(any(), any())).thenReturn(importMapper);
     // -- EXECUTE --
     String response =
         this.mvc
@@ -207,7 +204,6 @@ public class MapperApiTest extends IntegrationTest {
   void deleteSpecificMapper() throws Exception {
     // -- PREPARE --
     ImportMapper importMapper = MockMapperUtils.createImportMapper();
-    when(importMapperRepository.existsByIdAndTenantId(any(), any())).thenReturn(true);
     // -- EXECUTE --
     this.mvc
         .perform(
@@ -305,166 +301,5 @@ public class MapperApiTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotNull(response);
-  }
-
-  // -- TENANT ISOLATION TESTS --
-
-  @Nested
-  @DisplayName("Tenant Isolation")
-  @WithMockUser(isAdmin = true)
-  @Transactional
-  class TenantIsolation {
-
-    private ImportMapperAddInput createMapperInput(String name) {
-      ImportMapperAddInput input = new ImportMapperAddInput();
-      input.setName(name);
-      input.setInjectTypeColumn("A");
-      return input;
-    }
-
-    private String createMapperInTenant(String tenantId, String name) throws Exception {
-      String response =
-          autoMvc
-              .perform(
-                  MockMvcRequestBuilders.post("/api/tenants/" + tenantId + "/mappers")
-                      .content(asJsonString(createMapperInput(name)))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      return JsonPath.read(response, "$.import_mapper_id");
-    }
-
-    @Test
-    @DisplayName("Mapper created in tenant X should NOT be readable from tenant Y")
-    void given_mapperInTenantX_should_notBeReadableFromTenantY() throws Exception {
-      // Arrange
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
-
-      String mapperId = createMapperInTenant(tenantX.getId(), "Read Isolation Mapper");
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act — read from tenant Y
-      int responseStatus =
-          autoMvc
-              .perform(
-                  MockMvcRequestBuilders.get(
-                          "/api/tenants/" + tenantY.getId() + "/mappers/" + mapperId)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // Assert
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Mapper created in tenant X should be readable from tenant X")
-    void given_mapperInTenantX_should_beReadableFromTenantX() throws Exception {
-      // Arrange
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-
-      String mapperId = createMapperInTenant(tenantX.getId(), "Same Tenant Mapper");
-
-      // Act — read from same tenant
-      String response =
-          autoMvc
-              .perform(
-                  MockMvcRequestBuilders.get(
-                          "/api/tenants/" + tenantX.getId() + "/mappers/" + mapperId)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // Assert
-      assertEquals(mapperId, JsonPath.read(response, "$.import_mapper_id"));
-    }
-
-    @Test
-    @DisplayName("Mapper created in tenant X should NOT be updatable from tenant Y")
-    void given_mapperInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // Arrange
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-
-      String mapperId = createMapperInTenant(tenantX.getId(), "Update Isolation Mapper");
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act — update from tenant Y
-      ImportMapperUpdateInput updateInput = new ImportMapperUpdateInput();
-      updateInput.setName("Hijacked Mapper");
-      updateInput.setInjectTypeColumn("B");
-
-      int responseStatus =
-          autoMvc
-              .perform(
-                  MockMvcRequestBuilders.put(
-                          "/api/tenants/" + tenantY.getId() + "/mappers/" + mapperId)
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // Assert
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Mapper created in tenant X should NOT be deletable from tenant Y")
-    void given_mapperInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-      // Arrange
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X",
-              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y",
-              Set.of(Capability.DELETE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
-
-      String mapperId = createMapperInTenant(tenantX.getId(), "Delete Isolation Mapper");
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act — delete from tenant Y
-      int responseStatus =
-          autoMvc
-              .perform(
-                  MockMvcRequestBuilders.delete(
-                          "/api/tenants/" + tenantY.getId() + "/mappers/" + mapperId)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // Assert
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
   }
 }

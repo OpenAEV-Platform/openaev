@@ -4,7 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.ResourceType;
@@ -48,7 +48,9 @@ public class ScenarioImportApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Test the import of injects from an xls file")
+  // TxCtx scopes the mapper lookup so a cross-tenant mapper is not found. Not used directly.
   public ImportTestSummary dryRunImportXLSFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
@@ -57,8 +59,7 @@ public class ScenarioImportApi extends RestBehavior {
     // Getting the mapper to use
     ImportMapper importMapper =
         importMapperRepository
-            .findByIdAndTenantId(
-                UUID.fromString(input.getImportMapperId()), TenantContext.getCurrentTenant())
+            .findById(UUID.fromString(input.getImportMapperId()))
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
@@ -79,7 +80,9 @@ public class ScenarioImportApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Validate and import injects from an xls file")
+  // TxCtx scopes the mapper lookup so a cross-tenant mapper is not found. Not used directly.
   public ImportTestSummary validateImportXLSFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
@@ -92,8 +95,7 @@ public class ScenarioImportApi extends RestBehavior {
     // Getting the mapper to use
     ImportMapper importMapper =
         importMapperRepository
-            .findByIdAndTenantId(
-                UUID.fromString(input.getImportMapperId()), TenantContext.getCurrentTenant())
+            .findById(UUID.fromString(input.getImportMapperId()))
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(

@@ -492,16 +492,20 @@ public class StepService {
     existing.setData(updatedCandidate.getData());
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
-    Step updated = saveStep(existing);
 
     // Remove all existing conditions (full replace strategy),
     // but preserve conditions referenced by conditionIds so they can be re-linked
     conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
 
+    // Clear the relationships from the parent entity side to avoid Hibernate collections conflict
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
+
     // Recreate conditions from input (same logic as create)
-    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), updated);
-    conditionService.linkExistingConditionsToStep(updated, stepInput.getConditionIds());
-    return updated;
+    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
+    return saveStep(existing);
   }
 
   /**

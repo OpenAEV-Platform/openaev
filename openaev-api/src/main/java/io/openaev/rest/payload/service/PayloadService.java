@@ -382,6 +382,27 @@ public class PayloadService {
         payloadUtils.duplicateCommonProperties(originNetworkTraffic, duplicateNetworkTraffic);
         yield duplicateNetworkTraffic;
       }
+      case AI_ATTACK -> {
+        AiAttack originAiAttack = (AiAttack) Hibernate.unproxy(originalPayload);
+        AiAttack duplicateAiAttack = new AiAttack();
+        payloadUtils.duplicateCommonProperties(originAiAttack, duplicateAiAttack);
+        // duplicateCommonProperties already copies the scalar AiAttack fields; re-copy the
+        // mutable JSON-backed structures defensively so the duplicate never shares state with
+        // the origin within the same persistence context.
+        duplicateAiAttack.setMultiTurn(
+            Optional.ofNullable(originAiAttack.getMultiTurn())
+                .map(HashMap::new)
+                .orElseGet(HashMap::new));
+        duplicateAiAttack.setSuccessDetector(
+            Optional.ofNullable(originAiAttack.getSuccessDetector())
+                .map(HashMap::new)
+                .orElseGet(HashMap::new));
+        duplicateAiAttack.setConverters(
+            Optional.ofNullable(originAiAttack.getConverters())
+                .map(String[]::clone)
+                .orElseGet(() -> new String[0]));
+        yield duplicateAiAttack;
+      }
     };
   }
 

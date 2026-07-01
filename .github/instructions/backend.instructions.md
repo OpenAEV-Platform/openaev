@@ -78,6 +78,10 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - `@Transactional` does NOT work on self-calls (Spring proxy bypass)
 - Background tasks: explicit `@Transactional` (no OSIV outside controllers)
 - `deleteById()` does a SELECT first — use native `@Query @Modifying` for perf-critical deletes
+- **`@Transactional(readOnly = true)` permits safe entity mutation**: Hibernate disables dirty-check
+  in read-only sessions, so setting a transient display field on a managed entity (e.g.
+  `connector.setName(resolved)`) will never flush to DB. Prefer this over threading an extra
+  parameter through abstract method signatures and mapper call chains.
 
 ## Services
 
@@ -104,3 +108,11 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 ## Formatting (Spotless)
 
 - **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.
+
+## Code Comments
+
+- **Don't comment the obvious**: never add a comment that merely restates what the code already
+  makes clear (e.g. `// Safe: newConnector is transient, not managed by Hibernate` when it's
+  created with `new Connector()`). Comments should explain *why*, not *what*.
+- **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)
+  and pass as an argument — never repeat the same `.formatted(...)` expression in multiple places.

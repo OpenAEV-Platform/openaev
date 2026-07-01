@@ -79,7 +79,7 @@ public class ExecutorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve executors",
       description = "Retrieve all executors and pending executors if includeNext is true")
-  @Transactional
+  @Transactional(readOnly = true)
   @ApiResponse(
       responseCode = "200",
       content =

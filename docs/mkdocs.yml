@@ -207,6 +207,7 @@ nav:
     - Introduction: administration/introduction.md
     - Enterprise edition: administration/enterprise.md
     - Multi-tenancy: administration/multi-tenancy.md
+    - Debug mode: administration/debug-mode.md
     - Platform settings:
       - Parameters: administration/parameters.md
       - Security:
@@ -224,6 +225,7 @@ nav:
       - Ubuntu: development/environment-ubuntu.md
       - Windows: development/environment-windows.md
     - Building and running from source: development/build-from-source.md
+    - Database migrations: development/database-migrations.md
     - Platform: development/platform.md
     - Collectors: development/collectors.md
     - Injectors: development/injectors.md

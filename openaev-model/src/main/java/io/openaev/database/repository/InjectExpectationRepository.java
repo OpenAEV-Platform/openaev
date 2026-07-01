@@ -38,31 +38,40 @@ public interface InjectExpectationRepository
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_type = :type "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NOT NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
   List<InjectExpectation> findAgentExpectationsNotFilledForSource(
-      @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
+      @Param("tenantId") String tenantId,
+      @Param("type") String type,
+      @Param("sourceId") String sourceId,
+      @Param("limit") int limit);
 
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_type = :type "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NOT NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
   List<InjectExpectation> findAgentExpectationsNotFilled(
-      @Param("type") String type, @Param("limit") int limit);
+      @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_type = :type "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NOT NULL AND e.asset_id IS NOT NULL "
               + "AND e.inject_expectation_created_at >= :createdAfter "
               + "AND "
@@ -70,6 +79,7 @@ public interface InjectExpectationRepository
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
   List<InjectExpectation> findAgentExpectationsNotFilledForSourceCreatedAfter(
+      @Param("tenantId") String tenantId,
       @Param("type") String type,
       @Param("sourceId") String sourceId,
       @Param("createdAfter") Instant createdAfter,
@@ -78,7 +88,9 @@ public interface InjectExpectationRepository
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_type = :type "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NOT NULL AND e.asset_id IS NOT NULL "
               + "AND e.inject_expectation_created_at >= :createdAfter "
               + "AND "
@@ -86,6 +98,7 @@ public interface InjectExpectationRepository
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
   List<InjectExpectation> findAgentExpectationsNotFilledCreatedAfter(
+      @Param("tenantId") String tenantId,
       @Param("type") String type,
       @Param("createdAfter") Instant createdAfter,
       @Param("limit") int limit);
@@ -93,24 +106,51 @@ public interface InjectExpectationRepository
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_type = :type "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
   List<InjectExpectation> findExpectationsNotFilledForSource(
-      @Param("type") String type, @Param("sourceId") String sourceId, @Param("limit") int limit);
+      @Param("tenantId") String tenantId,
+      @Param("type") String type,
+      @Param("sourceId") String sourceId,
+      @Param("limit") int limit);
+
+  // Agentless detection/prevention expectations (e.g. AI adversarial injects whose target is an AI
+  // model/agent rather than an endpoint with an installed agent). Used by AI defense collectors
+  // (LLM firewall / guardrail) which correlate via the per-inject AI request marker.
+  @Query(
+      value =
+          "SELECT e.* FROM injects_expectations e "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
+              + "AND e.agent_id IS NULL "
+              + "AND "
+              + RESULTS_HAS_NO_RESULT_FOR_SOURCE
+              + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
+      nativeQuery = true)
+  List<InjectExpectation> findAgentlessExpectationsNotFilledForSource(
+      @Param("tenantId") String tenantId,
+      @Param("type") String type,
+      @Param("sourceId") String sourceId,
+      @Param("limit") int limit);
 
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
-              + "WHERE e.inject_expectation_type = :type "
+              + "JOIN injects i ON i.inject_id = e.inject_id "
+              + "WHERE i.tenant_id = :tenantId "
+              + "AND e.inject_expectation_type = :type "
               + "AND "
               + RESULTS_HAS_NO_RESULT_AT_ALL
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
       nativeQuery = true)
   List<InjectExpectation> findExpectationsNotFilled(
-      @Param("type") String type, @Param("limit") int limit);
+      @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
   @Query(value = "select i from InjectExpectation i where i.exercise.id = :exerciseId")
   List<InjectExpectation> findAllForExercise(@Param("exerciseId") String exerciseId);
@@ -287,6 +327,38 @@ public interface InjectExpectationRepository
       @Param("sigValue") String sigValue,
       @Param("injectId") String injectId,
       @Param("agentId") String agentId);
+
+  // -- SIGNATURE PROCESSING --
+
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE injects_expectations ie
+          SET inject_expectation_signatures = '[]'::jsonb,
+              inject_expectation_signatures_initialized = true
+          FROM injects i
+          WHERE ie.inject_expectation_id = :id
+            AND i.inject_id = ie.inject_id
+            AND i.tenant_id = :#{#tenantContext.currentTenant}
+          """,
+      nativeQuery = true)
+  void clearSignaturesAndMarkInitialized(@Param("id") String id);
+
+  @Modifying
+  @Query(
+      value =
+          """
+          UPDATE injects_expectations ie
+          SET inject_expectation_signatures =
+              COALESCE(ie.inject_expectation_signatures, '[]'::jsonb) || CAST(:signaturesJson AS jsonb),
+              inject_expectation_signatures_initialized = true
+          FROM injects i
+          WHERE ie.inject_expectation_id = :id
+            AND i.inject_id = ie.inject_id
+          """,
+      nativeQuery = true)
+  void appendSignatures(@Param("id") String id, @Param("signaturesJson") String signaturesJson);
 
   // -- INDEXING --
 
