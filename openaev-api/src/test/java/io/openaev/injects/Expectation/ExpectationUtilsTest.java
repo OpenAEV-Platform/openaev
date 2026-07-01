@@ -1,5 +1,10 @@
 package io.openaev.injects.Expectation;
 
+import static io.openaev.utils.ExpectationSignatureUtils.*;
+import static io.openaev.utils.ExpectationUtils.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
@@ -10,17 +15,11 @@ import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.PreventionExpectation;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.utils.fixtures.*;
+import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.*;
-
-import static io.openaev.utils.ExpectationSignatureUtils.*;
-import static io.openaev.utils.ExpectationUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(MockitoExtension.class)
 class ExpectationUtilsTest extends IntegrationTest {
@@ -60,7 +59,9 @@ class ExpectationUtilsTest extends IntegrationTest {
             inject);
 
     // -- ASSERT --
-    ExpectationSignature signature = new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME, "oaev-implant-injectId-agent-agentId");
+    ExpectationSignature signature =
+        new ExpectationSignature(
+            EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME, "oaev-implant-injectId-agent-agentId");
 
     assertEquals(2, preventionExpectations.size());
     assertEquals(2, detectionExpectations.size());
@@ -125,7 +126,10 @@ class ExpectationUtilsTest extends IntegrationTest {
             null);
 
     // -- ASSERT --
-    ExpectationSignature signature = new ExpectationSignature(EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME, "oaev-implant-caldera-injectId-agent-agentParentId");
+    ExpectationSignature signature =
+        new ExpectationSignature(
+            EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME,
+            "oaev-implant-caldera-injectId-agent-agentParentId");
 
     assertEquals(2, preventionExpectations.size());
     assertEquals(2, detectionExpectations.size());
