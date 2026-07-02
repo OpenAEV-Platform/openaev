@@ -1,0 +1,163 @@
+package io.openaev.executors.mde.service;
+
+import static io.openaev.utils.time.TimeUtils.toInstant;
+
+import com.google.common.annotations.VisibleForTesting;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.AssetGroup;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
+import io.openaev.executors.mde.client.MdeExecutorClient;
+import io.openaev.executors.mde.config.MdeExecutorConfig;
+import io.openaev.executors.mde.model.MdeDevice;
+import io.openaev.executors.mde.model.MdeDeviceGroup;
+import io.openaev.executors.model.AgentRegisterInput;
+import io.openaev.service.AgentService;
+import io.openaev.service.AssetGroupService;
+import io.openaev.service.EndpointService;
+import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+public class MdeExecutorService implements Runnable {
+
+  private final MdeExecutorClient client;
+  private final MdeExecutorConfig config;
+  private final EndpointService endpointService;
+  private final AgentService agentService;
+  private final AssetGroupService assetGroupService;
+  private Executor executor;
+
+  public static Endpoint.PLATFORM_TYPE toPlatform(@NotNull final String osPlatform) {
+    if (osPlatform == null) return Endpoint.PLATFORM_TYPE.Unknown;
+    return switch (osPlatform) {
+      case "Windows10",
+              "Windows11",
+              "WindowsServer2016",
+              "WindowsServer2019",
+              "WindowsServer2022",
+              "Windows" ->
+          Endpoint.PLATFORM_TYPE.Windows;
+      case "Linux", "Ubuntu", "Debian", "RHEL", "CentOS", "Fedora", "SLES" ->
+          Endpoint.PLATFORM_TYPE.Linux;
+      case "macOS", "MacOS", "Mac" -> Endpoint.PLATFORM_TYPE.MacOS;
+      default -> Endpoint.PLATFORM_TYPE.Unknown;
+    };
+  }
+
+  public static Endpoint.PLATFORM_ARCH toArch(@NotNull final String arch) {
+    if (arch == null) return Endpoint.PLATFORM_ARCH.x86_64;
+    return switch (arch) {
+      case "64-bit", "x64", "x86_64" -> Endpoint.PLATFORM_ARCH.x86_64;
+      case "Arm64", "arm64" -> Endpoint.PLATFORM_ARCH.arm64;
+      default -> Endpoint.PLATFORM_ARCH.x86_64;
+    };
+  }
+
+  public MdeExecutorService(
+      Executor executor,
+      MdeExecutorClient client,
+      MdeExecutorConfig config,
+      EndpointService endpointService,
+      AgentService agentService,
+      AssetGroupService assetGroupService) {
+    this.executor = executor;
+    this.client = client;
+    this.config = config;
+    this.endpointService = endpointService;
+    this.agentService = agentService;
+    this.assetGroupService = assetGroupService;
+  }
+
+  @Override
+  public void run() {
+    try {
+      log.info(
+          "Running MDE executor endpoints gathering... executorId={}, deviceGroup={}",
+          executor.getId(),
+          config.getDeviceGroup());
+      List<String> deviceGroupIds =
+          Stream.of(config.getDeviceGroup().split(",")).map(String::trim).distinct().toList();
+      List<MdeDeviceGroup> allGroups = client.deviceGroups();
+
+      for (String groupId : deviceGroupIds) {
+        List<MdeDevice> devices = client.devices(groupId);
+        if (devices.isEmpty()) {
+          log.info("No active MDE devices found for device group id={}", groupId);
+          continue;
+        }
+        Optional<MdeDeviceGroup> groupMeta =
+            allGroups.stream().filter(g -> String.valueOf(g.getId()).equals(groupId)).findFirst();
+        Optional<AssetGroup> existingAssetGroup =
+            assetGroupService.findByExternalReference(groupId, executor.getTenant().getId());
+        AssetGroup assetGroup = existingAssetGroup.orElseGet(AssetGroup::new);
+        assetGroup.setExternalReference(groupId);
+        assetGroup.setTenant(executor.getTenant());
+        groupMeta.ifPresent(
+            g -> {
+              assetGroup.setName(g.getName());
+              assetGroup.setDescription(g.getDescription());
+            });
+        if (assetGroup.getName() == null) {
+          assetGroup.setName("MDE Device Group " + groupId);
+        }
+        log.info(
+            "MDE executor provisioning {} devices for group '{}'",
+            devices.size(),
+            assetGroup.getName());
+        List<Agent> agents =
+            endpointService.syncAgentsEndpoints(
+                toAgentEndpoint(devices),
+                agentService.getAgentsByExecutorIdAndTenantId(
+                    executor.getId(), executor.getTenant().getId()),
+                executor.getTenant().getId());
+        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+        assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
+      }
+    } catch (Exception e) {
+      log.error("Error during MDE executor endpoint gathering: {}", e.getMessage(), e);
+    }
+  }
+
+  private List<AgentRegisterInput> toAgentEndpoint(@NotNull final List<MdeDevice> devices) {
+    return devices.stream()
+        .map(
+            device -> {
+              List<String> ips = new ArrayList<>();
+              if (device.getLastIpAddress() != null) ips.add(device.getLastIpAddress());
+              AgentRegisterInput input = new AgentRegisterInput();
+              input.setExecutor(executor);
+              input.setExternalReference(device.getId());
+              input.setElevated(true);
+              input.setService(true);
+              input.setName(device.getComputerDnsName());
+              input.setHostname(device.getComputerDnsName());
+              input.setSeenIp(device.getLastExternalIpAddress());
+              input.setIps(ips.toArray(new String[0]));
+              input.setMacAddresses(new String[0]);
+              Endpoint.PLATFORM_TYPE platform = toPlatform(device.getOsPlatform());
+              input.setPlatform(platform);
+              input.setArch(
+                  device.getOsArchitecture() != null
+                      ? toArch(device.getOsArchitecture())
+                      : Endpoint.PLATFORM_ARCH.x86_64);
+              input.setExecutedByUser(
+                  Endpoint.PLATFORM_TYPE.Windows.equals(platform)
+                      ? Agent.ADMIN_SYSTEM_WINDOWS
+                      : Agent.ADMIN_SYSTEM_UNIX);
+              input.setLastSeen(toInstant(device.getLastSeen()));
+              return input;
+            })
+        .collect(Collectors.toList());
+  }
+
+  @VisibleForTesting
+  protected void setExecutor(Executor executor) {
+    this.executor = executor;
+  }
+}
