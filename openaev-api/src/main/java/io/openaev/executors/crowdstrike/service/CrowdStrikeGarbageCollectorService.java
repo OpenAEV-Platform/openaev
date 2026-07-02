@@ -41,9 +41,9 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
       List<CrowdStrikeAction> actions = new ArrayList<>();
       log.info("Running CrowdStrike executor garbage collector on " + agents.size() + " agents");
       List<Agent> windowsAgents = getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Windows);
-      if (!windowsAgents.isEmpty()) {
+      for (Agent agent : windowsAgents) {
         CrowdStrikeAction action = new CrowdStrikeAction();
-        action.setAgents(windowsAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptName(this.config.getWindowsScriptName());
         action.setCommandEncoded(
             Base64.getEncoder()
@@ -54,9 +54,9 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
       List<Agent> unixAgents = new ArrayList<>();
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Linux));
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.MacOS));
-      if (!unixAgents.isEmpty()) {
+      for (Agent agent : unixAgents) {
         CrowdStrikeAction action = new CrowdStrikeAction();
-        action.setAgents(unixAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptName(this.config.getUnixScriptName());
         action.setCommandEncoded(
             Base64.getEncoder()

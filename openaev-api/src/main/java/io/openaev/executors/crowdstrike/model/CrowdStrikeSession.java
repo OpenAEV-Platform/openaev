@@ -5,9 +5,8 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CrowdStrikeAction {
+public class CrowdStrikeSession {
 
-  private String agentExternalReference;
-  private String scriptName;
-  private String commandEncoded;
+  private String session_id;
+  private String device_id;
 }

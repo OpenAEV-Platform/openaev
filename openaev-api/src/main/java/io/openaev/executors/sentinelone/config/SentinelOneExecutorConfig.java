@@ -73,7 +73,7 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
-  private Integer apiBatchExecutionActionPagination = 2500;
+  private Integer apiBatchExecutionActionPagination = 100;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_API_REGISTER_INTERVAL",
