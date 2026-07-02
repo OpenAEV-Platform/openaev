@@ -4,7 +4,6 @@ import static io.openaev.utils.ExpectationSignatureUtils.mergeExpectationSignatu
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -24,7 +23,7 @@ public class InjectExpectationLockService {
   @Transactional
   public void applySignaturesForExpectationWithLock(
       @NotBlank String expectationId, @NotNull List<InjectExpectationSignature> signatures) {
-      BaseInjectExpectation expectation =
+    BaseInjectExpectation expectation =
         this.injectExpectationRepository
             .findById(expectationId)
             .orElseThrow(ElementNotFoundException::new);

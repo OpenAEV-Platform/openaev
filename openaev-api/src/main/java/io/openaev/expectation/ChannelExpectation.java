@@ -1,10 +1,11 @@
-package io.openaev.model.expectation;
+package io.openaev.expectation;
 
 import io.openaev.database.model.Article;
-import io.openaev.database.model.InjectExpectation;
-import java.util.Objects;
+import io.openaev.database.model.BaseInjectExpectation;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.Objects;
 
 /**
  * Expectation that requires targets to read an article or channel content.

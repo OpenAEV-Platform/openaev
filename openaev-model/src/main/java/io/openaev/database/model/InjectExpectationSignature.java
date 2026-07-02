@@ -26,7 +26,7 @@ public class InjectExpectationSignature {
   @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_expectation_signature_inject_expectation_id")
-  private InjectExpectation injectExpectation;
+  private BaseInjectExpectation injectExpectation;
 
   @Id
   @NotBlank

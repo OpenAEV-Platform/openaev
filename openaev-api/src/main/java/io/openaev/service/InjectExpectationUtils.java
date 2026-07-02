@@ -1,16 +1,9 @@
 package io.openaev.service;
 
-import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
-import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
-import static java.util.Optional.ofNullable;
-
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.*;
+import io.openaev.expectation.*;
 import io.openaev.utils.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
@@ -25,7 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 import static java.util.Optional.ofNullable;
@@ -116,40 +109,40 @@ public class InjectExpectationUtils {
     switch (expectation) {
       case ChannelExpectation e when expectation.type() == ARTICLE ->
           ((ArticleInjectExpectation) baseInjectExpectation).setArticle(e.getArticle());
-      case ChallengeExpectation e when expectation.type() == CHALLENGE ->
+      case io.openaev.expectation.ChallengeExpectation e when expectation.type() == CHALLENGE ->
           ((ChallengeInjectExpectation) baseInjectExpectation).setChallenge(e.getChallenge());
       case DetectionExpectation e when expectation.type() == DETECTION -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-          baseInjectExpectation
-                  .getSignatures()
-                  .addAll(
-                          convertToInjectExpectationSignatures(
-                                  e.getExpectationSignatures(), baseInjectExpectation));
+        baseInjectExpectation
+            .getSignatures()
+            .addAll(
+                convertToInjectExpectationSignatures(
+                    e.getExpectationSignatures(), baseInjectExpectation));
       }
       case PreventionExpectation e when expectation.type() == PREVENTION -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-          baseInjectExpectation
-                  .getSignatures()
-                  .addAll(
-                          convertToInjectExpectationSignatures(
-                                  e.getExpectationSignatures(), baseInjectExpectation));
+        baseInjectExpectation
+            .getSignatures()
+            .addAll(
+                convertToInjectExpectationSignatures(
+                    e.getExpectationSignatures(), baseInjectExpectation));
       }
       case VulnerabilityExpectation e when expectation.type() == VULNERABILITY -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-          baseInjectExpectation
-                  .getSignatures()
-                  .addAll(
-                          convertToInjectExpectationSignatures(
-                                  e.getExpectationSignatures(), baseInjectExpectation));
+        baseInjectExpectation
+            .getSignatures()
+            .addAll(
+                convertToInjectExpectationSignatures(
+                    e.getExpectationSignatures(), baseInjectExpectation));
       }
       case ManualExpectation e when expectation.type() == MANUAL ->
           baseInjectExpectation.setDescription(e.getDescription());

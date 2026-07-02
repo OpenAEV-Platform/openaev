@@ -1,15 +1,16 @@
 package io.openaev.utils;
 
-import static java.time.Instant.now;
-
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.validator.Ipv4OrIpv6Validator;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static java.time.Instant.now;
 
 public class ExpectationSignatureUtils {
 
@@ -69,7 +70,7 @@ public class ExpectationSignatureUtils {
   }
 
   public static List<InjectExpectationSignature> convertToInjectExpectationSignatures(
-      List<ExpectationSignature> expectationSignatures, InjectExpectation injectExpectation) {
+      List<ExpectationSignature> expectationSignatures, BaseInjectExpectation injectExpectation) {
     if (expectationSignatures == null || expectationSignatures.isEmpty()) {
       return new ArrayList<>();
     }
@@ -79,7 +80,7 @@ public class ExpectationSignatureUtils {
   }
 
   public static InjectExpectationSignature convertToInjectExpectationSignature(
-      ExpectationSignature expectationSignature, InjectExpectation injectExpectation) {
+      ExpectationSignature expectationSignature, BaseInjectExpectation injectExpectation) {
     return new InjectExpectationSignature(
         injectExpectation, expectationSignature.getType(), expectationSignature.getValue(), now());
   }

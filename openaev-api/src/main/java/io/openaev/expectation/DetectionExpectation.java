@@ -1,6 +1,4 @@
-package io.openaev.model.expectation;
-
-import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
+package io.openaev.expectation;
 
 import io.openaev.database.model.*;
 import jakarta.annotation.Nullable;
@@ -12,7 +10,7 @@ import lombok.Setter;
 import java.util.List;
 import java.util.Objects;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.DETECTION;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
 
 /**
  * Expectation that requires security tools to detect an injected activity.
