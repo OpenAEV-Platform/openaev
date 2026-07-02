@@ -147,7 +147,10 @@ public class ChallengeService {
   }
 
   public SimulationChallengesReader validateChallenge(
-      String exerciseId, String challengeId, ChallengeTryInput input, User user,
+      String exerciseId,
+      String challengeId,
+      ChallengeTryInput input,
+      User user,
       @NotBlank String tenantId) {
     ChallengeResult challengeResult = tryChallenge(challengeId, input, tenantId);
     if (challengeResult.isResult()) {

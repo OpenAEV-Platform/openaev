@@ -55,7 +55,6 @@ class ChallengeApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Resource private ObjectMapper objectMapper;
 
-
   // -- SCENARIOS --
 
   @DisplayName("Retrieve challenges for scenario")
@@ -63,7 +62,8 @@ class ChallengeApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void retrieveChallengesVariableForScenarioTest() throws Exception {
     // -- PREPARE --
-    challengeInjectorIntegrationFactory.registerConnectorForTenant( TenantContext.getCurrentTenant());
+    challengeInjectorIntegrationFactory.registerConnectorForTenant(
+        TenantContext.getCurrentTenant());
 
     Scenario scenario = createDefaultCrisisScenario();
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
