@@ -6,7 +6,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
@@ -73,9 +72,7 @@ public class ChallengeApi extends RestBehavior {
   public Challenge updateChallenge(
       @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
     Challenge challenge =
-        challengeRepository
-            .findById(challengeId)
-            .orElseThrow(ElementNotFoundException::new);
+        challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
     challenge.setUpdateAttributes(input);

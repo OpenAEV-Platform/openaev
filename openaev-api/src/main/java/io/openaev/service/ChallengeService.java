@@ -146,10 +146,7 @@ public class ChallengeService {
   }
 
   public SimulationChallengesReader validateChallenge(
-      String exerciseId,
-      String challengeId,
-      ChallengeTryInput input,
-      User user) {
+      String exerciseId, String challengeId, ChallengeTryInput input, User user) {
     ChallengeResult challengeResult = tryChallenge(challengeId, input);
     if (challengeResult.isResult()) {
       // Success: Find and update the user's expectations and challenge attempt
