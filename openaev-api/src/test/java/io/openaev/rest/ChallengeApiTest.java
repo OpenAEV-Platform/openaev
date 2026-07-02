@@ -55,11 +55,6 @@ class ChallengeApiTest extends IntegrationTest {
   @Autowired private EntityManager entityManager;
   @Resource private ObjectMapper objectMapper;
 
-  @BeforeEach
-  public void before() throws Exception {
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
-  }
 
   // -- SCENARIOS --
 
@@ -68,7 +63,7 @@ class ChallengeApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true)
   void retrieveChallengesVariableForScenarioTest() throws Exception {
     // -- PREPARE --
-    challengeInjectorIntegrationFactory.registerConnectorForTenant();
+    challengeInjectorIntegrationFactory.registerConnectorForTenant( TenantContext.getCurrentTenant());
 
     Scenario scenario = createDefaultCrisisScenario();
     Scenario scenarioCreated = this.scenarioService.createScenario(scenario);
