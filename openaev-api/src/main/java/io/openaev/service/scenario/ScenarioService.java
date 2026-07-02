@@ -542,27 +542,31 @@ public class ScenarioService {
       objectMapper.addMixIn(Variable.class, VariableMixin.class);
     }
 
-    // Add Documents
-    List<Document> documentExports = new ArrayList<>();
-    documentExports.addAll(scenario.getDocuments());
-    documentExports.addAll(
-        scenario.getInjects().stream()
-            .flatMap(
-                inject -> {
-                  if (inject.getPayload().isEmpty()) {
-                    return Stream.of();
-                  }
-                  Payload pl = inject.getPayload().get();
-                  return pl.getAttachedDocument().isPresent()
-                      ? Stream.of(pl.getAttachedDocument().get())
-                      : Stream.of();
-                })
-            .toList());
+    // Add Documents — collect from scenario, inject direct attachments, and inject payload files
+    List<Document> documentExports =
+        Stream.of(
+                scenario.getDocuments().stream(),
+                scenario.getInjects().stream()
+                    .flatMap(
+                        inject -> inject.getDocuments().stream().map(InjectDocument::getDocument)),
+                scenario.getInjects().stream()
+                    .flatMap(
+                        inject -> {
+                          if (inject.getPayload().isEmpty()) {
+                            return Stream.of();
+                          }
+                          Payload pl = inject.getPayload().get();
+                          return pl.getAttachedDocument().isPresent()
+                              ? Stream.of(pl.getAttachedDocument().get())
+                              : Stream.of();
+                        }))
+            .flatMap(s -> s)
+            .distinct()
+            .collect(Collectors.toCollection(ArrayList::new));
 
     scenarioFileExport.setDocuments(documentExports);
     objectMapper.addMixIn(Document.class, Mixins.Document.class);
-    scenarioTags.addAll(
-        scenario.getDocuments().stream().flatMap(doc -> doc.getTags().stream()).toList());
+    scenarioTags.addAll(documentExports.stream().flatMap(doc -> doc.getTags().stream()).toList());
     List<String> documentIds =
         new ArrayList<>(documentExports.stream().map(Document::getId).toList());
 
