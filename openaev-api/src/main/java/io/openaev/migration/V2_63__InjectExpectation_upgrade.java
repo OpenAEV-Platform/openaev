@@ -1,7 +1,7 @@
 package io.openaev.migration;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.ARTICLE;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.MANUAL;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.injectors.channel.model.ChannelContent;

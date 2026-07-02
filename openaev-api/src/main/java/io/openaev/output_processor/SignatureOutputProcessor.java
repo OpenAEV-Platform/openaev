@@ -1,9 +1,9 @@
 package io.openaev.output_processor;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
@@ -67,7 +67,7 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
       }
 
       for (JsonNode signatureValueNode : signatureValuesNode) {
-        Optional<InjectExpectation.EXPECTATION_TYPE> expectationType =
+        Optional<BaseInjectExpectation.EXPECTATION_TYPE> expectationType =
             mapExpectationType(signatureValueNode.path(EXPECTATION_TYPE).asText(null));
         if (expectationType.isEmpty()) {
           continue;
@@ -81,13 +81,13 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
     }
   }
 
-  private Optional<InjectExpectation.EXPECTATION_TYPE> mapExpectationType(String value) {
+  private Optional<BaseInjectExpectation.EXPECTATION_TYPE> mapExpectationType(String value) {
     if (!StringUtils.hasText(value)) {
       return Optional.empty();
     }
     try {
       return Optional.of(
-          InjectExpectation.EXPECTATION_TYPE.valueOf(value.trim().toUpperCase(Locale.ROOT)));
+          BaseInjectExpectation.EXPECTATION_TYPE.valueOf(value.trim().toUpperCase(Locale.ROOT)));
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }

@@ -3,8 +3,8 @@ package io.openaev.service;
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectExpectationTrace;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.raw.impl.SimpleRawExpectationTrace;
@@ -74,7 +74,7 @@ public class InjectExpectationTraceService {
           trace.setSecurityPlatform(collector.getSecurityPlatform());
           // We don't need to fetch the actual expectation here, we can just set the id as there is
           // no cascade
-          trace.setInjectExpectation(new InjectExpectation());
+          trace.setInjectExpectation(new BaseInjectExpectation());
           trace.getInjectExpectation().setId(input.getInjectExpectationId());
 
           SimpleRawExpectationTrace simpleTrace = SimpleRawExpectationTrace.of(trace);

@@ -1,6 +1,6 @@
 package io.openaev.model;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 
 /**
  * Interface representing an expectation that must be fulfilled during an injection.

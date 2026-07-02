@@ -2,8 +2,8 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.engine.api.WidgetType.*;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Filters;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.WidgetLayout;
 import io.openaev.engine.api.*;
@@ -72,7 +72,8 @@ public class WidgetFixture {
   }
 
   private static WidgetConfigurationWithSeries.Series createSecurityCoverageSerie(
-      InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      BaseInjectExpectation.EXPECTATION_STATUS status) {
     WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
@@ -102,15 +103,15 @@ public class WidgetFixture {
   public static Widget createSecurityConverageWidget(
       CustomDashboardTimeRange timeRange,
       String dateAttribute,
-      InjectExpectation.EXPECTATION_TYPE type) {
+      BaseInjectExpectation.EXPECTATION_TYPE type) {
     Widget widget = new Widget();
     widget.setType(SECURITY_COVERAGE_CHART);
     // series
     StructuralHistogramWidget widgetConfig = new StructuralHistogramWidget();
     WidgetConfigurationWithSeries.Series successSeries =
-        createSecurityCoverageSerie(type, InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+        createSecurityCoverageSerie(type, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
     WidgetConfigurationWithSeries.Series failedSeries =
-        createSecurityCoverageSerie(type, InjectExpectation.EXPECTATION_STATUS.FAILED);
+        createSecurityCoverageSerie(type, BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
     // basic configuration
     widgetConfig.setSeries(List.of(successSeries, failedSeries));
     widgetConfig.setTitle("Security coverage");

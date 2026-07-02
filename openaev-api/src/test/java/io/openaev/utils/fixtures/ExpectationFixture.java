@@ -24,7 +24,7 @@ public class ExpectationFixture {
   static Double SCORE = 100.0;
 
   public static Expectation createExpectation(
-      InjectExpectation.EXPECTATION_TYPE expectationType, String expectationName) {
+      BaseInjectExpectation.EXPECTATION_TYPE expectationType, String expectationName) {
     Expectation expectation = new Expectation();
     expectation.setExpectationGroup(false);
     expectation.setName(expectationName);
@@ -35,7 +35,8 @@ public class ExpectationFixture {
     return expectation;
   }
 
-  public static Expectation createExpectation(InjectExpectation.EXPECTATION_TYPE expectationType) {
+  public static Expectation createExpectation(
+      BaseInjectExpectation.EXPECTATION_TYPE expectationType) {
     return createExpectation(expectationType, "Expectation 1");
   }
 

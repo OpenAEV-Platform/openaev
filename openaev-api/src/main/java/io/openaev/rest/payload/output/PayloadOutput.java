@@ -64,7 +64,7 @@ public class PayloadOutput {
 
   @Schema(description = "Expected output types for payload execution")
   @JsonProperty("payload_expectations")
-  private InjectExpectation.EXPECTATION_TYPE[] expectations;
+  private BaseInjectExpectation.EXPECTATION_TYPE[] expectations;
 
   @Schema(description = "Current payload lifecycle status")
   @JsonProperty("payload_status")

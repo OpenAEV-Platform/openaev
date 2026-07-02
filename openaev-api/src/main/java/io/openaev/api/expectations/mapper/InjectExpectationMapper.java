@@ -1,7 +1,7 @@
 package io.openaev.api.expectations.mapper;
 
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.*;
 import java.util.List;
 import java.util.Objects;
 
@@ -9,7 +9,7 @@ public final class InjectExpectationMapper {
 
   private InjectExpectationMapper() {}
 
-  public static InjectExpectationOutput toOutput(InjectExpectation expectation) {
+  public static InjectExpectationOutput toOutput(BaseInjectExpectation expectation) {
     Objects.requireNonNull(expectation, "expectation must not be null");
 
     return new InjectExpectationOutput(
@@ -29,38 +29,53 @@ public final class InjectExpectationMapper {
         expectation.getTraces(),
         expectation.getExercise() != null ? expectation.getExercise().getId() : null,
         expectation.getInject() != null ? expectation.getInject().getId() : null,
-        expectation.getUser() != null ? expectation.getUser().getId() : null,
-        expectation.getTeam() != null ? expectation.getTeam().getId() : null,
-        expectation.getAgent() != null ? expectation.getAgent().getId() : null,
-        expectation.getAsset() != null ? expectation.getAsset().getId() : null,
-        expectation.getAssetGroup() != null ? expectation.getAssetGroup().getId() : null,
-        expectation.getArticle() != null ? expectation.getArticle().getId() : null,
-        expectation.getChallenge() != null ? expectation.getChallenge().getId() : null,
+        expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
+                && tableTopInjectExpectation.getUser() != null
+            ? tableTopInjectExpectation.getUser().getId()
+            : null,
+        expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
+                && tableTopInjectExpectation.getTeam() != null
+            ? tableTopInjectExpectation.getTeam().getId()
+            : null,
+        expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                && technicalInjectExpectation.getAgent() != null
+            ? technicalInjectExpectation.getAgent().getId()
+            : null,
+        expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                && technicalInjectExpectation.getAsset() != null
+            ? technicalInjectExpectation.getAsset().getId()
+            : null,
+        expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                && technicalInjectExpectation.getAssetGroup() != null
+            ? technicalInjectExpectation.getAssetGroup().getId()
+            : null,
+        expectation instanceof ArticleInjectExpectation articleInjectExpectation
+                && articleInjectExpectation.getArticle() != null
+            ? articleInjectExpectation.getArticle().getId()
+            : null,
+        expectation instanceof ChallengeInjectExpectation challengeInjectExpectation
+                && challengeInjectExpectation.getChallenge() != null
+            ? challengeInjectExpectation.getChallenge().getId()
+            : null,
         resolveTargetId(expectation));
   }
 
-  public static List<InjectExpectationOutput> toOutputs(List<InjectExpectation> expectations) {
+  public static List<InjectExpectationOutput> toOutputs(
+      List<? extends BaseInjectExpectation> expectations) {
     Objects.requireNonNull(expectations, "expectations must not be null");
     return expectations.stream().map(InjectExpectationMapper::toOutput).toList();
   }
 
-  private static String resolveTargetId(InjectExpectation expectation) {
-    if (expectation.getUser() != null) {
-      return expectation.getUser().getId();
-    }
-    if (expectation.getTeam() != null) {
-      return expectation.getTeam().getId();
-    }
-    if (expectation.getAgent() != null) {
-      return expectation.getAgent().getId();
-    }
-    if (expectation.getAsset() != null) {
-      return expectation.getAsset().getId();
-    }
-    if (expectation.getAssetGroup() != null) {
-      return expectation.getAssetGroup().getId();
-    }
-    throw new IllegalStateException(
-        "InjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
+  private static String resolveTargetId(BaseInjectExpectation expectation) {
+    return switch (expectation) {
+      case TableTopInjectExpectation e when e.getUser() != null -> e.getUser().getId();
+      case TableTopInjectExpectation e when e.getTeam() != null -> e.getTeam().getId();
+      case TechnicalInjectExpectation e when e.getAgent() != null -> e.getAgent().getId();
+      case TechnicalInjectExpectation e when e.getAsset() != null -> e.getAsset().getId();
+      case TechnicalInjectExpectation e when e.getAssetGroup() != null -> e.getAssetGroup().getId();
+      default ->
+          throw new IllegalStateException(
+              "BaseInjectExpectation must have at least one target (user, team, agent, asset, or assetGroup)");
+    };
   }
 }

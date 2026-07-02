@@ -1,7 +1,7 @@
 package io.openaev.service.targets.search;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.InjectTarget;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.InjectExpectationResultUtils;
@@ -23,7 +23,7 @@ public class HelperTargetSearchAdaptor {
       Inject inject, Supplier<InjectTarget> targetSupplier, boolean allowVulnerability) {
     InjectTarget target = targetSupplier.get();
 
-    List<InjectExpectation> mergedExpectationsByInjectAndTargetAndTargetType =
+    List<BaseInjectExpectation> mergedExpectationsByInjectAndTargetAndTargetType =
         injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
             inject.getId(), target.getId(), target.getTargetType());
 

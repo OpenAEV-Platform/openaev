@@ -141,15 +141,15 @@ public class InjectorContractContentUtils {
     return null;
   }
 
-  public InjectExpectation.EXPECTATION_TYPE[] getPredefinedExpectations(
+  public BaseInjectExpectation.EXPECTATION_TYPE[] getPredefinedExpectations(
       InjectorContract injectorContract) {
     ObjectNode convertedContent = injectorContract.getConvertedContent();
-    List<InjectExpectation.EXPECTATION_TYPE> predefinedExpectations = new ArrayList<>();
+    List<BaseInjectExpectation.EXPECTATION_TYPE> predefinedExpectations = new ArrayList<>();
 
     if (convertedContent == null
         || !convertedContent.has(FIELDS)
         || !convertedContent.get(FIELDS).isArray()) {
-      return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);
+      return predefinedExpectations.toArray(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
     }
 
     ArrayNode fieldsArray = (ArrayNode) convertedContent.get(FIELDS);
@@ -161,13 +161,13 @@ public class InjectorContractContentUtils {
         if (predefined != null && predefined.isArray()) {
           for (JsonNode expectation : predefined) {
             predefinedExpectations.add(
-                InjectExpectation.EXPECTATION_TYPE.valueOf(
+                BaseInjectExpectation.EXPECTATION_TYPE.valueOf(
                     expectation.get(NODE_EXPECTATION_TYPE).asText()));
           }
         }
       }
     }
-    return predefinedExpectations.toArray(new InjectExpectation.EXPECTATION_TYPE[0]);
+    return predefinedExpectations.toArray(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
   }
 
   /**

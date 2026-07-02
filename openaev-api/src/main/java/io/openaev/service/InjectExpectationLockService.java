@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -21,7 +21,7 @@ public class InjectExpectationLockService {
   @Transactional
   public void applySignaturesForExpectationWithLock(
       @NotBlank String expectationId, @NotNull String signaturesJson) {
-    InjectExpectation expectation =
+    BaseInjectExpectation expectation =
         this.injectExpectationRepository
             .findById(expectationId)
             .orElseThrow(ElementNotFoundException::new);
