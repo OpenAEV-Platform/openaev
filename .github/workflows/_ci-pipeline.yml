@@ -406,22 +406,30 @@ jobs:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
 
   # ════════════════════════════════════════════════════════════════════
-  # Sanity check
+  # Pipeline gate
   #
   # ⚠️  REQUIRED status check for branch protection.
-  #     The full check name is "<caller-job> / 🩺 Artifact & Image Sanity Check".
+  #     The full check name is "<caller-job> / ✅ Pipeline Gate".
   #     If the caller job key changes, update the branch-protection rule.
   # ════════════════════════════════════════════════════════════════════
 
-  sanity-check:
-    name: "🩺 Artifact & Image Sanity Check"
+  pipeline-gate:
+    name: "✅ Pipeline Gate"
     needs:
-      - frontend-build
       - backend-compile
+      - frontend-build
+      - prepare-bundled-assets
+      - spotless-check
+      - frontend-quality
+      - api-tests
+      - e2e-tests
+      - api-types-check
       - backend-package
       - backend-package-musl
+      - docker-build
       - docker-merge
-      - prepare-bundled-assets
+      - snyk-docker
+      - codecov
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -434,7 +442,7 @@ jobs:
           TOTAL=0
 
           echo "══════════════════════════════════════════════════"
-          echo "  🩺  Upstream Job Results"
+          echo "  ✅ Upstream Job Results"
           echo "══════════════════════════════════════════════════"
           echo ""
 

@@ -1,7 +1,7 @@
 name: "[Core] CI"
 
 # Continuous Integration pipeline.
-# ⚠️ Branch-protection status check: "pipeline / 🩺 Artifact & Image Sanity Check"
+# ⚠️ Branch-protection status check: "pipeline / ✅ Pipeline Gate"
 
 on:
   push:
