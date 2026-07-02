@@ -437,7 +437,6 @@ inject_expectation_data AS (
         || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
     FROM injects_expectations ie
     JOIN changed_expectations ce ON ie.inject_expectation_id = ce.inject_expectation_id
-    -- FIX 3 : JOINs inutilisés supprimés (exercises ex, users u, teams t, assets asset, asset_groups ag)
     LEFT JOIN injects i ON i.inject_id = ie.inject_id
     LEFT JOIN injects_statuses ins ON ins.status_inject = i.inject_id
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
@@ -448,14 +447,13 @@ inject_expectation_data AS (
     LEFT JOIN LATERAL jsonb_array_elements(ie.inject_expectation_results::jsonb) AS r(elem) ON true
     LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
     LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
-    -- FIX 1 : jointure sur la CTE à la place de la sous-requête corrélée
     LEFT JOIN agent_security_platforms asp ON asp.inject_id = ie.inject_id
     GROUP BY
         ie.inject_expectation_id,
         ic.injector_contract_id,
         i.inject_title,
         i.tenant_id,
-        asp.security_platform_ids  -- nécessaire car pas une agrégation
+        asp.security_platform_ids
 )
 SELECT * FROM inject_expectation_data ied
 WHERE ied.agent_id IS NULL
