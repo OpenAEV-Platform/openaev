@@ -129,8 +129,6 @@ public class SentinelOneExecutorServiceTest {
     verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
     assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
-    assertEquals(
-        "eAA4ADYAXwA2ADQA",
-        commandEncoded.getValue());
+    assertEquals("eAA4ADYAXwA2ADQA", commandEncoded.getValue());
   }
 }
