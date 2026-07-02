@@ -1,6 +1,7 @@
 package io.openaev.utils;
 
 import static io.openaev.database.model.Command.COMMAND_TYPE;
+import static io.openaev.database.model.ConnectorCompositeId.of;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
@@ -94,7 +95,7 @@ public class InjectUtils {
   public Injector resolveInjectorReference(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
     if (StringUtils.isNotBlank(injectorId)) {
-      return injectorRepository.getReferenceById(injectorId);
+      return injectorRepository.getReferenceById(of(injectorId, TenantContext.getCurrentTenant()));
     }
     // Auto-resolve from the contract's linked injector (single-instance fallback)
     if (injectorContract != null && injectorContract.getFirstInjector() != null) {

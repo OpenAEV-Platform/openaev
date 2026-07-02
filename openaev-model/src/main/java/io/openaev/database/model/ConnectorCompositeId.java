@@ -21,6 +21,10 @@ public class ConnectorCompositeId implements Serializable {
   private String id;
   private String tenantId;
 
+  public static ConnectorCompositeId of(String id, String tenantId) {
+    return new ConnectorCompositeId(id, tenantId);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
