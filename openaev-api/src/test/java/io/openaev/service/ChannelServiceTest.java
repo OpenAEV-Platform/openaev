@@ -3,7 +3,6 @@ package io.openaev.service;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -90,16 +89,14 @@ class ChannelServiceTest {
       exercise.setId("exercise-1");
       exercise.setInjects(List.of(inject));
 
-      when(channelRepository.findByIdAndTenantId(eq("channel-1"), any()))
-          .thenReturn(Optional.of(channel));
+      when(channelRepository.findById("channel-1")).thenReturn(Optional.of(channel));
       when(exerciseRepository.findById("exercise-1")).thenReturn(Optional.of(exercise));
       when(articleRepository.findAllById(any())).thenReturn(List.of(article));
       when(injectExpectationExecutionRepository.findChannelExpectations(any(), any(), any()))
           .thenReturn(List.of());
 
       // Act
-      assertDoesNotThrow(
-          () -> channelService.validateArticles("exercise-1", "channel-1", user, "test-tenant"));
+      assertDoesNotThrow(() -> channelService.validateArticles("exercise-1", "channel-1", user));
 
       // Assert
       ArgumentCaptor<BaseInjectExpectation> captor =

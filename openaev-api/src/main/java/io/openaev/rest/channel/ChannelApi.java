@@ -69,9 +69,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CHANNEL)
   public Channel channel(@PathVariable String channelId) {
-    return channelRepository
-        .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
-        .orElseThrow(ElementNotFoundException::new);
+    return channelService.channel(channelId);
   }
 
   @PutMapping({CHANNEL_URI + "/{channelId}", TENANT_CHANNEL_URI + "/{channelId}"})
@@ -83,9 +81,7 @@ public class ChannelApi extends RestBehavior {
   public Channel updateChannel(
       @PathVariable String channelId, @Valid @RequestBody ChannelUpdateInput input) {
     Channel channel =
-        channelRepository
-            .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     channel.setUpdateAttributes(input);
     channel.setUpdatedAt(Instant.now());
     return channelRepository.save(channel);
@@ -100,9 +96,7 @@ public class ChannelApi extends RestBehavior {
   public Channel updateChannelLogos(
       @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
     Channel channel =
-        channelRepository
-            .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     if (input.getLogoDark() != null) {
       channel.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     } else {
@@ -132,10 +126,7 @@ public class ChannelApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHANNEL)
   public void deleteChannel(@PathVariable String channelId) {
-    if (!channelRepository.existsByIdAndTenantId(channelId, TenantContext.getCurrentTenant())) {
-      throw new ElementNotFoundException();
-    }
-    channelRepository.deleteById(channelId);
+    channelService.deleteChannel(channelId);
   }
 
   @GetMapping({
@@ -151,9 +142,7 @@ public class ChannelApi extends RestBehavior {
       @PathVariable String exerciseId, @PathVariable String channelId) {
     ChannelReader channelReader;
     Channel channel =
-        channelRepository
-            .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
 
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant());
@@ -190,8 +179,7 @@ public class ChannelApi extends RestBehavior {
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
-    return channelService.validateArticles(
-        exerciseId, channelId, user, TenantContext.getCurrentTenant());
+    return channelService.validateArticles(exerciseId, channelId, user);
   }
 
   // -- EXERCISES --
@@ -215,7 +203,7 @@ public class ChannelApi extends RestBehavior {
     article.setUpdateAttributes(input);
     article.setChannel(
         channelRepository
-            .findByIdAndTenantId(input.getChannelId(), TenantContext.getCurrentTenant())
+            .findById(input.getChannelId())
             .orElseThrow(ElementNotFoundException::new));
     article.setExercise(exercise);
     Article savedArticle = articleRepository.save(article);
@@ -261,7 +249,7 @@ public class ChannelApi extends RestBehavior {
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
         channelRepository
-            .findByIdAndTenantId(input.getChannelId(), TenantContext.getCurrentTenant())
+            .findById(input.getChannelId())
             .orElseThrow(ElementNotFoundException::new));
     article.setUpdateAttributes(input);
     // Original List
@@ -325,7 +313,7 @@ public class ChannelApi extends RestBehavior {
     article.setUpdateAttributes(input);
     article.setChannel(
         this.channelRepository
-            .findByIdAndTenantId(input.getChannelId(), TenantContext.getCurrentTenant())
+            .findById(input.getChannelId())
             .orElseThrow(ElementNotFoundException::new));
     article.setScenario(scenario);
     Article savedArticle = this.articleRepository.save(article);
@@ -368,7 +356,7 @@ public class ChannelApi extends RestBehavior {
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
         channelRepository
-            .findByIdAndTenantId(input.getChannelId(), TenantContext.getCurrentTenant())
+            .findById(input.getChannelId())
             .orElseThrow(ElementNotFoundException::new));
     article.setUpdateAttributes(input);
     // Original List

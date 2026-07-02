@@ -937,8 +937,7 @@ public class V1_DataImporter implements Importer {
               String channelName = nodeChannel.get("channel_name").textValue();
 
               List<Channel> existingChannels =
-                  this.channelRepository.findByNameIgnoreCaseAndTenantId(
-                      channelName, TenantContext.getCurrentTenant());
+                  this.channelRepository.findByNameIgnoreCase(channelName);
               if (!existingChannels.isEmpty()) {
                 baseIds.put(id, existingChannels.getFirst());
               } else {

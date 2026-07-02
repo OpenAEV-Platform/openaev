@@ -37,34 +37,33 @@ public class ChannelService {
   private final ChannelRepository channelRepository;
   private final ObjectMapper mapper;
 
-  public Channel channel(@NotNull final String channelId, @NotNull final String tenantId) {
+  public Channel channel(@NotNull final String channelId) {
     return channelRepository
-        .findByIdAndTenantId(channelId, tenantId)
+        .findById(channelId)
         .orElseThrow(() -> new ElementNotFoundException("Channel not found with id: " + channelId));
+  }
+
+  public boolean existsById(@NotBlank final String channelId) {
+    return channelRepository.existsById(channelId);
   }
 
   // -- DELETE --
 
   /**
-   * Deletes a channel scoped to the given tenant.
-   *
-   * <p>Fails fast with {@link ElementNotFoundException} if no channel exists for that (channelId,
-   * tenantId) pair, ensuring cross-tenant deletes are rejected before touching the DB.
+   * Deletes a channel. The Hibernate tenant filter ensures only channels of the current tenant are
+   * visible, so existsById is tenant-safe.
    */
-  public void deleteChannel(@NotBlank final String channelId, @NotNull final String tenantId) {
-    if (!channelRepository.existsByIdAndTenantId(channelId, tenantId)) {
+  public void deleteChannel(@NotBlank final String channelId) {
+    if (!channelRepository.existsById(channelId)) {
       throw new ElementNotFoundException("Channel not found with id: " + channelId);
     }
     channelRepository.deleteById(channelId);
   }
 
-  public ChannelReader validateArticles(
-      String exerciseId, String channelId, User user, String tenantId) {
+  public ChannelReader validateArticles(String exerciseId, String channelId, User user) {
     ChannelReader channelReader;
     Channel channel =
-        channelRepository
-            .findByIdAndTenantId(channelId, tenantId)
-            .orElseThrow(ElementNotFoundException::new);
+        channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 
     Optional<Exercise> exerciseOpt = exerciseRepository.findById(exerciseId);
