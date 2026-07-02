@@ -288,16 +288,22 @@ public class ExecutableInjectService {
       Inject inject,
       List<ObjectNode> injectorContractFields,
       String obfuscator) {
-    switch (contract.getPayload().getTypeEnum()) {
-      case PayloadType.COMMAND:
-        return processCommandPayload(
-            payloadToExecute, contract, inject, injectorContractFields, obfuscator);
-      case PayloadType.DNS_RESOLUTION:
-        return processDnsResolutionPayload(payloadToExecute, inject);
-      default:
-        // All other payload types are intentionally passed through unchanged.
-        return payloadToExecute;
-    }
+    Payload processed =
+        switch (contract.getPayload().getTypeEnum()) {
+          case PayloadType.COMMAND ->
+              processCommandPayload(
+                  payloadToExecute, contract, inject, injectorContractFields, obfuscator);
+          case PayloadType.DNS_RESOLUTION -> processDnsResolutionPayload(payloadToExecute, inject);
+          default ->
+              // All other payload types are intentionally passed through unchanged.
+              payloadToExecute;
+        };
+    // Override the default_value of document-type arguments with the actual inject content value
+    // for all payload types. The implant uses payload_arguments[].default_value to download
+    // documents before execution; without this override it would download the payload's default
+    // document instead of the one configured on the inject.
+    resolveDocumentArgumentsFromInjectContent(processed, inject.getContent());
+    return processed;
   }
 
   private Payload processCommandPayload(
@@ -316,21 +322,16 @@ public class ExecutableInjectService {
             inject.getContent(),
             injectorContractFields,
             obfuscator));
-    // Override the default_value of document-type arguments with the actual inject content value.
-    // The implant uses payload_arguments[].default_value to download documents before execution;
-    // without this override it would download the payload's default document instead of the one
-    // configured on the inject.
-    resolveDocumentArgumentsFromInjectContent(payloadCommand, inject.getContent());
     return payloadCommand;
   }
 
   private void resolveDocumentArgumentsFromInjectContent(
-      Command payloadCommand, ObjectNode injectContent) {
-    if (isEmpty(payloadCommand.getArguments()) || injectContent == null) {
+      Payload payload, ObjectNode injectContent) {
+    if (isEmpty(payload.getArguments()) || injectContent == null) {
       return;
     }
     List<PayloadArgument> resolved =
-        payloadCommand.getArguments().stream()
+        payload.getArguments().stream()
             .map(
                 arg -> {
                   if (ArgumentType.Document != arg.getType()) {
@@ -352,7 +353,7 @@ public class ExecutableInjectService {
                   return copy;
                 })
             .toList();
-    payloadCommand.setArguments(new ArrayList<>(resolved));
+    payload.setArguments(new ArrayList<>(resolved));
   }
 
   private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
