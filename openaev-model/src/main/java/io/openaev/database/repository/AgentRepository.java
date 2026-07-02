@@ -44,6 +44,9 @@ public interface AgentRepository
 
   List<Agent> findByExternalReferenceIn(List<String> externalReferences);
 
+  List<Agent> findByExternalReferenceInAndTenantId(
+      List<String> externalReferences, String tenantId);
+
   @Modifying
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)
   @Transactional

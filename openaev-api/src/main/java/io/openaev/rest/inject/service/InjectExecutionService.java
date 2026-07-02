@@ -151,6 +151,7 @@ public class InjectExecutionService {
       return agent.get();
     }
     // Fallback: CrowdStrike/SentinelOne implants call back with their external reference
+    // Tenant id automatically added (come from API + Java SQL request)
     return agentRepository
         .findFirstByExternalReference(agentId)
         .orElseThrow(() -> new ElementNotFoundException("Agent not found: " + agentId));

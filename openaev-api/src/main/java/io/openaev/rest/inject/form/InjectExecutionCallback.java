@@ -22,6 +22,9 @@ public class InjectExecutionCallback implements Queueable {
   @JsonProperty("inject_id")
   private String injectId;
 
+  @JsonProperty("tenant_id")
+  private String tenantId;
+
   @JsonProperty("inject_execution_input")
   private InjectExecutionInput injectExecutionInput;
 

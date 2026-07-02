@@ -20,6 +20,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -93,8 +94,12 @@ public class BatchingInjectStatusService {
             .filter(id -> id != null && !mapAgentsById.containsKey(id))
             .toList();
     if (!missingIds.isEmpty()) {
-      agentRepository.findByExternalReferenceIn(missingIds).stream()
-          .forEach(agent -> mapAgentsById.put(agent.getExternalReference(), agent));
+      // TODO improve
+      agentRepository
+          .findByExternalReferenceInAndTenantId(
+              missingIds, injectExecutionCallbacks.getFirst().getTenantId())
+          .stream()
+          .forEach(agent -> mapAgentsById.put(agent.getId(), agent));
     }
 
     // Sorting the inject execution callbacks to make sure we handle them in chronological order

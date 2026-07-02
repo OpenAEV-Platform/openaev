@@ -23,6 +23,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,9 +67,16 @@ public class InjectStatusService {
 
   public void addStartImplantExecutionTraceByInject(
       String injectId, String agentId, String message, Instant startTime) {
+    Agent agent;
     InjectStatus injectStatus =
         injectStatusRepository.findByInjectId(injectId).orElseThrow(ElementNotFoundException::new);
-    Agent agent = agentRepository.findById(agentId).orElseThrow(ElementNotFoundException::new);
+    Optional<Agent> agentTest = agentRepository.findById(agentId);
+    agent =
+        agentTest.orElseGet(
+            () ->
+                agentRepository
+                    .findFirstByExternalReference(agentId)
+                    .orElseThrow(ElementNotFoundException::new));
     ExecutionTrace trace =
         new ExecutionTrace(
             injectStatus,
