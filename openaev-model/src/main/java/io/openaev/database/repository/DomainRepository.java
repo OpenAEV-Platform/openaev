@@ -22,8 +22,6 @@ public interface DomainRepository
   @Transactional(readOnly = true)
   Optional<Domain> findByName(@NotNull String name);
 
-  Optional<Domain> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
-
   @NotNull
   @Transactional(readOnly = true)
   List<Domain> findByNameIn(Collection<String> names);

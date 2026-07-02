@@ -60,7 +60,7 @@ public class DomainService implements DependenciesManager {
 
   public Domain findById(final String domainId) {
     return domainRepository
-        .findByIdAndTenantId(domainId, TenantContext.getCurrentTenant())
+        .findById(domainId)
         .orElseThrow(
             () ->
                 new ElementNotFoundException(
