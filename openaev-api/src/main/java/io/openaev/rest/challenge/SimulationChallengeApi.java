@@ -86,7 +86,7 @@ public class SimulationChallengeApi extends RestBehavior {
 
     final User user = impersonateUser(userRepository, userId);
     return challengeService.validateChallenge(
-        exerciseId, challengeId, input, user, TenantContext.getCurrentTenant());
+        exerciseId, challengeId, input, user);
   }
 
   @GetMapping({

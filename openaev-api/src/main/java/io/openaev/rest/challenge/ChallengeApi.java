@@ -6,8 +6,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -74,7 +74,7 @@ public class ChallengeApi extends RestBehavior {
       @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
     Challenge challenge =
         challengeRepository
-            .findByIdAndTenantId(challengeId, TenantContext.getCurrentTenant())
+            .findById(challengeId)
             .orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
@@ -130,7 +130,7 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public void deleteChallenge(@PathVariable String challengeId) {
-    if (!challengeRepository.existsByIdAndTenantId(challengeId, TenantContext.getCurrentTenant())) {
+    if (!challengeRepository.existsById(challengeId)) {
       throw new ElementNotFoundException();
     }
     challengeRepository.deleteById(challengeId);
@@ -146,7 +146,7 @@ public class ChallengeApi extends RestBehavior {
       @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
       throws InputValidationException {
     validateUUID(challengeId);
-    return challengeService.tryChallenge(challengeId, input, TenantContext.getCurrentTenant());
+    return challengeService.tryChallenge(challengeId, input);
   }
 
   @GetMapping({

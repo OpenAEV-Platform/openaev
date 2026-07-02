@@ -85,11 +85,10 @@ public class ChallengeService {
     return resolveChallenges(injects).toList();
   }
 
-  public ChallengeResult tryChallenge(
-      String challengeId, ChallengeTryInput input, @NotBlank String tenantId) {
+  public ChallengeResult tryChallenge(String challengeId, ChallengeTryInput input) {
     Challenge challenge =
         challengeRepository
-            .findByIdAndTenantId(challengeId, tenantId)
+            .findById(challengeId)
             .orElseThrow(() -> new ElementNotFoundException("Challenge not found"));
     for (ChallengeFlag flag : challenge.getFlags()) {
       if (checkFlag(flag, input.getValue())) {
@@ -150,9 +149,8 @@ public class ChallengeService {
       String exerciseId,
       String challengeId,
       ChallengeTryInput input,
-      User user,
-      @NotBlank String tenantId) {
-    ChallengeResult challengeResult = tryChallenge(challengeId, input, tenantId);
+      User user) {
+    ChallengeResult challengeResult = tryChallenge(challengeId, input);
     if (challengeResult.isResult()) {
       // Success: Find and update the user's expectations and challenge attempt
       List<InjectExpectation> playerExpectations =
