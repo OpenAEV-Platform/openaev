@@ -308,6 +308,7 @@ class IndexingRegressionTest extends IntegrationTest {
 
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      endpointWrapper.persist();
 
       InjectExpectation agentlessExpectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
@@ -318,10 +319,13 @@ class IndexingRegressionTest extends IntegrationTest {
 
       Agent agent = AgentFixture.createDefaultAgentService();
       agent.setAsset(endpointWrapper.get());
-      AgentComposer.Composer agentWrapper = agentComposer.forAgent(agent);
+      entityManager.persist(agent);
+      entityManager.flush();
+      Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
 
       InjectExpectation agentExpectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      agentExpectation.setAgent(persistedAgent);
       agentExpectation.setResults(
           List.of(
               InjectExpectationResult.builder()
@@ -332,7 +336,7 @@ class IndexingRegressionTest extends IntegrationTest {
                   .score(100.0)
                   .build()));
       InjectExpectationComposer.Composer agentExpectationWrapper =
-          injectExpectationComposer.forExpectation(agentExpectation).withAgent(agentWrapper);
+          injectExpectationComposer.forExpectation(agentExpectation).withEndpoint(endpointWrapper);
 
       InjectComposer.Composer injectWrapper =
           injectComposer
