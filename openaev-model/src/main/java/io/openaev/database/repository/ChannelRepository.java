@@ -19,7 +19,7 @@ public interface ChannelRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  List<Channel> findByNameIgnoreCase(String name);
+  List<Channel> findByNameIgnoreCaseAndTenantId(String name, @NotNull String tenantId);
 
   List<Channel> findDistinctByArticlesExerciseId(String simulationId);
 
