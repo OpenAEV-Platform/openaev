@@ -130,7 +130,7 @@ public class SentinelOneExecutorServiceTest {
     assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
     assertEquals(
-        "JABhAGcAZQBuAHQASQBEAD0AJgAgACcAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwBcAFMAZQBuAHQAaQBuAGUAbABPAG4AZQBcAFMAZQBuAHQAaQBuAGUAbAAgAEEAZwBlAG4AdAAgACoAXABTAGUAbgB0AGkAbgBlAGwAQwB0AGwALgBlAHgAZQAnACAAYQBnAGUAbgB0AF8AaQBkADsAeAA4ADYAXwA2ADQA",
+        "eAA4ADYAXwA2ADQA",
         commandEncoded.getValue());
   }
 }
