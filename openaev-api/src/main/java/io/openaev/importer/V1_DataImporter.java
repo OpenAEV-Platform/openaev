@@ -1222,36 +1222,12 @@ public class V1_DataImporter implements Importer {
           Optional<InjectorContract> injectorContract =
               this.injectorContractRepository.findById(injectorContractIdFromNode);
 
-          String injectorContractId = null;
+          String injectorContractId;
 
-          // If not, rely on payload
-          if (injectorContract.isEmpty()) {
-            JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
-            if (!payloadNode.isNull() && !payloadNode.isEmpty()) {
-              String externalId = payloadNode.get("payload_external_id").textValue();
-              // Rely on external collector
-              if (hasText(externalId)) {
-                Optional<InjectorContract> injectorContractFromPayload =
-                    this.injectorContractRepository.findOne(byPayloadExternalId(externalId));
-                if (injectorContractFromPayload.isPresent()) {
-                  injectorContractId = injectorContractFromPayload.get().getId();
-                  // Create new payload
-                } else {
-                  log.info(
-                      "Inject comes from a collector not set up in your environment, a new payload has been created.");
-                  injectorContract =
-                      Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
-                  injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
-                }
-                // Create new payload
-              } else {
-                injectorContract =
-                    Optional.of(importPayload(payloadNode, injectContractNode, baseIds));
-                injectorContractId = injectorContract.map(InjectorContract::getId).orElse(null);
-              }
-            }
-          } else {
+          if (injectorContract.isPresent()) {
             injectorContractId = injectorContract.get().getId();
+          } else {
+            injectorContractId = resolveInjectorContract(injectContractNode, baseIds);
           }
 
           // Record the mapping so importWorkflowSteps can reuse the resolved contract
@@ -1649,6 +1625,59 @@ public class V1_DataImporter implements Importer {
       log.warn("An error has occurred when importing the payload: {}", result.payload().getName());
       return null;
     }
+  }
+
+  /**
+   * Resolves an injector contract from an inject_injector_contract JSON node. Tries in order:
+   *
+   * <ol>
+   *   <li>Find by payload external_id (collector-created payloads)
+   *   <li>Find by payload name (already existing payload)
+   *   <li>Create via importPayload (new payload)
+   * </ol>
+   *
+   * @return the resolved injector contract ID, or null if resolution failed
+   */
+  @jakarta.annotation.Nullable
+  private String resolveInjectorContract(
+      @NotNull JsonNode injectContractNode, Map<String, Base> baseIds) {
+    JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
+    if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
+      return null;
+    }
+
+    // Try to find by payload external_id first
+    String externalId =
+        payloadNode.has("payload_external_id")
+            ? payloadNode.get("payload_external_id").textValue()
+            : null;
+
+    if (hasText(externalId)) {
+      Optional<InjectorContract> contractFromPayload =
+          injectorContractRepository.findOne(byPayloadExternalId(externalId));
+      if (contractFromPayload.isPresent()) {
+        return contractFromPayload.get().getId();
+      }
+    }
+
+    // Try to find by payload name (may already exist from a previous import or manual creation)
+    if (payloadNode.has("payload_name")) {
+      String payloadName = payloadNode.get("payload_name").textValue();
+      if (hasText(payloadName)) {
+        Optional<Payload> existingPayload = payloadRepository.findFirstByName(payloadName);
+        if (existingPayload.isPresent()) {
+          Optional<InjectorContract> contractFromName =
+              injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
+          if (contractFromName.isPresent()) {
+            return contractFromName.get().getId();
+          }
+        }
+      }
+    }
+
+    // Not found — create the payload and its contract
+    InjectorContract created = importPayload(payloadNode, injectContractNode, baseIds);
+    return created != null ? created.getId() : null;
   }
 
   private InjectorContract importPayload(
@@ -2114,45 +2143,7 @@ public class V1_DataImporter implements Importer {
       return stepDataRaw;
     }
 
-    String newContractId = null;
-
-    // Try to find by payload external_id first
-    String externalId =
-        payloadNode.has("payload_external_id")
-            ? payloadNode.get("payload_external_id").textValue()
-            : null;
-
-    if (hasText(externalId)) {
-      Optional<InjectorContract> contractFromPayload =
-          injectorContractRepository.findOne(byPayloadExternalId(externalId));
-      if (contractFromPayload.isPresent()) {
-        newContractId = contractFromPayload.get().getId();
-      }
-    }
-
-    // Try to find by payload name (payload may already exist from a previous import or manual
-    // creation). Uses findFirstByName since multiple payloads can share the same name.
-    if (newContractId == null && payloadNode.has("payload_name")) {
-      String payloadName = payloadNode.get("payload_name").textValue();
-      if (hasText(payloadName)) {
-        Optional<Payload> existingPayload = payloadRepository.findFirstByName(payloadName);
-        if (existingPayload.isPresent()) {
-          Optional<InjectorContract> contractFromName =
-              injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
-          if (contractFromName.isPresent()) {
-            newContractId = contractFromName.get().getId();
-          }
-        }
-      }
-    }
-
-    // If still not found, create via importPayload (same as importInjects)
-    if (newContractId == null) {
-      InjectorContract created = importPayload(payloadNode, injectContractNode, baseIds);
-      if (created != null && created.getId() != null) {
-        newContractId = created.getId();
-      }
-    }
+    String newContractId = resolveInjectorContract(injectContractNode, baseIds);
 
     // Update step_data and cache the mapping
     if (newContractId != null) {
