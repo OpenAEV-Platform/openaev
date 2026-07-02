@@ -987,6 +987,71 @@ class InjectApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isBadRequest());
     }
+
+    @DisplayName(
+        "Should override document argument default_value with the inject content value so the implant downloads the right document")
+    @Test
+    void
+        given_documentArgumentOverriddenInInjectContent_should_returnActualDocumentIdInPayloadArguments()
+            throws Exception {
+      // -- PREPARE --
+      // Simulate a payload whose document argument has a generic default (e.g., a template UUID)
+      String payloadDefaultDocumentId = UUID.randomUUID().toString();
+      PayloadArgument docArg =
+          PayloadFixture.createPayloadArgument(
+              "zip_file", ArgumentType.Document, payloadDefaultDocumentId, null);
+
+      Command payloadCommand =
+          PayloadFixture.createCommand(
+              "psh", "Expand-Archive -Path '#{zip_file}'", List.of(), null);
+      payloadCommand.setArguments(new ArrayList<>(List.of(docArg)));
+
+      // The inject content selects DOCUMENT1, not the payload default
+      Map<String, Object> payloadArguments = new HashMap<>();
+      payloadArguments.put("zip_file", DOCUMENT1.getId());
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(payloadArguments))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .persist()
+              .get();
+
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      assertNotNull(response);
+      // The implant reads payload_arguments[].default_value to decide which document to download.
+      // It must equal the inject content value (DOCUMENT1), not the payload's template default.
+      String returnedDefaultValue = JsonPath.read(response, "$.payload_arguments[0].default_value");
+      assertEquals(
+          DOCUMENT1.getId(),
+          returnedDefaultValue,
+          "The returned default_value must be the inject content value so the implant downloads the"
+              + " correct document");
+      assertNotEquals(
+          payloadDefaultDocumentId,
+          returnedDefaultValue,
+          "The payload template default should have been overridden");
+    }
   }
 
   @Nested
