@@ -58,7 +58,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =
         injectorRepository
-            .findById(OPENAEV_INJECTOR_ID)
+            .findByIdAndTenantId(OPENAEV_INJECTOR_ID, TenantContext.getCurrentTenant())
             .orElseGet(
                 () ->
                     injectorRepository.save(

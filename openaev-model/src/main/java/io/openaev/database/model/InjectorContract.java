@@ -199,6 +199,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   private Instant updatedAt = now();
 
   @ManyToMany(mappedBy = "contracts", fetch = FetchType.EAGER)
+  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
   @JsonIgnore
   private List<Injector> injectors = new ArrayList<>();
 

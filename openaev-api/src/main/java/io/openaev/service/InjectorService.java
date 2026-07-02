@@ -530,7 +530,6 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDelete.toArray(new String[0]), injector.getTenantId());
     toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
-    injectorContractRepository.saveAll(toUpdate);
 
     // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).
     // Cannot use injectorRepository.save(injector) to sync the join table: it would issue
