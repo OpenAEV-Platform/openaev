@@ -1,5 +1,5 @@
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
-import { CONDITION_KEY_TYPES } from '../forms/MapperConditionRow';
+import { CONDITION_KEY_TYPES } from '../logic-flow-helpers';
 
 export { CONDITION_KEY_TYPES };
 export type ConditionKeyType = typeof CONDITION_KEY_TYPES[number];

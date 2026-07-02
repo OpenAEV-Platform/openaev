@@ -2,7 +2,7 @@ import type { EndpointOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
 import type { FieldLink } from './drawer/InjectDataFieldItem';
 import type { EventFormData } from './events/event-types';
-import type { MapperConditionRow } from './forms/MapperConditionRow';
+import type { MapperConditionRow } from './logic-flow-helpers';
 
 export interface LogicAction {
   id: string;

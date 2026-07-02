@@ -1,5 +1,24 @@
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
 
+export interface MapperConditionRow {
+  condition_key_type: string;
+  condition_key_subtype?: string;
+  condition_key: string;
+  condition_value?: string;
+  condition_mapping_type: string;
+}
+
+export const CONDITION_KEY_TYPES = [
+  'text', 'number', 'status', 'port', 'portscan',
+  'ipv4', 'ipv6', 'credentials', 'cve', 'username',
+  'share', 'admin_username', 'group', 'computer',
+  'password_policy', 'delegation', 'sid', 'vulnerability',
+  'account_with_password_not_required', 'asreproastable_account',
+  'kerberoastable_account', 'asset',
+] as const;
+
+export const MAPPING_TYPES = ['DEFAULT', 'LOCAL', 'GLOBAL'] as const;
+
 import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
 import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
