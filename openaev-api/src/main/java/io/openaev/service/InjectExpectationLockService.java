@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.utils.ExpectationSignatureUtils.mergeExpectationSignatures;
+
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.database.model.InjectExpectation;
@@ -31,7 +33,9 @@ public class InjectExpectationLockService {
       expectation.getSignatures().clear();
       expectation.getSignatures().addAll(signatures);
     } else {
-      expectation.getSignatures().addAll(signatures);
+      List<InjectExpectationSignature> mergedList =
+          mergeExpectationSignatures(expectation.getSignatures(), signatures);
+      expectation.getSignatures().addAll(mergedList);
     }
     expectation.setSignaturesInitialized(true);
     injectExpectationRepository.save(expectation);

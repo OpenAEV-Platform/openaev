@@ -7,6 +7,7 @@ import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.validator.Ipv4OrIpv6Validator;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -81,5 +82,19 @@ public class ExpectationSignatureUtils {
       ExpectationSignature expectationSignature, InjectExpectation injectExpectation) {
     return new InjectExpectationSignature(
         injectExpectation, expectationSignature.getType(), expectationSignature.getValue(), now());
+  }
+
+  public static List<InjectExpectationSignature> mergeExpectationSignatures(
+      List<InjectExpectationSignature> firstExpectationSignatures,
+      List<InjectExpectationSignature> secondExpectationSignatures) {
+    LinkedHashSet<InjectExpectationSignature> mergedSignatures = new LinkedHashSet<>();
+    if (firstExpectationSignatures != null) {
+      mergedSignatures.addAll(firstExpectationSignatures);
+    }
+    if (secondExpectationSignatures != null) {
+      mergedSignatures.addAll(secondExpectationSignatures);
+    }
+    mergedSignatures.remove(null);
+    return new ArrayList<>(mergedSignatures);
   }
 }

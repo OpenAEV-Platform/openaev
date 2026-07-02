@@ -67,7 +67,7 @@ public class V6_20260630094153899__Extract_inject_expectation_signatures extends
                               inject_expectation_signature_value,
                               inject_expectation_signature_created_at
                           )
-                          SELECT DISTINCT ON (raw.inject_expectation_id, raw.signature_type)
+                          SELECT
                               raw.inject_expectation_id,
                               raw.signature_type,
                               raw.signature_value,

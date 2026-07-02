@@ -461,7 +461,11 @@ public class ExpectationUtils {
           if (value.equals(endpoint.getHostname())) {
             signatures.add(ExpectationSignatureUtils.createHostnameSignature(value));
           } else {
-            signatures.add(ExpectationSignatureUtils.createIpSignature(value, true));
+            ExpectationSignature ipSignature =
+                ExpectationSignatureUtils.createIpSignature(value, true);
+            if (ipSignature != null) {
+              signatures.add(ipSignature);
+            }
           }
         });
 

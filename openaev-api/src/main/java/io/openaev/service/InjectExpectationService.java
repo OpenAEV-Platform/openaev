@@ -1186,7 +1186,7 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    // Insert the signature for all agent and inject in one query
+    // Load all expectations for the inject/agent, append the signature, then persist the changes.
     List<InjectExpectation> injectExpectations =
         injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
     if (!injectExpectations.isEmpty()) {

@@ -1,10 +1,14 @@
 package io.openaev.utilstest;
 
 import static io.openaev.utils.ExpectationSignatureUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static java.time.Instant.now;
+import static org.junit.jupiter.api.Assertions.*;
 
+import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.expectation.ExpectationSignature;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -153,6 +157,66 @@ class ExpectationSignatureUtilsTest {
       // -- ASSERT --
       assertEquals(EXPECTATION_SIGNATURE_TYPE_AI_TARGET_ENDPOINT, result.getType());
       assertEquals(endpoint, result.getValue());
+    }
+  }
+
+  // -- mergeExpectationSignatures --
+
+  @Nested
+  @DisplayName("mergeExpectationSignatures")
+  class MergeExpectationSignatures {
+
+    @Test
+    @DisplayName("given duplicated signatures should keep insertion order and remove duplicates")
+    void given_duplicatedSignatures_should_keepInsertionOrderAndRemoveDuplicates() {
+      // -- PREPARE --
+      InjectExpectation expectation = new InjectExpectation();
+      expectation.setId("expectation-id");
+      InjectExpectationSignature signatureA =
+          new InjectExpectationSignature(expectation, "type_a", "value_a", now());
+      InjectExpectationSignature signatureB =
+          new InjectExpectationSignature(expectation, "type_b", "value_b", now());
+      InjectExpectationSignature signatureBDuplicate =
+          new InjectExpectationSignature(expectation, "type_b", "value_b", now());
+      InjectExpectationSignature signatureC =
+          new InjectExpectationSignature(expectation, "type_c", "value_c", now());
+
+      // -- EXECUTE --
+      List<InjectExpectationSignature> result =
+          mergeExpectationSignatures(
+              List.of(signatureA, signatureB), List.of(signatureBDuplicate, signatureC));
+
+      // -- ASSERT --
+      assertEquals(List.of(signatureA, signatureB, signatureC), result);
+    }
+
+    @Test
+    @DisplayName("given null lists should return empty list")
+    void given_nullLists_should_returnEmptyList() {
+      // -- EXECUTE --
+      List<InjectExpectationSignature> result = mergeExpectationSignatures(null, null);
+
+      // -- ASSERT --
+      assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("given lists containing null should ignore null signatures")
+    void given_listsContainingNull_should_ignoreNullSignatures() {
+      // -- PREPARE --
+      InjectExpectation expectation = new InjectExpectation();
+      expectation.setId("expectation-id");
+      InjectExpectationSignature signatureA =
+          new InjectExpectationSignature(expectation, "type_a", "value_a", now());
+      ArrayList<InjectExpectationSignature> secondSignatures = new ArrayList<>();
+      secondSignatures.add(null);
+
+      // -- EXECUTE --
+      List<InjectExpectationSignature> result =
+          mergeExpectationSignatures(List.of(signatureA), secondSignatures);
+
+      // -- ASSERT --
+      assertEquals(List.of(signatureA), result);
     }
   }
 }
