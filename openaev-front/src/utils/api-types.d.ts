@@ -195,8 +195,6 @@ export interface AiAttack {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -855,8 +853,6 @@ interface BasePayload {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -916,8 +912,6 @@ interface BasePayloadCreateInput {
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -1429,8 +1423,6 @@ export interface Command {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -2218,8 +2210,6 @@ export interface DnsResolution {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -3654,8 +3644,6 @@ export interface Executable {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -4056,8 +4044,6 @@ export interface FileDrop {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -4572,8 +4558,6 @@ export interface InjectExpectationAgentOutput {
     | "UNKNOWN"
     | "SUCCESS";
   inject_expectation_type:
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -4646,8 +4630,6 @@ export interface InjectExpectationOutput {
   inject_expectation_traces?: InjectExpectationTrace[];
   /** Type of the inject expectation */
   inject_expectation_type:
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -5914,8 +5896,6 @@ export interface NetworkTraffic {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -6876,8 +6856,6 @@ export interface PayloadInput {
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -6945,8 +6923,6 @@ export interface PayloadOutput {
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   /** Expected output types for payload execution */
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -7034,8 +7010,6 @@ export interface PayloadUpdateInput {
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -7088,8 +7062,6 @@ export interface PayloadUpsertInput {
   payload_elevation_required?: boolean;
   payload_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -9133,8 +9105,6 @@ export interface ThreatArsenalActionCreateInput {
   action_domains: string[];
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   action_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -9201,8 +9171,6 @@ export interface ThreatArsenalActionFullOutput {
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   /** Expected output types for action execution */
   action_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -9276,8 +9244,6 @@ export interface ThreatArsenalActionUpdateInput {
   action_domains: string[];
   action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   action_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
