@@ -316,7 +316,43 @@ public class ExecutableInjectService {
             inject.getContent(),
             injectorContractFields,
             obfuscator));
+    // Override the default_value of document-type arguments with the actual inject content value.
+    // The implant uses payload_arguments[].default_value to download documents before execution;
+    // without this override it would download the payload's default document instead of the one
+    // configured on the inject.
+    resolveDocumentArgumentsFromInjectContent(payloadCommand, inject.getContent());
     return payloadCommand;
+  }
+
+  private void resolveDocumentArgumentsFromInjectContent(
+      Command payloadCommand, ObjectNode injectContent) {
+    if (isEmpty(payloadCommand.getArguments()) || injectContent == null) {
+      return;
+    }
+    List<PayloadArgument> resolved =
+        payloadCommand.getArguments().stream()
+            .map(
+                arg -> {
+                  if (ArgumentType.Document != arg.getType()) {
+                    return arg;
+                  }
+                  String actualValue =
+                      getArgumentValueOrDefault(arg.getKey(), injectContent, arg.getDefaultValue());
+                  if (!hasText(actualValue) || actualValue.equals(arg.getDefaultValue())) {
+                    return arg;
+                  }
+                  // Create a copy to avoid mutating the shared original PayloadArgument.
+                  PayloadArgument copy = new PayloadArgument();
+                  copy.setType(arg.getType());
+                  copy.setSubtype(arg.getSubtype());
+                  copy.setKey(arg.getKey());
+                  copy.setDefaultValue(actualValue);
+                  copy.setDescription(arg.getDescription());
+                  copy.setSeparator(arg.getSeparator());
+                  return copy;
+                })
+            .toList();
+    payloadCommand.setArguments(new ArrayList<>(resolved));
   }
 
   private Payload processDnsResolutionPayload(Payload payloadToExecute, Inject inject) {
