@@ -127,7 +127,9 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
         int fromIndex = (batchIndex * paginationLimit);
         int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
         List<String> batchAgentIds =
-            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
+            action.getAgents().subList(fromIndex, toIndex).stream()
+                .map(Agent::getExternalReference)
+                .toList();
         // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
         // because each XXX actions will call the SentinelOne API to execute the implants
         // and each implant will call OpenAEV API to set traces

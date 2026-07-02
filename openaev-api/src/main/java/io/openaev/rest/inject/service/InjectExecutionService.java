@@ -17,6 +17,7 @@ import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -141,11 +142,18 @@ public class InjectExecutionService {
   }
 
   private Agent loadAgentIfPresent(String agentId) {
-    return (agentId == null)
-        ? null
-        : agentRepository
-            .findById(agentId)
-            .orElseThrow(() -> new ElementNotFoundException("Agent not found: " + agentId));
+    if (agentId == null) {
+      return null;
+    }
+    // First try by PK (standard agents use UUID as id)
+    Optional<Agent> agent = agentRepository.findById(agentId);
+    if (agent.isPresent()) {
+      return agent.get();
+    }
+    // Fallback: CrowdStrike/SentinelOne implants call back with their external reference
+    return agentRepository
+        .findFirstByExternalReference(agentId)
+        .orElseThrow(() -> new ElementNotFoundException("Agent not found: " + agentId));
   }
 
   private Inject loadInjectOrThrow(String injectId) {

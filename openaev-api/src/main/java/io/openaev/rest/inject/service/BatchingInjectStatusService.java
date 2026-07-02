@@ -20,7 +20,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -79,17 +78,24 @@ public class BatchingInjectStatusService {
             .stream()
             .collect(Collectors.toMap(Inject::getId, Function.identity()));
 
-    // Getting all the agents linked to the list of execution traces, all at once
-    Map<String, Agent> mapAgentsById =
-        StreamSupport.stream(
-                agentRepository
-                    .findAllById(
-                        injectExecutionCallbacks.stream()
-                            .map(InjectExecutionCallback::getAgentId)
-                            .toList())
-                    .spliterator(),
-                false)
-            .collect(Collectors.toMap(Agent::getId, Function.identity()));
+    // Getting all the agents linked to the list of execution traces, all at once.
+    // The callback agentId may be either an agent PK (UUID) or an external reference
+    // (CrowdStrike/SentinelOne device_id), so we build a lookup map keyed by both.
+    List<String> callbackAgentIds =
+        injectExecutionCallbacks.stream().map(InjectExecutionCallback::getAgentId).toList();
+    Map<String, Agent> mapAgentsById = new HashMap<>();
+    // Try PK lookup first
+    StreamSupport.stream(agentRepository.findAllById(callbackAgentIds).spliterator(), false)
+        .forEach(agent -> mapAgentsById.put(agent.getId(), agent));
+    // For any IDs not found by PK, try external reference lookup
+    List<String> missingIds =
+        callbackAgentIds.stream()
+            .filter(id -> id != null && !mapAgentsById.containsKey(id))
+            .toList();
+    if (!missingIds.isEmpty()) {
+      agentRepository.findByExternalReferenceIn(missingIds).stream()
+          .forEach(agent -> mapAgentsById.put(agent.getExternalReference(), agent));
+    }
 
     // Sorting the inject execution callbacks to make sure we handle them in chronological order
     Stream<InjectExecutionCallback> sortedInjectExecutionCallbacks =

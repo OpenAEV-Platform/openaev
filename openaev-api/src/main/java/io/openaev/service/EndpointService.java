@@ -8,7 +8,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
@@ -825,12 +824,6 @@ public class EndpointService implements AuditLoggedService {
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
-    // External reference needs to be the id for Crowdstrike and SentinelOne for the batch "execute
-    // scripts"
-    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
-        || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
-      agent.setId(input.getExternalReference());
-    }
     agent.setPrivilege(input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard);
     agent.setDeploymentMode(
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
