@@ -893,15 +893,7 @@ public class WorkflowService {
     int pendingCount = 0;
 
     for (Step step : stepsTemplate) {
-      // Guard: rate limit — if the workflow has reached its rate limit, put the template
-      // directly into the delay queue instead of creating READY steps.
-      if (simulationRateLimitService.delayIfRateLimitReached(
-          step, null, workflowRun, pendingCount)) {
-        hasActiveSteps = true; // delay queue entry counts as pending work
-        continue;
-      }
-
-      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null, pendingCount);
       if (!stepReadys.isEmpty()) {
         hasActiveSteps = true;
         pendingCount += stepReadys.size();

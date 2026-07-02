@@ -3,7 +3,6 @@ package io.openaev.scheduler.jobs;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepDelayQueue;
 import io.openaev.rest.exception.ChainingException;
-import io.openaev.service.chaining.SimulationRateLimitService;
 import io.openaev.service.chaining.StepDelayQueueService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
@@ -25,7 +24,6 @@ public class QueueChainingJob implements Job {
   private final StepDelayQueueService stepDelayQueueService;
   private final StepService stepService;
   private final WorkflowService workflowService;
-  private final SimulationRateLimitService simulationRateLimitService;
   private final TransactionTemplate transactionTemplate;
 
   /** Periodically processes the next eligible step from the delay queue. */
@@ -55,21 +53,15 @@ public class QueueChainingJob implements Job {
             }
 
             try {
-              // Guard: rate limit — if still rate limited, re-push into delay queue.
-              if (simulationRateLimitService.delayIfRateLimitReached(
-                  stepDelayQueue.getStepTemplate(),
-                  stepDelayQueue.getInput(),
-                  stepDelayQueue.getWorkflowRun(),
-                  0)) {
-                continue;
-              }
-
               // Create new READY step(s) from the template.
+              // Rate limiting is handled inside createReadySteps at the batch level:
+              // batches that exceed the rate limit are re-pushed into the delay queue.
               List<Step> readySteps =
                   stepService.createReadySteps(
                       stepDelayQueue.getStepTemplate(),
                       stepDelayQueue.getWorkflowRun(),
-                      stepDelayQueue.getInput());
+                      stepDelayQueue.getInput(),
+                      0);
 
               stepService.enqueueReadySteps(readySteps, stepDelayQueue.getWorkflowRun());
             } catch (ChainingException e) {

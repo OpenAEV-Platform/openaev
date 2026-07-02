@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -71,11 +72,7 @@ class StepServiceTest {
         .executeWithoutResult(any());
     queueChainingJob =
         new QueueChainingJob(
-            stepDelayQueueService,
-            stepService,
-            workflowService,
-            simulationRateLimitService,
-            transactionTemplate);
+            stepDelayQueueService, stepService, workflowService, transactionTemplate);
     workflow = mock(Workflow.class);
   }
 
@@ -335,7 +332,8 @@ class StepServiceTest {
         assertThrows(
             ChainingException.class,
             () ->
-                stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
+                stepService.createReadySteps(
+                    nextStepTemplateToExecute, workflowRun, "{\"a\":1}", 0));
 
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any());
@@ -373,7 +371,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
         // Assert
         assertTrue(result.isEmpty());
@@ -418,7 +416,7 @@ class StepServiceTest {
         List<Condition> usedMappers = new ArrayList<>(List.of(c1, c2));
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
-            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
 
         Step stepReady = mock(Step.class);
 
@@ -429,7 +427,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
         // Assert
         assertEquals(1, result.size());
@@ -477,7 +475,7 @@ class StepServiceTest {
         List<Condition> usedMappers = new ArrayList<>(List.of(c1));
 
         when(conditionService.checkCondition(persistedTemplate, workflowRun, input))
-            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers)));
+            .thenReturn(List.of(new ConditionService.ExecutionBatch(input, usedMappers, null)));
 
         Step stepReady = mock(Step.class);
 
@@ -489,7 +487,7 @@ class StepServiceTest {
 
         // Act
         List<Step> result =
-            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input);
+            stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, input, 0);
 
         // Assert
         assertEquals(1, result.size());
@@ -813,11 +811,11 @@ class StepServiceTest {
           if (throwException) {
             doThrow(new ChainingException("error"))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any());
+                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
           } else {
             doReturn(List.of(mock(Step.class)))
                 .when(stepService)
-                .createReadySteps(any(Step.class), any(Workflow.class), any());
+                .createReadySteps(any(Step.class), any(Workflow.class), any(), anyInt());
           }
         }
 
@@ -826,9 +824,9 @@ class StepServiceTest {
 
         // Assert
         if (stepFound) {
-          verify(stepService).createReadySteps(step, workflowRun, null);
+          verify(stepService).createReadySteps(step, workflowRun, null, 0);
         } else {
-          verify(stepService, never()).createReadySteps(any(), any(), any());
+          verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
         }
       }
 
