@@ -127,10 +127,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public void deleteChallenge(@PathVariable String challengeId) {
-    if (!challengeRepository.existsById(challengeId)) {
-      throw new ElementNotFoundException();
-    }
-    challengeRepository.deleteById(challengeId);
+    Challenge challenge =
+        challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
+    challengeRepository.delete(challenge);
   }
 
   @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})
