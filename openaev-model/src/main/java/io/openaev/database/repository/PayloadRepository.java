@@ -21,6 +21,8 @@ public interface PayloadRepository
 
   Optional<Payload> findByExternalId(@NotNull String externalId);
 
+  Optional<Payload> findFirstByName(@NotNull String name);
+
   @Query(
       value =
           "SELECT p.payload_external_id FROM payloads p"

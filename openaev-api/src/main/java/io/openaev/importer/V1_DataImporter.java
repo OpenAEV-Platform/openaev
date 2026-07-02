@@ -83,6 +83,7 @@ public class V1_DataImporter implements Importer {
   private final VariableRepository variableRepository;
   private final InjectDependenciesRepository injectDependenciesRepository;
   private final PayloadCreationService payloadCreationService;
+  private final PayloadRepository payloadRepository;
   private final CollectorTypeRepository collectorTypeRepository;
   private final DomainService domainService;
   private final io.openaev.service.chaining.WorkflowService workflowService;
@@ -226,9 +227,21 @@ public class V1_DataImporter implements Importer {
     importArticles(importNode, prefix, savedExercise, savedScenario, baseIds);
     importObjectives(importNode, prefix, savedExercise, savedScenario, baseIds);
     importLessons(importNode, prefix, savedExercise, savedScenario, baseIds);
-    importInjects(importNode, prefix, savedExercise, savedScenario, asset, assetGroup, baseIds);
+    // Shared map tracking original → resolved injector contract IDs across inject and workflow
+    // import. This prevents duplicate payload creation when exercise_injects and workflow_steps
+    // reference the same (missing) injector contract.
+    Map<String, String> resolvedContracts = new HashMap<>();
+    importInjects(
+        importNode,
+        prefix,
+        savedExercise,
+        savedScenario,
+        asset,
+        assetGroup,
+        baseIds,
+        resolvedContracts);
     importVariables(importNode, savedExercise, savedScenario, baseIds);
-    importWorkflow(importNode, prefix, savedExercise, savedScenario, baseIds);
+    importWorkflow(importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
   }
 
   // -- TAGS --
@@ -1125,7 +1138,8 @@ public class V1_DataImporter implements Importer {
       Scenario savedScenario,
       Asset asset,
       AssetGroup assetGroup,
-      Map<String, Base> baseIds) {
+      Map<String, Base> baseIds,
+      Map<String, String> resolvedContracts) {
     Supplier<Stream<JsonNode>> injectsStream =
         () ->
             importNode.has(prefix + "injects")
@@ -1170,7 +1184,8 @@ public class V1_DataImporter implements Importer {
         asset,
         assetGroup,
         injectsNoParent.toList(),
-        injectsStream.get().toList());
+        injectsStream.get().toList(),
+        resolvedContracts);
   }
 
   private void importInjects(
@@ -1180,7 +1195,8 @@ public class V1_DataImporter implements Importer {
       Asset asset,
       AssetGroup assetGroup,
       List<JsonNode> injectsToAdd,
-      List<JsonNode> allInjects) {
+      List<JsonNode> allInjects,
+      Map<String, String> resolvedContracts) {
     List<String> originalIds = new ArrayList<>();
     injectsToAdd.forEach(
         injectNode -> {
@@ -1236,6 +1252,12 @@ public class V1_DataImporter implements Importer {
             }
           } else {
             injectorContractId = injectorContract.get().getId();
+          }
+
+          // Record the mapping so importWorkflowSteps can reuse the resolved contract
+          if (injectorContractId != null
+              && !injectorContractIdFromNode.equals(injectorContractId)) {
+            resolvedContracts.put(injectorContractIdFromNode, injectorContractId);
           }
 
           if (injectorContractId == null) {
@@ -1404,7 +1426,15 @@ public class V1_DataImporter implements Importer {
                 })
             .toList();
     if (!childInjects.isEmpty()) {
-      importInjects(baseIds, exercise, scenario, asset, assetGroup, childInjects, allInjects);
+      importInjects(
+          baseIds,
+          exercise,
+          scenario,
+          asset,
+          assetGroup,
+          childInjects,
+          allInjects,
+          resolvedContracts);
     }
   }
 
@@ -1727,7 +1757,8 @@ public class V1_DataImporter implements Importer {
       String prefix,
       Exercise savedExercise,
       Scenario savedScenario,
-      Map<String, Base> baseIds) {
+      Map<String, Base> baseIds,
+      Map<String, String> resolvedContracts) {
     // Check for workflow node in both scenario and exercise exports
     String workflowKey = prefix.equals("scenario_") ? "scenario_workflow" : "exercise_workflow";
     JsonNode workflowNode = importNode.get(workflowKey);
@@ -1844,7 +1875,8 @@ public class V1_DataImporter implements Importer {
 
       // Import steps and conditions
       if (workflowNode.has("workflow_steps")) {
-        importWorkflowSteps(workflowNode.get("workflow_steps"), workflow, baseIds);
+        importWorkflowSteps(
+            workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
       }
     } catch (Exception e) {
       log.warn("Failed to import workflow (chaining)", e);
@@ -1853,16 +1885,21 @@ public class V1_DataImporter implements Importer {
   }
 
   private void importWorkflowSteps(
-      JsonNode stepsNode, Workflow workflow, Map<String, Base> baseIds) {
+      JsonNode stepsNode,
+      Workflow workflow,
+      Map<String, String> resolvedContracts,
+      Map<String, Base> baseIds) {
     // Map from original step ID to new Step
     Map<String, Step> stepIdMap = new LinkedHashMap<>();
+    // resolvedContracts is shared with importInjects to avoid creating duplicate payloads
+    // when exercise_injects and workflow_steps reference the same missing injector contract
 
     // First pass: create all steps
     for (JsonNode stepNode : stepsNode) {
       String originalStepId = stepNode.has("step_id") ? stepNode.get("step_id").asText() : null;
 
       // Resolve injector contract in step_data if present
-      String stepData = resolveStepData(stepNode, baseIds);
+      String stepData = resolveStepData(stepNode, resolvedContracts, baseIds);
 
       Step step =
           Step.builder()
@@ -2015,10 +2052,12 @@ public class V1_DataImporter implements Importer {
 
   /**
    * Resolves the step_data field by ensuring the referenced injector contract and payload exist. If
-   * the injector contract doesn't exist in the target environment, attempts to create the payload
-   * and updates the step_data with the new injector_contract_id.
+   * the injector contract doesn't exist in the target environment, creates the payload using the
+   * same logic as importInjects (via importPayload) and updates the step_data with the new
+   * injector_contract_id.
    */
-  private String resolveStepData(JsonNode stepNode, Map<String, Base> baseIds) {
+  private String resolveStepData(
+      JsonNode stepNode, Map<String, String> resolvedContracts, Map<String, Base> baseIds) {
     if (!stepNode.has("step_data") || stepNode.get("step_data").isNull()) {
       return null;
     }
@@ -2029,86 +2068,112 @@ public class V1_DataImporter implements Importer {
     // string, so in the export it arrives as a TextNode containing the raw JSON.
     String stepDataRaw;
     JsonNode dataJson;
-    if (stepDataNode.isTextual()) {
-      stepDataRaw = stepDataNode.asText();
-      try {
+    try {
+      if (stepDataNode.isTextual()) {
+        stepDataRaw = stepDataNode.asText();
         dataJson = mapper.readTree(stepDataRaw);
-      } catch (Exception e) {
-        log.warn("Failed to parse step_data string, using raw value", e);
-        return stepDataRaw;
+      } else {
+        dataJson = stepDataNode;
+        stepDataRaw = mapper.writeValueAsString(stepDataNode);
       }
-    } else {
-      // Fallback: step_data is already an object node
-      dataJson = stepDataNode;
-      try {
-        stepDataRaw = mapper.writeValueAsString(dataJson);
-      } catch (Exception e) {
-        return dataJson.toString();
-      }
+    } catch (Exception e) {
+      log.warn("Failed to parse step_data JSON, skipping resolution", e);
+      return stepDataNode.isTextual() ? stepDataNode.asText() : stepDataNode.toString();
     }
 
-    // Check if inject_injector_contract is present
+    // Extract injector contract info from step_data
     JsonNode injectContractNode = dataJson.get("inject_injector_contract");
     if (injectContractNode == null || injectContractNode.isNull()) {
       return stepDataRaw;
     }
 
     JsonNode contractIdNode = injectContractNode.get("injector_contract_id");
-    if (contractIdNode == null || contractIdNode.isNull()) {
+    if (contractIdNode == null || contractIdNode.isNull() || contractIdNode.asText().isBlank()) {
       return stepDataRaw;
     }
 
     String injectorContractId = contractIdNode.asText();
 
-    // Check if the injector contract already exists
-    Optional<InjectorContract> existingContract =
-        this.injectorContractRepository.findById(injectorContractId);
-    if (existingContract.isPresent()) {
+    // Contract already exists in DB — no resolution needed
+    if (injectorContractRepository.existsByContractId(injectorContractId)) {
       return stepDataRaw;
     }
 
-    // Try to resolve via payload
+    // Already resolved by a previous step or by importInjects — reuse
+    String alreadyResolved = resolvedContracts.get(injectorContractId);
+    if (alreadyResolved != null) {
+      return updateContractIdInStepData(dataJson, alreadyResolved, stepDataRaw);
+    }
+
+    // Contract is missing — resolve using the same logic as importInjects
     JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
     if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
       log.warn(
-          "Step data references missing injector contract {} with no payload to create",
+          "Step data references missing injector contract {} with no payload to recreate",
           injectorContractId);
       return stepDataRaw;
     }
 
+    String newContractId = null;
+
+    // Try to find by payload external_id first
     String externalId =
         payloadNode.has("payload_external_id")
             ? payloadNode.get("payload_external_id").textValue()
             : null;
 
-    InjectorContract resolvedContract = null;
-
     if (hasText(externalId)) {
       Optional<InjectorContract> contractFromPayload =
-          this.injectorContractRepository.findOne(byPayloadExternalId(externalId));
+          injectorContractRepository.findOne(byPayloadExternalId(externalId));
       if (contractFromPayload.isPresent()) {
-        resolvedContract = contractFromPayload.get();
+        newContractId = contractFromPayload.get().getId();
       }
     }
 
-    if (resolvedContract == null) {
-      log.info("Step data: creating payload for missing injector contract {}", injectorContractId);
-      resolvedContract = importPayload(payloadNode, injectContractNode, baseIds);
+    // Try to find by payload name (payload may already exist from a previous import or manual
+    // creation). Uses findFirstByName since multiple payloads can share the same name.
+    if (newContractId == null && payloadNode.has("payload_name")) {
+      String payloadName = payloadNode.get("payload_name").textValue();
+      if (hasText(payloadName)) {
+        Optional<Payload> existingPayload = payloadRepository.findFirstByName(payloadName);
+        if (existingPayload.isPresent()) {
+          Optional<InjectorContract> contractFromName =
+              injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
+          if (contractFromName.isPresent()) {
+            newContractId = contractFromName.get().getId();
+          }
+        }
+      }
     }
 
-    // Update inject_injector_contract.injector_contract_id in step_data
-    if (resolvedContract != null && resolvedContract.getId() != null) {
-      try {
-        ObjectNode dataObject = (ObjectNode) dataJson;
-        ObjectNode contractObject = (ObjectNode) dataObject.get("inject_injector_contract");
-        contractObject.put("injector_contract_id", resolvedContract.getId());
-        return mapper.writeValueAsString(dataObject);
-      } catch (Exception e) {
-        log.warn("Failed to update step_data with resolved injector contract", e);
+    // If still not found, create via importPayload (same as importInjects)
+    if (newContractId == null) {
+      InjectorContract created = importPayload(payloadNode, injectContractNode, baseIds);
+      if (created != null && created.getId() != null) {
+        newContractId = created.getId();
       }
+    }
+
+    // Update step_data and cache the mapping
+    if (newContractId != null) {
+      resolvedContracts.put(injectorContractId, newContractId);
+      return updateContractIdInStepData(dataJson, newContractId, stepDataRaw);
     }
 
     return stepDataRaw;
+  }
+
+  private String updateContractIdInStepData(
+      JsonNode dataJson, String newContractId, String fallback) {
+    try {
+      ObjectNode dataObject = (ObjectNode) dataJson;
+      ObjectNode contractObject = (ObjectNode) dataObject.get("inject_injector_contract");
+      contractObject.put("injector_contract_id", newContractId);
+      return mapper.writeValueAsString(dataObject);
+    } catch (Exception e) {
+      log.warn("Failed to update step_data with resolved injector contract", e);
+      return fallback;
+    }
   }
 
   private static class BaseHolder implements Base {
