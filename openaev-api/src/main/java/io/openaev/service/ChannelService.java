@@ -7,7 +7,6 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
@@ -38,17 +37,33 @@ public class ChannelService {
   private final ChannelRepository channelRepository;
   private final ObjectMapper mapper;
 
-  public Channel channel(@NotNull final String channelId) {
+  public Channel channel(@NotNull final String channelId, @NotNull final String tenantId) {
     return channelRepository
-        .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
+        .findByIdAndTenantId(channelId, tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Channel not found with id: " + channelId));
   }
 
-  public ChannelReader validateArticles(String exerciseId, String channelId, User user) {
+  // -- DELETE --
+
+  /**
+   * Deletes a channel scoped to the given tenant.
+   *
+   * <p>Fails fast with {@link ElementNotFoundException} if no channel exists for that (channelId,
+   * tenantId) pair, ensuring cross-tenant deletes are rejected before touching the DB.
+   */
+  public void deleteChannel(@NotBlank final String channelId, @NotNull final String tenantId) {
+    if (!channelRepository.existsByIdAndTenantId(channelId, tenantId)) {
+      throw new ElementNotFoundException("Channel not found with id: " + channelId);
+    }
+    channelRepository.deleteById(channelId);
+  }
+
+  public ChannelReader validateArticles(
+      String exerciseId, String channelId, User user, String tenantId) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository
-            .findByIdAndTenantId(channelId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(channelId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 

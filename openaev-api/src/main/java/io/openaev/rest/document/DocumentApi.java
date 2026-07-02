@@ -359,7 +359,7 @@ public class DocumentApi extends RestBehavior {
       })
   public ResponseEntity<InputStreamResource> getChannelImageFromId(
       @PathVariable String channelId, @PathVariable String theme) {
-    Channel channel = channelService.channel(channelId);
+    Channel channel = channelService.channel(channelId, TenantContext.getCurrentTenant());
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
       return downloadDocument(channel.getLogoDark().getId());

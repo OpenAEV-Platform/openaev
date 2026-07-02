@@ -98,7 +98,8 @@ class ChannelServiceTest {
           .thenReturn(List.of());
 
       // Act
-      assertDoesNotThrow(() -> channelService.validateArticles("exercise-1", "channel-1", user));
+      assertDoesNotThrow(
+          () -> channelService.validateArticles("exercise-1", "channel-1", user, "test-tenant"));
 
       // Assert
       ArgumentCaptor<BaseInjectExpectation> captor =
