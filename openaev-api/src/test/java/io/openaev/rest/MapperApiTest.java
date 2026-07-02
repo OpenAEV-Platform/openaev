@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Capability;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ImportMapper;
@@ -23,7 +22,6 @@ import io.openaev.rest.scenario.form.InjectsImportTestInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.MapperService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.TxCtxTestArgumentResolver;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockMapper.MockMapperUtils;
