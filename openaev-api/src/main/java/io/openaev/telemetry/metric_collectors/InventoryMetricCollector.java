@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.opentelemetry.api.common.AttributeKey.booleanKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.openaev.database.model.BaseConnectorEntity;
@@ -14,7 +15,9 @@ import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,9 +26,9 @@ import org.springframework.stereotype.Service;
  * Telemetry inventory of the deployed injectors, collectors and executors, broken down by catalog
  * identity. Components deployed from the catalog (XTM Composer) resolve to their catalog connector
  * slug through the connector_instances join (the user-set label is irrelevant); manually deployed
- * components fall back to their own code-level type slug, flagged managed=false. Same resolution
- * as {@code AbstractConnectorService.getConnectorRelationsId()}. Anonymous only: identity slugs
- * and counts, never any component configuration.
+ * components fall back to their own code-level type slug, flagged managed=false. Same resolution as
+ * {@code AbstractConnectorService.getConnectorRelationsId()}. Anonymous only: identity slugs and
+ * counts, never any component configuration.
  */
 @Slf4j
 @Service
@@ -47,23 +50,24 @@ public class InventoryMetricCollector {
     metricRegistry.registerMultiGauge(
         "injectors_deployed_by_identity",
         "Deployed injectors broken down by catalog identity (slug, managed, type)",
-        () -> collectInventory(ConnectorType.INJECTOR, injectorRepository.findAll()));
+        () -> collectInventory(ConnectorType.INJECTOR, injectorRepository::findAll));
     metricRegistry.registerMultiGauge(
         "collectors_deployed_by_identity",
         "Deployed collectors broken down by catalog identity (slug, managed, type)",
-        () -> collectInventory(ConnectorType.COLLECTOR, collectorRepository.findAll()));
+        () -> collectInventory(ConnectorType.COLLECTOR, collectorRepository::findAll));
     metricRegistry.registerMultiGauge(
         "executors_deployed_by_identity",
         "Deployed executors broken down by catalog identity (slug, managed, type)",
-        () -> collectInventory(ConnectorType.EXECUTOR, executorRepository.findAll()));
+        () -> collectInventory(ConnectorType.EXECUTOR, executorRepository::findAll));
   }
 
   private Map<Attributes, Long> collectInventory(
-      ConnectorType connectorType, Iterable<? extends BaseConnectorEntity> entities) {
+      ConnectorType connectorType,
+      Supplier<? extends Iterable<? extends BaseConnectorEntity>> entitiesSupplier) {
     Map<Attributes, Long> inventory = new HashMap<>();
     try {
       Map<String, CatalogConnector> catalogByConnectorId = mapCatalogByConnectorId(connectorType);
-      for (BaseConnectorEntity entity : entities) {
+      for (BaseConnectorEntity entity : entitiesSupplier.get()) {
         CatalogConnector catalogConnector = catalogByConnectorId.get(entity.getId());
         boolean managed = catalogConnector != null;
         String slug = managed ? catalogConnector.getSlug() : entity.getType();
@@ -72,9 +76,12 @@ public class InventoryMetricCollector {
         }
         Attributes attributes =
             Attributes.of(
-                stringKey(ATTRIBUTE_SLUG), slug.trim().toLowerCase(),
-                stringKey(ATTRIBUTE_MANAGED), String.valueOf(managed),
-                stringKey(ATTRIBUTE_TYPE), entity.getType() == null ? "" : entity.getType());
+                stringKey(ATTRIBUTE_SLUG),
+                slug.trim().toLowerCase(Locale.ROOT),
+                booleanKey(ATTRIBUTE_MANAGED),
+                managed,
+                stringKey(ATTRIBUTE_TYPE),
+                entity.getType() == null ? "" : entity.getType());
         inventory.merge(attributes, 1L, Long::sum);
       }
     } catch (Exception e) {

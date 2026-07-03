@@ -33,6 +33,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -195,7 +196,7 @@ public class OpenTelemetryConfig {
    */
   public static String normalizeTelemetryTags(String rawTags) {
     return Arrays.stream((rawTags == null ? "" : rawTags).split(","))
-        .map(tag -> tag.trim().toLowerCase())
+        .map(tag -> tag.trim().toLowerCase(Locale.ROOT))
         .filter(tag -> !tag.isEmpty())
         .distinct()
         .sorted()
