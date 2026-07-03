@@ -12,6 +12,7 @@ import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.scenario.ScenarioHandler;
 import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
+import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -310,7 +311,7 @@ class IndexingRegressionTest extends IntegrationTest {
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       endpointWrapper.persist();
 
-      InjectExpectation agentlessExpectation =
+      BaseInjectExpectation agentlessExpectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
       InjectExpectationComposer.Composer agentlessExpectationWrapper =
           injectExpectationComposer
@@ -323,7 +324,7 @@ class IndexingRegressionTest extends IntegrationTest {
       entityManager.flush();
       Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
 
-      InjectExpectation agentExpectation =
+      DetectionInjectExpectation agentExpectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
       agentExpectation.setAgent(persistedAgent);
       agentExpectation.setResults(
