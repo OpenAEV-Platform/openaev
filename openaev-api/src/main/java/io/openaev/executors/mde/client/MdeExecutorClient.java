@@ -15,6 +15,8 @@ import io.openaev.executors.mde.model.MdeDeviceListResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -82,13 +84,11 @@ public class MdeExecutorClient {
           DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
               .withZone(ZoneOffset.UTC)
               .format(Instant.now().minusMillis(io.openaev.service.EndpointService.DELETE_TTL));
-      String filter =
-          "$filter=rbacGroupId eq "
-              + deviceGroupId
-              + " and lastSeen gt "
-              + formattedDateTime
-              + "&$top=10000";
-      String json = get(MACHINES_URI + "?" + filter);
+      String filterValue =
+          URLEncoder.encode(
+              "rbacGroupId eq " + deviceGroupId + " and lastSeen gt " + formattedDateTime,
+              StandardCharsets.UTF_8);
+      String json = get(MACHINES_URI + "?$filter=" + filterValue + "&$top=10000");
       MdeDeviceListResponse response = objectMapper.readValue(json, new TypeReference<>() {});
       return response.getValue() != null ? response.getValue() : List.of();
     } catch (Exception e) {
