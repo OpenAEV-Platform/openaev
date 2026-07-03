@@ -19,7 +19,14 @@ import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../../utils
 import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
 import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
+import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import { type ActionDetailData } from '../types';
+import {
+  buildContractDefaults,
+  EXPECTATION_FIELD_TYPE,
+  getContractFieldDefaultValue,
+  isExpectationInput,
+} from './ConfigureActionDetail.utils';
 import InjectDataFieldItem, { type FieldLink } from './InjectDataFieldItem';
 
 interface ConfigureActionDetailProps {
@@ -92,13 +99,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               setContractFields(fields);
               // Set default values only if no initialData was provided
               if (!initialData?.inject_content) {
-                const defaults: Record<string, unknown> = {};
-                for (const field of fields) {
-                  if (field.defaultValue !== undefined && field.defaultValue !== null) {
-                    defaults[field.key] = field.defaultValue;
-                  }
-                }
-                setFieldValues(defaults);
+                setFieldValues(buildContractDefaults(fields));
               }
             } catch {
               setContractFields([]);
@@ -111,13 +112,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [action, initialData]);
 
   const handleResetDefaults = () => {
-    const defaults: Record<string, unknown> = {};
-    for (const field of contractFields) {
-      if (field.defaultValue !== undefined && field.defaultValue !== null) {
-        defaults[field.key] = field.defaultValue;
-      }
-    }
-    setFieldValues(defaults);
+    setFieldValues(buildContractDefaults(contractFields));
     setFieldLinks({});
   };
 
@@ -171,8 +166,19 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [action, tPick]);
 
   const visibleFields = useMemo(() => {
-    return contractFields.filter(f => !f.readOnly);
+    return contractFields.filter(f => !f.readOnly && f.type !== EXPECTATION_FIELD_TYPE);
   }, [contractFields]);
+
+  const expectationField = useMemo(() => {
+    return contractFields.find(field => field.type === EXPECTATION_FIELD_TYPE);
+  }, [contractFields]);
+
+  const expectations = useMemo(() => {
+    if (!expectationField) return [];
+    const value = fieldValues[expectationField.key] ?? getContractFieldDefaultValue(expectationField);
+    if (!Array.isArray(value)) return [];
+    return value.filter(isExpectationInput);
+  }, [expectationField, fieldValues]);
 
   return (
     <Drawer
@@ -301,6 +307,30 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               })}
             </Box>
           </Box>
+
+          {/* Expectations */}
+          {expectationField && (
+            <Box>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {t('Expectations')}
+              </Typography>
+              {expectations.length > 0 ? (
+                <InjectExpectations
+                  expectationDatas={expectations}
+                  handleExpectations={updatedExpectations => setFieldValues(prev => ({
+                    ...prev,
+                    [expectationField.key]: updatedExpectations,
+                  }))}
+                  predefinedExpectations={expectationField.predefinedExpectations ?? []}
+                  availableExpectations={expectationField.availableExpectations ?? []}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  {t('No expectations for this action.')}
+                </Typography>
+              )}
+            </Box>
+          )}
 
           {/* Actions */}
           <Box sx={{
