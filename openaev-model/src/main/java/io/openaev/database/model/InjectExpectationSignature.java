@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
 import lombok.*;
+import org.hibernate.annotations.SQLInsert;
+import org.hibernate.jdbc.Expectation;
 
 @Getter
 @Setter
@@ -20,6 +22,17 @@ import lombok.*;
 @Entity
 @IdClass(InjectExpectationSignature.InjectExpectationSignatureId.class)
 @Table(name = "injects_expectations_signatures")
+@SQLInsert(
+    sql =
+        """
+        INSERT INTO injects_expectations_signatures \
+        (inject_expectation_signature_created_at, \
+        inject_expectation_signature_inject_expectation_id, \
+        inject_expectation_signature_type, \
+        inject_expectation_signature_value) \
+        VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING\
+        """,
+    verify = Expectation.None.class)
 public class InjectExpectationSignature {
 
   @Id
