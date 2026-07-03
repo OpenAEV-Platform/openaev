@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.DetectionInjectExpectation;
+import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.ArrayList;
@@ -75,7 +76,7 @@ class InjectExpectationLockServiceTest {
   void givenUnknownExpectation_shouldThrowElementNotFoundException() {
     when(injectExpectationRepository.findById("expectation-id")).thenReturn(Optional.empty());
 
-    InjectExpectation expectation = new InjectExpectation();
+    DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("expectation-id");
     expectation.setSignaturesInitialized(true);
 

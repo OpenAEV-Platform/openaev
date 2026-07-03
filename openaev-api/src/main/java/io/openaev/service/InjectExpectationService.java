@@ -1,17 +1,18 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
-import static io.openaev.model.expectation.ManualExpectation.manualExpectationForAssetGroup;
-import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAssetGroup;
+import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
+import static io.openaev.expectation.ManualExpectation.manualExpectationForAssetGroup;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAssetGroup;
 import static io.openaev.service.InjectExpectationUtils.computeScores;
 import static io.openaev.service.InjectExpectationUtils.expectationConverter;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
+import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.ExpectationUtils.*;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
@@ -28,11 +29,12 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.injectors.common.model.BaseInjectContent;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.model.expectation.VulnerabilityExpectation;
+import io.openaev.expectation.DetectionExpectation;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ExpectationSignature;
+import io.openaev.expectation.ManualExpectation;
+import io.openaev.expectation.PreventionExpectation;
+import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -1150,7 +1152,7 @@ public class InjectExpectationService {
       return;
     }
 
-    for (InjectExpectation expectation : expectations) {
+    for (TechnicalInjectExpectation expectation : expectations) {
       injectExpectationLockService.applySignaturesForExpectationWithLock(
           expectation.getId(), convertToInjectExpectationSignatures(signatures, expectation));
     }
@@ -1187,7 +1189,7 @@ public class InjectExpectationService {
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
     // Load all expectations for the inject/agent, append the signature, then persist the changes.
-    List<InjectExpectation> injectExpectations =
+    List<TechnicalInjectExpectation> injectExpectations =
         injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
     if (!injectExpectations.isEmpty()) {
       injectExpectations.forEach(

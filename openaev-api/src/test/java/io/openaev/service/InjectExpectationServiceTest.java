@@ -12,12 +12,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.Expectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.model.expectation.VulnerabilityExpectation;
+import io.openaev.expectation.DetectionExpectation;
+import io.openaev.expectation.ManualExpectation;
+import io.openaev.expectation.ExpectationSignature;
+import io.openaev.expectation.PreventionExpectation;
+import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -383,7 +384,7 @@ class InjectExpectationServiceTest {
         ManualExpectation.manualExpectationForAsset(
             100.0, "m-other", "desc", nonMatchingAsset, assetGroup, 60L);
 
-    List<io.openaev.model.Expectation> expectations =
+    List<Expectation> expectations =
         new ArrayList<>(
             List.of(
                 preventionWithNullAsset,

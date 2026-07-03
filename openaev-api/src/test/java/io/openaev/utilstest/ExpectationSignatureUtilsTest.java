@@ -4,7 +4,7 @@ import static io.openaev.utils.ExpectationSignatureUtils.*;
 import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
 
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.expectation.ExpectationSignature;
 import java.util.ArrayList;
@@ -170,7 +170,7 @@ class ExpectationSignatureUtilsTest {
     @DisplayName("given duplicated signatures should keep insertion order and remove duplicates")
     void given_duplicatedSignatures_should_keepInsertionOrderAndRemoveDuplicates() {
       // -- PREPARE --
-      InjectExpectation expectation = new InjectExpectation();
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
       expectation.setId("expectation-id");
       InjectExpectationSignature signatureA =
           new InjectExpectationSignature(expectation, "type_a", "value_a", now());
@@ -204,7 +204,7 @@ class ExpectationSignatureUtilsTest {
     @DisplayName("given lists containing null should ignore null signatures")
     void given_listsContainingNull_should_ignoreNullSignatures() {
       // -- PREPARE --
-      InjectExpectation expectation = new InjectExpectation();
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
       expectation.setId("expectation-id");
       InjectExpectationSignature signatureA =
           new InjectExpectationSignature(expectation, "type_a", "value_a", now());
