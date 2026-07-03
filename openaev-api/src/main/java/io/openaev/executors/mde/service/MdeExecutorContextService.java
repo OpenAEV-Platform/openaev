@@ -122,7 +122,9 @@ public class MdeExecutorContextService extends ExecutorContextService {
                 batchAgents.forEach(
                     agent ->
                         mdeExecutorClient.executeAction(
-                            agent.getId(), action.getScriptName(), action.getCommandEncoded())),
+                            agent.getExternalReference(),
+                            action.getScriptName(),
+                            action.getCommandEncoded())),
             batchIndex * 5L,
             TimeUnit.SECONDS);
       }

@@ -137,7 +137,12 @@ public class MdeExecutorIntegration extends Integration {
         new MdeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
     mdeGarbageCollectorService =
-        new MdeGarbageCollectorService(config, mdeExecutorContextService, agentService, executorId);
+        new MdeGarbageCollectorService(
+            config,
+            mdeExecutorContextService,
+            agentService,
+            executorId,
+            executor.getTenant().getId());
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

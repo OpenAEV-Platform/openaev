@@ -22,21 +22,24 @@ public class MdeGarbageCollectorService implements Runnable {
   private final MdeExecutorContextService mdeExecutorContextService;
   private final AgentService agentService;
   private final String executorId;
+  private final String tenantId;
 
   public MdeGarbageCollectorService(
       MdeExecutorConfig config,
       MdeExecutorContextService mdeExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      String executorId,
+      String tenantId) {
     this.config = config;
     this.mdeExecutorContextService = mdeExecutorContextService;
     this.agentService = agentService;
     this.executorId = executorId;
+    this.tenantId = tenantId;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = agentService.getAgentsByExecutorId(executorId);
+    List<Agent> agents = agentService.getAgentsByExecutorIdAndTenantId(executorId, tenantId);
     if (!agents.isEmpty()) {
       List<MdeAction> actions = new ArrayList<>();
       log.info("Running MDE executor garbage collector on {} agents", agents.size());
@@ -47,8 +50,7 @@ public class MdeGarbageCollectorService implements Runnable {
         action.setScriptName(config.getWindowsScriptName());
         action.setCommandEncoded(
             Base64.getEncoder()
-                .encodeToString(
-                    WINDOWS_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_16LE)));
+                .encodeToString(WINDOWS_CLEAN_PAYLOADS_COMMAND.getBytes(StandardCharsets.UTF_8)));
         actions.add(action);
       }
       List<Agent> unixAgents = new ArrayList<>();
