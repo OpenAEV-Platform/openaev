@@ -162,8 +162,10 @@ public class MdeExecutorContextService extends ExecutorContextService {
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
+      // MDE Live Response uses Invoke-Expression, not -EncodedCommand, so UTF-8 encoding is correct
+      // (CrowdStrike RTR uses UTF-16LE for -encodedCommand, but that's not applicable here).
       action.setCommandEncoded(
-          Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
+          Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8)));
       action.setAgents(agents);
       actions.add(action);
     }
