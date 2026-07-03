@@ -106,14 +106,14 @@ public class SentinelOneExecutorClient {
   /**
    * Execute a payload through SentinelOne API executeScript
    *
-   * @param agentsId to use for the payload
+   * @param agentExternalReference to use for the payload
    * @param scriptId to use for the payload
    * @param command to use for the payload
    */
-  public void executeScript(List<String> agentsId, String scriptId, String command) {
+  public void executeScript(String agentExternalReference, String scriptId, String command) {
     try {
       SentinelOneFilter filter = new SentinelOneFilter();
-      filter.setUuids(agentsId);
+      filter.setUuids(List.of(agentExternalReference));
       SentinelOneData data = new SentinelOneData();
       data.setScriptId(scriptId);
       data.setInputParams(command);

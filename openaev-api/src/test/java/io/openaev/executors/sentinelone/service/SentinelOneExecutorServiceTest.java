@@ -123,15 +123,12 @@ public class SentinelOneExecutorServiceTest {
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
-    ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
-    verify(client)
-        .executeScript(agentIds.capture(), scriptName.capture(), commandEncoded.capture());
-    assertEquals(1, agentIds.getValue().size());
+    verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
-    assertEquals(
-        "JABhAGcAZQBuAHQASQBEAD0AJgAgACcAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwBcAFMAZQBuAHQAaQBuAGUAbABPAG4AZQBcAFMAZQBuAHQAaQBuAGUAbAAgAEEAZwBlAG4AdAAgACoAXABTAGUAbgB0AGkAbgBlAGwAQwB0AGwALgBlAHgAZQAnACAAYQBnAGUAbgB0AF8AaQBkADsAeAA4ADYAXwA2ADQA",
-        commandEncoded.getValue());
+    assertEquals("eAA4ADYAXwA2ADQA", commandEncoded.getValue());
   }
 }
