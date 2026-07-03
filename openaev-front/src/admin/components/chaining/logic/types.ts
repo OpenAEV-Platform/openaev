@@ -4,18 +4,6 @@ import type { FieldLink } from './drawer/InjectDataFieldItem';
 import type { EventFormData } from './events/event-types';
 import type { MapperConditionRow } from './logic-flow-helpers';
 
-export interface LogicAction {
-  id: string;
-  label: string;
-  injectorContract?: string;
-}
-
-export interface LogicEvent {
-  id: string;
-  label: string;
-  conditions?: string[];
-}
-
 export interface ActionDetailData {
   inject_title: string;
   inject_injector_contract: string;
@@ -32,12 +20,15 @@ export interface ActionMeta {
   inject_description: string;
   inject_injector_contract?: string;
   inject_injector?: string;
+  inject_payload_type?: string;
+  inject_payload_collector_type?: string;
   inject_attack_patterns_ids: string[];
   inject_kill_chain_phase_ids: string[];
   inject_assets: string[];
   inject_asset_objects: EndpointOutput[];
   step_condition_ids: string[];
   step_conditions: MapperConditionRow[];
+  step_output_types: string[];
   contract_fields: ContractElement[];
 }
 

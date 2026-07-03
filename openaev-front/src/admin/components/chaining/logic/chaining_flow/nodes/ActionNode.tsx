@@ -5,10 +5,14 @@ import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo, type MouseEvent, useState } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
+import InjectIcon from '../../../../common/injects/InjectIcon';
 import { ACTION_WIDTH } from '../../logic-flow-helpers';
 
 export type ActionNodeData = Node<{
   label: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
   injectorContract?: string;
   onEdit?: (id: string, type: string) => void;
   onDelete?: (id: string) => void;
@@ -69,7 +73,15 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
           gap: theme.spacing(1),
         }}
         >
-          <TerminalOutlined sx={{ color: theme.palette.primary.main }} />
+          {(data.payloadType ?? data.injectorType)
+            ? (
+                <InjectIcon
+                  type={data.payloadType ?? data.injectorType}
+                  isPayload={data.isPayload}
+                  size="small"
+                />
+              )
+            : <TerminalOutlined sx={{ color: theme.palette.primary.main }} />}
           <Typography variant="body2" color="text.secondary" sx={{ userSelect: 'none' }}>
             -
           </Typography>

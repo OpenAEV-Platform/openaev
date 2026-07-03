@@ -8662,6 +8662,7 @@ export interface StepOutput {
   step_data?: JsonNode;
   step_id?: string;
   step_mapper_conditions?: MapperConditionOutput[];
+  step_output_types?: string[];
   step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;

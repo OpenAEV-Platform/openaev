@@ -19,6 +19,10 @@ export const directFetchInjectorContract = (injectorContractId: InjectorContract
   return simpleCall(`${INJECTOR_CONTRACT_URI}/${injectorContractId}`);
 };
 
+export const directFetchInjectorContractSilent = (injectorContractId: InjectorContract['injector_contract_id']) => {
+  return simpleCall(`${INJECTOR_CONTRACT_URI}/${injectorContractId}`, undefined, false);
+};
+
 export const fetchInjectorsContracts = () => (dispatch: Dispatch) => {
   return getReferential(schema.arrayOfInjectorContracts, `${INJECTOR_CONTRACT_URI}`)(dispatch);
 };

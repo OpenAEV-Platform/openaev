@@ -1,5 +1,5 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
-import { DeleteOutline, DragHandleOutlined } from '@mui/icons-material';
+import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
 import {
   Box,
   FormControl,
@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import { useOutputProviders } from '../OutputProvidersContext';
 import {
   CASE_SENSITIVE_OPERATORS,
   COMPARISON_OPERATORS,
@@ -46,6 +47,18 @@ const EventConditionRow: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { providers } = useOutputProviders();
+
+  /**
+   * Build tooltip lines for a given output type's providers.
+   * Format: header line + one action per line with MITRE technique ID.
+   */
+  const buildProviderTooltip = (keyType: string): string => {
+    const keyProviders = providers[keyType] ?? [];
+    if (keyProviders.length === 0) return '';
+    const header = t('Actions on the logic flow which produce this input:');
+    return `${header}\n${keyProviders.map(p => p.actionTitle).join('\n')}`;
+  };
 
   const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
     onUpdate({
@@ -117,12 +130,38 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
+          renderValue={val => formatConditionKeyLabel(val)}
         >
-          {CONDITION_KEY_TYPES.map(key => (
-            <MenuItem key={key} value={key}>
-              {formatConditionKeyLabel(key)}
-            </MenuItem>
-          ))}
+          {CONDITION_KEY_TYPES.map((key) => {
+            const keyProviders = providers[key] ?? [];
+            return (
+              <MenuItem
+                key={key}
+                value={key}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
+                {keyProviders.length > 0 && (
+                  <Tooltip
+                    title={buildProviderTooltip(key)}
+                    placement="right"
+                    slotProps={{ tooltip: { sx: { whiteSpace: 'pre-line' } } }}
+                  >
+                    <InfoOutlined sx={{
+                      fontSize: 16,
+                      color: 'info.main',
+                      flexShrink: 0,
+                    }}
+                    />
+                  </Tooltip>
+                )}
+              </MenuItem>
+            );
+          })}
         </Select>
       </FormControl>
 
