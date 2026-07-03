@@ -2,14 +2,14 @@
   {
     "version": "2.260703.2",
     "title": "2.260703.2",
-    "aliases": []
+    "aliases": [
+      "latest"
+    ]
   },
   {
     "version": "2.260619.0",
     "title": "2.260619.0",
-    "aliases": [
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "2.260601.0",
