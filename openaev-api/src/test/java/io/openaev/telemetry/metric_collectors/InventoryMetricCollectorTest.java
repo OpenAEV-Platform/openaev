@@ -79,6 +79,7 @@ class InventoryMetricCollectorTest {
   @Test
   @DisplayName("given a catalog-deployed injector should report the catalog slug as managed")
   void given_catalogDeployedInjector_should_reportCatalogSlugAsManaged() {
+    // Arrange
     when(injectorRepository.findAll()).thenReturn(List.of(injector("injector-1", "openaev_email")));
     when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
         .thenReturn(
@@ -86,8 +87,10 @@ class InventoryMetricCollectorTest {
                 catalogInstance(
                     "Email-Injector", ConnectorType.INJECTOR.getIdKeyName(), "injector-1")));
 
+    // Act
     Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
 
+    // Assert
     assertThat(inventory)
         .containsExactly(
             Map.entry(
@@ -101,13 +104,16 @@ class InventoryMetricCollectorTest {
   @Test
   @DisplayName("given a manually deployed injector should fall back to its type slug as unmanaged")
   void given_manuallyDeployedInjector_should_fallBackToTypeSlugAsUnmanaged() {
+    // Arrange
     when(injectorRepository.findAll())
         .thenReturn(List.of(injector("injector-1", "openaev_caldera")));
     when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
         .thenReturn(List.of());
 
+    // Act
     Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
 
+    // Assert
     assertThat(inventory)
         .containsExactly(
             Map.entry(
@@ -121,6 +127,7 @@ class InventoryMetricCollectorTest {
   @Test
   @DisplayName("given identical identities should aggregate counts per attribute set")
   void given_identicalIdentities_should_aggregateCountsPerAttributeSet() {
+    // Arrange
     when(injectorRepository.findAll())
         .thenReturn(
             List.of(
@@ -128,31 +135,59 @@ class InventoryMetricCollectorTest {
     when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
         .thenReturn(List.of());
 
+    // Act
     Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
 
+    // Assert
     assertThat(inventory).hasSize(1);
     assertThat(inventory.values()).containsExactly(2L);
   }
 
   @Test
-  @DisplayName("given a blank identity should skip the component")
-  void given_blankIdentity_should_skipComponent() {
-    when(injectorRepository.findAll()).thenReturn(List.of(injector("injector-1", " ")));
+  @DisplayName("given a blank type should skip the component even when catalog-managed")
+  void given_blankType_should_skipComponentEvenWhenManaged() {
+    // Arrange
+    when(injectorRepository.findAll())
+        .thenReturn(List.of(injector("injector-1", " "), injector("injector-2", null)));
     when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
-        .thenReturn(List.of());
+        .thenReturn(
+            List.of(
+                catalogInstance(
+                    "Email-Injector", ConnectorType.INJECTOR.getIdKeyName(), "injector-1")));
 
+    // Act
     Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
 
+    // Assert
+    assertThat(inventory).isEmpty();
+  }
+
+  @Test
+  @DisplayName("given a catalog row without slug should skip the managed component")
+  void given_catalogRowWithoutSlug_should_skipManagedComponent() {
+    // Arrange
+    when(injectorRepository.findAll()).thenReturn(List.of(injector("injector-1", "openaev_email")));
+    when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
+        .thenReturn(
+            List.of(catalogInstance(null, ConnectorType.INJECTOR.getIdKeyName(), "injector-1")));
+
+    // Act
+    Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
+
+    // Assert
     assertThat(inventory).isEmpty();
   }
 
   @Test
   @DisplayName("given a repository failure should return an empty inventory instead of throwing")
   void given_repositoryFailure_should_returnEmptyInventory() {
+    // Arrange
     when(injectorRepository.findAll()).thenThrow(new IllegalStateException("database is down"));
 
+    // Act
     Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
 
+    // Assert
     assertThat(inventory).isEmpty();
   }
 }

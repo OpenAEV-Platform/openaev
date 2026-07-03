@@ -68,9 +68,13 @@ public class InventoryMetricCollector {
     try {
       Map<String, CatalogConnector> catalogByConnectorId = mapCatalogByConnectorId(connectorType);
       for (BaseConnectorEntity entity : entitiesSupplier.get()) {
+        String type = entity.getType();
+        if (type == null || type.isBlank()) {
+          continue;
+        }
         CatalogConnector catalogConnector = catalogByConnectorId.get(entity.getId());
         boolean managed = catalogConnector != null;
-        String slug = managed ? catalogConnector.getSlug() : entity.getType();
+        String slug = managed ? catalogConnector.getSlug() : type;
         if (slug == null || slug.isBlank()) {
           continue;
         }
@@ -81,7 +85,7 @@ public class InventoryMetricCollector {
                 booleanKey(ATTRIBUTE_MANAGED),
                 managed,
                 stringKey(ATTRIBUTE_TYPE),
-                entity.getType() == null ? "" : entity.getType());
+                type);
         inventory.merge(attributes, 1L, Long::sum);
       }
     } catch (Exception e) {
