@@ -73,6 +73,26 @@ public class MdeExecutorClient {
   }
 
   /**
+   * Returns all active MDE devices without group filter (for tenants with no RBAC device groups).
+   */
+  public List<MdeDevice> devicesAll() {
+    try {
+      String formattedDateTime =
+          DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+              .withZone(ZoneOffset.UTC)
+              .format(Instant.now().minusMillis(io.openaev.service.EndpointService.DELETE_TTL));
+      String filterValue =
+          URLEncoder.encode("lastSeen gt " + formattedDateTime, StandardCharsets.UTF_8);
+      String json = get(MACHINES_URI + "?$filter=" + filterValue + "&$top=10000");
+      MdeDeviceListResponse response = objectMapper.readValue(json, new TypeReference<>() {});
+      return response.getValue() != null ? response.getValue() : List.of();
+    } catch (Exception e) {
+      log.error("Error fetching all MDE devices: {}", e.getMessage(), e);
+      throw new ExecutorException(e, e.getMessage(), MDE_EXECUTOR_NAME);
+    }
+  }
+
+  /**
    * Returns all devices belonging to the given MDE device group (rbacGroupId).
    *
    * <p>The MDE API filters machines by {@code rbacGroupId}. For active machines only, we also

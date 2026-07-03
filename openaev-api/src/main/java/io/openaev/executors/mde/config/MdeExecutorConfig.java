@@ -75,11 +75,10 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
 
   @IntegrationConfigKey(
       key = "EXECUTOR_MDE_DEVICE_GROUP",
-      isRequired = true,
+      isRequired = false,
       description =
-          "MDE device group ID or device group IDs separated with commas (rbacGroupId from the MDE API)")
+          "MDE device group ID(s) separated by commas (rbacGroupId). Leave empty to sync all devices.")
   @Getter
-  @NotBlank
   private String deviceGroup;
 
   @IntegrationConfigKey(
