@@ -3,8 +3,10 @@ package io.openaev.telemetry.metric_collectors;
 import static io.opentelemetry.api.common.AttributeKey.booleanKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.database.model.BaseConnectorEntity;
 import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.repository.CollectorRepository;
@@ -68,8 +70,8 @@ public class InventoryMetricCollector {
     try {
       Map<String, CatalogConnector> catalogByConnectorId = mapCatalogByConnectorId(connectorType);
       for (BaseConnectorEntity entity : entitiesSupplier.get()) {
-        String type = entity.getType();
-        if (type == null || type.isBlank()) {
+        String type = entity.getType() == null ? "" : entity.getType().trim();
+        if (type.isEmpty()) {
           continue;
         }
         CatalogConnector catalogConnector = catalogByConnectorId.get(entity.getId());
@@ -109,8 +111,12 @@ public class InventoryMetricCollector {
       }
       instance.getConfigurations().stream()
           .filter(configuration -> connectorType.getIdKeyName().equals(configuration.getKey()))
-          .map(configuration -> configuration.getValue().asText())
-          .filter(connectorId -> connectorId != null && !connectorId.isBlank())
+          .map(ConnectorInstanceConfiguration::getValue)
+          // Only textual nodes are valid connector ids: asText() on a JSON null
+          // yields the literal "null" and would shadow a later valid value.
+          .filter(value -> value != null && value.isTextual())
+          .map(JsonNode::asText)
+          .filter(connectorId -> !connectorId.isBlank())
           .findFirst()
           .ifPresent(
               connectorId -> catalogByConnectorId.put(connectorId, instance.getCatalogConnector()));

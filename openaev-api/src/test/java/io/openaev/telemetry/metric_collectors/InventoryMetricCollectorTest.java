@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -56,11 +57,16 @@ class InventoryMetricCollectorTest {
 
   private static ConnectorInstancePersisted catalogInstance(
       String slug, String idKey, String connectorId) {
+    return catalogInstance(slug, idKey, JsonNodeFactory.instance.textNode(connectorId));
+  }
+
+  private static ConnectorInstancePersisted catalogInstance(
+      String slug, String idKey, JsonNode connectorIdValue) {
     CatalogConnector catalogConnector = new CatalogConnector();
     catalogConnector.setSlug(slug);
     ConnectorInstanceConfiguration configuration = new ConnectorInstanceConfiguration();
     configuration.setKey(idKey);
-    configuration.setValue(JsonNodeFactory.instance.textNode(connectorId));
+    configuration.setValue(connectorIdValue);
     ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(catalogConnector);
     instance.setConfigurations(Set.of(configuration));
@@ -176,6 +182,57 @@ class InventoryMetricCollectorTest {
 
     // Assert
     assertThat(inventory).isEmpty();
+  }
+
+  @Test
+  @DisplayName("given a type with surrounding whitespace should trim it for both type and slug")
+  void given_typeWithWhitespace_should_trimTypeAndSlug() {
+    // Arrange
+    when(injectorRepository.findAll())
+        .thenReturn(List.of(injector("injector-1", "  OpenAEV_Email  ")));
+    when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
+        .thenReturn(List.of());
+
+    // Act
+    Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
+
+    // Assert
+    assertThat(inventory)
+        .containsExactly(
+            Map.entry(
+                Attributes.of(
+                    stringKey("slug"), "openaev_email",
+                    booleanKey("managed"), false,
+                    stringKey("type"), "OpenAEV_Email"),
+                1L));
+  }
+
+  @Test
+  @DisplayName(
+      "given a non-textual connector id configuration should classify the component as manual")
+  void given_nonTextualConnectorIdConfiguration_should_classifyAsManual() {
+    // Arrange: a JSON null id value must not become the literal string "null"
+    when(injectorRepository.findAll()).thenReturn(List.of(injector("injector-1", "openaev_email")));
+    when(connectorInstanceRepository.findAllByCatalogConnectorContainerType(ConnectorType.INJECTOR))
+        .thenReturn(
+            List.of(
+                catalogInstance(
+                    "Email-Injector",
+                    ConnectorType.INJECTOR.getIdKeyName(),
+                    JsonNodeFactory.instance.nullNode())));
+
+    // Act
+    Map<Attributes, Long> inventory = capturedInjectorSupplier().get();
+
+    // Assert
+    assertThat(inventory)
+        .containsExactly(
+            Map.entry(
+                Attributes.of(
+                    stringKey("slug"), "openaev_email",
+                    booleanKey("managed"), false,
+                    stringKey("type"), "openaev_email"),
+                1L));
   }
 
   @Test
