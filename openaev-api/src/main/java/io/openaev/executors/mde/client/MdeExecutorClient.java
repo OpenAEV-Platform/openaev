@@ -112,9 +112,10 @@ public class MdeExecutorClient {
       Map<String, Object> param1 = new HashMap<>();
       param1.put("key", "ScriptName");
       param1.put("value", scriptName);
+      // encodedCommand is raw Base64 — the subprocessor script decodes and executes it directly.
       Map<String, Object> param2 = new HashMap<>();
       param2.put("key", "Args");
-      param2.put("value", "{\"command\":\"" + encodedCommand + "\"}");
+      param2.put("value", encodedCommand);
 
       Map<String, Object> command = new HashMap<>();
       command.put("type", "RunScript");
