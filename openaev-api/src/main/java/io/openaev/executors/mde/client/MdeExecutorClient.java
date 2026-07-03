@@ -53,8 +53,8 @@ public class MdeExecutorClient {
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final HttpClientFactory httpClientFactory;
 
-  private Instant tokenExpiresAt = Instant.EPOCH;
-  private String token;
+  private volatile Instant tokenExpiresAt = Instant.EPOCH;
+  private volatile String token;
 
   // -- PUBLIC API --
 
@@ -165,7 +165,12 @@ public class MdeExecutorClient {
 
   private void ensureValidToken() throws IOException {
     if (Instant.now().isAfter(tokenExpiresAt.minusSeconds(AUTH_REFRESH_BEFORE_EXPIRY_SECONDS))) {
-      authenticate();
+      synchronized (this) {
+        if (Instant.now()
+            .isAfter(tokenExpiresAt.minusSeconds(AUTH_REFRESH_BEFORE_EXPIRY_SECONDS))) {
+          authenticate();
+        }
+      }
     }
   }
 
@@ -184,6 +189,15 @@ public class MdeExecutorClient {
       String jsonResponse =
           httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
       MdeAuthentication auth = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      if (auth.getAccess_token() == null || auth.getAccess_token().isBlank()) {
+        throw new ClientProtocolException(
+            "MDE authentication failed: empty access_token. "
+                + "Check client_id, client_secret and azure_tenant_id configuration.");
+      }
+      if (auth.getExpires_in() <= 0) {
+        throw new ClientProtocolException(
+            "MDE authentication failed: invalid expires_in=" + auth.getExpires_in());
+      }
       token = auth.getAccess_token();
       tokenExpiresAt = Instant.now().plusSeconds(auth.getExpires_in());
     } catch (IOException e) {
