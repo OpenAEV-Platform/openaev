@@ -36,6 +36,7 @@ public class MdeExecutorServiceTest {
 
   private static final String DEVICE_GROUP_ID = "42";
   private static final String TENANT_ID = "test-tenant-id";
+  private static final String EXECUTOR_ID = "test-mde-executor-id";
 
   @Mock private MdeExecutorClient client;
   @Mock private MdeExecutorConfig config;
@@ -57,6 +58,7 @@ public class MdeExecutorServiceTest {
   void setUp() {
     mdeDevice = MdeDeviceFixture.createDefaultMdeDevice();
     mdeExecutor = new Executor();
+    mdeExecutor.setId(EXECUTOR_ID);
     mdeExecutor.setName(MDE_EXECUTOR_NAME);
     mdeExecutor.setType(MDE_EXECUTOR_TYPE);
     mdeExecutor.setTenant(new Tenant(TENANT_ID));
@@ -79,6 +81,7 @@ public class MdeExecutorServiceTest {
     ArgumentCaptor<String> executorIdCaptor = ArgumentCaptor.forClass(String.class);
     verify(agentService)
         .getAgentsByExecutorIdAndTenantId(executorIdCaptor.capture(), eq(TENANT_ID));
+    assertEquals(EXECUTOR_ID, executorIdCaptor.getValue());
 
     ArgumentCaptor<List<AgentRegisterInput>> inputsCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<Agent>> agentsCaptor = ArgumentCaptor.forClass(List.class);

@@ -93,16 +93,20 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void ensureCatalogLogo() throws Exception {
+    ensureCatalogLogo(getLogoFilename());
+  }
+
+  private void ensureCatalogLogo(String logoFilename) throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
-        getLogoFilename(),
+        logoFilename,
         getClass().getResourceAsStream("/img/icon-mde.png"));
   }
 
   @Override
   protected void insertCatalogEntry() throws Exception {
     String logoFilename = getLogoFilename();
-    ensureCatalogLogo();
+    ensureCatalogLogo(logoFilename);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Microsoft Defender for Endpoint Executor");
     connector.setSlug(MDE_EXECUTOR_TYPE);
