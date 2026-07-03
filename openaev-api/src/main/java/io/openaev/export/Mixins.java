@@ -272,6 +272,7 @@ public class Mixins {
         "workflow_scope_rules",
         "workflow_scope_variables",
         "workflow_steps",
+        "workflow_standalone_conditions",
       })
   public static class WorkflowExport {}
 
@@ -280,6 +281,7 @@ public class Mixins {
       value = {
         "workflow_version",
         "workflow_steps",
+        "workflow_standalone_conditions",
       })
   public static class WorkflowExportWithoutScope {}
 

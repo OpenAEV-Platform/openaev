@@ -1882,7 +1882,7 @@ public class V1_DataImporter implements Importer {
                   .type(
                       varNode.has("scope_variable_type")
                               && !varNode.get("scope_variable_type").isNull()
-                          ? ArgumentType.valueOf(varNode.get("scope_variable_type").asText())
+                          ? ArgumentType.fromLabel(varNode.get("scope_variable_type").asText())
                           : null)
                   .value(
                       varNode.has("scope_variable_value")
@@ -1906,6 +1906,12 @@ public class V1_DataImporter implements Importer {
       if (workflowNode.has("workflow_steps")) {
         importWorkflowSteps(
             workflowNode.get("workflow_steps"), workflow, resolvedContracts, baseIds);
+      }
+
+      // Import standalone events (root conditions not linked to any step)
+      if (workflowNode.has("workflow_standalone_conditions")) {
+        importConditionNodes(
+            workflowNode.get("workflow_standalone_conditions"), workflow, null, Map.of());
       }
     } catch (Exception e) {
       log.warn("Failed to import workflow (chaining)", e);
@@ -1982,96 +1988,101 @@ public class V1_DataImporter implements Importer {
         continue;
       }
 
-      // Map from original condition ID to new Condition
-      Map<String, Condition> conditionIdMap = new LinkedHashMap<>();
+      importConditionNodes(conditionsNode, workflow, step, stepIdMap);
+    }
+  }
 
-      // First, create all conditions without parent references
-      List<JsonNode> conditionNodes = new ArrayList<>();
-      for (JsonNode condNode : conditionsNode) {
-        conditionNodes.add(condNode);
-      }
+  /**
+   * Imports a list of condition nodes, optionally linking them to a step.
+   *
+   * <p>Pass {@code step = null} for standalone conditions (not linked to any step).
+   */
+  private void importConditionNodes(
+      JsonNode conditionsNode,
+      Workflow workflow,
+      @Nullable Step step,
+      Map<String, Step> stepIdMap) {
+    Map<String, Condition> conditionIdMap = new LinkedHashMap<>();
 
-      // Sort: roots first, then children (so parent is always created before child)
-      conditionNodes.sort(
-          (a, b) -> {
-            boolean aHasParent =
-                a.has("condition_parent_id") && !a.get("condition_parent_id").isNull();
-            boolean bHasParent =
-                b.has("condition_parent_id") && !b.get("condition_parent_id").isNull();
-            return Boolean.compare(aHasParent, bHasParent);
-          });
+    // Sort: roots first so parents are always created before their children
+    List<JsonNode> conditionNodes = new ArrayList<>();
+    conditionsNode.forEach(conditionNodes::add);
+    conditionNodes.sort(
+        (a, b) -> {
+          boolean aHasParent =
+              a.has("condition_parent_id") && !a.get("condition_parent_id").isNull();
+          boolean bHasParent =
+              b.has("condition_parent_id") && !b.get("condition_parent_id").isNull();
+          return Boolean.compare(aHasParent, bHasParent);
+        });
 
-      for (JsonNode condNode : conditionNodes) {
-        String originalCondId =
-            condNode.has("condition_id") ? condNode.get("condition_id").asText() : null;
-        String parentId =
-            condNode.has("condition_parent_id") && !condNode.get("condition_parent_id").isNull()
-                ? condNode.get("condition_parent_id").asText()
-                : null;
-        String stepFromId =
-            condNode.has("condition_step_from_id")
-                    && !condNode.get("condition_step_from_id").isNull()
-                ? condNode.get("condition_step_from_id").asText()
-                : null;
-        boolean isRoot =
-            condNode.has("condition_is_root") && condNode.get("condition_is_root").asBoolean();
+    for (JsonNode condNode : conditionNodes) {
+      String originalCondId =
+          condNode.has("condition_id") ? condNode.get("condition_id").asText() : null;
+      String parentId =
+          condNode.has("condition_parent_id") && !condNode.get("condition_parent_id").isNull()
+              ? condNode.get("condition_parent_id").asText()
+              : null;
+      String stepFromId =
+          condNode.has("condition_step_from_id") && !condNode.get("condition_step_from_id").isNull()
+              ? condNode.get("condition_step_from_id").asText()
+              : null;
+      boolean isRoot =
+          condNode.has("condition_is_root") && condNode.get("condition_is_root").asBoolean();
 
-        Step stepFrom = stepFromId != null ? stepIdMap.get(stepFromId) : null;
-        Condition parentCondition = parentId != null ? conditionIdMap.get(parentId) : null;
+      Step stepFrom = stepFromId != null ? stepIdMap.get(stepFromId) : null;
+      Condition parentCondition = parentId != null ? conditionIdMap.get(parentId) : null;
 
-        Condition condition =
-            Condition.builder()
-                .workflowId(workflow.getId())
-                .key(
-                    condNode.has("condition_key") && !condNode.get("condition_key").isNull()
-                        ? condNode.get("condition_key").asText()
-                        : null)
-                .keyType(
-                    condNode.has("condition_key_type")
-                            && !condNode.get("condition_key_type").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
-                        : null)
-                .keySubtype(
-                    condNode.has("condition_key_subtype")
-                            && !condNode.get("condition_key_subtype").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_subtype").asText(),
-                            ConditionKeySubtype.class)
-                        : null)
-                .type(
-                    condNode.has("condition_type") && !condNode.get("condition_type").isNull()
-                        ? ConditionType.valueOf(condNode.get("condition_type").asText())
-                        : null)
-                .mappingType(
-                    condNode.has("condition_mapping_type")
-                            && !condNode.get("condition_mapping_type").isNull()
-                        ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
-                        : null)
-                .value(
-                    condNode.has("condition_value") && !condNode.get("condition_value").isNull()
-                        ? condNode.get("condition_value").asText()
-                        : null)
-                .name(
-                    condNode.has("condition_name") && !condNode.get("condition_name").isNull()
-                        ? condNode.get("condition_name").asText()
-                        : null)
-                .description(
-                    condNode.has("condition_description")
-                            && !condNode.get("condition_description").isNull()
-                        ? condNode.get("condition_description").asText()
-                        : null)
-                .conditionParent(parentCondition)
-                .stepFrom(stepFrom)
-                .build();
+      Condition condition =
+          Condition.builder()
+              .workflowId(workflow.getId())
+              .key(
+                  condNode.has("condition_key") && !condNode.get("condition_key").isNull()
+                      ? condNode.get("condition_key").asText()
+                      : null)
+              .keyType(
+                  condNode.has("condition_key_type") && !condNode.get("condition_key_type").isNull()
+                      ? mapper.convertValue(
+                          condNode.get("condition_key_type").asText(), ConditionKeyType.class)
+                      : null)
+              .keySubtype(
+                  condNode.has("condition_key_subtype")
+                          && !condNode.get("condition_key_subtype").isNull()
+                      ? mapper.convertValue(
+                          condNode.get("condition_key_subtype").asText(), ConditionKeySubtype.class)
+                      : null)
+              .type(
+                  condNode.has("condition_type") && !condNode.get("condition_type").isNull()
+                      ? ConditionType.valueOf(condNode.get("condition_type").asText())
+                      : null)
+              .mappingType(
+                  condNode.has("condition_mapping_type")
+                          && !condNode.get("condition_mapping_type").isNull()
+                      ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
+                      : null)
+              .value(
+                  condNode.has("condition_value") && !condNode.get("condition_value").isNull()
+                      ? condNode.get("condition_value").asText()
+                      : null)
+              .name(
+                  condNode.has("condition_name") && !condNode.get("condition_name").isNull()
+                      ? condNode.get("condition_name").asText()
+                      : null)
+              .description(
+                  condNode.has("condition_description")
+                          && !condNode.get("condition_description").isNull()
+                      ? condNode.get("condition_description").asText()
+                      : null)
+              .conditionParent(parentCondition)
+              .stepFrom(stepFrom)
+              .build();
 
+      if (step != null) {
         chainingConditionService.linkToStep(condition, step, isRoot);
-        condition = chainingConditionService.saveCondition(condition);
-
-        if (originalCondId != null) {
-          conditionIdMap.put(originalCondId, condition);
-        }
       }
+      condition = chainingConditionService.saveCondition(condition);
+
+      if (originalCondId != null) conditionIdMap.put(originalCondId, condition);
     }
   }
 

@@ -148,6 +148,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final WorkflowExportInitializer workflowExportInitializer;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -679,7 +680,7 @@ public class ScenarioService {
         workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
     workflowOpt.ifPresent(
         workflow -> {
-          WorkflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
           scenarioFileExport.setWorkflow(workflow);
         });
     objectMapper.addMixIn(

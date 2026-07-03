@@ -35,6 +35,7 @@ public class ExportService {
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
   @Resource private WorkflowService workflowService;
+  @Resource private WorkflowExportInitializer workflowExportInitializer;
 
   public String getZipFileName(
       Exercise exercise, int exportOptionsMask, boolean isChaining, boolean isWithScopeDefinition) {
@@ -88,7 +89,7 @@ public class ExportService {
         workflowService.findWorkflowTemplateBySimulationIdForExport(exercise.getId());
     workflowOpt.ifPresent(
         workflow -> {
-          WorkflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
           importExport.setWorkflow(workflow);
         });
 
