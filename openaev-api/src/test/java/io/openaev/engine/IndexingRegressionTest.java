@@ -12,7 +12,6 @@ import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.scenario.ScenarioHandler;
 import io.openaev.engine.model.simulation.EsSimulation;
 import io.openaev.engine.model.simulation.SimulationHandler;
-import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
