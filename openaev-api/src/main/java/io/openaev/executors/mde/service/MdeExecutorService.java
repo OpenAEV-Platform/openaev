@@ -81,8 +81,31 @@ public class MdeExecutorService implements Runnable {
           "Running MDE executor endpoints gathering... executorId={}, deviceGroup={}",
           executor.getId(),
           config.getDeviceGroup());
+      String rawGroup = config.getDeviceGroup();
+      boolean noGroupConfigured = rawGroup == null || rawGroup.isBlank();
+
+      if (noGroupConfigured) {
+        // No device group configured — fetch all machines and register without asset group
+        List<MdeDevice> devices = client.devicesAll();
+        if (devices.isEmpty()) {
+          log.info("No active MDE devices found");
+          return;
+        }
+        log.info("MDE executor provisioning {} devices (no group filter)", devices.size());
+        endpointService.syncAgentsEndpoints(
+            toAgentEndpoint(devices),
+            agentService.getAgentsByExecutorIdAndTenantId(
+                executor.getId(), executor.getTenant().getId()),
+            executor.getTenant().getId());
+        return;
+      }
+
       List<String> deviceGroupIds =
-          Stream.of(config.getDeviceGroup().split(",")).map(String::trim).distinct().toList();
+          Stream.of(rawGroup.split(","))
+              .map(String::trim)
+              .filter(s -> !s.isBlank())
+              .distinct()
+              .toList();
       List<MdeDeviceGroup> allGroups = client.deviceGroups();
 
       for (String groupId : deviceGroupIds) {
