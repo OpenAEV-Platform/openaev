@@ -370,74 +370,105 @@ public interface InjectExpectationRepository
   @Query(
       value =
           """
-    WITH changed_expectations AS (
-        SELECT ie.inject_expectation_id FROM injects_expectations ie
-          WHERE ie.inject_expectation_updated_at > :from
-        UNION
-        SELECT ie.inject_expectation_id FROM injects_expectations ie
-          JOIN injects i ON i.inject_id = ie.inject_id
-          WHERE i.inject_updated_at > :from
-        UNION
-        SELECT ie.inject_expectation_id FROM injects_expectations ie
-          JOIN injects i ON i.inject_id = ie.inject_id
-          JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
-          WHERE ic.injector_contract_updated_at > :from
-    ),
-    inject_expectation_data AS (
-      SELECT
-      ie.inject_expectation_id,
-      ie.inject_expectation_name,
-      ie.inject_expectation_description,
-      ie.inject_expectation_type,
-      ie.inject_expectation_results,
-      ie.inject_expectation_score,
-      ie.inject_expectation_expected_score,
-      ie.inject_expiration_time,
-      ie.inject_expectation_group,
-      ie.inject_expectation_created_at,
-      GREATEST(ie.inject_expectation_updated_at, max(i.inject_updated_at), max(ic.injector_contract_updated_at)) as inject_expectation_updated_at,
-      ie.exercise_id,
-      ie.inject_id,
-      ie.user_id,
-      ie.team_id,
-      ie.agent_id,
-      ie.asset_id,
-      ie.asset_group_id,
-      i.tenant_id,
-      i.inject_title as inject_title,
-      MAX(ins.tracking_sent_date) AS tracking_sent_date,
-      array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
-      array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL ) AS domain_ids,
-      MAX(se.scenario_id) AS scenario_id,
-      array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
-      array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
+WITH changed_expectations AS (
+    SELECT ie.inject_expectation_id FROM injects_expectations ie
+      WHERE ie.inject_expectation_updated_at > :from
+    UNION
+    SELECT parent_ie.inject_expectation_id
+      FROM injects_expectations parent_ie
+      JOIN injects_expectations child_ie ON child_ie.inject_id = parent_ie.inject_id
+      WHERE parent_ie.agent_id IS NULL
+        AND child_ie.agent_id IS NOT NULL
+        AND child_ie.inject_expectation_updated_at > :from
+    UNION
+    SELECT ie.inject_expectation_id FROM injects_expectations ie
+      JOIN injects i ON i.inject_id = ie.inject_id
+      WHERE i.inject_updated_at > :from
+    UNION
+    SELECT ie.inject_expectation_id FROM injects_expectations ie
+      JOIN injects i ON i.inject_id = ie.inject_id
+      JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
+      WHERE ic.injector_contract_updated_at > :from),
+agent_security_platforms AS (
+    SELECT
+        child_ie.inject_id,
+        COALESCE(
+            array_agg(DISTINCT child_c.collector_security_platform::text)
+                FILTER ( WHERE child_c.collector_security_platform IS NOT NULL ),
+            ARRAY[]::text[]
+        )
+        || COALESCE(
+            array_agg(DISTINCT child_a.asset_id::text)
+                FILTER ( WHERE child_a.asset_id IS NOT NULL ),
+            ARRAY[]::text[]
+        ) AS security_platform_ids
+    FROM injects_expectations child_ie
+    LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
+    LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
+    LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
+    WHERE child_ie.agent_id IS NOT NULL
+    GROUP BY child_ie.inject_id),
+inject_expectation_data AS (
+    SELECT
+        ie.inject_expectation_id,
+        ie.inject_expectation_name,
+        ie.inject_expectation_description,
+        ie.inject_expectation_type,
+        ie.inject_expectation_results,
+        ie.inject_expectation_score,
+        ie.inject_expectation_expected_score,
+        ie.inject_expiration_time,
+        ie.inject_expectation_group,
+        ie.inject_expectation_created_at,
+        GREATEST(ie.inject_expectation_updated_at, MAX(i.inject_updated_at), MAX(ic.injector_contract_updated_at)) AS inject_expectation_updated_at,
+        ie.exercise_id,
+        ie.inject_id,
+        ie.user_id,
+        ie.team_id,
+        ie.agent_id,
+        ie.asset_id,
+        ie.asset_group_id,
+        i.tenant_id,
+        i.inject_title AS inject_title,
+        MAX(ins.tracking_sent_date) AS tracking_sent_date,
+        array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
+        array_agg(DISTINCT ic_d.domain_id) FILTER ( WHERE ic_d.domain_id IS NOT NULL ) AS domain_ids,
+        MAX(se.scenario_id) AS scenario_id,
+        COALESCE(
+            array_agg(DISTINCT c.collector_security_platform::text)
+                FILTER ( WHERE c.collector_security_platform IS NOT NULL ),
+            ARRAY[]::text[]
+        )
+        || COALESCE(
+            array_agg(DISTINCT a.asset_id::text)
+                FILTER ( WHERE a.asset_id IS NOT NULL ),
+            ARRAY[]::text[]
+        )
+        || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
     FROM injects_expectations ie
     JOIN changed_expectations ce ON ie.inject_expectation_id = ce.inject_expectation_id
-    LEFT JOIN exercises ex ON ex.exercise_id = ie.exercise_id
     LEFT JOIN injects i ON i.inject_id = ie.inject_id
     LEFT JOIN injects_statuses ins ON ins.status_inject = i.inject_id
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
     LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
-    LEFT JOIN users u ON u.user_id = ie.user_id
-    LEFT JOIN teams t ON t.team_id = ie.team_id
-    LEFT JOIN assets asset ON asset.asset_id = ie.asset_id
-    LEFT JOIN asset_groups ag ON ag.asset_group_id = ie.asset_group_id
     LEFT JOIN scenarios_exercises se ON se.exercise_id = ie.exercise_id
     LEFT JOIN LATERAL jsonb_array_elements(ie.inject_expectation_results::jsonb) AS r(elem) ON true
     LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
     LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
+    LEFT JOIN agent_security_platforms asp ON asp.inject_id = ie.inject_id
     GROUP BY
-      ie.inject_expectation_id,
-      ic.injector_contract_id,
-      i.inject_title,
-        i.tenant_id
-    )
-    SELECT * FROM inject_expectation_data ied
-    WHERE ied.agent_id IS NULL
-    ORDER BY ied.inject_expectation_updated_at ASC
-    LIMIT :limit
+        ie.inject_expectation_id,
+        ic.injector_contract_id,
+        i.inject_title,
+        i.tenant_id,
+        asp.security_platform_ids
+)
+SELECT * FROM inject_expectation_data ied
+WHERE ied.agent_id IS NULL
+ORDER BY ied.inject_expectation_updated_at ASC
+LIMIT :limit
     """,
       nativeQuery = true)
   List<RawInjectExpectationIndexing> findForIndexing(

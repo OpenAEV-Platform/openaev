@@ -54,6 +54,9 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
+  @Autowired private AgentComposer agentComposer;
+  @Autowired private CollectorComposer collectorComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
 
   /** A point in time used as the {@code :from} parameter — 1 hour ago. */
   private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
@@ -68,6 +71,9 @@ class IndexingRegressionTest extends IntegrationTest {
     injectComposer.reset();
     endpointComposer.reset();
     injectExpectationComposer.reset();
+    agentComposer.reset();
+    collectorComposer.reset();
+    securityPlatformComposer.reset();
   }
 
   // ---------------------------------------------------------------------------
@@ -281,6 +287,80 @@ class IndexingRegressionTest extends IntegrationTest {
 
       // Assert — expectation must appear because its linked inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(expectation.getId()));
+    }
+
+    @Test
+    @DisplayName(
+        "Agentless expectation keeps security platforms side from agent-level expectation results")
+    void
+        given_agentless_expectation_should_index_security_platforms_from_agent_expectation_results() {
+      // Arrange
+      SecurityPlatformComposer.Composer securityPlatform =
+          securityPlatformComposer
+              .forSecurityPlatform(SecurityPlatformFixture.createDefault("EDR test", "EDR"))
+              .persist();
+      Collector collector =
+          collectorComposer
+              .forCollector(CollectorFixture.createDefaultCollector("collector-edr"))
+              .withSecurityPlatform(securityPlatform)
+              .persist()
+              .get();
+
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+      endpointWrapper.persist();
+
+      InjectExpectation agentlessExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      InjectExpectationComposer.Composer agentlessExpectationWrapper =
+          injectExpectationComposer
+              .forExpectation(agentlessExpectation)
+              .withEndpoint(endpointWrapper);
+
+      Agent agent = AgentFixture.createDefaultAgentService();
+      agent.setAsset(endpointWrapper.get());
+      entityManager.persist(agent);
+      entityManager.flush();
+      Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
+
+      InjectExpectation agentExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      agentExpectation.setAgent(persistedAgent);
+      agentExpectation.setResults(
+          List.of(
+              InjectExpectationResult.builder()
+                  .sourceId(collector.getId())
+                  .sourceType("collector")
+                  .sourceName(collector.getName())
+                  .result("detected")
+                  .score(100.0)
+                  .build()));
+      InjectExpectationComposer.Composer agentExpectationWrapper =
+          injectExpectationComposer.forExpectation(agentExpectation).withEndpoint(endpointWrapper);
+
+      InjectComposer.Composer injectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withExpectation(agentlessExpectationWrapper)
+              .withExpectation(agentExpectationWrapper);
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(injectWrapper)
+          .persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
+
+      // Assert
+      assertThat(results)
+          .filteredOn(es -> es.getBase_id().equals(agentlessExpectation.getId()))
+          .singleElement()
+          .satisfies(
+              es ->
+                  assertThat(es.getBase_security_platforms_side())
+                      .contains(securityPlatform.get().getId()));
     }
   }
 }
