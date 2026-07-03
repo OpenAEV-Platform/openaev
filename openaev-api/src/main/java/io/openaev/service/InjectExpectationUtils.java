@@ -1,5 +1,11 @@
 package io.openaev.service;
 
+import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
+import static java.util.Optional.ofNullable;
+
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
@@ -7,7 +13,6 @@ import io.openaev.expectation.*;
 import io.openaev.utils.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,12 +21,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
-import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
-import static java.util.Optional.ofNullable;
 
 public class InjectExpectationUtils {
 

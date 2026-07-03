@@ -1,14 +1,14 @@
 package io.openaev.utils;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
-import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAgent;
 import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAsset;
+import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAgent;
 import static io.openaev.expectation.ManualExpectation.manualExpectationForAsset;
 import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
 import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAsset;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;

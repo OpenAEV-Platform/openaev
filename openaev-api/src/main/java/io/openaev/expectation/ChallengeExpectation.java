@@ -2,10 +2,9 @@ package io.openaev.expectation;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Challenge;
+import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.Objects;
 
 /**
  * Expectation that requires targets to complete a challenge.

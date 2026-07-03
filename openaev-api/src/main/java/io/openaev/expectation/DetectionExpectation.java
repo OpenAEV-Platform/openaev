@@ -1,16 +1,15 @@
 package io.openaev.expectation;
 
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
+
 import io.openaev.database.model.*;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.util.List;
 import java.util.Objects;
-
-import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Expectation that requires security tools to detect an injected activity.

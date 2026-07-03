@@ -1,16 +1,15 @@
 package io.openaev.utils;
 
+import static java.time.Instant.now;
+
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.validator.Ipv4OrIpv6Validator;
-
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static java.time.Instant.now;
 
 public class ExpectationSignatureUtils {
 

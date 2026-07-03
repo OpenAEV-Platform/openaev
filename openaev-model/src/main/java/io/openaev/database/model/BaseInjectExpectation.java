@@ -1,5 +1,8 @@
 package io.openaev.database.model;
 
+import static io.openaev.helper.InjectExpectationHelper.computeStatus;
+import static java.time.Instant.now;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -13,18 +16,14 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.*;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import static io.openaev.helper.InjectExpectationHelper.computeStatus;
-import static java.time.Instant.now;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.*;
 
 @Getter
 @Entity(name = "InjectExpectation")

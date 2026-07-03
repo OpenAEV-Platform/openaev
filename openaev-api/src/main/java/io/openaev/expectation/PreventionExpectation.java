@@ -1,5 +1,7 @@
 package io.openaev.expectation;
 
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION;
+
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
@@ -8,13 +10,10 @@ import io.openaev.database.model.InjectExpectationSignature;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.util.List;
 import java.util.Objects;
-
-import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Expectation that requires security controls to prevent an injected activity.

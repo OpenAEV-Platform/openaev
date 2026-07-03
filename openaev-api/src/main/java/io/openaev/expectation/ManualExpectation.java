@@ -1,18 +1,17 @@
 package io.openaev.expectation;
 
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
+
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Objects;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.Objects;
-
-import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 
 /**
  * Expectation that requires manual verification by an operator.
