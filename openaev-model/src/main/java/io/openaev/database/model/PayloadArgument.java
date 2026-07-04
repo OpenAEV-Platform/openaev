@@ -11,11 +11,7 @@ public class PayloadArgument {
 
   @NotNull
   @JsonProperty("type")
-  private ArgumentType type;
-
-  @JsonProperty("subtype")
-  @Schema(nullable = true, description = "Optional sub-field key for structured output types")
-  private ArgumentSubType subtype;
+  private PrimitiveType type;
 
   @NotBlank
   @JsonProperty("key")

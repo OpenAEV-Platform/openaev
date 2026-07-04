@@ -772,7 +772,7 @@ class WorkflowServiceTest {
       // Arrange
       Workflow workflow = buildTemplate(false);
       ScopeVariableInput input =
-          new ScopeVariableInput(null, "company_name", ArgumentType.Text, "Acme", "Company name");
+          new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", "Company name");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -783,7 +783,7 @@ class WorkflowServiceTest {
       assertEquals(1, result.getWorkflowScopeVariables().size());
       ScopeVariable created = result.getWorkflowScopeVariables().getFirst();
       assertEquals("company_name", created.getKey());
-      assertEquals(ArgumentType.Text, created.getType());
+      assertEquals(PrimitiveType.Text, created.getType());
       assertEquals("Acme", created.getValue());
       assertEquals("Company name", created.getDescription());
       assertSame(workflow, created.getWorkflow());
@@ -797,7 +797,7 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate(false);
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("old_key");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setValue("old_value");
       existing.setDescription("old desc");
       existing.setWorkflow(workflow);
@@ -807,7 +807,7 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeVariables().add(existing);
 
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "new_key", ArgumentType.IPv4, "10.0.0.1", "new desc");
+          new ScopeVariableInput(varId, "new_key", PrimitiveType.IPv4, "10.0.0.1", "new desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -819,7 +819,7 @@ class WorkflowServiceTest {
       ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
       assertSame(existing, updated);
       assertEquals("new_key", updated.getKey());
-      assertEquals(ArgumentType.IPv4, updated.getType());
+      assertEquals(PrimitiveType.IPv4, updated.getType());
       assertEquals("10.0.0.1", updated.getValue());
       assertEquals("new desc", updated.getDescription());
       verify(workflowRepository).save(workflow);
@@ -832,7 +832,7 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate();
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("to_remove");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setWorkflow(workflow);
       String varId = UUID.randomUUID().toString();
       org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
@@ -858,7 +858,7 @@ class WorkflowServiceTest {
       ScopeVariable existing = new ScopeVariable();
       String varId = UUID.randomUUID().toString();
       existing.setKey("my_key");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setValue("val");
       existing.setDescription("desc");
       existing.setWorkflow(workflow);
@@ -867,7 +867,7 @@ class WorkflowServiceTest {
 
       // Input is identical to existing variable
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "my_key", ArgumentType.Text, "val", "desc");
+          new ScopeVariableInput(varId, "my_key", PrimitiveType.Text, "val", "desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -912,7 +912,7 @@ class WorkflowServiceTest {
 
       ScopeVariable sourceVar = new ScopeVariable();
       sourceVar.setKey("env");
-      sourceVar.setType(ArgumentType.Text);
+      sourceVar.setType(PrimitiveType.Text);
       sourceVar.setValue("production");
       sourceVar.setDescription("Environment name");
       sourceVar.setWorkflow(template);
@@ -929,7 +929,7 @@ class WorkflowServiceTest {
       ScopeVariable copiedVar = run.getWorkflowScopeVariables().getFirst();
       assertNotSame(sourceVar, copiedVar);
       assertEquals("env", copiedVar.getKey());
-      assertEquals(ArgumentType.Text, copiedVar.getType());
+      assertEquals(PrimitiveType.Text, copiedVar.getType());
       assertEquals("production", copiedVar.getValue());
       assertSame(run, copiedVar.getWorkflow());
     }

@@ -1,16 +1,16 @@
 package io.openaev.service.chaining;
 
 import io.openaev.database.model.Condition;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 
 public class ConditionFactory {
 
   private static Condition build(
       String key,
       ConditionType type,
-      ConditionKeyType keyType,
+      PrimitiveType keyType,
       String value,
       MappingType mappingType) {
     return Condition.builder()
@@ -30,7 +30,7 @@ public class ConditionFactory {
     return build(
         source.getKey(),
         source.getType(),
-        ConditionKeyType.EXECUTION_TIME,
+        null,
         goal != null ? goal.toString() : null,
         source.getMappingType());
   }
@@ -39,11 +39,6 @@ public class ConditionFactory {
     if (stepTemplateId == null || stepTemplateId.isBlank()) {
       throw new IllegalArgumentException("stepTemplateId must not be null or blank");
     }
-    return build(
-        stepTemplateId,
-        ConditionType.DEPEND_ON,
-        ConditionKeyType.STEP_TEMPLATE_ID,
-        stepTemplateId,
-        null);
+    return build(stepTemplateId, ConditionType.DEPEND_ON, null, stepTemplateId, null);
   }
 }

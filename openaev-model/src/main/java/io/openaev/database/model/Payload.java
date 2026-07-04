@@ -289,7 +289,7 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonIgnore
   public List<String> getArgumentsDocumentsIds() {
     return this.getArguments().stream()
-        .filter(payloadArgument -> ArgumentType.Document == payloadArgument.getType())
+        .filter(payloadArgument -> PrimitiveType.Document == payloadArgument.getType())
         .map(PayloadArgument::getDefaultValue)
         .toList();
   }

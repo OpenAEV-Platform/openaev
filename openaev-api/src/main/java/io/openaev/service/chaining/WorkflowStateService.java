@@ -67,8 +67,8 @@ public class WorkflowStateService {
     if (parsedByType.isEmpty() || workflowRun.getWorkflowTemplate() == null) {
       return;
     }
-    // Collect the ConditionKeyTypes matching the output types produced
-    Set<ConditionKeyType> outputKeyTypes = resolveOutputKeyTypes(parsedByType.keySet());
+    // Collect primitive key types matching the produced output.
+    Set<PrimitiveType> outputKeyTypes = resolveOutputKeyTypes(parsedByType.keySet());
     if (outputKeyTypes.isEmpty()) {
       return;
     }
@@ -87,18 +87,18 @@ public class WorkflowStateService {
   }
 
   /**
-   * Converts output type name strings to their corresponding {@link ConditionKeyType} enum values,
+   * Converts output type name strings to their corresponding {@link PrimitiveType} enum values,
    * ignoring any names that don't match a known enum constant.
    *
    * @param typeNames set of output type name strings
-   * @return set of resolved ConditionKeyType values
+   * @return set of resolved PrimitiveType values
    */
-  private Set<ConditionKeyType> resolveOutputKeyTypes(Set<String> typeNames) {
+  private Set<PrimitiveType> resolveOutputKeyTypes(Set<String> typeNames) {
     return typeNames.stream()
         .map(
             typeName -> {
               try {
-                return ConditionKeyType.valueOf(typeName);
+                return PrimitiveType.valueOf(typeName);
               } catch (IllegalArgumentException e) {
                 return null;
               }
@@ -116,7 +116,7 @@ public class WorkflowStateService {
    * @return map of step templates to their matching filter conditions
    */
   private Map<Step, List<Condition>> findStepsWithMatchingConditions(
-      String workflowTemplateId, Set<ConditionKeyType> outputKeyTypes) {
+      String workflowTemplateId, Set<PrimitiveType> outputKeyTypes) {
 
     // Find filter conditions in the workflow template that match the output key types
     Set<ConditionType> excludedTypes = Set.of(ConditionType.MAPPER, ConditionType.DEPEND_ON);
@@ -244,7 +244,7 @@ public class WorkflowStateService {
    * @param entries state entries to populate
    * @param structuredOutput JSON object with field arrays
    * @param fieldTypeMap mapping from field name to contract output type
-   * @return map of contract output type names to extracted string values
+   * @return map of primitive type names to extracted string values
    */
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
@@ -260,8 +260,13 @@ public class WorkflowStateService {
               String nodeName = entry.getKey();
               JsonElement jsonValue = entry.getValue();
 
-              ContractOutputType type = fieldTypeMap.get(nodeName);
-              if (type == null || jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
+              ContractOutputType outputType = fieldTypeMap.get(nodeName);
+              if (outputType == null || jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
+                return;
+              }
+              ChainingOutputType chainingOutputType =
+                  ChainingOutputType.fromContractOutputType(outputType);
+              if (chainingOutputType.kind() == ChainingTypeKind.NON_CHAINABLE) {
                 return;
               }
 
@@ -269,9 +274,13 @@ public class WorkflowStateService {
 
               for (JsonElement element : array) {
                 if (element.isJsonPrimitive()) {
+                  if (chainingOutputType.kind() != ChainingTypeKind.PRIMITIVE) {
+                    continue;
+                  }
                   String val = element.getAsString();
-                  entries.getInputByKey(type.name()).getValues().add(val);
-                  parsedByType.computeIfAbsent(type.name(), k -> new ArrayList<>()).add(val);
+                  String key = chainingOutputType.primitiveType().name();
+                  entries.getInputByKey(key).getValues().add(val);
+                  parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
                 } else if (element.isJsonObject()) {
                   // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
                   saveCorrelatedObject(entries, element.getAsJsonObject());

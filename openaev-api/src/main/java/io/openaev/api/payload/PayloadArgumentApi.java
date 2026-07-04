@@ -3,10 +3,10 @@ package io.openaev.api.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
-import io.openaev.database.model.ArgumentType;
+import io.openaev.database.model.ChainingTypeRegistry;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.service.PreviewFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
-import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,21 +27,21 @@ public class PayloadArgumentApi {
   // -- READ --
 
   @Operation(
-      summary = "Get all argument types with their sub-types",
-      description = "Returns the argument types availables for payload arguments.")
+      summary = "Get all primitive chaining types",
+      description = "Returns primitive types available for payload arguments.")
   @Transactional
   @GetMapping("/types")
-  public ResponseEntity<List<ArgumentTypeOutput>> getArgumentTypes() {
-    List<ArgumentTypeOutput> types =
-        resolveAvailableTypes().stream().map(ArgumentTypeMapper::toOutput).toList();
+  public ResponseEntity<List<PrimitiveTypeOutput>> getArgumentTypes() {
+    List<PrimitiveTypeOutput> types =
+        resolveAvailableTypes().stream().map(PrimitiveTypeMapper::toOutput).toList();
 
     return ResponseEntity.ok(types);
   }
 
-  private List<ArgumentType> resolveAvailableTypes() {
+  private List<PrimitiveType> resolveAvailableTypes() {
     if (!previewFeatureService.isFeatureEnabled(INJECT_CHAINING)) {
-      return List.of(ArgumentType.Text, ArgumentType.Document);
+      return List.of(PrimitiveType.Text, PrimitiveType.Document);
     }
-    return Arrays.stream(ArgumentType.values()).toList();
+    return ChainingTypeRegistry.getPrimitiveTypes();
   }
 }

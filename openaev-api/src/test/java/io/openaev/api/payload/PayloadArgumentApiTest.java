@@ -4,7 +4,7 @@ import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import io.openaev.database.model.ArgumentType;
+import io.openaev.database.model.PrimitiveType;
 import io.openaev.service.PreviewFeatureService;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -29,12 +29,12 @@ class PayloadArgumentApiTest {
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(false);
 
     // Act
-    List<ArgumentTypeOutput> body = payloadArgumentApi.getArgumentTypes().getBody();
+    List<PrimitiveTypeOutput> body = payloadArgumentApi.getArgumentTypes().getBody();
     assertThat(body).isNotNull();
-    List<ArgumentType> types = body.stream().map(ArgumentTypeOutput::type).toList();
+    List<PrimitiveType> types = body.stream().map(PrimitiveTypeOutput::type).toList();
 
     // Assert
-    assertThat(types).containsExactly(ArgumentType.Text, ArgumentType.Document);
+    assertThat(types).containsExactly(PrimitiveType.Text, PrimitiveType.Document);
   }
 
   @Test
@@ -44,11 +44,13 @@ class PayloadArgumentApiTest {
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(true);
 
     // Act
-    List<ArgumentTypeOutput> body = payloadArgumentApi.getArgumentTypes().getBody();
+    List<PrimitiveTypeOutput> body = payloadArgumentApi.getArgumentTypes().getBody();
     assertThat(body).isNotNull();
-    List<ArgumentType> types = body.stream().map(ArgumentTypeOutput::type).toList();
+    List<PrimitiveType> types = body.stream().map(PrimitiveTypeOutput::type).toList();
 
     // Assert
-    assertThat(types).containsExactly(ArgumentType.values());
+    assertThat(types).containsExactly(PrimitiveType.values());
+    assertThat(types.stream().map(Enum::name).toList())
+        .doesNotContain("Credentials", "PortsScan", "Vulnerability");
   }
 }

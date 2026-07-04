@@ -148,7 +148,7 @@ public class V1_DataImporter implements Importer {
           }
           List<String> docArgKeys =
               contractOpt.get().getPayload().getArguments().stream()
-                  .filter(arg -> ArgumentType.Document == arg.getType())
+                  .filter(arg -> PrimitiveType.Document == arg.getType())
                   .map(PayloadArgument::getKey)
                   .toList();
           if (docArgKeys.isEmpty()) {

@@ -66,7 +66,6 @@ public class ConditionService {
             .description(input.getDescription())
             .type(rootInput.getType())
             .keyType(rootInput.getKeyType())
-            .keySubtype(rootInput.getKeySubtype())
             .mappingType(resolveMappingType(rootInput))
             .build();
 
@@ -248,7 +247,6 @@ public class ConditionService {
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
     root.setKeyType(rootInput.getKeyType());
-    root.setKeySubtype(rootInput.getKeySubtype());
     root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
@@ -1061,7 +1059,6 @@ public class ConditionService {
     resolved.setKeyType(template.getKeyType());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
-    resolved.setKeySubtype(template.getKeySubtype());
     resolved.setName(template.getName());
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
