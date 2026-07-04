@@ -112,45 +112,6 @@ public class PayloadUtils {
     if (arch == null) {
       throw new BadRequestException("Payload architecture cannot be null.");
     }
-
-    private static PrimitiveType resolvePrimitiveType(String typeLabel, String subtypeLabel) {
-      try {
-        return PrimitiveType.fromLabel(typeLabel);
-      } catch (IllegalArgumentException ignored) {
-        // Backward compatibility for legacy payload exports that used complex argument types
-        // with subtype selectors.
-      }
-
-      if (subtypeLabel == null || subtypeLabel.isBlank()) {
-        throw new BadRequestException("Unsupported payload argument type: " + typeLabel);
-      }
-
-      return switch (typeLabel) {
-        case "portscan" -> switch (subtypeLabel) {
-          case "host" -> PrimitiveType.Host;
-          case "port" -> PrimitiveType.Port;
-          case "service" -> PrimitiveType.Service;
-          default ->
-              throw new BadRequestException(
-                  "Unsupported portscan subtype for payload argument: " + subtypeLabel);
-        };
-        case "credentials" -> switch (subtypeLabel) {
-          case "username" -> PrimitiveType.Username;
-          case "password" -> PrimitiveType.Password;
-          default ->
-              throw new BadRequestException(
-                  "Unsupported credentials subtype for payload argument: " + subtypeLabel);
-        };
-        case "cve" -> switch (subtypeLabel) {
-          case "host" -> PrimitiveType.Host;
-          case "severity" -> PrimitiveType.Severity;
-          default ->
-              throw new BadRequestException(
-                  "Unsupported cve subtype for payload argument: " + subtypeLabel);
-        };
-        default -> throw new BadRequestException("Unsupported payload argument type: " + typeLabel);
-      };
-    }
     if (Executable.EXECUTABLE_TYPE.equals(payloadType) && (arch != x86_64 && arch != arm64)) {
       throw new BadRequestException("Executable architecture must be x86_64 or arm64.");
     }
@@ -259,5 +220,47 @@ public class PayloadUtils {
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, copyId);
     return target;
+  }
+
+  private static PrimitiveType resolvePrimitiveType(String typeLabel, String subtypeLabel) {
+    try {
+      return PrimitiveType.fromLabel(typeLabel);
+    } catch (IllegalArgumentException ignored) {
+      // Backward compatibility for legacy payload exports that used complex argument types
+      // with subtype selectors.
+    }
+
+    if (subtypeLabel == null || subtypeLabel.isBlank()) {
+      throw new BadRequestException("Unsupported payload argument type: " + typeLabel);
+    }
+
+    return switch (typeLabel) {
+      case "portscan" ->
+          switch (subtypeLabel) {
+            case "host" -> PrimitiveType.Host;
+            case "port" -> PrimitiveType.Port;
+            case "service" -> PrimitiveType.Service;
+            default ->
+                throw new BadRequestException(
+                    "Unsupported portscan subtype for payload argument: " + subtypeLabel);
+          };
+      case "credentials" ->
+          switch (subtypeLabel) {
+            case "username" -> PrimitiveType.Username;
+            case "password" -> PrimitiveType.Password;
+            default ->
+                throw new BadRequestException(
+                    "Unsupported credentials subtype for payload argument: " + subtypeLabel);
+          };
+      case "cve" ->
+          switch (subtypeLabel) {
+            case "host" -> PrimitiveType.Host;
+            case "severity" -> PrimitiveType.Severity;
+            default ->
+                throw new BadRequestException(
+                    "Unsupported cve subtype for payload argument: " + subtypeLabel);
+          };
+      default -> throw new BadRequestException("Unsupported payload argument type: " + typeLabel);
+    };
   }
 }
