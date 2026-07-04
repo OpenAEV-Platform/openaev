@@ -257,23 +257,8 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     if (injector == null) {
       return;
     }
-    // Enforce the core multi-tenancy invariant: the join row's tenant is taken from the injector,
-    // so
-    // linking an injector of a different tenant than this contract would silently write the row
-    // into
-    // the injector's tenant. Fail loud instead. Tenants may still be unset mid-construction (the id
-    // and tenant are assigned before linking), so only assert when both are known.
-    String contractTenantId = this.compositeId.getTenantId();
-    String injectorTenantId = injector.getTenantId();
-    if (contractTenantId != null
-        && injectorTenantId != null
-        && !contractTenantId.equals(injectorTenantId)) {
-      throw new IllegalArgumentException(
-          "Cannot link injector of tenant "
-              + injectorTenantId
-              + " to injector contract of tenant "
-              + contractTenantId);
-    }
+    // The cross-tenant invariant is enforced in the InjectorInjectorContract constructor below, the
+    // single point where every link is created (so linkContract is covered too).
     List<Injector> current = getInjectors();
     if (current.contains(injector)) {
       return;

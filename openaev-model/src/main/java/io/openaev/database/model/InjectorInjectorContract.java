@@ -81,12 +81,28 @@ public class InjectorInjectorContract {
   private InjectorContract injectorContract;
 
   public InjectorInjectorContract(Injector injector, InjectorContract injectorContract) {
+    // Enforce the multi-tenancy invariant at the single point where every link is created (used by
+    // both InjectorContract.addInjector and Injector.linkContract): the join row's tenant is taken
+    // from the injector, so linking a foreign-tenant injector would silently write the row into the
+    // wrong tenant. Fail loud instead. Tenants may still be unset mid-construction (the id and
+    // tenant are assigned before linking), so only assert when both are known.
+    String injectorTenantId = injector.getTenantId();
+    String contractTenantId =
+        injectorContract.getTenant() != null ? injectorContract.getTenant().getId() : null;
+    if (injectorTenantId != null
+        && contractTenantId != null
+        && !injectorTenantId.equals(contractTenantId)) {
+      throw new IllegalArgumentException(
+          "Cannot link injector of tenant "
+              + injectorTenantId
+              + " to injector contract of tenant "
+              + contractTenantId);
+    }
     this.injector = injector;
     this.injectorContract = injectorContract;
     this.injectorId = injector.getId();
     this.injectorContractId = injectorContract.getId();
-    this.tenantId =
-        injector.getTenantId() != null ? injector.getTenantId() : TenantContext.getCurrentTenant();
+    this.tenantId = injectorTenantId != null ? injectorTenantId : TenantContext.getCurrentTenant();
   }
 
   @Override

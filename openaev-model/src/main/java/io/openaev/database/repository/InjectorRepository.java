@@ -23,7 +23,8 @@ public interface InjectorRepository
 
   @Query(
       "SELECT l.injector FROM InjectorInjectorContract l "
-          + "WHERE l.injectorContractId = :contractId AND l.tenantId = :tenantId")
+          + "WHERE l.injectorContractId = :contractId AND l.tenantId = :tenantId "
+          + "ORDER BY l.injectorId")
   List<Injector> findInjectorsLinkedToContract(
       @Param("contractId") String contractId, @Param("tenantId") String tenantId);
 

@@ -252,14 +252,13 @@ public class InjectorContractService implements DependenciesManager {
       Contract source, Injector injector, boolean isPayloads) {
     InjectorContract target = new InjectorContract();
     target.setId(source.getId());
-    // Populate the inverse (non-owning) side only so getInjector() works
-    // for tenant resolution in applyBuiltinContractData.
-    // Do NOT call addInjector() here — it modifies the owning side (Injector.contracts)
-    // and causes auto-flush issues since this contract is still transient.
+    // Set the tenant before linking so the cross-tenant guard in the join-entity constructor is
+    // active here, then link the injector on the contract's owning side (injectorLinks). The join
+    // row is persisted by the cascade when the contract is saved.
+    target.setTenant(new Tenant(injector.getTenantId()));
     if (injector != null) {
       target.addInjector(injector);
     }
-    target.setTenant(new Tenant(injector.getTenantId()));
 
     applyBuiltinContractData(target, source, isPayloads, injector);
     return target;
