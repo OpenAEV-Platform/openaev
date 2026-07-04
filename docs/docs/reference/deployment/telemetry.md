@@ -29,12 +29,14 @@ The application collects statistical data related to its usage. Here is an exhau
 - The current platform version
 - The platform's unique identifier
 - The platform creation date
+- The deployment tags, when configured by the operator (`telemetry.tags` / `TELEMETRY_TAGS` - comma-separated freeform tags such as `saas,eu-west`, normalized to lowercase and sorted before export)
 - Enterprise Edition status (activated or not)
 - The total number of users
 - The total number of agents deployed
 - The total number of agents deployed as services or sessions
 - The total number of agents deployed for users or admins
 - The total number of agents deployed for each executor (e.g. Caldera, OpenAEV, CrowdStrike, Tanium, SentinelOne, etc.)
+- The deployed injectors, collectors, and executors broken down by catalog identity (the catalog connector slug for components deployed from the catalog, otherwise the component's own type identifier, with a managed/manual flag). No component configuration is ever collected.
 - The number of simulations, scenarios, and atomic tests created
 - The number of simulations or injects executed
 
