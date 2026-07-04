@@ -243,8 +243,7 @@ public class InjectorContractService implements DependenciesManager {
             ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
             : new HashSet<>());
     InjectorContract saved = injectorContractRepository.save(injectorContract);
-    // Link on the owning side now that the contract is persisted
-    injector.getContracts().add(saved);
+    // The join row is persisted through the contract's cascade over the join entity (addInjector)
     injectorRepository.save(injector);
     return saved;
   }
@@ -258,7 +257,7 @@ public class InjectorContractService implements DependenciesManager {
     // Do NOT call addInjector() here — it modifies the owning side (Injector.contracts)
     // and causes auto-flush issues since this contract is still transient.
     if (injector != null) {
-      target.getInjectors().add(injector);
+      target.addInjector(injector);
     }
     target.setTenant(new Tenant(injector.getTenantId()));
 
@@ -546,7 +545,7 @@ public class InjectorContractService implements DependenciesManager {
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
       Join<Payload, CollectorType> payloadCollectorTypeJoin,
-      Join<InjectorContract, Injector> injectorJoin,
+      Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
       Expression<String[]> injectorNamesExpression,
       Expression<String[]> injectorContractDomainsIdsExpression,
@@ -558,8 +557,8 @@ public class InjectorContractService implements DependenciesManager {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
     Join<Payload, CollectorType> payloadCollectorTypeJoin =
         payloadJoin.join("collectorType", JoinType.LEFT);
-    Join<InjectorContract, Injector> injectorContractInjectorJoin =
-        createLeftJoin(injectorContractRoot, "injectors");
+    Join<?, Injector> injectorContractInjectorJoin =
+        injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 
     Expression<String[]> injectorContractDomainsIdsExpression =
         createJoinArrayAggOnId(cb, injectorContractRoot, "domains");
@@ -849,6 +848,7 @@ public class InjectorContractService implements DependenciesManager {
   @Override
   public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
     try {
+      int copied = 0;
       for (String injectorContractId : listDefaultInjectorContract) {
         InjectorContractId compositeId =
             new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
@@ -858,8 +858,22 @@ public class InjectorContractService implements DependenciesManager {
         }
         entityManager.detach(source);
         source.setTenant(tenant);
+        // Provision the default contracts only. The injector rows for this tenant do not exist yet
+        // (built-in injectors register later, in the ManagerFactory round), so cascading the join
+        // rows here would reference a missing injector and violate the composite foreign key
+        // injectors_injector_contracts_injector_fk. Injector registration recreates the links
+        // FK-safely once its own injector row is in place. Replace the collection with a fresh list
+        // (instead of clearing it) so orphanRemoval does not schedule a delete of the detached
+        // default-tenant links loaded with the source.
+        source.setInjectorLinks(new ArrayList<>());
         entityManager.persist(source);
+        copied++;
       }
+      log.info(
+          "Provisioned {} default injector contract(s) for tenant {}; their join rows are "
+              + "(re)created during builtin injector registration",
+          copied,
+          tenant.getId());
     } catch (Exception e) {
       log.error(
           "Failed to create default injector contracts for tenant {}: {}",

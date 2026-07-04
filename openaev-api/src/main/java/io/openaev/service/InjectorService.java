@@ -250,9 +250,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
         injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
-        // Link managed instances returned by saveAll() — originals are detached after merge()
-        savedInjector.getContracts().addAll(injectorContracts);
-        // Persist the owning side to save join table entries
+        // Link managed instances returned by saveAll() via the join entity
+        injectorContracts.forEach(savedInjector::linkContract);
+        // Flush so the join rows are written before the dummy-injector cleanup
         injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
@@ -332,11 +332,14 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .toList();
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDeletes.toArray(new String[0]), injector.getTenantId());
-    // Remove deleted contracts from the owning-side collection to keep it in sync
-    injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
+    // Unlink deleted contracts via the join entity
+    injector.getContracts().stream()
+        .filter(c -> toDeletes.contains(c.getId()))
+        .toList()
+        .forEach(injector::unlinkContract);
     toCreates = fromIterable(injectorContractRepository.saveAll(toCreates));
-    // Link managed instances returned by saveAll() — originals are detached after merge()
-    injector.getContracts().addAll(toCreates);
+    // Link managed instances returned by saveAll() via the join entity
+    toCreates.forEach(injector::linkContract);
     return injectorRepository.save(injector);
   }
 
@@ -444,14 +447,26 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
+                // Reconcile every injector reference to the one instance managed by this session,
+                // so
+                // the flush does not see two Injector objects with the same (id, tenant). merge()
+                // returns the canonical managed instance (a re-fetch could add a second one).
+                Injector managedNewInjector =
+                    entityManager.contains(newInjector)
+                        ? newInjector
+                        : entityManager.merge(newInjector);
+                Injector managedDummy =
+                    entityManager.contains(dummyInjector)
+                        ? dummyInjector
+                        : entityManager.merge(dummyInjector);
                 List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
+                    injectorContractRepository.findByInjectorsContaining(managedDummy);
                 injectorContracts.forEach(
                     injectorContract -> {
-                      injectorContract.getInjectors().remove(dummyInjector);
-                      injectorContract.getInjectors().add(newInjector);
+                      injectorContract.removeInjector(managedDummy);
+                      injectorContract.addInjector(managedNewInjector);
                     });
-                injectorContractRepository.saveAll(injectorContracts);
+                entityManager.flush();
               }
               injectorRepository.deleteByIdAndTenantId(dummyInjector.getId(), tenantId);
             });
@@ -580,9 +595,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, savedInjector, isPayloads))
             .toList();
     injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
-    // Link managed contracts on the owning side so Hibernate populates the join table.
+    // Link managed contracts via the join entity so Hibernate populates the join table.
     // We MUST use the instances returned by saveAll() — the originals are detached after merge().
-    savedInjector.getContracts().addAll(injectorContracts);
+    injectorContracts.forEach(savedInjector::linkContract);
     // Flush now so that all inserts are visible before any subsequent query triggers auto-flush
     // (e.g. deleteDummyInjectorIfItExists), which would otherwise fail with
     // TransientObjectException.

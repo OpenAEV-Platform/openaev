@@ -417,16 +417,16 @@ public class InjectorApiTest extends IntegrationTest {
 
       // Create a dummy injector (simulating what createOrGetDummyInjector does)
       Injector dummyInjector = createInjector(dummyId, "Dummy " + injectorType, dummyType);
-      injectorRepository.save(dummyInjector);
+      dummyInjector = injectorRepository.save(dummyInjector);
 
       // Create an injector contract linked to the dummy injector
       InjectorContract dummyContract = InjectorContractFixture.createDefaultInjectorContract();
-      dummyContract.getInjectors().clear();
+      dummyContract.clearInjectors();
       dummyContract.addInjector(dummyInjector);
       em.persist(dummyContract);
       injectorContractRepository.save(dummyContract);
-      dummyInjector.getContracts().add(dummyContract);
-      injectorRepository.save(dummyInjector);
+      dummyInjector.linkContract(dummyContract);
+      dummyInjector = injectorRepository.save(dummyInjector);
       em.flush();
 
       String dummyContractId = dummyContract.getId();

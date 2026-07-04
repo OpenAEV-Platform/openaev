@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Filter;
@@ -92,17 +93,9 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase {
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
 
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "injectors_injector_contracts",
-      joinColumns = @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
-      inverseJoinColumns = {
-        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
-        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
-      })
-  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+  @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
   @JsonIgnore
-  private Set<InjectorContract> contracts = new HashSet<>();
+  private Set<InjectorInjectorContract> injectorContractLinks = new HashSet<>();
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
@@ -127,16 +120,28 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase {
     return id.equals(base.getId());
   }
 
+  @JsonIgnore
+  public Set<InjectorContract> getContracts() {
+    return this.injectorContractLinks.stream()
+        .map(InjectorInjectorContract::getInjectorContract)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
+  // All link writes go through the owning side (InjectorContract.injectorLinks, which carries the
+  // cascade). This side stays a read-only inverse loaded by Hibernate, so merging an injector never
+  // reconciles an unsaved link and never fails with "Unable to find InjectorInjectorContract".
   public void linkContract(InjectorContract contract) {
-    this.contracts.add(contract);
-    if (!contract.getInjectors().contains(this)) {
-      contract.getInjectors().add(this);
+    boolean alreadyLinked =
+        contract.getInjectorLinks().stream()
+            .anyMatch(l -> Objects.equals(l.getInjectorId(), this.id));
+    if (!alreadyLinked) {
+      contract.getInjectorLinks().add(new InjectorInjectorContract(this, contract));
     }
   }
 
   public void unlinkContract(InjectorContract contract) {
-    this.contracts.remove(contract);
-    contract.getInjectors().remove(this);
+    contract.getInjectorLinks().removeIf(l -> Objects.equals(l.getInjectorId(), this.id));
   }
 
   @Override

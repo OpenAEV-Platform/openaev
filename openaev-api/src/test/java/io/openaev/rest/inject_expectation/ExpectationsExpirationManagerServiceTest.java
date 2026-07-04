@@ -74,7 +74,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     }
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --
