@@ -88,7 +88,12 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         inject_assets: (data?.inject_assets as string[]) ?? [],
         inject_asset_objects: [],
         step_condition_ids: s.step_condition_ids ?? [],
-        step_conditions: (s.step_mapper_conditions ?? []).map(mc => ({
+        step_conditions: (((s as unknown as Record<string, unknown>).step_mapper_conditions ?? []) as Array<{
+          condition_key_type?: string;
+          condition_key?: string;
+          condition_value?: string;
+          condition_mapping_type?: string;
+        }>).map(mc => ({
           condition_key_type: mc.condition_key_type ?? 'text',
           condition_key: mc.condition_key ?? '',
           condition_value: mc.condition_value,

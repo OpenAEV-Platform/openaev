@@ -1761,41 +1761,27 @@ export interface ConditionCreateInput {
   condition_case_sensitive?: boolean;
   /** Property to be mapped */
   condition_key?: string;
-  /** Condition key subtype */
-  condition_key_subtype?:
-    | "port"
-    | "ipv4"
-    | "ipv6"
-    | "username"
-    | "password"
-    | "service"
-    | "host";
   /** Path to the value in the output of the step from */
   condition_key_type?:
-    | "execution_time"
-    | "step_template_id"
     | "text"
-    | "status"
     | "number"
-    | "port"
-    | "portscan"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "port"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset";
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
+    | "document"
+    | "targeted-asset";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -1828,39 +1814,26 @@ export interface ConditionOutput {
   condition_case_sensitive?: boolean;
   condition_id?: string;
   condition_key?: string;
-  condition_key_subtype?:
-    | "port"
+  condition_key_type?:
+    | "text"
+    | "number"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
+    | "port"
     | "username"
     | "password"
+    | "hash"
     | "service"
-    | "host";
-  condition_key_type?:
-    | "execution_time"
-    | "step_template_id"
-    | "text"
-    | "status"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
     | "cve"
-    | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset";
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
+    | "document"
+    | "targeted-asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -6145,30 +6118,25 @@ export interface LoginUserInput {
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_type?:
-    | "execution_time"
-    | "step_template_id"
     | "text"
-    | "status"
     | "number"
-    | "port"
-    | "portscan"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "port"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset";
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
+    | "document"
+    | "targeted-asset";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -7156,36 +7124,24 @@ export interface PayloadArgument {
   /** @minLength 1 */
   key: string;
   separator?: string | null;
-  /** Optional sub-field key for structured output types */
-  subtype?:
-    | "host"
-    | "port"
-    | "service"
-    | "username"
-    | "password"
-    | "severity"
-    | "domain";
   type:
     | "text"
     | "number"
-    | "port"
-    | "portscan"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "port"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
     | "document"
     | "targeted-asset";
 }
@@ -7805,6 +7761,29 @@ export interface PolicyInput {
   platform_consent_message?: string;
   /** Message to show at login */
   platform_login_message?: string;
+}
+
+export interface PrimitiveTypeOutput {
+  argument_type:
+    | "text"
+    | "number"
+    | "host"
+    | "hostname"
+    | "domain"
+    | "ipv4"
+    | "ipv6"
+    | "port"
+    | "username"
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
+    | "document"
+    | "targeted-asset";
 }
 
 export interface PropertySchemaDTO {
@@ -8572,24 +8551,21 @@ export interface ScopeVariableInput {
   scope_variable_type:
     | "text"
     | "number"
-    | "port"
-    | "portscan"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "port"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
     | "document"
     | "targeted-asset";
   /**
@@ -8611,24 +8587,21 @@ export interface ScopeVariableOutput {
   scope_variable_type?:
     | "text"
     | "number"
-    | "port"
-    | "portscan"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "port"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
     | "document"
     | "targeted-asset";
   /** Value of the variable. */
@@ -9071,30 +9044,25 @@ export interface StepInput {
 export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
-    | "execution_time"
-    | "step_template_id"
     | "text"
-    | "status"
     | "number"
-    | "port"
-    | "portscan"
+    | "host"
+    | "hostname"
+    | "domain"
     | "ipv4"
     | "ipv6"
-    | "credentials"
-    | "cve"
+    | "port"
     | "username"
-    | "share"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "asset"
+    | "password"
+    | "hash"
+    | "service"
+    | "cve"
+    | "severity"
+    | "asset_id"
+    | "share_name"
+    | "permissions"
+    | "document"
+    | "targeted-asset"
   )[];
   /** @format date-time */
   step_created_at?: string;

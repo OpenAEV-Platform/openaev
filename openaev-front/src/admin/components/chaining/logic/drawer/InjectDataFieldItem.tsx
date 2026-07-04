@@ -45,25 +45,14 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   onToggleLocalScope,
 }) => {
   const { t } = useFormatter();
-  const { subtypesByType } = useArgumentTypes();
+  const { argumentTypes } = useArgumentTypes();
 
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
-  // Build flattened menu items: types with subtypes become "type.subtype", others stay as-is
-  const menuItems = useMemo(() => {
-    const items: string[] = [];
-    for (const keyType of CONDITION_KEY_TYPES) {
-      const subtypes = subtypesByType[keyType];
-      if (subtypes && subtypes.length > 0) {
-        for (const sub of subtypes) {
-          items.push(`${keyType}.${sub}`);
-        }
-      } else {
-        items.push(keyType);
-      }
-    }
-    return items;
-  }, [subtypesByType]);
+  const menuItems = useMemo(
+    () => (argumentTypes.length > 0 ? argumentTypes.map(type => type.argument_type) : ['text']),
+    [argumentTypes],
+  );
 
   const handleCloseMenu = () => {
     setMenuAnchor(null);

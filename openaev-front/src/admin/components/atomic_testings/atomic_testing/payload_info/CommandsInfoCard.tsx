@@ -16,14 +16,12 @@ import type {
   StatusPayloadOutput,
 } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
-import { isFeatureEnabled } from '../../../../../utils/utils';
 
 interface Props { payloadOutput?: StatusPayloadOutput }
 
 const CommandsInfoCard = ({ payloadOutput }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const headerCellSx = {
     fontWeight: 700,

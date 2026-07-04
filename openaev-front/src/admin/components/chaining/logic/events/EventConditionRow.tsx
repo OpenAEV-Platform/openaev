@@ -19,11 +19,11 @@ import { type FunctionComponent } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import {
   CASE_SENSITIVE_OPERATORS,
   COMPARISON_OPERATORS,
   type ComparisonOperator,
-  CONDITION_KEY_TYPES,
   type ConditionKeyType,
   type EventCondition,
   formatConditionKeyLabel,
@@ -48,6 +48,10 @@ const EventConditionRow: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { argumentTypes } = useArgumentTypes();
+  const conditionKeyTypes = argumentTypes.length > 0
+    ? argumentTypes.map(type => type.argument_type)
+    : ['text'];
   const { providers } = useOutputProviders();
 
   /**
@@ -154,7 +158,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           onChange={handleFieldChange}
           renderValue={val => formatConditionKeyLabel(val)}
         >
-          {CONDITION_KEY_TYPES.map((key) => {
+          {conditionKeyTypes.map((key) => {
             const keyProviders = providers[key] ?? [];
             return (
               <MenuItem

@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import fetchArgumentTypes from '../../../../actions/payloads/payload-argument-actions';
-import { type ArgumentTypeOutput } from '../../../../utils/api-types';
+import { type PrimitiveTypeOutput } from '../../../../utils/api-types';
 
 type UseArgumentTypesResult = {
-  argumentTypes: ArgumentTypeOutput[];
-  subtypesByType: Record<string, NonNullable<ArgumentTypeOutput['argument_subtypes']>>;
-  structuredTypes: Set<ArgumentTypeOutput['argument_type']>;
+  argumentTypes: PrimitiveTypeOutput[];
   argumentWithDefaultValueTypes: Set<string>;
   isLoading: boolean;
   error: Error | null;
 };
 
 const useArgumentTypes = (): UseArgumentTypesResult => {
-  const [argumentTypes, setArgumentTypes] = useState<ArgumentTypeOutput[]>([]);
+  const [argumentTypes, setArgumentTypes] = useState<PrimitiveTypeOutput[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -34,26 +32,6 @@ const useArgumentTypes = (): UseArgumentTypesResult => {
     void loadArgumentTypes();
   }, []);
 
-  const subtypesByType = useMemo(() => {
-    return argumentTypes.reduce<
-      Record<string, NonNullable<ArgumentTypeOutput['argument_subtypes']>>
-    >((acc, argumentType) => {
-      const subTypes = argumentType.argument_subtypes ?? [];
-      if (subTypes.length > 0) {
-        acc[argumentType.argument_type] = subTypes;
-      }
-      return acc;
-    }, {});
-  }, [argumentTypes]);
-
-  const structuredTypes = useMemo(() => {
-    return new Set(
-      argumentTypes
-        .filter(argumentType => (argumentType.argument_subtypes ?? []).length > 0)
-        .map(argumentType => argumentType.argument_type),
-    );
-  }, [argumentTypes]);
-
   const argumentWithDefaultValueTypes = useMemo(() => {
     return new Set(
       argumentTypes
@@ -64,8 +42,6 @@ const useArgumentTypes = (): UseArgumentTypesResult => {
 
   return {
     argumentTypes,
-    subtypesByType,
-    structuredTypes,
     argumentWithDefaultValueTypes,
     isLoading,
     error,
