@@ -16,8 +16,9 @@ import org.springframework.stereotype.Component;
  * <p>None of the FK constraints that reference {@code agents.agent_id} declare {@code ON UPDATE
  * CASCADE}, and most of them are non-deferrable, so neither the parent PK nor the child references
  * can be updated first without an immediate FK violation (see #6559). The migration therefore
- * temporarily marks the non-deferrable constraints as {@code DEFERRABLE}, defers all FK checks to
- * the end of the remap, and restores {@code NOT DEFERRABLE} once every table is consistent:
+ * temporarily marks the non-deferrable constraints as {@code DEFERRABLE}, defers the checks of
+ * exactly these constraints to the end of the remap, and restores {@code NOT DEFERRABLE} once every
+ * table is consistent:
  *
  * <ol>
  *   <li>{@code injects_expectations.agent_id} ({@code fk_agent})
@@ -29,6 +30,15 @@ import org.springframework.stereotype.Component;
  *
  * <p>Everything runs inside the single Flyway migration transaction, so a failure at any point
  * rolls back both the data changes and the constraint alterations.
+ *
+ * <p>Remapped agent ids are also embedded in Elasticsearch {@code vulnerable-endpoint} documents
+ * ({@code base_agents_side}); the incremental indexer cursors on asset/exercise timestamps that
+ * this migration does not touch, so it forces a full reindex of that type (same pattern as V4_08).
+ *
+ * <p>Note on in-place edit of this migration (shipped broken in 2.260703.2): Java-based migrations
+ * have no checksum ({@code BaseJavaMigration#getChecksum()} returns {@code null}), so environments
+ * where the original version already succeeded (only possible without child rows, where both
+ * versions are semantically identical) validate fine and are not re-run.
  */
 @Component
 public class V6_20260701180000000__Reassign_agent_ids_for_external_executors
@@ -40,12 +50,15 @@ public class V6_20260701180000000__Reassign_agent_ids_for_external_executors
 
       // Allow the FK checks to be deferred until all parent and child rows are
       // updated. ALTER CONSTRAINT only touches catalog metadata (no revalidation).
+      // Only the constraints involved in the remap are deferred, to stay
+      // insensitive to unrelated deferrable constraints in the same transaction.
       stmt.execute(
           """
           ALTER TABLE injects_expectations ALTER CONSTRAINT fk_agent DEFERRABLE INITIALLY IMMEDIATE;
           ALTER TABLE asset_agent_jobs ALTER CONSTRAINT asset_agent_agent_fk DEFERRABLE INITIALLY IMMEDIATE;
           ALTER TABLE agents ALTER CONSTRAINT agent_parent_id_fk DEFERRABLE INITIALLY IMMEDIATE;
-          SET CONSTRAINTS ALL DEFERRED;
+          SET CONSTRAINTS fk_agent, asset_agent_agent_fk, agent_parent_id_fk,
+                          execution_traces_execution_agent_id_fkey DEFERRED;
           """);
 
       // Build a temporary mapping of old_id -> new_id for affected agents.
@@ -105,15 +118,22 @@ public class V6_20260701180000000__Reassign_agent_ids_for_external_executors
 
       stmt.execute("DROP TABLE agent_id_remap");
 
-      // Validate all deferred FK checks now, then restore the original
+      // Validate the deferred FK checks now, then restore the original
       // non-deferrable definitions.
       stmt.execute(
           """
-          SET CONSTRAINTS ALL IMMEDIATE;
+          SET CONSTRAINTS fk_agent, asset_agent_agent_fk, agent_parent_id_fk,
+                          execution_traces_execution_agent_id_fkey IMMEDIATE;
           ALTER TABLE injects_expectations ALTER CONSTRAINT fk_agent NOT DEFERRABLE;
           ALTER TABLE asset_agent_jobs ALTER CONSTRAINT asset_agent_agent_fk NOT DEFERRABLE;
           ALTER TABLE agents ALTER CONSTRAINT agent_parent_id_fk NOT DEFERRABLE;
           """);
+
+      // Agent ids are denormalized into ES vulnerable-endpoint documents
+      // (base_agents_side); force a full reindex of that type since the
+      // incremental indexer would not pick up the PK change.
+      stmt.execute(
+          "DELETE FROM indexing_status WHERE indexing_status_type = 'vulnerable-endpoint'");
     }
   }
 }
