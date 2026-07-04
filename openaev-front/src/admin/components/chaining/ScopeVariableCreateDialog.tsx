@@ -16,6 +16,7 @@ import SelectFieldController from '../../../components/fields/SelectFieldControl
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
 import type { ScopeVariableInput } from '../../../utils/api-types';
+import { formatPrimitiveTypeLabel } from '../../../utils/String';
 import { zodImplement } from '../../../utils/Zod';
 import useArgumentTypes from '../threat_arsenal/form/useArgumentTypes';
 
@@ -32,11 +33,10 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
   const theme = useTheme();
 
   const { argumentTypes } = useArgumentTypes();
-
   const typeItems = useMemo(
     () => argumentTypes.map(at => ({
       value: at.argument_type,
-      label: t(at.argument_type.charAt(0).toUpperCase() + at.argument_type.slice(1)),
+      label: t(formatPrimitiveTypeLabel(at.argument_type)),
     })),
     [argumentTypes, t],
   );

@@ -45,5 +45,6 @@ class ThreatArsenalArgumentTypesApiTest {
     List<PrimitiveType> types = body.stream().map(PrimitiveTypeOutput::type).toList();
 
     assertThat(types).containsExactly(PrimitiveType.values());
+    assertThat(types.stream().map(type -> type.label).toList()).doesNotContain("asset_id");
   }
 }

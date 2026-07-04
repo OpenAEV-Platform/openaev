@@ -46,9 +46,6 @@ public enum PrimitiveType {
   @JsonProperty("severity")
   Severity("severity"),
 
-  @JsonProperty("asset_id")
-  AssetId("asset_id"),
-
   @JsonProperty("share_name")
   ShareName("share_name"),
 

@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,8 @@ class ChainingTypeRegistryTest {
   @Test
   @DisplayName("Should expose primitive catalog used by arguments and conditions")
   void given_primitiveCatalog_should_includeConfiguredPrimitiveTypes() {
-    assertThat(ChainingTypeRegistry.getPrimitiveTypes())
+    var primitiveTypes = ChainingTypeRegistry.getPrimitiveTypes();
+    assertThat(primitiveTypes)
         .contains(
             PrimitiveType.Host,
             PrimitiveType.Domain,
@@ -27,6 +29,7 @@ class ChainingTypeRegistryTest {
             PrimitiveType.IPv6,
             PrimitiveType.TargetedAsset,
             PrimitiveType.Document);
+    assertThat(primitiveTypes.stream().map(type -> type.label).toList()).doesNotContain("asset_id");
   }
 
   @Test
@@ -35,5 +38,7 @@ class ChainingTypeRegistryTest {
     assertThat(PrimitiveType.fromLabel("ipv4")).isEqualTo(PrimitiveType.IPv4);
     assertThat(PrimitiveType.fromLabel("document")).isEqualTo(PrimitiveType.Document);
     assertThat(PrimitiveType.fromLabel("targeted-asset")).isEqualTo(PrimitiveType.TargetedAsset);
+    assertThatThrownBy(() -> PrimitiveType.fromLabel("asset_id"))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

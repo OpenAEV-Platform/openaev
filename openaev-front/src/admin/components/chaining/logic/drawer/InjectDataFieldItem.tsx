@@ -13,6 +13,7 @@ import {
 import { type FunctionComponent, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import { CONDITION_KEY_TYPES } from '../events/event-types';
 
@@ -101,7 +102,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             <Typography variant="body2" color="text.secondary">-</Typography>
             <LinkOutlined fontSize="small" color="primary" />
             <Typography variant="body2" color="primary">
-              {link.outputType}
+              {t(formatPrimitiveTypeLabel(link.outputType))}
             </Typography>
           </Box>
 
@@ -179,7 +180,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
             sx={{ gap: 1 }}
           >
             <LinkOutlined fontSize="small" color="primary" />
-            {item}
+            {t(formatPrimitiveTypeLabel(item))}
           </MenuItem>
         ))}
       </Menu>

@@ -22,7 +22,7 @@ import {
   type PayloadArgument,
   type PayloadPrerequisite,
 } from '../../../utils/api-types';
-import { emptyFilled } from '../../../utils/String';
+import { emptyFilled, formatPrimitiveTypeLabel } from '../../../utils/String';
 import DocumentType from '../components/documents/DocumentType';
 
 const useStyles = makeStyles()(theme => ({
@@ -112,7 +112,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
       .map(id => attackPatternsMap[id])
       .filter(Boolean) as AttackPattern[];
   }, [attackPatternsMap, attackPatternIds]);
-
   return (
     <div className={classes.payloadContainer}>
       <Typography variant="h2" gutterBottom>{selectedPayload?.payload_name}</Typography>
@@ -334,7 +333,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
                           <Fragment key={argument.key}>
                             <TableRow>
                               <TableCell>
-                                {argument.type}
+                                {formatPrimitiveTypeLabel(argument.type)}
                               </TableCell>
                               <TableCell>
                                 {argument.key}

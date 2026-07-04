@@ -3,7 +3,7 @@ export type ConditionKeyType = string;
 
 /** 'admin_username' → 'Admin username' */
 export const formatConditionKeyLabel = (value: string): string => value
-  .replace(/_/g, ' ')
+  .replace(/[_-]/g, ' ')
   .replace(/^./, c => c.toUpperCase());
 
 // -- Operators available for conditions --

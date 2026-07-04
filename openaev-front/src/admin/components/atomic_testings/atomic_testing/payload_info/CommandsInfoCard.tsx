@@ -15,7 +15,7 @@ import type {
   PayloadPrerequisite,
   StatusPayloadOutput,
 } from '../../../../../utils/api-types';
-import { emptyFilled } from '../../../../../utils/String';
+import { emptyFilled, formatPrimitiveTypeLabel } from '../../../../../utils/String';
 
 interface Props { payloadOutput?: StatusPayloadOutput }
 
@@ -38,7 +38,6 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
       </Section>
     );
   }
-
   return (
     <Section title={t('Commands')} icon={<TerminalOutlined fontSize="small" />}>
       <div style={{
@@ -131,7 +130,7 @@ const CommandsInfoCard = ({ payloadOutput }: Props) => {
                 <TableBody>
                   {payloadOutput.payload_arguments?.map((argument: PayloadArgument) => (
                     <TableRow key={argument.key}>
-                      <TableCell><KeyValueChip label="" value={argument.type} /></TableCell>
+                      <TableCell><KeyValueChip label="" value={formatPrimitiveTypeLabel(argument.type)} /></TableCell>
                       {isChainingEnabled && <TableCell>{argument.subtype ?? '-'}</TableCell>}
                       <TableCell sx={{
                         fontFamily: 'Consolas, monaco, monospace',

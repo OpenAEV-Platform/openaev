@@ -9,6 +9,7 @@ import SeparatorFieldController from '../../../../components/fields/SeparatorFie
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import type { PayloadArgument } from '../../../../utils/api-types';
+import { formatPrimitiveTypeLabel } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import useArgumentTypes from './useArgumentTypes';
 
@@ -17,6 +18,7 @@ interface Props {
   canSelectTargetAsset: boolean;
   onArgumentRemoveClick: () => void;
 }
+
 const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentRemoveClick }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -41,7 +43,7 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
 
   const toItem = (at: { argument_type: string }) => ({
     value: at.argument_type,
-    label: t(at.argument_type.charAt(0).toUpperCase() + at.argument_type.slice(1)),
+    label: t(formatPrimitiveTypeLabel(at.argument_type)),
   });
 
   const argumentTypeItems: {
@@ -96,7 +98,7 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
         required
       />
       <TextFieldController name={`${argumentName}.key` as const} label={t('Key')} required />
-      {argumentWithDefaultValueTypes.has(argumentType) && argumentType !== 'document' && (
+      {argumentWithDefaultValueTypes.has(argumentType) && argumentType !== 'document' && argumentType !== 'targeted-asset' && (
         <TextFieldController
           name={`${argumentName}.default_value` as const}
           label={t('Default Value')}
