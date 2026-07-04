@@ -1,56 +1,77 @@
 package io.openaev.utils.fixtures.composers;
 
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.TableTopInjectExpectation;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class InjectExpectationComposer extends ComposerBase<InjectExpectation> {
+public class InjectExpectationComposer extends ComposerBase<BaseInjectExpectation> {
   @Autowired private InjectExpectationRepository injectExpectationRepository;
 
-  public class Composer extends InnerComposerBase<InjectExpectation> {
-    private final InjectExpectation injectExpectation;
+  public class Composer extends InnerComposerBase<BaseInjectExpectation> {
+    private final BaseInjectExpectation baseInjectExpectation;
     private Optional<AssetGroupComposer.Composer> assetGroupComposer = Optional.empty();
     private Optional<TeamComposer.Composer> teamComposer = Optional.empty();
     private Optional<UserComposer.Composer> userComposer = Optional.empty();
     private Optional<EndpointComposer.Composer> endpointComposer = Optional.empty();
     private Optional<AgentComposer.Composer> agentComposer = Optional.empty();
 
-    public Composer(InjectExpectation injectExpectation) {
-      this.injectExpectation = injectExpectation;
+    public Composer(BaseInjectExpectation baseInjectExpectation) {
+      this.baseInjectExpectation = baseInjectExpectation;
     }
 
     public Composer withTeam(TeamComposer.Composer teamComposer) {
       this.teamComposer = Optional.of(teamComposer);
-      this.injectExpectation.setTeam(teamComposer.get());
+      asTableTop().setTeam(teamComposer.get());
       return this;
     }
 
     public Composer withUser(UserComposer.Composer userComposer) {
       this.userComposer = Optional.of(userComposer);
-      this.injectExpectation.setUser(userComposer.get());
+      asTableTop().setUser(userComposer.get());
       return this;
     }
 
     public Composer withAssetGroup(AssetGroupComposer.Composer assetGroupComposer) {
       this.assetGroupComposer = Optional.of(assetGroupComposer);
-      this.injectExpectation.setAssetGroup(assetGroupComposer.get());
+      asTechnical().setAssetGroup(assetGroupComposer.get());
       return this;
     }
 
     public Composer withEndpoint(EndpointComposer.Composer endpointComposer) {
       this.endpointComposer = Optional.of(endpointComposer);
-      this.injectExpectation.setAsset(endpointComposer.get());
+      asTechnical().setAsset(endpointComposer.get());
       return this;
     }
 
     public Composer withAgent(AgentComposer.Composer agentComposer) {
       this.agentComposer = Optional.of(agentComposer);
-      this.injectExpectation.setAgent(agentComposer.get());
-      this.injectExpectation.setAsset(agentComposer.get().getAsset());
+      TechnicalInjectExpectation technical = asTechnical();
+      technical.setAgent(agentComposer.get());
+      technical.setAsset(agentComposer.get().getAsset());
       return this;
+    }
+
+    private TableTopInjectExpectation asTableTop() {
+      if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
+        return tableTop;
+      }
+      throw new IllegalStateException(
+          "Expected a TableTopInjectExpectation (ARTICLE, CHALLENGE, MANUAL) but got "
+              + baseInjectExpectation.getClass().getSimpleName());
+    }
+
+    private TechnicalInjectExpectation asTechnical() {
+      if (baseInjectExpectation instanceof TechnicalInjectExpectation technical) {
+        return technical;
+      }
+      throw new IllegalStateException(
+          "Expected a TechnicalInjectExpectation (DETECTION, PREVENTION, VULNERABILITY) but got "
+              + baseInjectExpectation.getClass().getSimpleName());
     }
 
     @Override
@@ -60,29 +81,29 @@ public class InjectExpectationComposer extends ComposerBase<InjectExpectation> {
       agentComposer.ifPresent(AgentComposer.Composer::persist);
       teamComposer.ifPresent(TeamComposer.Composer::persist);
       userComposer.ifPresent(UserComposer.Composer::persist);
-      injectExpectationRepository.save(injectExpectation);
+      injectExpectationRepository.save(baseInjectExpectation);
       return this;
     }
 
     @Override
-    public InnerComposerBase<InjectExpectation> delete() {
+    public InnerComposerBase<BaseInjectExpectation> delete() {
       assetGroupComposer.ifPresent(AssetGroupComposer.Composer::delete);
       endpointComposer.ifPresent(EndpointComposer.Composer::delete);
       agentComposer.ifPresent(AgentComposer.Composer::delete);
       teamComposer.ifPresent(TeamComposer.Composer::delete);
       userComposer.ifPresent(UserComposer.Composer::delete);
-      injectExpectationRepository.delete(injectExpectation);
+      injectExpectationRepository.delete(baseInjectExpectation);
       return this;
     }
 
     @Override
-    public InjectExpectation get() {
-      return this.injectExpectation;
+    public BaseInjectExpectation get() {
+      return this.baseInjectExpectation;
     }
   }
 
-  public Composer forExpectation(InjectExpectation injectExpectation) {
-    generatedItems.add(injectExpectation);
-    return new Composer(injectExpectation);
+  public Composer forExpectation(BaseInjectExpectation baseInjectExpectation) {
+    generatedItems.add(baseInjectExpectation);
+    return new Composer(baseInjectExpectation);
   }
 }

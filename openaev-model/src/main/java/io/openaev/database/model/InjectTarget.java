@@ -49,18 +49,18 @@ public abstract class InjectTarget {
   protected abstract String getTargetSubtype();
 
   @JsonProperty("target_detection_status")
-  private InjectExpectation.EXPECTATION_STATUS targetDetectionStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetDetectionStatus;
 
   @JsonProperty("target_prevention_status")
-  private InjectExpectation.EXPECTATION_STATUS targetPreventionStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetPreventionStatus;
 
   @JsonProperty("target_vulnerability_status")
-  private InjectExpectation.EXPECTATION_STATUS targetVulnerabilityStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetVulnerabilityStatus;
 
   @JsonProperty("target_human_response_status")
-  private InjectExpectation.EXPECTATION_STATUS targetHumanResponseStatus;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetHumanResponseStatus;
 
   @JsonProperty("target_execution_status")
-  private InjectExpectation.EXPECTATION_STATUS targetExecutionStatus =
-      InjectExpectation.EXPECTATION_STATUS.UNKNOWN;
+  private BaseInjectExpectation.EXPECTATION_STATUS targetExecutionStatus =
+      BaseInjectExpectation.EXPECTATION_STATUS.UNKNOWN;
 }

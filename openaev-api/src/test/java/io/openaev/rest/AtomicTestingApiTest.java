@@ -415,15 +415,15 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
         EndpointComposer.Composer endpointWrapper =
             endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
-        InjectExpectation detection1 =
+        BaseInjectExpectation detection1 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         detection1.setResults(resultSet1);
-        InjectExpectation detection2 =
+        BaseInjectExpectation detection2 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         detection2.setResults(resultSet2);
         InjectComposer.Composer injectWrapper =
             injectComposer
@@ -542,16 +542,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .result("Meh better...")
                     .build());
 
-        InjectExpectation detection1 =
+        BaseInjectExpectation detection1 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         detection1.setResults(detectionResultSet1);
         detection1.setExpectedScore(100.0);
-        InjectExpectation detection2 =
+        BaseInjectExpectation detection2 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         detection2.setResults(detectionResultSet2);
         detection2.setExpectedScore(100.0);
 
@@ -599,16 +599,16 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .result("Meh better...")
                     .build());
 
-        InjectExpectation prevention1 =
+        BaseInjectExpectation prevention1 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         prevention1.setResults(preventionResultSet1);
         prevention1.setExpectedScore(100.0);
-        InjectExpectation prevention2 =
+        BaseInjectExpectation prevention2 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         prevention2.setResults(preventionResultSet2);
         prevention2.setExpectedScore(100.0);
 
@@ -765,10 +765,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .result("Meh...")
                     .build());
 
-        InjectExpectation detection1 =
+        BaseInjectExpectation detection1 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         detection1.setResults(detectionResultSet1);
         detection1.setExpectedScore(100.0);
 
@@ -792,10 +792,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
                     .result("Meh...")
                     .build());
 
-        InjectExpectation prevention1 =
+        BaseInjectExpectation prevention1 =
             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
         prevention1.setResults(preventionResultSet1);
         prevention1.setExpectedScore(100.0);
 
@@ -834,7 +834,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                             + "/target_results/"
                             + endpointWrapper.get().getId()
                             + "/asset_with_agents?expectationType="
-                            + InjectExpectation.EXPECTATION_TYPE.DETECTION)
+                            + BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)
                         .accept(MediaType.APPLICATION_JSON)
                         .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
@@ -867,7 +867,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .isEqualTo(mapper.writeValueAsString(expectedDetectionSuperset));
         assertThatJson(responseDetection)
             .node("[0].inject_expectation_type")
-            .isEqualTo(InjectExpectation.EXPECTATION_TYPE.DETECTION.name());
+            .isEqualTo(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.name());
         assertThatJson(responseDetection).node("[0].inject_expectation_score").isEqualTo("100.0");
 
         String responsePrevention =
@@ -878,7 +878,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
                             + "/target_results/"
                             + endpointWrapper.get().getId()
                             + "/asset_with_agents?expectationType="
-                            + InjectExpectation.EXPECTATION_TYPE.PREVENTION)
+                            + BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION)
                         .accept(MediaType.APPLICATION_JSON)
                         .with(csrf()))
                 .andExpect(status().is2xxSuccessful())
@@ -911,7 +911,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .isEqualTo(mapper.writeValueAsString(expectedPreventionSuperset));
         assertThatJson(responsePrevention)
             .node("[0].inject_expectation_type")
-            .isEqualTo(InjectExpectation.EXPECTATION_TYPE.PREVENTION.name());
+            .isEqualTo(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.name());
         assertThatJson(responsePrevention).node("[0].inject_expectation_score").isEqualTo("100.0");
       }
     }

@@ -1,11 +1,11 @@
 package io.openaev.model.expectation;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.PREVENTION;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.InjectExpectationSignature;
 import io.openaev.model.Expectation;
 import jakarta.annotation.Nullable;

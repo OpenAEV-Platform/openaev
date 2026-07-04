@@ -39,7 +39,7 @@ public record ThreatArsenalActionFullOutput(
         Payload.PAYLOAD_SOURCE source,
     @Schema(description = "Expected output types for action execution")
         @JsonProperty("action_expectations")
-        InjectExpectation.EXPECTATION_TYPE[] expectations,
+        BaseInjectExpectation.EXPECTATION_TYPE[] expectations,
     @Schema(description = "Current action lifecycle status") @NotNull @JsonProperty("action_status")
         Payload.PAYLOAD_STATUS status,
     @Schema(description = "CPU architecture targeted for action execution")

@@ -1,6 +1,6 @@
 package io.openaev.utils;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAgent;
@@ -14,7 +14,7 @@ import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpect
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
 import io.openaev.database.model.*;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
@@ -23,7 +23,12 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -40,7 +45,7 @@ import java.util.stream.Stream;
  *
  * <p>This is a utility class and cannot be instantiated.
  *
- * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.database.model.BaseInjectExpectation
  * @see io.openaev.model.expectation.PreventionExpectation
  * @see io.openaev.model.expectation.DetectionExpectation
  */
@@ -75,24 +80,25 @@ public class ExpectationUtils {
    * @param playerByTeam map of teams to their player expectations
    * @return list of updated parent expectations
    */
-  public static List<InjectExpectation> processByValidationType(
+  public static List<BaseInjectExpectation> processByValidationType(
       boolean isaNewExpectationResult,
-      List<InjectExpectation> childrenExpectations,
-      List<InjectExpectation> parentExpectations,
-      Map<Team, List<InjectExpectation>> playerByTeam) {
-    List<InjectExpectation> updatedExpectations = new ArrayList<>();
+      List<? extends TableTopInjectExpectation> childrenExpectations,
+      List<? extends TableTopInjectExpectation> parentExpectations,
+      Map<Team, ? extends List<? extends TableTopInjectExpectation>> playerByTeam) {
+    List<BaseInjectExpectation> updatedExpectations = new ArrayList<>();
 
     childrenExpectations.stream()
         .findAny()
         .ifPresentOrElse(
             process -> {
-              boolean isValidationAtLeastOneTarget = process.isExpectationGroup();
+              boolean isValidationAtLeastOneTarget =
+                  process.isExpectationGroup(); // Without Parent expectation
 
               parentExpectations.forEach(
                   parentExpectation -> {
-                    List<InjectExpectation> toProcess =
+                    List<? extends TableTopInjectExpectation> toProcess =
                         playerByTeam.get(parentExpectation.getTeam());
-                    int playersSize = toProcess.size(); // Without Parent expectation
+                    int playersSize = toProcess.size();
                     long zeroPlayerResponses =
                         toProcess.stream()
                             .filter(exp -> exp.getScore() != null)
@@ -106,7 +112,7 @@ public class ExpectationUtils {
                           toProcess.stream()
                               .filter(exp -> exp.getScore() != null)
                               .filter(exp -> exp.getScore() > 0.0)
-                              .mapToDouble(InjectExpectation::getScore)
+                              .mapToDouble(BaseInjectExpectation::getScore)
                               .average();
                       if (avgAtLeastOnePlayer.isPresent()) { // Any response is positive
                         parentExpectation.setScore(avgAtLeastOnePlayer.getAsDouble());
@@ -120,7 +126,9 @@ public class ExpectationUtils {
                     } else { // type all
                       if (nullPlayerResponses == 0) {
                         OptionalDouble avgAllPlayer =
-                            toProcess.stream().mapToDouble(InjectExpectation::getScore).average();
+                            toProcess.stream()
+                                .mapToDouble(BaseInjectExpectation::getScore)
+                                .average();
                         parentExpectation.setScore(avgAllPlayer.getAsDouble());
                       } else {
                         if (zeroPlayerResponses == 0) {
@@ -129,7 +137,7 @@ public class ExpectationUtils {
                           double sumAllPlayer =
                               toProcess.stream()
                                   .filter(exp -> exp.getScore() != null)
-                                  .mapToDouble(InjectExpectation::getScore)
+                                  .mapToDouble(BaseInjectExpectation::getScore)
                                   .sum();
                           parentExpectation.setScore(sumAllPlayer / playersSize);
                         }
@@ -219,7 +227,7 @@ public class ExpectationUtils {
   public static List<PreventionExpectation> getPreventionExpectationsByAsset(
       String implantType,
       AssetToExecute assetToExecute,
-      List<io.openaev.database.model.Agent> executedAgents,
+      List<Agent> executedAgents,
       io.openaev.model.inject.form.Expectation expectation,
       Map<String, Endpoint> valueTargetedAssetsMap,
       Inject inject) {
@@ -269,7 +277,7 @@ public class ExpectationUtils {
   public static List<DetectionExpectation> getDetectionExpectationsByAsset(
       String implantType,
       AssetToExecute assetToExecute,
-      List<io.openaev.database.model.Agent> executedAgents,
+      List<Agent> executedAgents,
       io.openaev.model.inject.form.Expectation expectation,
       Map<String, Endpoint> valueTargetedAssetsMap,
       Inject inject) {
@@ -358,7 +366,7 @@ public class ExpectationUtils {
   public static List<VulnerabilityExpectation> getVulnerabilityExpectationsByAsset(
       String implantType,
       AssetToExecute assetToExecute,
-      List<io.openaev.database.model.Agent> executedAgents,
+      List<Agent> executedAgents,
       io.openaev.model.inject.form.Expectation expectation,
       Map<String, Endpoint> valueTargetedAssetsMap,
       Inject inject) {
@@ -415,11 +423,11 @@ public class ExpectationUtils {
    * @param vulnerabilityResult the vulnerability assessment result string
    */
   public static void setResultExpectationVulnerable(
-      List<InjectExpectation> expectations,
+      List<VulnerabilityInjectExpectation> expectations,
       InjectExpectationResult result,
       String vulnerabilityResult) {
 
-    for (InjectExpectation expectation : expectations) {
+    for (BaseInjectExpectation expectation : expectations) {
       double score =
           VULNERABILITY.successLabel.equals(vulnerabilityResult)
               ? expectation.getExpectedScore()
@@ -431,8 +439,6 @@ public class ExpectationUtils {
       expectation.setResults(List.of(result));
     }
   }
-
-  // COMPUTE SIGNATURES
 
   private static List<InjectExpectationSignature> computeSignatures(
       String prefixSignature,
@@ -470,20 +476,22 @@ public class ExpectationUtils {
    * <p>Filters expectations to find those belonging to individual players within the same team and
    * of the same expectation type.
    *
-   * @param injectExpectation the reference expectation to match against
+   * @param tableTopInjectExpectation the reference expectation to match against
    * @return list of matching player expectations for the team
    */
-  public static List<InjectExpectation> getExpectationsPlayersForTeam(
-      @NotNull final InjectExpectation injectExpectation) {
-    return injectExpectation.getInject().getExpectations().stream()
+  public static List<TableTopInjectExpectation> getExpectationsPlayersForTeam(
+      @NotNull final TableTopInjectExpectation tableTopInjectExpectation) {
+    return tableTopInjectExpectation.getInject().getExpectations().stream()
+        .filter(TableTopInjectExpectation.class::isInstance)
+        .map(TableTopInjectExpectation.class::cast)
         .filter(ExpectationUtils::isPlayerExpectation)
-        .filter(e -> e.getTeam().getId().equals(injectExpectation.getTeam().getId()))
-        .filter(e -> e.getType().equals(injectExpectation.getType()))
-        .filter(e -> Objects.equals(e.getName(), injectExpectation.getName()))
+        .filter(e -> e.getTeam().getId().equals(tableTopInjectExpectation.getTeam().getId()))
+        .filter(e -> e.getType().equals(tableTopInjectExpectation.getType()))
+        .filter(e -> Objects.equals(e.getName(), tableTopInjectExpectation.getName()))
         .toList();
   }
 
-  private static boolean isPlayerExpectation(InjectExpectation e) {
+  private static boolean isPlayerExpectation(TableTopInjectExpectation e) {
     return e.getUser() != null;
   }
 
@@ -498,9 +506,11 @@ public class ExpectationUtils {
    * @param injectExpectation the reference expectation to match against
    * @return list of matching team-level expectations
    */
-  public static List<InjectExpectation> getExpectationTeams(
-      @NotNull final InjectExpectation injectExpectation) {
+  public static List<TableTopInjectExpectation> getExpectationTeams(
+      @NotNull final TableTopInjectExpectation injectExpectation) {
     return injectExpectation.getInject().getExpectations().stream()
+        .filter(TableTopInjectExpectation.class::isInstance)
+        .map(TableTopInjectExpectation.class::cast)
         .filter(ExpectationUtils::isTeamExpectation)
         .filter(e -> e.getTeam().getId().equals(injectExpectation.getTeam().getId()))
         .filter(e -> e.getType().equals(injectExpectation.getType()))
@@ -508,7 +518,7 @@ public class ExpectationUtils {
         .toList();
   }
 
-  private static boolean isTeamExpectation(InjectExpectation e) {
+  private static boolean isTeamExpectation(TableTopInjectExpectation e) {
     return e.getTeam() != null && e.getUser() == null;
   }
 
@@ -520,19 +530,21 @@ public class ExpectationUtils {
    * <p>Filters to find agent-level expectations (those with an agent association) that match the
    * reference expectation's asset and type.
    *
-   * @param injectExpectation the reference expectation to match against
+   * @param technicalInjectExpectation the reference expectation to match against
    * @return list of matching agent expectations for the asset
    */
-  public static List<InjectExpectation> getExpectationsAgentsForAsset(
-      @NotNull final InjectExpectation injectExpectation) {
-    return injectExpectation.getInject().getExpectations().stream()
+  public static List<TechnicalInjectExpectation> getExpectationsAgentsForAsset(
+      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
+    return technicalInjectExpectation.getInject().getExpectations().stream()
         .filter(ExpectationUtils::isAgentExpectation)
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
         .filter(
             e ->
                 e.getAsset() != null
-                    && injectExpectation.getAsset() != null
-                    && e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
-        .filter(e -> e.getType().equals(injectExpectation.getType()))
+                    && technicalInjectExpectation.getAsset() != null
+                    && e.getAsset().getId().equals(technicalInjectExpectation.getAsset().getId()))
+        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
         .toList();
   }
 
@@ -542,8 +554,9 @@ public class ExpectationUtils {
    * @param e the expectation to check
    * @return {@code true} if the expectation has an agent association
    */
-  public static boolean isAgentExpectation(InjectExpectation e) {
-    return e.getAgent() != null;
+  public static boolean isAgentExpectation(BaseInjectExpectation e) {
+    return e instanceof TechnicalInjectExpectation technicalInjectExpectation
+        && technicalInjectExpectation.getAgent() != null;
   }
 
   // -- ASSET --
@@ -554,15 +567,17 @@ public class ExpectationUtils {
    * <p>Filters to find asset expectations (those with an asset but no agent) that match the
    * reference expectation's asset and type.
    *
-   * @param injectExpectation the reference expectation to match against
+   * @param technicalInjectExpectation the reference expectation to match against
    * @return list of matching asset-level expectations
    */
-  public static List<InjectExpectation> getExpectationsAssets(
-      @NotNull final InjectExpectation injectExpectation) {
-    return injectExpectation.getInject().getExpectations().stream()
+  public static List<TechnicalInjectExpectation> getExpectationsAssets(
+      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
+    return technicalInjectExpectation.getInject().getExpectations().stream()
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
         .filter(ExpectationUtils::isAssetExpectation)
-        .filter(e -> e.getAsset().getId().equals(injectExpectation.getAsset().getId()))
-        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .filter(e -> e.getAsset().getId().equals(technicalInjectExpectation.getAsset().getId()))
+        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
         .toList();
   }
 
@@ -572,22 +587,24 @@ public class ExpectationUtils {
    * <p>Filters to find asset expectations that are part of the same asset group and have the same
    * expectation type as the reference expectation.
    *
-   * @param injectExpectation the reference expectation to match against
+   * @param technicalInjectExpectation the reference expectation to match against
    * @return list of matching asset expectations within the asset group
    */
-  public static List<InjectExpectation> getExpectationsAssetsForAssetGroup(
-      @NotNull final InjectExpectation injectExpectation) {
-    return injectExpectation.getInject().getExpectations().stream()
+  public static List<TechnicalInjectExpectation> getExpectationsAssetsForAssetGroup(
+      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
+    return technicalInjectExpectation.getInject().getExpectations().stream()
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
         .filter(ExpectationUtils::isAssetExpectation)
         .filter(
             e -> {
               AssetGroup assetGroup = e.getAssetGroup();
-              AssetGroup injectGroup = injectExpectation.getAssetGroup();
+              AssetGroup injectGroup = technicalInjectExpectation.getAssetGroup();
               return assetGroup != null
                   && injectGroup != null
                   && assetGroup.getId().equals(injectGroup.getId());
             })
-        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
         .toList();
   }
 
@@ -600,7 +617,7 @@ public class ExpectationUtils {
    * @param e the expectation to check
    * @return {@code true} if the expectation is asset-level (has asset, no agent)
    */
-  public static boolean isAssetExpectation(InjectExpectation e) {
+  public static boolean isAssetExpectation(TechnicalInjectExpectation e) {
     return e.getAsset() != null && e.getAgent() == null;
   }
 
@@ -612,15 +629,21 @@ public class ExpectationUtils {
    * <p>Filters to find asset group expectations (those with only an asset group, no individual
    * asset or agent) that match the reference expectation's group and type.
    *
-   * @param injectExpectation the reference expectation to match against
+   * @param technicalInjectExpectation the reference expectation to match against
    * @return list of matching asset group-level expectations
    */
-  public static List<InjectExpectation> getExpectationAssetGroups(
-      @NotNull final InjectExpectation injectExpectation) {
-    return injectExpectation.getInject().getExpectations().stream()
+  public static List<TechnicalInjectExpectation> getExpectationAssetGroups(
+      @NotNull final TechnicalInjectExpectation technicalInjectExpectation) {
+    return technicalInjectExpectation.getInject().getExpectations().stream()
+        .filter(TechnicalInjectExpectation.class::isInstance)
+        .map(TechnicalInjectExpectation.class::cast)
         .filter(ExpectationUtils::isAssetGroupExpectation)
-        .filter(e -> e.getAssetGroup().getId().equals(injectExpectation.getAssetGroup().getId()))
-        .filter(e -> e.getType().equals(injectExpectation.getType()))
+        .filter(
+            e ->
+                e.getAssetGroup()
+                    .getId()
+                    .equals(technicalInjectExpectation.getAssetGroup().getId()))
+        .filter(e -> e.getType().equals(technicalInjectExpectation.getType()))
         .toList();
   }
 
@@ -632,7 +655,7 @@ public class ExpectationUtils {
    * @param e the expectation to check
    * @return {@code true} if the expectation is asset group-level
    */
-  public static boolean isAssetGroupExpectation(InjectExpectation e) {
+  public static boolean isAssetGroupExpectation(TechnicalInjectExpectation e) {
     return e.getAssetGroup() != null && e.getAsset() == null && e.getAgent() == null;
   }
 

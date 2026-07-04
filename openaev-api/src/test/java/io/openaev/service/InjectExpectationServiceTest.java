@@ -17,7 +17,6 @@ import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
 import io.openaev.model.expectation.VulnerabilityExpectation;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -46,8 +45,6 @@ class InjectExpectationServiceTest {
   static final Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
-  @Mock private CollectorService collectorService;
-  @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
@@ -65,7 +62,7 @@ class InjectExpectationServiceTest {
     injectExpectationService.mapper = mapper;
   }
 
-  private void mockExpectation(InjectExpectation expectation) {
+  private void mockExpectation(BaseInjectExpectation expectation) {
     doReturn(expectation)
         .when(injectExpectationService)
         .updateInjectExpectation(any(), any(InjectExpectationUpdateInput.class));
@@ -98,7 +95,7 @@ class InjectExpectationServiceTest {
   }
 
   private void setupVulnerabilityExpectation() {
-    InjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+    BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
     inject.setExpectations(List.of(expectation));
     mockExpectation(expectation);
   }
@@ -110,7 +107,7 @@ class InjectExpectationServiceTest {
   }
 
   private static io.openaev.model.inject.form.Expectation createFormExpectation(
-      InjectExpectation.EXPECTATION_TYPE type) {
+      BaseInjectExpectation.EXPECTATION_TYPE type) {
     io.openaev.model.inject.form.Expectation expectation =
         ExpectationFixture.createExpectation(type, "test-" + type.name().toLowerCase());
     expectation.setExpectationGroup(false);
@@ -176,7 +173,7 @@ class InjectExpectationServiceTest {
       "Should map zero score to unsuccessful collector result when validating asset result")
   void given_zeroScoreResult_should_setIsSuccessToFalseInCollectorUpdate() {
     // Arrange
-    InjectExpectation expectation =
+    DetectionInjectExpectation expectation =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceId("collector-id");
@@ -203,7 +200,7 @@ class InjectExpectationServiceTest {
       "Should map positive score to successful collector result when validating asset result")
   void given_positiveScoreResult_should_setIsSuccessToTrueInCollectorUpdate() {
     // Arrange
-    InjectExpectation expectation =
+    DetectionInjectExpectation expectation =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     InjectExpectationResult result = new InjectExpectationResult();
     result.setSourceId("collector-id");
@@ -252,7 +249,7 @@ class InjectExpectationServiceTest {
     // Arrange
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
-        List.of(createFormExpectation(InjectExpectation.EXPECTATION_TYPE.ARTICLE)));
+        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
     List<io.openaev.model.Expectation> expectations = new ArrayList<>();
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
@@ -296,11 +293,11 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.ARTICLE)));
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
 
     Asset matchingAsset = AssetFixture.createDefaultAsset("matching");
     matchingAsset.setId("asset-matching-id");
@@ -375,10 +372,10 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)));
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)));
 
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
@@ -406,10 +403,10 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
-            createFormExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)));
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY),
+            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)));
 
     Asset matchingAsset = AssetFixture.createDefaultAsset("matching");
     matchingAsset.setId("asset-matching-id");
@@ -451,14 +448,14 @@ class InjectExpectationServiceTest {
   @Test
   @DisplayName("Should return all prevention expectations when none expired")
   void shouldReturnAllPreventionExpectationsWhenNoneExpired() {
-    InjectExpectation expectation1 =
+    BaseInjectExpectation expectation1 =
         InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
-    InjectExpectation expectation2 =
+    BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
     when(injectExpectationRepository.findAll(any()))
         .thenReturn(List.of(expectation1, expectation2));
 
-    List<InjectExpectation> result =
+    List<BaseInjectExpectation> result =
         injectExpectationService.preventionExpectationsNotExpired(
             EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
 
@@ -470,14 +467,14 @@ class InjectExpectationServiceTest {
   @Test
   @DisplayName("Should return all detection expectations when none expired")
   void shouldReturnAllDetectionExpectationsWhenNoneExpired() {
-    InjectExpectation expectation1 =
+    BaseInjectExpectation expectation1 =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
-    InjectExpectation expectation2 =
+    BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     when(injectExpectationRepository.findAll(any()))
         .thenReturn(List.of(expectation1, expectation2));
 
-    List<InjectExpectation> result =
+    List<BaseInjectExpectation> result =
         injectExpectationService.detectionExpectationsNotExpired(
             EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
 
@@ -489,14 +486,14 @@ class InjectExpectationServiceTest {
   @Test
   @DisplayName("Should return all manual expectations when none expired")
   void shouldReturnAllManualExpectationsWhenNoneExpired() {
-    InjectExpectation expectation1 =
+    BaseInjectExpectation expectation1 =
         InjectExpectationFixture.createManualInjectExpectation(null, inject);
-    InjectExpectation expectation2 =
+    BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createManualInjectExpectation(null, inject);
     when(injectExpectationRepository.findAll(any()))
         .thenReturn(List.of(expectation1, expectation2));
 
-    List<InjectExpectation> result =
+    List<BaseInjectExpectation> result =
         injectExpectationService.manualExpectationsNotExpired(
             EXPIRATION_TIME_SIX_HOURS.intValue() * 2);
 
@@ -620,7 +617,7 @@ class InjectExpectationServiceTest {
   void shouldDoNothingWhenNoVulnerabilityExpectationsForAgent() {
     // Expectation belongs to a different agent -> filtered out -> early return
     Agent otherAgent = AgentFixture.createDefaultAgentService();
-    InjectExpectation expectationForOtherAgent =
+    BaseInjectExpectation expectationForOtherAgent =
         createVulnerabilityInjectExpectation(inject, otherAgent);
     inject.setExpectations(List.of(expectationForOtherAgent));
 
@@ -639,9 +636,9 @@ class InjectExpectationServiceTest {
   @DisplayName("Should do nothing when expectations are not of vulnerability type")
   void shouldDoNothingWhenExpectationsAreNotVulnerabilityType() {
     // Only non-VULNERABILITY expectations -> filtered out -> early return
-    InjectExpectation prevention =
+    BaseInjectExpectation prevention =
         InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
-    InjectExpectation detection =
+    BaseInjectExpectation detection =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     inject.setExpectations(List.of(prevention, detection));
 
@@ -659,7 +656,8 @@ class InjectExpectationServiceTest {
   @DisplayName("Should do nothing when expectation has a null agent")
   void shouldDoNothingWhenExpectationHasNullAgent() {
     // exp.getAgent() == null -> filtered out -> early return
-    InjectExpectation expectationWithNullAgent = createVulnerabilityInjectExpectation(inject, null);
+    BaseInjectExpectation expectationWithNullAgent =
+        createVulnerabilityInjectExpectation(inject, null);
     inject.setExpectations(List.of(expectationWithNullAgent));
 
     try (MockedStatic<ExpectationUtils> mocked = Mockito.mockStatic(ExpectationUtils.class)) {
@@ -704,8 +702,8 @@ class InjectExpectationServiceTest {
   @DisplayName("Should call update for each vulnerability expectation")
   void shouldCallUpdateForEachVulnerabilityExpectation() {
     // Two vulnerability expectations for the same agent
-    InjectExpectation exp1 = createVulnerabilityInjectExpectation(inject, agent);
-    InjectExpectation exp2 = createVulnerabilityInjectExpectation(inject, agent);
+    BaseInjectExpectation exp1 = createVulnerabilityInjectExpectation(inject, agent);
+    BaseInjectExpectation exp2 = createVulnerabilityInjectExpectation(inject, agent);
     inject.setExpectations(List.of(exp1, exp2));
     doReturn(exp1)
         .when(injectExpectationService)
@@ -794,7 +792,7 @@ class InjectExpectationServiceTest {
                   "agent-id",
                   null,
                   null,
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
                   List.of()));
 
       verifyNoInteractions(injectExpectationRepository);
@@ -813,7 +811,7 @@ class InjectExpectationServiceTest {
                   "agent-id",
                   null,
                   null,
-                  InjectExpectation.EXPECTATION_TYPE.MANUAL,
+                  BaseInjectExpectation.EXPECTATION_TYPE.MANUAL,
                   signatures));
 
       verifyNoInteractions(injectExpectationRepository);
@@ -823,12 +821,10 @@ class InjectExpectationServiceTest {
     @Test
     @DisplayName("Delegates to lock service for each matching expectation")
     void givenMatchingExpectationsShouldDelegateToLockService() {
-      InjectExpectation first = new InjectExpectation();
+      DetectionInjectExpectation first = new DetectionInjectExpectation();
       first.setId("exp-1");
-      first.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
-      InjectExpectation second = new InjectExpectation();
+      DetectionInjectExpectation second = new DetectionInjectExpectation();
       second.setId("exp-2");
-      second.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
       when(injectExpectationRepository.findAllByInjectAndAgent("inject-id", "agent-id"))
           .thenReturn(List.of(first, second));
 
@@ -837,7 +833,7 @@ class InjectExpectationServiceTest {
           "agent-id",
           null,
           null,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
           List.of(new InjectExpectationSignature("signature-type", "signature-value")));
 
       verify(injectExpectationLockService, times(2))

@@ -348,7 +348,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
-  private List<InjectExpectation> expectations = new ArrayList<>();
+  private List<BaseInjectExpectation> expectations = new ArrayList<>();
 
   @JsonIgnore
   @Getter
@@ -476,9 +476,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     return ofNullable(this.status);
   }
 
-  public List<InjectExpectation> getUserExpectationsForArticle(User user, Article article) {
+  public List<ArticleInjectExpectation> getUserExpectationsForArticle(User user, Article article) {
     return this.expectations.stream()
-        .filter(execution -> execution.getType().equals(InjectExpectation.EXPECTATION_TYPE.ARTICLE))
+        .filter(ArticleInjectExpectation.class::isInstance)
+        .map(ArticleInjectExpectation.class::cast)
         .filter(execution -> execution.getArticle().equals(article))
         .filter(
             execution ->

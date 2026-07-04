@@ -62,7 +62,8 @@ public class InjectFixture {
         CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS,
         objectMapper.convertValue(
             List.of(
-                ExpectationFixture.createExpectation(InjectExpectation.EXPECTATION_TYPE.MANUAL)),
+                ExpectationFixture.createExpectation(
+                    BaseInjectExpectation.EXPECTATION_TYPE.MANUAL)),
             ArrayNode.class));
     return injectContent;
   }
@@ -75,7 +76,7 @@ public class InjectFixture {
         objectMapper.convertValue(
             List.of(
                 ExpectationFixture.createExpectation(
-                    InjectExpectation.EXPECTATION_TYPE.MANUAL, expectationName)),
+                    BaseInjectExpectation.EXPECTATION_TYPE.MANUAL, expectationName)),
             ArrayNode.class));
     return injectContent;
   }

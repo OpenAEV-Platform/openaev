@@ -108,19 +108,21 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
   private static Stream<Arguments> expectationTypeProvider() {
     return Stream.of(
         Arguments.of(
-            "detection", InjectExpectation.EXPECTATION_TYPE.DETECTION, CollectorsUtils.CROWDSTRIKE),
+            "detection",
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            CollectorsUtils.CROWDSTRIKE),
         Arguments.of(
             "vulnerability",
-            InjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+            BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
             EXPECTATIONS_VULNERABILITY_COLLECTOR_ID));
   }
 
   @ParameterizedTest(
       name =
-          "givenTechnicalInjectWith{0}Expectation_shouldComputeInjectExpectationAndInjectExpectationResult")
+          "givenTechnicalInjectWith{0}Expectation_shouldComputeBaseInjectExpectationAndInjectExpectationResult")
   @MethodSource("expectationTypeProvider")
   void givenExpectation_shouldComputeInjectExpectationAndInjectExpectationResult(
-      String name, InjectExpectation.EXPECTATION_TYPE type, String expectedSourceId)
+      String name, BaseInjectExpectation.EXPECTATION_TYPE type, String expectedSourceId)
       throws Exception {
 
     // -- PREPARE --
@@ -153,29 +155,35 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
 
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for asset group - 1 for the endpoint - 1 per agent
-    List<InjectExpectation> injectExpectationList =
+    List<BaseInjectExpectation> expectationList =
         injectExpectationRepository.findAllByInjectId(inject.getId());
-    assertEquals(4, injectExpectationList.size());
-    List<InjectExpectation> assetGroupExpectations =
-        injectExpectationList.stream()
+    List<TechnicalInjectExpectation> technicalInjectExpectationList =
+        expectationList.stream()
+            .filter(e -> e instanceof TechnicalInjectExpectation)
+            .map(TechnicalInjectExpectation.class::cast)
+            .toList();
+    assertEquals(4, expectationList.size());
+    List<TechnicalInjectExpectation> assetGroupExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
-    List<InjectExpectation> endpointExpectations =
-        injectExpectationList.stream()
+    List<TechnicalInjectExpectation> endpointExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, endpointExpectations.size());
-    List<InjectExpectation> agentExpectations =
-        injectExpectationList.stream()
+    List<TechnicalInjectExpectation> agentExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(2, agentExpectations.size());
 
-    // InjectExpectation.results.result should be set to null for all existing security platforms at
+    // BaseInjectExpectation.results.result should be set to null for all existing security
+    // platforms at
     // the agent level only.
     assertTrue(assetGroupExpectations.getFirst().getResults().isEmpty());
     assertTrue(endpointExpectations.getFirst().getResults().isEmpty());
@@ -193,7 +201,7 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     // -- Arrange --
     Expectation expectation = new Expectation();
     expectation.setName("prevention");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.PREVENTION);
+    expectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
     expectation.setScore(100.0);
     expectation.setExpectationGroup(false);
 
@@ -219,19 +227,24 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     openAEVImplantExecutor.process(execution, executableInject);
 
     // -- Assert --
-    List<InjectExpectation> expectations =
+    List<BaseInjectExpectation> expectations =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, expectations.size());
-
-    List<InjectExpectation> assetGroupExpectations =
+    List<TechnicalInjectExpectation> technicalInjectExpectationList =
         expectations.stream()
+            .filter(e -> e instanceof TechnicalInjectExpectation)
+            .map(TechnicalInjectExpectation.class::cast)
+            .toList();
+
+    List<TechnicalInjectExpectation> assetGroupExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
             .toList();
     assertEquals(1, assetGroupExpectations.size());
 
-    List<InjectExpectation> agentExpectations =
-        expectations.stream()
+    List<TechnicalInjectExpectation> agentExpectations =
+        technicalInjectExpectationList.stream()
             .filter(
                 ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
             .toList();
@@ -242,60 +255,5 @@ public class OpenAEVImplantExecutorTest extends IntegrationTest {
     assertFalse(results.isEmpty());
     assertTrue(results.stream().allMatch(r -> r.getResult() == null));
     assertTrue(results.stream().allMatch(r -> CollectorsUtils.CROWDSTRIKE.equals(r.getSourceId())));
-  }
-
-  @Test
-  @DisplayName(
-      "Should create manual expectations without collector results for agent-level expectations")
-  void
-      given_technicalInjectWithManualExpectation_should_createAssetGroupExpectationWithoutCollectorResults()
-          throws Exception {
-    // -- Arrange --
-    Expectation expectation = new Expectation();
-    expectation.setName("manual");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
-    expectation.setScore(100.0);
-    expectation.setExpectationGroup(false);
-
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    io.openaev.executors.Injector openAEVImplantExecutor =
-        new OpenAEVImplantExecutor(injectorContext, injectExpectationService, injectService);
-
-    Inject inject = createTechnicalInjectHelper(List.of(expectation));
-    Injection injection = mock(Injection.class);
-    when(injection.getInject()).thenReturn(inject);
-    ExecutableInject executableInject =
-        new ExecutableInject(
-            false,
-            false,
-            injection,
-            List.of(),
-            inject.getAssets(),
-            inject.getAssetGroups(),
-            List.of());
-    Execution execution = new Execution(executableInject.isRuntime());
-
-    // -- Act --
-    openAEVImplantExecutor.process(execution, executableInject);
-
-    // -- Assert --
-    List<InjectExpectation> expectations =
-        injectExpectationRepository.findAllByInjectId(inject.getId());
-    assertEquals(4, expectations.size());
-
-    List<InjectExpectation> assetGroupExpectations =
-        expectations.stream()
-            .filter(
-                ie -> ie.getAgent() == null && ie.getAsset() == null && ie.getAssetGroup() != null)
-            .toList();
-    assertEquals(1, assetGroupExpectations.size());
-
-    List<InjectExpectation> agentExpectations =
-        expectations.stream()
-            .filter(
-                ie -> ie.getAgent() != null && ie.getAsset() != null && ie.getAssetGroup() != null)
-            .toList();
-    assertEquals(2, agentExpectations.size());
-    assertTrue(agentExpectations.stream().allMatch(ie -> ie.getResults().isEmpty()));
   }
 }

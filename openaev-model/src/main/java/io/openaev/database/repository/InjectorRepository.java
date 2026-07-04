@@ -21,6 +21,25 @@ public interface InjectorRepository
   @NotNull
   Optional<Injector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
+  @Query(
+      "SELECT l.injector FROM InjectorInjectorContract l "
+          + "WHERE l.injectorContractId = :contractId AND l.tenantId = :tenantId")
+  List<Injector> findInjectorsLinkedToContract(
+      @Param("contractId") String contractId, @Param("tenantId") String tenantId);
+
+  /**
+   * Resolves an injector linked to the given contract within the tenant. Kept under its original
+   * name for callers; the association is now expressed over the {@link
+   * io.openaev.database.model.InjectorInjectorContract} join entity, since {@code
+   * Injector.contracts} is derived from the join table rather than a mapped collection.
+   */
+  default Optional<Injector> findFirstByContractsCompositeIdIdAndTenantId(
+      String contractId, String tenantId) {
+    return findInjectorsLinkedToContract(contractId, tenantId).stream()
+        .filter(injector -> injector != null)
+        .findFirst();
+  }
+
   List<Injector> findAllByPayloadsAndTenantId(@NotNull Boolean payloads, @NotNull String tenantId);
 
   @Modifying

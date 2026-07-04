@@ -6,10 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.model.ContractOutputTechnicalType;
-import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
@@ -133,14 +130,12 @@ class SignatureOutputProcessorTest {
             new String[0],
             new String[] {"SIGNATURES_PROCESSING"});
 
-    InjectExpectation firstCallExpectation = new InjectExpectation();
+    DetectionInjectExpectation firstCallExpectation = new DetectionInjectExpectation();
     firstCallExpectation.setId("exp-1");
-    firstCallExpectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
     firstCallExpectation.setSignaturesInitialized(false);
 
-    InjectExpectation secondCallExpectation = new InjectExpectation();
+    DetectionInjectExpectation secondCallExpectation = new DetectionInjectExpectation();
     secondCallExpectation.setId("exp-1");
-    secondCallExpectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
     secondCallExpectation.setSignaturesInitialized(true);
 
     when(injectExpectationRepository.findAllByInjectAndAgent("inject-1", "agent-1"))
@@ -216,9 +211,8 @@ class SignatureOutputProcessorTest {
             new String[0],
             new String[] {"SIGNATURES_PROCESSING"});
 
-    InjectExpectation expectation = new InjectExpectation();
+    DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("exp-agent");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
     expectation.setSignaturesInitialized(false);
 
     when(injectExpectationRepository.findAllByInjectAndAgent("inject-1", "agent-1"))
@@ -269,9 +263,8 @@ class SignatureOutputProcessorTest {
             new String[0],
             new String[] {"SIGNATURES_PROCESSING"});
 
-    InjectExpectation expectation = new InjectExpectation();
+    PreventionInjectExpectation expectation = new PreventionInjectExpectation();
     expectation.setId("exp-asset");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.PREVENTION);
     expectation.setSignaturesInitialized(false);
 
     when(injectExpectationRepository.findAllByInjectAndAsset("inject-1", "asset-1"))
@@ -674,9 +667,8 @@ class SignatureOutputProcessorTest {
           .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
-      InjectExpectation expectation = new InjectExpectation();
+      DetectionInjectExpectation expectation = new DetectionInjectExpectation();
       expectation.setId("exp-fallback");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
       expectation.setSignaturesInitialized(false);
 
       when(injectExpectationRepository.findAllByInjectAndAgent("inject-1", "agent-1"))
@@ -726,9 +718,8 @@ class SignatureOutputProcessorTest {
           .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
-      InjectExpectation expectation = new InjectExpectation();
+      DetectionInjectExpectation expectation = new DetectionInjectExpectation();
       expectation.setId("exp-group");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
       expectation.setSignaturesInitialized(false);
 
       when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-1", "group-1"))
@@ -769,9 +760,8 @@ class SignatureOutputProcessorTest {
           .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
-      InjectExpectation expectation = new InjectExpectation();
+      DetectionInjectExpectation expectation = new DetectionInjectExpectation();
       expectation.setId("exp-group-fallback");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
       expectation.setSignaturesInitialized(false);
 
       when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-1", "group-2"))
@@ -820,9 +810,8 @@ class SignatureOutputProcessorTest {
           .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
-      InjectExpectation expectation = new InjectExpectation();
+      DetectionInjectExpectation expectation = new DetectionInjectExpectation();
       expectation.setId("exp-agent-fb");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.DETECTION);
       expectation.setSignaturesInitialized(false);
 
       when(injectExpectationRepository.findAllByInjectAndAgent("inject-1", "agent-fallback"))
@@ -862,9 +851,8 @@ class SignatureOutputProcessorTest {
           .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
-      InjectExpectation expectation = new InjectExpectation();
+      PreventionInjectExpectation expectation = new PreventionInjectExpectation();
       expectation.setId("exp-asset-fb");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.PREVENTION);
       expectation.setSignaturesInitialized(false);
 
       when(injectExpectationRepository.findAllByInjectAndAsset("inject-1", "asset-fallback"))
