@@ -118,7 +118,7 @@ public class AtomicTestingService {
     ObjectNode finalContent = input.getContent();
     // Set expectations
     if (injectId == null) {
-      finalContent = setExpectations(input, injectorContract, finalContent);
+      finalContent = setExpectations(injectorContract, finalContent);
     }
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
@@ -174,11 +174,10 @@ public class AtomicTestingService {
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }
 
-  private ObjectNode setExpectations(
-      AtomicTestingInput input, InjectorContract injectorContract, ObjectNode finalContent) {
-    if (input.getContent() == null
-        || input.getContent().get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS) == null
-        || input.getContent().get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
+  public ObjectNode setExpectations(InjectorContract injectorContract, ObjectNode finalContent) {
+    if (finalContent == null
+        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS) == null
+        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
       try {
         JsonNode jsonNode = mapper.readTree(injectorContract.getContent());
         List<JsonNode> contractElements =

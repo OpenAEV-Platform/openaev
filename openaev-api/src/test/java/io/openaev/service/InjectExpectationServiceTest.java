@@ -169,6 +169,48 @@ class InjectExpectationServiceTest {
   }
 
   @Test
+  @DisplayName("Should skip expectation building for direct non-atomic non-chaining execution")
+  void given_directNonAtomicNonChainingExecution_should_returnBeforeTargetResolution() {
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    Inject directInject = mock(Inject.class);
+
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(directInject);
+    when(directInject.isAtomicTesting()).thenReturn(false);
+    when(executableInject.isDirect()).thenReturn(true);
+    when(executableInject.isChainingExecution()).thenReturn(false);
+
+    injectExpectationService.buildAndSaveInjectExpectations(
+        executableInject, List.of(mock(Expectation.class)));
+
+    verify(executableInject, never()).getTeams();
+    verify(injectExpectationRepository, never()).saveAll(any());
+  }
+
+  @Test
+  @DisplayName("Should build expectations for chaining execution even when direct")
+  void given_directChainingExecution_should_continueTargetResolution() {
+    ExecutableInject executableInject = mock(ExecutableInject.class);
+    Injection injection = mock(Injection.class);
+    Inject directInject = mock(Inject.class);
+
+    when(executableInject.getInjection()).thenReturn(injection);
+    when(injection.getInject()).thenReturn(directInject);
+    when(directInject.isAtomicTesting()).thenReturn(false);
+    when(executableInject.isDirect()).thenReturn(true);
+    when(executableInject.isChainingExecution()).thenReturn(true);
+    when(executableInject.getTeams()).thenReturn(List.of());
+    when(executableInject.getAssets()).thenReturn(List.of());
+    when(executableInject.getAssetGroups()).thenReturn(List.of());
+
+    injectExpectationService.buildAndSaveInjectExpectations(
+        executableInject, List.of(mock(Expectation.class)));
+
+    verify(executableInject, atLeastOnce()).getTeams();
+  }
+
+  @Test
   @DisplayName(
       "Should map zero score to unsuccessful collector result when validating asset result")
   void given_zeroScoreResult_should_setIsSuccessToFalseInCollectorUpdate() {

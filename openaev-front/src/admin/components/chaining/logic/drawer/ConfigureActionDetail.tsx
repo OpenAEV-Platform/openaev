@@ -22,8 +22,10 @@ import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import { type ActionDetailData } from '../types';
 import {
+  applyExpectationDefaults,
   buildContractDefaults,
   EXPECTATION_FIELD_TYPE,
+  EXPECTATIONS_CONTENT_KEY,
   getContractFieldDefaultValue,
   isExpectationInput,
 } from './ConfigureActionDetail.utils';
@@ -97,10 +99,15 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               const parsed = JSON.parse(res.data.injector_contract_content);
               const fields = (parsed.fields ?? []) as ContractElement[];
               setContractFields(fields);
-              // Set default values only if no initialData was provided
-              if (!initialData?.inject_content) {
-                setFieldValues(buildContractDefaults(fields));
-              }
+              setFieldValues(
+                applyExpectationDefaults(
+                  (initialData?.inject_content ?? buildContractDefaults(fields)) as Record<
+                    string,
+                    unknown
+                  >,
+                  fields,
+                ),
+              );
             } catch {
               setContractFields([]);
             }
@@ -112,7 +119,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [action, initialData]);
 
   const handleResetDefaults = () => {
-    setFieldValues(buildContractDefaults(contractFields));
+    setFieldValues(applyExpectationDefaults(buildContractDefaults(contractFields), contractFields));
     setFieldLinks({});
   };
 
@@ -150,11 +157,12 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   const onSubmit = (formData: FormValues) => {
     if (!action) return;
+    const normalizedInjectContent = applyExpectationDefaults(fieldValues, contractFields);
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
       inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_content: fieldValues,
+      inject_content: normalizedInjectContent,
       inject_field_links: fieldLinks,
       contract_fields: contractFields,
     });
@@ -175,7 +183,9 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   const expectations = useMemo(() => {
     if (!expectationField) return [];
-    const value = fieldValues[expectationField.key] ?? getContractFieldDefaultValue(expectationField);
+    const value = fieldValues[EXPECTATIONS_CONTENT_KEY]
+      ?? fieldValues[expectationField.key]
+      ?? getContractFieldDefaultValue(expectationField);
     if (!Array.isArray(value)) return [];
     return value.filter(isExpectationInput);
   }, [expectationField, fieldValues]);
@@ -311,24 +321,15 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           {/* Expectations */}
           {expectationField && (
             <Box>
-              <Typography variant="subtitle2" fontWeight={600}>
-                {t('Expectations')}
-              </Typography>
-              {expectations.length > 0 ? (
-                <InjectExpectations
-                  expectationDatas={expectations}
-                  handleExpectations={updatedExpectations => setFieldValues(prev => ({
-                    ...prev,
-                    [expectationField.key]: updatedExpectations,
-                  }))}
-                  predefinedExpectations={expectationField.predefinedExpectations ?? []}
-                  availableExpectations={expectationField.availableExpectations ?? []}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  {t('No expectations for this action.')}
-                </Typography>
-              )}
+              <InjectExpectations
+                expectationDatas={expectations}
+                handleExpectations={updatedExpectations => setFieldValues(prev => ({
+                  ...prev,
+                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+                }))}
+                predefinedExpectations={expectationField.predefinedExpectations ?? []}
+                availableExpectations={expectationField.availableExpectations ?? []}
+              />
             </Box>
           )}
 

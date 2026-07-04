@@ -109,6 +109,24 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   return (
     <>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+      >
+        <div className={classes.bodyItem}>{t('Inject Expectations')}</div>
+        {!readOnly && userCanAddExpectations && addableAvailableExpectations.length !== 0
+          && (
+            <InjectAddExpectation
+              disabled={readOnly}
+              handleAddExpectation={handleAddExpectation}
+              predefinedExpectations={predefinedExpectations}
+              availableExpectations={addableAvailableExpectations}
+              inline
+            />
+          )}
+      </div>
       <List>
         {sortedExpectations.map((expectation, idx) => (
           <ListItem
@@ -150,15 +168,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      { !readOnly && userCanAddExpectations && addableAvailableExpectations.length !== 0
-        && (
-          <InjectAddExpectation
-            disabled={readOnly}
-            handleAddExpectation={handleAddExpectation}
-            predefinedExpectations={predefinedExpectations}
-            availableExpectations={addableAvailableExpectations}
-          />
-        )}
     </>
   );
 };

@@ -81,6 +81,7 @@ public class InjectExecutionStep implements ActionStep {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
+  private final AtomicTestingService atomicTestingService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -200,7 +201,8 @@ public class InjectExecutionStep implements ActionStep {
               inject.getTeams(),
               inject.getAssets(),
               inject.getAssetGroups(),
-              List.of()); // TODO Check users?
+              List.of(),
+              true);
 
       // TODO Check add documents? Executable Payloads
       // executableInject.addDirectAttachment(inject.getDocuments());
@@ -647,11 +649,25 @@ public class InjectExecutionStep implements ActionStep {
         inject.setInjector(injector);
       }
 
-      // Modify payload arguments with inputs from step
-      ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
-      inject.setContent(updatedContent);
+      String baseContentJson =
+          inject.getContent() != null && !inject.getContent().isEmpty()
+              ? inject.getContent().toString()
+              : injectorContract.getContent();
 
-      inject.setAssets(scopeService.getValidAssets(step.getWorkflow().getId()));
+      // Modify payload arguments with inputs from step
+      ObjectNode updatedContent = updateContentWithInputs(step, baseContentJson);
+      ObjectNode normalizedContent =
+          normalizeSingleCardinalityContent(injectorContract, updatedContent);
+
+      List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
+      if (scopedAssets != null && !scopedAssets.isEmpty()) {
+        inject.setAssets(scopedAssets);
+      }
+
+      // Add expectations
+      ObjectNode contentWithExpectations =
+          atomicTestingService.setExpectations(injectorContract, normalizedContent);
+      inject.setContent(contentWithExpectations);
 
       return inject;
 
@@ -701,6 +717,65 @@ public class InjectExecutionStep implements ActionStep {
     } catch (JsonProcessingException e) {
       return mapper.createObjectNode();
     }
+  }
+
+  /**
+   * Normalizes inject content according to contract cardinality.
+   *
+   * <p>In chaining, some single-cardinality fields can be persisted as arrays from form payloads
+   * (for example: "obfuscator": ["plain-text"]). Runtime inject models expect scalar values for
+   * cardinality "1". This method coerces these fields to their first element.
+   */
+  private ObjectNode normalizeSingleCardinalityContent(
+      InjectorContract injectorContract, ObjectNode contentNode) {
+    if (contentNode == null) {
+      return mapper.createObjectNode();
+    }
+    if (injectorContract == null
+        || injectorContract.getContent() == null
+        || injectorContract.getContent().isBlank()) {
+      return contentNode;
+    }
+
+    try {
+      JsonNode contractRoot = mapper.readTree(injectorContract.getContent());
+      JsonNode fields = contractRoot.path("fields");
+      if (!fields.isArray()) {
+        return contentNode;
+      }
+
+      for (JsonNode field : fields) {
+        String key = field.path("key").asText(null);
+        if (key == null || key.isBlank() || !contentNode.has(key)) {
+          continue;
+        }
+
+        JsonNode cardinalityNode = field.get("cardinality");
+        boolean isSingleCardinality =
+            cardinalityNode != null
+                && ("1".equals(cardinalityNode.asText()) || cardinalityNode.asInt(-1) == 1);
+        if (!isSingleCardinality) {
+          continue;
+        }
+
+        JsonNode valueNode = contentNode.get(key);
+        if (valueNode != null && valueNode.isArray()) {
+          JsonNode firstValue = valueNode.size() > 0 ? valueNode.get(0) : null;
+          if (firstValue == null || firstValue.isNull()) {
+            contentNode.putNull(key);
+          } else {
+            contentNode.set(key, firstValue);
+          }
+        }
+      }
+    } catch (JsonProcessingException e) {
+      log.warn(
+          "Cannot normalize single-cardinality inject content for contract {}",
+          injectorContract.getId(),
+          e);
+    }
+
+    return contentNode;
   }
 
   /**
