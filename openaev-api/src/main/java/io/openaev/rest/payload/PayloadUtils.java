@@ -75,10 +75,7 @@ public class PayloadUtils {
     List<PayloadArgument> arguments = new ArrayList<>();
     for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
       PayloadArgument argument = new PayloadArgument();
-      String typeLabel = argumentNode.get("type").textValue();
-      String subtypeLabel =
-          argumentNode.hasNonNull("subtype") ? argumentNode.get("subtype").textValue() : null;
-      argument.setType(resolvePrimitiveType(typeLabel, subtypeLabel));
+      argument.setType(PrimitiveType.fromLabel(argumentNode.get("type").textValue()));
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());
@@ -220,47 +217,5 @@ public class PayloadUtils {
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, copyId);
     return target;
-  }
-
-  private static PrimitiveType resolvePrimitiveType(String typeLabel, String subtypeLabel) {
-    try {
-      return PrimitiveType.fromLabel(typeLabel);
-    } catch (IllegalArgumentException ignored) {
-      // Backward compatibility for legacy payload exports that used complex argument types
-      // with subtype selectors.
-    }
-
-    if (subtypeLabel == null || subtypeLabel.isBlank()) {
-      throw new BadRequestException("Unsupported payload argument type: " + typeLabel);
-    }
-
-    return switch (typeLabel) {
-      case "portscan" ->
-          switch (subtypeLabel) {
-            case "host" -> PrimitiveType.Host;
-            case "port" -> PrimitiveType.Port;
-            case "service" -> PrimitiveType.Service;
-            default ->
-                throw new BadRequestException(
-                    "Unsupported portscan subtype for payload argument: " + subtypeLabel);
-          };
-      case "credentials" ->
-          switch (subtypeLabel) {
-            case "username" -> PrimitiveType.Username;
-            case "password" -> PrimitiveType.Password;
-            default ->
-                throw new BadRequestException(
-                    "Unsupported credentials subtype for payload argument: " + subtypeLabel);
-          };
-      case "cve" ->
-          switch (subtypeLabel) {
-            case "host" -> PrimitiveType.Host;
-            case "severity" -> PrimitiveType.Severity;
-            default ->
-                throw new BadRequestException(
-                    "Unsupported cve subtype for payload argument: " + subtypeLabel);
-          };
-      default -> throw new BadRequestException("Unsupported payload argument type: " + typeLabel);
-    };
   }
 }

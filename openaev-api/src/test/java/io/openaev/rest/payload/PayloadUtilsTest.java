@@ -1,6 +1,7 @@
 package io.openaev.rest.payload;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,7 +14,7 @@ class PayloadUtilsTest {
   private final ObjectMapper mapper = new ObjectMapper();
 
   @Test
-  void given_legacyComplexArgumentWithSubtype_should_mapToPrimitiveType() throws Exception {
+  void given_legacyComplexArgumentWithSubtype_should_throw() throws Exception {
     JsonNode payloadNode =
         mapper.readTree(
             """
@@ -29,9 +30,7 @@ class PayloadUtilsTest {
             }
             """);
 
-    PayloadCreateInput payload = PayloadUtils.buildPayload(payloadNode);
-
-    assertEquals(PrimitiveType.Host, payload.getArguments().getFirst().getType());
+    assertThrows(IllegalArgumentException.class, () -> PayloadUtils.buildPayload(payloadNode));
   }
 
   @Test
