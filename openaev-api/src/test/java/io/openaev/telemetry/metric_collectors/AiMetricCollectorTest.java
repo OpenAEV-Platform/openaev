@@ -79,11 +79,11 @@ class AiMetricCollectorTest {
     }
 
     @Test
-    @DisplayName("agent calls without a known feature intent are counted by trimmed agent slug")
+    @DisplayName("agent calls without a known feature intent are counted by normalized agent slug")
     void given_unknownOrMissingIntent_should_countAgentCallsBySlug() {
       collector.recordAgentProxyCall("custom-agent", null);
-      // Whitespace variants collapse into the same trimmed label
-      collector.recordAgentProxyCall(" custom-agent ", "some.unknown_intent");
+      // Whitespace and case variants collapse into the same normalized label
+      collector.recordAgentProxyCall(" Custom-Agent ", "some.unknown_intent");
 
       collector.init();
 
@@ -92,6 +92,28 @@ class AiMetricCollectorTest {
       Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
       assertThat(snapshot)
           .containsEntry(Attributes.of(stringKey("agent_slug"), "custom-agent"), 2L);
+    }
+
+    @Test
+    @DisplayName("agent slug labels are length-capped and series growth is bounded")
+    void given_abusiveSlugs_should_capLengthAndBoundSeries() {
+      // Length cap: a very long slug is truncated to 64 characters
+      collector.recordAgentProxyCall("a".repeat(200), null);
+      // Series cap: after 100 distinct slugs, further slugs aggregate under "other"
+      for (int i = 0; i < 150; i++) {
+        collector.recordAgentProxyCall("slug-" + i, null);
+      }
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(eq("ai_agent_call_count"), any(), multiGaugeCaptor.capture());
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot).containsKey(Attributes.of(stringKey("agent_slug"), "a".repeat(64)));
+      assertThat(snapshot).containsKey(Attributes.of(stringKey("agent_slug"), "other"));
+      assertThat(snapshot.get(Attributes.of(stringKey("agent_slug"), "other"))).isEqualTo(51L);
+      // 100 distinct series + the "other" overflow bucket
+      assertThat(snapshot).hasSize(101);
     }
   }
 

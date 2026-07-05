@@ -10,6 +10,7 @@ import io.openaev.xtmone.XtmOneConfig;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,6 +35,12 @@ public class AiMetricCollector {
   private static final String ATTRIBUTE_AGENT_SLUG = "agent_slug";
   private static final String ATTRIBUTE_COLLECTOR_TYPE = "collector_type";
   private static final String ATTRIBUTE_TYPE = "type";
+
+  /** Guardrails for the user-supplied agent slug label (see #recordAgentProxyCall). */
+  private static final int MAX_AGENT_SLUG_LENGTH = 64;
+
+  private static final int MAX_AGENT_SLUG_SERIES = 100;
+  private static final String OVERFLOW_AGENT_SLUG = "other";
 
   /**
    * Mapping from XTM One feature intents to the canonical feature labels used by the legacy
@@ -127,6 +134,11 @@ public class AiMetricCollector {
   /**
    * Records one XTM One agent proxy call. When the call carries a known feature intent it lands in
    * the backend-agnostic per-feature counter; otherwise it is counted as a generic agent call.
+   *
+   * <p>The agent slug is user-supplied, so it is normalized (trimmed, lowercased, length-capped)
+   * and the number of distinct slug series is bounded: once {@link #MAX_AGENT_SLUG_SERIES} series
+   * exist, further slugs are aggregated under {@code other}. This keeps both the metric cardinality
+   * and the in-memory stats map bounded even if upstream slug validation is bypassed.
    */
   public void recordAgentProxyCall(String agentSlug, String intent) {
     String feature = intent == null ? null : INTENT_TO_FEATURE.get(intent.trim());
@@ -134,8 +146,14 @@ public class AiMetricCollector {
       recordAiCall(feature);
       return;
     }
-    String slug = normalizeLabel(agentSlug);
+    String slug = normalizeLabel(agentSlug).toLowerCase(Locale.ROOT);
+    if (slug.length() > MAX_AGENT_SLUG_LENGTH) {
+      slug = slug.substring(0, MAX_AGENT_SLUG_LENGTH);
+    }
     Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_AGENT_SLUG), slug);
+    if (!agentCallStats.containsKey(attributes) && agentCallStats.size() >= MAX_AGENT_SLUG_SERIES) {
+      attributes = Attributes.of(stringKey(ATTRIBUTE_AGENT_SLUG), OVERFLOW_AGENT_SLUG);
+    }
     agentCallStats.computeIfAbsent(attributes, key -> new AtomicLong(0)).incrementAndGet();
   }
 
