@@ -67,8 +67,8 @@ public class SecurityCoverageSendJobService {
         securityCoverageSendJobRepository.findAllByIdForUpdate(
             jobs.stream().map(SecurityCoverageSendJob::getId).toList());
 
+    List<SecurityCoverageSendJob> jobsToUpdate = new ArrayList<>();
     for (SecurityCoverageSendJob job : jobs) {
-      List<SecurityCoverageSendJob> jobsToUpdate = new ArrayList<>();
       Optional<SecurityCoverageSendJob> refetched =
           refetchedJobs.stream().filter(j -> job.getId().equals(j.getId())).findAny();
       if (refetched.isPresent()
@@ -77,10 +77,12 @@ public class SecurityCoverageSendJobService {
           && job.getUpdatedAt().equals(refetched.get().getUpdatedAt())) {
         refetched.get().setStatus("SENT");
         jobsToUpdate.add(refetched.get());
-        // Telemetry: one coverage result sent back to the CTI platform.
-        resultsMetricCollector.recordCoverageResultsSent(1);
       }
+    }
+    if (!jobsToUpdate.isEmpty()) {
       securityCoverageSendJobRepository.saveAll(jobsToUpdate);
+      // Telemetry: coverage results sent back to the CTI platform.
+      resultsMetricCollector.recordCoverageResultsSent(jobsToUpdate.size());
     }
   }
 
