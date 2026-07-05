@@ -116,13 +116,14 @@ class ProductInventoryMetricCollectorTest {
   class DimensionedGauges {
 
     @Test
-    @DisplayName("payload rows group into type/source/status attributes")
+    @DisplayName("payload rows group into type/source/status attributes with unknown for nulls")
     void given_payloadRows_should_exposeTypeSourceStatusDimensions() {
       mockQuery(
           "from Payload",
           List.of(
               new Object[] {"Command", "MANUAL", "VERIFIED", 3L},
-              new Object[] {"Executable", "COMMUNITY", "UNVERIFIED", 1L}));
+              // NULL columns must export as "unknown", never as the literal "null"
+              new Object[] {"Executable", null, "UNVERIFIED", 1L}));
 
       collector.init();
 
@@ -139,7 +140,7 @@ class ProductInventoryMetricCollectorTest {
           .containsEntry(
               Attributes.of(
                   stringKey("type"), "Executable",
-                  stringKey("source"), "COMMUNITY",
+                  stringKey("source"), "unknown",
                   stringKey("status"), "UNVERIFIED"),
               1L);
     }

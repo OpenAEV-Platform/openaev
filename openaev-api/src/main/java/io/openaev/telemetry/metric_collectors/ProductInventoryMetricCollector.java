@@ -158,9 +158,9 @@ public class ProductInventoryMetricCollector {
       for (Object[] row : rows) {
         Attributes attributes =
             Attributes.of(
-                stringKey("type"), String.valueOf(row[0]),
-                stringKey("source"), String.valueOf(row[1]),
-                stringKey("status"), String.valueOf(row[2]));
+                stringKey("type"), normalizeEnumLabel(row[0]),
+                stringKey("source"), normalizeEnumLabel(row[1]),
+                stringKey("status"), normalizeEnumLabel(row[2]));
         result.merge(attributes, (Long) row[3], Long::sum);
       }
     } catch (Exception e) {
@@ -196,8 +196,10 @@ public class ProductInventoryMetricCollector {
                   "select e.platform, count(e) from Endpoint e group by e.platform", Object[].class)
               .getResultList();
       for (Object[] row : rows) {
-        String platform = row[0] == null ? "unknown" : String.valueOf(row[0]);
-        result.merge(Attributes.of(stringKey("platform"), platform), (Long) row[1], Long::sum);
+        result.merge(
+            Attributes.of(stringKey("platform"), normalizeEnumLabel(row[0])),
+            (Long) row[1],
+            Long::sum);
       }
     } catch (Exception e) {
       log.error("Telemetry - Failed to collect endpoint inventory", e);
@@ -220,5 +222,10 @@ public class ProductInventoryMetricCollector {
       log.error("Telemetry - Failed to collect inventory count", e);
       return 0L;
     }
+  }
+
+  /** Enum-backed label value: NULL columns become {@code unknown} instead of the literal "null". */
+  private static String normalizeEnumLabel(Object value) {
+    return MetricRegistry.normalizeLabel(value == null ? null : value.toString());
   }
 }
