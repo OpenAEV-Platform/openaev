@@ -87,4 +87,4 @@ Administrators can disable the MCP servers globally in XTM One under `Settings >
 
 !!! note "Full documentation"
 
-    The complete guide (tool reference, authentication details, troubleshooting) is available in the [XTM One documentation](https://docs.xtmone.io/latest/resources/platform-mcp-servers/).
+    For more details about MCP endpoints, API keys and platform administration, please refer to the [XTM One documentation](https://docs.xtmone.io/).
