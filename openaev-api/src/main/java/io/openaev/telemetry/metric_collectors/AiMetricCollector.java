@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.normalizeLabel;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.openaev.database.model.SettingKeys;
@@ -128,12 +129,12 @@ public class AiMetricCollector {
    * the backend-agnostic per-feature counter; otherwise it is counted as a generic agent call.
    */
   public void recordAgentProxyCall(String agentSlug, String intent) {
-    String feature = intent == null ? null : INTENT_TO_FEATURE.get(intent);
+    String feature = intent == null ? null : INTENT_TO_FEATURE.get(intent.trim());
     if (feature != null) {
       recordAiCall(feature);
       return;
     }
-    String slug = agentSlug == null || agentSlug.isBlank() ? "unknown" : agentSlug;
+    String slug = normalizeLabel(agentSlug);
     Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_AGENT_SLUG), slug);
     agentCallStats.computeIfAbsent(attributes, key -> new AtomicLong(0)).incrementAndGet();
   }
@@ -145,7 +146,7 @@ public class AiMetricCollector {
 
   /** Records one detection/remediation rule generation attempt, before the routing branch. */
   public void recordDetectionRemediation(String collectorType) {
-    String type = collectorType == null || collectorType.isBlank() ? "unknown" : collectorType;
+    String type = normalizeLabel(collectorType);
     Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_COLLECTOR_TYPE), type);
     detectionRemediationStats
         .computeIfAbsent(attributes, key -> new AtomicLong(0))

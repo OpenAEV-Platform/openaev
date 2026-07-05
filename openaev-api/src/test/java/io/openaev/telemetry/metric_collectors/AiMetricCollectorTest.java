@@ -79,10 +79,11 @@ class AiMetricCollectorTest {
     }
 
     @Test
-    @DisplayName("agent calls without a known feature intent are counted by agent slug")
+    @DisplayName("agent calls without a known feature intent are counted by trimmed agent slug")
     void given_unknownOrMissingIntent_should_countAgentCallsBySlug() {
       collector.recordAgentProxyCall("custom-agent", null);
-      collector.recordAgentProxyCall("custom-agent", "some.unknown_intent");
+      // Whitespace variants collapse into the same trimmed label
+      collector.recordAgentProxyCall(" custom-agent ", "some.unknown_intent");
 
       collector.init();
 

@@ -19,6 +19,14 @@ public class MetricRegistry {
   @Lazy private final Meter meter;
   private final List<ObservableDoubleGauge> activeGauges = new ArrayList<>();
 
+  /**
+   * Normalizes a free-text metric label value: trimmed, with null/blank falling back to {@code
+   * unknown}. Keeps label cardinality bounded (no whitespace variants of the same value).
+   */
+  public static String normalizeLabel(String value) {
+    return value == null || value.isBlank() ? "unknown" : value.trim();
+  }
+
   @PreDestroy
   private void destroy() {
     activeGauges.forEach(ObservableDoubleGauge::close);

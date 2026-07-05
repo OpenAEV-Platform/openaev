@@ -35,10 +35,11 @@ class ResultsMetricCollectorTest {
   class ExpectationValidations {
 
     @Test
-    @DisplayName("validations are dimensioned by collector type and reset on collect")
+    @DisplayName("validations are dimensioned by trimmed collector type and reset on collect")
     void given_recordedValidations_should_dimensionByCollectorTypeAndResetOnCollect() {
       collector.recordExpectationValidations("crowdstrike", 3);
-      collector.recordExpectationValidations("crowdstrike", 2);
+      // Whitespace variants collapse into the same trimmed label
+      collector.recordExpectationValidations(" crowdstrike ", 2);
 
       collector.init();
 

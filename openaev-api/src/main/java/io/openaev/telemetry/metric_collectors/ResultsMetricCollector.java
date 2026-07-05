@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.normalizeLabel;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.opentelemetry.api.common.Attributes;
@@ -87,8 +88,8 @@ public class ResultsMetricCollector {
     if (count <= 0) {
       return;
     }
-    String type = collectorType == null || collectorType.isBlank() ? "unknown" : collectorType;
-    Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_COLLECTOR_TYPE), type);
+    Attributes attributes =
+        Attributes.of(stringKey(ATTRIBUTE_COLLECTOR_TYPE), normalizeLabel(collectorType));
     expectationValidationStats
         .computeIfAbsent(attributes, key -> new AtomicLong(0))
         .addAndGet(count);
@@ -117,8 +118,7 @@ public class ResultsMetricCollector {
   }
 
   public void recordPayloadCreated(String payloadType) {
-    String type = payloadType == null || payloadType.isBlank() ? "unknown" : payloadType;
-    Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_TYPE), type);
+    Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_TYPE), normalizeLabel(payloadType));
     payloadCreatedStats.computeIfAbsent(attributes, key -> new AtomicLong(0)).incrementAndGet();
   }
 

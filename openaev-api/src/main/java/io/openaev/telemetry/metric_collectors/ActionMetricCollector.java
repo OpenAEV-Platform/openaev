@@ -131,7 +131,7 @@ public class ActionMetricCollector {
       } else {
         addInjectPlayedWithoutAgentsCount();
       }
-      String type = injectorType == null || injectorType.isBlank() ? "unknown" : injectorType;
+      String type = MetricRegistry.normalizeLabel(injectorType);
       injectsPlayedByType
           .computeIfAbsent(
               Attributes.of(stringKey("injector_type"), type), key -> new AtomicLong(0))
