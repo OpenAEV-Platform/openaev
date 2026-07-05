@@ -6,8 +6,6 @@ with [OpenCTI](https://filigran.io/solutions/open-cti/) to generate meaningful a
 
 This guide introduces the **key concepts** and **workflows** behind the platform.
 
----
-
 ## What you can do with OpenAEV
 
 Some typical use cases include:
@@ -17,8 +15,6 @@ Some typical use cases include:
 - Enhancing team skills during exercises and simulations
 - Organizing Capture The Flag events with multiple challenges
 - Conducting atomic testing on assets
-
----
 
 ## Players & Teams
 
@@ -84,8 +80,6 @@ After a simulation, results are consolidated along four axes:
 [Dashboards](dashboards/custom-dashboards/custom-dashboards.md) let you explore these results at different levels: from
 a global overview of your posture to the detailed timeline of a simulation.
 
----
-
 ## The Starter Pack
 
 OpenAEV includes a **Starter Pack** to accelerate onboarding.  
@@ -98,8 +92,6 @@ It provides:
 - One agentless endpoint + an asset group
 
 With the Starter Pack, you can launch a complete simulation right after installation.
-
----
 
 ## An end-to-end atomic example (with agent)
 
@@ -124,8 +116,6 @@ Imagine you deployed an OpenAEV agent on a Linux endpoint named `endpoint-lin-01
 Click **Launch now**.
 The platform executes the threat arsenal action via the agent.
 The result should appear in the atomic testing overview.
-
----
 
 ## Next steps
 
