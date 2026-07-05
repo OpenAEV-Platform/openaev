@@ -126,6 +126,7 @@ nav:
       - Executors: deployment/ecosystem/executors.md
       - Injectors: deployment/ecosystem/injectors.md
       - Collectors: deployment/ecosystem/collectors.md
+      - MCP server (via XTM One): deployment/ecosystem/mcp-server.md
       - Integration Manager:
           - Overview: deployment/ecosystem/integration-manager/overview.md
           - Quick start: deployment/ecosystem/integration-manager/quick-start.md
