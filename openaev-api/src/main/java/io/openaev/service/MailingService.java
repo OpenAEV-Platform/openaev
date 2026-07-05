@@ -19,6 +19,7 @@ import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,7 @@ public class MailingService {
   @Resource protected ObjectMapper mapper;
 
   private final UserRepository userRepository;
+  private final ResultsMetricCollector resultsMetricCollector;
   private final InjectorContractRepository injectorContractRepository;
   private final ExecutionContextService executionContextService;
   private final ManagerFactory managerFactory;
@@ -54,6 +56,8 @@ public class MailingService {
 
   public void sendEmail(
       String subject, String body, List<User> users, Optional<Exercise> exercise, String tenantId) {
+    // Telemetry: one email send (attempts semantics, before delivery).
+    resultsMetricCollector.recordEmailSent();
     EmailContent emailContent = new EmailContent();
     emailContent.setSubject(subject);
     emailContent.setBody(body);

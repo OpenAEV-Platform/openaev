@@ -5,6 +5,7 @@ import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -20,6 +21,7 @@ public class SecurityCoverageSendJobService {
   private final SecurityCoverageSendJobRepository securityCoverageSendJobRepository;
   private final ExerciseRepository exerciseRepository;
   private final EntityManager entityManager;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   public void createOrUpdateCoverageSendJobForSimulationsIfReady(List<Exercise> exercises) {
     List<SecurityCoverageSendJob> jobs = new ArrayList<>();
@@ -75,6 +77,8 @@ public class SecurityCoverageSendJobService {
           && job.getUpdatedAt().equals(refetched.get().getUpdatedAt())) {
         refetched.get().setStatus("SENT");
         jobsToUpdate.add(refetched.get());
+        // Telemetry: one coverage result sent back to the CTI platform.
+        resultsMetricCollector.recordCoverageResultsSent(1);
       }
       securityCoverageSendJobRepository.saveAll(jobsToUpdate);
     }

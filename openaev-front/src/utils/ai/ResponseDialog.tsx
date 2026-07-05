@@ -132,7 +132,8 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
     if (!selectedAgent || !agentMode) return;
     setAgentExecuted(true);
     const prompt = buildPrompt(agentMode.action, agentMode.inputContent, agentMode.format, tone);
-    executeStream(selectedAgent.slug, prompt);
+    // The intent is forwarded for telemetry only (backend-agnostic feature counters).
+    executeStream(selectedAgent.slug, prompt, agentMode.intent);
   };
 
   // Auto-execute when agent is selected

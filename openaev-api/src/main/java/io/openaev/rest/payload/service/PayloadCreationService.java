@@ -14,6 +14,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class PayloadCreationService {
   private final TagRepository tagRepository;
   private final DomainService domainService;
   private final DocumentService documentService;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   public record PayloadInjectorContractCreationResult(
       Payload payload, InjectorContract injectorContract) {}
@@ -52,6 +54,8 @@ public class PayloadCreationService {
   private PayloadInjectorContractCreationResult create(PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
+    // Telemetry: one payload created, by type.
+    resultsMetricCollector.recordPayloadCreated(payloadType.key);
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);

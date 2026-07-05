@@ -3,6 +3,7 @@ package io.openaev.api.xtmone;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ public class XtmOneChatApi extends RestBehavior {
   private static final Pattern CONVERSATION_ID_PATTERN = FILE_ID_PATTERN;
   private final XtmOneClient client;
   private final XtmOneConfig config;
+  private final AiMetricCollector aiMetricCollector;
 
   @GetMapping(XTM_ONE_URI + "/chat/agents")
   @Transactional(propagation = Propagation.NEVER)
@@ -134,6 +136,8 @@ public class XtmOneChatApi extends RestBehavior {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
+    // Telemetry: one chatbot message (attempts semantics, before the upstream call).
+    aiMetricCollector.recordChatbotMessage();
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;

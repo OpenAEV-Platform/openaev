@@ -1,0 +1,137 @@
+package io.openaev.telemetry.metric_collectors;
+
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import io.openaev.database.repository.SettingRepository;
+import io.openaev.rest.stream.ai.AiConfig;
+import io.openaev.xtmone.XtmOneConfig;
+import io.opentelemetry.api.common.Attributes;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+@DisplayName("AiMetricCollector Tests")
+class AiMetricCollectorTest {
+
+  @Mock private MetricRegistry metricRegistry;
+  @Mock private AiConfig aiConfig;
+  @Mock private XtmOneConfig xtmOneConfig;
+  @Mock private SettingRepository settingRepository;
+
+  @InjectMocks private AiMetricCollector collector;
+
+  @Captor private ArgumentCaptor<Supplier<Map<Attributes, Long>>> multiGaugeCaptor;
+  @Captor private ArgumentCaptor<Supplier<Long>> gaugeCaptor;
+
+  @Nested
+  @DisplayName("Backend-agnostic feature counting")
+  class FeatureCounting {
+
+    @Test
+    @DisplayName("legacy endpoint calls and known feature intents land in the same counter")
+    void shouldCountFeatureCallsIdenticallyWhicheverBackend() {
+      // Legacy /api/ai/* call
+      collector.recordAiCall("fix_spelling");
+      // Same feature routed through the XTM One agent proxy with its intent
+      collector.recordAgentProxyCall("some-agent", "global.fix_spelling");
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(eq("ai_call_count"), any(), multiGaugeCaptor.capture());
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot)
+          .containsEntry(Attributes.of(stringKey("feature"), "fix_spelling"), 2L);
+
+      // Delta semantics: second collection is empty
+      assertThat(multiGaugeCaptor.getValue().get()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("agent calls without a known feature intent are counted by agent slug")
+    void shouldCountUnknownIntentAgentCallsBySlug() {
+      collector.recordAgentProxyCall("custom-agent", null);
+      collector.recordAgentProxyCall("custom-agent", "some.unknown_intent");
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(eq("ai_agent_call_count"), any(), multiGaugeCaptor.capture());
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot)
+          .containsEntry(Attributes.of(stringKey("agent_slug"), "custom-agent"), 2L);
+    }
+  }
+
+  @Nested
+  @DisplayName("Scalar counters")
+  class ScalarCounters {
+
+    @Test
+    @DisplayName("chatbot messages, TTP extractions and assistant runs reset on collect")
+    void shouldResetScalarCountersOnCollect() {
+      collector.recordChatbotMessage();
+      collector.recordChatbotMessage();
+      collector.recordTtpExtraction();
+      collector.recordInjectAssistantRun();
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerGauge(eq("chatbot_message_count"), any(), gaugeCaptor.capture());
+      assertThat(gaugeCaptor.getValue().get()).isEqualTo(2L);
+      assertThat(gaugeCaptor.getValue().get()).isZero();
+    }
+
+    @Test
+    @DisplayName("detection remediation counts carry the collector type dimension")
+    void shouldCountDetectionRemediationByCollectorType() {
+      collector.recordDetectionRemediation("crowdstrike");
+      collector.recordDetectionRemediation(null);
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(
+              eq("detection_remediation_ai_count"), any(), multiGaugeCaptor.capture());
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot)
+          .containsEntry(Attributes.of(stringKey("collector_type"), "crowdstrike"), 1L)
+          .containsEntry(Attributes.of(stringKey("collector_type"), "unknown"), 1L);
+    }
+  }
+
+  @Nested
+  @DisplayName("Configuration gauges")
+  class ConfigurationGauges {
+
+    @Test
+    @DisplayName("is_ai_enabled carries the provider type when enabled and none otherwise")
+    void shouldExposeAiEnabledWithProviderType() {
+      when(aiConfig.isEnabled()).thenReturn(true);
+      when(aiConfig.getType()).thenReturn("mistralai");
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(eq("is_ai_enabled"), any(), multiGaugeCaptor.capture(), eq("boolean"));
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot)
+          .containsEntry(Attributes.of(stringKey("type"), "mistralai"), 1L);
+    }
+  }
+}
