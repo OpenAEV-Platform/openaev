@@ -162,7 +162,9 @@ public class AiMetricCollector {
     boolean enabled = aiConfig.isEnabled();
     String configuredType = aiConfig.getType();
     String type =
-        enabled && configuredType != null && !configuredType.isBlank() ? configuredType : "none";
+        enabled && configuredType != null && !configuredType.isBlank()
+            ? configuredType.trim()
+            : "none";
     return Map.of(Attributes.of(stringKey(ATTRIBUTE_TYPE), type), enabled ? 1L : 0L);
   }
 

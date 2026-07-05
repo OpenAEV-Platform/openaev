@@ -138,10 +138,11 @@ class AiMetricCollectorTest {
   class ConfigurationGauges {
 
     @Test
-    @DisplayName("is_ai_enabled carries the provider type when enabled and none otherwise")
+    @DisplayName("is_ai_enabled carries the trimmed provider type when enabled and none otherwise")
     void given_aiEnabledWithProviderType_should_exposeProviderType() {
       when(aiConfig.isEnabled()).thenReturn(true);
-      when(aiConfig.getType()).thenReturn("mistralai");
+      // Surrounding whitespace in the configuration must not leak into the label
+      when(aiConfig.getType()).thenReturn(" mistralai ");
 
       collector.init();
 
