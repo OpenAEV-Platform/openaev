@@ -43,6 +43,7 @@ export interface AgentCallInput {
   agent_slug: string;
   /** @minLength 1 */
   content: string;
+  intent?: string;
 }
 
 export interface AgentCallOutput {

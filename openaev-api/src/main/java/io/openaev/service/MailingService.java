@@ -19,6 +19,7 @@ import io.openaev.injectors.email.EmailContract;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,7 @@ public class MailingService {
   @Resource protected ObjectMapper mapper;
 
   private final UserRepository userRepository;
+  private final ResultsMetricCollector resultsMetricCollector;
   private final InjectorContractRepository injectorContractRepository;
   private final ExecutionContextService executionContextService;
   private final ManagerFactory managerFactory;
@@ -93,6 +95,9 @@ public class MailingService {
                               this.executionContextService.executionContext(
                                   user, inject, "Direct execution"))
                       .toList();
+              // Telemetry: the email injector sends one individual email per distinct
+              // recipient (attempts semantics, before delivery).
+              resultsMetricCollector.recordEmailsSent(userInjectContexts.size());
               ExecutableInject injection =
                   new ExecutableInject(false, true, inject, userInjectContexts);
               io.openaev.executors.Injector executor =

@@ -21,6 +21,7 @@ import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
@@ -52,6 +53,7 @@ class AttackPatternServiceTest {
   @Mock private XtmOneConfig xtmOneConfig;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private XtmOneService xtmOneService;
+  @Mock private AiMetricCollector aiMetricCollector;
 
   @InjectMocks private AttackPatternService attackPatternService;
 

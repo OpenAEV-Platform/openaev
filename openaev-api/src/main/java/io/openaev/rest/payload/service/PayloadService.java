@@ -46,6 +46,7 @@ import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -78,6 +79,7 @@ public class PayloadService {
   private final UserService userService;
   private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
+  private final ResultsMetricCollector resultsMetricCollector;
   private final DomainService domainService;
   private final TagService tagService;
   private final ExpectationService expectationService;
@@ -323,6 +325,9 @@ public class PayloadService {
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
+    // Telemetry: one payload duplicated (community payload customization signal),
+    // counted only once the origin payload is known to exist.
+    resultsMetricCollector.recordPayloadDuplicated();
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);
 

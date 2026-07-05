@@ -13,6 +13,7 @@ import io.openaev.database.repository.InjectExpectationTraceRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject_expectation_trace.form.InjectExpectationTraceInput;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class InjectExpectationTraceService {
   private final InjectExpectationTraceRepository injectExpectationTraceRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final CollectorRepository collectorRepository;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
       @NotNull String injectExpectationId, @NotNull String sourceId) {
@@ -65,6 +67,10 @@ public class InjectExpectationTraceService {
             .findByIdAndTenantId(
                 injectExpectationTraces.getFirst().getSourceId(), TenantContext.getCurrentTenant())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
+    // Telemetry: expectation validation traces pushed by this collector - the
+    // key prevention/detection value signal for EDR/SIEM integrations.
+    resultsMetricCollector.recordExpectationValidations(
+        collector.getType(), injectExpectationTraces.size());
     Map<SimpleRawExpectationTrace, InjectExpectationTrace> traces = new HashMap<>();
     injectExpectationTraces.forEach(
         input -> {
