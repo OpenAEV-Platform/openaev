@@ -17,7 +17,6 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.ReportRepository;
-import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -53,7 +52,6 @@ public class ProductInventoryMetricCollector {
 
   private final MetricRegistry metricRegistry;
   private final AssetGroupRepository assetGroupRepository;
-  private final SecurityPlatformRepository securityPlatformRepository;
   private final OrganizationRepository organizationRepository;
   private final InjectRepository injectRepository;
   private final ChallengeRepository challengeRepository;
@@ -91,10 +89,10 @@ public class ProductInventoryMetricCollector {
         "asset_groups_total",
         "Number of asset groups",
         () -> safeCount(assetGroupRepository::count));
-    metricRegistry.registerGauge(
+    metricRegistry.registerMultiGauge(
         "security_platforms_total",
-        "Number of security platforms",
-        () -> safeCount(securityPlatformRepository::count));
+        "Security platforms broken down by type (EDR, XDR, SIEM, ...)",
+        this::collectSecurityPlatforms);
     metricRegistry.registerGauge(
         "organizations_total",
         "Number of organizations",
@@ -183,6 +181,26 @@ public class ProductInventoryMetricCollector {
       }
     } catch (Exception e) {
       log.error("Telemetry - Failed to collect team inventory", e);
+    }
+    return result;
+  }
+
+  private Map<Attributes, Long> collectSecurityPlatforms() {
+    Map<Attributes, Long> result = new HashMap<>();
+    try {
+      List<Object[]> rows =
+          entityManager
+              .createQuery(
+                  "select sp.securityPlatformType, count(sp) from SecurityPlatform sp"
+                      + " group by sp.securityPlatformType",
+                  Object[].class)
+              .getResultList();
+      for (Object[] row : rows) {
+        result.merge(
+            Attributes.of(stringKey("type"), normalizeEnumLabel(row[0])), (Long) row[1], Long::sum);
+      }
+    } catch (Exception e) {
+      log.error("Telemetry - Failed to collect security platform inventory", e);
     }
     return result;
   }

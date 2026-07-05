@@ -25,7 +25,6 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.NotificationRuleRepository;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.ReportRepository;
-import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.database.repository.WorkflowRepository;
@@ -52,7 +51,6 @@ class ProductInventoryMetricCollectorTest {
 
   @Mock private MetricRegistry metricRegistry;
   @Mock private AssetGroupRepository assetGroupRepository;
-  @Mock private SecurityPlatformRepository securityPlatformRepository;
   @Mock private OrganizationRepository organizationRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private ChallengeRepository challengeRepository;
@@ -82,7 +80,6 @@ class ProductInventoryMetricCollectorTest {
         new ProductInventoryMetricCollector(
             metricRegistry,
             assetGroupRepository,
-            securityPlatformRepository,
             organizationRepository,
             injectRepository,
             challengeRepository,
@@ -158,6 +155,22 @@ class ProductInventoryMetricCollectorTest {
       assertThat(snapshot)
           .containsEntry(Attributes.of(booleanKey("contextual"), true), 4L)
           .containsEntry(Attributes.of(booleanKey("contextual"), false), 6L);
+    }
+
+    @Test
+    @DisplayName("security platforms are dimensioned by platform type")
+    void given_securityPlatformRows_should_exposeTypeDimension() {
+      mockQuery(
+          "from SecurityPlatform", List.of(new Object[] {"EDR", 2L}, new Object[] {"SIEM", 1L}));
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(eq("security_platforms_total"), any(), multiGaugeCaptor.capture());
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot)
+          .containsEntry(Attributes.of(stringKey("type"), "EDR"), 2L)
+          .containsEntry(Attributes.of(stringKey("type"), "SIEM"), 1L);
     }
 
     @Test
