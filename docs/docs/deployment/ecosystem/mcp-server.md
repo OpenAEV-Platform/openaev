@@ -2,7 +2,7 @@
 
 ## Introduction
 
-OpenAEV can be used from any [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) compatible client — Cursor, Claude Desktop, Claude Code, or custom AI agents — through the native MCP server embedded in [XTM One](https://docs.xtmone.io/).
+OpenAEV can be used from any [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)-compatible client — Cursor, Claude Desktop, Claude Code, or custom AI agents — through the native MCP server embedded in [XTM One](https://docs.xtmone.io/).
 
 When an OpenAEV instance is registered with XTM One, XTM One automatically exposes an MCP server for it. AI clients connect to XTM One and work with your adversarial exposure validation content: scenarios, simulations, payloads, injects, atomic tests, expectations, findings and vulnerabilities.
 
@@ -25,7 +25,7 @@ OpenAEV   REST API (acting as the calling user)
 
 - The MCP endpoint is served by XTM One at `https://<your-xtm-one>/mcp/openaev` using the MCP Streamable HTTP transport.
 - Clients authenticate with a personal XTM One API key (`fcp-...`) or an OAuth 2.1 access token.
-- For every tool call, XTM One signs a short-lived token for the calling user (matched by email in OpenAEV), so all operations run with that user's permissions and audit trail. The OpenAEV API token is never stored in or proxied through XTM One.
+- For every tool call, XTM One signs a short-lived token for the calling user (matched by email in OpenAEV), so all operations run with that user's permissions and audit trail. No long-lived OpenAEV credential is ever stored in XTM One or exposed to the MCP client: the only secret the client holds is its XTM One API key, and OpenAEV verifies the short-lived tokens through the XTM One JWKS.
 
 ## Prerequisites
 
