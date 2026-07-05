@@ -37,6 +37,14 @@ import org.springframework.stereotype.Service;
  * Product adoption inventory: snapshot gauges of the main content and configuration objects, for
  * product management and leadership analytics. Anonymous only: type/source/status enums and counts,
  * never any object content.
+ *
+ * <p>Tenant scoping: every gauge here is intentionally platform-wide (telemetry is per-instance,
+ * not per-tenant), like {@code total_users_count} in {@link GlobalMetricCollector}. All suppliers
+ * run on the OpenTelemetry exporter thread outside any {@code @Transactional} method, so the
+ * Hibernate {@code tenantFilter} is never enabled (it is only turned on by {@code
+ * HibernateFilterTransactionAspect} on method-level {@code @Transactional} executions): both the
+ * JPQL queries and the Spring Data {@code count()} calls therefore consistently count across all
+ * tenants.
  */
 @Slf4j
 @Service

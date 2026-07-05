@@ -151,10 +151,19 @@ public class AiMetricCollector {
       slug = slug.substring(0, MAX_AGENT_SLUG_LENGTH);
     }
     Attributes attributes = Attributes.of(stringKey(ATTRIBUTE_AGENT_SLUG), slug);
-    if (!agentCallStats.containsKey(attributes) && agentCallStats.size() >= MAX_AGENT_SLUG_SERIES) {
-      attributes = Attributes.of(stringKey(ATTRIBUTE_AGENT_SLUG), OVERFLOW_AGENT_SLUG);
+    AtomicLong counter = agentCallStats.get(attributes);
+    if (counter == null) {
+      // Serialize new-series creation so the cap check and the insert are atomic;
+      // the hot path (existing series) above stays lock-free.
+      synchronized (agentCallStats) {
+        if (!agentCallStats.containsKey(attributes)
+            && agentCallStats.size() >= MAX_AGENT_SLUG_SERIES) {
+          attributes = Attributes.of(stringKey(ATTRIBUTE_AGENT_SLUG), OVERFLOW_AGENT_SLUG);
+        }
+        counter = agentCallStats.computeIfAbsent(attributes, key -> new AtomicLong(0));
+      }
     }
-    agentCallStats.computeIfAbsent(attributes, key -> new AtomicLong(0)).incrementAndGet();
+    counter.incrementAndGet();
   }
 
   /** Records one TTP extraction attempt, before the legacy/XTM One routing branch. */
