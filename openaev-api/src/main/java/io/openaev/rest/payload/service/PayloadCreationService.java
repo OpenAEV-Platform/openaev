@@ -54,8 +54,6 @@ public class PayloadCreationService {
   private PayloadInjectorContractCreationResult create(PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
-    // Telemetry: one payload created, by type.
-    resultsMetricCollector.recordPayloadCreated(payloadType.key);
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
@@ -73,6 +71,9 @@ public class PayloadCreationService {
             fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())),
             iterableToSet(domainService.findAllById(input.getDomainIds())),
             iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    // Telemetry: one payload created, by type - recorded only once the payload and
+    // its injector contract are persisted (a rollback would otherwise inflate the counter).
+    resultsMetricCollector.recordPayloadCreated(payloadType.key);
     return new PayloadInjectorContractCreationResult(payloadSaved, injectorContract);
   }
 }
