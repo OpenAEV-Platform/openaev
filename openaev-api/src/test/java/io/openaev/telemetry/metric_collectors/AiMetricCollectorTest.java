@@ -43,7 +43,7 @@ class AiMetricCollectorTest {
 
     @Test
     @DisplayName("legacy endpoint calls and known feature intents land in the same counter")
-    void shouldCountFeatureCallsIdenticallyWhicheverBackend() {
+    void given_legacyCallAndKnownFeatureIntent_should_landInSameCounter() {
       // Legacy /api/ai/* call
       collector.recordAiCall("fix_spelling");
       // Same feature routed through the XTM One agent proxy with its intent
@@ -54,16 +54,33 @@ class AiMetricCollectorTest {
       verify(metricRegistry)
           .registerMultiGauge(eq("ai_call_count"), any(), multiGaugeCaptor.capture());
       Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
-      assertThat(snapshot)
-          .containsEntry(Attributes.of(stringKey("feature"), "fix_spelling"), 2L);
+      assertThat(snapshot).containsEntry(Attributes.of(stringKey("feature"), "fix_spelling"), 2L);
 
       // Delta semantics: second collection is empty
       assertThat(multiGaugeCaptor.getValue().get()).isEmpty();
     }
 
     @Test
+    @DisplayName("subject generation telemetry sub-intent lands in generate_subject")
+    void given_subjectGenerationSubIntent_should_landInGenerateSubjectFeature() {
+      // Legacy /api/ai/generate_subject call
+      collector.recordAiCall("generate_subject");
+      // Same feature through the XTM One agent proxy: genSubject shares the
+      // aev.message_generator catalog intent, disambiguated by the telemetry sub-intent
+      collector.recordAgentProxyCall("some-agent", "aev.message_generator.subject");
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(eq("ai_call_count"), any(), multiGaugeCaptor.capture());
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot)
+          .containsEntry(Attributes.of(stringKey("feature"), "generate_subject"), 2L);
+    }
+
+    @Test
     @DisplayName("agent calls without a known feature intent are counted by agent slug")
-    void shouldCountUnknownIntentAgentCallsBySlug() {
+    void given_unknownOrMissingIntent_should_countAgentCallsBySlug() {
       collector.recordAgentProxyCall("custom-agent", null);
       collector.recordAgentProxyCall("custom-agent", "some.unknown_intent");
 
@@ -83,7 +100,7 @@ class AiMetricCollectorTest {
 
     @Test
     @DisplayName("chatbot messages, TTP extractions and assistant runs reset on collect")
-    void shouldResetScalarCountersOnCollect() {
+    void given_recordedScalarCounters_should_resetOnCollect() {
       collector.recordChatbotMessage();
       collector.recordChatbotMessage();
       collector.recordTtpExtraction();
@@ -99,7 +116,7 @@ class AiMetricCollectorTest {
 
     @Test
     @DisplayName("detection remediation counts carry the collector type dimension")
-    void shouldCountDetectionRemediationByCollectorType() {
+    void given_collectorTypes_should_dimensionDetectionRemediationCounts() {
       collector.recordDetectionRemediation("crowdstrike");
       collector.recordDetectionRemediation(null);
 
@@ -121,17 +138,32 @@ class AiMetricCollectorTest {
 
     @Test
     @DisplayName("is_ai_enabled carries the provider type when enabled and none otherwise")
-    void shouldExposeAiEnabledWithProviderType() {
+    void given_aiEnabledWithProviderType_should_exposeProviderType() {
       when(aiConfig.isEnabled()).thenReturn(true);
       when(aiConfig.getType()).thenReturn("mistralai");
 
       collector.init();
 
       verify(metricRegistry)
-          .registerMultiGauge(eq("is_ai_enabled"), any(), multiGaugeCaptor.capture(), eq("boolean"));
+          .registerMultiGauge(
+              eq("is_ai_enabled"), any(), multiGaugeCaptor.capture(), eq("boolean"));
       Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
-      assertThat(snapshot)
-          .containsEntry(Attributes.of(stringKey("type"), "mistralai"), 1L);
+      assertThat(snapshot).containsEntry(Attributes.of(stringKey("type"), "mistralai"), 1L);
+    }
+
+    @Test
+    @DisplayName("is_ai_enabled falls back to none when the provider type is blank")
+    void given_aiEnabledWithBlankProviderType_should_fallBackToNone() {
+      when(aiConfig.isEnabled()).thenReturn(true);
+      when(aiConfig.getType()).thenReturn("  ");
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerMultiGauge(
+              eq("is_ai_enabled"), any(), multiGaugeCaptor.capture(), eq("boolean"));
+      Map<Attributes, Long> snapshot = multiGaugeCaptor.getValue().get();
+      assertThat(snapshot).containsEntry(Attributes.of(stringKey("type"), "none"), 1L);
     }
   }
 }

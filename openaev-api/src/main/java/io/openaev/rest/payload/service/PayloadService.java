@@ -40,13 +40,13 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -324,9 +324,10 @@ public class PayloadService {
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
-    // Telemetry: one payload duplicated (community payload customization signal).
-    resultsMetricCollector.recordPayloadDuplicated();
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
+    // Telemetry: one payload duplicated (community payload customization signal),
+    // counted only once the origin payload is known to exist.
+    resultsMetricCollector.recordPayloadDuplicated();
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);
 

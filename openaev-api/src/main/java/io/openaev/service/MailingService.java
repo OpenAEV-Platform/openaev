@@ -56,8 +56,6 @@ public class MailingService {
 
   public void sendEmail(
       String subject, String body, List<User> users, Optional<Exercise> exercise, String tenantId) {
-    // Telemetry: one email send (attempts semantics, before delivery).
-    resultsMetricCollector.recordEmailSent();
     EmailContent emailContent = new EmailContent();
     emailContent.setSubject(subject);
     emailContent.setBody(body);
@@ -97,6 +95,9 @@ public class MailingService {
                               this.executionContextService.executionContext(
                                   user, inject, "Direct execution"))
                       .toList();
+              // Telemetry: the email injector sends one individual email per distinct
+              // recipient (attempts semantics, before delivery).
+              resultsMetricCollector.recordEmailsSent(userInjectContexts.size());
               ExecutableInject injection =
                   new ExecutableInject(false, true, inject, userInjectContexts);
               io.openaev.executors.Injector executor =

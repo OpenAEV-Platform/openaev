@@ -13,9 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Delta counters for the results value loop (expectation validations by collectors), the
- * CTI-driven security coverage flow, workflow executions, payload lifecycle and outbound emails.
- * All counters are delta-based: they report the number of events per collection interval.
+ * Delta counters for the results value loop (expectation validations by collectors), the CTI-driven
+ * security coverage flow, workflow executions, payload lifecycle and outbound emails. All counters
+ * are delta-based: they report the number of events per collection interval.
  */
 @Slf4j
 @Service
@@ -27,8 +27,7 @@ public class ResultsMetricCollector {
 
   private final MetricRegistry metricRegistry;
 
-  private final Map<Attributes, AtomicLong> expectationValidationStats =
-      new ConcurrentHashMap<>();
+  private final Map<Attributes, AtomicLong> expectationValidationStats = new ConcurrentHashMap<>();
   private final AtomicLong securityCoveragesProcessedCount = new AtomicLong(0);
   private final AtomicLong coverageScenariosGeneratedCount = new AtomicLong(0);
   private final AtomicLong coverageResultsSentCount = new AtomicLong(0);
@@ -79,7 +78,7 @@ public class ResultsMetricCollector {
         () -> payloadsUpsertedCount.getAndSet(0));
     metricRegistry.registerGauge(
         "emails_sent_count",
-        "Number of emails sent by the platform",
+        "Number of individual emails sent by the platform (one per recipient)",
         () -> emailsSentCount.getAndSet(0));
   }
 
@@ -131,8 +130,11 @@ public class ResultsMetricCollector {
     payloadsUpsertedCount.incrementAndGet();
   }
 
-  public void recordEmailSent() {
-    emailsSentCount.incrementAndGet();
+  /** Records outbound emails - one per recipient, since the injector sends individual mails. */
+  public void recordEmailsSent(long count) {
+    if (count > 0) {
+      emailsSentCount.addAndGet(count);
+    }
   }
 
   private Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> stats) {

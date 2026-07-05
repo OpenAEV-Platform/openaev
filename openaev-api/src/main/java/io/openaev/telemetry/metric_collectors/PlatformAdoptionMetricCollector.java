@@ -14,8 +14,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * Platform adoption gauges: authentication strategies and ecosystem registration state. These are
- * configuration booleans (0/1), exported so analytics can segment the install base - same intent
- * as the SSO strategy gauges exported by OpenCTI.
+ * configuration booleans (0/1), exported so analytics can segment the install base - same intent as
+ * the SSO strategy gauges exported by OpenCTI.
  */
 @Slf4j
 @Service
@@ -54,8 +54,7 @@ public class PlatformAdoptionMetricCollector {
     SSO_STRATEGY_PROPERTIES.forEach(
         (strategy, property) -> {
           boolean enabled = Boolean.parseBoolean(environment.getProperty(property, "false"));
-          strategies.put(
-              Attributes.of(stringKey(ATTRIBUTE_STRATEGY), strategy), enabled ? 1L : 0L);
+          strategies.put(Attributes.of(stringKey(ATTRIBUTE_STRATEGY), strategy), enabled ? 1L : 0L);
         });
     return strategies;
   }

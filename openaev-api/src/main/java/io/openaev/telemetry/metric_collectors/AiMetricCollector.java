@@ -20,9 +20,9 @@ import org.springframework.stereotype.Service;
  * Telemetry for the AI capabilities. Backend-agnostic by design: an AI text generation or a TTP
  * extraction is the SAME feature whether it is served by the legacy path (direct LLM `/api/ai/*`,
  * legacy webservices) or by an XTM One agent, so no counter carries a legacy/xtm_one dimension.
- * Counters are recorded at the feature entry point, before any routing branch. The before/after
- * XTM One adoption analysis is done in analytics by segmenting instances on the
- * `is_xtm_one_configured` gauge exported here.
+ * Counters are recorded at the feature entry point, before any routing branch. The before/after XTM
+ * One adoption analysis is done in analytics by segmenting instances on the `is_xtm_one_configured`
+ * gauge exported here.
  */
 @Slf4j
 @Service
@@ -37,8 +37,8 @@ public class AiMetricCollector {
   /**
    * Mapping from XTM One feature intents to the canonical feature labels used by the legacy
    * endpoints - so a feature call lands in the SAME `ai_call_count` datapoint whichever backend
-   * serves it. Agent proxy calls that do not carry a known feature intent are counted separately
-   * in `ai_agent_call_count` (never both).
+   * serves it. Agent proxy calls that do not carry a known feature intent are counted separately in
+   * `ai_agent_call_count` (never both).
    */
   private static final Map<String, String> INTENT_TO_FEATURE =
       Map.of(
@@ -49,6 +49,9 @@ public class AiMetricCollector {
           "global.summarize", "summarize",
           "global.explain", "explain",
           "aev.message_generator", "generate_message",
+          // Telemetry-only sub-intent: subject generation shares the aev.message_generator
+          // catalog intent, the frontend disambiguates it for feature counting.
+          "aev.message_generator.subject", "generate_subject",
           "aev.media_article_generator", "generate_media");
 
   private final MetricRegistry metricRegistry;
@@ -156,7 +159,9 @@ public class AiMetricCollector {
 
   private Map<Attributes, Long> collectAiEnabled() {
     boolean enabled = aiConfig.isEnabled();
-    String type = enabled && aiConfig.getType() != null ? aiConfig.getType() : "none";
+    String configuredType = aiConfig.getType();
+    String type =
+        enabled && configuredType != null && !configuredType.isBlank() ? configuredType : "none";
     return Map.of(Attributes.of(stringKey(ATTRIBUTE_TYPE), type), enabled ? 1L : 0L);
   }
 

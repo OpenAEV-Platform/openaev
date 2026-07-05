@@ -35,8 +35,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * Product adoption inventory: snapshot gauges of the main content and configuration objects, for
- * product management and leadership analytics. Anonymous only: type/source/status enums and
- * counts, never any object content.
+ * product management and leadership analytics. Anonymous only: type/source/status enums and counts,
+ * never any object content.
  */
 @Slf4j
 @Service
@@ -80,7 +80,9 @@ public class ProductInventoryMetricCollector {
         "Number of scenarios with a scheduled recurrence",
         () -> safeCount(this::countRecurringScenarios));
     metricRegistry.registerGauge(
-        "asset_groups_total", "Number of asset groups", () -> safeCount(assetGroupRepository::count));
+        "asset_groups_total",
+        "Number of asset groups",
+        () -> safeCount(assetGroupRepository::count));
     metricRegistry.registerGauge(
         "security_platforms_total",
         "Number of security platforms",
@@ -104,13 +106,17 @@ public class ProductInventoryMetricCollector {
         "Number of custom dashboards",
         () -> safeCount(customDashboardRepository::count));
     metricRegistry.registerGauge(
-        "mappers_total", "Number of XLS import mappers", () -> safeCount(importMapperRepository::count));
+        "mappers_total",
+        "Number of XLS import mappers",
+        () -> safeCount(importMapperRepository::count));
     metricRegistry.registerGauge(
         "notification_rules_total",
         "Number of notification rules",
         () -> safeCount(notificationRuleRepository::count));
     metricRegistry.registerGauge(
-        "workflows_total", "Number of chaining workflows", () -> safeCount(workflowRepository::count));
+        "workflows_total",
+        "Number of chaining workflows",
+        () -> safeCount(workflowRepository::count));
     metricRegistry.registerGauge(
         "findings_total", "Number of findings", () -> safeCount(findingRepository::count));
     metricRegistry.registerGauge(
@@ -161,8 +167,7 @@ public class ProductInventoryMetricCollector {
       List<Object[]> rows =
           entityManager
               .createQuery(
-                  "select t.contextual, count(t) from Team t group by t.contextual",
-                  Object[].class)
+                  "select t.contextual, count(t) from Team t group by t.contextual", Object[].class)
               .getResultList();
       for (Object[] row : rows) {
         boolean contextual = Boolean.TRUE.equals(row[0]);
@@ -180,8 +185,7 @@ public class ProductInventoryMetricCollector {
       List<Object[]> rows =
           entityManager
               .createQuery(
-                  "select e.platform, count(e) from Endpoint e group by e.platform",
-                  Object[].class)
+                  "select e.platform, count(e) from Endpoint e group by e.platform", Object[].class)
               .getResultList();
       for (Object[] row : rows) {
         String platform = row[0] == null ? "unknown" : String.valueOf(row[0]);
