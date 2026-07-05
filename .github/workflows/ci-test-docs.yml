@@ -10,6 +10,10 @@ on:
       - 'docs/**'
       - '.github/workflows/ci-test-docs.yml'
 
+# The GITHUB_TOKEN is only used by the git-committers plugin to read commit history.
+permissions:
+  contents: read
+
 jobs:
   docs-build:
     name: Build MkDocs documentation
