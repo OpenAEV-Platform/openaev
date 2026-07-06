@@ -267,13 +267,7 @@ public class InjectService {
    */
   public Optional<String> findExerciseIdByInjectId(@NotBlank final String injectId) {
     Optional<String> exerciseId = this.injectRepository.findExerciseIdByInjectId(injectId);
-    if (exerciseId.isPresent()) {
-      return exerciseId;
-    }
-    if (!this.injectRepository.existsById(injectId)) {
-      throw new ElementNotFoundException("Inject not found with id: " + injectId);
-    }
-    return Optional.empty();
+    return exerciseId;
   }
 
   /**
