@@ -22,15 +22,6 @@ export interface MapperConditionRow {
   condition_mapping_type: string;
 }
 
-export const CONDITION_KEY_TYPES = [
-  'text', 'number', 'status', 'port', 'portscan',
-  'ipv4', 'ipv6', 'credentials', 'cve', 'username',
-  'share', 'admin_username', 'group', 'computer',
-  'password_policy', 'delegation', 'sid', 'vulnerability',
-  'account_with_password_not_required', 'asreproastable_account',
-  'kerberoastable_account', 'asset',
-] as const;
-
 // Layout design tokens for tactic groups (px)
 const TACTIC_WIDTH = 280; // Width of each tactic column
 const TACTIC_GAP = 80; // Horizontal gap between tactic columns

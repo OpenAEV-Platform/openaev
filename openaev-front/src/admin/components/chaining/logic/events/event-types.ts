@@ -1,7 +1,14 @@
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
-import { CONDITION_KEY_TYPES } from '../logic-flow-helpers';
 
-export { CONDITION_KEY_TYPES };
+export const CONDITION_KEY_TYPES = [
+  'text', 'number', 'status', 'port', 'portscan',
+  'ipv4', 'ipv6', 'credentials', 'cve', 'username',
+  'share', 'admin_username', 'group', 'computer',
+  'password_policy', 'delegation', 'sid', 'vulnerability',
+  'account_with_password_not_required', 'asreproastable_account',
+  'kerberoastable_account', 'asset',
+] as const;
+
 export type ConditionKeyType = typeof CONDITION_KEY_TYPES[number];
 
 /** 'admin_username' → 'Admin username' */

@@ -14,7 +14,7 @@ import { type FunctionComponent, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
-import { CONDITION_KEY_TYPES } from '../logic-flow-helpers';
+import { CONDITION_KEY_TYPES } from '../events/event-types';
 
 export interface FieldLink {
   outputType: string;

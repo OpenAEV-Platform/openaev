@@ -1,28 +1,10 @@
-import { createContext, type FunctionComponent, type ReactNode, useContext, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useState } from 'react';
 
-import type { OutputProviderEntry } from './logic-flow-helpers';
-
-export type OutputProviderInfo = OutputProviderEntry;
-
-// Maps a condition_key_type (e.g. "username") to the actions that produce it
-export type OutputProvidersMap = Record<string, OutputProviderInfo[]>;
-
-interface OutputProvidersContextValue {
-  providers: OutputProvidersMap;
-  setProviders: (map: OutputProvidersMap) => void;
-}
-
-const OutputProvidersContext = createContext<OutputProvidersContextValue>({
-  providers: {},
-  setProviders: () => {
-  },
-});
-
-export const useOutputProviders = () => useContext(OutputProvidersContext);
+import { OutputProvidersContext, type OutputProvidersMap } from './useOutputProviders';
 
 interface Props { children: ReactNode }
 
-export const OutputProvidersProvider: FunctionComponent<Props> = ({ children }) => {
+const OutputProvidersProvider: FunctionComponent<Props> = ({ children }) => {
   const [providers, setProviders] = useState<OutputProvidersMap>({});
 
   return (
@@ -35,3 +17,5 @@ export const OutputProvidersProvider: FunctionComponent<Props> = ({ children }) 
     </OutputProvidersContext.Provider>
   );
 };
+
+export default OutputProvidersProvider;

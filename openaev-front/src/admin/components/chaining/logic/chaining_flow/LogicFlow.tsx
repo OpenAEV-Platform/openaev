@@ -37,7 +37,7 @@ import {
   enrichActionMetasWithContracts,
   positionEventNodes,
 } from '../logic-flow-helpers';
-import { useOutputProviders } from '../OutputProvidersContext';
+import { useOutputProviders } from '../useOutputProviders';
 import type { ActionMeta, EventMeta } from '../types';
 import edgeTypes from './edges';
 import nodeTypes from './nodes';

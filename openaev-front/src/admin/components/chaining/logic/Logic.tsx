@@ -10,7 +10,7 @@ import type {
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
 import LogicFlow from './chaining_flow/LogicFlow';
-import { OutputProvidersProvider } from './OutputProvidersContext';
+import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
 
 interface LogicProps {

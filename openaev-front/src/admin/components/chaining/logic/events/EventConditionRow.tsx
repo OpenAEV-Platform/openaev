@@ -18,7 +18,7 @@ import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import ActionTypeIcon from '../ActionTypeIcon';
-import { useOutputProviders } from '../OutputProvidersContext';
+import { useOutputProviders } from '../useOutputProviders';
 import {
   CASE_SENSITIVE_OPERATORS,
   COMPARISON_OPERATORS,
