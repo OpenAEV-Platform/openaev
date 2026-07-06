@@ -33,7 +33,7 @@ interface InjectExpectationsProps {
   injectId?: string;
   predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
-  hasTitle?: string;
+  title?: string;
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
@@ -43,7 +43,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   injectId,
   predefinedExpectations = [],
   availableExpectations = [],
-  hasTitle,
+  title,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -119,7 +119,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   return (
     <>
-      {hasTitle && (
+      {title && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -127,7 +127,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
         }}
         >
           <Typography variant="subtitle2" fontWeight={600}>
-            {hasTitle}
+            {title}
           </Typography>
           {canAddExpectation && (
             <InjectAddExpectation
@@ -181,7 +181,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      {!hasTitle && canAddExpectation
+      {!title && canAddExpectation
         && (
           <InjectAddExpectation
             disabled={readOnly}
