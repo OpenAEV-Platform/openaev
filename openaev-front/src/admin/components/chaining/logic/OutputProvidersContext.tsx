@@ -1,12 +1,8 @@
 import { createContext, type FunctionComponent, type ReactNode, useContext, useState } from 'react';
 
-export interface OutputProviderInfo {
-  stepId: string;
-  actionTitle: string;
-  injectorType?: string;
-  payloadType?: string;
-  isPayload?: boolean;
-}
+import type { OutputProviderEntry } from './logic-flow-helpers';
+
+export type OutputProviderInfo = OutputProviderEntry;
 
 // Maps a condition_key_type (e.g. "username") to the actions that produce it
 export type OutputProvidersMap = Record<string, OutputProviderInfo[]>;

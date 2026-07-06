@@ -1,5 +1,19 @@
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
 
+import { directFetchInjectorContractSilent } from '../../../../actions/InjectorContracts';
+import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
+import type { ContractElement } from '../../../../utils/api-types-custom';
+import {
+  type ComparisonOperator,
+  type ConditionGroup,
+  type ConditionKeyType,
+  createEmptyCondition,
+  createEmptyGroup,
+  type EventCondition, generateId,
+  type LogicalOperator,
+} from './events/event-types';
+import type { ActionMeta, EventMeta } from './types';
+
 export interface MapperConditionRow {
   condition_key_type: string;
   condition_key_subtype?: string;
@@ -16,22 +30,6 @@ export const CONDITION_KEY_TYPES = [
   'account_with_password_not_required', 'asreproastable_account',
   'kerberoastable_account', 'asset',
 ] as const;
-
-export const MAPPING_TYPES = ['DEFAULT', 'LOCAL', 'GLOBAL'] as const;
-
-import { directFetchInjectorContractSilent } from '../../../../actions/InjectorContracts';
-import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
-import type { ContractElement } from '../../../../utils/api-types-custom';
-import {
-  type ComparisonOperator,
-  type ConditionGroup,
-  type ConditionKeyType,
-  createEmptyCondition,
-  createEmptyGroup,
-  type EventCondition, generateId,
-  type LogicalOperator,
-} from './events/event-types';
-import type { ActionMeta, EventMeta } from './types';
 
 // Layout design tokens for tactic groups (px)
 const TACTIC_WIDTH = 280; // Width of each tactic column
@@ -112,26 +110,22 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
   return metas;
 };
 
+export interface OutputProviderEntry {
+  stepId: string;
+  actionTitle: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
+}
+
 /**
  * Build the inverted map: output type → list of actions that produce it.
  * Used to populate the OutputProvidersContext.
  */
 export const buildOutputProvidersMap = (
   actionMetas: Record<string, ActionMeta>,
-): Record<string, Array<{
-  stepId: string;
-  actionTitle: string;
-  injectorType?: string;
-  payloadType?: string;
-  isPayload?: boolean;
-}>> => {
-  const map: Record<string, Array<{
-    stepId: string;
-    actionTitle: string;
-    injectorType?: string;
-    payloadType?: string;
-    isPayload?: boolean;
-  }>> = {};
+): Record<string, OutputProviderEntry[]> => {
+  const map: Record<string, OutputProviderEntry[]> = {};
   for (const [stepId, meta] of Object.entries(actionMetas)) {
     for (const outputType of meta.step_output_types) {
       if (!outputType) continue;
