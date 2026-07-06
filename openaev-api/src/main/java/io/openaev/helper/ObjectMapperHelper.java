@@ -41,12 +41,7 @@ public final class ObjectMapperHelper {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
-    // Disable USE_TRANSIENT_ANNOTATION so that @Transient fields with explicit @JsonProperty
-    // (e.g. Workflow.standaloneConditions) are still serialized by Jackson.
-    // Export mixins use @JsonIncludeProperties whitelists to control what is exposed.
-    Hibernate6Module hibernate6Module = new Hibernate6Module();
-    hibernate6Module.disable(Hibernate6Module.Feature.USE_TRANSIENT_ANNOTATION);
-    mapper.registerModule(hibernate6Module);
+    mapper.registerModule(new Hibernate6Module());
     mapper.registerModule(new Jdk8Module());
     mapper.registerModule(new JavaTimeModule());
     // Register a passthrough filter for the audit state filter declared on Base via @JsonFilter.

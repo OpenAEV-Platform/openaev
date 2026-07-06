@@ -1632,7 +1632,7 @@ public class V1_DataImporter implements Importer {
    *
    * <ol>
    *   <li>Find by payload external_id (collector-created payloads)
-   *   <li>Find by payload name (already existing payload)
+   *   <li>Find by payload external_id via payload repository fallback
    *   <li>Create via importPayload (new payload)
    * </ol>
    *
@@ -1658,19 +1658,13 @@ public class V1_DataImporter implements Importer {
       if (contractFromPayload.isPresent()) {
         return contractFromPayload.get().getId();
       }
-    }
 
-    // Try to find by payload name (may already exist from a previous import or manual creation)
-    if (payloadNode.has("payload_name")) {
-      String payloadName = payloadNode.get("payload_name").textValue();
-      if (hasText(payloadName)) {
-        Optional<Payload> existingPayload = payloadRepository.findFirstByName(payloadName);
-        if (existingPayload.isPresent()) {
-          Optional<InjectorContract> contractFromName =
-              injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
-          if (contractFromName.isPresent()) {
-            return contractFromName.get().getId();
-          }
+      Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+      if (existingPayload.isPresent()) {
+        Optional<InjectorContract> contractFromExternalId =
+            injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
+        if (contractFromExternalId.isPresent()) {
+          return contractFromExternalId.get().getId();
         }
       }
     }

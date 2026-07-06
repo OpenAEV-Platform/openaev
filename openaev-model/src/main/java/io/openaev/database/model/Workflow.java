@@ -94,9 +94,14 @@ public class Workflow implements Base {
 
   @Transient
   @Builder.Default
-  @JsonProperty("workflow_standalone_conditions")
+  @JsonIgnore
   @Schema(description = "Root conditions not linked to any step (standalone events)")
   private List<Condition> standaloneConditions = new ArrayList<>();
+
+  @JsonProperty("workflow_standalone_conditions")
+  public List<Condition> getWorkflowStandaloneConditions() {
+    return standaloneConditions;
+  }
 
   @OneToOne
   @JoinColumn(name = "workflow_simulation_id")

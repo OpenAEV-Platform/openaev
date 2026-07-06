@@ -739,8 +739,10 @@ public class ScenarioService {
     ZipEntry zipEntry = new ZipEntry(scenario.getName() + ".json");
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
-    zipExport.write(
-        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(scenarioFileExport));
+    ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
+    workflowExportInitializer.enrichWorkflowStepDataForExport(
+        exportNode, "scenario_workflow", objectMapper);
+    zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the documents
     documentIds.stream()

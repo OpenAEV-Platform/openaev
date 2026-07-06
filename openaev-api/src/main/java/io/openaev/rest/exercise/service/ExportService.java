@@ -5,6 +5,7 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.export.Mixins;
@@ -98,11 +99,11 @@ public class ExportService {
     ZipEntry zipEntry = new ZipEntry(exercise.getName() + ".json");
     zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
     zipExport.putNextEntry(zipEntry);
+    ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
+    workflowExportInitializer.enrichWorkflowStepDataForExport(
+        exportNode, "exercise_workflow", importExport.getObjectMapper());
     zipExport.write(
-        importExport
-            .getObjectMapper()
-            .writerWithDefaultPrettyPrinter()
-            .writeValueAsBytes(importExport));
+        importExport.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the actual files for the documents
     importExport.getAllDocumentIds().stream()
