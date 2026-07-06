@@ -203,8 +203,18 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
-            ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
+            ? securityPlatformRepository
+                .findByIdAndTenantId(securityPlatformId, tenantId)
+                .orElse(null)
             : null;
+
+    if (securityPlatformId != null && securityPlatform == null) {
+      log.warn(
+          "SecurityPlatform {} not found for tenant {} during collector registration (collector: {})",
+          securityPlatformId,
+          tenantId,
+          id);
+    }
 
     if (collector == null) {
       collector = new Collector();
