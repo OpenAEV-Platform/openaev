@@ -419,10 +419,7 @@ public class WorkflowService {
    */
   @Transactional(readOnly = true)
   public boolean isInjectInChainingWorkflow(String injectId) {
-    Inject inject = injectService.findInjectOrNull(injectId);
-    if (inject == null) {
-      return false;
-    }
+    Inject inject = injectService.inject(injectId);
 
     if (inject.getExercise() != null) {
       return isSimulationChaining(inject.getExercise().getId());
