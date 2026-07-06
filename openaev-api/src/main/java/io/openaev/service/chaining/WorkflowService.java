@@ -412,10 +412,10 @@ public class WorkflowService {
   }
 
   /**
-   * Checks whether the given inject belongs to a simulation/scenario that has workflow chaining.
+   * Checks whether the given inject belongs to a simulation that has workflow chaining.
    *
    * @param injectId the inject ID to resolve
-   * @return true when the inject is linked to a chained simulation/scenario, false otherwise
+   * @return true when the inject is linked to a chained simulation, false otherwise
    */
   @Transactional(readOnly = true)
   public boolean isInjectInChainingWorkflow(String injectId) {
