@@ -24,6 +24,12 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
   const visibleUseCases = useCases.slice(0, MAX_USE_CASE_CHIPS);
   const hiddenUseCasesCount = useCases.length - visibleUseCases.length;
 
+  const typeLabels: Record<CatalogConnectorOutput['catalog_connector_type'], string> = {
+    COLLECTOR: t('Collector'),
+    INJECTOR: t('Injector'),
+    EXECUTOR: t('Executor'),
+  };
+
   const chipSx = {
     fontSize: 11,
     height: 20,
@@ -133,7 +139,7 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
               color="primary"
               size="small"
               sx={chipSx}
-              label={connector.catalog_connector_type}
+              label={typeLabels[connector.catalog_connector_type]}
             />
             {visibleUseCases.map(useCase => (
               <Chip

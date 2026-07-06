@@ -69,7 +69,9 @@ test.describe('Catalog — external executor deployment', () => {
     await catalogPage.waitForLoad();
 
     await catalogPage.searchConnector('Tanium');
-    await catalogPage.clickDeployOnConnector('Tanium');
+    // "Tanium" also matches the "Tanium Threat Response" collector; the catalog
+    // sections collectors before executors, so target the exact executor title.
+    await catalogPage.clickDeployOnConnector('Tanium Executor');
     await catalogPage.fillDisplayName(TANIUM_DISPLAY_NAME);
     await catalogPage.submitInstall();
 

@@ -49,7 +49,7 @@ const CatalogHero = ({ connectors }: Props) => {
           size="small"
           sx={chipSx}
           icon={<ExtensionOutlined sx={{ fontSize: 14 }} />}
-          label={t('{count} connectors', { count: totalCount })}
+          label={totalCount === 1 ? t('1 connector') : t('{count} connectors', { count: totalCount })}
         />
         <Chip
           variant="outlined"
@@ -57,7 +57,7 @@ const CatalogHero = ({ connectors }: Props) => {
           color="success"
           sx={chipSx}
           icon={<VerifiedOutlined sx={{ fontSize: 14 }} />}
-          label={t('{count} verified', { count: verifiedCount })}
+          label={verifiedCount === 1 ? t('1 verified') : t('{count} verified', { count: verifiedCount })}
         />
         <Chip
           variant="outlined"
@@ -65,7 +65,7 @@ const CatalogHero = ({ connectors }: Props) => {
           color="primary"
           sx={chipSx}
           icon={<RocketLaunchOutlined sx={{ fontSize: 14 }} />}
-          label={t('{count} deployed instances', { count: deployedInstancesCount })}
+          label={deployedInstancesCount === 1 ? t('1 deployed instance') : t('{count} deployed instances', { count: deployedInstancesCount })}
         />
       </div>
     </header>
