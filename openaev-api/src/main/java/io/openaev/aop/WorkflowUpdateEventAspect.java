@@ -4,6 +4,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowService;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Stream;
@@ -44,6 +45,7 @@ public class WorkflowUpdateEventAspect {
 
   private final QueueChainingService queueChainingService;
   private final StepService stepService;
+  private final WorkflowService workflowService;
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
@@ -120,6 +122,9 @@ public class WorkflowUpdateEventAspect {
             : "";
 
     if (!injectId.isEmpty()) {
+      if (!workflowService.isInjectInChainingWorkflow(injectId)) {
+        return;
+      }
       String stepId = stepService.findStepIdByInjectId(injectId);
       try {
         queueChainingService.updateStep(stepId);

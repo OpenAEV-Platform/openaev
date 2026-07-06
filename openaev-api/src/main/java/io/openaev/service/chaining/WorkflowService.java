@@ -10,6 +10,7 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
@@ -39,6 +40,7 @@ public class WorkflowService {
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
+  private final InjectService injectService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -407,6 +409,25 @@ public class WorkflowService {
     List<Workflow> workflows =
         this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
     return !workflows.isEmpty();
+  }
+
+  /**
+   * Checks whether the given inject belongs to a simulation/scenario that has workflow chaining.
+   *
+   * @param injectId the inject ID to resolve
+   * @return true when the inject is linked to a chained simulation/scenario, false otherwise
+   */
+  @Transactional(readOnly = true)
+  public boolean isInjectInChainingWorkflow(String injectId) {
+    Inject inject = injectService.findInjectOrNull(injectId);
+    if (inject == null) {
+      return false;
+    }
+
+    if (inject.getExercise() != null) {
+      return isSimulationChaining(inject.getExercise().getId());
+    }
+    return false;
   }
 
   /**
