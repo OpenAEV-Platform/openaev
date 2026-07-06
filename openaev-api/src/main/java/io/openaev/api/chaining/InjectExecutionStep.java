@@ -649,13 +649,8 @@ public class InjectExecutionStep implements ActionStep {
         inject.setInjector(injector);
       }
 
-      String baseContentJson =
-          inject.getContent() != null && !inject.getContent().isEmpty()
-              ? inject.getContent().toString()
-              : injectorContract.getContent();
-
       // Modify payload arguments with inputs from step
-      ObjectNode updatedContent = updateContentWithInputs(step, baseContentJson);
+      ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
       ObjectNode normalizedContent =
           normalizeSingleCardinalityContent(injectorContract, updatedContent);
 
