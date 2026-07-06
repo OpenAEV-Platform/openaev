@@ -4,25 +4,8 @@ import { Button, IconButton, Tooltip, Typography } from '@mui/material';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
+import { toHttpUrl } from '../../../utils/url-helper';
 import { copyToClipboard } from '../../../utils/utils';
-
-/**
- * Returns the value only when it is a syntactically valid http(s) URL,
- * otherwise undefined. Guards against a misconfigured (or otherwise
- * unexpected) `platform_xtm_one_url` - e.g. a `javascript:` scheme - ever
- * reaching an anchor href (same guard as CtemCommandCenterButton).
- */
-const toHttpUrl = (value: string | undefined): string | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  try {
-    const { protocol } = new URL(value);
-    return protocol === 'http:' || protocol === 'https:' ? value : undefined;
-  } catch {
-    return undefined;
-  }
-};
 
 /**
  * "XTM One MCP server" profile card - shown only when the platform is
