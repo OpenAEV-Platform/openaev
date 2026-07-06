@@ -79,56 +79,144 @@ public interface InjectRepository
 
   // -- INDEXING --
 
+  /**
+   * Retrieves injects modified since {@code from} for incremental search-engine indexing.
+   *
+   * <p>Performance design: each one-to-many relationship (attack patterns, children, tags, assets,
+   * teams…) is pre-aggregated in its own CTE scoped to the eligible-inject set. The final SELECT
+   * therefore performs only 1:1 LEFT JOINs with no GROUP BY, eliminating the Cartesian-product row
+   * explosion that the previous flat-join + GROUP BY approach produced (e.g. 5 attack_patterns × 3
+   * tags × 4 teams = 60 rows per inject before aggregation).
+   *
+   * <p>The eligible-inject filter uses a UNION of independently index-backed branches (same
+   * strategy as before) so each branch can use its own index.
+   */
   @Query(
       value =
-          "SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, f.inject_created_at, f.inject_updated_at,f.tenant_id, f.inject_injector_contract, ic.injector_contract_updated_at, ins.tracking_sent_date, "
-              + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as inject_platforms, "
-              + "array_agg(icap.attack_pattern_id) FILTER ( WHERE icap.attack_pattern_id IS NOT NULL ) as inject_attack_patterns, "
-              + "array_agg(ap.phase_id) FILTER ( WHERE ap.phase_id IS NOT NULL ) as inject_kill_chain_phases, "
-              + "array_agg(idp.inject_children_id) FILTER ( WHERE idp.inject_children_id IS NOT NULL ) as inject_children, "
-              + "array_agg(idp.inject_children_id) FILTER ( WHERE idp.inject_children_id IS NOT NULL ) as attack_pattern_children, "
-              + "array_agg(icap_children.attack_pattern_id) FILTER (WHERE icap_children.attack_pattern_id IS NOT NULL) AS attack_patterns_children,"
-              + "MAX(ins.status_name) as inject_status_name, "
-              + "array_agg(it.tag_id) FILTER ( WHERE it.tag_id IS NOT NULL ) as inject_tags, "
-              + "array_agg(ia.asset_id) FILTER ( WHERE ia.asset_id IS NOT NULL ) as inject_assets, "
-              + "array_agg(iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as inject_asset_groups, "
-              + "array_agg(ite.team_id) FILTER ( WHERE ite.team_id IS NOT NULL ) || "
-              + "array_agg(et.team_id) FILTER ( WHERE et.team_id IS NOT NULL ) || "
-              + "array_agg(st.team_id) FILTER ( WHERE st.team_id IS NOT NULL ) as inject_teams " // The deduplication is not done here but in the Set<String> of RawInjectIndexing
-              + "FROM injects f "
-              + "LEFT JOIN injects_statuses ins ON ins.status_inject = f.inject_id "
-              + "LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract "
-              + "LEFT JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = ic.injector_contract_id "
-              + "LEFT JOIN attack_patterns_kill_chain_phases ap ON ap.attack_pattern_id = icap.attack_pattern_id "
-              + "LEFT JOIN injects_dependencies idp ON idp.inject_parent_id = f.inject_id "
-              + "LEFT JOIN injects inject_children ON inject_children.inject_id = idp.inject_children_id "
-              + "LEFT JOIN injectors_contracts ic_children ON ic_children.injector_contract_id = inject_children.inject_injector_contract "
-              + "LEFT JOIN injectors_contracts_attack_patterns icap_children ON icap_children.injector_contract_id = ic_children.injector_contract_id "
-              + "LEFT JOIN injects_tags it ON it.inject_id = f.inject_id "
-              + "LEFT JOIN injects_assets ia ON ia.inject_id = f.inject_id "
-              + "LEFT JOIN injects_asset_groups iag ON iag.inject_id = f.inject_id "
-              + "LEFT JOIN injects_teams ite ON ite.inject_id = f.inject_id "
-              + "LEFT JOIN exercises_teams et ON et.exercise_id = f.inject_exercise AND f.inject_all_teams "
-              + "LEFT JOIN scenarios_teams st ON st.scenario_id = f.inject_scenario AND f.inject_all_teams "
-              // Semi-join on a UNION of independently index-backed branches: the previous flat
-              // OR across joined tables (plus a GREATEST sort) forced a sequential scan of the
-              // whole join product on every indexing tick.
-              + "WHERE f.inject_id IN ("
+          // -- 1. Eligible inject IDs (UNION deduplicates automatically) --
+          "WITH eligible AS ( "
               + "    SELECT i2.inject_id FROM injects i2 WHERE i2.inject_updated_at > :from "
               + "    UNION "
               + "    SELECT i2.inject_id FROM injects i2 "
-              + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = i2.inject_injector_contract "
-              + "      WHERE c2.injector_contract_updated_at > :from "
+              + "        JOIN injectors_contracts c2 ON c2.injector_contract_id = i2.inject_injector_contract "
+              + "        WHERE c2.injector_contract_updated_at > :from "
               + "    UNION "
               + "    SELECT d2.inject_parent_id FROM injects_dependencies d2 "
-              + "      WHERE d2.dependency_updated_at > :from "
+              + "        WHERE d2.dependency_updated_at > :from "
               + "    UNION "
               + "    SELECT d2.inject_parent_id FROM injects_dependencies d2 "
-              + "      JOIN injects child2 ON child2.inject_id = d2.inject_children_id "
-              + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract "
-              + "      WHERE c2.injector_contract_updated_at > :from "
+              + "        JOIN injects child2 ON child2.inject_id = d2.inject_children_id "
+              + "        JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract "
+              + "        WHERE c2.injector_contract_updated_at > :from "
+              + "), "
+              // -- 2. Attack patterns + kill-chain phases per inject (via its contract) --
+              + "agg_attack_patterns AS ( "
+              + "    SELECT i.inject_id, "
+              + "           array_agg(DISTINCT icap.attack_pattern_id) "
+              + "               FILTER (WHERE icap.attack_pattern_id IS NOT NULL) AS attack_pattern_ids, "
+              + "           array_agg(DISTINCT ap.phase_id) "
+              + "               FILTER (WHERE ap.phase_id IS NOT NULL)            AS phase_ids "
+              + "    FROM eligible e "
+              + "    JOIN injects i ON i.inject_id = e.inject_id "
+              + "    LEFT JOIN injectors_contracts ic "
+              + "           ON ic.injector_contract_id = i.inject_injector_contract "
+              + "    LEFT JOIN injectors_contracts_attack_patterns icap "
+              + "           ON icap.injector_contract_id = ic.injector_contract_id "
+              + "    LEFT JOIN attack_patterns_kill_chain_phases ap "
+              + "           ON ap.attack_pattern_id = icap.attack_pattern_id "
+              + "    GROUP BY i.inject_id "
+              + "), "
+              // -- 3. Child injects + their attack patterns per parent inject --
+              + "agg_children AS ( "
+              + "    SELECT idp.inject_parent_id, "
+              + "           array_agg(DISTINCT idp.inject_children_id) "
+              + "               FILTER (WHERE idp.inject_children_id IS NOT NULL)  AS children_ids, "
+              + "           array_agg(DISTINCT icap_c.attack_pattern_id) "
+              + "               FILTER (WHERE icap_c.attack_pattern_id IS NOT NULL) AS children_ap_ids "
+              + "    FROM eligible e "
+              + "    JOIN injects_dependencies idp ON idp.inject_parent_id = e.inject_id "
+              + "    LEFT JOIN injects child_i ON child_i.inject_id = idp.inject_children_id "
+              + "    LEFT JOIN injectors_contracts_attack_patterns icap_c "
+              + "           ON icap_c.injector_contract_id = child_i.inject_injector_contract "
+              + "    GROUP BY idp.inject_parent_id "
+              + "), "
+              // -- 4. Tags per inject --
+              + "agg_tags AS ( "
+              + "    SELECT it.inject_id, "
+              + "           array_agg(it.tag_id) FILTER (WHERE it.tag_id IS NOT NULL) AS tag_ids "
+              + "    FROM eligible e "
+              + "    JOIN injects_tags it ON it.inject_id = e.inject_id "
+              + "    GROUP BY it.inject_id "
+              + "), "
+              // -- 5. Assets per inject --
+              + "agg_assets AS ( "
+              + "    SELECT ia.inject_id, "
+              + "           array_agg(ia.asset_id) FILTER (WHERE ia.asset_id IS NOT NULL) AS asset_ids "
+              + "    FROM eligible e "
+              + "    JOIN injects_assets ia ON ia.inject_id = e.inject_id "
+              + "    GROUP BY ia.inject_id "
+              + "), "
+              // -- 6. Asset groups per inject --
+              + "agg_asset_groups AS ( "
+              + "    SELECT iag.inject_id, "
+              + "           array_agg(iag.asset_group_id) "
+              + "               FILTER (WHERE iag.asset_group_id IS NOT NULL) AS asset_group_ids "
+              + "    FROM eligible e "
+              + "    JOIN injects_asset_groups iag ON iag.inject_id = e.inject_id "
+              + "    GROUP BY iag.inject_id "
+              + "), "
+              // -- 7. Teams per inject: direct + exercise all-teams + scenario all-teams --
+              // Deduplication is handled in Java by Set<String> in
+              // RawInjectIndexing.getInject_teams()
+              + "agg_teams AS ( "
+              + "    SELECT all_t.inject_id, array_agg(all_t.team_id) AS team_ids "
+              + "    FROM ( "
+              + "        SELECT ite.inject_id, ite.team_id "
+              + "        FROM eligible e "
+              + "        JOIN injects_teams ite ON ite.inject_id = e.inject_id "
+              + "        WHERE ite.team_id IS NOT NULL "
+              + "        UNION ALL "
+              + "        SELECT f.inject_id, et.team_id "
+              + "        FROM eligible e "
+              + "        JOIN injects f ON f.inject_id = e.inject_id AND f.inject_all_teams "
+              + "        JOIN exercises_teams et ON et.exercise_id = f.inject_exercise "
+              + "        WHERE et.team_id IS NOT NULL "
+              + "        UNION ALL "
+              + "        SELECT f.inject_id, st.team_id "
+              + "        FROM eligible e "
+              + "        JOIN injects f ON f.inject_id = e.inject_id AND f.inject_all_teams "
+              + "        JOIN scenarios_teams st ON st.scenario_id = f.inject_scenario "
+              + "        WHERE st.team_id IS NOT NULL "
+              + "    ) all_t "
+              + "    GROUP BY all_t.inject_id "
               + ") "
-              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
+              // -- 8. Final SELECT: 1:1 JOINs only — no GROUP BY, no row explosion --
+              + "SELECT "
+              + "    f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, "
+              + "    f.inject_created_at, f.inject_updated_at, f.tenant_id, f.inject_injector_contract, "
+              + "    ic.injector_contract_updated_at, ins.tracking_sent_date, "
+              + "    ic.injector_contract_platforms    AS inject_platforms, "
+              + "    aap.attack_pattern_ids            AS inject_attack_patterns, "
+              + "    aap.phase_ids                     AS inject_kill_chain_phases, "
+              + "    ach.children_ids                  AS inject_children, "
+              + "    ach.children_ap_ids               AS attack_patterns_children, "
+              + "    ins.status_name                   AS inject_status_name, "
+              + "    ata.tag_ids                       AS inject_tags, "
+              + "    aas.asset_ids                     AS inject_assets, "
+              + "    aag.asset_group_ids               AS inject_asset_groups, "
+              + "    ate.team_ids                      AS inject_teams "
+              + "FROM injects f "
+              + "JOIN eligible e ON e.inject_id = f.inject_id "
+              + "LEFT JOIN injects_statuses ins ON ins.status_inject = f.inject_id "
+              + "LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract "
+              + "LEFT JOIN agg_attack_patterns aap ON aap.inject_id = f.inject_id "
+              + "LEFT JOIN agg_children ach ON ach.inject_parent_id = f.inject_id "
+              + "LEFT JOIN agg_tags ata ON ata.inject_id = f.inject_id "
+              + "LEFT JOIN agg_assets aas ON aas.inject_id = f.inject_id "
+              + "LEFT JOIN agg_asset_groups aag ON aag.inject_id = f.inject_id "
+              + "LEFT JOIN agg_teams ate ON ate.inject_id = f.inject_id "
+              + "ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC "
+              + "LIMIT :limit;",
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
