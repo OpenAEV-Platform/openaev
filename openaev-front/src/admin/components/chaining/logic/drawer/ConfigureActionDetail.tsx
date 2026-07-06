@@ -322,6 +322,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           {expectationField && (
             <Box>
               <InjectExpectations
+                title={t('Inject Expectations')}
                 expectationDatas={expectations}
                 handleExpectations={updatedExpectations => setFieldValues(prev => ({
                   ...prev,

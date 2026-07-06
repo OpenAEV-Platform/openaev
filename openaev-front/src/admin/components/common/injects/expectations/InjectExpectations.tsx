@@ -1,4 +1,10 @@
-import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import {
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+} from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -27,6 +33,7 @@ interface InjectExpectationsProps {
   injectId?: string;
   predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
+  title?: string;
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
@@ -36,6 +43,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   injectId,
   predefinedExpectations = [],
   availableExpectations = [],
+  title,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -98,6 +106,8 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
     handleExpectations(values);
   };
 
+  const canAddExpectation = !readOnly && userCanAddExpectations && addableAvailableExpectations.length !== 0;
+
   // -- UTILS --
 
   const typeLabel = (type: string) => {
@@ -109,6 +119,27 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   return (
     <>
+      {title && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+        >
+          <Typography variant="subtitle2" fontWeight={600}>
+            {title}
+          </Typography>
+          {canAddExpectation && (
+            <InjectAddExpectation
+              inline
+              disabled={readOnly}
+              handleAddExpectation={handleAddExpectation}
+              predefinedExpectations={predefinedExpectations}
+              availableExpectations={addableAvailableExpectations}
+            />
+          )}
+        </div>
+      )}
       <List>
         {sortedExpectations.map((expectation, idx) => (
           <ListItem
@@ -150,7 +181,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      { !readOnly && userCanAddExpectations && addableAvailableExpectations.length !== 0
+      {!title && canAddExpectation
         && (
           <InjectAddExpectation
             disabled={readOnly}
