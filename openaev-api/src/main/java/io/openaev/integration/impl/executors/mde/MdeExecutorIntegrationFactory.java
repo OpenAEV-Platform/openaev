@@ -14,7 +14,6 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
-import io.openaev.integration.migration.MdeExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -42,7 +41,6 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final CatalogConnectorService catalogConnectorService;
   private final ConnectorInstanceService connectorInstanceService;
-  private final MdeExecutorConfigurationMigration mdeExecutorConfigurationMigration;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
 
@@ -57,7 +55,6 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
       LicenseCacheManager licenseCacheManager,
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
-      MdeExecutorConfigurationMigration mdeExecutorConfigurationMigration,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory) {
@@ -72,7 +69,6 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
     this.taskScheduler = taskScheduler;
     this.catalogConnectorService = catalogConnectorService;
     this.connectorInstanceService = connectorInstanceService;
-    this.mdeExecutorConfigurationMigration = mdeExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
   }
@@ -84,7 +80,10 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void runMigrations() throws Exception {
-    mdeExecutorConfigurationMigration.migrate();
+    // MDE is a catalog-first executor: it has no legacy application.properties configuration to
+    // migrate, so there is nothing to do here (same pattern as PaloAltoCortex). Running a
+    // ConfigurationMigration would spawn a spurious empty PROPERTIES_MIGRATION instance alongside
+    // the one deployed from the catalog UI.
   }
 
   private String getLogoFilename() {
