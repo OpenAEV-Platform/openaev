@@ -497,7 +497,8 @@ public class StepService {
     // but preserve conditions referenced by conditionIds so they can be re-linked
     conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
 
-    // Clear the relationships from the parent entity side to avoid Hibernate collections conflict
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
     if (existing.getConditionSteps() != null) {
       existing.getConditionSteps().clear();
     }

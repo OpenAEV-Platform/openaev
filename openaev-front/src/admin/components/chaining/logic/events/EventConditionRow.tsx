@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../OutputProvidersContext';
 import {
   CASE_SENSITIVE_OPERATORS,
@@ -50,14 +51,35 @@ const EventConditionRow: FunctionComponent<Props> = ({
   const { providers } = useOutputProviders();
 
   /**
-   * Build tooltip lines for a given output type's providers.
-   * Format: header line + one action per line with MITRE technique ID.
-   */
-  const buildProviderTooltip = (keyType: string): string => {
+     * Build tooltip content for a given output type's providers.
+     * Shows each action with its associated icon.
+     */
+  const buildProviderTooltip = (keyType: string) => {
     const keyProviders = providers[keyType] ?? [];
     if (keyProviders.length === 0) return '';
     const header = t('Actions on the logic flow which produce this input:');
-    return `${header}\n${keyProviders.map(p => p.actionTitle).join('\n')}`;
+    return (
+      <Box>
+        <Typography variant="caption">{header}</Typography>
+        {keyProviders.map(p => (
+          <Box
+            key={p.stepId}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+            }}
+          >
+            <ActionTypeIcon
+              injectorType={p.injectorType}
+              payloadType={p.payloadType}
+              isPayload={p.isPayload}
+            />
+            <Typography variant="caption">{p.actionTitle}</Typography>
+          </Box>
+        ))}
+      </Box>
+    );
   };
 
   const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
@@ -149,7 +171,6 @@ const EventConditionRow: FunctionComponent<Props> = ({
                   <Tooltip
                     title={buildProviderTooltip(key)}
                     placement="right"
-                    slotProps={{ tooltip: { sx: { whiteSpace: 'pre-line' } } }}
                   >
                     <InfoOutlined sx={{
                       fontSize: 16,
@@ -193,7 +214,6 @@ const EventConditionRow: FunctionComponent<Props> = ({
       )}
       {!showValue && <Box sx={{ flex: 1 }} />}
 
-      {/* Case sensitivity toggle + delete — always pushed to the right */}
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
@@ -228,7 +248,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           </Tooltip>
         )}
 
-        {/* Delete button — only visible when more than one condition */}
+        {/* Delete button (only visible when more than one condition) */}
         {canDelete && (
           <IconButton
             size="small"

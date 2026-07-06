@@ -3,6 +3,9 @@ import { createContext, type FunctionComponent, type ReactNode, useContext, useS
 export interface OutputProviderInfo {
   stepId: string;
   actionTitle: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
 }
 
 // Maps a condition_key_type (e.g. "username") to the actions that produce it

@@ -1,10 +1,10 @@
-import { BoltOutlined, DeleteOutlined, EditOutlined, MoreVert } from '@mui/icons-material';
-import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
+import { BoltOutlined, MoreVert } from '@mui/icons-material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo, type MouseEvent, useState } from 'react';
 
-import { useFormatter } from '../../../../../../components/i18n';
+import NodePopover from './NodePopover';
 
 export type EventNodeData = Node<{
   label: string;
@@ -15,7 +15,6 @@ export type EventNodeData = Node<{
 
 const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
   const theme = useTheme();
-  const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const handleMenuOpen = (e: MouseEvent<HTMLElement>) => {
@@ -36,17 +35,14 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
   };
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        minWidth: 200,
-        paddingTop: 20,
-      }}
+    <Box sx={{
+      position: 'relative',
+      minWidth: 200,
+      paddingTop: '20px',
+    }}
     >
-
-      {/* Bolt circle — same color as canvas background, overlapping card top to create a notch illusion */}
-      <div
-        style={{
+      <Box
+        sx={{
           position: 'absolute',
           top: 0,
           left: '50%',
@@ -67,21 +63,19 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
           stroke: theme.palette.warning.main,
         }}
         />
-      </div>
+      </Box>
 
-      {/* Card body */}
-      <div
-        style={{
+      <Box
+        sx={{
           background: `${theme.palette.primary.main}10`,
-          borderRadius: theme.spacing(1),
-          padding: '24px 12px 16px',
-          display: 'grid',
-          gridTemplateColumns: '26px 1fr 26px',
+          borderRadius: 1,
+          padding: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           position: 'relative',
         }}
       >
-        <span />
         <Typography
           variant="body2"
           fontWeight={600}
@@ -94,7 +88,11 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
         >
           {data.label}
         </Typography>
-        <IconButton size="small" onClick={handleMenuOpen} sx={{ padding: '2px' }}>
+        <IconButton
+          size="small"
+          aria-haspopup="true"
+          onClick={handleMenuOpen}
+        >
           <MoreVert sx={{
             fontSize: 18,
             color: theme.palette.primary.main,
@@ -105,23 +103,19 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
           type="source"
           position={Position.Right}
           style={{
-            background: 'transparent',
+            background: theme.palette.primary.main,
             border: 'none',
           }}
         />
-      </div>
+      </Box>
 
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon><EditOutlined fontSize="small" /></ListItemIcon>
-          <ListItemText>{t('Edit')}</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDelete}>
-          <ListItemIcon><DeleteOutlined fontSize="small" /></ListItemIcon>
-          <ListItemText>{t('Delete')}</ListItemText>
-        </MenuItem>
-      </Menu>
-    </div>
+      <NodePopover
+        anchorEl={anchorEl}
+        onClose={handleMenuClose}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+    </Box>
   );
 };
 

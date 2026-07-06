@@ -387,8 +387,7 @@ public class InjectExecutionStep implements ActionStep {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
 
-    Injector injector =
-        injectUtils.resolveInjectorReference(data.getInjectorId(), injectorContract);
+    Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
 

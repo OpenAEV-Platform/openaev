@@ -121,10 +121,16 @@ export const buildOutputProvidersMap = (
 ): Record<string, Array<{
   stepId: string;
   actionTitle: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
 }>> => {
   const map: Record<string, Array<{
     stepId: string;
     actionTitle: string;
+    injectorType?: string;
+    payloadType?: string;
+    isPayload?: boolean;
   }>> = {};
   for (const [stepId, meta] of Object.entries(actionMetas)) {
     for (const outputType of meta.step_output_types) {
@@ -134,6 +140,9 @@ export const buildOutputProvidersMap = (
         map[outputType].push({
           stepId,
           actionTitle: meta.inject_title,
+          injectorType: meta.inject_injector,
+          payloadType: meta.inject_payload_collector_type ?? meta.inject_payload_type,
+          isPayload: !!meta.inject_payload_type,
         });
       }
     }
