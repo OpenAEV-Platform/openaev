@@ -145,6 +145,10 @@ public class MdeExecutorClient {
       body.put("Commands", List.of(command));
       body.put("Comment", "OpenAEV payload execution");
 
+      log.debug(
+          "Dispatching MDE Live Response RunScript: machineId={}, scriptName='{}'",
+          machineId,
+          scriptName);
       post(MACHINES_URI + "/" + machineId + "/runliveresponse", body);
     } catch (IOException e) {
       log.error(
@@ -177,7 +181,20 @@ public class MdeExecutorClient {
       httpPost.addHeader("Authorization", "Bearer " + token);
       httpPost.addHeader("Content-Type", "application/json");
       httpPost.setEntity(new StringEntity(objectMapper.writeValueAsString(body)));
-      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            int code = response.getCode();
+            String respBody =
+                response.getEntity() != null ? EntityUtils.toString(response.getEntity()) : "";
+            // MDE returns non-2xx (e.g. 403 DisallowedOperation when a device has no automation
+            // level, 400 OsPlatformNotSupported) with an error body. Surface it instead of
+            // silently discarding the response, otherwise the inject stays PENDING with no clue.
+            if (code < 200 || code >= 300) {
+              log.error("MDE API POST {} failed: HTTP {} body={}", uri, code, respBody);
+            }
+            return respBody;
+          });
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + uri, e);
     }
