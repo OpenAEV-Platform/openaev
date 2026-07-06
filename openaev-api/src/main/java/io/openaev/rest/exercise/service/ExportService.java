@@ -103,7 +103,10 @@ public class ExportService {
     workflowExportInitializer.enrichWorkflowStepDataForExport(
         exportNode, "exercise_workflow", importExport.getObjectMapper());
     zipExport.write(
-        importExport.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
+        importExport
+            .getObjectMapper()
+            .writerWithDefaultPrettyPrinter()
+            .writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the actual files for the documents
     importExport.getAllDocumentIds().stream()
