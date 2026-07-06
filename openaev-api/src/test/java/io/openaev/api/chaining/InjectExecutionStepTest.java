@@ -527,7 +527,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(1, createdInject.getContent().withArray("expectations").size());
     assertEquals(
         "Custom detection expectation",
-        createdInject.getContent().withArray("expectations").get(0).path("expectation_name").asText());
+        createdInject
+            .getContent()
+            .withArray("expectations")
+            .get(0)
+            .path("expectation_name")
+            .asText());
   }
 
   @Test
@@ -580,7 +585,12 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals(1, createdInject.getContent().withArray("expectations").size());
     assertEquals(
         "MANUAL",
-        createdInject.getContent().withArray("expectations").get(0).path("expectation_type").asText());
+        createdInject
+            .getContent()
+            .withArray("expectations")
+            .get(0)
+            .path("expectation_type")
+            .asText());
   }
 
   @Test
