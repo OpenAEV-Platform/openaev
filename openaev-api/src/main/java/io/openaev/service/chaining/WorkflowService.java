@@ -395,7 +395,8 @@ public class WorkflowService {
    * @return true if the simulation has at least one workflow, false otherwise
    */
   public boolean isSimulationChaining(String simulationId) {
-    return this.workflowRepository.existsBySimulation_Id(simulationId);
+    List<Workflow> workflows = this.workflowRepository.findAllBySimulation_Id(simulationId);
+    return !workflows.isEmpty();
   }
 
   /**
