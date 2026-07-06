@@ -20,6 +20,10 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
   } = useEnterpriseEdition();
 
   const onDeployClickAction = (e: SyntheticEvent) => {
+    // The button may live inside a CardActionArea link: never let the click
+    // bubble up and trigger a navigation (would close the EE dialog).
+    e.preventDefault();
+    e.stopPropagation();
     if (!isEnterpriseEdition) {
       setEEFeatureDetectedInfo(t('Connectors deployment'));
       openEnterpriseEditionDialog();

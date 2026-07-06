@@ -91,7 +91,7 @@ const FacetRowItem = ({ row, checked, onToggle }: FacetRowItemProps) => {
         {checked && (
           <CheckOutlined sx={{
             fontSize: 12,
-            color: theme.palette.common.black,
+            color: theme.palette.primary.contrastText,
           }}
           />
         )}
