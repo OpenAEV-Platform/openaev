@@ -1,7 +1,5 @@
 package io.openaev.executors.mde.service;
 
-import static io.openaev.utils.time.TimeUtils.toInstant;
-
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
@@ -16,6 +14,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -173,7 +172,10 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              input.setLastSeen(toInstant(device.getLastSeen()));
+              // Use Instant.now() as lastSeen so OpenAEV marks the agent as active after each sync.
+              // MDE's own lastSeen can be stale (device checked in hours ago) but the device is
+              // confirmed live in MDE right now — so we reflect that in the agent status.
+              input.setLastSeen(Instant.now());
               return input;
             })
         .collect(Collectors.toList());
