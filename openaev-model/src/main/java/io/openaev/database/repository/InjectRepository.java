@@ -65,6 +65,9 @@ public interface InjectRepository
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);
 
+  @Query("select i.exercise.id from Inject i where i.id = :injectId")
+  Optional<String> findExerciseIdByInjectId(@Param("injectId") @NotBlank String injectId);
+
   Optional<Inject> findByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
 
   boolean existsByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);

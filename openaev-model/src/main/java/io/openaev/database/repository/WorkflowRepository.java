@@ -18,6 +18,8 @@ public interface WorkflowRepository extends JpaRepository<Workflow, String> {
    */
   List<Workflow> findAllBySimulation_Id(String simulationId);
 
+  boolean existsBySimulation_Id(String simulationId);
+
   /**
    * Retrieves a {@link Workflow} entity by simulation ID and workflow status.
    *

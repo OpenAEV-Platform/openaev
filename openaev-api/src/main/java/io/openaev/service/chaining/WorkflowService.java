@@ -395,8 +395,7 @@ public class WorkflowService {
    * @return true if the simulation has at least one workflow, false otherwise
    */
   public boolean isSimulationChaining(String simulationId) {
-    List<Workflow> workflows = this.workflowRepository.findAllBySimulation_Id(simulationId);
-    return !workflows.isEmpty();
+    return this.workflowRepository.existsBySimulation_Id(simulationId);
   }
 
   /**
@@ -419,12 +418,10 @@ public class WorkflowService {
    */
   @Transactional(readOnly = true)
   public boolean isInjectInChainingWorkflow(String injectId) {
-    Inject inject = injectService.inject(injectId);
-
-    if (inject.getExercise() != null) {
-      return isSimulationChaining(inject.getExercise().getId());
-    }
-    return false;
+    return injectService
+        .findExerciseIdByInjectId(injectId)
+        .map(this::isSimulationChaining)
+        .orElse(false);
   }
 
   /**
