@@ -266,8 +266,7 @@ public class InjectService {
    * @throws ElementNotFoundException if the inject does not exist
    */
   public Optional<String> findExerciseIdByInjectId(@NotBlank final String injectId) {
-    Optional<String> exerciseId = this.injectRepository.findExerciseIdByInjectId(injectId);
-    return exerciseId;
+      return this.injectRepository.findExerciseIdByInjectId(injectId);
   }
 
   /**
