@@ -154,7 +154,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setId("step-1");
     step.setInput("{\"IPv4\":\"10.10.10.10\"}");
 
-    String contentJson = "{\"target_ip\":\"0.0.0.0\",\"file\":\"script.bat\"}";
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
+    contentNode.put("file", "script.bat");
 
     Condition mapperCondition = new Condition();
     mapperCondition.setType(ConditionType.MAPPER);
@@ -167,7 +169,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -181,12 +183,13 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step step = new Step();
     step.setId("step-2");
     step.setInput("{}");
-    String contentJson = "{\"target_ip\":\"0.0.0.0\"}";
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -195,16 +198,18 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_invalidContractContent_should_returnEmptyObject() {
+  void given_invalidStepInput_should_returnEmptyObject() {
     // Arrange
     Step step = new Step();
     step.setId("step-3");
-    step.setInput("{\"IPv4\":\"10.10.10.10\"}");
+    step.setInput("{invalid-json");
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, "{invalid-json");
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);

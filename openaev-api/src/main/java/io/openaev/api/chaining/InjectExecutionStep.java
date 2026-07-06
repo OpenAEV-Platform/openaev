@@ -40,7 +40,6 @@ import io.openaev.utils.TargetType;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -445,8 +444,7 @@ public class InjectExecutionStep implements ActionStep {
     // if inject content is null we add the defaults from the injector contract
     // this is the case when creating an inject from OpenCti
     if (inject.getContent() == null || inject.getContent().isEmpty()) {
-      inject.setContent(
-          injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
+      inject.setContent(resolveBaseInjectContent(inject, injectorContract));
     }
     ObjectMapper om =
         new ObjectMapper()
@@ -650,7 +648,8 @@ public class InjectExecutionStep implements ActionStep {
       }
 
       // Modify payload arguments with inputs from step
-      ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
+      ObjectNode updatedContent =
+          updateContentWithInputs(step, resolveBaseInjectContent(inject, injectorContract));
       ObjectNode normalizedContent =
           normalizeSingleCardinalityContent(injectorContract, updatedContent);
 
@@ -674,22 +673,22 @@ public class InjectExecutionStep implements ActionStep {
   /**
    * Merges step input values into injector contract content to build runtime payload arguments.
    *
-   * <p>This method reads the current contract content JSON, fetches input values resolved during
-   * chaining from {@link Step#getInput()}, then maps those values to contract keys using MAPPER
-   * conditions. The resulting JSON is used as inject content for execution.
+   * <p>This method starts from the resolved base inject content, fetches input values resolved
+   * during chaining from {@link Step#getInput()}, then maps those values to contract keys using
+   * MAPPER conditions. The resulting JSON is used as inject content for execution.
    *
    * @param step the READY step containing resolved input values used as payload arguments
-   * @param contentJson base injector contract content JSON
+   * @param baseContent base inject content JSON
    * @return updated contract content with mapped input values injected; empty object if parsing
    *     fails
    */
-  private ObjectNode updateContentWithInputs(Step step, @NotBlank String contentJson) {
-    if (contentJson == null || contentJson.isBlank()) {
+  private ObjectNode updateContentWithInputs(Step step, ObjectNode baseContent) {
+    if (baseContent == null) {
       return mapper.createObjectNode();
     }
 
     try {
-      ObjectNode contentNode = (ObjectNode) mapper.readTree(contentJson);
+      ObjectNode contentNode = baseContent.deepCopy();
 
       String inputJson = step.getInput();
       if (inputJson == null || inputJson.isEmpty() || "{}".equals(inputJson)) {
@@ -702,16 +701,20 @@ public class InjectExecutionStep implements ActionStep {
           .filter(conditionUtils::isMapperCondition)
           .forEach(mapping -> applyMapping(contentNode, mapping, inputValues));
 
-      // FIXME: this is probably a draft for something, adding this fixme to keep track of it
-      conditionService.findAllConditionsByStepId(step.getId()).stream()
-          .filter(conditionUtils::isMapperCondition)
-          .toList();
-
       return contentNode;
 
     } catch (JsonProcessingException e) {
       return mapper.createObjectNode();
     }
+  }
+
+  private ObjectNode resolveBaseInjectContent(Inject inject, InjectorContract injectorContract) {
+    if (inject != null && inject.getContent() != null && !inject.getContent().isEmpty()) {
+      return inject.getContent();
+    }
+    ObjectNode defaults =
+        injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract);
+    return defaults != null ? defaults : mapper.createObjectNode();
   }
 
   /**
