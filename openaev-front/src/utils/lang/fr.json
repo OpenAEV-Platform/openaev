@@ -64,6 +64,7 @@
   "action_platforms": "Plateformes",
   "action_tags": "Tags",
   "action_updated_at": "Mis à jour le",
+  "Actions on the logic flow which produce this input:": "Actions du flux logique qui génèrent cette entrée :",
   "Active": "Actif",
   "Add": "Ajouter",
   "Add a new vulnerability": "Ajouter une nouvelle vulnérabilité",
