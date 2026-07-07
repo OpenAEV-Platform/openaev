@@ -1,9 +1,6 @@
 package io.openaev.executors.paloaltocortex.service;
 
-import static io.openaev.executors.ExecutorHelper.*;
-import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
-
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -16,16 +13,21 @@ import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommand;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommandList;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.springframework.stereotype.Service;
+
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
+
+import static io.openaev.executors.ExecutorHelper.*;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
 @Slf4j
 @Service(PaloAltoCortexExecutorContextService.SERVICE_NAME)
@@ -38,6 +40,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
+  private final OpenAEVConfig openAEVConfig;
 
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -168,7 +171,8 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
               inject.getId(),
               agent.getId(),
               inject.getTenant().getId(),
-              token);
+              token,
+                  openAEVConfig.getBaseUrl());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -213,7 +217,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
       command =
           replaceArgs(
-              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
+              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token, openAEVConfig.getBaseUrl());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

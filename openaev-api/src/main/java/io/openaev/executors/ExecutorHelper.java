@@ -34,7 +34,8 @@ public class ExecutorHelper {
       String injectId,
       String agentId,
       String tenantId,
-      String token) {
+      String token,
+      String baseUrl) {
     if (platformType == null
         || command == null
         || injectId == null
@@ -57,6 +58,7 @@ public class ExecutorHelper {
         .replace("#{inject}", injectId)
         .replace("#{agent}", agentId)
         .replace("#{tenant}", tenantId)
-        .replace("#{token}", token);
+        .replace("#{token}", token)
+        .replace("#{baseUrl}", baseUrl);
   }
 }

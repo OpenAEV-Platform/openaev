@@ -1,9 +1,8 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
-import static java.util.Optional.ofNullable;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -25,13 +24,16 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+
+import static java.util.Optional.ofNullable;
 
 @Slf4j
 public class SentinelOneExecutorIntegration extends Integration {
@@ -61,22 +63,23 @@ public class SentinelOneExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
   public SentinelOneExecutorIntegration(
-      ConnectorInstance connectorInstance,
-      ConnectorInstanceService connectorInstanceService,
-      EndpointService endpointService,
-      AgentService agentService,
-      AssetGroupService assetGroupService,
-      EnterpriseEditionService enterpriseEditionService,
-      LicenseCacheManager licenseCacheManager,
-      ComponentRequestEngine componentRequestEngine,
-      ExecutorService executorService,
-      ThreadPoolTaskScheduler taskScheduler,
-      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+          ConnectorInstance connectorInstance,
+          ConnectorInstanceService connectorInstanceService,
+          EndpointService endpointService,
+          AgentService agentService,
+          AssetGroupService assetGroupService,
+          EnterpriseEditionService enterpriseEditionService,
+          LicenseCacheManager licenseCacheManager,
+          ComponentRequestEngine componentRequestEngine,
+          ExecutorService executorService,
+          ThreadPoolTaskScheduler taskScheduler,
+          BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+          HttpClientFactory httpClientFactory, OpenAEVConfig openAEVConfig) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -88,8 +91,9 @@ public class SentinelOneExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
 
-    // Refresh the context to get the config
+      // Refresh the context to get the config
     try {
       refresh();
     } catch (Exception e) {
@@ -132,7 +136,7 @@ public class SentinelOneExecutorIntegration extends Integration {
     client = new SentinelOneExecutorClient(config, httpClientFactory);
     sentinelOneExecutorContextService =
         new SentinelOneExecutorContextService(
-            config, client, enterpriseEditionService, licenseCacheManager, executorService);
+            config, client, enterpriseEditionService, licenseCacheManager, executorService, openAEVConfig);
     sentinelOneExecutorService =
         new SentinelOneExecutorService(
             executor, client, endpointService, agentService, assetGroupService);

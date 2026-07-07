@@ -1,12 +1,12 @@
 package io.openaev.integration.impl;
 
-import static io.openaev.helper.StreamHelper.fromIterable;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.*;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceInMemory;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -25,7 +25,6 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.reflection.FieldUtils;
 import io.openaev.utilstest.RabbitMQTestListener;
-import java.util.List;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +33,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+import static io.openaev.helper.StreamHelper.fromIterable;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 @SpringBootTest
 @Transactional
@@ -57,6 +62,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
   @Autowired private FileService fileService;
 
@@ -74,7 +80,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig);
   }
 
   /**
@@ -161,7 +168,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
                     executorService,
                     taskScheduler,
                     null,
-                    httpClientFactory))
+                    httpClientFactory,
+                    openAEVConfig))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

@@ -1,13 +1,14 @@
 package io.openaev.integration.impl.injectors.openaev;
 
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
-
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
 /**
  * Builds executor commands for the OpenAEV implant injector. These commands are tenant-independent
@@ -34,7 +35,7 @@ final class OpenaevImplantCommandBuilder {
     CommandVars(OpenAEVConfig cfg) {
       this(
           "token=\"#{token}\"",
-          "server=\"" + cfg.getBaseUrlForAgent() + "\"",
+          "server=\"#{baseUrl}\"",
           "max_size=\"" + cfg.getLogsMaxSize() + "\"",
           "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"",
           "with_proxy=\"" + cfg.isWithProxy() + "\"");

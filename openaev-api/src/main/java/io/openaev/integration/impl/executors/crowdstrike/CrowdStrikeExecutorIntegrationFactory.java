@@ -1,8 +1,7 @@
 package io.openaev.integration.impl.executors.crowdstrike;
 
-import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
-
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -21,11 +20,14 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 
 @Service
 @Profile("!test")
@@ -44,6 +46,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -59,7 +62,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -74,6 +78,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
   }
 
   @Override
@@ -140,6 +145,7 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig);
   }
 }

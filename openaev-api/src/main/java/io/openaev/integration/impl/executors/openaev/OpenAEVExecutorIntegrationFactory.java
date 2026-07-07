@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.openaev;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -12,9 +13,10 @@ import io.openaev.integration.Integration;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @Profile("!test")
@@ -23,6 +25,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final OpenAEVConfig openAEVConfig;
 
   public OpenAEVExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -31,12 +34,14 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
       ComponentRequestEngine componentRequestEngine,
       AssetAgentJobRepository assetAgentJobRepository,
       HttpClientFactory httpClientFactory,
-      ServiceAccountPrivilegeService serviceAccountPrivilegeService) {
+      ServiceAccountPrivilegeService serviceAccountPrivilegeService,
+      OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.serviceAccountPrivilegeService = serviceAccountPrivilegeService;
+    this.openAEVConfig = openAEVConfig;
   }
 
   @Override
@@ -70,7 +75,8 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
         connectorInstanceService,
         assetAgentJobRepository,
         componentRequestEngine,
-        serviceAccountPrivilegeService);
+        serviceAccountPrivilegeService,
+        openAEVConfig);
   }
 
   @Override

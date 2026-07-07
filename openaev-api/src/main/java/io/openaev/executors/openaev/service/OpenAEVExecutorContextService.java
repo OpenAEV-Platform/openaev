@@ -1,20 +1,22 @@
 package io.openaev.executors.openaev.service;
 
-import static io.openaev.executors.ExecutorHelper.replaceArgs;
-import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
-import static java.time.Instant.now;
-
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import static io.openaev.executors.ExecutorHelper.replaceArgs;
+import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
+import static java.time.Instant.now;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -23,6 +25,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final OpenAEVConfig openAEVConfig;
 
   private String computeCommand(
       @NotNull final Inject inject,
@@ -46,7 +49,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
         String executorCommandKey = platform.name() + "." + arch.name();
         String cmd = injector.getExecutorCommands().get(executorCommandKey);
         yield replaceArgs(
-            platform, cmd, inject.getId(), agentId, inject.getTenant().getId(), token);
+            platform, cmd, inject.getId(), agentId, inject.getTenant().getId(), token, openAEVConfig.getBaseUrl());
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };

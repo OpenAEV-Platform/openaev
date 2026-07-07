@@ -1,11 +1,11 @@
 package io.openaev.executors;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("ExecutorHelper tests")
 class ExecutorHelperTest {
@@ -14,6 +14,7 @@ class ExecutorHelperTest {
   private static final String AGENT_ID = "agent-1";
   private static final String TENANT_ID = "tenant-1";
   private static final String TOKEN = "secret-token-value";
+  private static final String BASE_URL = "base-url-value";
 
   @Test
   @DisplayName("Should replace inject, agent, tenant and token placeholders for Windows")
@@ -25,7 +26,7 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Windows, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Windows, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL);
 
     // assert
     assertThat(result)
@@ -49,7 +50,7 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL);
 
     // assert
     assertThat(result).isEqualTo("echo " + TOKEN + " " + TENANT_ID);
@@ -64,7 +65,7 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.MacOS, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.MacOS, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL);
 
     // assert
     assertThat(result).isEqualTo("curl -H \"Authorization: " + TOKEN + "\"");
@@ -79,7 +80,7 @@ class ExecutorHelperTest {
     // act
     String result =
         ExecutorHelper.replaceArgs(
-            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
+            PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL);
 
     // assert
     assertThat(result).isEqualTo(command);
@@ -93,7 +94,7 @@ class ExecutorHelperTest {
     assertThatThrownBy(
             () ->
                 ExecutorHelper.replaceArgs(
-                    PLATFORM_TYPE.Linux, null, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN))
+                    PLATFORM_TYPE.Linux, null, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }
