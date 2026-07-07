@@ -2,14 +2,12 @@ package io.openaev.aop;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.chaining.QueueChainingService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.WorkflowService;
 import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -38,7 +36,6 @@ class WorkflowUpdateEventAspectTest {
   @Mock private PreviewFeatureService previewFeatureService;
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepService stepService;
-  @Mock private WorkflowService workflowService;
 
   @Mock private JoinPoint joinPoint;
   @Mock private MethodSignature methodSignature;
@@ -47,11 +44,6 @@ class WorkflowUpdateEventAspectTest {
   @InjectMocks private WorkflowUpdateEventAspect aspect;
 
   @Captor private ArgumentCaptor<String> stepIdCaptor;
-
-  @BeforeEach
-  void setDefaultWorkflowMembership() {
-    lenient().when(workflowService.isInjectInChainingWorkflow(anyString())).thenReturn(true);
-  }
 
   /* ============================================================
    * Feature flag disabled
@@ -69,7 +61,7 @@ class WorkflowUpdateEventAspectTest {
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verifyNoInteractions(queueChainingService, stepService, workflowService);
+      verifyNoInteractions(queueChainingService, stepService);
     }
   }
 
@@ -165,22 +157,6 @@ class WorkflowUpdateEventAspectTest {
     }
 
     @Test
-    void shouldDoNothing_whenInjectIsNotInChainingWorkflow() {
-      // -------- Prepare --------
-      String injectId = "inject-outside-workflow";
-      setupJoinPoint(injectId);
-      when(workflowService.isInjectInChainingWorkflow(injectId)).thenReturn(false);
-
-      // -------- Act --------
-      assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
-
-      // -------- Assert --------
-      verify(workflowService).isInjectInChainingWorkflow(injectId);
-      verify(stepService, never()).findStepIdByInjectId(any());
-      verifyNoInteractions(queueChainingService);
-    }
-
-    @Test
     void shouldDoNothing_whenNoStepFoundForInjectId() {
       // -------- Prepare --------
       String injectId = "inject-123";
@@ -190,7 +166,6 @@ class WorkflowUpdateEventAspectTest {
       assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
-      verify(workflowService).isInjectInChainingWorkflow(injectId);
       verify(stepService).findStepIdByInjectId(injectId);
       verifyNoInteractions(queueChainingService);
     }
@@ -208,7 +183,6 @@ class WorkflowUpdateEventAspectTest {
       aspect.afterEventProcessed(joinPoint, annotation);
 
       // -------- Assert --------
-      verify(workflowService).isInjectInChainingWorkflow(injectId);
       verify(stepService).findStepIdByInjectId(injectId);
       verify(queueChainingService).updateStep(stepIdCaptor.capture());
       assertEquals(stepId, stepIdCaptor.getValue());
@@ -231,7 +205,6 @@ class WorkflowUpdateEventAspectTest {
       assertDoesNotThrow(() -> aspect.afterEventProcessed(joinPoint, annotation));
 
       // -------- Assert --------
-      verify(workflowService).isInjectInChainingWorkflow(injectId);
       // Called twice: once in handleInjectIdParam (fails), then immediately retried in sendEvents
       verify(queueChainingService, times(2)).updateStep(stepId);
     }
