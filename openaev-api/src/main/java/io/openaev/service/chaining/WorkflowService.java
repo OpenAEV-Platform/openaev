@@ -39,7 +39,6 @@ public class WorkflowService {
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
-  private final InjectService injectService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
