@@ -591,11 +591,8 @@ public class StepService {
    * @param injectId inject id to find step id
    * @return optional step id
    */
-  public String findStepIdByInjectId(final String injectId) {
-    return stepRepository
-        .findStepIdByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Step id not found for inject id : " + injectId));
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
   }
 
   /**
