@@ -106,7 +106,7 @@ public class MdeExecutorServiceTest {
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
-    when(config.getWindowsScriptName()).thenReturn("OpenAEV Subprocessor (Windows)");
+    when(config.getWindowsScriptName()).thenReturn("openaev-subprocessor.ps1");
     Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
@@ -133,7 +133,7 @@ public class MdeExecutorServiceTest {
     Thread.sleep(1000);
 
     // Assert
-    verify(client).executeAction(any(), eq("OpenAEV Subprocessor (Windows)"), any());
+    verify(client).executeAction(any(), eq("openaev-subprocessor.ps1"), any());
   }
 
   @Test
@@ -145,7 +145,7 @@ public class MdeExecutorServiceTest {
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
-    when(config.getWindowsScriptName()).thenReturn("OpenAEV Subprocessor (Windows)");
+    when(config.getWindowsScriptName()).thenReturn("openaev-subprocessor.ps1");
     Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();

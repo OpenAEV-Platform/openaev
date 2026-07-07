@@ -190,8 +190,11 @@ public class MdeExecutorClient {
             // MDE returns non-2xx (e.g. 403 DisallowedOperation when a device has no automation
             // level, 400 OsPlatformNotSupported) with an error body. Surface it instead of
             // silently discarding the response, otherwise the inject stays PENDING with no clue.
+            // The values are inlined in the message (not SLF4J placeholders) so the HTTP code and
+            // MDE error body remain visible in log pipelines that drop structured arguments.
             if (code < 200 || code >= 300) {
-              log.error("MDE API POST {} failed: HTTP {} body={}", uri, code, respBody);
+              log.error(
+                  "MDE API POST " + uri + " failed: HTTP " + code + " body=" + respBody);
             }
             return respBody;
           });
