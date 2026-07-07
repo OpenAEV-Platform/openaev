@@ -493,39 +493,20 @@ public class StepService {
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
 
-    // Handle condition links: null = preserve existing, non-null = replace
-    if (stepInput.getConditionIds() != null) {
-      // Remove all existing conditions (full replace strategy),
-      // but preserve conditions referenced by conditionIds so they can be re-linked
-      conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
+    // Remove all existing conditions (full replace strategy),
+    // but preserve conditions referenced by conditionIds so they can be re-linked
+    conditionService.deleteAllConditionsByStepId(
+        stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
 
-      // Clear the step-side collection to stay consistent with the condition-side unlinking above.
-      // linkExistingConditionsToStep below will recreate the preserved links.
-      if (existing.getConditionSteps() != null) {
-        existing.getConditionSteps().clear();
-      }
-
-      // Recreate conditions from input (same logic as create)
-      stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
-      conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
-    } else {
-      // conditionIds not provided: preserve event links, replace only mapper conditions.
-      // Collect event condition IDs (non-mapper) to exclude from deletion.
-      List<String> eventConditionIds =
-          conditionService.findAllConditionsByStepId(stepId).stream()
-              .filter(c -> c.getType() != ConditionType.MAPPER)
-              .map(Condition::getId)
-              .toList();
-
-      conditionService.deleteAllConditionsByStepId(stepId, eventConditionIds);
-
-      if (existing.getConditionSteps() != null) {
-        existing.getConditionSteps().clear();
-      }
-
-      stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
-      conditionService.linkExistingConditionsToStep(existing, eventConditionIds);
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
     }
+
+    // Recreate conditions from input (same logic as create)
+    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
     return saveStep(existing);
   }
 

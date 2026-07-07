@@ -1,6 +1,13 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simplePostCall,
+} from '../utils/Action';
 import {
   type InjectorContract,
   type InjectorContractAddInput, type InjectorContractSearchPaginationInput,
@@ -17,10 +24,6 @@ export const fetchInjectorContract = (injectorContractId: InjectorContract['inje
 
 export const directFetchInjectorContract = (injectorContractId: InjectorContract['injector_contract_id']) => {
   return simpleCall(`${INJECTOR_CONTRACT_URI}/${injectorContractId}`);
-};
-
-export const directFetchInjectorContractSilent = (injectorContractId: InjectorContract['injector_contract_id']) => {
-  return simpleCall(`${INJECTOR_CONTRACT_URI}/${injectorContractId}`, undefined, false);
 };
 
 export const fetchInjectorsContracts = () => (dispatch: Dispatch) => {

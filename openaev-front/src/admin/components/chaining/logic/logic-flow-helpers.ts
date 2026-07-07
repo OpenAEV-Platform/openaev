@@ -1,6 +1,6 @@
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
 
-import { directFetchInjectorContractSilent } from '../../../../actions/InjectorContracts';
+import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
 import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
 import {
@@ -312,7 +312,7 @@ export const enrichActionMetasWithContracts = async (
 
   await Promise.all(contractIds.map(async (cid) => {
     try {
-      const res = await directFetchInjectorContractSilent(cid) as { data: { injector_contract_content?: string } };
+      const res = await directFetchInjectorContract(cid) as { data: { injector_contract_content?: string } };
       if (res.data?.injector_contract_content) {
         const parsed = JSON.parse(res.data.injector_contract_content);
         contractFieldsMap[cid] = (parsed.fields ?? []) as ContractElement[];

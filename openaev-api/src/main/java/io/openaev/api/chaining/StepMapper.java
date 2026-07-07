@@ -65,6 +65,8 @@ public final class StepMapper {
    *
    * <p>Path: inject_injector_contract → injector_contract_payload → payload_output_parsers[] →
    * output_parser_contract_output_elements[] → contract_output_element_type
+   *
+   * <p>todo: refacto in primitive type
    */
   private static List<String> extractOutputTypes(JsonNode dataNode) {
     if (dataNode == null) return List.of();

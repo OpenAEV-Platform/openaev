@@ -38,7 +38,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
     <Box sx={{
       position: 'relative',
       minWidth: 200,
-      paddingTop: '20px',
+      paddingTop: 2,
     }}
     >
       <Box
@@ -69,7 +69,7 @@ const EventNode = ({ id, data }: NodeProps<EventNodeData>) => {
         sx={{
           background: `${theme.palette.primary.main}10`,
           borderRadius: 1,
-          padding: '16px',
+          padding: 2,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
