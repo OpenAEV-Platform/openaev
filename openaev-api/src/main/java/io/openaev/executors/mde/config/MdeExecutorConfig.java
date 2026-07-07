@@ -116,12 +116,4 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotBlank
   private Integer apiRegisterInterval = 1200;
-
-  @IntegrationConfigKey(
-      key = "EXECUTOR_MDE_CLEAN_IMPLANT_INTERVAL",
-      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
-      description = "MDE clean old implant interval (in hours)")
-  @Getter
-  @NotBlank
-  private Integer cleanImplantInterval = 8;
 }

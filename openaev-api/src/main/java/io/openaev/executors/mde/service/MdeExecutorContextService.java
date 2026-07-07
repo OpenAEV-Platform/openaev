@@ -168,6 +168,11 @@ public class MdeExecutorContextService extends ExecutorContextService {
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
+      // Self-clean stale implant/payload dirs (>24h) at the start of every inject. This piggybacks
+      // on the inject's own Live Response session, so cleanup happens only on agents that actually
+      // run injects — replacing the periodic all-agents garbage collector that flooded the MDE API
+      // and starved inject dispatch.
+      command = WINDOWS_CLEAN_PAYLOADS_COMMAND + ";" + command;
       // MDE Live Response uses Invoke-Expression, not -EncodedCommand, so UTF-8 encoding is correct
       // (CrowdStrike RTR uses UTF-16LE for -encodedCommand, but that's not applicable here).
       action.setCommandEncoded(
@@ -237,6 +242,8 @@ public class MdeExecutorContextService extends ExecutorContextService {
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
+    // Self-clean stale implant/payload dirs (>24h) at the start of every inject (see Windows note).
+    command = UNIX_CLEAN_PAYLOADS_COMMAND + ";" + command;
     return Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8));
   }
 }

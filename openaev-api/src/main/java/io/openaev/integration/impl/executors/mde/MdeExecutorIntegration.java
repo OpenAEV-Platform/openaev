@@ -16,7 +16,6 @@ import io.openaev.executors.mde.client.MdeExecutorClient;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.service.MdeExecutorContextService;
 import io.openaev.executors.mde.service.MdeExecutorService;
-import io.openaev.executors.mde.service.MdeGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.QualifiedComponent;
@@ -47,7 +46,6 @@ public class MdeExecutorIntegration extends Integration {
   private MdeExecutorContextService mdeExecutorContextService;
 
   private MdeExecutorService mdeExecutorService;
-  private MdeGarbageCollectorService mdeGarbageCollectorService;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -136,20 +134,10 @@ public class MdeExecutorIntegration extends Integration {
     mdeExecutorService =
         new MdeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
-    mdeGarbageCollectorService =
-        new MdeGarbageCollectorService(
-            config,
-            mdeExecutorContextService,
-            agentService,
-            executorId,
-            executor.getTenant().getId());
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(
             mdeExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
-    timers.add(
-        taskScheduler.scheduleAtFixedRate(
-            mdeGarbageCollectorService, Duration.ofHours(this.config.getCleanImplantInterval())));
   }
 
   @Override
