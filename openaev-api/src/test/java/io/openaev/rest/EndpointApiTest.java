@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
+import static io.openaev.rest.executor.ExecutorApi.EXECUTOR_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
 import static io.openaev.utils.fixtures.AgentFixture.createDefaultAgentService;
@@ -23,13 +24,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
-import io.openaev.database.repository.AssetAgentJobRepository;
-import io.openaev.database.repository.AssetGroupRepository;
-import io.openaev.database.repository.EndpointRepository;
-import io.openaev.database.repository.InjectRepository;
-import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
@@ -47,6 +45,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
@@ -57,6 +56,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +68,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private ExecutorRepository executorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExecutorComposer executorComposer;
@@ -847,6 +848,70 @@ class EndpointApiTest extends IntegrationTest {
 
       @Test
       @DisplayName(
+          "Given executor B created with explicit tenant+tenantId (fixture path), "
+              + "endpoint API should still return a single, correctly-scoped agent")
+      void givenExecutorBWithTenantId_endpointShouldReturnSingleAgent() throws Exception {
+        // -- Arrange: tenant A, endpoint + agent + executor --
+        String tenantA = TenantContext.getCurrentTenant();
+
+        ExecutorComposer.Composer executorComposerA =
+            executorComposer.forExecutor(executorFixture.getDefaultExecutor());
+        Executor executorA = executorComposerA.get();
+
+        Endpoint endpointA = EndpointFixture.createEndpoint("Endpoint-TenantA");
+        AgentComposer.Composer agentComposerA =
+            agentComposer.forAgent(createDefaultAgentService()).withExecutor(executorComposerA);
+        EndpointComposer.Composer endpointComposerA =
+            endpointComposer.forEndpoint(endpointA).withAgent(agentComposerA);
+        endpointComposerA.persist();
+
+        // switchToTenant already does flush() + clear() → avoids "Tenant is immutable"
+        // and forces a real SQL read later.
+        Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-CompositeKey");
+        tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+        // Executor B with the SAME executor_id, properly setting tenant + tenantId
+        // (consistent with the invariant: all creation paths must set these explicitly
+        // or go through ExecutorService.register()).
+        Executor executorB = new Executor();
+        executorB.setId(executorA.getId()); // same executor_id, different tenant
+        executorB.setType("openaev_agent");
+        executorB.setName("OpenAEV-B");
+        Tenant tenantBRef = new Tenant(tenantB.getId());
+        executorB.setTenantId(tenantBRef.getId());
+        executorComposer.forExecutor(executorB).persist().get();
+
+        // -- Back to tenant A: switchToTenant flushes + clears → read hits real composite join --
+        tenantHelper.switchToTenant(tenantA, entityManager);
+
+        // -- Act --
+        String response =
+            mvc.perform(
+                    get(ENDPOINT_URI + "/" + endpointA.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -- Assert: exactly ONE agent, with tenant A's executor (not duplicated / not
+        // cross-tenant) --
+        assertThatJson(response)
+            .inPath("$.asset_agents")
+            .isArray()
+            .as("Endpoint must expose exactly 1 agent — no cross-tenant executor-join duplication")
+            .hasSize(1);
+
+        assertThatJson(response)
+            .inPath("$.asset_agents[0].agent_executor.executor_id")
+            .asString()
+            .as("Returned agent_executor must be tenant A's executor")
+            .isEqualTo(executorA.getId());
+      }
+
+      @Test
+      @DisplayName(
           "Given same executor type in two tenants, endpoint API should return agent without duplicates")
       void givenSameExecutorInTwoTenants_endpointShouldReturnAgentWithoutDuplicates()
           throws Exception {
@@ -903,6 +968,95 @@ class EndpointApiTest extends IntegrationTest {
             .asString()
             .as("Returned agent_id should match tenant A's agent and not a cross-tenant agent")
             .isEqualTo(executorA.getId());
+      }
+
+      @Test
+      @DisplayName(
+          "Given executor created via controller in two tenants, endpoint API should return agent without duplicates")
+      void givenExecutorViaControllerInTwoTenants_endpointShouldReturnAgentWithoutDuplicates()
+          throws Exception {
+        // -- Arrange --
+        String tenantA = TenantContext.getCurrentTenant();
+        String sharedExecutorId = UUID.randomUUID().toString();
+
+        // Create executor in tenant A via the registerExecutor controller (POST /api/executors)
+        ExecutorCreateInput inputA = new ExecutorCreateInput();
+        inputA.setId(sharedExecutorId);
+        inputA.setName("ControllerExec-A");
+        inputA.setType("controller_test_executor");
+        inputA.setPlatforms(new String[] {"Linux", "Windows"});
+
+        String inputJson = asJsonString(inputA);
+        MockMultipartFile inputPart =
+            new MockMultipartFile(
+                "input", "", MediaType.APPLICATION_JSON_VALUE, inputJson.getBytes());
+
+        mvc.perform(multipart(EXECUTOR_URI).file(inputPart).with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // Retrieve the executor that was just created to compose the agent
+        Executor executorA =
+            executorRepository.findByIdAndTenantId(sharedExecutorId, tenantA).orElseThrow();
+        ExecutorComposer.Composer executorComposerA = executorComposer.forExecutor(executorA);
+
+        Endpoint endpointA = EndpointFixture.createEndpoint("Endpoint-Controller-TenantA");
+        AgentComposer.Composer agentComposerA =
+            agentComposer.forAgent(createDefaultAgentService()).withExecutor(executorComposerA);
+        EndpointComposer.Composer endpointComposerA =
+            endpointComposer.forEndpoint(endpointA).withAgent(agentComposerA);
+        endpointComposerA.persist();
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // Create tenant B and register the same executor ID via the controller
+        Tenant tenantB = tenantHelper.createTenantWithCurrentUser("TenantB-ControllerPath");
+        tenantHelper.switchToTenant(tenantB.getId(), entityManager);
+
+        ExecutorCreateInput inputB = new ExecutorCreateInput();
+        inputB.setId(sharedExecutorId);
+        inputB.setName("ControllerExec-B");
+        inputB.setType("controller_test_executor");
+        inputB.setPlatforms(new String[] {"Linux"});
+
+        String inputJsonB = asJsonString(inputB);
+        MockMultipartFile inputPartB =
+            new MockMultipartFile(
+                "input", "", MediaType.APPLICATION_JSON_VALUE, inputJsonB.getBytes());
+
+        mvc.perform(
+                multipart("/api/tenants/" + tenantB.getId() + "/executors")
+                    .file(inputPartB)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful());
+
+        // Switch back to tenant A
+        tenantHelper.switchToTenant(tenantA, entityManager);
+
+        // -- Act --
+        String response =
+            mvc.perform(
+                    get(ENDPOINT_URI + "/" + endpointA.getId())
+                        .accept(MediaType.APPLICATION_JSON)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // -- Assert --
+        assertThatJson(response)
+            .inPath("$.asset_agents")
+            .isArray()
+            .as(
+                "Controller-created executor: endpoint should have exactly 1 agent — no cross-tenant duplication")
+            .hasSize(1);
+
+        assertThatJson(response)
+            .inPath("$.asset_agents[0].agent_executor.executor_id")
+            .asString()
+            .as("Returned executor_id should match tenant A's executor")
+            .isEqualTo(sharedExecutorId);
       }
     }
   }

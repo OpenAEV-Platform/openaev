@@ -7,7 +7,9 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.*;
+import io.openaev.database.model.Action;
+import io.openaev.database.model.Executor;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
@@ -163,23 +165,12 @@ public class ExecutorApi extends RestBehavior {
       @RequestPart("icon") Optional<MultipartFile> icon,
       @RequestPart("banner") Optional<MultipartFile> banner) {
     try {
-      // Upload icon
-      if (icon.isPresent() && "image/png".equals(icon.get().getContentType())) {
-        fileService.uploadFile(
-            FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png", icon.get());
-      }
-      // Upload icon
-      if (banner.isPresent() && "image/png".equals(banner.get().getContentType())) {
-        fileService.uploadFile(
-            FileService.EXECUTORS_IMAGES_BANNERS_BASE_PATH + input.getType() + ".png",
-            banner.get());
-      }
-      // We need to support upsert for registration
-      Executor executor =
+      // Guard: reject registration if a different executor already owns this type in the tenant
+      Executor existing =
           executorRepository
               .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
               .orElse(null);
-      if (executor == null) {
+      if (existing == null) {
         Executor executorChecking =
             executorRepository
                 .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
@@ -191,17 +182,26 @@ public class ExecutorApi extends RestBehavior {
                   + " already exists with a different ID, please delete it or contact your administrator.");
         }
       }
-      if (executor != null) {
-        return updateExecutor(executor, input.getType(), input.getName(), input.getPlatforms());
-      } else {
-        // save the injector
-        Executor newExecutor = new Executor();
-        newExecutor.setId(input.getId());
-        newExecutor.setName(input.getName());
-        newExecutor.setType(input.getType());
-        newExecutor.setPlatforms(input.getPlatforms());
-        return executorRepository.save(newExecutor);
-      }
+
+      // Delegate to the canonical creation/update path which ensures tenant + tenantId consistency
+      InputStream iconStream =
+          icon.isPresent() && "image/png".equals(icon.get().getContentType())
+              ? icon.get().getInputStream()
+              : null;
+      InputStream bannerStream =
+          banner.isPresent() && "image/png".equals(banner.get().getContentType())
+              ? banner.get().getInputStream()
+              : null;
+
+      return executorService.register(
+          input.getId(),
+          input.getType(),
+          input.getName(),
+          null,
+          null,
+          iconStream,
+          bannerStream,
+          input.getPlatforms());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
