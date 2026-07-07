@@ -34,7 +34,6 @@ interface InjectExpectationsProps {
   predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
   inline?: boolean;
-  title?: string;
 }
 
 const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
@@ -45,7 +44,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   predefinedExpectations = [],
   availableExpectations = [],
   inline = false,
-  title,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -121,7 +119,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   return (
     <>
-      {inline && title && (
+      {inline && (
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -129,7 +127,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
         }}
         >
           <Typography variant="subtitle2" fontWeight={600}>
-            {title}
+            {t('Expectations')}
           </Typography>
           {canAddExpectation && (
             <InjectAddExpectation
@@ -137,7 +135,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
               handleAddExpectation={handleAddExpectation}
               predefinedExpectations={predefinedExpectations}
               availableExpectations={addableAvailableExpectations}
-              inline={true}
+              inline
             />
           )}
         </div>
@@ -189,7 +187,6 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           handleAddExpectation={handleAddExpectation}
           predefinedExpectations={predefinedExpectations}
           availableExpectations={addableAvailableExpectations}
-          inline={false}
         />
       )}
     </>
