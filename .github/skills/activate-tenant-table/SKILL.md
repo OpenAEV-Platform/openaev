@@ -320,7 +320,7 @@ For every other API or service found in Phase 1 that reads the table:
 - add a `TxCtx` parameter on its `@Transactional` entrypoint
 - add an isolation test proving the cross-tenant case through that path.
   Models: `openaev-api/src/test/java/io/openaev/rest/scenario/ScenarioImportApiTenantIsolationTest.java`
-  and `ExerciseImportApiTenantIsolationTest.java` (same folder pattern).
+  and `openaev-api/src/test/java/io/openaev/rest/exercise/ExerciseImportApiTenantIsolationTest.java`.
 
 Then add the non-admin proof. Model:
 `openaev-api/src/test/java/io/openaev/rest/mapper/ImportMapperNonAdminIsolationTest.java`
