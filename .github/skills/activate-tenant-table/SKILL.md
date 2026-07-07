@@ -343,8 +343,8 @@ mvn -ntp -pl openaev-api test -Dtest='TenantScopedEntrypointsTxCtxArchTest,Tenan
 
 ### Phase 6 — Go-live: ONE commit
 
-Model commit: `53e7171f2` "feat(multi-tenancy): activate import_mappers on v2
-isolation (#6212)". Four changes, together, nothing else:
+Model (from PR #6255): commit "feat(multi-tenancy): activate import_mappers on v2 isolation (#6212)"
+(find it with `git log --oneline --grep "activate import_mappers on v2 isolation"`). Four changes, together, nothing else:
 
 1. Remove `@Filter(name = "tenantFilter", ...)` from the entity in
    `openaev-model/src/main/java/io/openaev/database/model/{Entity}.java`.
