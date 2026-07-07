@@ -1,5 +1,8 @@
 package io.openaev.engine;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
@@ -18,11 +21,6 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.Pagination;
 import io.openaev.utilstest.RabbitMQTestListener;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,9 +28,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * End-to-end regression tests for the {@code findForIndexing} query in {@link
