@@ -124,7 +124,7 @@ public class WorkflowUpdateEventAspect {
     if (!injectId.isEmpty()) {
       Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
       if (stepId.isEmpty()) {
-        log.warn("Step not found for inject {}", injectId);
+        log.info("Step not found for inject {}", injectId);
         return;
       }
       try {
