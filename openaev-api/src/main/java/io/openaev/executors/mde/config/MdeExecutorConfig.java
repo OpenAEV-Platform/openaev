@@ -88,7 +88,7 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
           "Name of the OpenAEV Windows subprocessor script uploaded to MDE Live Response Library")
   @Getter
   @NotBlank
-  private String windowsScriptName = "OpenAEV Subprocessor (Windows)";
+  private String windowsScriptName = "openaev-subprocessor.ps1";
 
   @IntegrationConfigKey(
       key = "EXECUTOR_MDE_UNIX_SCRIPT_NAME",
@@ -97,7 +97,7 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
           "Name of the OpenAEV Unix subprocessor script uploaded to MDE Live Response Library")
   @Getter
   @NotBlank
-  private String unixScriptName = "OpenAEV Subprocessor (Unix)";
+  private String unixScriptName = "openaev-subprocessor.sh";
 
   @IntegrationConfigKey(
       key = "EXECUTOR_MDE_API_BATCH_EXECUTION_ACTION_PAGINATION",
