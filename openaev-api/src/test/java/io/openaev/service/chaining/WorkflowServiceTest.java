@@ -11,7 +11,6 @@ import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -47,7 +46,6 @@ class WorkflowServiceTest {
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private WorkflowStateService workflowStateService;
-  @Mock private InjectService injectService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
   @Mock private ResultsMetricCollector resultsMetricCollector;
