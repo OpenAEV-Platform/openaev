@@ -404,9 +404,9 @@ Before marking the issue done, write down:
 - the endpoints wired and the arch-test entries added
 - background readers left degraded (from Phase 0/1), each with a one-line impact
 - child tables and how they are covered
-- client impact: the frontend does not send a tenant selector on resource
-  calls today, so multi-tenant users get 400 on create until it does. Say it
-  explicitly so the rollout plans the frontend work.
+- client impact: writes now require a single-tenant scope. Calls using the tenant path
+  (`/api/tenants/{tenantId}/...`) already satisfy this; callers using the header route or no selector
+  may get 400 on create/import until they switch to a single-tenant selector.
 
 ## Definition of Done
 
