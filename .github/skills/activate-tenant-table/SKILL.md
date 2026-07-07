@@ -114,9 +114,9 @@ STOP conditions, report instead of continuing:
   counter) is not a blocker but must be listed in the report as a documented
   degradation: once the table is active it reads zero rows.
 - 0.3 finds a unique index on a business key that does not include
-  `tenant_id` → the schema needs a prep migration first (model:
-  `V4_82__Update_unique_constraints_for_tenants.java`, same pattern, new
-  migration, do not pin numbers). Real example: `mitigations` has
+  `tenant_id` → the schema needs a prep migration first (model: the existing
+  `__Update_unique_constraints_for_tenants` migration in
+  `openaev-api/src/main/java/io/openaev/migration/`; same pattern, new migration).
   `CREATE UNIQUE INDEX mitigations_unique ON mitigations (mitigation_external_id)`,
   global, so two tenants cannot both hold MITRE mitigation M1013. Fix the
   constraint (add `tenant_id` to it) in its own reviewed change BEFORE the
