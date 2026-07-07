@@ -13,6 +13,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.injectors.common.model.BaseInjectContent;
+import io.openaev.model.Expectation;
 import io.openaev.model.expectation.DetectionExpectation;
 import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.expectation.PreventionExpectation;
