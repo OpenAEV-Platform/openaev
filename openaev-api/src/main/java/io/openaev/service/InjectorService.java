@@ -404,6 +404,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
           contractor,
           isCustomizable,
           category,
+          executorCommands,
+          executorClearCommands,
           isPayloads,
           staticContracts);
     } else {
@@ -492,6 +494,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       Contractor contractor,
       Boolean isCustomizable,
       String category,
+      Map<String, String> executorCommands,
+      Map<String, String> executorClearCommands,
       Boolean isPayloads,
       List<Contract> staticContracts) {
 
@@ -501,6 +505,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injector.setExternal(false);
     injector.setCustomContracts(Boolean.TRUE.equals(isCustomizable));
     injector.setPayloads(Boolean.TRUE.equals(isPayloads));
+    // Refresh config-derived executor commands (hstore) so existing deployments pick up new
+    // per-executor launch strategies (e.g. the MDE detached scheduled task) instead of keeping the
+    // values baked at first registration — mirrors updateExistingExternalInjector.
+    injector.setExecutorCommands(executorCommands);
+    injector.setExecutorClearCommands(executorClearCommands);
     injectorRepository.save(injector);
 
     // Filter to this tenant's contracts — belt-and-suspenders check since the @JoinTable

@@ -146,7 +146,11 @@ public class MdeExecutorContextService extends ExecutorContextService {
       Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
       // x86_64 by default — MDE API doesn't always expose architecture; the WINDOWS_ARCH snippet
       // detects it at runtime and replaces the value before downloading the implant.
-      String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
+      // Use the MDE-specific command (scheduled-task launch): MDE Live Response terminates the
+      // session process tree on teardown, so the implant must run from a detached SYSTEM task to
+      // survive and report its traces back to OpenAEV.
+      String executorCommandKey =
+          MDE_EXECUTOR_NAME + "." + platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
       String command = injector.getExecutorCommands().get(executorCommandKey);
       command =
           WINDOWS_ARCH

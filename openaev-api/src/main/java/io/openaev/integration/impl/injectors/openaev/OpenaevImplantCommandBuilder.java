@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.injectors.openaev;
 
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
 import io.openaev.config.OpenAEVConfig;
@@ -47,6 +48,11 @@ final class OpenaevImplantCommandBuilder {
     // --- PALO ALTO WINDOWS SPECIFIC ---
     buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
     buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    // --- MDE WINDOWS SPECIFIC ---
+    // MDE Live Response (like Cortex XDR) terminates child processes when the remote session ends,
+    // so the implant must be launched from a detached scheduled task to survive and phone home.
+    buildMdeWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
+    buildMdeWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
     // --- WINDOWS ---
     buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
     buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
@@ -111,12 +117,34 @@ final class OpenaevImplantCommandBuilder {
       OpenAEVConfig cfg,
       Map<String, String> commands,
       CommandVars vars) {
+    buildScheduledTaskWindowsCommand(PALOALTOCORTEX_EXECUTOR_NAME, arch, cfg, commands, vars);
+  }
+
+  private static void buildMdeWindowsCommand(
+      Endpoint.PLATFORM_ARCH arch,
+      OpenAEVConfig cfg,
+      Map<String, String> commands,
+      CommandVars vars) {
+    buildScheduledTaskWindowsCommand(MDE_EXECUTOR_NAME, arch, cfg, commands, vars);
+  }
+
+  /**
+   * Builds a Windows implant command that launches the implant from a detached SYSTEM scheduled
+   * task instead of a direct child process. EDR remote-execution channels (Palo Alto Cortex XDR
+   * Live Terminal, Microsoft Defender for Endpoint Live Response) terminate the process tree of the
+   * remote session once it ends; a scheduled task survives session teardown so the implant can run
+   * and report its execution traces back to OpenAEV.
+   *
+   * @param executorNameKey executor name used as the command map key prefix
+   */
+  private static void buildScheduledTaskWindowsCommand(
+      String executorNameKey,
+      Endpoint.PLATFORM_ARCH arch,
+      OpenAEVConfig cfg,
+      Map<String, String> commands,
+      CommandVars vars) {
     commands.put(
-        PALOALTOCORTEX_EXECUTOR_NAME
-            + "."
-            + Endpoint.PLATFORM_TYPE.Windows.name()
-            + "."
-            + arch.name(),
+        executorNameKey + "." + Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
             + vars.tokenVar()
             + ";$"

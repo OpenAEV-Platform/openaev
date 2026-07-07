@@ -111,7 +111,12 @@ public class MdeExecutorServiceTest {
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
-        Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64, "x86_64");
+        MDE_EXECUTOR_NAME
+            + "."
+            + Endpoint.PLATFORM_TYPE.Windows.name()
+            + "."
+            + Endpoint.PLATFORM_ARCH.x86_64,
+        "x86_64");
     injector.setExecutorCommands(executorCommands);
     Inject inject =
         InjectFixture.createTechnicalInject(
@@ -150,7 +155,12 @@ public class MdeExecutorServiceTest {
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
     executorCommands.put(
-        Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64, "x86_64");
+        MDE_EXECUTOR_NAME
+            + "."
+            + Endpoint.PLATFORM_TYPE.Windows.name()
+            + "."
+            + Endpoint.PLATFORM_ARCH.x86_64,
+        "x86_64");
     injector.setExecutorCommands(executorCommands);
     InjectorContract contract =
         InjectorContractFixture.createPayloadInjectorContract(injector, payloadCommand);
