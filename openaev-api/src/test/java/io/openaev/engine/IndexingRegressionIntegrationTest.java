@@ -546,7 +546,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
                 .anySatisfy(
                     e ->
                         assertThat(((EsInject) e).getInject_title())
-                            .as("inject_title doit etre present dans les documents indexes")
+                            .as("inject_title must be present in the indexed documents")
                             .isNotBlank());
           });
     }

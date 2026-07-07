@@ -621,9 +621,23 @@ class IndexingRegressionTest extends IntegrationTest {
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       endpointWrapper.persist();
 
-      DetectionInjectExpectation agentlessExpectation =
+      BaseInjectExpectation agentlessExpectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-      agentlessExpectation.setResults(
+      InjectExpectationComposer.Composer agentlessExpectationWrapper =
+          injectExpectationComposer
+              .forExpectation(agentlessExpectation)
+              .withEndpoint(endpointWrapper);
+
+      Agent agent = AgentFixture.createDefaultAgentService();
+      agent.setAsset(endpointWrapper.get());
+      entityManager.persist(agent);
+      entityManager.flush();
+      Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
+
+      DetectionInjectExpectation agentExpectation =
+          InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+      agentExpectation.setAgent(persistedAgent);
+      agentExpectation.setResults(
           List.of(
               InjectExpectationResult.builder()
                   .sourceId(collector.getId())
@@ -632,15 +646,14 @@ class IndexingRegressionTest extends IntegrationTest {
                   .result("detected")
                   .score(100.0)
                   .build()));
-      InjectExpectationComposer.Composer agentlessExpectationWrapper =
-          injectExpectationComposer
-              .forExpectation(agentlessExpectation)
-              .withEndpoint(endpointWrapper);
+      InjectExpectationComposer.Composer agentExpectationWrapper =
+          injectExpectationComposer.forExpectation(agentExpectation).withEndpoint(endpointWrapper);
 
       InjectComposer.Composer injectWrapper =
           injectComposer
               .forInject(InjectFixture.getDefaultInject())
-              .withExpectation(agentlessExpectationWrapper);
+              .withExpectation(agentlessExpectationWrapper)
+              .withExpectation(agentExpectationWrapper);
       scenarioComposer
           .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
           .withInject(injectWrapper)

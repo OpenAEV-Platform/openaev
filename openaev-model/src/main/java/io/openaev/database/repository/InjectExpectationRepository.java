@@ -393,6 +393,25 @@ public interface InjectExpectationRepository
       ORDER BY sort_ts ASC
       LIMIT :limit
     ),
+    agent_security_platforms AS (
+      SELECT
+          child_ie.inject_id,
+          COALESCE(
+              array_agg(DISTINCT child_c.collector_security_platform::text)
+                  FILTER ( WHERE child_c.collector_security_platform IS NOT NULL ),
+              ARRAY[]::text[]
+          )
+          || COALESCE(
+              array_agg(DISTINCT child_a.asset_id::text)
+                  FILTER ( WHERE child_a.asset_id IS NOT NULL ),
+              ARRAY[]::text[]
+          ) AS security_platform_ids
+      FROM injects_expectations child_ie
+      LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
+      LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
+      LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
+      WHERE child_ie.agent_id IS NOT NULL
+      GROUP BY child_ie.inject_id),
     inject_expectation_data AS (
       SELECT
       ie.inject_expectation_id,
@@ -419,8 +438,17 @@ public interface InjectExpectationRepository
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
       array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL ) AS domain_ids,
       MAX(se.scenario_id) AS scenario_id,
-      array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
-      array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
+      COALESCE(
+          array_agg(DISTINCT c.collector_security_platform::text)
+              FILTER ( WHERE c.collector_security_platform IS NOT NULL ),
+          ARRAY[]::text[]
+      )
+      || COALESCE(
+          array_agg(DISTINCT a.asset_id::text)
+              FILTER ( WHERE a.asset_id IS NOT NULL ),
+          ARRAY[]::text[]
+      )
+      || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
     FROM injects_expectations ie
     JOIN ranked_expectations re ON ie.inject_expectation_id = re.inject_expectation_id
     LEFT JOIN exercises ex ON ex.exercise_id = ie.exercise_id
@@ -430,7 +458,6 @@ public interface InjectExpectationRepository
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
     LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
-    LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id
     LEFT JOIN asset_groups ag ON ag.asset_group_id = ie.asset_group_id
@@ -438,13 +465,16 @@ public interface InjectExpectationRepository
     LEFT JOIN LATERAL jsonb_array_elements(ie.inject_expectation_results::jsonb) AS r(elem) ON true
     LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
     LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
+    LEFT JOIN agent_security_platforms asp ON asp.inject_id = ie.inject_id
     GROUP BY
       ie.inject_expectation_id,
       ic.injector_contract_id,
       i.inject_title,
-        i.tenant_id
+      i.tenant_id,
+      asp.security_platform_ids
     )
     SELECT * FROM inject_expectation_data ied
+    WHERE ied.agent_id IS NULL
     ORDER BY ied.inject_expectation_updated_at ASC
     """,
       nativeQuery = true)
