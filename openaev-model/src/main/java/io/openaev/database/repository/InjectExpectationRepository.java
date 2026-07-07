@@ -382,6 +382,13 @@ public interface InjectExpectationRepository
           JOIN injects i ON i.inject_id = ie.inject_id
           JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
           WHERE ie.agent_id IS NULL AND ic.injector_contract_updated_at > :from
+        UNION
+        SELECT parent_ie.inject_expectation_id
+          FROM injects_expectations parent_ie
+          JOIN injects_expectations child_ie ON child_ie.inject_id = parent_ie.inject_id
+          WHERE parent_ie.agent_id IS NULL
+            AND child_ie.agent_id IS NOT NULL
+            AND child_ie.inject_expectation_updated_at > :from
     ),
     ranked_expectations AS (
       SELECT ce.inject_expectation_id,
