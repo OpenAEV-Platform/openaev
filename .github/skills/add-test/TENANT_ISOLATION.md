@@ -18,8 +18,8 @@ reason; the reasons are written down so a hand-written test does not drift.
 Full code templates: [`examples/tenant-isolation-templates.md`](examples/tenant-isolation-templates.md).
 
 This skill pairs with:
-- the `activate-tenant-table` skill: its isolation-test phase produces exactly
-  this file, first red, then green as the wiring lands;
+- the `activate-tenant-table` skill (PR #6594): its isolation-test phase
+  produces exactly this file, first red, then green as the wiring lands;
 - the "tenant scope coverage" CI gate (#6389): once it lands, this file carries
   `@CoversTenantIsolation("{table}")`. Until then the template puts the
   annotation in a comment.
@@ -43,7 +43,7 @@ recipe lives in git history if ever needed.
 ## Step 0 — Probe the table and the API (do not ask, derive)
 
 Replace `{table}`, `{Entity}`, `{Api}` with your target. Derive every input
-from the code; a declared capability that is wrong produces a test that lies.
+from the code; an input written from memory produces a test that lies.
 
 ```bash
 # endpoints the API really has (this decides which cases to generate)

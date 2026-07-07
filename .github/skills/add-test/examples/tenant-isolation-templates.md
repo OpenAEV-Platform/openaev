@@ -12,14 +12,21 @@
 |---|---|---|
 | `{table}` | `import_mappers` | the physical table name |
 | `{Entity}` | `ImportMapper` | the entity class |
+| `{Api}` | `MapperApi` | the controller class |
 | `{EntityRepository}` | `ImportMapperRepository` | the Spring Data repository |
 | `{domain}` | `mapper` | the API's package under `io.openaev.rest` |
 | `{plain_uri}` | `/api/mappers` | the API's base `@RequestMapping` |
+| `{entities}` | `mappers` | the URI segment of the API |
 | `{id_column}` | `mapper_id` | from the CREATE TABLE migration |
 | `{id_sql}` | `CAST(? AS uuid)` | `?` if the id column is varchar; CAST if uuid |
 | `{seed_columns}` | `mapper_id, mapper_name, mapper_inject_type_column, tenant_id` | every NOT NULL column without a default, plus tenant_id |
 | `{name_column}` | `mapper_name` | the human-readable column used in ground-truth asserts |
 | `{id_json_path}` | `$.import_mapper_id` | the id field in the API's JSON output |
+
+Only the placeholders in this table get substituted. In URI strings,
+`{tenantId}` and `{entityId}` (e.g. `{phaseId}`, `{mapperId}`) are Spring URI
+template variables: `mvc.perform(get(URI, tenantA, rowA))` fills them at run
+time, so they stay as-is in the copied code.
 
 ## The canonical file
 
@@ -285,7 +292,7 @@ void upsertOfKeySeededInBCreatesARowForA() throws Exception {
   // rowB was seeded with the same business key in tenant B during setup.
   // Requires tenant-aware unique constraints on the business key; a
   // unique-violation failure here means the schema prep was skipped
-  // (see the activate-tenant-table skill, gate 0.3).
+  // (see the activate-tenant-table skill, PR #6594, gate 0.3).
   mvc.perform(post("/api/tenants/{tenantId}/{entities}/upsert", tenantA)
           .contentType(MediaType.APPLICATION_JSON)
           .content(asJsonString(upsertInput("shared-key"))).with(csrf()))
