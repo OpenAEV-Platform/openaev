@@ -68,6 +68,26 @@ export const normalizeInjectContentExpectations = (
   };
 };
 
+export const normalizeSingleCardinalityContent = (
+  content: Record<string, unknown>,
+  fields: ContractElement[],
+): Record<string, unknown> => {
+  const normalizedContent = { ...content };
+
+  fields.forEach((field) => {
+    if (field.type === EXPECTATION_FIELD_TYPE || field.cardinality !== '1') {
+      return;
+    }
+
+    const value = normalizedContent[field.key];
+    if (Array.isArray(value)) {
+      normalizedContent[field.key] = value[0] ?? '';
+    }
+  });
+
+  return normalizedContent;
+};
+
 export const applyExpectationDefaults = (
   content: Record<string, unknown>,
   fields: ContractElement[],
@@ -96,24 +116,4 @@ export const applyExpectationDefaults = (
     ...normalizedContent,
     [EXPECTATIONS_CONTENT_KEY]: defaultExpectations,
   };
-};
-
-export const normalizeSingleCardinalityContent = (
-  content: Record<string, unknown>,
-  fields: ContractElement[],
-): Record<string, unknown> => {
-  const normalizedContent = { ...content };
-
-  fields.forEach((field) => {
-    if (field.type === EXPECTATION_FIELD_TYPE || field.cardinality !== '1') {
-      return;
-    }
-
-    const value = normalizedContent[field.key];
-    if (Array.isArray(value)) {
-      normalizedContent[field.key] = value[0] ?? '';
-    }
-  });
-
-  return normalizedContent;
 };

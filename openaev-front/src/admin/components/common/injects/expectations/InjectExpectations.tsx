@@ -33,6 +33,7 @@ interface InjectExpectationsProps {
   injectId?: string;
   predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
+  inline?: boolean;
   title?: string;
 }
 
@@ -43,6 +44,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   injectId,
   predefinedExpectations = [],
   availableExpectations = [],
+  inline = false,
   title,
 }) => {
   // Standard hooks
@@ -119,11 +121,11 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
 
   return (
     <>
-      {title && (
+      {inline && title && (
         <div style={{
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'space-between',
+          alignItems: 'center',
         }}
         >
           <Typography variant="subtitle2" fontWeight={600}>
@@ -131,11 +133,11 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </Typography>
           {canAddExpectation && (
             <InjectAddExpectation
-              inline
               disabled={readOnly}
               handleAddExpectation={handleAddExpectation}
               predefinedExpectations={predefinedExpectations}
               availableExpectations={addableAvailableExpectations}
+              inline={true}
             />
           )}
         </div>
@@ -181,15 +183,15 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           </ListItem>
         ))}
       </List>
-      {!title && canAddExpectation
-        && (
-          <InjectAddExpectation
-            disabled={readOnly}
-            handleAddExpectation={handleAddExpectation}
-            predefinedExpectations={predefinedExpectations}
-            availableExpectations={addableAvailableExpectations}
-          />
-        )}
+      {!inline && canAddExpectation && (
+        <InjectAddExpectation
+          disabled={readOnly}
+          handleAddExpectation={handleAddExpectation}
+          predefinedExpectations={predefinedExpectations}
+          availableExpectations={addableAvailableExpectations}
+          inline={false}
+        />
+      )}
     </>
   );
 };

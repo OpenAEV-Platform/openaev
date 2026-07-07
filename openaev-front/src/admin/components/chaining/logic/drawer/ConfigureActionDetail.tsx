@@ -321,16 +321,28 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           {/* Expectations */}
           {expectationField && (
             <Box>
-              <InjectExpectations
-                title={t('Inject Expectations')}
-                expectationDatas={expectations}
-                handleExpectations={updatedExpectations => setFieldValues(prev => ({
-                  ...prev,
-                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
-                }))}
-                predefinedExpectations={expectationField.predefinedExpectations ?? []}
-                availableExpectations={expectationField.availableExpectations ?? []}
-              />
+              {expectations.length > 0 ? (
+                <InjectExpectations
+                  expectationDatas={expectations}
+                  handleExpectations={updatedExpectations => setFieldValues(prev => ({
+                    ...prev,
+                    [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+                  }))}
+                  predefinedExpectations={expectationField.predefinedExpectations ?? []}
+                  availableExpectations={expectationField.availableExpectations ?? []}
+                  inline
+                  title={t('Expectations')}
+                />
+              ) : (
+                <>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {t('Expectations')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('No expectations for this action.')}
+                  </Typography>
+                </>
+              )}
             </Box>
           )}
 
