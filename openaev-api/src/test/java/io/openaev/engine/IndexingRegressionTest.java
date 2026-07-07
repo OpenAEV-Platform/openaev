@@ -1,7 +1,5 @@
 package io.openaev.engine;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.engine.model.endpoint.EndpointHandler;
@@ -20,15 +18,18 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.transaction.annotation.Transactional;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Non-regression tests for the four {@code findForIndexing} queries (Endpoint, Exercise, Scenario,
@@ -682,7 +683,7 @@ class IndexingRegressionTest extends IntegrationTest {
       AgentComposer.Composer agentWrapper =
           agentComposer.forAgent(AgentFixture.createDefaultAgentService());
       endpointWrapper.withAgent(agentWrapper);
-      InjectExpectation expectation =
+      DetectionInjectExpectation expectation =
           InjectExpectationFixture.createDefaultDetectionInjectExpectation();
       InjectExpectationComposer.Composer expectationWrapper =
           injectExpectationComposer.forExpectation(expectation).withAgent(agentWrapper);
@@ -713,7 +714,7 @@ class IndexingRegressionTest extends IntegrationTest {
       for (int i = 0; i < total; i++) {
         EndpointComposer.Composer ep =
             endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
-        InjectExpectation exp = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+        DetectionInjectExpectation exp = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
         InjectExpectationComposer.Composer expWrapper =
             injectExpectationComposer.forExpectation(exp).withEndpoint(ep);
         InjectComposer.Composer inj =
