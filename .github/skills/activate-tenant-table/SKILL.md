@@ -124,6 +124,34 @@ STOP conditions, report instead of continuing:
   if the rows are meant to be platform-shared reference data, the table may
   not be a good activation candidate at all. Report and let a human decide.
 
+When a stop condition is hit, still run Phase 1 (the inventory is what makes
+the stop useful), then produce a stop report instead of code and post it on
+the table's activation issue. Format:
+
+```markdown
+## activate-tenant-table skill run: STOPPED at eligibility (gate <n>)
+
+**Gates**
+- 0.1 PASS/STOP: <entity check result>
+- 0.2 PASS/STOP: <tenant column nullability>
+- 0.3 PASS/STOP: <unique constraints; quote the offending index if any>
+- 0.4: <hot-path note>
+
+**Blocker to decide before activation**
+<the failed gate, the options this skill lists for it, and what each option
+needs (e.g. prep migration modeled on V4_82 vs shared-reference-data
+discussion)>
+
+**Inventory (phase 1)**
+<repository users and their classification; child tables; other APIs>
+
+**Side findings**
+<anything found on the way that someone should look at, one line of impact each>
+```
+
+The evidence rule (hard rule 8) applies here too: quote the actual grep
+output or file lines behind each gate verdict, do not paraphrase them.
+
 ### Phase 1 — Inventory every code path that touches the table
 
 The table does not belong to one API. Any `@Transactional` path that reads it
