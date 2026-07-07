@@ -398,6 +398,7 @@ jobs:
     needs: [docker-build]
     if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
     runs-on: ubuntu-latest
+    continue-on-error: true
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -428,7 +429,6 @@ jobs:
       - backend-package-musl
       - docker-build
       - docker-merge
-      - snyk-docker
       - codecov
     if: ${{ always() }}
     runs-on: ubuntu-latest

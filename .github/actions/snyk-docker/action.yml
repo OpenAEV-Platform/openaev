@@ -116,7 +116,17 @@ runs:
         if [ "${{ steps.snyk-standard.outputs.result }}" = "failure" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" = "failure" ]; then
           echo ""
           echo "  ⚠️  Vulnerabilities found — see snyk-report-* artifacts for details."
-          echo "  (This step is informational and does not block the pipeline.)"
         fi
         echo "══════════════════════════════════════════"
       shell: bash
+
+    - name: Mark scan as failed when vulnerabilities are found
+      if: ${{ always() }}
+      run: |
+        if [ "${{ steps.snyk-standard.outputs.result }}" = "failure" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" = "failure" ]; then
+          echo "❌ Snyk detected vulnerabilities at or above threshold."
+          exit 1
+        fi
+        echo "✅ No vulnerabilities at or above threshold were detected."
+      shell: bash
+
