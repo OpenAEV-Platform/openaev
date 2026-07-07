@@ -737,25 +737,27 @@ class StepServiceTest {
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       // Act
-      String result = stepService.findStepIdByInjectId(injectId);
+      Optional<String> result = stepService.findStepIdByInjectId(injectId);
 
       // Assert
-      assertNotNull(result);
-      assertEquals(stepId, result);
+      assertTrue(result.isPresent());
+      assertEquals(stepId, result.get());
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void given_missingInjectId_should_throw() {
+    void given_missingInjectId_should_returnEmptyOptional() {
       // Arrange
       String injectId = UUID.randomUUID().toString();
 
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
 
-      // Act + Assert
-      assertThrows(
-          ElementNotFoundException.class, () -> stepService.findStepIdByInjectId(injectId));
+      // Act
+      Optional<String> result = stepService.findStepIdByInjectId(injectId);
+
+      // Assert
+      assertTrue(result.isEmpty());
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
