@@ -1571,6 +1571,7 @@
   "No detection rule available for this security platform yet.": "このセキュリティプラットフォームで利用可能な検出ルールはまだありません。",
   "No documentation available": "文書がない",
   "No expectation for": "期待できない",
+  "No expectations for this action.": "このアクションについては、特に期待はしていません。",
   "No explanation": "説明なし",
   "No file selected.": "ファイルが選択されていません。",
   "No inject in this scenario": "このシナリオではインジェクトはありません",

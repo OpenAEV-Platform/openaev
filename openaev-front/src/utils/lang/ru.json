@@ -1571,6 +1571,7 @@
   "No detection rule available for this security platform yet.": "Для этой платформы безопасности пока нет правила обнаружения.",
   "No documentation available": "Документация отсутствует",
   "No expectation for": "Нет ожиданий для",
+  "No expectations for this action.": "По данному действию никаких ожиданий нет.",
   "No explanation": "Нет объяснения",
   "No file selected.": "Не выбран ни один файл.",
   "No inject in this scenario": "В этом сценарии нет инъекций",
