@@ -259,17 +259,6 @@ public class InjectService {
   }
 
   /**
-   * Finds the simulation ID linked to an inject without loading the full inject graph.
-   *
-   * @param injectId inject ID to resolve
-   * @return simulation ID if the inject is attached to a simulation, empty otherwise
-   * @throws ElementNotFoundException if the inject does not exist
-   */
-  public Optional<String> findExerciseIdByInjectId(@NotBlank final String injectId) {
-    return this.injectRepository.findExerciseIdByInjectId(injectId);
-  }
-
-  /**
    * Find an inject or return null value
    *
    * @param injectId inject ID to search
