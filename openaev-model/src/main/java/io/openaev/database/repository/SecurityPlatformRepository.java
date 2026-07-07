@@ -51,7 +51,6 @@ public interface SecurityPlatformRepository
               + "WHERE a.asset_updated_at > :from AND a.asset_type = '"
               + AssetType.Values.SECURITY_PLATFORM_TYPE
               + "' "
-              + "GROUP BY a.asset_id, a.asset_updated_at "
               + "ORDER BY a.asset_updated_at LIMIT :limit;",
       nativeQuery = true)
   List<RawAssetIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
