@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
@@ -447,6 +448,14 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // PREPARE
     Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
     workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    JsonNode injectorContractContent = mapper.readTree(injectorContractSaved.getContent());
+    int expectedPredefinedExpectations = 0;
+    for (JsonNode field : injectorContractContent.path("fields")) {
+      if ("expectations".equals(field.path("key").asText())) {
+        expectedPredefinedExpectations = field.path("predefinedExpectations").size();
+        break;
+      }
+    }
 
     ObjectNode injectInputNode = (ObjectNode) mapper.readTree(injectInputJson);
     ((ObjectNode) injectInputNode.get("inject_content")).remove("expectations");
@@ -479,7 +488,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // ASSERT
     String injectId = StepService.getField(stepReady.getData(), "inject_id");
     Inject createdInject = injectRepository.findById(injectId).orElseThrow();
-    assertEquals(2, createdInject.getContent().withArray("expectations").size());
+    assertEquals(
+        expectedPredefinedExpectations,
+        createdInject.getContent().withArray("expectations").size());
   }
 
   @Test
