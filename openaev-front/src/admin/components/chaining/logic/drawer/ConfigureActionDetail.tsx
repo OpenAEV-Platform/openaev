@@ -181,7 +181,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     return tPick(action.action_labels);
   }, [action, tPick]);
 
-  // Expectations are not part of the generic input data — they are handled separately
+  // Expectations are not part of the generic input data because they are handled separately
   // in their own dedicated section via <InjectExpectations>.
   const inputArgumentFields = useMemo(() => {
     return contractFields.filter(f => !f.readOnly && f.type !== EXPECTATION_FIELD_TYPE);
