@@ -50,7 +50,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
   const theme = useTheme();
   const { argumentTypes } = useArgumentTypes();
   const conditionKeyTypes = argumentTypes.length > 0
-    ? argumentTypes.map(type => type.argument_type)
+    ? argumentTypes
     : ['text'];
   const { providers } = useOutputProviders();
 

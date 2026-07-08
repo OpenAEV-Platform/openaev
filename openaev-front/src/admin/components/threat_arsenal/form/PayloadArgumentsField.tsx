@@ -41,9 +41,9 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
     },
   ];
 
-  const toItem = (at: { argument_type: string }) => ({
-    value: at.argument_type,
-    label: t(formatPrimitiveTypeLabel(at.argument_type)),
+  const toItem = (at: string) => ({
+    value: at,
+    label: t(formatPrimitiveTypeLabel(at)),
   });
 
   const argumentTypeItems: {
@@ -59,8 +59,8 @@ const PayloadArgumentsField = ({ argumentName, canSelectTargetAsset, onArgumentR
       : [],
     ...(isChainingEnabled
       ? argumentTypes
-          .filter(at => !alwaysAvailableTypes.has(at.argument_type)
-            && at.argument_type !== 'targeted-asset')
+          .filter(at => !alwaysAvailableTypes.has(at)
+            && at !== 'targeted-asset')
           .map(at => toItem(at))
       : []),
   ];

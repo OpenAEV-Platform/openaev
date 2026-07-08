@@ -15,7 +15,6 @@ import { type FunctionComponent, useMemo, useState } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 import { formatPrimitiveTypeLabel } from '../../../../../utils/String';
 import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
-import { CONDITION_KEY_TYPES } from '../events/event-types';
 
 export interface FieldLink {
   outputType: string;
@@ -51,7 +50,7 @@ const InjectDataFieldItem: FunctionComponent<Props> = ({
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
   const menuItems = useMemo(
-    () => (argumentTypes.length > 0 ? argumentTypes.map(type => type.argument_type) : ['text']),
+    () => (argumentTypes.length > 0 ? argumentTypes : ['text']),
     [argumentTypes],
   );
 

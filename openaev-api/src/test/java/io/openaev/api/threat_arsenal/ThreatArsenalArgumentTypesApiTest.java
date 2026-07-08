@@ -4,7 +4,6 @@ import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import io.openaev.api.payload.PrimitiveTypeOutput;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
@@ -30,8 +29,7 @@ class ThreatArsenalArgumentTypesApiTest {
   void given_chainingDisabled_should_returnCoreTypesOnly() {
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(false);
 
-    List<PrimitiveTypeOutput> body = threatArsenalApi.getArgumentTypes();
-    List<PrimitiveType> types = body.stream().map(PrimitiveTypeOutput::type).toList();
+    List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
 
     assertThat(types).containsExactly(PrimitiveType.Text, PrimitiveType.Document);
   }
@@ -41,8 +39,7 @@ class ThreatArsenalArgumentTypesApiTest {
   void given_chainingEnabled_should_returnAllTypes() {
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(true);
 
-    List<PrimitiveTypeOutput> body = threatArsenalApi.getArgumentTypes();
-    List<PrimitiveType> types = body.stream().map(PrimitiveTypeOutput::type).toList();
+    List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
 
     assertThat(types).containsExactly(PrimitiveType.values());
     assertThat(types.stream().map(type -> type.label).toList()).doesNotContain("asset_id");

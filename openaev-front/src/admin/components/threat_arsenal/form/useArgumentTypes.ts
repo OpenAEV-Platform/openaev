@@ -3,15 +3,17 @@ import { useEffect, useMemo, useState } from 'react';
 import fetchArgumentTypes from '../../../../actions/payloads/payload-argument-actions';
 import { type PrimitiveTypeOutput } from '../../../../utils/api-types';
 
+type PrimitiveArgumentType = PrimitiveTypeOutput['argument_type'];
+
 type UseArgumentTypesResult = {
-  argumentTypes: PrimitiveTypeOutput[];
+  argumentTypes: PrimitiveArgumentType[];
   argumentWithDefaultValueTypes: Set<string>;
   isLoading: boolean;
   error: Error | null;
 };
 
 const useArgumentTypes = (): UseArgumentTypesResult => {
-  const [argumentTypes, setArgumentTypes] = useState<PrimitiveTypeOutput[]>([]);
+  const [argumentTypes, setArgumentTypes] = useState<PrimitiveArgumentType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -35,7 +37,7 @@ const useArgumentTypes = (): UseArgumentTypesResult => {
   const argumentWithDefaultValueTypes = useMemo(() => {
     return new Set(
       argumentTypes
-        .map(argumentType => argumentType.argument_type)
+        .map(argumentType => argumentType)
         .filter(type => type !== 'targeted-asset'),
     );
   }, [argumentTypes]);

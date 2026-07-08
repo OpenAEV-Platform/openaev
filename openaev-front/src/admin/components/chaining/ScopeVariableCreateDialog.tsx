@@ -35,14 +35,14 @@ const ScopeVariableCreateDialog = ({ open, onClose, onSubmit }: ScopeVariableCre
   const { argumentTypes } = useArgumentTypes();
   const typeItems = useMemo(
     () => argumentTypes.map(at => ({
-      value: at.argument_type,
-      label: t(formatPrimitiveTypeLabel(at.argument_type)),
+      value: at,
+      label: t(formatPrimitiveTypeLabel(at)),
     })),
     [argumentTypes, t],
   );
 
   const scopeVariableTypes = useMemo(
-    () => argumentTypes.map(at => at.argument_type) as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
+    () => argumentTypes as [ScopeVariableInput['scope_variable_type'], ...ScopeVariableInput['scope_variable_type'][]],
     [argumentTypes],
   );
 

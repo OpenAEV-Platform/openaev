@@ -4,8 +4,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.settings.PreviewFeature.INJECT_CHAINING;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.payload.PrimitiveTypeMapper;
-import io.openaev.api.payload.PrimitiveTypeOutput;
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
@@ -65,8 +63,8 @@ public class ThreatArsenalApi {
   })
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<PrimitiveTypeOutput> getArgumentTypes() {
-    return resolveAvailableTypes().stream().map(PrimitiveTypeMapper::toOutput).toList();
+  public List<PrimitiveType> getArgumentTypes() {
+    return resolveAvailableTypes();
   }
 
   @Operation(summary = "Get filterable property schemas for threat arsenal")
