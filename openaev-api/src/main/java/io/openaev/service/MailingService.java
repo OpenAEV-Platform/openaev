@@ -9,6 +9,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.UserRepository;
@@ -63,7 +64,7 @@ public class MailingService {
     Inject inject = new Inject();
     InjectorContract emailContract =
         this.injectorContractRepository
-            .findById(EmailContract.EMAIL_DEFAULT)
+            .findById(new InjectorContractId(EmailContract.EMAIL_DEFAULT, tenantId))
             .orElseThrow(ElementNotFoundException::new);
     inject.setInjectorContract(emailContract);
     Injector firstInjector = resolveFirstInjector(emailContract);
