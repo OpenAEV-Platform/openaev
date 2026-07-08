@@ -7,6 +7,7 @@ import static java.time.Instant.now;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
@@ -62,8 +63,9 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the template lookup so a cross-tenant template is not found. Not used directly.
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
-      @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
