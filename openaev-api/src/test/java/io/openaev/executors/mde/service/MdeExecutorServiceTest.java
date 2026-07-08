@@ -61,7 +61,7 @@ public class MdeExecutorServiceTest {
     mdeExecutor.setId(EXECUTOR_ID);
     mdeExecutor.setName(MDE_EXECUTOR_NAME);
     mdeExecutor.setType(MDE_EXECUTOR_TYPE);
-    mdeExecutor.setTenant(new Tenant(TENANT_ID));
+    mdeExecutor.setTenantId(TENANT_ID);
   }
 
   @Test
@@ -100,8 +100,7 @@ public class MdeExecutorServiceTest {
   @Test
   @DisplayName(
       "given Windows agent with MDE executor, should call executeAction with base64-encoded command")
-  void test_launchBatchExecutorSubprocess_mde_windows()
-      throws JsonProcessingException, InterruptedException {
+  void test_launchBatchExecutorSubprocess_mde_windows() throws JsonProcessingException {
     // Arrange
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
@@ -134,18 +133,16 @@ public class MdeExecutorServiceTest {
     // Act
     mdeExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
-    // Scheduled execution: wait for the scheduled task to run
-    Thread.sleep(1000);
 
-    // Assert
-    verify(client).executeAction(any(), eq("openaev-subprocessor.ps1"), any());
+    // Assert — the Live Response dispatch is scheduled asynchronously
+    verify(client, timeout(2000)).executeAction(any(), eq("openaev-subprocessor.ps1"), any());
   }
 
   @Test
   @DisplayName(
       "given legacy inject without injector, should fallback to contract and execute action")
   void given_legacyInjectWithoutInjector_should_fallbackToContractAndExecuteAction()
-      throws InterruptedException, JsonProcessingException {
+      throws JsonProcessingException {
     // Arrange
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
@@ -177,9 +174,8 @@ public class MdeExecutorServiceTest {
     // Act
     mdeExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
-    Thread.sleep(1000);
 
-    // Assert
-    verify(client).executeAction(any(), any(), any());
+    // Assert — the Live Response dispatch is scheduled asynchronously
+    verify(client, timeout(2000)).executeAction(any(), any(), any());
   }
 }

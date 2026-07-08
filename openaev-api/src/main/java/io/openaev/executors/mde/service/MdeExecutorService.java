@@ -5,6 +5,7 @@ import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.mde.client.MdeExecutorClient;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeDevice;
@@ -93,9 +94,8 @@ public class MdeExecutorService implements Runnable {
         log.info("MDE executor provisioning {} devices (no group filter)", devices.size());
         endpointService.syncAgentsEndpoints(
             toAgentEndpoint(devices),
-            agentService.getAgentsByExecutorIdAndTenantId(
-                executor.getId(), executor.getTenant().getId()),
-            executor.getTenant().getId());
+            agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), executor.getTenantId()),
+            executor.getTenantId());
         return;
       }
 
@@ -116,10 +116,10 @@ public class MdeExecutorService implements Runnable {
         Optional<MdeDeviceGroup> groupMeta =
             allGroups.stream().filter(g -> String.valueOf(g.getId()).equals(groupId)).findFirst();
         Optional<AssetGroup> existingAssetGroup =
-            assetGroupService.findByExternalReference(groupId, executor.getTenant().getId());
+            assetGroupService.findByExternalReference(groupId, executor.getTenantId());
         AssetGroup assetGroup = existingAssetGroup.orElseGet(AssetGroup::new);
         assetGroup.setExternalReference(groupId);
-        assetGroup.setTenant(executor.getTenant());
+        assetGroup.setTenant(new Tenant(executor.getTenantId()));
         groupMeta.ifPresent(
             g -> {
               assetGroup.setName(g.getName());
@@ -136,8 +136,8 @@ public class MdeExecutorService implements Runnable {
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(devices),
                 agentService.getAgentsByExecutorIdAndTenantId(
-                    executor.getId(), executor.getTenant().getId()),
-                executor.getTenant().getId());
+                    executor.getId(), executor.getTenantId()),
+                executor.getTenantId());
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

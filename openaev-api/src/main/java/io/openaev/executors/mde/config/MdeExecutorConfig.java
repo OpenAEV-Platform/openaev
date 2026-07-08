@@ -7,7 +7,9 @@ import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGU
 import io.openaev.database.model.CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.integration.configuration.IntegrationConfigKey;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -105,7 +107,8 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
       description =
           "Number of machines sent per 5 seconds to MDE Live Response API to execute a payload (MDE rate limit is stricter than CrowdStrike)")
   @Getter
-  @NotBlank
+  @NotNull
+  @Min(1)
   private Integer apiBatchExecutionActionPagination = 10;
 
   @IntegrationConfigKey(
@@ -114,6 +117,7 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
       description =
           "MDE API interval to register/update device groups and agents in OpenAEV (in seconds)")
   @Getter
-  @NotBlank
+  @NotNull
+  @Min(1)
   private Integer apiRegisterInterval = 1200;
 }

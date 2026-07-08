@@ -193,8 +193,7 @@ public class MdeExecutorClient {
             // The values are inlined in the message (not SLF4J placeholders) so the HTTP code and
             // MDE error body remain visible in log pipelines that drop structured arguments.
             if (code < 200 || code >= 300) {
-              log.error(
-                  "MDE API POST " + uri + " failed: HTTP " + code + " body=" + respBody);
+              log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + respBody);
             }
             return respBody;
           });

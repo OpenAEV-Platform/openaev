@@ -143,12 +143,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
               + template.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE + "`");
       command =
           replaceArgs(
-              platform,
-              command,
-              inject.getId(),
-              agent.getId(),
-              inject.getTenant().getId(),
-              token);
+              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -196,7 +191,11 @@ public class MdeExecutorContextService extends ExecutorContextService {
   }
 
   private String getUnixCommand(
-      Endpoint.PLATFORM_TYPE platform, Injector injector, Inject inject, Agent agent, String token) {
+      Endpoint.PLATFORM_TYPE platform,
+      Injector injector,
+      Inject inject,
+      Agent agent,
+      String token) {
     String implantLocation =
         "location="
             + ExecutorHelper.IMPLANT_LOCATION_UNIX
@@ -208,12 +207,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
     command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
     command =
         replaceArgs(
-            platform,
-            command,
-            inject.getId(),
-            agent.getId(),
-            inject.getTenant().getId(),
-            token);
+            platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

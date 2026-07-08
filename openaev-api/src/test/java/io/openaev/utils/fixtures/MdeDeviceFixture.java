@@ -3,7 +3,7 @@ package io.openaev.utils.fixtures;
 import io.openaev.executors.mde.model.MdeDevice;
 import io.openaev.executors.mde.model.MdeDeviceGroup;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 public class MdeDeviceFixture {
@@ -20,7 +20,7 @@ public class MdeDeviceFixture {
     device.setRbacGroupName("Test Device Group");
     device.setHealthStatus("Active");
     DateTimeFormatter formatter =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneId.systemDefault());
+        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
     device.setLastSeen(formatter.format(Instant.now()));
     return device;
   }
