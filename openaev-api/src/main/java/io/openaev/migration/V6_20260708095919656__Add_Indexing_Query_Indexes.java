@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-public class V6_20260630141546018__Add_Indexing_Query_Indexes extends BaseJavaMigration {
+public class V6_20260708095919656__Add_Indexing_Query_Indexes extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
