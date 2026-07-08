@@ -119,7 +119,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [action, initialData]);
 
   // Resets all input argument fields to contract defaults.
-  // Expectations are explicitly restored from current state — they are not part of this reset.
+  // Expectations are explicitly restored from current state because they are not part of this reset.
   const handleResetDefaults = () => {
     setFieldValues(prev => ({
       ...buildContractDefaults(contractFields),
