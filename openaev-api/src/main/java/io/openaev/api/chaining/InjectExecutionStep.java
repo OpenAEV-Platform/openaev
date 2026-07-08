@@ -80,7 +80,6 @@ public class InjectExecutionStep implements ActionStep {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
-  private final InjectExpectationService injectExpectationService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -658,7 +657,7 @@ public class InjectExecutionStep implements ActionStep {
 
       // Add expectations
       ObjectNode contentWithExpectations =
-          injectExpectationService.setExpectations(injectorContract, updatedContent);
+          injectorContractContentUtils.setExpectations(injectorContract, updatedContent);
       inject.setContent(contentWithExpectations);
 
       return inject;
