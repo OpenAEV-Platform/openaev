@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  * payload argument entries without deprecated {@code subtype}.
  */
 @Component
-public class V6_20260704153000000__Normalize_payload_arguments_wrapped_json
+public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
     extends BaseJavaMigration {
 
   @Override
