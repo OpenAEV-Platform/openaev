@@ -160,28 +160,6 @@ public class ConditionServiceTest {
   }
 
   /* ============================================================
-   * isDependOn
-   * ============================================================ */
-  @Nested
-  class IsDependOn {
-
-    @Test
-    void shouldCreateDependOnCondition_withGivenStepTemplateId() {
-      // -------- Prepare --------
-      String stepTemplateId = UUID.randomUUID().toString();
-
-      // -------- Act --------
-      Condition result = conditionService.isDependOn(stepTemplateId);
-
-      // -------- Assert --------
-      assertNotNull(result);
-      assertNull(result.getKeyType());
-      assertEquals(ConditionType.DEPEND_ON, result.getType());
-      assertEquals(stepTemplateId, result.getValue());
-    }
-  }
-
-  /* ============================================================
    * checkCondition
    * ============================================================ */
   @Nested

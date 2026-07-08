@@ -692,16 +692,6 @@ public class ConditionService {
   }
 
   /**
-   * Creates a DEPEND_ON condition for a step template dependency.
-   *
-   * @param idStepFromTemplate identifier of the dependent step template
-   * @return the DEPEND_ON condition
-   */
-  public Condition isDependOn(String idStepFromTemplate) {
-    return ConditionFactory.dependOn(idStepFromTemplate);
-  }
-
-  /**
    * Returns {@code true} if the given step has at least one condition of type {@link
    * ConditionType#MAPPER}.
    *
