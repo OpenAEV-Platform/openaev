@@ -1,14 +1,13 @@
 package io.openaev.integration.impl.injectors.openaev;
 
+import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Endpoint;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-
 import java.util.HashMap;
 import java.util.Map;
-
-import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 /**
  * Builds executor commands for the OpenAEV implant injector. These commands are tenant-independent
@@ -106,9 +105,7 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildPaloAltoWindowsCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         PALOALTOCORTEX_EXECUTOR_NAME
             + "."
@@ -149,9 +146,7 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildGenericWindowsCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
         "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
@@ -170,9 +165,7 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildGenericLinuxCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + arch.name(),
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
@@ -191,9 +184,7 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildGenericMacOSCommand(
-      Endpoint.PLATFORM_ARCH arch,
-      Map<String, String> commands,
-      CommandVars vars) {
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
     commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + arch.name(),
         "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"

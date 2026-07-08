@@ -1,11 +1,11 @@
 package io.openaev.executors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("ExecutorHelper tests")
 class ExecutorHelperTest {

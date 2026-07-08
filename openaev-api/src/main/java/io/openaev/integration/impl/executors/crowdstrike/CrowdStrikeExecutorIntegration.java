@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.crowdstrike;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
@@ -24,16 +26,13 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
-
-import static java.util.Optional.ofNullable;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Slf4j
 public class CrowdStrikeExecutorIntegration extends Integration {
@@ -69,18 +68,19 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final OpenAEVConfig openAEVConfig;
 
   public CrowdStrikeExecutorIntegration(
-          ConnectorInstance connectorInstance,
-          ConnectorInstanceService connectorInstanceService,
-          EndpointService endpointService,
-          AgentService agentService,
-          AssetGroupService assetGroupService,
-          ExecutorService executorService,
-          EnterpriseEditionService enterpriseEditionService,
-          LicenseCacheManager licenseCacheManager,
-          ComponentRequestEngine componentRequestEngine,
-          ThreadPoolTaskScheduler taskScheduler,
-          BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-          HttpClientFactory httpClientFactory, OpenAEVConfig openAEVConfig) {
+      ConnectorInstance connectorInstance,
+      ConnectorInstanceService connectorInstanceService,
+      EndpointService endpointService,
+      AgentService agentService,
+      AssetGroupService assetGroupService,
+      ExecutorService executorService,
+      EnterpriseEditionService enterpriseEditionService,
+      LicenseCacheManager licenseCacheManager,
+      ComponentRequestEngine componentRequestEngine,
+      ThreadPoolTaskScheduler taskScheduler,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
@@ -94,7 +94,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
 
-      // Refresh the context to get the config
+    // Refresh the context to get the config
     try {
       refresh();
     } catch (Exception e) {
@@ -138,7 +138,12 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
         new CrowdStrikeExecutorContextService(
-            config, client, enterpriseEditionService, licenseCacheManager, executorService, openAEVConfig);
+            config,
+            client,
+            enterpriseEditionService,
+            licenseCacheManager,
+            executorService,
+            openAEVConfig);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

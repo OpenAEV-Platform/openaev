@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.sentinelone;
 
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
+
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
@@ -20,14 +22,11 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 
 @Service
 @Profile("!test")
@@ -50,20 +49,21 @@ public class SentinelOneExecutorIntegrationFactory extends IntegrationFactory {
   private final OpenAEVConfig openAEVConfig;
 
   public SentinelOneExecutorIntegrationFactory(
-          ConnectorInstanceService connectorInstanceService,
-          CatalogConnectorService catalogConnectorService,
-          ExecutorService executorService,
-          ComponentRequestEngine componentRequestEngine,
-          SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration,
-          AgentService agentService,
-          EndpointService endpointService,
-          AssetGroupService assetGroupService,
-          EnterpriseEditionService enterpriseEditionService,
-          LicenseCacheManager licenseCacheManager,
-          ThreadPoolTaskScheduler taskScheduler,
-          FileService fileService,
-          BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-          HttpClientFactory httpClientFactory, OpenAEVConfig openAEVConfig) {
+      ConnectorInstanceService connectorInstanceService,
+      CatalogConnectorService catalogConnectorService,
+      ExecutorService executorService,
+      ComponentRequestEngine componentRequestEngine,
+      SentinelOneExecutorConfigurationMigration sentinelOneExecutorConfigurationMigration,
+      AgentService agentService,
+      EndpointService endpointService,
+      AssetGroupService assetGroupService,
+      EnterpriseEditionService enterpriseEditionService,
+      LicenseCacheManager licenseCacheManager,
+      ThreadPoolTaskScheduler taskScheduler,
+      FileService fileService,
+      BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;

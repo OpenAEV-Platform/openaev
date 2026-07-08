@@ -1,5 +1,7 @@
 package io.openaev.integration.impl.executors.paloaltocortex;
 
+import static java.util.Optional.ofNullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
@@ -24,16 +26,13 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
-
-import static java.util.Optional.ofNullable;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Slf4j
 public class PaloAltoCortexExecutorIntegration extends Integration {
@@ -137,7 +136,12 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
     client = new PaloAltoCortexExecutorClient(config, httpClientFactory);
     paloAltoCortexExecutorContextService =
         new PaloAltoCortexExecutorContextService(
-            config, client, enterpriseEditionService, licenseCacheManager, executorService, openAEVConfig);
+            config,
+            client,
+            enterpriseEditionService,
+            licenseCacheManager,
+            executorService,
+            openAEVConfig);
     paloAltoCortexExecutorService =
         new PaloAltoCortexExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

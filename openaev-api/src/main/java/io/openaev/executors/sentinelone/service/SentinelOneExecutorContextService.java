@@ -1,5 +1,10 @@
 package io.openaev.executors.sentinelone.service;
 
+import static io.openaev.executors.ExecutorHelper.replaceArgs;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
+import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
+import static java.util.Optional.ofNullable;
+
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -11,22 +16,16 @@ import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
-
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
-
-import static io.openaev.executors.ExecutorHelper.replaceArgs;
-import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
-import static java.util.Optional.ofNullable;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service(SentinelOneExecutorContextService.SERVICE_NAME)
@@ -154,7 +153,13 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       String command = injector.getExecutorCommands().get(executorCommandKey);
       command =
           replaceArgs(
-              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token, openAEVConfig.getBaseUrl());
+              platform,
+              command,
+              inject.getId(),
+              agent.getId(),
+              inject.getTenant().getId(),
+              token,
+              openAEVConfig.getBaseUrl());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -212,7 +217,13 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     String command = injector.getExecutorCommands().get(executorCommandKey);
     command =
         replaceArgs(
-            platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token, openAEVConfig.getBaseUrl());
+            platform,
+            command,
+            inject.getId(),
+            agent.getId(),
+            inject.getTenant().getId(),
+            token,
+            openAEVConfig.getBaseUrl());
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

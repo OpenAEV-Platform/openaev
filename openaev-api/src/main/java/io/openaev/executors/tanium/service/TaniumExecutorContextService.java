@@ -1,5 +1,9 @@
 package io.openaev.executors.tanium.service;
 
+import static io.openaev.executors.ExecutorHelper.replaceArgs;
+import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
+import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
@@ -11,20 +15,15 @@ import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Hibernate;
-import org.springframework.stereotype.Service;
-
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
-
-import static io.openaev.executors.ExecutorHelper.replaceArgs;
-import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
-import static io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service(TaniumExecutorContextService.SERVICE_NAME)
@@ -190,7 +189,13 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       String command = injector.getExecutorCommands().get(executorCommandKey);
       command =
           replaceArgs(
-              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token, openAEVConfig.getBaseUrl());
+              platform,
+              command,
+              inject.getId(),
+              agent.getId(),
+              inject.getTenant().getId(),
+              token,
+              openAEVConfig.getBaseUrl());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
