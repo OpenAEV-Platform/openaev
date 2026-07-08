@@ -3,6 +3,7 @@ import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-mate
 import {
   Box,
   FormControl,
+  FormHelperText,
   IconButton,
   InputLabel,
   MenuItem,
@@ -48,10 +49,9 @@ const EventConditionRow: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { argumentTypes } = useArgumentTypes();
-  const conditionKeyTypes = argumentTypes.length > 0
-    ? argumentTypes
-    : ['text'];
+  const { argumentTypes, isLoading: isLoadingArgumentTypes, error: argumentTypesError } = useArgumentTypes();
+  const conditionKeyTypes = argumentTypes;
+  const isArgumentTypesUnavailable = isLoadingArgumentTypes || !!argumentTypesError || conditionKeyTypes.length === 0;
   const { providers } = useOutputProviders();
 
   /**
@@ -156,9 +156,16 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
+          disabled={isArgumentTypesUnavailable}
           renderValue={val => formatConditionKeyLabel(val)}
         >
-          {conditionKeyTypes.map((key) => {
+          {isLoadingArgumentTypes && (
+            <MenuItem disabled>{t('Loading argument types...')}</MenuItem>
+          )}
+          {!isLoadingArgumentTypes && argumentTypesError && (
+            <MenuItem disabled>{t('Failed to load argument types')}</MenuItem>
+          )}
+          {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
             const keyProviders = providers[key] ?? [];
             return (
               <MenuItem
@@ -188,6 +195,12 @@ const EventConditionRow: FunctionComponent<Props> = ({
             );
           })}
         </Select>
+        {isLoadingArgumentTypes && (
+          <FormHelperText>{t('Loading argument types...')}</FormHelperText>
+        )}
+        {!isLoadingArgumentTypes && argumentTypesError && (
+          <FormHelperText error>{t('Failed to load argument types')}</FormHelperText>
+        )}
       </FormControl>
 
       {/* Operator */}
