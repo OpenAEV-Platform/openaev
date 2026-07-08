@@ -1,10 +1,14 @@
 # v2 Tenant Isolation Test Templates
 
 > Referenced by [TENANT_ISOLATION.md](../TENANT_ISOLATION.md).
-> Every snippet below is lifted from the real pilot,
+> The structure and the core read/write patterns come from the real pilot,
 > `openaev-api/src/test/java/io/openaev/rest/mapper/ImportMapperHttpIsolationTest.java`
 > (and `TenantScopeFailClosedTest.java` for the fail-closed case), with
-> placeholders where the pilot had import_mappers specifics.
+> placeholders where the pilot had import_mappers specifics. A few snippets
+> have no pilot equivalent: they either generalize a pilot pattern to a case
+> the pilot lacks (`rawTenant`, the upsert) or bring back a case from the v1
+> skill (the options/batch lookup). Each such snippet is marked where it
+> appears; all of them follow the same raw-JDBC, one-tenant-per-test rules.
 
 ## Placeholders
 
@@ -259,8 +263,8 @@ void createUnderTenantAIsAttributedToA() throws Exception {
 }
 ```
 
-`rawTenant` is one more raw-JDBC helper next to `rawName`/`rawCount`, selecting
-`tenant_id` by id.
+`rawTenant` is one more raw-JDBC helper next to the pilot's `rawName`/`rawCount`
+(the pilot does not have `rawTenant` itself), selecting `tenant_id` by id.
 
 ```java
 
@@ -277,6 +281,9 @@ void createWithoutSelectorIsRejected() throws Exception {
 ```
 
 ### Upsert (only if the API has one)
+
+> No pilot equivalent: `import_mappers` has no upsert. Generalized from the
+> pilot's write-attribution and raw-JDBC patterns.
 
 One tenant per test also holds here: a MockMvc call joins the test's
 transaction, so calling two tenant paths in one test would set the scope
@@ -307,6 +314,9 @@ void upsertOfKeySeededInBCreatesARowForA() throws Exception {
 ```
 
 ### Batch lookups: options / search-by-id (only if the API has one)
+
+> No pilot equivalent: `import_mappers` has no batch id lookup. The v1 skill
+> covered this case; it is kept here on the same read-isolation pattern.
 
 Batch id lookups are the enumeration surface: a caller who guesses or replays
 ids from another tenant must not resolve them. The old v1 skill covered this

@@ -80,7 +80,7 @@ Record what you found: the case matrix below is driven by it.
 |---|---|
 | PUT update | cross-tenant update → 404, ground truth proves the row untouched |
 | DELETE | own delete → 2xx and gone; cross-tenant delete → 2xx no-op, ground truth proves the row survives |
-| POST create | row stored with the path's tenant (assert `tenant_id` with a native query); create with no selector → 400 |
+| POST create | row stored with the path's tenant (assert `tenant_id` with a raw-JDBC read, not an `entityManager` query, which the inspector rewrites); create with no selector → 400 |
 | import | same two attribution cases as create |
 | upsert | upsert under A of a key already seeded in B → a new row for A next to B's (raw JDBC proves both rows and the new row's tenant); upsert with no selector → 400 |
 | duplicate / export | copy inherits the tenant; export skips out-of-scope ids |
