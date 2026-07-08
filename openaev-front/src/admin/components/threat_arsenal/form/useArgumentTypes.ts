@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import fetchArgumentTypes from '../../../../actions/payloads/payload-argument-actions';
-import { type PrimitiveTypeOutput } from '../../../../utils/api-types';
-
-type PrimitiveArgumentType = PrimitiveTypeOutput['argument_type'];
 
 type UseArgumentTypesResult = {
-  argumentTypes: PrimitiveArgumentType[];
+  argumentTypes: string[];
   argumentWithDefaultValueTypes: Set<string>;
   isLoading: boolean;
   error: Error | null;
 };
 
 const useArgumentTypes = (): UseArgumentTypesResult => {
-  const [argumentTypes, setArgumentTypes] = useState<PrimitiveArgumentType[]>([]);
+  const [argumentTypes, setArgumentTypes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
