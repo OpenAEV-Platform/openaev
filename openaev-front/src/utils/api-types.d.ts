@@ -7759,28 +7759,6 @@ export interface PolicyInput {
   platform_login_message?: string;
 }
 
-export interface PrimitiveTypeOutput {
-  argument_type:
-    | "text"
-    | "number"
-    | "host"
-    | "hostname"
-    | "domain"
-    | "ipv4"
-    | "ipv6"
-    | "port"
-    | "username"
-    | "password"
-    | "hash"
-    | "service"
-    | "cve"
-    | "severity"
-    | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
-}
-
 export interface PropertySchemaDTO {
   schema_property_entity: string;
   schema_property_has_dynamic_value?: boolean;
