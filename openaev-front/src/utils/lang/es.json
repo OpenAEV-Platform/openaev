@@ -64,6 +64,7 @@
   "action_platforms": "Plataformas",
   "action_tags": "Etiquetas",
   "action_updated_at": "Actualizado en",
+  "Actions on the logic flow which produce this input:": "Acciones del flujo lógico que generan esta entrada:",
   "Active": "Activo",
   "Add": "Añadir",
   "Add a new vulnerability": "Añadir una nueva vulnerabilidad",

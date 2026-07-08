@@ -158,7 +158,6 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
-      inject_injector: action.action_injector_type,
       inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
       inject_content: fieldValues,
       inject_field_links: fieldLinks,

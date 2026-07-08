@@ -10,6 +10,7 @@ import type {
 import AddComponentButton, { type LogicContext } from './AddComponentButton';
 import ChainingFlowConfiguration, { type DrawerView } from './chaining_flow/ChainingFlowConfiguration';
 import LogicFlow from './chaining_flow/LogicFlow';
+import OutputProvidersProvider from './OutputProvidersContext';
 import type { ActionMeta, EventMeta } from './types';
 
 interface LogicProps {
@@ -99,39 +100,41 @@ const Logic = ({ workflowId, context }: LogicProps) => {
   }
 
   return (
-    <div style={{
-      width: '100%',
-      height: 'calc(100vh - 230px)',
-      position: 'relative',
-    }}
-    >
-      {hasExistingData && workflowId
-        ? (
-            <LogicFlow
-              reloadTrigger={refreshKey}
-              workflowId={workflowId}
-              onAddComponent={handleOpenDrawer}
-              onEditStep={handleEditStep}
-              onEditEvent={handleEditEvent}
-            />
-          )
-        : (
-            <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
-          )}
-      <ChainingFlowConfiguration
-        workflowId={workflowId}
-        validAssets={validAssets}
-        drawerView={drawerView}
-        onDrawerViewChange={setDrawerView}
-        editingStep={editingStep}
-        onEditingStepChange={setEditingStep}
-        editingEvent={editingEvent}
-        onEditingEventChange={setEditingEvent}
-        onStepCreated={handleStepCreated}
-        onEventCreated={handleEventCreated}
-        eventCount={eventCount}
-      />
-    </div>
+    <OutputProvidersProvider>
+      <div style={{
+        width: '100%',
+        height: 'calc(100vh - 230px)',
+        position: 'relative',
+      }}
+      >
+        {hasExistingData && workflowId
+          ? (
+              <LogicFlow
+                reloadTrigger={refreshKey}
+                workflowId={workflowId}
+                onAddComponent={handleOpenDrawer}
+                onEditStep={handleEditStep}
+                onEditEvent={handleEditEvent}
+              />
+            )
+          : (
+              <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
+            )}
+        <ChainingFlowConfiguration
+          workflowId={workflowId}
+          validAssets={validAssets}
+          drawerView={drawerView}
+          onDrawerViewChange={setDrawerView}
+          editingStep={editingStep}
+          onEditingStepChange={setEditingStep}
+          editingEvent={editingEvent}
+          onEditingEventChange={setEditingEvent}
+          onStepCreated={handleStepCreated}
+          onEventCreated={handleEventCreated}
+          eventCount={eventCount}
+        />
+      </div>
+    </OutputProvidersProvider>
   );
 };
 

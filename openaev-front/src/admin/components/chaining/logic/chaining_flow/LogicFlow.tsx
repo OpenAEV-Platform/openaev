@@ -31,12 +31,14 @@ import {
   buildActionMetas,
   buildEdges,
   buildEventData,
+  buildOutputProvidersMap,
   buildTacticForStep,
   buildTacticNodes,
   enrichActionMetasWithContracts,
   positionEventNodes,
 } from '../logic-flow-helpers';
 import type { ActionMeta, EventMeta } from '../types';
+import { useOutputProviders } from '../useOutputProviders';
 import edgeTypes from './edges';
 import nodeTypes from './nodes';
 
@@ -61,6 +63,7 @@ const proOptions = {
 const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEditEvent }: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { setProviders: setContextProviders } = useOutputProviders();
 
   // Access kill chain phases from store for tactic column ordering
   const { killChainPhasesMap } = useHelper(
@@ -114,7 +117,6 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
         inject_title: action.inject_title,
         inject_description: action.inject_description,
         inject_injector_contract: action.inject_injector_contract,
-        inject_injector: action.inject_injector,
         inject_assets: action.inject_assets,
       },
     };
@@ -155,11 +157,12 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
 
     setActionMetas(enrichedActionMetas);
+    setContextProviders(buildOutputProvidersMap(enrichedActionMetas));
     setEventMetas(eventMetas);
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
-  }, [workflowId, t, setNodes, setEdges]);
+  }, [workflowId, t, setNodes, setEdges, setContextProviders]);
 
   useEffect(() => {
     refreshGraph();
@@ -205,7 +208,6 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
     [nodes, setEdges, workflowId, actionMetas, buildStepUpdate],
   );
 
-  // ----- TODO : update all method about edges when we'll do edge creation ----------
   /**
      * Remove an edge between an event and an action node.
      * Unlinks the event from the step's condition list and persists to the backend.
