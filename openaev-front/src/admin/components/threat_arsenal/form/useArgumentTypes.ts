@@ -23,7 +23,7 @@ const useArgumentTypes = (): UseArgumentTypesResult => {
         setIsLoading(true);
         setError(null);
         const data = await fetchArgumentTypes();
-        setArgumentTypes(data);
+        setArgumentTypes([...data].sort((a, b) => a.localeCompare(b)));
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch argument types'));
       } finally {
