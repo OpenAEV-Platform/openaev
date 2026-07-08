@@ -346,7 +346,8 @@ mvn -ntp -pl openaev-api test -Dtest='TenantScopedEntrypointsTxCtxArchTest,Tenan
 Model (from PR #6255): commit "feat(multi-tenancy): activate import_mappers on v2 isolation (#6212)"
 (find it with `git log --oneline --grep "activate import_mappers on v2 isolation"`). Four changes, together, nothing else:
 
-1. Remove `@Filter(name = "tenantFilter", ...)` from the entity in
+1. Remove `@Filter(name = "tenantFilter", ...)` and remove the `TenantBaseListener.class`
+   from the entity in
    `openaev-model/src/main/java/io/openaev/database/model/{Entity}.java`.
    Replace it with the pilot's two-line comment stating the table is fully on
    v2 and why the v1 filter must not come back

@@ -19,7 +19,7 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "lessons_templates")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({ModelBaseListener.class})
 // lessons_templates is fully on v2 (inspector + can_access_tenant); no v1 @Filter (#6401).
 @Data
 public class LessonsTemplate implements TenantBase {
