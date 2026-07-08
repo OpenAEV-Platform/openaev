@@ -1,5 +1,5 @@
 name: 'Sync Project Status on PR Merge'
-description: "When a PR is merged, update the Project v2 status of the linked issue according to the ‘feature-flag’ label, close the issue and set the milestone if necessary."
+description: "On PR merge, moves the Status field (Project v2) of the linked issue(s) based on the feature-flag label present on the issue, closes the issue, adds the solved label, and sets the milestone if needed."
 
 inputs:
   token:
@@ -20,30 +20,27 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Resolve PR data (title, body, labels, linked issues)
+    - name: Resolve PR data (title, body, linked issues)
       id: pr
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
         OWNER: ${{ github.repository_owner }}
         REPO_NAME: ${{ github.event.repository.name }}
-        FF_LABEL: ${{ inputs.feature-flag-label }}
         PR_NUMBER_INPUT: ${{ inputs.pr-number }}
       run: |
         set -euo pipefail
 
         if [ -n "$PR_NUMBER_INPUT" ]; then
-          PR_JSON=$(gh pr view "$PR_NUMBER_INPUT" --repo "$OWNER/$REPO_NAME" --json title,body,labels)
+          PR_JSON=$(gh pr view "$PR_NUMBER_INPUT" --repo "$OWNER/$REPO_NAME" --json title,body)
         else
           PR_JSON='${{ toJson(github.event.pull_request) }}'
         fi
 
         TITLE=$(echo "$PR_JSON" | jq -r '.title // ""')
         BODY=$(echo "$PR_JSON" | jq -r '.body // ""')
-        HAS_FF=$(echo "$PR_JSON" | jq -r --arg label "$FF_LABEL" '[.labels[] | (.name // .)] | any(. == $label)')
 
         echo "title=$TITLE" >> "$GITHUB_OUTPUT"
-        echo "has-ff=$HAS_FF" >> "$GITHUB_OUTPUT"
 
         FULLTEXT="$TITLE"$'\n'"$BODY"
 
@@ -57,7 +54,7 @@ runs:
 
         ISSUES=$(echo "$TITLE_NUMS $KEYWORD_NUMS" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un | tr '\n' ' ' | sed 's/ $//')
 
-        echo "Issues detected : ${ISSUES:-<none>}"
+        echo "Detected issues: ${ISSUES:-<none>}"
         echo "issues=$ISSUES" >> "$GITHUB_OUTPUT"
 
     - name: Fetch Status field (project options)
@@ -100,9 +97,9 @@ runs:
         REPO_NAME: ${{ github.event.repository.name }}
         PROJECT_OWNER: ${{ inputs.project-owner }}
         PROJECT_NUMBER: ${{ inputs.project-number }}
+        FF_LABEL: ${{ inputs.feature-flag-label }}
         TARGET_MILESTONE: ${{ inputs.target-milestone }}
         DRY_RUN: ${{ inputs.dry-run }}
-        HAS_FF: ${{ steps.pr.outputs.has-ff }}
         ISSUES: ${{ steps.pr.outputs.issues }}
         PROJECT_ID: ${{ steps.field.outputs.project-id }}
         FIELD_ID: ${{ steps.field.outputs.field-id }}
@@ -118,6 +115,7 @@ runs:
               repository(owner:$owner, name:$repo) {
                 issue(number:$number) {
                   id
+                  labels(first: 50) { nodes { name } }
                   projectItems(first: 20) {
                     nodes {
                       id
@@ -135,14 +133,16 @@ runs:
             '.data.repository.issue.projectItems.nodes[] | select(.project.owner.login == $po and .project.number == $pn) | .id' | head -n1)
           CURRENT_STATUS=$(echo "$ITEM_RESULT" | jq -r --arg po "$PROJECT_OWNER" --argjson pn "$PROJECT_NUMBER" \
             '.data.repository.issue.projectItems.nodes[] | select(.project.owner.login == $po and .project.number == $pn) | .fieldValueByName.name // "null"' | head -n1)
+          HAS_FF=$(echo "$ITEM_RESULT" | jq -r --arg label "$FF_LABEL" \
+            '[.data.repository.issue.labels.nodes[].name] | any(. == $label)')
 
           if [ -z "$ITEM_ID" ] || [ "$ITEM_ID" == "null" ]; then
-            echo "⚠️ Issue #$ISSUE_NUM absente du projet $PROJECT_OWNER/#$PROJECT_NUMBER — skip."
+            echo "⚠️ Issue #$ISSUE_NUM is not in project $PROJECT_OWNER/#$PROJECT_NUMBER — skipping."
             echo "::endgroup::"
             continue
           fi
 
-          echo "Status current : \"$CURRENT_STATUS\" | feature-flag: $HAS_FF"
+          echo "Current status: \"$CURRENT_STATUS\" | feature-flag (on the issue): $HAS_FF"
 
           NEW_STATUS=""
           CLOSE_ISSUE="false"
@@ -165,20 +165,20 @@ runs:
           fi
 
           if [ -z "$NEW_STATUS" ]; then
-            echo "ℹ️ No rule for status=\"$CURRENT_STATUS\" with feature-flag=$HAS_FF — nothing to be done."
+            echo "ℹ️ No rule for status=\"$CURRENT_STATUS\" with feature-flag=$HAS_FF — nothing to do."
             echo "::endgroup::"
             continue
           fi
 
           OPTION_ID=$(echo "$OPTIONS_JSON" | jq -r --arg name "$NEW_STATUS" '.[] | select(.name == $name) | .id')
           if [ -z "$OPTION_ID" ] || [ "$OPTION_ID" == "null" ]; then
-            echo "::error::Option statut \"$NEW_STATUS\" not found in the Status field."
+            echo "::error::Status option \"$NEW_STATUS\" not found on the Status field."
             echo "::endgroup::"
             continue
           fi
 
           if [ "$DRY_RUN" == "true" ]; then
-            echo "🧪 [dry-run] #$ISSUE_NUM: \"$CURRENT_STATUS\" → \"$NEW_STATUS\", close=$CLOSE_ISSUE, milestone=$([ "$MOVE_MILESTONE" == "true" ] && echo "$TARGET_MILESTONE" || echo "unchanged")"
+            echo "🧪 [dry-run] #$ISSUE_NUM: \"$CURRENT_STATUS\" → \"$NEW_STATUS\", close=$CLOSE_ISSUE (+solved label), milestone=$([ "$MOVE_MILESTONE" == "true" ] && echo "$TARGET_MILESTONE" || echo "unchanged")"
             echo "::endgroup::"
             continue
           fi
@@ -193,12 +193,10 @@ runs:
           echo "✅ Status → \"$NEW_STATUS\""
 
           if [ "$CLOSE_ISSUE" == "true" ]; then
-            if [ "$DRY_RUN" != "true" ]; then
-              gh issue edit "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME" --add-label "solved"
-              echo "✅ Label \"solved\" add."
-              gh issue close "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME"
-              echo "✅ Issue close."
-            fi
+            gh issue edit "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME" --add-label "solved"
+            echo "✅ \"solved\" label added."
+            gh issue close "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME"
+            echo "✅ Issue closed."
           fi
 
           if [ "$MOVE_MILESTONE" == "true" ]; then
@@ -206,7 +204,7 @@ runs:
               | jq -r --arg t "$TARGET_MILESTONE" '.[] | select(.title == $t) | .number')
             if [ -z "$EXISTING" ]; then
               gh api "repos/$OWNER/$REPO_NAME/milestones" -f title="$TARGET_MILESTONE" > /dev/null
-              echo "🆕 Milestone \"$TARGET_MILESTONE\" créée."
+              echo "🆕 Milestone \"$TARGET_MILESTONE\" created."
             fi
             gh issue edit "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME" --milestone "$TARGET_MILESTONE"
             echo "✅ Milestone → \"$TARGET_MILESTONE\""
