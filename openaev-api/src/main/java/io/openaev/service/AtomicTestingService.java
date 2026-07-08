@@ -1,23 +1,17 @@
 package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
-import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectService;
@@ -30,7 +24,6 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -58,6 +51,7 @@ public class AtomicTestingService {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final AssetGroupService assetGroupService;
+  private final InjectExpectationService injectExpectationService;
   private final UserService userService;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
@@ -118,7 +112,7 @@ public class AtomicTestingService {
     ObjectNode finalContent = input.getContent();
     // Set expectations
     if (injectId == null) {
-      finalContent = setExpectations(injectorContract, finalContent);
+      finalContent = injectExpectationService.setExpectations(injectorContract, finalContent);
     }
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
@@ -172,51 +166,6 @@ public class AtomicTestingService {
     }
     injectToSave = injectRepository.save(injectToSave);
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
-  }
-
-  public ObjectNode setExpectations(InjectorContract injectorContract, ObjectNode finalContent) {
-    if (finalContent == null
-        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS) == null
-        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
-      try {
-        JsonNode jsonNode = mapper.readTree(injectorContract.getContent());
-        List<JsonNode> contractElements =
-            StreamSupport.stream(jsonNode.get("fields").spliterator(), false)
-                .filter(
-                    contractElement ->
-                        contractElement
-                            .get("type")
-                            .asText()
-                            .equals(ContractFieldType.Expectation.name().toLowerCase()))
-                .toList();
-        if (!contractElements.isEmpty()) {
-          JsonNode contractElement = contractElements.getFirst();
-          if (!contractElement.get(PREDEFINED_EXPECTATIONS).isNull()
-              && !contractElement.get(PREDEFINED_EXPECTATIONS).isEmpty()) {
-            finalContent = finalContent != null ? finalContent : mapper.createObjectNode();
-            ArrayNode predefinedExpectations = mapper.createArrayNode();
-            StreamSupport.stream(contractElement.get(PREDEFINED_EXPECTATIONS).spliterator(), false)
-                .forEach(
-                    predefinedExpectation -> {
-                      ObjectNode newExpectation = predefinedExpectation.deepCopy();
-                      newExpectation.put("expectation_score", 100);
-                      predefinedExpectations.add(newExpectation);
-                    });
-            // We need the remove in case there are empty expectations because put is deprecated and
-            // putifabsent doesn't replace empty expectations
-            if (finalContent.has(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS)
-                && finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
-              finalContent.remove(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
-            }
-            finalContent.putIfAbsent(
-                CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, predefinedExpectations);
-          }
-        }
-      } catch (JsonProcessingException e) {
-        log.error("Cannot open injector contract", e);
-      }
-    }
-    return finalContent;
   }
 
   @Transactional

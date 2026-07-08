@@ -3,6 +3,8 @@ package io.openaev.service;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
+import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
@@ -19,6 +21,7 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -26,6 +29,7 @@ import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injectors.common.model.BaseInjectContent;
 import io.openaev.model.Expectation;
 import io.openaev.model.expectation.DetectionExpectation;
@@ -52,6 +56,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -1723,5 +1728,50 @@ public class InjectExpectationService {
                       })
               .toList());
     }
+  }
+
+  public ObjectNode setExpectations(InjectorContract injectorContract, ObjectNode finalContent) {
+    if (finalContent == null
+        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS) == null
+        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
+      try {
+        JsonNode jsonNode = mapper.readTree(injectorContract.getContent());
+        List<JsonNode> contractElements =
+            StreamSupport.stream(jsonNode.get("fields").spliterator(), false)
+                .filter(
+                    contractElement ->
+                        contractElement
+                            .get("type")
+                            .asText()
+                            .equals(ContractFieldType.Expectation.name().toLowerCase()))
+                .toList();
+        if (!contractElements.isEmpty()) {
+          JsonNode contractElement = contractElements.getFirst();
+          if (!contractElement.get(PREDEFINED_EXPECTATIONS).isNull()
+              && !contractElement.get(PREDEFINED_EXPECTATIONS).isEmpty()) {
+            finalContent = finalContent != null ? finalContent : mapper.createObjectNode();
+            ArrayNode predefinedExpectations = mapper.createArrayNode();
+            StreamSupport.stream(contractElement.get(PREDEFINED_EXPECTATIONS).spliterator(), false)
+                .forEach(
+                    predefinedExpectation -> {
+                      ObjectNode newExpectation = predefinedExpectation.deepCopy();
+                      newExpectation.put("expectation_score", 100);
+                      predefinedExpectations.add(newExpectation);
+                    });
+            // We need the remove in case there are empty expectations because put is deprecated and
+            // putifabsent doesn't replace empty expectations
+            if (finalContent.has(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS)
+                && finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
+              finalContent.remove(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
+            }
+            finalContent.putIfAbsent(
+                CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, predefinedExpectations);
+          }
+        }
+      } catch (JsonProcessingException e) {
+        log.error("Cannot open injector contract", e);
+      }
+    }
+    return finalContent;
   }
 }
