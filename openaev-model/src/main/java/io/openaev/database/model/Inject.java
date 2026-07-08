@@ -185,6 +185,10 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private InjectorContract injectorContract;
 
   @Getter
+  // A connector can be uninstalled, so an inject may reference an injector row that no longer
+  // resolves under the tenant filter. Degrade that to null instead of throwing at proxy init
+  // (which otherwise fails audit serialization on every inject update via MonoIdSerializer).
+  @NotFound(action = NotFoundAction.IGNORE)
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumnsOrFormulas({
     @JoinColumnOrFormula(

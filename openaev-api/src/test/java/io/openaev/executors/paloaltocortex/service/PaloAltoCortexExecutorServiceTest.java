@@ -13,7 +13,6 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Executor;
-import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
@@ -58,7 +57,7 @@ public class PaloAltoCortexExecutorServiceTest {
     paloAltoCortexExecutor = new Executor();
     paloAltoCortexExecutor.setName(PALOALTOCORTEX_EXECUTOR_NAME);
     paloAltoCortexExecutor.setType(PALOALTOCORTEX_EXECUTOR_TYPE);
-    paloAltoCortexExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    paloAltoCortexExecutor.setTenantId(TenantContext.getCurrentTenant());
   }
 
   @Test

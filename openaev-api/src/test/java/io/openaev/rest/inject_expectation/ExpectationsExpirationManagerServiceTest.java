@@ -61,7 +61,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =
         injectorRepository
-            .findById(OPENAEV_INJECTOR_ID)
+            .findByIdAndTenantId(OPENAEV_INJECTOR_ID, TenantContext.getCurrentTenant())
             .orElseGet(
                 () ->
                     injectorRepository.save(
@@ -77,7 +77,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     }
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --
