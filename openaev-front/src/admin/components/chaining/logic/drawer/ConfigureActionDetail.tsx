@@ -22,7 +22,7 @@ import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import { type ActionDetailData } from '../types';
 import {
-  applyExpectationDefaults,
+  applyPredefinedExpectations,
   buildContractDefaults,
   EXPECTATION_FIELD_TYPE,
   EXPECTATIONS_CONTENT_KEY,
@@ -100,7 +100,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               const fields = (parsed.fields ?? []) as ContractElement[];
               setContractFields(fields);
               setFieldValues(
-                applyExpectationDefaults(
+                applyPredefinedExpectations(
                   (initialData?.inject_content ?? buildContractDefaults(fields)) as Record<
                     string,
                     unknown
@@ -119,7 +119,10 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [action, initialData]);
 
   const handleResetDefaults = () => {
-    setFieldValues(applyExpectationDefaults(buildContractDefaults(contractFields), contractFields));
+    setFieldValues(prev => ({
+      ...buildContractDefaults(contractFields),
+      [EXPECTATIONS_CONTENT_KEY]: prev[EXPECTATIONS_CONTENT_KEY],
+    }));
     setFieldLinks({});
   };
 
@@ -157,12 +160,11 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
   const onSubmit = (formData: FormValues) => {
     if (!action) return;
-    const normalizedInjectContent = applyExpectationDefaults(fieldValues, contractFields);
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
       inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_content: normalizedInjectContent,
+      inject_content: applyPredefinedExpectations(fieldValues, contractFields),
       inject_field_links: fieldLinks,
       contract_fields: contractFields,
     });

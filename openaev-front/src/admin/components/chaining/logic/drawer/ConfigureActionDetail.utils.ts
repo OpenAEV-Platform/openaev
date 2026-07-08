@@ -38,7 +38,7 @@ export const buildContractDefaults = (fields: ContractElement[]): Record<string,
   return defaults;
 };
 
-export const applyExpectationDefaults = (
+export const applyPredefinedExpectations = (
   content: Record<string, unknown>,
   fields: ContractElement[],
 ): Record<string, unknown> => {
