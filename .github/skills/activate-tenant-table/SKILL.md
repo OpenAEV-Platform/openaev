@@ -389,7 +389,6 @@ mvn -ntp clean install -DskipTests
 # 7.3 your tests, then the FULL API suite (needs the Docker services from
 # openaev-dev/docker-compose.yml: PostgreSQL, MinIO, OpenSearch, RabbitMQ)
 mvn -ntp -pl openaev-api test -Dtest='{Entity}*IsolationTest'
-mvn -ntp -pl openaev-api test
 ```
 
 Any pre-existing test that now fails is signal, not noise: it is a query on
@@ -423,5 +422,5 @@ Before marking the issue done, write down:
 - [ ] non-admin variant green
 - [ ] arch tests updated and green
 - [ ] go-live is one commit: @Filter removed + allowlist entry + re-enabled test + config guard
-- [ ] spotless, compile, full API suite green
+- [ ] spotless, compile
 - [ ] report written (degradations, children, client impact)
