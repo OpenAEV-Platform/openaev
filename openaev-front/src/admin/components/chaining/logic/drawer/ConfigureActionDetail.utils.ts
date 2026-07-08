@@ -4,7 +4,7 @@ import type { ExpectationInput } from '../../../common/injects/expectations/Expe
 export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';
 
-/** Type guard — returns true if value is a valid ExpectationInput object. */
+/** Type guard returns true if value is a valid ExpectationInput object. */
 export const isExpectationInput = (value: unknown): value is ExpectationInput =>
   typeof value === 'object'
   && value !== null
