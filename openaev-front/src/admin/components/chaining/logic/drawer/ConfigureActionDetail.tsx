@@ -118,6 +118,8 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }
   }, [action, initialData]);
 
+  // Resets all input argument fields to contract defaults.
+  // Expectations are explicitly restored from current state — they are not part of this reset.
   const handleResetDefaults = () => {
     setFieldValues(prev => ({
       ...buildContractDefaults(contractFields),
@@ -126,6 +128,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     setFieldLinks({});
   };
 
+  // Updates a single input argument field value.
   const handleFieldValueChange = (fieldKey: string, value: string) => {
     setFieldValues(prev => ({
       ...prev,
@@ -133,6 +136,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }));
   };
 
+  // Links a field to a workflow scope variable.
   const handleLinkField = (fieldKey: string, link: FieldLink) => {
     setFieldLinks(prev => ({
       ...prev,
@@ -140,6 +144,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }));
   };
 
+  // Removes the scope variable link from a field, reverting it to a plain value.
   const handleUnlinkField = (fieldKey: string) => {
     setFieldLinks((prev) => {
       const next = { ...prev };
@@ -148,6 +153,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     });
   };
 
+  // Toggles whether a linked field reads from local (step) scope or global (workflow) scope.
   const handleToggleLocalScope = (fieldKey: string, localScope: boolean) => {
     setFieldLinks(prev => ({
       ...prev,

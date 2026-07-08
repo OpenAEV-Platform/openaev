@@ -4,6 +4,7 @@ import type { ExpectationInput } from '../../../common/injects/expectations/Expe
 export const EXPECTATION_FIELD_TYPE = 'expectation';
 export const EXPECTATIONS_CONTENT_KEY = 'expectations';
 
+/** Type guard — returns true if value is a valid ExpectationInput object. */
 export const isExpectationInput = (value: unknown): value is ExpectationInput =>
   typeof value === 'object'
   && value !== null
@@ -11,6 +12,11 @@ export const isExpectationInput = (value: unknown): value is ExpectationInput =>
   && 'expectation_name' in value
   && 'expectation_score' in value;
 
+/**
+ * Returns the default value for a contract field.
+ * For expectation fields: returns predefined expectations (or defaultValue if set).
+ * For all other fields: returns the field's defaultValue as-is.
+ */
 export const getContractFieldDefaultValue = (field: ContractElement): unknown => {
   if (field.type === EXPECTATION_FIELD_TYPE) {
     if (Array.isArray(field.defaultValue) && field.defaultValue.length > 0) {
@@ -27,6 +33,9 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   return undefined;
 };
 
+/**
+ * Builds a default content map from all contract fields, including expectations.
+ */
 export const buildContractDefaults = (fields: ContractElement[]): Record<string, unknown> => {
   const defaults: Record<string, unknown> = {};
   for (const field of fields) {
@@ -38,6 +47,11 @@ export const buildContractDefaults = (fields: ContractElement[]): Record<string,
   return defaults;
 };
 
+/**
+ * Populates the content with predefined expectations from the contract
+ * if no expectations are currently set. Returns content unchanged if
+ * expectations are already present or no expectation field exists.
+ */
 export const applyPredefinedExpectations = (
   content: Record<string, unknown>,
   fields: ContractElement[],
