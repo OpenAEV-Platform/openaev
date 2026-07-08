@@ -19,9 +19,6 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
     if (field.predefinedExpectations && field.predefinedExpectations.length > 0) {
       return field.predefinedExpectations;
     }
-    if (field.availableExpectations && field.availableExpectations.length > 0) {
-      return field.availableExpectations;
-    }
   }
 
   if (field.defaultValue !== undefined && field.defaultValue !== null) {
@@ -44,34 +41,13 @@ export const buildContractDefaults = (fields: ContractElement[]): Record<string,
   return defaults;
 };
 
-export const normalizeSingleCardinalityContent = (
-  content: Record<string, unknown>,
-  fields: ContractElement[],
-): Record<string, unknown> => {
-  const normalizedContent = { ...content };
-
-  fields.forEach((field) => {
-    if (field.type === EXPECTATION_FIELD_TYPE || field.cardinality !== '1') {
-      return;
-    }
-
-    const value = normalizedContent[field.key];
-    if (Array.isArray(value)) {
-      normalizedContent[field.key] = value[0] ?? '';
-    }
-  });
-
-  return normalizedContent;
-};
-
 export const applyExpectationDefaults = (
   content: Record<string, unknown>,
   fields: ContractElement[],
 ): Record<string, unknown> => {
-  const normalizedContent = normalizeSingleCardinalityContent(content, fields);
   const expectationField = fields.find(field => field.type === EXPECTATION_FIELD_TYPE);
   if (!expectationField) {
-    return normalizedContent;
+    return content;
   }
 
   const defaultValue = getContractFieldDefaultValue(expectationField);
@@ -79,16 +55,16 @@ export const applyExpectationDefaults = (
     ? defaultValue.filter(isExpectationInput)
     : [];
   if (defaultExpectations.length === 0) {
-    return normalizedContent;
+    return content;
   }
 
-  const currentExpectations = normalizedContent[EXPECTATIONS_CONTENT_KEY];
+  const currentExpectations = content[EXPECTATIONS_CONTENT_KEY];
   if (Array.isArray(currentExpectations) && currentExpectations.length > 0) {
-    return normalizedContent;
+    return content;
   }
 
   return {
-    ...normalizedContent,
+    ...content,
     [EXPECTATIONS_CONTENT_KEY]: defaultExpectations,
   };
 };
