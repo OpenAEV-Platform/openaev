@@ -59,7 +59,7 @@ public class CrowdstrikeExecutorServiceTest {
     crowdstrikeExecutor = new Executor();
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
-    crowdstrikeExecutor.setTenant(new Tenant(TENANT_ID));
+    crowdstrikeExecutor.setTenantId(TENANT_ID);
   }
 
   @Test

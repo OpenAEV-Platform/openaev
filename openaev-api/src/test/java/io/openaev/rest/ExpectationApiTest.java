@@ -92,7 +92,7 @@ class ExpectationApiTest extends IntegrationTest {
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
     em.flush();
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --

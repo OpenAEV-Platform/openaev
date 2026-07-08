@@ -91,7 +91,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
     // Link on the owning side and save to persist the join table
-    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());

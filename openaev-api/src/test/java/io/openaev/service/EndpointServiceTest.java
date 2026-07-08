@@ -42,7 +42,7 @@ class EndpointServiceTest {
       executor.setName(name);
       executor.setType(type);
       executor.setBackgroundColor("#FF0000");
-      executor.setTenant(new Tenant(TENANT_ID));
+      executor.setTenantId(TENANT_ID);
       return executor;
     }
 
