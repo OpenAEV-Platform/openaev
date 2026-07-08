@@ -59,7 +59,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
-    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
@@ -449,7 +449,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     entityManager.clear();
 
     // Clear injectors from the mocked contract so the code cannot resolve them
-    injectorContractSaved.getInjectors().clear();
+    injectorContractSaved.clearInjectors();
 
     // ACT
     ChainingException ex =

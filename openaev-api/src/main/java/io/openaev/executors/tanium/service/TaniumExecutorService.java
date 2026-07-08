@@ -68,7 +68,7 @@ public class TaniumExecutorService implements Runnable {
   @Override
   public void run() {
     log.info("Running Tanium executor endpoints gathering...");
-    String tenantId = executor.getTenant().getId();
+    String tenantId = executor.getTenantId();
     try {
       List<String> computerGroupIds =
           Stream.of(this.config.getComputerGroupId().split(",")).distinct().toList();
@@ -78,15 +78,14 @@ public class TaniumExecutorService implements Runnable {
         List<NodeEndpoint> nodeEndpoints = this.client.endpoints(computerGroupId);
         if (!nodeEndpoints.isEmpty()) {
           Optional<AssetGroup> existingAssetGroup =
-              assetGroupService.findByExternalReference(
-                  computerGroupId, executor.getTenant().getId());
+              assetGroupService.findByExternalReference(computerGroupId, executor.getTenantId());
           AssetGroup assetGroup;
           if (existingAssetGroup.isPresent()) {
             assetGroup = existingAssetGroup.get();
           } else {
             assetGroup = new AssetGroup();
             assetGroup.setExternalReference(computerGroupId);
-            assetGroup.setTenant(executor.getTenant());
+            assetGroup.setTenant(new Tenant(executor.getTenantId()));
           }
           assetGroup.setName(computerGroup.getName());
           log.info(

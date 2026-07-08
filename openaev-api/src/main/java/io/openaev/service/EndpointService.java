@@ -415,7 +415,7 @@ public class EndpointService implements AuditLoggedService {
         setUpdatedEndpointAttributes(endpointToSave, inputToSave);
         // Ensure the endpoint tenant is always consistent with the executor's tenant.
         // Guards against stale cross-tenant data created before TenantContext was set correctly.
-        endpointToSave.setTenant(inputToSave.getExecutor().getTenant());
+        endpointToSave.setTenant(new Tenant(inputToSave.getExecutor().getTenantId()));
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
         endpointsToSave.add(endpointToSave);
@@ -813,7 +813,7 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
-    endpoint.setTenant(input.getExecutor().getTenant());
+    endpoint.setTenant(new Tenant(input.getExecutor().getTenantId()));
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
@@ -829,7 +829,7 @@ public class EndpointService implements AuditLoggedService {
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
-    agent.setTenant(input.getExecutor().getTenant());
+    agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 
   private AgentRegisterInput toAgentEndpoint(

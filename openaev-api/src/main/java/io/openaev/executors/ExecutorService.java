@@ -188,11 +188,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     Executor executor =
         executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
       executor = new Executor();
       executor.setId(id);
-      executor.setTenant(tenant);
-      executor.setTenantId(tenant.getId());
+      executor.setTenantId(TenantContext.getCurrentTenant());
     }
 
     executor.setName(name);

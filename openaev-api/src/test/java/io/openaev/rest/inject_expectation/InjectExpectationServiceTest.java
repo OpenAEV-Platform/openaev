@@ -62,8 +62,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     injectorContract.addInjector(savedInjector);
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
-    savedInjector.setNewEntity(false);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("asset name"));
     savedCollector =
