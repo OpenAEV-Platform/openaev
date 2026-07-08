@@ -173,7 +173,9 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     return tPick(action.action_labels);
   }, [action, tPick]);
 
-  const visibleFields = useMemo(() => {
+  // Expectations are not part of the generic input data — they are handled separately
+  // in their own dedicated section via <InjectExpectations>.
+  const inputArgumentFields = useMemo(() => {
     return contractFields.filter(f => !f.readOnly && f.type !== EXPECTATION_FIELD_TYPE);
   }, [contractFields]);
 
@@ -286,7 +288,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                 {t('Loading contract fields...')}
               </Typography>
             )}
-            {!loadingContract && visibleFields.length === 0 && (
+            {!loadingContract && inputArgumentFields.length === 0 && (
               <Typography variant="body2" color="text.secondary">
                 {t('No configuration fields for this action.')}
               </Typography>
@@ -297,7 +299,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               gap: 2,
             }}
             >
-              {visibleFields.map((field) => {
+              {inputArgumentFields.map((field) => {
                 const fieldLabel = t(field.label) || field.key;
                 const defaultVal = field.defaultValue != null ? String(field.defaultValue) : undefined;
                 return (
