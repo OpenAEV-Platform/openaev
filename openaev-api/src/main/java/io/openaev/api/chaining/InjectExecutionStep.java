@@ -650,8 +650,6 @@ public class InjectExecutionStep implements ActionStep {
       // Modify payload arguments with inputs from step
       ObjectNode updatedContent =
           updateContentWithInputs(step, resolveBaseInjectContent(inject, injectorContract));
-      ObjectNode normalizedContent =
-          normalizeSingleCardinalityContent(injectorContract, updatedContent);
 
       List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
       if (scopedAssets != null && !scopedAssets.isEmpty()) {
@@ -660,7 +658,7 @@ public class InjectExecutionStep implements ActionStep {
 
       // Add expectations
       ObjectNode contentWithExpectations =
-          injectExpectationService.setExpectations(injectorContract, normalizedContent);
+          injectExpectationService.setExpectations(injectorContract, updatedContent);
       inject.setContent(contentWithExpectations);
 
       return inject;
@@ -715,65 +713,6 @@ public class InjectExecutionStep implements ActionStep {
     ObjectNode defaults =
         injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract);
     return defaults != null ? defaults : mapper.createObjectNode();
-  }
-
-  /**
-   * Normalizes inject content according to contract cardinality.
-   *
-   * <p>In chaining, some single-cardinality fields can be persisted as arrays from form payloads
-   * (for example: "obfuscator": ["plain-text"]). Runtime inject models expect scalar values for
-   * cardinality "1". This method coerces these fields to their first element.
-   */
-  private ObjectNode normalizeSingleCardinalityContent(
-      InjectorContract injectorContract, ObjectNode contentNode) {
-    if (contentNode == null) {
-      return mapper.createObjectNode();
-    }
-    if (injectorContract == null
-        || injectorContract.getContent() == null
-        || injectorContract.getContent().isBlank()) {
-      return contentNode;
-    }
-
-    try {
-      JsonNode contractRoot = mapper.readTree(injectorContract.getContent());
-      JsonNode fields = contractRoot.path("fields");
-      if (!fields.isArray()) {
-        return contentNode;
-      }
-
-      for (JsonNode field : fields) {
-        String key = field.path("key").asText(null);
-        if (key == null || key.isBlank() || !contentNode.has(key)) {
-          continue;
-        }
-
-        JsonNode cardinalityNode = field.get("cardinality");
-        boolean isSingleCardinality =
-            cardinalityNode != null
-                && ("1".equals(cardinalityNode.asText()) || cardinalityNode.asInt(-1) == 1);
-        if (!isSingleCardinality) {
-          continue;
-        }
-
-        JsonNode valueNode = contentNode.get(key);
-        if (valueNode != null && valueNode.isArray()) {
-          JsonNode firstValue = valueNode.size() > 0 ? valueNode.get(0) : null;
-          if (firstValue == null || firstValue.isNull()) {
-            contentNode.putNull(key);
-          } else {
-            contentNode.set(key, firstValue);
-          }
-        }
-      }
-    } catch (JsonProcessingException e) {
-      log.warn(
-          "Cannot normalize single-cardinality inject content for contract {}",
-          injectorContract.getId(),
-          e);
-    }
-
-    return contentNode;
   }
 
   /**

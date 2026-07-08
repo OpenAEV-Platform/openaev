@@ -44,30 +44,6 @@ export const buildContractDefaults = (fields: ContractElement[]): Record<string,
   return defaults;
 };
 
-export const normalizeInjectContentExpectations = (
-  content: Record<string, unknown>,
-  fields: ContractElement[],
-): Record<string, unknown> => {
-  const expectationField = fields.find(field => field.type === EXPECTATION_FIELD_TYPE);
-  if (!expectationField || expectationField.key === EXPECTATIONS_CONTENT_KEY) {
-    return content;
-  }
-
-  if (content[EXPECTATIONS_CONTENT_KEY] !== undefined) {
-    return content;
-  }
-
-  const expectationValue = content[expectationField.key];
-  if (expectationValue === undefined) {
-    return content;
-  }
-
-  return {
-    ...content,
-    [EXPECTATIONS_CONTENT_KEY]: expectationValue,
-  };
-};
-
 export const normalizeSingleCardinalityContent = (
   content: Record<string, unknown>,
   fields: ContractElement[],
@@ -92,8 +68,7 @@ export const applyExpectationDefaults = (
   content: Record<string, unknown>,
   fields: ContractElement[],
 ): Record<string, unknown> => {
-  const singleValueNormalizedContent = normalizeSingleCardinalityContent(content, fields);
-  const normalizedContent = normalizeInjectContentExpectations(singleValueNormalizedContent, fields);
+  const normalizedContent = normalizeSingleCardinalityContent(content, fields);
   const expectationField = fields.find(field => field.type === EXPECTATION_FIELD_TYPE);
   if (!expectationField) {
     return normalizedContent;

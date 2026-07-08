@@ -218,37 +218,6 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_singleCardinalityArrayValue_should_normalizeToScalar() throws Exception {
-    InjectorContract contract = getInjectorContract();
-    ObjectNode content =
-        (ObjectNode) mapper.readTree("{\"obfuscator\":[\"plain-text\"],\"expectations\":[]}");
-
-    ObjectNode normalized =
-        ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "normalizeSingleCardinalityContent", contract, content);
-
-    assertNotNull(normalized);
-    assertTrue(normalized.has("obfuscator"));
-    assertFalse(normalized.get("obfuscator").isArray());
-    assertEquals("plain-text", normalized.get("obfuscator").asText());
-  }
-
-  @Test
-  void given_multiCardinalityArrayValue_should_keepArray() throws Exception {
-    InjectorContract contract = getInjectorContract();
-    ObjectNode content = (ObjectNode) mapper.readTree("{\"assets\":[\"a1\",\"a2\"]}");
-
-    ObjectNode normalized =
-        ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "normalizeSingleCardinalityContent", contract, content);
-
-    assertNotNull(normalized);
-    assertTrue(normalized.has("assets"));
-    assertTrue(normalized.get("assets").isArray());
-    assertEquals(2, normalized.withArray("assets").size());
-  }
-
-  @Test
   void create_shouldThrowException_whenStepDataIsNull() {
     StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
     Workflow workflow = new Workflow();
