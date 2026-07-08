@@ -15,7 +15,7 @@ export const isExpectationInput = (value: unknown): value is ExpectationInput =>
 /**
  * Returns the default value for a contract field.
  * For expectation fields: returns predefined expectations (or defaultValue if set).
- * For all other fields: returns the field's defaultValue as-is.
+ * For other fields: unwraps cardinality-1 arrays to scalar
  */
 export const getContractFieldDefaultValue = (field: ContractElement): unknown => {
   if (field.type === EXPECTATION_FIELD_TYPE) {
@@ -28,6 +28,10 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   }
 
   if (field.defaultValue !== undefined && field.defaultValue !== null) {
+    // For cardinality='1' fields, unwrap to scalar so the value matches the expected type.
+    if (field.cardinality === '1' && Array.isArray(field.defaultValue)) {
+      return field.defaultValue[0] ?? '';
+    }
     return field.defaultValue;
   }
   return undefined;
