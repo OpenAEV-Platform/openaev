@@ -377,17 +377,79 @@ Rebase right before go-live and re-read the merged allowlist line; a bad
 merge that drops another table's entry is what the shared config guard
 catches, do not rely on it alone.
 
-### Phase 7 — Full regression pass
+### Phase 7 — v1 remnant audit
+
+Before running the regression suite, audit the full call stack of every public
+method on `{Api}` (and on the other APIs from Phase 5) for v1 isolation
+patterns that conflict with or duplicate the v2 mechanism.
+
+**What to search for:**
+
+1. **`TenantContext.getCurrentTenant()`** — the v1 thread-local tenant. Any
+   call in the controller, service, repository, or specification layer that
+   touches `{table}` is a v1 remnant. The v2 inspector handles scoping; the
+   thread-local is no longer the source of truth for activated tables.
+2. **`findByIdAndTenantId`** or any repository method that explicitly filters
+   by `tenant_id` on `{table}` — redundant and restrictive. The inspector
+   already scopes reads; an explicit `AND tenant_id = ?` prevents multi-tenant
+   queries that v2 intentionally supports.
+3. **`TenantBaseListener`** on `@EntityListeners` of the entity — if write
+   attribution is now explicit via `TenantWriteScopeResolver`, the listener is
+   dead code for this entity and should be removed to avoid a hidden fallback
+   to `TenantContext`.
+
+**How to search:**
 
 ```bash
-# 7.1 re-run the inventory grep: a reader added while you worked ships broken
+# 7.1 Direct usage in the API package and its services
+grep -rn "TenantContext.getCurrentTenant\|findByIdAndTenantId\|findByTenantId" \
+  openaev-api/src/main/java/io/openaev/rest/{domain}/ \
+  openaev-api/src/main/java/io/openaev/service/ \
+  --include="*.java" | grep -i "{table_or_entity}"
+
+# 7.2 Repository-level tenant filtering on the activated table
+grep -rn "TenantId\|tenant_id\|tenantId" \
+  openaev-model/src/main/java/io/openaev/database/repository/{EntityRepository}.java \
+  openaev-model/src/main/java/io/openaev/database/specification/*{Entity}*.java
+
+# 7.3 Deep stack: check services called by the API methods
+grep -rn "TenantContext" \
+  $(grep -rln "{EntityRepository}\|{Entity}Service" openaev-api/src/main/java --include="*.java")
+
+# 7.4 TenantBaseListener still on entity
+grep -n "TenantBaseListener" \
+  openaev-model/src/main/java/io/openaev/database/model/{Entity}.java
+```
+
+**Classification and action:**
+
+| Finding | On `{table}`? | Action |
+|---------|---------------|--------|
+| `TenantContext.getCurrentTenant()` used to look up `{Entity}` | Yes | **Remove** — the inspector scopes the query |
+| `TenantContext.getCurrentTenant()` used to look up a *different* entity | No | **Report only** — out of scope for this activation |
+| `findByIdAndTenantId` on `{EntityRepository}` | Yes | **Replace with `findById`** — inspector handles scoping, explicit tenant filter blocks multi-tenant reads |
+| `findByIdAndTenantId` on a *different* repository | No | **Report only** — that table is still on v1 |
+| `TenantBaseListener` on `{Entity}` | Yes | **Remove from `@EntityListeners`** — write attribution is now explicit |
+| Specification with `tenant_id` predicate on `{table}` | Yes | **Remove the predicate** — inspector handles it |
+
+**Output: audit report**
+
+Produce a table listing every hit, its file and line, whether it targets the
+activated table, and the action taken (removed / reported-only). Include it
+in the Phase 9 report. Hits on other tables are informational — they document
+the v1 surface that remains for future activations.
+
+### Phase 8 — Full regression pass
+
+```bash
+# 8.1 re-run the inventory grep: a reader added while you worked ships broken
 grep -rln "{EntityRepository}" openaev-api/src/main/java openaev-model/src/main/java
 
-# 7.2 format and compile
+# 8.2 format and compile
 mvn -B -ntp spotless:check || mvn -ntp spotless:apply
 mvn -ntp clean install -DskipTests
 
-# 7.3 your tests, then the FULL API suite (needs the Docker services from
+# 8.3 your tests, then the FULL API suite (needs the Docker services from
 # openaev-dev/docker-compose.yml: PostgreSQL, MinIO, OpenSearch, RabbitMQ)
 mvn -ntp -pl openaev-api test -Dtest='{Entity}*IsolationTest'
 ```
@@ -396,12 +458,13 @@ Any pre-existing test that now fails is signal, not noise: it is a query on
 your table that lost its scope. Fix it by passing `TxCtx`, never by
 deactivating the table or weakening the test.
 
-### Phase 8 — Report
+### Phase 9 — Report
 
 Before marking the issue done, write down:
 - the red and green evidence: the raw failing assertions from Phase 2 and the
-  final passing summary from Phase 7 (hard rule 8)
+  final passing summary from Phase 8 (hard rule 8)
 - the endpoints wired and the arch-test entries added
+- the v1 remnant audit table from Phase 7 (hits found, actions taken, reported-only items)
 - background readers left degraded (from Phase 0/1), each with a one-line impact
 - child tables and how they are covered
 - client impact: writes now require a single-tenant scope. Calls using the tenant path
@@ -423,5 +486,7 @@ Before marking the issue done, write down:
 - [ ] non-admin variant green
 - [ ] arch tests updated and green
 - [ ] go-live is one commit: @Filter removed + allowlist entry + re-enabled test + config guard
+- [ ] v1 remnant audit complete: no `TenantContext`/`findByIdAndTenantId`/`TenantBaseListener`
+      targeting the activated table remains in the call stack
 - [ ] spotless, compile
-- [ ] report written (degradations, children, client impact)
+- [ ] report written (degradations, children, client impact, v1 audit table)
