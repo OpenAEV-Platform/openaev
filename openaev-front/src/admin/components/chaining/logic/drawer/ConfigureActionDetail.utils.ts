@@ -22,9 +22,6 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   }
 
   if (field.defaultValue !== undefined && field.defaultValue !== null) {
-    if (field.cardinality === '1' && Array.isArray(field.defaultValue)) {
-      return field.defaultValue[0] ?? '';
-    }
     return field.defaultValue;
   }
   return undefined;
