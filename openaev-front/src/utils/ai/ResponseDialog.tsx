@@ -132,7 +132,11 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
     if (!selectedAgent || !agentMode) return;
     setAgentExecuted(true);
     const prompt = buildPrompt(agentMode.action, agentMode.inputContent, agentMode.format, tone);
-    executeStream(selectedAgent.slug, prompt);
+    // The intent is forwarded for telemetry only (backend-agnostic feature counters).
+    // genSubject shares the aev.message_generator catalog intent with genMessage;
+    // disambiguate with a telemetry-only sub-intent so it lands in generate_subject.
+    const telemetryIntent = agentMode.action === 'genSubject' ? `${agentMode.intent}.subject` : agentMode.intent;
+    executeStream(selectedAgent.slug, prompt, telemetryIntent);
   };
 
   // Auto-execute when agent is selected

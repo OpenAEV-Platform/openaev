@@ -5,5 +5,5 @@ mkdocs-git-committers-plugin-2
 mkdocs-git-revision-date-localized-plugin
 mkdocs-glightbox
 mkdocs-macros-plugin
-mike
+git+https://github.com/jimporter/mike
 lxml

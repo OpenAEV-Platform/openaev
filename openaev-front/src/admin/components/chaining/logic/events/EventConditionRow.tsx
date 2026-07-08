@@ -1,5 +1,5 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
-import { DeleteOutline, DragHandleOutlined } from '@mui/icons-material';
+import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
 import {
   Box,
   FormControl,
@@ -17,6 +17,8 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import ActionTypeIcon from '../ActionTypeIcon';
+import { useOutputProviders } from '../useOutputProviders';
 import {
   CASE_SENSITIVE_OPERATORS,
   COMPARISON_OPERATORS,
@@ -46,6 +48,39 @@ const EventConditionRow: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { providers } = useOutputProviders();
+
+  /**
+     * Build tooltip content for a given output type's providers.
+     * Shows each action with its associated icon.
+     */
+  const buildProviderTooltip = (keyType: string) => {
+    const keyProviders = providers[keyType] ?? [];
+    if (keyProviders.length === 0) return '';
+    const header = t('Actions on the logic flow which produce this input:');
+    return (
+      <Box>
+        <Typography variant="caption">{header}</Typography>
+        {keyProviders.map(p => (
+          <Box
+            key={p.stepId}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+            }}
+          >
+            <ActionTypeIcon
+              injectorType={p.injectorType}
+              payloadType={p.payloadType}
+              isPayload={p.isPayload}
+            />
+            <Typography variant="caption">{p.actionTitle}</Typography>
+          </Box>
+        ))}
+      </Box>
+    );
+  };
 
   const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
     onUpdate({
@@ -117,12 +152,37 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
+          renderValue={val => formatConditionKeyLabel(val)}
         >
-          {CONDITION_KEY_TYPES.map(key => (
-            <MenuItem key={key} value={key}>
-              {formatConditionKeyLabel(key)}
-            </MenuItem>
-          ))}
+          {CONDITION_KEY_TYPES.map((key) => {
+            const keyProviders = providers[key] ?? [];
+            return (
+              <MenuItem
+                key={key}
+                value={key}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
+                {keyProviders.length > 0 && (
+                  <Tooltip
+                    title={buildProviderTooltip(key)}
+                    placement="right"
+                  >
+                    <InfoOutlined sx={{
+                      fontSize: 16,
+                      color: 'info.main',
+                      flexShrink: 0,
+                    }}
+                    />
+                  </Tooltip>
+                )}
+              </MenuItem>
+            );
+          })}
         </Select>
       </FormControl>
 
@@ -154,7 +214,6 @@ const EventConditionRow: FunctionComponent<Props> = ({
       )}
       {!showValue && <Box sx={{ flex: 1 }} />}
 
-      {/* Case sensitivity toggle + delete — always pushed to the right */}
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
@@ -189,7 +248,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           </Tooltip>
         )}
 
-        {/* Delete button — only visible when more than one condition */}
+        {/* Delete button (only visible when more than one condition) */}
         {canDelete && (
           <IconButton
             size="small"

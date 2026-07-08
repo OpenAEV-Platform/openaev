@@ -1,10 +1,5 @@
 # Simulation
 
-!!! tip "Under construction"
-
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/openaev).
-
-
 When clicking on Simulations in the left menu, you access the list of all Simulations ever launched in the platform. You can filter by tag (for example to only display simulation related to a specific threat actor) and sort them (chronologically, by status, etc.).
 
 From this screen, you can easily see last global scores and access ongoing Simulations at platform level.
@@ -17,8 +12,6 @@ But you can create directly a Simulation if you want, by hitting the + button on
 
 ![Create a simulation](./assets/create-simulation.png)
 
-<!-- screenshot liste des simulations -->
-
 ## Simulation overview
 
 The Overview regroups everything you need to know to follow your Simulation by its Results. Results are broken down into 3 main metrics:
@@ -30,15 +23,9 @@ The Overview regroups everything you need to know to follow your Simulation by i
 
 The top of the Simulation screen give you the ability to Start, stop and Reset the Simulation, delay the launch time.
 
-<!-- to complete when Samuel finishes the screen --> 
-
-<!-- screenshot of the Overview of a Simulation having run -->
-
-## Overriding the Scenario definition 
+## Overriding the Scenario definition
 
 In a Simulation, you can see and modify all elements defining it: Teams and Players, Variables, Media pressure, Challenges, Injects. Modifying the Simulation definition allows you to customize it to adapt a singular play to some temporary changes. For example, change an email address into Variables to be used in email-related injects, change a playing team, etc.
-
-<!-- A screen of definition of a Simulation with some explicitly named elements -->
 
 ## Animating a Simulation
 
@@ -52,13 +39,9 @@ The Validation screen is the place to manually validate expectations of the Simu
 
 The Simulation logs is an interface for the animation team to collaborate during the Simulation.
 
-<!-- screenshot of the Animation Timeline screen -->
-
 ## Lessons learned
 
 In the Lessons Learned tab of a Simulation, you can manage the collection and concatenation of customizable surveys. It helps you in conducting the most underestimated part of a breach and attack simulation involving real people, by automating it and complete your simulation's results with qualitative feedback.
-
-<!-- to be completed -->
 
 ## Analysis
 

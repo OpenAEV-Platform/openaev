@@ -1,7 +1,6 @@
 package io.openaev.utils;
 
 import static io.openaev.database.model.Command.COMMAND_TYPE;
-import static io.openaev.database.model.ConnectorCompositeId.of;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
@@ -71,39 +70,6 @@ public class InjectUtils {
           .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
           .orElseThrow(
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
-    }
-    // Auto-resolve from linked injectors (single-instance fallback)
-    if (injectorContract != null
-        && injectorContract.getInjectors() != null
-        && !injectorContract.getInjectors().isEmpty()) {
-      return injectorContract.getInjectors().getFirst();
-    }
-    if (injectorContract != null) {
-      return injectorRepository
-          .findFirstByContractsCompositeIdIdAndTenantId(
-              injectorContract.getId(), TenantContext.getCurrentTenant())
-          .orElse(null);
-    }
-    return null;
-  }
-
-  /**
-   * Resolves the {@link Injector} as a lightweight proxy reference (no SELECT query).
-   *
-   * <p>Use this variant when the injector is only needed for FK assignment (e.g. serialization via
-   * {@link io.openaev.helper.MonoIdSerializer} which only calls {@code getId()}). Accessing any
-   * property other than the ID on the returned proxy will trigger a lazy load.
-   *
-   * <p>If {@code injectorId} is blank/null, falls back to the contract's first linked injector.
-   *
-   * @param injectorId explicit injector ID from the input (may be null/blank)
-   * @param injectorContract the contract associated with the inject
-   * @return the resolved Injector proxy, or {@code null} if no contract is provided
-   */
-  public Injector resolveInjectorReference(
-      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
-    if (StringUtils.isNotBlank(injectorId)) {
-      return injectorRepository.getReferenceById(of(injectorId, TenantContext.getCurrentTenant()));
     }
     // Auto-resolve from linked injectors (single-instance fallback)
     if (injectorContract != null

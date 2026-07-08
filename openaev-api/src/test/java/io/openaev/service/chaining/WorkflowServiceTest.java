@@ -13,6 +13,7 @@ import io.openaev.database.repository.WorkflowScopeRuleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import java.util.Collections;
@@ -47,6 +48,7 @@ class WorkflowServiceTest {
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
+  @Mock private ResultsMetricCollector resultsMetricCollector;
 
   @InjectMocks private WorkflowService workflowService;
 
@@ -737,7 +739,8 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               scopeMetricCollector,
-              chainingSafetyPolicyMetricCollector);
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -951,7 +954,8 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               scopeMetricCollector,
-              chainingSafetyPolicyMetricCollector);
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -1130,7 +1134,8 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               scopeMetricCollector,
-              chainingSafetyPolicyMetricCollector);
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {

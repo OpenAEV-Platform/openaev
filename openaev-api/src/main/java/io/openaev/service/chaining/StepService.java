@@ -118,7 +118,7 @@ public class StepService {
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);
 
-    if (executionBatches == null) {
+    if (executionBatches == null || executionBatches.isEmpty()) {
       return List.of();
     }
 
@@ -495,9 +495,11 @@ public class StepService {
 
     // Remove all existing conditions (full replace strategy),
     // but preserve conditions referenced by conditionIds so they can be re-linked
-    conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
+    conditionService.deleteAllConditionsByStepId(
+        stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
 
-    // Clear the relationships from the parent entity side to avoid Hibernate collections conflict
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
     if (existing.getConditionSteps() != null) {
       existing.getConditionSteps().clear();
     }
@@ -591,11 +593,8 @@ public class StepService {
    * @param injectId inject id to find step id
    * @return optional step id
    */
-  public String findStepIdByInjectId(final String injectId) {
-    return stepRepository
-        .findStepIdByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Step id not found for inject id : " + injectId));
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
   }
 
   /**
