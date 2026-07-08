@@ -32,26 +32,6 @@ public class MdeExecutorContextService extends ExecutorContextService {
 
   public static final String SERVICE_NAME = MDE_EXECUTOR_NAME;
 
-  private static final String AGENT_ID_VARIABLE = "$agentID";
-
-  /**
-   * Extracts the MDE Device ID on Windows from the WinDefend registry key. The DeviceId value
-   * matches the {@code id} field returned by the MDE API.
-   */
-  private static final String WINDOWS_EXTERNAL_REFERENCE =
-      "$agentID=(Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows Advanced Threat Protection\\Status').DeviceId -replace '-','';";
-
-  /**
-   * Extracts the MDE machine GUID on Linux. The machine_id file stores the UUID without hyphens,
-   * matching the {@code id} field returned by the MDE API.
-   */
-  private static final String LINUX_EXTERNAL_REFERENCE =
-      "agentID=$(cat /etc/mdatp/machine_id 2>/dev/null | tr -d '\\n' | tr -d '-' || mdatp health --field machine_guid 2>/dev/null | tr -d '\\n' | tr -d '-');";
-
-  /** Extracts the MDE machine GUID on macOS via the mdatp health command. */
-  private static final String MAC_EXTERNAL_REFERENCE =
-      "agentID=$(mdatp health --field machine_guid 2>/dev/null | tr -d '\\n' | tr -d '-' || cat /Library/Application\\ Support/Microsoft/Defender/machine_id.txt 2>/dev/null | tr -d '\\n' | tr -d '-');";
-
   private final MdeExecutorConfig mdeExecutorConfig;
   private final MdeExecutorClient mdeExecutorClient;
   private final EnterpriseEditionService enterpriseEditionService;
@@ -134,7 +114,20 @@ public class MdeExecutorContextService extends ExecutorContextService {
   private List<MdeAction> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
     List<MdeAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
+    // Use the MDE-specific command (scheduled-task launch): MDE Live Response terminates the
+    // session process tree on teardown, so the implant must run from a detached SYSTEM task to
+    // survive and report its traces back to OpenAEV.
+    String executorCommandKey =
+        MDE_EXECUTOR_NAME + "." + platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
+    String template = injector.getExecutorCommands().get(executorCommandKey);
+    // One action per agent, mirroring CrowdStrike/SentinelOne: the implant is launched with the
+    // OpenAEV agent id (its UUID primary key) as --agent-id so the execution callback resolves the
+    // agent via findById, while MDE is targeted by the device id (external reference) in
+    // executeActions. Reading the device id from the endpoint registry at runtime is unreliable (it
+    // is empty on some machines), and the agent primary key must not equal the external reference
+    // (see migration Reassign_agent_ids_for_external_executors).
+    for (Agent agent : agents) {
       MdeAction action = new MdeAction();
       action.setScriptName(mdeExecutorConfig.getWindowsScriptName());
       String implantLocation =
@@ -143,25 +136,17 @@ public class MdeExecutorContextService extends ExecutorContextService {
               + ExecutorHelper.IMPLANT_BASE_NAME
               + UUID.randomUUID()
               + "\";md $location -ea 0;[Environment]::CurrentDirectory";
-      Endpoint.PLATFORM_TYPE platform = Endpoint.PLATFORM_TYPE.Windows;
       // x86_64 by default — MDE API doesn't always expose architecture; the WINDOWS_ARCH snippet
       // detects it at runtime and replaces the value before downloading the implant.
-      // Use the MDE-specific command (scheduled-task launch): MDE Live Response terminates the
-      // session process tree on teardown, so the implant must run from a detached SYSTEM task to
-      // survive and report its traces back to OpenAEV.
-      String executorCommandKey =
-          MDE_EXECUTOR_NAME + "." + platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
-      String command = injector.getExecutorCommands().get(executorCommandKey);
-      command =
+      String command =
           WINDOWS_ARCH
-              + WINDOWS_EXTERNAL_REFERENCE
-              + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE + "`");
+              + template.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE + "`");
       command =
           replaceArgs(
               platform,
               command,
               inject.getId(),
-              AGENT_ID_VARIABLE,
+              agent.getId(),
               inject.getTenant().getId(),
               token);
       command =
@@ -177,7 +162,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
       // (CrowdStrike RTR uses UTF-16LE for -encodedCommand, but that's not applicable here).
       action.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8)));
-      action.setAgents(agents);
+      action.setAgents(List.of(agent));
       actions.add(action);
     }
     return actions;
@@ -185,40 +170,33 @@ public class MdeExecutorContextService extends ExecutorContextService {
 
   private List<MdeAction> getLinuxActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
-    List<MdeAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
-      MdeAction action = new MdeAction();
-      action.setScriptName(mdeExecutorConfig.getUnixScriptName());
-      action.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux, injector, inject, LINUX_EXTERNAL_REFERENCE, token));
-      action.setAgents(agents);
-      actions.add(action);
-    }
-    return actions;
+    return getUnixActions(agents, injector, inject, Endpoint.PLATFORM_TYPE.Linux, token);
   }
 
   private List<MdeAction> getMacOSActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
+    return getUnixActions(agents, injector, inject, Endpoint.PLATFORM_TYPE.MacOS, token);
+  }
+
+  private List<MdeAction> getUnixActions(
+      List<Agent> agents,
+      Injector injector,
+      Inject inject,
+      Endpoint.PLATFORM_TYPE platform,
+      String token) {
     List<MdeAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       MdeAction action = new MdeAction();
       action.setScriptName(mdeExecutorConfig.getUnixScriptName());
-      action.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, token));
-      action.setAgents(agents);
+      action.setCommandEncoded(getUnixCommand(platform, injector, inject, agent, token));
+      action.setAgents(List.of(agent));
       actions.add(action);
     }
     return actions;
   }
 
   private String getUnixCommand(
-      Endpoint.PLATFORM_TYPE platform,
-      Injector injector,
-      Inject inject,
-      String externalReferenceVariable,
-      String token) {
+      Endpoint.PLATFORM_TYPE platform, Injector injector, Inject inject, Agent agent, String token) {
     String implantLocation =
         "location="
             + ExecutorHelper.IMPLANT_LOCATION_UNIX
@@ -227,16 +205,13 @@ public class MdeExecutorContextService extends ExecutorContextService {
             + ";mkdir -p $location;filename=";
     String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
     String command = injector.getExecutorCommands().get(executorCommandKey);
-    command =
-        UNIX_ARCH
-            + externalReferenceVariable
-            + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
+    command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
     command =
         replaceArgs(
             platform,
             command,
             inject.getId(),
-            AGENT_ID_VARIABLE,
+            agent.getId(),
             inject.getTenant().getId(),
             token);
     command =
