@@ -102,7 +102,7 @@ const ThreatArsenalActionForm = ({
   const argumentZodObject = z.object({
     default_value: z.string().nonempty(t('Should not be empty')),
     key: z.string().nonempty(t('Should not be empty')),
-    type: z.enum(['text', 'number', 'host', 'hostname', 'domain', 'ipv4', 'ipv6', 'port', 'username', 'password', 'hash', 'service', 'cve', 'severity', 'asset_id', 'share_name', 'permissions', 'document', 'targeted-asset'], { error: t('Should not be empty') }),
+    type: z.string().nonempty(t('Should not be empty')),
     description: z.string().optional(),
     separator: z.string().optional(),
   }).refine(
