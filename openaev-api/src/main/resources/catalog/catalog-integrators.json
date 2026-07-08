@@ -2249,7 +2249,7 @@
                         "type": "string"
                     },
                     "COLLECTOR_PLATFORM": {
-                        "default": "EDR",
+                        "default": "SOAR",
                         "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
                         "type": "string"
                     },
