@@ -6,15 +6,10 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Normalizes legacy wrapped JSON persisted in payload arguments and inject status payload output:
- *
- * <pre>
- * {"type":"json","value":"[...]","null":false}
- * </pre>
+ * Normalizes legacy wrapped JSON persisted in payload arguments:
  *
  * <p>The application expects {@code payload_arguments} to contain the raw JSON array directly and
- * payload argument entries without deprecated {@code subtype}. It also expects
- * {@code status_payload_output} to contain the raw status payload JSON object.
+ * payload argument entries without deprecated {@code subtype}.
  */
 @Component
 public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
