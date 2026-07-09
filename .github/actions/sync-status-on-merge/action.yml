@@ -110,6 +110,9 @@ runs:
         for ISSUE_NUM in $ISSUES; do
           echo "::group::Issue #$ISSUE_NUM"
 
+          # NOTE: ProjectV2Owner is an interface; 'login' only exists on the
+          # concrete types implementing it (Organization, User), hence the
+          # inline fragments below instead of a plain 'owner { login }'.
           ITEM_RESULT=$(gh api graphql -f query='
             query($owner:String!, $repo:String!, $number:Int!) {
               repository(owner:$owner, name:$repo) {
@@ -119,7 +122,13 @@ runs:
                   projectItems(first: 20) {
                     nodes {
                       id
-                      project { number owner { login } }
+                      project {
+                        number
+                        owner {
+                          ... on Organization { login }
+                          ... on User { login }
+                        }
+                      }
                       fieldValueByName(name: "Status") {
                         ... on ProjectV2ItemFieldSingleSelectValue { name }
                       }
