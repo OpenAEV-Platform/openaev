@@ -1383,5 +1383,6 @@ public class ConditionServiceTest {
             conditionUtils.isFilterConditionValid("any", leaf(ConditionType.DEPEND_ON, "some-id")));
       }
     }
+
   }
 }

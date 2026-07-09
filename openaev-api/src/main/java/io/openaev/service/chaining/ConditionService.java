@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
-
   private final WorkflowStateService workflowStateService;
 
   private final ConditionUtils conditionUtils;
@@ -987,7 +986,9 @@ public class ConditionService {
       }
 
       allPairsList.add(
-          values.stream().map(value -> new WorkflowStateEntries.Pair(key, value)).toList());
+          values.stream()
+              .map(value -> new WorkflowStateEntries.Pair(key, value))
+              .toList());
     }
 
     return new MapperInputPreparation(allPairsList, staticValues, false);

@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Service
 public class WorkflowStateService {
-
   private final ConditionUtils conditionUtils;
+  private final ScopeService scopeService;
 
   private final WorkflowStateRepository workflowStateRepository;
 
@@ -44,7 +44,7 @@ public class WorkflowStateService {
     // Process traces
     if (dataToSync.isJsonObject()) {
       Map<String, List<String>> parsedValues =
-          saveToEntries(entries, dataToSync.getAsJsonObject(), safeTypeMappings);
+          saveToEntries(entries, dataToSync.getAsJsonObject(), safeTypeMappings, workflowRun);
       // Propagate to local states of steps whose events need this output
       propagateToLocalStates(parsedValues, workflowRun);
     }
@@ -251,58 +251,156 @@ public class WorkflowStateService {
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
-      Map<String, ChainingMappedType> typeMappings) {
+      Map<String, ChainingMappedType> typeMappings,
+      Workflow workflowRun) {
 
     Map<String, List<String>> parsedByType = new HashMap<>();
+    PrimitiveValidationContext validationContext =
+        buildPrimitiveValidationContext(typeMappings, workflowRun);
 
-    structuredOutput
-        .entrySet()
-        .forEach(
-            entry -> {
-              String nodeName = entry.getKey();
-              JsonElement jsonValue = entry.getValue();
+    for (Map.Entry<String, JsonElement> entry : structuredOutput.entrySet()) {
+      String nodeName = entry.getKey();
+      JsonElement jsonValue = entry.getValue();
 
-              if (jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
-                return;
-              }
+      if (jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
+        continue;
+      }
 
-              ChainingMappedType mappedType = typeMappings.get(nodeName);
-              List<PrimitiveType> primitiveTypes;
+      ChainingMappedType mappedType = typeMappings.get(nodeName);
+      List<PrimitiveType> primitiveTypes;
 
-              if (mappedType != null) {
-                if (mappedType.kind() == ChainingTypeKind.NON_CHAINABLE) {
-                  return;
-                }
-                primitiveTypes = mappedType.primitiveTypes();
-              } else {
-                log.warn(
-                    "Skipping output field '{}' because no primitive type mapping exists.",
-                    nodeName);
-                return;
-              }
+      if (mappedType != null) {
+        if (mappedType.kind() == ChainingTypeKind.NON_CHAINABLE) {
+          continue;
+        }
+        primitiveTypes = mappedType.primitiveTypes();
+      } else {
+        log.warn("Skipping output field '{}' because no primitive type mapping exists.", nodeName);
+        continue;
+      }
 
-              JsonArray array = jsonValue.getAsJsonArray();
+      JsonArray array = jsonValue.getAsJsonArray();
 
-              for (JsonElement element : array) {
-                if (element.isJsonPrimitive()) {
-                  if (primitiveTypes.isEmpty()) {
-                    continue;
-                  }
-                  String val = element.getAsString();
-                  for (PrimitiveType primitiveType : primitiveTypes) {
-                    String key = primitiveType.name();
-                    entries.getInputByKey(key).getValues().add(val);
-                    parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
-                  }
-                } else if (element.isJsonObject()) {
-                  // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
-                  if (mappedType != null && mappedType.kind() == ChainingTypeKind.COMPLEX) {
-                    saveCorrelatedObject(entries, element.getAsJsonObject());
-                  }
-                }
-              }
-            });
+      for (JsonElement element : array) {
+        if (element.isJsonPrimitive()) {
+          if (primitiveTypes.isEmpty()) {
+            continue;
+          }
+          String val = element.getAsString();
+          for (PrimitiveType primitiveType : primitiveTypes) {
+            if (!PrimitiveValueValidator.isValidForPrimitiveType(
+                primitiveType, val, validationContext)) {
+              continue;
+            }
+            String key = primitiveType.name();
+            entries.getInputByKey(key).getValues().add(val);
+            parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
+          }
+        } else if (element.isJsonObject()) {
+          // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
+          if (mappedType.kind() == ChainingTypeKind.COMPLEX) {
+            saveCorrelatedObject(entries, element.getAsJsonObject());
+          }
+        }
+      }
+    }
     return parsedByType;
+  }
+
+  private PrimitiveValidationContext buildPrimitiveValidationContext(
+      Map<String, ChainingMappedType> typeMappings, Workflow workflowRun) {
+    boolean needsAssetIdValidation =
+        requiresPrimitiveValidation(typeMappings, PrimitiveType.AssetId);
+    boolean needsAssetGroupValidation =
+        requiresPrimitiveValidation(typeMappings, PrimitiveType.AssetGroupId);
+    boolean needsIpValidation =
+        requiresPrimitiveValidation(typeMappings, PrimitiveType.IPv4, PrimitiveType.IPv6);
+    boolean needsSubnetValidation = requiresPrimitiveValidation(typeMappings, PrimitiveType.IpSubnet);
+    boolean needsDomainValidation = requiresPrimitiveValidation(typeMappings, PrimitiveType.Domain);
+
+    Set<String> allowedAssetIds =
+        needsAssetIdValidation
+            ? scopeService.getValidAssets(workflowRun.getId()).stream()
+                .map(Asset::getId)
+                .collect(Collectors.toSet())
+            : Collections.emptySet();
+
+    Set<String> allowedAssetGroupIds = Collections.emptySet();
+    if (needsAssetGroupValidation) {
+      Set<String> allowlistedGroupIds =
+          collectRuleValues(
+              workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_GROUP_ID, false);
+      Set<String> denylistedGroupIds =
+          collectRuleValues(
+              workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.ASSET_GROUP_ID, false);
+      allowlistedGroupIds.removeAll(denylistedGroupIds);
+      allowedAssetGroupIds = allowlistedGroupIds;
+    }
+
+    Set<String> allowlistedIps =
+        needsIpValidation || needsSubnetValidation
+            ? collectRuleValues(workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.IP, false)
+            : Collections.emptySet();
+    Set<String> denylistedIps =
+        needsIpValidation || needsSubnetValidation
+            ? collectRuleValues(workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP, false)
+            : Collections.emptySet();
+    Set<String> allowlistedSubnets =
+        needsIpValidation || needsSubnetValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.IP_SUBNET, false)
+            : Collections.emptySet();
+    Set<String> denylistedSubnets =
+        needsIpValidation || needsSubnetValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP_SUBNET, false)
+            : Collections.emptySet();
+    Set<String> allowlistedDomains =
+        needsDomainValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.DOMAIN, true)
+            : Collections.emptySet();
+    Set<String> denylistedDomains =
+        needsDomainValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.DOMAIN, true)
+            : Collections.emptySet();
+
+    return new PrimitiveValidationContext(
+        allowedAssetIds,
+        allowedAssetGroupIds,
+        allowlistedIps,
+        denylistedIps,
+        allowlistedSubnets,
+        denylistedSubnets,
+        allowlistedDomains,
+        denylistedDomains);
+  }
+
+  private boolean requiresPrimitiveValidation(
+      Map<String, ChainingMappedType> typeMappings, PrimitiveType... primitiveTypes) {
+    Set<PrimitiveType> targetTypes = Set.of(primitiveTypes);
+    return typeMappings.values().stream()
+        .filter(Objects::nonNull)
+        .map(ChainingMappedType::primitiveTypes)
+        .filter(Objects::nonNull)
+        .anyMatch(types -> types.stream().anyMatch(targetTypes::contains));
+  }
+
+  private Set<String> collectRuleValues(
+      Workflow workflowRun,
+      ScopeRuleSelectedMode selectedMode,
+      ScopeRuleValueType valueType,
+      boolean lowercase) {
+    return workflowRun.getWorkflowScopeRules().stream()
+        .filter(rule -> rule.getSelectedMode() == selectedMode)
+        .filter(rule -> rule.getValueType() == valueType)
+        .map(WorkflowScopeRule::getRuleValue)
+        .filter(Objects::nonNull)
+        .map(String::trim)
+        .filter(value -> !value.isEmpty())
+        .map(value -> lowercase ? value.toLowerCase() : value)
+        .collect(Collectors.toSet());
   }
 
   /**
