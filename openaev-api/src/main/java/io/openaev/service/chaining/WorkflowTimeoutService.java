@@ -4,6 +4,7 @@ import io.openaev.database.model.*;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
 import java.time.Instant;
 import java.util.List;
@@ -23,6 +24,7 @@ public class WorkflowTimeoutService {
   private final ExerciseService simulationService;
   private final InjectService injectService;
   private final InjectStatusService injectStatusService;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   private static final Set<ExecutionStatus> ACTIVE_INJECT_STATUSES =
       Set.of(ExecutionStatus.QUEUING, ExecutionStatus.EXECUTING, ExecutionStatus.PENDING);
@@ -46,6 +48,9 @@ public class WorkflowTimeoutService {
   @Transactional(rollbackFor = Exception.class)
   public void forceCompleteWorkflow(Workflow workflowRun) {
     log.info("Timeout expired for workflow run {}. Forcing completion.", workflowRun.getId());
+    // Telemetry: the timeout safety policy actually fired (complements the
+    // safety_timeout_configured configuration metric).
+    resultsMetricCollector.recordWorkflowTimeoutTriggered();
 
     // 1. End all active steps (READY or RUN)
     int terminatedCount = stepService.endActiveStepsByWorkflowId(workflowRun.getId());

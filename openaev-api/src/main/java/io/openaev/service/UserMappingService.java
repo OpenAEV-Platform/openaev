@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
@@ -58,6 +60,7 @@ public class UserMappingService {
       String idpGroup = mapping.getIdpGroup();
       String userGroup = mapping.getUserGroup();
       boolean autoCreate = mapping.isAutoCreate();
+<<<<<<< HEAD
       // Mapping-level tenantId takes precedence; fall back to provider-level tenant_id
       // in case we define in properties file both:
       // openaev.provider.microsoft.tenant_id=my-tenant
@@ -102,9 +105,38 @@ public class UserMappingService {
           attachTenantToUser(tenantId, user);
         } else {
           log.debug("IdP group '{}' does not match token group '{}' — skipping", idpGroup, role);
+=======
+      if (groupsFromToken.contains(idpGroup)) {
+        Optional<Group> groupOptional = groupRepository.findByName(userGroup);
+        if (groupOptional.isPresent()) {
+          List<Group> userGroups = user.getUnscopedGroups();
+          boolean alreadyAssigned =
+              userGroups.stream()
+                  .anyMatch(userG -> userG.getName().equals(groupOptional.get().getName()));
+          if (!alreadyAssigned) {
+            userGroups.add(groupOptional.get());
+            user.setGroups(userGroups);
+          }
+        } else {
+          if (autoCreate) {
+            Group newGroup = new Group();
+            newGroup.setName(userGroup);
+            groupRepository.save(newGroup);
+            List<Group> userGroups = user.getUnscopedGroups();
+            userGroups.add(newGroup);
+            user.setGroups(userGroups);
+          } else {
+            log.error(
+                "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
+                userGroup,
+                idpGroup);
+          }
+>>>>>>> origin/main
         }
+        attachTenantFromGroupMapping(mapping, user);
       }
 
+<<<<<<< HEAD
       // If the user has not this group in the groups from the token but he has the group in his
       // current groups, it means the user was removed from the group in the identity provider.
       // Only remove if NONE of the mappings targeting this userGroup have a matching idpGroup
@@ -114,13 +146,26 @@ public class UserMappingService {
               .filter(m -> m.getUserGroup().equals(mapping.getUserGroup())) // do we have several mapping with same group
               .anyMatch(m -> groupsFromToken.contains(m.getIdpGroup()));
       if (!anyMappingMatchesForSameGroup
+=======
+      // If the user no longer has this group in the token but still has it assigned,
+      // remove it — the user was removed from the group in the identity provider
+      if (!groupsFromToken.contains(idpGroup)
+>>>>>>> origin/main
           && user.getUnscopedGroups().stream()
               .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
-        // It means the user was removed from the group in the identity provider -> we remove it
-        // from its current groups
         List<Group> userGroups = user.getUnscopedGroups();
         userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
         user.setGroups(userGroups);
+      }
+    }
+
+    // Log token groups that have no configured mapping — DEBUG level because this is
+    // expected behavior (users often belong to more IDP groups than are mapped)
+    Set<String> mappedIdpGroups =
+        groupMappings.stream().map(GroupMapping::getIdpGroup).collect(Collectors.toSet());
+    for (String tokenGroup : groupsFromToken) {
+      if (!mappedIdpGroups.contains(tokenGroup)) {
+        log.debug("Token group '{}' has no configured mapping — skipping", tokenGroup);
       }
     }
   }

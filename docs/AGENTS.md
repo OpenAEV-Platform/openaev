@@ -5,20 +5,20 @@ Validation Platform.
 
 ## Project stack
 
-- **Static site generator:** MkDocs with Material for MkDocs (Insiders)
-- **Content format:** Markdown (`.md`) files in `docs/`
-- **Config:** `mkdocs.yml` at root
+- **Static site generator:** MkDocs with Material for MkDocs
+- **Content format:** Markdown (`.md`) files in `docs/docs/`
+- **Config:** `docs/mkdocs.yml`
 - **Deployment:** Mike for versioning, GitHub Pages
 - **Language:** English only
 
 ## Repository structure
 
 ```
-docs/           → Markdown source files (the documentation)
-overrides/      → MkDocs Material template overrides
-site/           → Generated output (do NOT edit)
-mkdocs.yml      → MkDocs configuration and nav tree
-requirements.txt → Python dependencies
+docs/docs/            → Markdown source files (the documentation)
+docs/overrides/       → MkDocs Material template overrides
+docs/site/            → Generated output (do NOT edit)
+docs/mkdocs.yml       → MkDocs configuration and nav tree
+docs/requirements.txt → Python dependencies
 ```
 
 ## Writing style rules
@@ -56,6 +56,10 @@ Always start with usage and benefits, then show the execution.
     - `!!! warning` for warnings
     - `!!! note` for tips/info
     - `!!! tip` for best practices
+- Never use raw emoji paragraphs for warnings (e.g. a paragraph starting with a warning emoji) — use an admonition.
+- Never add an in-page table of contents — the theme renders the page TOC on the right automatically.
+- Never use `---` horizontal rules as section separators — headings provide the structure.
+- Never ship internal editorial comments (`<!-- to be completed -->`, screenshot placeholders) — track them in issues instead.
 
 ### Filenames and URIs
 

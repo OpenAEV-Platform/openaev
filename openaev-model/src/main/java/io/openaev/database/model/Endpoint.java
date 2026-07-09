@@ -7,10 +7,11 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MultiModelSerializer;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.*;
@@ -23,7 +24,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
 @EntityListeners(ModelBaseListener.class)
-public class Endpoint extends Asset {
+public class Endpoint extends Asset implements AuditStateCapturable {
 
   public static final Set<String> BAD_MAC_ADDRESS =
       new HashSet<>(Arrays.asList("ffffffffffff", "000000000000", "0180c2000000"));
@@ -63,6 +64,10 @@ public class Endpoint extends Asset {
     Windows,
     @JsonProperty("MacOS")
     MacOS,
+    @JsonProperty("Android")
+    Android,
+    @JsonProperty("iOS")
+    iOS,
     @JsonProperty("Container")
     Container,
     @JsonProperty("Service")
@@ -141,18 +146,25 @@ public class Endpoint extends Asset {
   @JsonProperty("endpoint_hostname")
   private String hostname;
 
+  /**
+   * URL of the target for URL-based asset categories (web applications, cloud endpoints, ...). Not
+   * relevant for agent-managed hosts.
+   */
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "endpoint_url")
+  @JsonProperty("endpoint_url")
+  private String url;
+
   @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_platform")
   @JsonProperty("endpoint_platform")
   @Enumerated(EnumType.STRING)
-  @NotNull
   private PLATFORM_TYPE platform;
 
   @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_arch")
   @JsonProperty("endpoint_arch")
   @Enumerated(EnumType.STRING)
-  @NotNull
   private PLATFORM_ARCH arch;
 
   @Type(StringArrayType.class)
@@ -173,7 +185,6 @@ public class Endpoint extends Asset {
       cascade = CascadeType.ALL,
       orphanRemoval = true)
   @Fetch(FetchMode.SUBSELECT)
-  // method
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
   private List<Agent> agents = new ArrayList<>();
@@ -188,10 +199,33 @@ public class Endpoint extends Asset {
       joinColumns = @JoinColumn(name = "asset_id"),
       inverseJoinColumns = @JoinColumn(name = "inject_id"))
   @JsonIgnore
+  @AuditStateIgnore
   private List<Inject> injects = new ArrayList<>();
 
   public void setHostname(String hostname) {
-    this.hostname = hostname.toLowerCase();
+    // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale
+    // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
+    this.hostname = (hostname == null) ? null : hostname.toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Keeps the legacy invariants while platform/arch are now optional at the API layer: agent and
+   * collector registrations always provide them, but the new category-driven forms (web app, cloud,
+   * ...) may omit them. Defaulting to {@code Unknown} satisfies the (still NOT NULL) {@code
+   * endpoint_arch} column, and every Endpoint without an explicit category is a HOST.
+   */
+  @PrePersist
+  @PreUpdate
+  public void applyEndpointDefaults() {
+    if (this.platform == null) {
+      this.platform = PLATFORM_TYPE.Unknown;
+    }
+    if (this.arch == null) {
+      this.arch = PLATFORM_ARCH.Unknown;
+    }
+    if (this.getCategory() == null) {
+      this.setCategory(AssetCategory.HOST);
+    }
   }
 
   public Endpoint() {}

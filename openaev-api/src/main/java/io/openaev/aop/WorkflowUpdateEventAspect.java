@@ -120,13 +120,17 @@ public class WorkflowUpdateEventAspect {
             : "";
 
     if (!injectId.isEmpty()) {
-      String stepId = stepService.findStepIdByInjectId(injectId);
+      Optional<String> stepId = stepService.findStepIdByInjectId(injectId);
+      if (stepId.isEmpty()) {
+        log.info("Step not found for inject {}", injectId);
+        return;
+      }
       try {
-        queueChainingService.updateStep(stepId);
+        queueChainingService.updateStep(stepId.get());
       } catch (IOException e) {
         // In case an error occurs, we store the inject in the unsent event cache to be retried
         // later, when other events will be sent
-        unsentEventsCache.add(stepId);
+        unsentEventsCache.add(stepId.get());
       }
     }
   }

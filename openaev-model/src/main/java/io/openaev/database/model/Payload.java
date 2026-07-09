@@ -13,8 +13,8 @@ import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -46,7 +46,8 @@ import org.hibernate.annotations.*;
       Executable.class,
       FileDrop.class,
       DnsResolution.class,
-      NetworkTraffic.class
+      NetworkTraffic.class,
+      AiAttack.class
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = Command.COMMAND_TYPE, schema = Command.class),
@@ -57,7 +58,8 @@ import org.hibernate.annotations.*;
           schema = DnsResolution.class),
       @DiscriminatorMapping(
           value = NetworkTraffic.NETWORK_TRAFFIC_TYPE,
-          schema = NetworkTraffic.class)
+          schema = NetworkTraffic.class),
+      @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
 public class Payload implements GrantableBase, TenantBase {

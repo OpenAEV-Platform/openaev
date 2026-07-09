@@ -1,6 +1,13 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simplePostCall,
+} from '../utils/Action';
 import {
   type InjectorContract,
   type InjectorContractAddInput, type InjectorContractSearchPaginationInput,

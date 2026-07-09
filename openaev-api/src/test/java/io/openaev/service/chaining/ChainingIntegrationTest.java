@@ -91,7 +91,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
     // Link on the owning side and save to persist the join table
-    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
@@ -479,7 +479,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowRun = executionWorkflows.getFirst();
       // Retrieve the inject created from the step
       Step createdStep =
-          stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId()).stream()
+          stepService.findAllStepActiveByWorkflowRunId(workflowRun.getId()).stream()
               .findFirst()
               .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {

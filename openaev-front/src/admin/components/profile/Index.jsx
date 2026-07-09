@@ -12,6 +12,7 @@ import { countryOption } from '../../../utils/Option';
 import PasswordForm from './PasswordForm';
 import ProfileForm from './ProfileForm';
 import UserForm from './UserForm';
+import XtmOneMcpAccess from './XtmOneMcpAccess';
 
 const Index = () => {
   const { t } = useFormatter();
@@ -148,6 +149,7 @@ const Index = () => {
           {t('API specifications')}
         </Button>
       </Paper>
+      <XtmOneMcpAccess />
     </div>
   );
 };

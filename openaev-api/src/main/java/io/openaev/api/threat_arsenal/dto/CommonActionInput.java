@@ -1,7 +1,7 @@
 package io.openaev.api.threat_arsenal.dto;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
@@ -30,7 +30,7 @@ public sealed interface CommonActionInput
 
   Payload.PAYLOAD_EXECUTION_ARCH executionArch();
 
-  InjectExpectation.EXPECTATION_TYPE[] expectations();
+  BaseInjectExpectation.EXPECTATION_TYPE[] expectations();
 
   String executableFile();
 

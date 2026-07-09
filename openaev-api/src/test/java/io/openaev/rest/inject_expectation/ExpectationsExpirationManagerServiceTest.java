@@ -16,6 +16,7 @@ import io.openaev.model.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
@@ -29,6 +30,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
 
   public static final long EXPIRATION_TIME_1_s = 1L;
+
+  @Autowired private EntityManager em;
   @Autowired private AssetGroupRepository assetGroupRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private AgentRepository agentRepository;
@@ -58,7 +61,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =
         injectorRepository
-            .findById(OPENAEV_INJECTOR_ID)
+            .findByIdAndTenantId(OPENAEV_INJECTOR_ID, TenantContext.getCurrentTenant())
             .orElseGet(
                 () ->
                     injectorRepository.save(
@@ -74,7 +77,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     }
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --
@@ -114,9 +117,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
+      em.flush();
+      em.clear();
+
       // -- VERIFY --
       // Agent Expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
@@ -175,12 +181,15 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
+      em.flush();
+      em.clear();
+
       // Update one expectation from one agent with source collector-id
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
-      InjectExpectation ie = injectExpectations.getFirst();
+      BaseInjectExpectation ie = injectExpectations.getFirst();
       ie.setResults(
           List.of(
               InjectExpectationResult.builder()
@@ -258,8 +267,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
+      em.flush();
+      em.clear();
+
       // Update agent expectations with source collector-id
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           List.of(
               injectExpectationRepository
                   .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
@@ -269,8 +281,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                   .getFirst());
 
       injectExpectations.forEach(
-          injectExpectation -> {
-            injectExpectation.setResults(
+          BaseInjectExpectation -> {
+            BaseInjectExpectation.setResults(
                 List.of(
                     InjectExpectationResult.builder()
                         .sourceId("collector-id")
@@ -281,7 +293,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                         .sourceAssetId(UUID.randomUUID().toString())
                         .score(100.0)
                         .build()));
-            injectExpectation.setScore(100.0);
+            BaseInjectExpectation.setScore(100.0);
           });
 
       injectExpectationRepository.saveAll(injectExpectations);
@@ -347,8 +359,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
 
+      em.flush();
+      em.clear();
+
       // Delete agent inject expectations to test behavior of assets without agents
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           List.of(
               injectExpectationRepository
                   .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
@@ -357,7 +372,8 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
                   .findAllByInjectAndAgent(savedInject.getId(), savedAgent2.getId())
                   .getFirst());
 
-      List<String> ids = injectExpectations.stream().map(InjectExpectation::getId).toList();
+      List<String> ids =
+          injectExpectations.stream().map(TechnicalInjectExpectation::getId).toList();
 
       injectExpectationRepository.deleteAllById(ids);
 
@@ -402,8 +418,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, List.of(expectation));
 
+      em.flush();
+      em.clear();
+
       // -- VERIFY --
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       assertEquals(null, injectExpectations.getFirst().getScore());
@@ -417,7 +436,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, injectExpectations.getFirst().getScore());
       assertEquals(
-          InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+          BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
           injectExpectations.getFirst().getResponse());
     }
   }

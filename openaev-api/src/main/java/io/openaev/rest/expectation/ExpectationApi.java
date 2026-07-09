@@ -6,6 +6,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
@@ -68,21 +69,25 @@ public class ExpectationApi extends RestBehavior {
   @Transactional
   public List<InjectExpectationOutput> getInjectExpectationsNotFilledAndNotExpired(
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+    String tenantId = TenantContext.getCurrentTenant();
     if (expirationTime == null) {
       return toOutputs(
           Stream.of(
-                  injectExpectationService.manualExpectationsNotFill(),
-                  injectExpectationService.preventionExpectationsNotFill(),
-                  injectExpectationService.detectionExpectationsNotFill())
+                  injectExpectationService.manualExpectationsNotFill(tenantId),
+                  injectExpectationService.preventionExpectationsNotFill(tenantId),
+                  injectExpectationService.detectionExpectationsNotFill(tenantId))
               .flatMap(List::stream)
               .toList());
     }
 
     return toOutputs(
         Stream.of(
-                injectExpectationService.manualExpectationsNotFillAndNotExpired(expirationTime),
-                injectExpectationService.preventionExpectationsNotFillAndNotExpired(expirationTime),
-                injectExpectationService.detectionExpectationsNotFillAndNotExpired(expirationTime))
+                injectExpectationService.manualExpectationsNotFillAndNotExpired(
+                    tenantId, expirationTime),
+                injectExpectationService.preventionExpectationsNotFillAndNotExpired(
+                    tenantId, expirationTime),
+                injectExpectationService.detectionExpectationsNotFillAndNotExpired(
+                    tenantId, expirationTime))
             .flatMap(List::stream)
             .toList());
   }
@@ -99,12 +104,17 @@ public class ExpectationApi extends RestBehavior {
   @Transactional
   public List<InjectExpectationOutput> getInjectExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
+    String tenantId = TenantContext.getCurrentTenant();
     return toOutputs(
         Stream.concat(
-                injectExpectationService.manualExpectationsNotFill(sourceId).stream(),
+                injectExpectationService.manualExpectationsNotFill(tenantId, sourceId).stream(),
                 Stream.concat(
-                    injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-                    injectExpectationService.detectionExpectationsNotFill(sourceId).stream()))
+                    injectExpectationService
+                        .preventionExpectationsNotFill(tenantId, sourceId)
+                        .stream(),
+                    injectExpectationService
+                        .detectionExpectationsNotFill(tenantId, sourceId)
+                        .stream()))
             .toList());
   }
 
@@ -121,20 +131,26 @@ public class ExpectationApi extends RestBehavior {
   public List<InjectExpectationOutput> getInjectExpectationsAssetsNotFilledAndNotExpiredForSource(
       @PathVariable String sourceId,
       @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+    String tenantId = TenantContext.getCurrentTenant();
     if (expirationTime == null) {
       return toOutputs(
           Stream.concat(
-                  injectExpectationService.preventionExpectationsNotFill(sourceId).stream(),
-                  injectExpectationService.detectionExpectationsNotFill(sourceId).stream())
+                  injectExpectationService
+                      .preventionExpectationsNotFill(tenantId, sourceId)
+                      .stream(),
+                  injectExpectationService
+                      .detectionExpectationsNotFill(tenantId, sourceId)
+                      .stream())
               .toList());
     }
     return toOutputs(
         Stream.concat(
                 injectExpectationService
-                    .preventionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                    .preventionExpectationsNotFilledAndNotExpired(
+                        tenantId, expirationTime, sourceId)
                     .stream(),
                 injectExpectationService
-                    .detectionExpectationsNotFilledAndNotExpired(expirationTime, sourceId)
+                    .detectionExpectationsNotFilledAndNotExpired(tenantId, expirationTime, sourceId)
                     .stream())
             .toList());
   }
@@ -146,7 +162,9 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilled() {
-    return toOutputs(injectExpectationService.preventionExpectationsNotFill().stream().toList());
+    String tenantId = TenantContext.getCurrentTenant();
+    return toOutputs(
+        injectExpectationService.preventionExpectationsNotFill(tenantId).stream().toList());
   }
 
   @Operation(
@@ -161,8 +179,10 @@ public class ExpectationApi extends RestBehavior {
   @Transactional
   public List<InjectExpectationOutput> getInjectPreventionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
+    String tenantId = TenantContext.getCurrentTenant();
     return toOutputs(
-        injectExpectationService.preventionExpectationsNotFill(sourceId).stream().toList());
+        injectExpectationService.preventionExpectationsNotFill(tenantId, sourceId).stream()
+            .toList());
   }
 
   @GetMapping({
@@ -172,7 +192,9 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilled() {
-    return toOutputs(injectExpectationService.detectionExpectationsNotFill().stream().toList());
+    String tenantId = TenantContext.getCurrentTenant();
+    return toOutputs(
+        injectExpectationService.detectionExpectationsNotFill(tenantId).stream().toList());
   }
 
   @Operation(
@@ -187,8 +209,26 @@ public class ExpectationApi extends RestBehavior {
   @Transactional
   public List<InjectExpectationOutput> getInjectDetectionExpectationsNotFilledForSource(
       @PathVariable String sourceId) {
+    String tenantId = TenantContext.getCurrentTenant();
     return toOutputs(
-        injectExpectationService.detectionExpectationsNotFill(sourceId).stream().toList());
+        injectExpectationService.detectionExpectationsNotFill(tenantId, sourceId).stream()
+            .toList());
+  }
+
+  @Operation(
+      summary = "Get agentless AI defense Inject Expectations for a Specific Source",
+      description =
+          "Retrieves agentless DETECTION/PREVENTION inject expectations not yet filled for a given source ID. Used by AI defense collectors (LLM firewall / guardrail) to validate AI adversarial injects, whose targets are AI models/agents rather than endpoints with an installed agent.")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/ai/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/ai/{sourceId}"
+  })
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
+  public List<InjectExpectationOutput> getAiDefenseExpectationsNotFilledForSource(
+      @PathVariable String sourceId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    return toOutputs(injectExpectationService.aiDefenseExpectationsNotFill(tenantId, sourceId));
   }
 
   @Operation(

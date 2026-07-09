@@ -76,9 +76,8 @@ class ChannelServiceTest {
       inject.setContent(contentNode);
 
       Double expectedScore = 100.0;
-      InjectExpectation expectation = new InjectExpectation();
+      ArticleInjectExpectation expectation = new ArticleInjectExpectation();
       expectation.setId("expectation-1");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.ARTICLE);
       expectation.setExpectedScore(expectedScore);
       expectation.setArticle(article);
       expectation.setUser(user);
@@ -100,9 +99,10 @@ class ChannelServiceTest {
       assertDoesNotThrow(() -> channelService.validateArticles("exercise-1", "channel-1", user));
 
       // Assert
-      ArgumentCaptor<InjectExpectation> captor = ArgumentCaptor.forClass(InjectExpectation.class);
+      ArgumentCaptor<BaseInjectExpectation> captor =
+          ArgumentCaptor.forClass(BaseInjectExpectation.class);
       verify(injectExpectationExecutionRepository).save(captor.capture());
-      InjectExpectation saved = captor.getValue();
+      BaseInjectExpectation saved = captor.getValue();
       assertEquals(expectedScore, saved.getScore());
       assertNotNull(saved.getResults());
       assertFalse(saved.getResults().isEmpty());

@@ -3,6 +3,7 @@ import { IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {
   BaseEdge,
+  type Edge,
   EdgeLabelRenderer,
   type EdgeProps,
   getSmoothStepPath,
@@ -10,8 +11,11 @@ import {
 
 interface DeletableEdgeData {
   onDelete?: (edgeId: string, source: string, target: string) => void;
+
   [key: string]: unknown;
 }
+
+type DeletableEdgeType = Edge<DeletableEdgeData, 'deletable'>;
 
 const DeletableEdge = ({
   id,
@@ -25,7 +29,7 @@ const DeletableEdge = ({
   source,
   target,
   data,
-}: EdgeProps & { data?: DeletableEdgeData }) => {
+}: EdgeProps<DeletableEdgeType>) => {
   const theme = useTheme();
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -36,6 +40,12 @@ const DeletableEdge = ({
     targetPosition,
   });
 
+  const handleDelete = () => {
+    if (data?.onDelete) {
+      data.onDelete(id, source, target);
+    }
+  };
+
   return (
     <>
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} />
@@ -45,12 +55,14 @@ const DeletableEdge = ({
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: 'all',
+            zIndex: 1000,
           }}
           className="nodrag nopan"
         >
           <IconButton
             size="small"
-            onClick={() => data?.onDelete?.(id, source, target)}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={handleDelete}
             sx={{
               'width': 20,
               'height': 20,

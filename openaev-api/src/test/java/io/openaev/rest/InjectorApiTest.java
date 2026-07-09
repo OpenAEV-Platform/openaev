@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCat
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjector;
+import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjectorCreateInput;
 import static io.openaev.utils.fixtures.InjectorFixture.createInjector;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,6 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -43,6 +45,7 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -414,16 +417,16 @@ public class InjectorApiTest extends IntegrationTest {
 
       // Create a dummy injector (simulating what createOrGetDummyInjector does)
       Injector dummyInjector = createInjector(dummyId, "Dummy " + injectorType, dummyType);
-      injectorRepository.save(dummyInjector);
+      dummyInjector = injectorRepository.save(dummyInjector);
 
       // Create an injector contract linked to the dummy injector
       InjectorContract dummyContract = InjectorContractFixture.createDefaultInjectorContract();
-      dummyContract.getInjectors().clear();
+      dummyContract.clearInjectors();
       dummyContract.addInjector(dummyInjector);
       em.persist(dummyContract);
       injectorContractRepository.save(dummyContract);
-      dummyInjector.getContracts().add(dummyContract);
-      injectorRepository.save(dummyInjector);
+      dummyInjector.linkContract(dummyContract);
+      dummyInjector = injectorRepository.save(dummyInjector);
       em.flush();
 
       String dummyContractId = dummyContract.getId();
@@ -639,9 +642,101 @@ public class InjectorApiTest extends IntegrationTest {
           .as("Inject should have an injector (not null)")
           .isNotNull();
 
-      assertThat(reloadedInject.getInjector().getTenant().getId())
+      assertThat(reloadedInject.getInjector().getTenantId())
           .as("Injector should belong to tenant A")
           .isEqualTo(tenantA);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation API")
+  @WithMockUser
+  class TenantIsolationApi {
+
+    @Test
+    @DisplayName("Injector created in tenant X should NOT appear in tenant Y list")
+    void given_injectorInTenantX_should_notAppearInTenantYList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector", "Tenant X Injector", "tenant_x_type", "tenant-x-contract");
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantY.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds).doesNotContain(input.getId());
+    }
+
+    @Test
+    @DisplayName("Injector created in tenant X should appear in tenant X list")
+    void given_injectorInTenantX_should_appearInTenantXList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector-visible",
+              "Tenant X Injector Visible",
+              "tenant_x_visible_type",
+              "tenant-x-visible-contract");
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds).contains(input.getId());
     }
   }
 

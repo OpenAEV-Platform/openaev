@@ -1,0 +1,228 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, MenuItem, TextField } from '@mui/material';
+import { type FunctionComponent } from 'react';
+import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+import TagField from '../../../../components/fields/TagField';
+import { useFormatter } from '../../../../components/i18n';
+import { type AiTargetInput } from '../../../../utils/api-types';
+import { zodImplement } from '../../../../utils/Zod';
+
+interface Props {
+  onSubmit: SubmitHandler<AiTargetInput>;
+  handleClose: () => void;
+  editing?: boolean;
+  initialValues?: AiTargetInput;
+}
+
+const PROVIDERS = [
+  'OPENAI_COMPATIBLE',
+  'ANTHROPIC',
+  'AZURE_OPENAI',
+  'AWS_BEDROCK',
+  'GOOGLE_VERTEX',
+  'HUGGINGFACE',
+  'OLLAMA',
+  'CUSTOM_HTTP',
+  'MCP_SERVER',
+  'AGENT_HTTP',
+] as const;
+
+const MODALITIES = ['TEXT', 'VISION', 'AUDIO', 'MULTIMODAL'] as const;
+
+const AiTargetForm: FunctionComponent<Props> = ({
+  onSubmit,
+  handleClose,
+  editing,
+  initialValues = {
+    asset_name: '',
+    ai_target_provider: 'OPENAI_COMPATIBLE',
+    ai_target_modality: 'TEXT',
+    ai_target_endpoint: '',
+    ai_target_model: '',
+    ai_target_system_prompt: '',
+    ai_target_api_key_variable: '',
+    asset_description: '',
+    asset_tags: [],
+    asset_external_reference: undefined,
+  },
+}) => {
+  const { t } = useFormatter();
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<AiTargetInput>({
+    mode: 'onTouched',
+    resolver: zodResolver(
+      zodImplement<AiTargetInput>().with({
+        asset_name: z.string().min(1, { message: t('Should not be empty') }),
+        ai_target_provider: z.enum(PROVIDERS),
+        ai_target_modality: z.enum(MODALITIES).optional(),
+        ai_target_endpoint: z.string().optional().nullable(),
+        ai_target_model: z.string().optional().nullable(),
+        ai_target_system_prompt: z.string().optional().nullable(),
+        ai_target_api_key_variable: z.string().optional().nullable(),
+        ai_target_configuration: z.record(z.string(), z.unknown()).optional(),
+        asset_description: z.string().optional(),
+        asset_tags: z.string().array().optional(),
+        asset_external_reference: z.string().optional(),
+      }),
+    ),
+    defaultValues: initialValues,
+  });
+
+  return (
+    <form id="aiTargetForm" onSubmit={handleSubmit(onSubmit)}>
+      <TextField
+        variant="standard"
+        fullWidth
+        label={t('Name')}
+        style={{ marginTop: 10 }}
+        error={!!errors.asset_name}
+        helperText={errors.asset_name?.message}
+        {...register('asset_name')}
+        required
+      />
+      <Controller
+        control={control}
+        name="ai_target_provider"
+        rules={{ required: true }}
+        render={({ field }) => (
+          <TextField
+            select
+            variant="standard"
+            fullWidth
+            value={field.value}
+            label={t('Provider')}
+            style={{ marginTop: 20 }}
+            error={!!errors.ai_target_provider}
+            helperText={errors.ai_target_provider?.message}
+            {...register('ai_target_provider')}
+            required
+          >
+            {PROVIDERS.map(provider => (
+              <MenuItem key={provider} value={provider}>{t(provider)}</MenuItem>
+            ))}
+          </TextField>
+        )}
+      />
+      <Controller
+        control={control}
+        name="ai_target_modality"
+        render={({ field }) => (
+          <TextField
+            select
+            variant="standard"
+            fullWidth
+            value={field.value ?? 'TEXT'}
+            label={t('Modality')}
+            style={{ marginTop: 20 }}
+            error={!!errors.ai_target_modality}
+            helperText={errors.ai_target_modality?.message}
+            {...register('ai_target_modality')}
+          >
+            {MODALITIES.map(modality => (
+              <MenuItem key={modality} value={modality}>{t(modality)}</MenuItem>
+            ))}
+          </TextField>
+        )}
+      />
+      <TextField
+        variant="standard"
+        fullWidth
+        label={t('Endpoint URL')}
+        placeholder="https://api.openai.com/v1"
+        style={{ marginTop: 20 }}
+        error={!!errors.ai_target_endpoint}
+        helperText={errors.ai_target_endpoint?.message}
+        {...register('ai_target_endpoint')}
+      />
+      <TextField
+        variant="standard"
+        fullWidth
+        label={t('Model')}
+        placeholder="gpt-4o"
+        style={{ marginTop: 20 }}
+        error={!!errors.ai_target_model}
+        helperText={errors.ai_target_model?.message}
+        {...register('ai_target_model')}
+      />
+      <TextField
+        variant="standard"
+        fullWidth
+        multiline
+        rows={3}
+        label={t('System prompt (optional)')}
+        style={{ marginTop: 20 }}
+        error={!!errors.ai_target_system_prompt}
+        helperText={errors.ai_target_system_prompt?.message}
+        {...register('ai_target_system_prompt')}
+      />
+      <TextField
+        variant="standard"
+        fullWidth
+        label={t('API key variable')}
+        placeholder="OPENAI_API_KEY"
+        style={{ marginTop: 20 }}
+        error={!!errors.ai_target_api_key_variable}
+        helperText={
+          errors.ai_target_api_key_variable?.message
+          ?? t('Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.')
+        }
+        {...register('ai_target_api_key_variable')}
+      />
+      <TextField
+        variant="standard"
+        fullWidth
+        multiline
+        rows={2}
+        label={t('Description')}
+        style={{ marginTop: 20 }}
+        error={!!errors.asset_description}
+        helperText={errors.asset_description?.message}
+        {...register('asset_description')}
+      />
+      <Controller
+        control={control}
+        name="asset_tags"
+        render={({ field: { onChange, value }, fieldState: { error } }) => (
+          <TagField
+            label={t('Tags')}
+            fieldValue={value ?? []}
+            fieldOnChange={onChange}
+            error={error}
+            style={{ marginTop: 20 }}
+          />
+        )}
+      />
+      <div style={{
+        float: 'right',
+        marginTop: 20,
+      }}
+      >
+        <Button
+          variant="contained"
+          onClick={handleClose}
+          style={{ marginRight: 10 }}
+          disabled={isSubmitting}
+        >
+          {t('Cancel')}
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          type="submit"
+          disabled={!isDirty || isSubmitting}
+        >
+          {editing ? t('Update') : t('Create')}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default AiTargetForm;

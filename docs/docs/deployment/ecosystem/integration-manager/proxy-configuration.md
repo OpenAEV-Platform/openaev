@@ -104,4 +104,4 @@ Replace `{instance-id}` with your connector instance ID.
 
 
 
-See also: [Private Registry Authentication](registry-authentification.md)
+See also: [Private Registry Authentication](registry-authentication.md)

@@ -1356,7 +1356,8 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Collector> collectors =
+        this.collectorService.securityPlatformCollectors(inject.getTenant().getId());
     List<Injector> injectors = this.injectorService.findAll();
     List<HealthCheck> healthChecks = new ArrayList<>();
 
@@ -1391,7 +1392,7 @@ public class InjectService {
    * @return distinct security platforms
    */
   public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
-    Stream<InjectExpectation> allInjectExpectationsStream =
+    Stream<BaseInjectExpectation> allInjectExpectationsStream =
         extractInjectExpectationsFromInjects(injects);
     Set<String> assetIds =
         extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);

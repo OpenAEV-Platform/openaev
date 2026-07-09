@@ -7,6 +7,7 @@ import io.openaev.telemetry.OpenTelemetryConfig;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.AgentMetricCollector;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.MetricRegistry;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.opentelemetry.api.OpenTelemetry;
@@ -47,6 +48,11 @@ public class NoOpOpenTelemetryConfig {
   public ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector(
       MetricRegistry metricRegistry) {
     return Mockito.mock(ChainingSafetyPolicyMetricCollector.class);
+  }
+
+  @Bean
+  public InventoryMetricCollector inventoryMetricCollector(MetricRegistry metricRegistry) {
+    return Mockito.mock(InventoryMetricCollector.class);
   }
 
   @Bean

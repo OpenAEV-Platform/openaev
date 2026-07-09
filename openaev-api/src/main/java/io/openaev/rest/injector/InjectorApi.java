@@ -79,7 +79,7 @@ public class InjectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve injectors",
       description = "Retrieve all injectors and pending injectors if includeNext is true")
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   @ApiResponse(
       responseCode = "200",
@@ -286,7 +286,7 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
   public List<FilterUtilsJpa.Option> optionsById(
       @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
-    return injectorService.findAllByIds(ids).stream()
+    return injectorService.findAllByIds(ids, TenantContext.getCurrentTenant()).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }

@@ -337,10 +337,8 @@ const CreateInject: FunctionComponent<Props> = ({
         entities: { injects: Record<string, InjectStore> };
       }) => {
         if (onCreateInjects && result.entities) {
-          const created: InjectOutputType[] = [];
-          result.result.map((r: string) => {
-            created.push(result.entities.injects[r]);
-          });
+          const created: InjectOutputType[] = result.result
+            .map((injectId: string) => result.entities.injects[injectId] as InjectOutputType);
           onCreateInjects(created);
         }
         handleCloseDrawer();

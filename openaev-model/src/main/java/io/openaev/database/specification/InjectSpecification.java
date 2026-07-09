@@ -149,7 +149,11 @@ public class InjectSpecification {
       if (query != null) {
         query.distinct(true);
       }
-      return root.join("injectorContract").join("injectors").get("type").in(VALID_TESTABLE_TYPES);
+      return root.join("injectorContract")
+          .join("injectorLinks")
+          .join("injector")
+          .get("type")
+          .in(VALID_TESTABLE_TYPES);
     };
   }
 

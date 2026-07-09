@@ -6,6 +6,8 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE_CREATION;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.debug.DebugLogCorrelationListener;
+import io.openaev.debug.DebugTracingContextInitializer;
 import io.openaev.tools.FlywayMigrationValidator;
 import jakarta.annotation.PostConstruct;
 import java.sql.Timestamp;
@@ -15,8 +17,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 
 @SpringBootApplication
 @Slf4j
@@ -28,7 +30,19 @@ public class App {
 
   public static void main(String[] args) {
     FlywayMigrationValidator.validateFlywayMigrationNames();
-    SpringApplication.run(App.class, args);
+    application().run(args);
+  }
+
+  /**
+   * Builds the production application. {@link DebugTracingContextInitializer} excludes the tracing
+   * auto-configuration unless debug mode is active; it is registered here for production and via
+   * src/test/resources spring.factories for tests (an EnvironmentPostProcessor /
+   * context.initializer.classes does not run under {@code @SpringBootTest}).
+   */
+  static SpringApplicationBuilder application() {
+    return new SpringApplicationBuilder(App.class)
+        .initializers(new DebugTracingContextInitializer())
+        .listeners(new DebugLogCorrelationListener());
   }
 
   @PostConstruct

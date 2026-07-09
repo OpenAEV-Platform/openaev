@@ -58,7 +58,7 @@ public class TaniumExecutorServiceTest {
     taniumExecutor = new Executor();
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
-    taniumExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    taniumExecutor.setTenantId(TenantContext.getCurrentTenant());
   }
 
   @Test

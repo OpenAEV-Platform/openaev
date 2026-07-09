@@ -66,7 +66,8 @@ public class ChallengeExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChallengeContent content = contentConvert(injection, ChallengeContent.class);
+      ChallengeContent content =
+          injectExpectationService.contentConvert(injection, ChallengeContent.class);
       List<Challenge> challenges =
           fromIterable(challengeRepository.findAllById(content.getChallenges()));
       if (challenges.isEmpty()) {

@@ -737,25 +737,27 @@ class StepServiceTest {
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.of(stepId));
 
       // Act
-      String result = stepService.findStepIdByInjectId(injectId);
+      Optional<String> result = stepService.findStepIdByInjectId(injectId);
 
       // Assert
-      assertNotNull(result);
-      assertEquals(stepId, result);
+      assertTrue(result.isPresent());
+      assertEquals(stepId, result.get());
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
 
     @Test
-    void given_missingInjectId_should_throw() {
+    void given_missingInjectId_should_returnEmptyOptional() {
       // Arrange
       String injectId = UUID.randomUUID().toString();
 
       when(stepRepository.findStepIdByInjectId(injectId)).thenReturn(Optional.empty());
 
-      // Act + Assert
-      assertThrows(
-          ElementNotFoundException.class, () -> stepService.findStepIdByInjectId(injectId));
+      // Act
+      Optional<String> result = stepService.findStepIdByInjectId(injectId);
+
+      // Assert
+      assertTrue(result.isEmpty());
       verify(stepRepository).findStepIdByInjectId(injectId);
       verifyNoMoreInteractions(stepRepository);
     }
@@ -922,6 +924,8 @@ class StepServiceTest {
       Step existing = new Step();
       Workflow existingWorkflow = new Workflow();
       existing.setWorkflow(existingWorkflow);
+      existing.setConditionSteps(
+          new ArrayList<>(List.of(new ConditionStep(), new ConditionStep())));
 
       Step candidate = new Step();
       candidate.setStepAction(StepActionClass.INJECT_EXECUTION);
@@ -929,6 +933,7 @@ class StepServiceTest {
       candidate.setData("{\"updated\":true}");
       candidate.setInput("{}");
       candidate.setOutputParser("{}");
+      Step saved = new Step();
 
       when(stepInput.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
       when(stepInput.getConditions()).thenReturn(Collections.emptyList());
@@ -940,15 +945,16 @@ class StepServiceTest {
           .factoryAction(StepActionClass.INJECT_EXECUTION, stepId);
       when(actionStep.create(any(StepsCreateInput.StepInput.class), eq(existingWorkflow)))
           .thenReturn(Optional.of(candidate));
-      when(stepRepository.save(existing)).thenReturn(existing);
+      when(stepRepository.save(existing)).thenReturn(saved);
 
       // Act
       Step updated = stepService.updateStepTemplate(stepId, stepInput);
 
       // Assert
-      assertSame(existing, updated);
-      assertEquals(5, updated.getLimitExecution());
-      assertEquals("{\"updated\":true}", updated.getData());
+      assertSame(saved, updated);
+      assertEquals(5, existing.getLimitExecution());
+      assertEquals("{\"updated\":true}", existing.getData());
+      assertTrue(existing.getConditionSteps().isEmpty());
       verify(conditionService).deleteAllConditionsByStepId(stepId, List.of("cond-x"));
       verify(conditionService).linkExistingConditionsToStep(existing, List.of("cond-x"));
       verify(stepRepository).save(existing);

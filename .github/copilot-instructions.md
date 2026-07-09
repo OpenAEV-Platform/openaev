@@ -138,6 +138,26 @@ openaev-front/
 
 **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
+## PR Title Format
+
+PR titles follow the same Conventional Commits format as commit messages:
+
+```
+<type>(<scope>)?: <short description> (#<issue-number>)?
+```
+
+> ⚠️ The `openaev-pr-checks` GitHub App validates PR titles against this pattern. Titles with extra prefixes
+> (e.g. `[backend]`) will be rejected.
+
+## Pre-PR Checklist
+
+Before creating a pull request, validate locally:
+
+1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21 mvn spotless:check`)
+2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix
+3. **Compile**: `mvn compile -DskipTests` (or via Docker)
+4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
+
 ## Key Commands Reference
 
 ### Backend
