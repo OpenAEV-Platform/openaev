@@ -23,7 +23,6 @@ import java.sql.ResultSet;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
