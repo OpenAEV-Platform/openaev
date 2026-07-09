@@ -2,6 +2,7 @@ package io.openaev.service.chaining;
 
 import io.openaev.database.model.*;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -73,13 +74,15 @@ public class PrimitiveValidationContextBuilder {
             : Collections.emptySet();
     Set<String> allowlistedDomains =
         needsDomainValidation
-            ? collectRuleValues(
-                workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.DOMAIN)
+            ? normalizeDomains(
+                collectRuleValues(
+                    workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.DOMAIN))
             : Collections.emptySet();
     Set<String> denylistedDomains =
         needsDomainValidation
-            ? collectRuleValues(
-                workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.DOMAIN)
+            ? normalizeDomains(
+                collectRuleValues(
+                    workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.DOMAIN))
             : Collections.emptySet();
 
     return new PrimitiveValidationContext(
@@ -113,5 +116,13 @@ public class PrimitiveValidationContextBuilder {
         .map(String::trim)
         .filter(value -> !value.isEmpty())
         .collect(Collectors.toSet());
+  }
+
+  private String normalizeDomain(String domain) {
+    return domain.toLowerCase(Locale.ROOT);
+  }
+
+  private Set<String> normalizeDomains(Set<String> domains) {
+    return domains.stream().map(this::normalizeDomain).collect(Collectors.toSet());
   }
 }

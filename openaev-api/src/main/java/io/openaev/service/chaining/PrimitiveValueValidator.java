@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.utils.IpAddressUtils;
 import io.openaev.utils.StringUtils;
+import java.util.Locale;
 import org.apache.commons.validator.routines.DomainValidator;
 
 /** Validation rules for primitive chaining values before they are persisted in workflow state. */
@@ -69,21 +70,13 @@ public final class PrimitiveValueValidator {
   }
 
   private static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
-    if (containsDomain(context.denylistedDomains(), domain)) {
+    String normalizedDomain = domain.toLowerCase(Locale.ROOT);
+    if (context.denylistedDomains().contains(normalizedDomain)) {
       return false;
     }
     if (context.allowlistedDomains().isEmpty()) {
       return true;
     }
-    return containsDomain(context.allowlistedDomains(), domain);
-  }
-
-  private static boolean containsDomain(Iterable<String> candidates, String domain) {
-    for (String candidate : candidates) {
-      if (candidate.equalsIgnoreCase(domain)) {
-        return true;
-      }
-    }
-    return false;
+    return context.allowlistedDomains().contains(normalizedDomain);
   }
 }

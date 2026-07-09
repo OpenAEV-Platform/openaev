@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.Arrays;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,11 +22,6 @@ class ChainingTypeRegistryTest {
             ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Asset)
                 .kind())
         .isEqualTo(ChainingTypeKind.COMPLEX);
-    assertThat(
-            ChainingTypeRegistry.getMappedTypeForContractOutputType(
-                    ContractOutputType.ExpectationSignature)
-                .kind())
-        .isEqualTo(ChainingTypeKind.NON_CHAINABLE);
   }
 
   @Test
@@ -85,18 +79,15 @@ class ChainingTypeRegistryTest {
   }
 
   @Test
-  @DisplayName("Should keep expectation signature non-chainable")
-  void given_contractOutputTypes_should_keepExpectationSignatureNonChainable() {
-    assertThat(
-            ChainingTypeRegistry.getMappedTypeForContractOutputType(
-                    ContractOutputType.ExpectationSignature)
-                .kind())
-        .isEqualTo(ChainingTypeKind.NON_CHAINABLE);
-    assertThat(Arrays.stream(ContractOutputType.values()))
-        .filter(type -> type != ContractOutputType.ExpectationSignature)
-        .allMatch(
-            type ->
-                ChainingTypeRegistry.getMappedTypeForContractOutputType(type).kind()
-                    != ChainingTypeKind.NON_CHAINABLE);
+  @DisplayName("Should keep only expectation signature non-chainable")
+  void given_contractOutputTypes_should_keepOnlyExpectationSignatureNonChainable() {
+    for (ContractOutputType type : ContractOutputType.values()) {
+      ChainingTypeKind kind = ChainingTypeRegistry.getMappedTypeForContractOutputType(type).kind();
+      if (type == ContractOutputType.ExpectationSignature) {
+        assertThat(kind).isEqualTo(ChainingTypeKind.NON_CHAINABLE);
+      } else {
+        assertThat(kind).isNotEqualTo(ChainingTypeKind.NON_CHAINABLE);
+      }
+    }
   }
 }
