@@ -120,4 +120,14 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
   @NotNull
   @Min(1)
   private Integer apiRegisterInterval = 1200;
+
+  @IntegrationConfigKey(
+      key = "EXECUTOR_MDE_STALE_PENDING_THRESHOLD_MINUTES",
+      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
+      description =
+          "Age in minutes above which a stuck Pending MDE Live Response action is cancelled before a new dispatch. MDE allows a single Live Response session per machine, so a Pending action left by an offline machine blocks every later inject on it. Kept well above the inject timeout so a concurrent inject's fresh session is never cancelled.")
+  @Getter
+  @NotNull
+  @Min(1)
+  private Integer stalePendingThresholdMinutes = 30;
 }
