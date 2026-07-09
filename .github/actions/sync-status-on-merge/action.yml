@@ -213,14 +213,19 @@ runs:
           fi
 
           if [ "$MOVE_MILESTONE" == "true" ]; then
-            EXISTING=$(gh api "repos/$OWNER/$REPO_NAME/milestones?state=all&per_page=100" \
-              | jq -r --arg t "$TARGET_MILESTONE" '.[] | select(.title == $t) | .number')
+            # NOTE: we deliberately never try to create the milestone here.
+            # We only look it up (paginated, across all states) and, if it
+            # can't be found, warn and skip the assignment instead of
+            # failing the job. Using --paginate avoids missing the target
+            # milestone when the repo has more than one page of milestones.
+            EXISTING=$(gh api --paginate "repos/$OWNER/$REPO_NAME/milestones?state=all&per_page=100" \
+              | jq -rs --arg t "$TARGET_MILESTONE" 'add | .[] | select(.title == $t) | .number' | head -n1)
             if [ -z "$EXISTING" ]; then
-              gh api "repos/$OWNER/$REPO_NAME/milestones" -f title="$TARGET_MILESTONE" > /dev/null
-              echo "🆕 Milestone \"$TARGET_MILESTONE\" created."
+              echo "⚠️ Milestone \"$TARGET_MILESTONE\" not found in $OWNER/$REPO_NAME — skipping milestone assignment."
+            else
+              gh issue edit "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME" --milestone "$TARGET_MILESTONE"
+              echo "✅ Milestone → \"$TARGET_MILESTONE\""
             fi
-            gh issue edit "$ISSUE_NUM" --repo "$OWNER/$REPO_NAME" --milestone "$TARGET_MILESTONE"
-            echo "✅ Milestone → \"$TARGET_MILESTONE\""
           fi
 
           echo "::endgroup::"
