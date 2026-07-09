@@ -296,9 +296,9 @@ public class InjectExecutionStep implements ActionStep {
     }
 
     Workflow workflowRun = stepRun.getWorkflow();
-    Map<String, ChainingMappedType> typeMappings = buildTypeMappingsFromInject(inject);
+    Map<String, ChainingMappedType> outputTypeMappings = buildTypeMappingsFromInject(inject);
     // Sync global state with execution output values mapped to chaining primitive/complex types.
-    workflowStateService.syncState(gson.toJsonTree(outputData), typeMappings, workflowRun);
+    workflowStateService.syncState(gson.toJsonTree(outputData), outputTypeMappings, workflowRun);
   }
 
   /** Extracts key-value pairs from structured "parsed" output entries. */
