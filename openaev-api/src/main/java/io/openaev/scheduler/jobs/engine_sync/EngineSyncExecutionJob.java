@@ -42,7 +42,8 @@ public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
 
       if (model.isEmpty()) {
         throw new JobExecutionException(
-            "Requested engine sync for model '%s' but no such model is known to the backend.");
+            "Requested engine sync for model '%s' but no such model is known to the backend."
+                .formatted(requestedModelName));
       }
 
       log.info("Executing engine sync for model {}", model.get().getName());
