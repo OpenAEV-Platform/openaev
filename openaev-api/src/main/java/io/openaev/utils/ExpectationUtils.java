@@ -15,21 +15,12 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
-import io.openaev.expectation.DetectionExpectation;
-import io.openaev.expectation.ExpectationSignature;
-import io.openaev.expectation.ManualExpectation;
-import io.openaev.expectation.PreventionExpectation;
-import io.openaev.expectation.VulnerabilityExpectation;
+import io.openaev.expectation.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.OptionalDouble;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -47,8 +38,8 @@ import java.util.stream.Stream;
  * <p>This is a utility class and cannot be instantiated.
  *
  * @see io.openaev.database.model.BaseInjectExpectation
- * @see io.openaev.model.expectation.PreventionExpectation
- * @see io.openaev.model.expectation.DetectionExpectation
+ * @see io.openaev.expectation.PreventionExpectation
+ * @see io.openaev.expectation.DetectionExpectation
  */
 public class ExpectationUtils {
 
@@ -441,7 +432,7 @@ public class ExpectationUtils {
     }
   }
 
-  private static List<ExpectationSignature> computeSignatures(
+  public static List<ExpectationSignature> computeSignatures(
       String prefixSignature,
       String injectId,
       Asset sourceAsset,
