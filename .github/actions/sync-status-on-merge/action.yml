@@ -14,8 +14,6 @@ inputs:
     default: '0. Candidate'
   pr-number:
     default: ''
-  dry-run:
-    default: 'false'
 
 runs:
   using: 'composite'
@@ -52,10 +50,6 @@ runs:
 
         KEYWORD_NUMS=$(echo "$FULLTEXT" | grep -oiP '(close[sd]?|fix(es|ed)?|resolve[sd]?)\s*:?\s*#\d+' | grep -oP '\d+' || true)
 
-        # NOTE: grep exits 1 when it finds no match. With `set -euo pipefail`,
-        # that would silently abort the whole script if no issue reference is
-        # found anywhere in the title/body. `|| true` makes "no issues
-        # detected" a normal (empty) outcome instead of a hard failure.
         ISSUES=$(echo "$TITLE_NUMS $KEYWORD_NUMS" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un | tr '\n' ' ' | sed 's/ $//' || true)
 
         echo "Detected issues: ${ISSUES:-<none>}"
@@ -103,7 +97,6 @@ runs:
         PROJECT_NUMBER: ${{ inputs.project-number }}
         FF_LABEL: ${{ inputs.feature-flag-label }}
         TARGET_MILESTONE: ${{ inputs.target-milestone }}
-        DRY_RUN: ${{ inputs.dry-run }}
         ISSUES: ${{ steps.pr.outputs.issues }}
         PROJECT_ID: ${{ steps.field.outputs.project-id }}
         FIELD_ID: ${{ steps.field.outputs.field-id }}
@@ -114,9 +107,6 @@ runs:
         for ISSUE_NUM in $ISSUES; do
           echo "::group::Issue #$ISSUE_NUM"
 
-          # NOTE: ProjectV2Owner is an interface; 'login' only exists on the
-          # concrete types implementing it (Organization, User), hence the
-          # inline fragments below instead of a plain 'owner { login }'.
           ITEM_RESULT=$(gh api graphql -f query='
             query($owner:String!, $repo:String!, $number:Int!) {
               repository(owner:$owner, name:$repo) {
@@ -190,12 +180,6 @@ runs:
             continue
           fi
 
-          if [ "$DRY_RUN" == "true" ]; then
-            echo "🧪 [dry-run] #$ISSUE_NUM: \"$CURRENT_STATUS\" → \"$NEW_STATUS\", close=$CLOSE_ISSUE (+solved label), milestone=$([ "$MOVE_MILESTONE" == "true" ] && echo "$TARGET_MILESTONE" || echo "unchanged")"
-            echo "::endgroup::"
-            continue
-          fi
-
           gh api graphql -f query='
             mutation($project:ID!, $item:ID!, $field:ID!, $value:String!) {
               updateProjectV2ItemFieldValue(input: {
@@ -213,11 +197,6 @@ runs:
           fi
 
           if [ "$MOVE_MILESTONE" == "true" ]; then
-            # NOTE: we deliberately never try to create the milestone here.
-            # We only look it up (paginated, across all states) and, if it
-            # can't be found, warn and skip the assignment instead of
-            # failing the job. Using --paginate avoids missing the target
-            # milestone when the repo has more than one page of milestones.
             EXISTING=$(gh api --paginate "repos/$OWNER/$REPO_NAME/milestones?state=all&per_page=100" \
               | jq -rs --arg t "$TARGET_MILESTONE" 'add | .[] | select(.title == $t) | .number' | head -n1)
             if [ -z "$EXISTING" ]; then
