@@ -10,11 +10,6 @@ on:
         description: 'PR number to be (re)processed manually'
         required: true
         type: string
-      dry_run:
-        description: 'Dry run (no entries)'
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -40,4 +35,3 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
           pr-number: ${{ github.event.inputs.pr_number || '' }}
-          dry-run: ${{ github.event.inputs.dry_run || 'false' }}
