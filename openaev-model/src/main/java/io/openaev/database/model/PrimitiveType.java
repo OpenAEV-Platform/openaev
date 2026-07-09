@@ -4,11 +4,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Arrays;
 
 public enum PrimitiveType {
-  @JsonProperty("text")
-  Text("text"),
+  @JsonProperty("asset_group_id")
+  AssetGroupId("asset_group_id"),
 
-  @JsonProperty("number")
-  Number("number"),
+  @JsonProperty("asset_id")
+  AssetId("asset_id"),
+
+  @JsonProperty("cve")
+  CVE("cve"),
+
+  @JsonProperty("document")
+  Document("document"),
+
+  @JsonProperty("domain")
+  Domain("domain"),
+
+  @JsonProperty("hash")
+  Hash("hash"),
 
   @JsonProperty("host")
   Host("host"),
@@ -16,32 +28,26 @@ public enum PrimitiveType {
   @JsonProperty("hostname")
   Hostname("hostname"),
 
-  @JsonProperty("domain")
-  Domain("domain"),
-
   @JsonProperty("ipv4")
   IPv4("ipv4"),
 
   @JsonProperty("ipv6")
   IPv6("ipv6"),
 
-  @JsonProperty("port")
-  Port("port"),
-
-  @JsonProperty("username")
-  Username("username"),
+  @JsonProperty("number")
+  Number("number"),
 
   @JsonProperty("password")
   Password("password"),
 
-  @JsonProperty("hash")
-  Hash("hash"),
+  @JsonProperty("permissions")
+  Permissions("permissions"),
+
+  @JsonProperty("port")
+  Port("port"),
 
   @JsonProperty("service")
   Service("service"),
-
-  @JsonProperty("cve")
-  CVE("cve"),
 
   @JsonProperty("severity")
   Severity("severity"),
@@ -49,14 +55,14 @@ public enum PrimitiveType {
   @JsonProperty("share_name")
   ShareName("share_name"),
 
-  @JsonProperty("permissions")
-  Permissions("permissions"),
-
-  @JsonProperty("document")
-  Document("document"),
-
   @JsonProperty("targeted-asset")
-  TargetedAsset("targeted-asset");
+  TargetedAsset("targeted-asset"),
+
+  @JsonProperty("text")
+  Text("text"),
+
+  @JsonProperty("username")
+  Username("username");
 
   public final String label;
 
