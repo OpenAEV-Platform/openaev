@@ -16,6 +16,7 @@ import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -172,13 +173,31 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              // Use Instant.now() as lastSeen so OpenAEV marks the agent as active after each sync.
-              // MDE's own lastSeen can be stale (device checked in hours ago) but the device is
-              // confirmed live in MDE right now — so we reflect that in the agent status.
-              input.setLastSeen(Instant.now());
+              // Reflect the device's real MDE lastSeen so OpenAEV's active status (lastSeen within
+              // the active threshold) mirrors whether the machine is actually reporting. Forcing
+              // Instant.now() marked every synced device active even when it had been offline for
+              // hours, so users targeted machines that could not run Live Response.
+              input.setLastSeen(parseDeviceLastSeen(device.getLastSeen()));
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  /**
+   * Parses the MDE device {@code lastSeen} (ISO-8601 UTC) into an {@link Instant}. Falls back to
+   * {@link Instant#EPOCH} when the value is missing or unparseable so the agent is treated as
+   * inactive rather than falsely reported active.
+   */
+  private static Instant parseDeviceLastSeen(String lastSeen) {
+    if (lastSeen == null || lastSeen.isBlank()) {
+      return Instant.EPOCH;
+    }
+    try {
+      return Instant.parse(lastSeen);
+    } catch (DateTimeParseException e) {
+      log.warn("Could not parse MDE device lastSeen '{}': {}", lastSeen, e.getMessage());
+      return Instant.EPOCH;
+    }
   }
 
   @VisibleForTesting
