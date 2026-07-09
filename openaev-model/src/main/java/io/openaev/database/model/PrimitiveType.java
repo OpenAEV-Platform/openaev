@@ -19,6 +19,9 @@ public enum PrimitiveType {
   @JsonProperty("domain")
   Domain("domain"),
 
+  @JsonProperty("expectation_signature")
+  ExpectationSignature("expectation_signature"),
+
   @JsonProperty("hash")
   Hash("hash"),
 

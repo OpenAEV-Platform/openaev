@@ -18,8 +18,7 @@ public record ChainingOutputType(
     registerPrimitive(ContractOutputType.Port, PrimitiveType.Port);
     registerPrimitive(ContractOutputType.IPv4, PrimitiveType.IPv4);
     registerPrimitive(ContractOutputType.IPv6, PrimitiveType.IPv6);
-    registerPrimitive(ContractOutputType.CVE, PrimitiveType.CVE);
-    registerPrimitive(ContractOutputType.Username, PrimitiveType.Username);
+    registerPrimitive(ContractOutputType.ExpectationSignature, PrimitiveType.ExpectationSignature);
 
     registerComplex(ContractOutputType.Credentials, ComplexType.Credentials);
     registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan);
@@ -27,16 +26,18 @@ public record ChainingOutputType(
     registerComplex(ContractOutputType.Vulnerability, ComplexType.Vulnerability);
     registerComplex(ContractOutputType.AsreproastableAccount, ComplexType.AsreproastableAccount);
     registerComplex(ContractOutputType.KerberoastableAccount, ComplexType.KerberoastableAccount);
-
-    registerNonChainable(ContractOutputType.AdminUsername);
-    registerNonChainable(ContractOutputType.Group);
-    registerNonChainable(ContractOutputType.Computer);
-    registerNonChainable(ContractOutputType.PasswordPolicy);
-    registerNonChainable(ContractOutputType.Delegation);
-    registerNonChainable(ContractOutputType.Sid);
-    registerNonChainable(ContractOutputType.AccountWithPasswordNotRequired);
-    registerNonChainable(ContractOutputType.Asset);
-    registerNonChainable(ContractOutputType.ExpectationSignature);
+    registerComplex(ContractOutputType.CVE, ComplexType.CVE);
+    registerComplex(ContractOutputType.Username, ComplexType.Username);
+    registerComplex(ContractOutputType.AdminUsername, ComplexType.AdminUsername);
+    registerComplex(ContractOutputType.Group, ComplexType.Group);
+    registerComplex(ContractOutputType.Computer, ComplexType.Computer);
+    registerComplex(ContractOutputType.PasswordPolicy, ComplexType.PasswordPolicy);
+    registerComplex(ContractOutputType.Delegation, ComplexType.Delegation);
+    registerComplex(ContractOutputType.Sid, ComplexType.Sid);
+    registerComplex(
+        ContractOutputType.AccountWithPasswordNotRequired,
+        ComplexType.AccountWithPasswordNotRequired);
+    registerComplex(ContractOutputType.Asset, ComplexType.Asset);
   }
 
   private static void registerPrimitive(
@@ -50,11 +51,6 @@ public record ChainingOutputType(
     INDEX.put(
         outputType,
         new ChainingOutputType(outputType, ChainingTypeKind.COMPLEX, null, complexType));
-  }
-
-  private static void registerNonChainable(ContractOutputType outputType) {
-    INDEX.put(
-        outputType, new ChainingOutputType(outputType, ChainingTypeKind.NON_CHAINABLE, null, null));
   }
 
   public static ChainingOutputType fromContractOutputType(ContractOutputType type) {
