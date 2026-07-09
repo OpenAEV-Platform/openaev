@@ -118,6 +118,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEd
         inject_description: action.inject_description,
         inject_injector_contract: action.inject_injector_contract,
         inject_assets: action.inject_assets,
+        inject_content: action.inject_content,
       },
     };
   }, [workflowId]);

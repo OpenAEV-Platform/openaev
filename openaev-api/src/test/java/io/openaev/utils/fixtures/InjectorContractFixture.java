@@ -121,9 +121,11 @@ public class InjectorContractFixture {
   @SneakyThrows
   private static InjectorContract createDefaultInjectorContractInternal() {
     InjectorContract injectorContract = new InjectorContract();
-    injectorContract.addInjector(createDefaultPayloadInjector());
+    // Assign id and tenant before linking, so the join entity captures the real composite key
+    // (mirrors the sibling helpers and every production link site).
     injectorContract.setId(UUID.randomUUID().toString());
     setDefaultTenant(injectorContract);
+    injectorContract.addInjector(createDefaultPayloadInjector());
 
     ObjectMapper objectMapper = new ObjectMapper();
     ObjectNode content = createDefaultContent(objectMapper);

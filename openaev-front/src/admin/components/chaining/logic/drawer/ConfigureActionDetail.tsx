@@ -19,7 +19,16 @@ import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../../utils
 import type { ContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
 import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
+import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
 import { type ActionDetailData } from '../types';
+import {
+  applyPredefinedExpectations,
+  buildContractDefaults,
+  EXPECTATION_FIELD_TYPE,
+  EXPECTATIONS_CONTENT_KEY,
+  getContractFieldDefaultValue,
+  isExpectationInput,
+} from './ConfigureActionDetail.utils';
 import InjectDataFieldItem, { type FieldLink } from './InjectDataFieldItem';
 
 interface ConfigureActionDetailProps {
@@ -90,16 +99,15 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               const parsed = JSON.parse(res.data.injector_contract_content);
               const fields = (parsed.fields ?? []) as ContractElement[];
               setContractFields(fields);
-              // Set default values only if no initialData was provided
-              if (!initialData?.inject_content) {
-                const defaults: Record<string, unknown> = {};
-                for (const field of fields) {
-                  if (field.defaultValue !== undefined && field.defaultValue !== null) {
-                    defaults[field.key] = field.defaultValue;
-                  }
-                }
-                setFieldValues(defaults);
-              }
+              setFieldValues(
+                applyPredefinedExpectations(
+                  (initialData?.inject_content ?? buildContractDefaults(fields)) as Record<
+                    string,
+                    unknown
+                  >,
+                  fields,
+                ),
+              );
             } catch {
               setContractFields([]);
             }
@@ -110,17 +118,17 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }
   }, [action, initialData]);
 
+  // Resets all input argument fields to contract defaults.
+  // Expectations are explicitly restored from current state because they are not part of this reset.
   const handleResetDefaults = () => {
-    const defaults: Record<string, unknown> = {};
-    for (const field of contractFields) {
-      if (field.defaultValue !== undefined && field.defaultValue !== null) {
-        defaults[field.key] = field.defaultValue;
-      }
-    }
-    setFieldValues(defaults);
+    setFieldValues(prev => ({
+      ...buildContractDefaults(contractFields),
+      [EXPECTATIONS_CONTENT_KEY]: prev[EXPECTATIONS_CONTENT_KEY],
+    }));
     setFieldLinks({});
   };
 
+  // Updates a single input argument field value.
   const handleFieldValueChange = (fieldKey: string, value: string) => {
     setFieldValues(prev => ({
       ...prev,
@@ -128,6 +136,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }));
   };
 
+  // Links a field to a workflow scope variable.
   const handleLinkField = (fieldKey: string, link: FieldLink) => {
     setFieldLinks(prev => ({
       ...prev,
@@ -135,6 +144,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     }));
   };
 
+  // Removes the scope variable link from a field, reverting it to a plain value.
   const handleUnlinkField = (fieldKey: string) => {
     setFieldLinks((prev) => {
       const next = { ...prev };
@@ -143,6 +153,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     });
   };
 
+  // Toggles whether a linked field reads from local (step) scope or global (workflow) scope.
   const handleToggleLocalScope = (fieldKey: string, localScope: boolean) => {
     setFieldLinks(prev => ({
       ...prev,
@@ -159,7 +170,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
       inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_content: fieldValues,
+      inject_content: applyPredefinedExpectations(fieldValues, contractFields),
       inject_field_links: fieldLinks,
       contract_fields: contractFields,
     });
@@ -170,9 +181,24 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     return tPick(action.action_labels);
   }, [action, tPick]);
 
-  const visibleFields = useMemo(() => {
-    return contractFields.filter(f => !f.readOnly);
+  // Expectations are not part of the generic input data because they are handled separately
+  // in their own dedicated section via <InjectExpectations>.
+  const inputArgumentFields = useMemo(() => {
+    return contractFields.filter(f => !f.readOnly && f.type !== EXPECTATION_FIELD_TYPE);
   }, [contractFields]);
+
+  const expectationField = useMemo(() => {
+    return contractFields.find(field => field.type === EXPECTATION_FIELD_TYPE);
+  }, [contractFields]);
+
+  const expectations = useMemo(() => {
+    if (!expectationField) return [];
+    const value = fieldValues[EXPECTATIONS_CONTENT_KEY]
+      ?? fieldValues[expectationField.key]
+      ?? getContractFieldDefaultValue(expectationField);
+    if (!Array.isArray(value)) return [];
+    return value.filter(isExpectationInput);
+  }, [expectationField, fieldValues]);
 
   return (
     <Drawer
@@ -270,7 +296,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
                 {t('Loading contract fields...')}
               </Typography>
             )}
-            {!loadingContract && visibleFields.length === 0 && (
+            {!loadingContract && inputArgumentFields.length === 0 && (
               <Typography variant="body2" color="text.secondary">
                 {t('No configuration fields for this action.')}
               </Typography>
@@ -281,7 +307,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               gap: 2,
             }}
             >
-              {visibleFields.map((field) => {
+              {inputArgumentFields.map((field) => {
                 const fieldLabel = t(field.label) || field.key;
                 const defaultVal = field.defaultValue != null ? String(field.defaultValue) : undefined;
                 return (
@@ -301,6 +327,27 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
               })}
             </Box>
           </Box>
+
+          {/* Expectations */}
+          {expectationField && (
+            <Box>
+              <InjectExpectations
+                expectationDatas={expectations}
+                handleExpectations={updatedExpectations => setFieldValues(prev => ({
+                  ...prev,
+                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+                }))}
+                predefinedExpectations={expectationField.predefinedExpectations ?? []}
+                availableExpectations={expectationField.availableExpectations ?? []}
+                inline
+              />
+              {expectations.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('No expectations for this action.')}
+                </Typography>
+              )}
+            </Box>
+          )}
 
           {/* Actions */}
           <Box sx={{

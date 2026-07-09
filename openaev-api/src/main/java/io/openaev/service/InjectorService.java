@@ -143,7 +143,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
               injector.setType(injectorType + DUMMY_SUFFIX);
               // Include tenant in the ID so each tenant gets its own dummy row.
               injector.setId(injectorType + DUMMY_SUFFIX + "_" + currentTenant);
-              injector.setTenant(new Tenant(currentTenant));
+              injector.setTenantId(currentTenant);
               injector.setDependencies(ExternalServiceDependency.fromInjectorType(injectorType));
               return injectorRepository.save(injector);
             });
@@ -169,8 +169,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         .collect(Collectors.toList());
   }
 
-  public List<Injector> findAllByIds(List<String> ids) {
-    return injectorRepository.findAllById(ids);
+  public List<Injector> findAllByIds(List<String> ids, String tenantId) {
+    List<ConnectorCompositeId> compositeIds =
+        ids.stream().map(id -> new ConnectorCompositeId(id, tenantId)).toList();
+    return injectorRepository.findAllById(compositeIds);
   }
 
   /**
@@ -240,7 +242,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
-        newInjector.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+        newInjector.setTenantId(TenantContext.getCurrentTenant());
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts
         List<InjectorContract> injectorContracts =
@@ -248,9 +250,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 .map(in -> injectorContractService.convertInjectorFromInput(in, savedInjector))
                 .toList();
         injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
-        // Link managed instances returned by saveAll() — originals are detached after merge()
-        savedInjector.getContracts().addAll(injectorContracts);
-        // Persist the owning side to save join table entries
+        // Link managed instances returned by saveAll() via the join entity
+        injectorContracts.forEach(savedInjector::linkContract);
+        // Flush so the join rows are written before the dummy-injector cleanup
         injectorRepository.save(savedInjector);
 
         // delete the dummy injector if it was created when importing the starter pack
@@ -302,7 +304,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                       fromIterable(
                           attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
                               current.get().getAttackPatternsExternalIds(),
-                              injector.getTenant().getId()));
+                              injector.getTenantId()));
                   contract.setAttackPatterns(attackPatterns);
                 } else {
                   contract.setAttackPatterns(new ArrayList<>());
@@ -311,13 +313,13 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                 if (!payloads) {
                   Set<Domain> currentDomains =
                       this.domainService.upsertDomainEntities(
-                          contract.getDomains(), injector.getTenant().getId());
+                          contract.getDomains(), injector.getTenantId());
                   Set<Domain> domainsToAdd =
                       this.domainService.upserts(
-                          current.get().getDomains(), injector.getTenant().getId());
+                          current.get().getDomains(), injector.getTenantId());
                   contract.setDomains(
                       this.domainService.mergeDomains(
-                          currentDomains, domainsToAdd, injector.getTenant()));
+                          currentDomains, domainsToAdd, new Tenant(injector.getTenantId())));
                 }
               } else if (!contract.getCustom()) {
                 toDeletes.add(contract.getId());
@@ -329,12 +331,15 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             .map(in -> injectorContractService.convertInjectorFromInput(in, injector))
             .toList();
     injectorContractRepository.deleteAllByIdAndTenantId(
-        toDeletes.toArray(new String[0]), injector.getTenant().getId());
-    // Remove deleted contracts from the owning-side collection to keep it in sync
-    injector.getContracts().removeIf(c -> toDeletes.contains(c.getId()));
+        toDeletes.toArray(new String[0]), injector.getTenantId());
+    // Unlink deleted contracts via the join entity
+    injector.getContracts().stream()
+        .filter(c -> toDeletes.contains(c.getId()))
+        .toList()
+        .forEach(injector::unlinkContract);
     toCreates = fromIterable(injectorContractRepository.saveAll(toCreates));
-    // Link managed instances returned by saveAll() — originals are detached after merge()
-    injector.getContracts().addAll(toCreates);
+    // Link managed instances returned by saveAll() via the join entity
+    toCreates.forEach(injector::linkContract);
     return injectorRepository.save(injector);
   }
 
@@ -442,14 +447,26 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         .ifPresent(
             dummyInjector -> {
               if (newInjector != null) {
+                // Reconcile every injector reference to the one instance managed by this session,
+                // so
+                // the flush does not see two Injector objects with the same (id, tenant). merge()
+                // returns the canonical managed instance (a re-fetch could add a second one).
+                Injector managedNewInjector =
+                    entityManager.contains(newInjector)
+                        ? newInjector
+                        : entityManager.merge(newInjector);
+                Injector managedDummy =
+                    entityManager.contains(dummyInjector)
+                        ? dummyInjector
+                        : entityManager.merge(dummyInjector);
                 List<InjectorContract> injectorContracts =
-                    injectorContractRepository.findByInjectorsContaining(dummyInjector);
+                    injectorContractRepository.findByInjectorsContaining(managedDummy);
                 injectorContracts.forEach(
                     injectorContract -> {
-                      injectorContract.getInjectors().remove(dummyInjector);
-                      injectorContract.getInjectors().add(newInjector);
+                      injectorContract.removeInjector(managedDummy);
+                      injectorContract.addInjector(managedNewInjector);
                     });
-                injectorContractRepository.saveAll(injectorContracts);
+                entityManager.flush();
               }
               injectorRepository.deleteByIdAndTenantId(dummyInjector.getId(), tenantId);
             });
@@ -478,23 +495,16 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       Boolean isPayloads,
       List<Contract> staticContracts) {
 
-    // Update scalar injector properties via tenant-scoped native UPDATE.
-    // Cannot use injectorRepository.save(injector) here: Injector has a single @Id
-    // (injector_id) but the DB has a composite PK (injector_id, tenant_id), so Hibernate
-    // generates UPDATE ... WHERE injector_id = ? which matches all tenants and causes
-    // BatchedTooManyRowsAffectedException.
-    injectorRepository.updateBuiltinScalarProperties(
-        injector.getId(),
-        tenantId,
-        name,
-        contractor.getType(),
-        category,
-        Boolean.TRUE.equals(isCustomizable),
-        Boolean.TRUE.equals(isPayloads));
+    injector.setName(name);
+    injector.setType(contractor.getType());
+    injector.setCategory(category);
+    injector.setExternal(false);
+    injector.setCustomContracts(Boolean.TRUE.equals(isCustomizable));
+    injector.setPayloads(Boolean.TRUE.equals(isPayloads));
+    injectorRepository.save(injector);
 
-    // Filter to this tenant's contracts only — the join table is keyed only on injector_id
-    // (not on injector_id+tenant_id), so injector.getContracts() loads contracts from all
-    // tenants when multiple tenants share the same injector_id.
+    // Filter to this tenant's contracts — belt-and-suspenders check since the @JoinTable
+    // and tenant filter should already scope the collection correctly.
     List<InjectorContract> tenantContracts =
         injector.getContracts().stream()
             .filter(c -> tenantId.equals(c.getCompositeId().getTenantId()))
@@ -533,9 +543,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
     // Persist changes
     injectorContractRepository.deleteAllByIdAndTenantId(
-        toDelete.toArray(new String[0]), injector.getTenant().getId());
+        toDelete.toArray(new String[0]), injector.getTenantId());
     toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
-    injectorContractRepository.saveAll(toUpdate);
 
     // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).
     // Cannot use injectorRepository.save(injector) to sync the join table: it would issue
@@ -575,7 +584,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         isPayloads,
         dependencies);
 
-    newInjector.setTenant(new Tenant(tenantId));
+    newInjector.setTenantId(tenantId);
     Injector savedInjector = injectorRepository.save(newInjector);
 
     List<InjectorContract> injectorContracts =
@@ -586,9 +595,9 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
                         contract, savedInjector, isPayloads))
             .toList();
     injectorContracts = fromIterable(injectorContractRepository.saveAll(injectorContracts));
-    // Link managed contracts on the owning side so Hibernate populates the join table.
+    // Link managed contracts via the join entity so Hibernate populates the join table.
     // We MUST use the instances returned by saveAll() — the originals are detached after merge().
-    savedInjector.getContracts().addAll(injectorContracts);
+    injectorContracts.forEach(savedInjector::linkContract);
     // Flush now so that all inserts are visible before any subsequent query triggers auto-flush
     // (e.g. deleteDummyInjectorIfItExists), which would otherwise fail with
     // TransientObjectException.

@@ -22,6 +22,7 @@ export interface ActionMeta {
   inject_injector?: string;
   inject_payload_type?: string;
   inject_payload_collector_type?: string;
+  inject_content: Record<string, unknown>;
   inject_attack_patterns_ids: string[];
   inject_kill_chain_phase_ids: string[];
   inject_assets: string[];

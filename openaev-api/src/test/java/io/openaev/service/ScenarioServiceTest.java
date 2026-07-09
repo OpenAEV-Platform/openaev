@@ -573,7 +573,7 @@ class ScenarioServiceTest extends IntegrationTest {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP
         });
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
-    injectorContract.getInjectors().clear();
+    injectorContract.clearInjectors();
     injectorContract.addInjector(injector);
 
     Inject inject = InjectFixture.createInject(injectorContract, "test");

@@ -1571,6 +1571,7 @@
   "No detection rule available for this security platform yet.": "这个安全平台还没有可用的检测规则。",
   "No documentation available": "没有可用文档",
   "No expectation for": "无期望",
+  "No expectations for this action.": "对这一行动不抱任何期望。",
   "No explanation": "无说明",
   "No file selected.": "未选择文件。",
   "No inject in this scenario": "场景中无注入",
