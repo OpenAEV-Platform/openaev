@@ -163,7 +163,9 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
   }
 
   private Injector findInjector(String injectorId) {
-    return injectorRepository.findById(injectorId).orElseThrow();
+    return injectorRepository
+        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
+        .orElseThrow();
   }
 
   private void clearDatapackRegistration() {
