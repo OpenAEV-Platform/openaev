@@ -3,17 +3,23 @@ package io.openaev.service.expectation;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildDefaultForPlayerManualValidation;
 
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.ManualInjectExpectation;
-import java.util.List;
+import io.openaev.database.repository.InjectExpectationRepository;
 import org.springframework.stereotype.Component;
 
 /**
  * Behavior implementation for {@link ManualInjectExpectation}.
  *
- * <p><strong>Dead code - not wired into any service yet.</strong>
+ * <p><strong>Dead code — not wired into any service yet.</strong> Part of the {@code
+ * InjectExpectation} refactoring (Vertical 2).
  */
 @Component
 public class ManualBehavior extends AbstractTableTopBehavior {
+
+  public ManualBehavior(InjectExpectationRepository injectExpectationRepository) {
+    super(injectExpectationRepository);
+  }
 
   @Override
   public boolean supports(BaseInjectExpectation expectation) {
@@ -21,9 +27,7 @@ public class ManualBehavior extends AbstractTableTopBehavior {
   }
 
   @Override
-  public void initializeResults(BaseInjectExpectation expectation) {
-    if (expectation.getUser() != null) {
-      expectation.setResults(List.of(buildDefaultForPlayerManualValidation()));
-    }
+  protected InjectExpectationResult buildDefaultPlayerResult() {
+    return buildDefaultForPlayerManualValidation();
   }
 }

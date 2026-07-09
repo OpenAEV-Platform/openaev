@@ -2,9 +2,7 @@ package io.openaev.rest.atomic_testing;
 
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
-import io.openaev.api.expectations.dto.InjectExpectationOutput;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.expectations.dto.InjectExpectationOutput;

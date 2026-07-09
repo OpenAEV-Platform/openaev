@@ -45,7 +45,8 @@ class SignatureOutputProcessorTest {
           securityCoverageSendJobService,
           injectExpectationLockService,
           assetGroupService,
-          injectService);
+          injectService,
+          List.of());
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService, previewFeatureService);
