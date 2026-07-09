@@ -841,7 +841,7 @@ public class WorkflowService {
 
     // Sync global state and define next steps to be executed
     workflowStateService.syncState(
-        GSON.toJsonTree(scopeStateSeed.scopeData()), scopeStateSeed.typeMappings(), workflowRun);
+        GSON.toJsonTree(scopeStateSeed.scopeData()), scopeStateSeed.scopeTypeMappings(), workflowRun);
     this.evaluateWorkflowProgress(workflowRun);
 
     saveWorkflowRun(workflowRun);
@@ -864,7 +864,7 @@ public class WorkflowService {
   }
 
   private record ScopeStateSeed(
-      Map<String, List<String>> scopeData, Map<String, ChainingMappedType> typeMappings) {}
+      Map<String, List<String>> scopeData, Map<String, ChainingMappedType> scopeTypeMappings) {}
 
   // -- Timeout --
 
