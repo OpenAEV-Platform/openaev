@@ -429,7 +429,7 @@ grep -n "TenantBaseListener" \
 | `TenantContext.getCurrentTenant()` used to look up a *different* entity | No | **Report only** — out of scope for this activation |
 | `findByIdAndTenantId` on `{EntityRepository}` | Yes | **Replace with `findById`** — inspector handles scoping, explicit tenant filter blocks multi-tenant reads |
 | `findByIdAndTenantId` on a *different* repository | No | **Report only** — that table is still on v1 |
-| `TenantBaseListener` on `{Entity}` | Yes | **Remove from `@EntityListeners`** — write attribution is now explicit |
+| `TenantBaseListener` on `{Entity}` | Yes | **Remove only if every write path attributes the tenant explicitly** (resolver / `setTenant`); otherwise **keep** — a listener-dependent path (e.g. an importer that `save()`s without `setTenant`) would write a NULL tenant |
 | Specification with `tenant_id` predicate on `{table}` | Yes | **Remove the predicate** — inspector handles it |
 
 **Output: audit report**
