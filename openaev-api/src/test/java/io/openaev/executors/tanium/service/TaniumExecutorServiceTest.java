@@ -125,7 +125,7 @@ public class TaniumExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
-    when(openAEVConfig.getBaseUrl()).thenReturn("http://localhost:8080");
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     // Run method to test
     taniumExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
@@ -168,7 +168,7 @@ public class TaniumExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
-    when(openAEVConfig.getBaseUrl()).thenReturn("http://localhost:8080");
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
 
     // Act
     taniumExecutorContextService.launchBatchExecutorSubprocess(

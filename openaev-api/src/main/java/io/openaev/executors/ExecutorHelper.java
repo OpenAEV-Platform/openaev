@@ -40,9 +40,10 @@ public class ExecutorHelper {
         || command == null
         || injectId == null
         || agentId == null
-        || tenantId == null) {
+        || tenantId == null
+        || baseUrl == null) {
       throw new IllegalArgumentException(
-          "Platform type, command, injectId, tenantId and agentId must not be null.");
+          "Platform type, command, injectId, tenantId, agentId and baseUrl must not be null.");
     }
 
     String location =

@@ -21,7 +21,7 @@ class ExecutorHelperTest {
   void shouldReplaceAllPlaceholdersIncludingTokenForWindows() {
     // prepare
     String command =
-        "run --inject=#{inject} --agent=#{agent} --tenant=#{tenant} --token=#{token} --loc=\"#{location}\"";
+        "run --inject=#{inject} --agent=#{agent} --tenant=#{tenant} --token=#{token} --loc=\"#{location}\" --baseUrl=#{baseUrl}";
 
     // act
     String result =
@@ -35,6 +35,7 @@ class ExecutorHelperTest {
         .contains("--tenant=" + TENANT_ID)
         .contains("--token=" + TOKEN)
         .contains("--loc=" + ExecutorHelper.WINDOWS_LOCATION_PATH)
+        .contains("--baseUrl=" + BASE_URL)
         .doesNotContain("#{inject}")
         .doesNotContain("#{agent}")
         .doesNotContain("#{tenant}")
@@ -45,7 +46,7 @@ class ExecutorHelperTest {
   @DisplayName("Should replace token placeholder for Linux platform")
   void shouldReplaceTokenForLinux() {
     // prepare
-    String command = "echo #{token} #{tenant}";
+    String command = "echo #{token} #{tenant} #{baseUrl}";
 
     // act
     String result =
@@ -53,7 +54,7 @@ class ExecutorHelperTest {
             PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL);
 
     // assert
-    assertThat(result).isEqualTo("echo " + TOKEN + " " + TENANT_ID);
+    assertThat(result).isEqualTo("echo " + TOKEN + " " + TENANT_ID + " " + BASE_URL);
   }
 
   @Test
@@ -95,6 +96,24 @@ class ExecutorHelperTest {
             () ->
                 ExecutorHelper.replaceArgs(
                     PLATFORM_TYPE.Linux, null, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN, BASE_URL))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName(
+      "Should propagate IllegalArgumentException from base overload when base url argument is null")
+  void shouldThrowWhenBaseUrlArgumentIsNull() {
+    // act & assert
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux,
+                    "echo #{baseUrl}",
+                    INJECT_ID,
+                    AGENT_ID,
+                    TENANT_ID,
+                    TOKEN,
+                    null))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

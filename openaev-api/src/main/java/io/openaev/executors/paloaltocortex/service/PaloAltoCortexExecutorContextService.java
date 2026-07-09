@@ -171,7 +171,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
               agent.getId(),
               inject.getTenant().getId(),
               token,
-              openAEVConfig.getBaseUrl());
+              openAEVConfig.getBaseUrlForAgent());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -222,7 +222,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
               agent.getId(),
               inject.getTenant().getId(),
               token,
-              openAEVConfig.getBaseUrl());
+              openAEVConfig.getBaseUrlForAgent());
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
