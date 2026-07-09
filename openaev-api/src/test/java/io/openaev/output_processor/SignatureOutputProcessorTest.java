@@ -18,6 +18,8 @@ import io.openaev.service.InjectExpectationLockService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +48,7 @@ class SignatureOutputProcessorTest {
           injectExpectationLockService,
           assetGroupService,
           injectService,
-          List.of());
+          new ArrayList<>(List.of()));
   private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService, previewFeatureService);
