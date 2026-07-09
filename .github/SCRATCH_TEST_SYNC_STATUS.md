@@ -1,6 +1,5 @@
-# Disposable test file
+# Scratch test file
 
-This file exists only to open a throwaway PR used to manually test the
-`sync-status-on-merge` GitHub Action via `workflow_dispatch` (dry-run first).
-
-Safe to delete once the test is complete.
+Disposable file used to trigger a test PR for validating the
+`sync-status-on-merge` action against issue #6619 (retry after
+Projects org permission was added to the GitHub App).
