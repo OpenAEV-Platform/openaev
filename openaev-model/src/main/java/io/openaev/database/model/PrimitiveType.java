@@ -34,6 +34,9 @@ public enum PrimitiveType {
   @JsonProperty("ipv6")
   IPv6("ipv6"),
 
+  @JsonProperty("ip_subnet")
+  IpSubnet("ip_subnet"),
+
   @JsonProperty("number")
   Number("number"),
 
