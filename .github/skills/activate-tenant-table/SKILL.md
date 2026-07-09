@@ -179,6 +179,30 @@ Also list child tables (FKs pointing at `{table}`). A child without its own
 `tenant_id` rides along with the parent and is NOT added to `active-tables`.
 A child with its own `tenant_id` is a separate activation; report it.
 
+**Test compatibility scan.** Adding a `TxCtx` parameter to an endpoint breaks
+tests that the repository grep misses. Two failure modes exist:
+
+1. A `standaloneSetup` or `@WebMvcTest` MockMvc test hitting the URL → 500
+   (`No primary or single unique constructor found for interface TxCtx`)
+   because the test has no `TxCtxArgumentResolver`.
+2. A test calling the controller method directly in Java → compile error
+   (missing argument).
+
+Scan for both:
+
+```bash
+# 1.1 standaloneSetup tests that hit the API's URL patterns
+grep -rln "standaloneSetup" openaev-api/src/test/java | xargs grep -l "{Api}\|/{entities}"
+
+# 1.2 direct Java calls to the API class
+grep -rn "{Api}" openaev-api/src/test/java --include="*.java"
+```
+
+Fix: register the resolver on the standalone builder
+(`.setCustomArgumentResolvers(new TxCtxTestArgumentResolver(...))`) or migrate
+to the full-context `IntegrationTest` base class; add the `TxCtx` arg to
+direct calls. List every affected test file in the inventory.
+
 ### Phase 2 — RED: write the HTTP isolation test first
 
 Model: `openaev-api/src/test/java/io/openaev/rest/mapper/ImportMapperHttpIsolationTest.java`.
