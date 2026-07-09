@@ -114,6 +114,90 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
       assertThat(updated.getExecutorClearCommands().get("clear"))
           .isEqualTo("wget https://another.example.com/cleanup");
     }
+
+    @Test
+    @DisplayName("Should not modify commands when configured base URL is null")
+    void given_nullBaseUrl_should_notModifyInjectorCommands() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(
+              Map.of("run", "curl https://openaev.example.com/api/run"),
+              Map.of("clear", "wget https://openaev.example.com/cleanup"));
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .isEqualTo("curl https://openaev.example.com/api/run");
+      assertThat(updated.getExecutorClearCommands().get("clear"))
+          .isEqualTo("wget https://openaev.example.com/cleanup");
+    }
+
+    @Test
+    @DisplayName("Should not modify commands when configured base URL formats to empty")
+    void given_baseUrlFormattingToEmpty_should_notModifyInjectorCommands() {
+      // Arrange
+      ReflectionTestUtils.setField(dataPack, "baseUrl", "/");
+      Injector injector =
+          persistInjectorWithCommands(
+              Map.of("run", "curl https://openaev.example.com/api/run"),
+              Map.of("clear", "wget https://openaev.example.com/cleanup"));
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .isEqualTo("curl https://openaev.example.com/api/run");
+      assertThat(updated.getExecutorClearCommands().get("clear"))
+          .isEqualTo("wget https://openaev.example.com/cleanup");
+    }
+
+    @Test
+    @DisplayName("Should replace clear commands when executor commands map is null")
+    void given_nullExecutorCommands_should_replaceOnlyClearCommands() {
+      // Arrange
+      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
+      Injector injector =
+          persistInjectorWithCommands(
+              null, Map.of("clear", "wget https://openaev.example.com/cleanup"));
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands()).isNull();
+      assertThat(updated.getExecutorClearCommands().get("clear"))
+          .isEqualTo("wget #{baseUrl}/cleanup");
+    }
+
+    @Test
+    @DisplayName("Should not modify command when command value is null")
+    void given_nullCommandValue_should_notModifyInjectorCommands() {
+      // Arrange
+      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com");
+      Map<String, String> executorCommands = new HashMap<>();
+      executorCommands.put("run", null);
+      executorCommands.put("other", "echo untouched");
+
+      Injector injector = persistInjectorWithCommands(executorCommands, Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands()).containsEntry("run", null);
+      assertThat(updated.getExecutorCommands()).containsEntry("other", "echo untouched");
+    }
   }
 
   @Nested
@@ -153,8 +237,9 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
             UUID.randomUUID().toString(),
             "injector-" + UUID.randomUUID(),
             "type-" + UUID.randomUUID());
-    injector.setExecutorCommands(new HashMap<>(executorCommands));
-    injector.setExecutorClearCommands(new HashMap<>(executorClearCommands));
+    injector.setExecutorCommands(executorCommands == null ? null : new HashMap<>(executorCommands));
+    injector.setExecutorClearCommands(
+        executorClearCommands == null ? null : new HashMap<>(executorClearCommands));
 
     Injector saved = injectorRepository.save(injector);
     entityManager.flush();
