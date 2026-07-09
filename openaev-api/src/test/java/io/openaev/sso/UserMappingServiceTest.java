@@ -266,7 +266,8 @@ public class UserMappingServiceTest extends IntegrationTest {
       List<String> groupsFromToken = List.of("Filigran");
 
       // -- ACT --
-      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, groupsFromToken);
 
       // -- ASSERT --
       assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
@@ -289,7 +290,8 @@ public class UserMappingServiceTest extends IntegrationTest {
       List<String> groupsFromToken = List.of("SomethingElse");
 
       // -- ACT --
-      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, groupsFromToken);
 
       // -- ASSERT --
       assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
@@ -319,7 +321,8 @@ public class UserMappingServiceTest extends IntegrationTest {
       List<String> groupsFromToken = List.of("Filigran");
 
       // -- ACT --
-      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, groupsFromToken);
 
       // -- ASSERT --
       assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
@@ -349,7 +352,8 @@ public class UserMappingServiceTest extends IntegrationTest {
       List<String> groupsFromToken = List.of("SomethingElse");
 
       // -- ACT --
-      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, groupsFromToken);
 
       // -- ASSERT --
       assertThat(user.getUnscopedGroups().size()).isEqualTo(0);
@@ -387,7 +391,8 @@ public class UserMappingServiceTest extends IntegrationTest {
       List<String> groupsFromToken = List.of("Filigran");
 
       // -- ACT --
-      userMappingService.mapCurrentUserWithGroup(object, TEST_REGISTRATION_ID, user, groupsFromToken);
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, groupsFromToken);
 
       // -- ASSERT -- GROUP_A stays, GROUP_B is removed
       assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
