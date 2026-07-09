@@ -27,7 +27,7 @@ class ChainingTypeRegistryTest {
             ChainingTypeRegistry.getMappedTypeForContractOutputType(
                     ContractOutputType.ExpectationSignature)
                 .kind())
-        .isEqualTo(ChainingTypeKind.PRIMITIVE);
+        .isEqualTo(ChainingTypeKind.NON_CHAINABLE);
   }
 
   @Test
@@ -41,7 +41,6 @@ class ChainingTypeRegistryTest {
             PrimitiveType.IPv4,
             PrimitiveType.IPv6,
             PrimitiveType.IpSubnet,
-            PrimitiveType.ExpectationSignature,
             PrimitiveType.TargetedAsset,
             PrimitiveType.Document,
             PrimitiveType.AssetId,
@@ -53,8 +52,6 @@ class ChainingTypeRegistryTest {
   void given_primitiveLabels_should_mapToPrimitiveTypes() {
     assertThat(PrimitiveType.fromLabel("ipv4")).isEqualTo(PrimitiveType.IPv4);
     assertThat(PrimitiveType.fromLabel("document")).isEqualTo(PrimitiveType.Document);
-    assertThat(PrimitiveType.fromLabel("expectation_signature"))
-        .isEqualTo(PrimitiveType.ExpectationSignature);
     assertThat(PrimitiveType.fromLabel("targeted-asset")).isEqualTo(PrimitiveType.TargetedAsset);
     assertThat(PrimitiveType.fromLabel("ip_subnet")).isEqualTo(PrimitiveType.IpSubnet);
     assertThat(PrimitiveType.fromLabel("asset_id")).isEqualTo(PrimitiveType.AssetId);
@@ -88,9 +85,15 @@ class ChainingTypeRegistryTest {
   }
 
   @Test
-  @DisplayName("Should keep all contract outputs chainable")
-  void given_contractOutputTypes_should_notContainNonChainableKinds() {
+  @DisplayName("Should keep expectation signature non-chainable")
+  void given_contractOutputTypes_should_keepExpectationSignatureNonChainable() {
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(
+                    ContractOutputType.ExpectationSignature)
+                .kind())
+        .isEqualTo(ChainingTypeKind.NON_CHAINABLE);
     assertThat(Arrays.stream(ContractOutputType.values()))
+        .filter(type -> type != ContractOutputType.ExpectationSignature)
         .allMatch(
             type ->
                 ChainingTypeRegistry.getMappedTypeForContractOutputType(type).kind()

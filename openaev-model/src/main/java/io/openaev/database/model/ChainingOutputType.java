@@ -18,7 +18,6 @@ public record ChainingOutputType(
     registerPrimitive(ContractOutputType.Port, PrimitiveType.Port);
     registerPrimitive(ContractOutputType.IPv4, PrimitiveType.IPv4);
     registerPrimitive(ContractOutputType.IPv6, PrimitiveType.IPv6);
-    registerPrimitive(ContractOutputType.ExpectationSignature, PrimitiveType.ExpectationSignature);
 
     registerComplex(ContractOutputType.Credentials, ComplexType.Credentials);
     registerComplex(ContractOutputType.PortsScan, ComplexType.PortsScan);
@@ -38,6 +37,8 @@ public record ChainingOutputType(
         ContractOutputType.AccountWithPasswordNotRequired,
         ComplexType.AccountWithPasswordNotRequired);
     registerComplex(ContractOutputType.Asset, ComplexType.Asset);
+
+    registerNonChainable(ContractOutputType.ExpectationSignature);
   }
 
   private static void registerPrimitive(
@@ -51,6 +52,11 @@ public record ChainingOutputType(
     INDEX.put(
         outputType,
         new ChainingOutputType(outputType, ChainingTypeKind.COMPLEX, null, complexType));
+  }
+
+  private static void registerNonChainable(ContractOutputType outputType) {
+    INDEX.put(
+        outputType, new ChainingOutputType(outputType, ChainingTypeKind.NON_CHAINABLE, null, null));
   }
 
   public static ChainingOutputType fromContractOutputType(ContractOutputType type) {
