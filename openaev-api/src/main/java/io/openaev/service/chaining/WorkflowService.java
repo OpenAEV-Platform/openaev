@@ -841,7 +841,9 @@ public class WorkflowService {
 
     // Sync global state and define next steps to be executed
     workflowStateService.syncState(
-        GSON.toJsonTree(scopeStateSeed.scopeData()), scopeStateSeed.scopeTypeMappings(), workflowRun);
+        GSON.toJsonTree(scopeStateSeed.scopeData()),
+        scopeStateSeed.scopeTypeMappings(),
+        workflowRun);
     this.evaluateWorkflowProgress(workflowRun);
 
     saveWorkflowRun(workflowRun);

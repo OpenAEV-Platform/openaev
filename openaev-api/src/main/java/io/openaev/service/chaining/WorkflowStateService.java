@@ -276,22 +276,9 @@ public class WorkflowStateService {
                 primitiveTypes = mappedType.primitiveTypes();
               } else {
                 log.warn(
-                    "Missing type mapping for output field '{}'; attempting legacy primitive resolution.",
+                    "Skipping output field '{}' because no primitive type mapping exists.",
                     nodeName);
-                // Legacy compatibility: accept already-primitive keys when no explicit mapped type
-                // was provided by caller.
-                PrimitiveType primitiveType = resolvePrimitiveType(nodeName);
-                if (primitiveType == null) {
-                  log.warn(
-                      "Skipping output field '{}' because no type mapping exists and primitive fallback failed.",
-                      nodeName);
-                  return;
-                }
-                log.warn(
-                    "Output field '{}' resolved through legacy primitive fallback to '{}'.",
-                    nodeName,
-                    primitiveType.name());
-                primitiveTypes = List.of(primitiveType);
+                return;
               }
 
               JsonArray array = jsonValue.getAsJsonArray();
@@ -316,19 +303,6 @@ public class WorkflowStateService {
               }
             });
     return parsedByType;
-  }
-
-  private PrimitiveType resolvePrimitiveType(String nodeName) {
-    try {
-      return PrimitiveType.valueOf(nodeName);
-    } catch (IllegalArgumentException ignored) {
-      // no-op: try serialized label fallback next
-    }
-    try {
-      return PrimitiveType.fromLabel(nodeName);
-    } catch (IllegalArgumentException ignored) {
-      return null;
-    }
   }
 
   /**
