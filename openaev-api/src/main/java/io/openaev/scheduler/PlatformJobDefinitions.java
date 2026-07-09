@@ -41,14 +41,6 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
-  public JobDetail getEngineSyncExecution() {
-    return JobBuilder.newJob(EngineSyncExecutionJob.class)
-        .storeDurably()
-        .withIdentity(jobKey("EngineSyncExecutionJob"))
-        .build();
-  }
-
-  @Bean
   public JobDetail managerIntegrationsSync() {
     return JobBuilder.newJob(ManagerIntegrationsSyncJob.class)
         .storeDurably()
