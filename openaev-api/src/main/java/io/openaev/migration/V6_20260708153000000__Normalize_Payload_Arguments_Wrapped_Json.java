@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
  * <p>The application expects {@code payload_arguments} to contain the raw JSON array directly and
  * payload argument entries without deprecated {@code subtype}. It also expects inject content
  * {@code obfuscator} to be scalar for single-choice fields. This normalization is applied both to
- * {@code payloads.payload_arguments} and to historical chaining snapshots in {@code steps.step_data}.
+ * {@code payloads.payload_arguments} and to historical chaining snapshots in {@code
+ * steps.step_data}.
  */
 @Component
 public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
@@ -113,7 +114,6 @@ public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
           WHERE step_data IS NOT NULL
            AND jsonb_typeof(step_data::jsonb #> '{inject_content,obfuscator}') = 'array';
           """);
-
     }
   }
 }

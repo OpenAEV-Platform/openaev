@@ -25,7 +25,7 @@ class WorkflowStateServiceTest {
   @Mock private WorkflowStateRepository workflowStateRepository;
   @Mock private ConditionRepository conditionRepository;
   @Mock private ConditionUtils conditionUtils;
-  @Mock private ScopeService scopeService;
+  @Mock private PrimitiveValidationContextBuilder primitiveValidationContextBuilder;
 
   @InjectMocks private WorkflowStateService workflowStateService;
 
@@ -363,42 +363,50 @@ class WorkflowStateServiceTest {
       String validAssetId = UUID.randomUUID().toString();
       String validAssetGroupId = UUID.randomUUID().toString();
       String deniedAssetGroupId = UUID.randomUUID().toString();
+      String deniedIp = "10.0.0.2";
+      String deniedDomain = "blocked.org";
 
       Workflow workflow = Workflow.builder().id(workflowId).build();
-      WorkflowScopeRule allowlistedGroupRule = new WorkflowScopeRule();
-      allowlistedGroupRule.setSelectedMode(ScopeRuleSelectedMode.ALLOWLIST);
-      allowlistedGroupRule.setValueType(ScopeRuleValueType.ASSET_GROUP_ID);
-      allowlistedGroupRule.setRuleValue(validAssetGroupId);
-      workflow.getWorkflowScopeRules().add(allowlistedGroupRule);
-      WorkflowScopeRule deniedGroupRule = new WorkflowScopeRule();
-      deniedGroupRule.setSelectedMode(ScopeRuleSelectedMode.DENYLIST);
-      deniedGroupRule.setValueType(ScopeRuleValueType.ASSET_GROUP_ID);
-      deniedGroupRule.setRuleValue(deniedAssetGroupId);
-      workflow.getWorkflowScopeRules().add(deniedGroupRule);
 
       WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
-      WorkflowState globalState = WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      WorkflowState globalState =
+          WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
 
       when(workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId))
           .thenReturn(globalState);
 
-      Endpoint scopedAsset = new Endpoint();
-      scopedAsset.setId(validAssetId);
-      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(scopedAsset));
+      PrimitiveValidationContext validationContext =
+          new PrimitiveValidationContext(
+              Set.of(validAssetId),
+              Set.of(validAssetGroupId),
+              Set.of(),
+              Set.of(deniedIp),
+              Set.of(),
+              Set.of(),
+              Set.of("example.org"),
+              Set.of(deniedDomain));
+      when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
+          .thenReturn(validationContext);
 
       JsonObject dataToSync =
           JsonParser.parseString(
                   """
                   {
-                    "ipv4_values": ["10.0.0.1", "bad-ip"],
-                    "domain_values": ["example.org", "bad domain"],
+                    "ipv4_values": ["10.0.0.1", "%s", "bad-ip"],
+                    "domain_values": ["example.org", "%s", "bad domain"],
                     "subnet_values": ["10.0.0.0/24", "bad-subnet"],
                     "asset_values": ["%s", "not-scoped-asset"],
                     "asset_group_values": ["%s", "%s", "bad-group-id"]
                   }
                   """
-                      .formatted(validAssetId, validAssetGroupId, deniedAssetGroupId))
+                      .formatted(
+                          deniedIp,
+                          deniedDomain,
+                          validAssetId,
+                          validAssetGroupId,
+                          deniedAssetGroupId))
               .getAsJsonObject();
 
       Map<String, ChainingMappedType> typeMappings = new HashMap<>();
@@ -406,7 +414,8 @@ class WorkflowStateServiceTest {
       typeMappings.put("domain_values", ChainingMappedType.primitive(PrimitiveType.Domain));
       typeMappings.put("subnet_values", ChainingMappedType.primitive(PrimitiveType.IpSubnet));
       typeMappings.put("asset_values", ChainingMappedType.primitive(PrimitiveType.AssetId));
-      typeMappings.put("asset_group_values", ChainingMappedType.primitive(PrimitiveType.AssetGroupId));
+      typeMappings.put(
+          "asset_group_values", ChainingMappedType.primitive(PrimitiveType.AssetGroupId));
 
       workflowStateService.syncState(dataToSync, typeMappings, workflow);
 

@@ -44,7 +44,8 @@ public final class PrimitiveValueValidator {
 
   private static boolean isIpAllowedByScope(String ip, PrimitiveValidationContext context) {
     if (context.denylistedIps().contains(ip)
-        || context.denylistedSubnets().stream().anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet))) {
+        || context.denylistedSubnets().stream()
+            .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet))) {
       return false;
     }
     boolean hasAllowlist =
@@ -53,7 +54,8 @@ public final class PrimitiveValueValidator {
       return true;
     }
     return context.allowlistedIps().contains(ip)
-        || context.allowlistedSubnets().stream().anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet));
+        || context.allowlistedSubnets().stream()
+            .anyMatch(subnet -> IpAddressUtils.isIpInSubnet(ip, subnet));
   }
 
   private static boolean isSubnetAllowedByScope(String subnet, PrimitiveValidationContext context) {
@@ -67,13 +69,21 @@ public final class PrimitiveValueValidator {
   }
 
   private static boolean isDomainAllowedByScope(String domain, PrimitiveValidationContext context) {
-    String normalizedDomain = domain.toLowerCase();
-    if (context.denylistedDomains().contains(normalizedDomain)) {
+    if (containsDomain(context.denylistedDomains(), domain)) {
       return false;
     }
     if (context.allowlistedDomains().isEmpty()) {
       return true;
     }
-    return context.allowlistedDomains().contains(normalizedDomain);
+    return containsDomain(context.allowlistedDomains(), domain);
+  }
+
+  private static boolean containsDomain(Iterable<String> candidates, String domain) {
+    for (String candidate : candidates) {
+      if (candidate.equalsIgnoreCase(domain)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
