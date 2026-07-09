@@ -6,35 +6,28 @@ public final class ChainingTypeRegistry {
 
   private ChainingTypeRegistry() {}
 
-  public static boolean isPrimitiveType(ContractOutputType type) {
-    return ChainingOutputType.fromContractOutputType(type).kind() == ChainingTypeKind.PRIMITIVE;
-  }
-
-  public static boolean isPrimitiveChainingType(ContractOutputType type) {
-    return isPrimitiveType(type);
-  }
-
-  public static boolean isComplexType(ContractOutputType type) {
-    return ChainingOutputType.fromContractOutputType(type).kind() == ChainingTypeKind.COMPLEX;
-  }
-
-  public static boolean isComplexChainingType(ContractOutputType type) {
-    return isComplexType(type);
-  }
-
-  public static boolean isChainableType(ContractOutputType type) {
-    return ChainingOutputType.fromContractOutputType(type).kind() != ChainingTypeKind.NON_CHAINABLE;
-  }
-
   public static List<PrimitiveType> getPrimitiveTypes() {
     return List.of(PrimitiveType.values());
   }
 
-  public static List<ComplexType> getComplexTypes() {
-    return List.of(ComplexType.values());
+  public static ChainingMappedType getMappedTypeForContractOutputType(ContractOutputType type) {
+    ChainingOutputType outputType = ChainingOutputType.fromContractOutputType(type);
+    return switch (outputType.kind()) {
+      case PRIMITIVE -> ChainingMappedType.primitive(outputType.primitiveType());
+      case COMPLEX -> ChainingMappedType.complex();
+      case NON_CHAINABLE -> ChainingMappedType.nonChainable();
+    };
   }
 
-  public static List<ComplexType> getComplexChainingTypes() {
-    return getComplexTypes();
+  public static ChainingMappedType getMappedTypeForScopeRuleValueType(
+      ScopeRuleValueType valueType) {
+    return ChainingMappedType.primitive(
+        switch (valueType) {
+          case IP -> List.of(PrimitiveType.IPv4, PrimitiveType.IPv6);
+          case IP_SUBNET -> List.of(PrimitiveType.IpSubnet);
+          case DOMAIN -> List.of(PrimitiveType.Domain);
+          case ASSET_ID -> List.of(PrimitiveType.AssetId);
+          case ASSET_GROUP_ID -> List.of(PrimitiveType.AssetGroupId);
+        });
   }
 }

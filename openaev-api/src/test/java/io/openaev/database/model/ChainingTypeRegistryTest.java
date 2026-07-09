@@ -1,7 +1,6 @@
 package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,9 +11,17 @@ class ChainingTypeRegistryTest {
   @Test
   @DisplayName("Should classify contract output types")
   void given_contractOutputTypes_should_classifyOutputKinds() {
-    assertThat(ChainingTypeRegistry.isPrimitiveType(ContractOutputType.IPv4)).isTrue();
-    assertThat(ChainingTypeRegistry.isComplexType(ContractOutputType.Credentials)).isTrue();
-    assertThat(ChainingTypeRegistry.isChainableType(ContractOutputType.Asset)).isFalse();
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.IPv4).kind())
+        .isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials)
+                .kind())
+        .isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Asset)
+                .kind())
+        .isEqualTo(ChainingTypeKind.NON_CHAINABLE);
   }
 
   @Test
@@ -27,9 +34,11 @@ class ChainingTypeRegistryTest {
             PrimitiveType.Domain,
             PrimitiveType.IPv4,
             PrimitiveType.IPv6,
+            PrimitiveType.IpSubnet,
             PrimitiveType.TargetedAsset,
-            PrimitiveType.Document);
-    assertThat(primitiveTypes.stream().map(type -> type.label).toList()).doesNotContain("asset_id");
+            PrimitiveType.Document,
+            PrimitiveType.AssetId,
+            PrimitiveType.AssetGroupId);
   }
 
   @Test
@@ -38,7 +47,34 @@ class ChainingTypeRegistryTest {
     assertThat(PrimitiveType.fromLabel("ipv4")).isEqualTo(PrimitiveType.IPv4);
     assertThat(PrimitiveType.fromLabel("document")).isEqualTo(PrimitiveType.Document);
     assertThat(PrimitiveType.fromLabel("targeted-asset")).isEqualTo(PrimitiveType.TargetedAsset);
-    assertThatThrownBy(() -> PrimitiveType.fromLabel("asset_id"))
-        .isInstanceOf(IllegalArgumentException.class);
+    assertThat(PrimitiveType.fromLabel("ip_subnet")).isEqualTo(PrimitiveType.IpSubnet);
+    assertThat(PrimitiveType.fromLabel("asset_id")).isEqualTo(PrimitiveType.AssetId);
+    assertThat(PrimitiveType.fromLabel("asset_group_id")).isEqualTo(PrimitiveType.AssetGroupId);
+  }
+
+  @Test
+  @DisplayName("Should map scope value types to primitive chaining types")
+  void given_scopeValueTypes_should_mapToPrimitiveTypes() {
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.IP)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.IPv4, PrimitiveType.IPv6);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.IP_SUBNET)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.IpSubnet);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.DOMAIN)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.Domain);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.ASSET_ID)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.AssetId);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(
+                    ScopeRuleValueType.ASSET_GROUP_ID)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.AssetGroupId);
   }
 }

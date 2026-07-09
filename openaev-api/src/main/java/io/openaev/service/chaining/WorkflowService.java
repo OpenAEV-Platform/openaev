@@ -837,29 +837,34 @@ public class WorkflowService {
     // Telemetry: one chaining workflow run started.
     resultsMetricCollector.recordWorkflowRun();
 
-    Map<String, ContractOutputType> fieldTypeMap =
-        java.util.Arrays.stream(ContractOutputType.values())
-            .collect(Collectors.toMap(ContractOutputType::name, type -> type));
-
-    Map<String, List<String>> scopeData = extractScopeData(workflowRun);
+    ScopeStateSeed scopeStateSeed = extractScopeStateSeed(workflowRun);
 
     // Sync global state and define next steps to be executed
-    workflowStateService.syncState(GSON.toJsonTree(scopeData), fieldTypeMap, workflowRun);
+    workflowStateService.syncState(
+        GSON.toJsonTree(scopeStateSeed.scopeData()), scopeStateSeed.typeMappings(), workflowRun);
     this.evaluateWorkflowProgress(workflowRun);
 
     saveWorkflowRun(workflowRun);
   }
 
-  private Map<String, List<String>> extractScopeData(Workflow workflowRun) {
-    if (workflowRun.getAllowlist() == null) {
-      return Collections.emptyMap();
+  private ScopeStateSeed extractScopeStateSeed(Workflow workflowRun) {
+    if (workflowRun.getAllowlist() == null || workflowRun.getAllowlist().isEmpty()) {
+      return new ScopeStateSeed(Collections.emptyMap(), Collections.emptyMap());
     }
-    return workflowRun.getAllowlist().stream()
-        .collect(
-            Collectors.groupingBy(
-                rule -> rule.getValueType().getContractOutputType(),
-                Collectors.mapping(WorkflowScopeRule::getRuleValue, Collectors.toList())));
+
+    Map<String, List<String>> scopeData = new HashMap<>();
+    Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+    for (WorkflowScopeRule rule : workflowRun.getAllowlist()) {
+      String key = rule.getValueType().name();
+      scopeData.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule.getRuleValue());
+      typeMappings.putIfAbsent(
+          key, ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(rule.getValueType()));
+    }
+    return new ScopeStateSeed(scopeData, typeMappings);
   }
+
+  private record ScopeStateSeed(
+      Map<String, List<String>> scopeData, Map<String, ChainingMappedType> typeMappings) {}
 
   // -- Timeout --
 

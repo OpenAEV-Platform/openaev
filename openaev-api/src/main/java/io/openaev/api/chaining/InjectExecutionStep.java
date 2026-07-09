@@ -290,48 +290,41 @@ public class InjectExecutionStep implements ActionStep {
    */
   private void processOutputAndStateSync(
       Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
-    boolean hasParsedData = output.stream().anyMatch(map -> map.containsKey("parsed"));
-
-    if (hasParsedData) {
-      Map<String, List<String>> outputData = extractDataFromParsed(output);
-
-      if (!outputData.isEmpty()) {
-        Workflow workflowRun = stepRun.getWorkflow();
-
-        Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
-        // Sync global state with the execution output, which may trigger chained steps to become
-        // READY
-        workflowStateService.syncState(gson.toJsonTree(outputData), fieldTypeMap, workflowRun);
-      }
+    Map<String, List<String>> outputData = extractDataFromParsed(output);
+    if (outputData.isEmpty()) {
+      return;
     }
+
+    Workflow workflowRun = stepRun.getWorkflow();
+    Map<String, ChainingMappedType> typeMappings = buildTypeMappingsFromInject(inject);
+    // Sync global state with execution output values mapped to chaining primitive/complex types.
+    workflowStateService.syncState(gson.toJsonTree(outputData), typeMappings, workflowRun);
   }
 
   /** Extracts key-value pairs from structured "parsed" output entries. */
   private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
     Map<String, List<String>> result = new HashMap<>();
 
-    try {
-      for (Map<String, JsonElement> entry : output) {
-        if (entry.containsKey("parsed")) {
-          JsonObject parsed = entry.get("parsed").getAsJsonObject();
+    for (Map<String, JsonElement> entry : output) {
+      JsonElement parsedElement = entry.get("parsed");
+      if (parsedElement == null || !parsedElement.isJsonObject()) {
+        continue;
+      }
 
-          for (String key : parsed.keySet()) {
-            JsonElement element = parsed.get(key);
-            if (element == null || !element.isJsonArray()) {
-              continue;
-            }
-            JsonArray valuesArray = element.getAsJsonArray();
-            for (JsonElement item : valuesArray) {
-              if (item.isJsonPrimitive()) {
-                result.computeIfAbsent(key, k -> new ArrayList<>()).add(item.getAsString());
-              }
-            }
+      JsonObject parsed = parsedElement.getAsJsonObject();
+      for (Map.Entry<String, JsonElement> parsedEntry : parsed.entrySet()) {
+        JsonElement value = parsedEntry.getValue();
+        if (value == null || !value.isJsonArray()) {
+          continue;
+        }
+        for (JsonElement item : value.getAsJsonArray()) {
+          if (item.isJsonPrimitive()) {
+            result
+                .computeIfAbsent(parsedEntry.getKey(), ignored -> new ArrayList<>())
+                .add(item.getAsString());
           }
         }
       }
-    } catch (Exception e) {
-      log.error("Failed to parse structured output for synchronize global State", e);
-      return Collections.emptyMap();
     }
     return result;
   }
@@ -779,24 +772,28 @@ public class InjectExecutionStep implements ActionStep {
 
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
 
-  /**
-   * Builds a map of output field names to their contract types from the inject's payload or
-   * contract.
-   */
-  private Map<String, ContractOutputType> buildFieldTypeMapFromInject(Inject inject) {
-    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+  /** Builds resolved chaining mapped types for structured output fields. */
+  private Map<String, ChainingMappedType> buildTypeMappingsFromInject(Inject inject) {
+    Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
       injectorContractContentUtils
           .getAllContractOutputs(outputParsers)
-          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-    } else {
-      if (inject.getInjectorContract().isPresent()) {
-        injectorContractContentUtils
-            .getAllContractOutputs(inject.getInjectorContract().get())
-            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-      }
+          .forEach(
+              out ->
+                  typeMappings.put(
+                      out.getKey(),
+                      ChainingTypeRegistry.getMappedTypeForContractOutputType(out.getType())));
+    } else if (inject.getInjectorContract().isPresent()) {
+      injectorContractContentUtils
+          .getAllContractOutputs(inject.getInjectorContract().get())
+          .forEach(
+              out ->
+                  typeMappings.put(
+                      out.getField(),
+                      ChainingTypeRegistry.getMappedTypeForContractOutputType(out.getType())));
     }
-    return fieldTypeMap;
+    return typeMappings;
   }
 }

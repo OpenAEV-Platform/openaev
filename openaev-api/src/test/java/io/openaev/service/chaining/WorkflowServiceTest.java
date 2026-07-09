@@ -3,6 +3,8 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
@@ -546,6 +548,95 @@ class WorkflowServiceTest {
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
       verify(workflowStateService).syncState(any(), any(), eq(run));
       verify(stepService).findAllStepTemplateByWorkflow("simulation-template");
+    }
+
+    @Test
+    @DisplayName("should seed scope values and mapped output types")
+    void shouldSeedScopeValuesAndMappedOutputTypes() throws Exception {
+      Workflow workflowTemplate =
+          Workflow.builder().id("template").status(WorkflowStatus.TEMPLATE).build();
+      Workflow run =
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .allowlist(
+                  List.of(
+                      WorkflowScopeRule.builder()
+                          .valueType(ScopeRuleValueType.IP)
+                          .ruleValue("192.168.10.10")
+                          .build(),
+                      WorkflowScopeRule.builder()
+                          .valueType(ScopeRuleValueType.DOMAIN)
+                          .ruleValue("example.org")
+                          .build(),
+                      WorkflowScopeRule.builder()
+                          .valueType(ScopeRuleValueType.IP_SUBNET)
+                          .ruleValue("10.0.0.0/24")
+                          .build(),
+                      WorkflowScopeRule.builder()
+                          .valueType(ScopeRuleValueType.ASSET_ID)
+                          .ruleValue("asset-123")
+                          .build(),
+                      WorkflowScopeRule.builder()
+                          .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+                          .ruleValue("group-456")
+                          .build()))
+              .build();
+
+      when(stepService.findAllStepTemplateByWorkflow("template"))
+          .thenReturn(Collections.emptyList());
+
+      workflowService.startWorkflow(run);
+
+      ArgumentCaptor<JsonElement> dataCaptor = ArgumentCaptor.forClass(JsonElement.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, ChainingMappedType>> scopeTypeCaptor =
+          ArgumentCaptor.forClass(Map.class);
+      verify(workflowStateService)
+          .syncState(dataCaptor.capture(), scopeTypeCaptor.capture(), eq(run));
+
+      JsonObject mappedScopeData = dataCaptor.getValue().getAsJsonObject();
+      assertEquals(
+          "192.168.10.10",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP.name()).get(0).getAsString());
+      assertEquals(
+          "example.org",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.DOMAIN.name()).get(0).getAsString());
+      assertEquals(
+          "10.0.0.0/24",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(0).getAsString());
+      assertEquals(
+          "asset-123",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.ASSET_ID.name()).get(0).getAsString());
+      assertEquals(
+          "group-456",
+          mappedScopeData
+              .getAsJsonArray(ScopeRuleValueType.ASSET_GROUP_ID.name())
+              .get(0)
+              .getAsString());
+
+      assertEquals(
+          ChainingTypeKind.PRIMITIVE,
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP.name()).kind());
+      assertEquals(
+          List.of(PrimitiveType.IPv4, PrimitiveType.IPv6),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.Domain),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.DOMAIN.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.IpSubnet),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP_SUBNET.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.AssetId),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.ASSET_ID.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.AssetGroupId),
+          scopeTypeCaptor
+              .getValue()
+              .get(ScopeRuleValueType.ASSET_GROUP_ID.name())
+              .primitiveTypes());
     }
   }
 

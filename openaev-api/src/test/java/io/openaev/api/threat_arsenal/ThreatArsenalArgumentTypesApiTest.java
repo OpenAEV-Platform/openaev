@@ -31,7 +31,8 @@ class ThreatArsenalArgumentTypesApiTest {
 
     List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
 
-    assertThat(types).containsExactly(PrimitiveType.Text, PrimitiveType.Document);
+    assertThat(types)
+        .containsExactly(PrimitiveType.Text, PrimitiveType.Document, PrimitiveType.TargetedAsset);
   }
 
   @Test
@@ -42,6 +43,6 @@ class ThreatArsenalArgumentTypesApiTest {
     List<PrimitiveType> types = threatArsenalApi.getArgumentTypes();
 
     assertThat(types).containsExactly(PrimitiveType.values());
-    assertThat(types.stream().map(type -> type.label).toList()).doesNotContain("asset_id");
+    assertThat(types).contains(PrimitiveType.AssetId, PrimitiveType.AssetGroupId);
   }
 }

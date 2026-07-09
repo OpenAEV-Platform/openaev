@@ -29,11 +29,13 @@ public class WorkflowStateService {
    * values to the local states of steps whose filter conditions are satisfied by the output.
    *
    * @param dataToSync JSON element containing output data to merge
-   * @param fieldTypeMap mapping from field name to its contract output type
+   * @param typeMappings mapping from field name to resolved chaining mapped type
    * @param workflowRun the running workflow whose global state is updated
    */
   public void syncState(
-      JsonElement dataToSync, Map<String, ContractOutputType> fieldTypeMap, Workflow workflowRun) {
+      JsonElement dataToSync, Map<String, ChainingMappedType> typeMappings, Workflow workflowRun) {
+    Map<String, ChainingMappedType> safeTypeMappings =
+        typeMappings != null ? typeMappings : Collections.emptyMap();
     WorkflowState globalState = loadOrBuildGlobalState(workflowRun);
 
     WorkflowStateEntries entries =
@@ -42,7 +44,7 @@ public class WorkflowStateService {
     // Process traces
     if (dataToSync.isJsonObject()) {
       Map<String, List<String>> parsedValues =
-          saveToEntries(entries, dataToSync.getAsJsonObject(), fieldTypeMap);
+          saveToEntries(entries, dataToSync.getAsJsonObject(), safeTypeMappings);
       // Propagate to local states of steps whose events need this output
       propagateToLocalStates(parsedValues, workflowRun);
     }
@@ -243,13 +245,13 @@ public class WorkflowStateService {
    *
    * @param entries state entries to populate
    * @param structuredOutput JSON object with field arrays
-   * @param fieldTypeMap mapping from field name to contract output type
+   * @param typeMappings mapping from field name to resolved chaining mapped type
    * @return map of primitive type names to extracted string values
    */
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
       JsonObject structuredOutput,
-      Map<String, ContractOutputType> fieldTypeMap) {
+      Map<String, ChainingMappedType> typeMappings) {
 
     Map<String, List<String>> parsedByType = new HashMap<>();
 
@@ -260,34 +262,73 @@ public class WorkflowStateService {
               String nodeName = entry.getKey();
               JsonElement jsonValue = entry.getValue();
 
-              ContractOutputType outputType = fieldTypeMap.get(nodeName);
-              if (outputType == null || jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
+              if (jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
                 return;
               }
-              ChainingOutputType chainingOutputType =
-                  ChainingOutputType.fromContractOutputType(outputType);
-              if (chainingOutputType.kind() == ChainingTypeKind.NON_CHAINABLE) {
-                return;
+
+              ChainingMappedType mappedType = typeMappings.get(nodeName);
+              List<PrimitiveType> primitiveTypes;
+
+              if (mappedType != null) {
+                if (mappedType.kind() == ChainingTypeKind.NON_CHAINABLE) {
+                  return;
+                }
+                primitiveTypes = mappedType.primitiveTypes();
+              } else {
+                log.warn(
+                    "Missing type mapping for output field '{}'; attempting legacy primitive resolution.",
+                    nodeName);
+                // Legacy compatibility: accept already-primitive keys when no explicit mapped type
+                // was provided by caller.
+                PrimitiveType primitiveType = resolvePrimitiveType(nodeName);
+                if (primitiveType == null) {
+                  log.warn(
+                      "Skipping output field '{}' because no type mapping exists and primitive fallback failed.",
+                      nodeName);
+                  return;
+                }
+                log.warn(
+                    "Output field '{}' resolved through legacy primitive fallback to '{}'.",
+                    nodeName,
+                    primitiveType.name());
+                primitiveTypes = List.of(primitiveType);
               }
 
               JsonArray array = jsonValue.getAsJsonArray();
 
               for (JsonElement element : array) {
                 if (element.isJsonPrimitive()) {
-                  if (chainingOutputType.kind() != ChainingTypeKind.PRIMITIVE) {
+                  if (primitiveTypes.isEmpty()) {
                     continue;
                   }
                   String val = element.getAsString();
-                  String key = chainingOutputType.primitiveType().name();
-                  entries.getInputByKey(key).getValues().add(val);
-                  parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
+                  for (PrimitiveType primitiveType : primitiveTypes) {
+                    String key = primitiveType.name();
+                    entries.getInputByKey(key).getValues().add(val);
+                    parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
+                  }
                 } else if (element.isJsonObject()) {
                   // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
-                  saveCorrelatedObject(entries, element.getAsJsonObject());
+                  if (mappedType != null && mappedType.kind() == ChainingTypeKind.COMPLEX) {
+                    saveCorrelatedObject(entries, element.getAsJsonObject());
+                  }
                 }
               }
             });
     return parsedByType;
+  }
+
+  private PrimitiveType resolvePrimitiveType(String nodeName) {
+    try {
+      return PrimitiveType.valueOf(nodeName);
+    } catch (IllegalArgumentException ignored) {
+      // no-op: try serialized label fallback next
+    }
+    try {
+      return PrimitiveType.fromLabel(nodeName);
+    } catch (IllegalArgumentException ignored) {
+      return null;
+    }
   }
 
   /**
