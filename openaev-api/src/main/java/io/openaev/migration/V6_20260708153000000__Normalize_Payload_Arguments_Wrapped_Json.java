@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
  * Normalizes legacy wrapped JSON persisted in payload arguments:
  *
  * <p>The application expects {@code payload_arguments} to contain the raw JSON array directly and
- * payload argument entries without deprecated {@code subtype}.
+ * payload argument entries without deprecated {@code subtype}. This normalization is applied both
+ * to {@code payloads.payload_arguments} and to historical chaining snapshots in
+ * {@code steps.step_data}.
  */
 @Component
 public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
@@ -44,6 +46,59 @@ public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
               SELECT 1
               FROM json_array_elements(payload_arguments) argument
               WHERE argument::jsonb ? 'subtype'
+            );
+          """);
+
+      stmt.execute(
+          """
+          UPDATE steps
+          SET step_data = jsonb_set(
+            step_data::jsonb,
+            '{inject_injector_contract,injector_contract_payload,payload_arguments}',
+            (
+              (
+                step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+              ) ->> 'value'
+            )::jsonb
+          )
+          WHERE step_data IS NOT NULL
+            AND jsonb_typeof(
+              step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+            ) = 'object'
+            AND (
+              step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+            ) ->> 'type' = 'json'
+            AND (
+              step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+            ) -> 'value' IS NOT NULL;
+          """);
+
+      stmt.execute(
+          """
+          UPDATE steps
+          SET step_data = jsonb_set(
+            step_data::jsonb,
+            '{inject_injector_contract,injector_contract_payload,payload_arguments}',
+            (
+              SELECT COALESCE(
+                jsonb_agg(argument - 'subtype'),
+                '[]'::jsonb
+              )
+              FROM jsonb_array_elements(
+                step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+              ) argument
+            )
+          )
+          WHERE step_data IS NOT NULL
+            AND jsonb_typeof(
+              step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+            ) = 'array'
+            AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements(
+                step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
+              ) argument
+              WHERE argument ? 'subtype'
             );
           """);
     }
