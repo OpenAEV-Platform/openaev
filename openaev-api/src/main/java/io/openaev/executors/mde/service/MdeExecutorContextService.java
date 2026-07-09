@@ -86,28 +86,32 @@ public class MdeExecutorContextService extends ExecutorContextService {
   }
 
   /**
-   * Paginates MDE Live Response calls. MDE rate-limits the runliveresponse endpoint more strictly
-   * than CrowdStrike RTR, so the default batch size is 10 machines per 5-second window.
+   * Dispatches MDE Live Response calls with a global rate limit. MDE throttles the runliveresponse
+   * endpoint aggressively (HTTP 429), so calls are grouped into batches of {@code
+   * apiBatchExecutionActionPagination} machines, one batch every 5 seconds, spread across the whole
+   * inject. Actions are built per agent, so the throttle must span all actions — otherwise every
+   * call fires at once and most get throttled, leaving only a handful of machines executed.
    */
   public void executeActions(List<MdeAction> actions) {
     int paginationLimit = mdeExecutorConfig.getApiBatchExecutionActionPagination();
+    List<Runnable> dispatches = new ArrayList<>();
     for (MdeAction action : actions) {
-      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
-      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-        int fromIndex = batchIndex * paginationLimit;
-        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
-        List<Agent> batchAgents = action.getAgents().subList(fromIndex, toIndex);
-        scheduledExecutorService.schedule(
+      for (Agent agent : action.getAgents()) {
+        dispatches.add(
             () ->
-                batchAgents.forEach(
-                    agent ->
-                        mdeExecutorClient.executeAction(
-                            agent.getExternalReference(),
-                            action.getScriptName(),
-                            action.getCommandEncoded())),
-            batchIndex * 5L,
-            TimeUnit.SECONDS);
+                mdeExecutorClient.executeAction(
+                    agent.getExternalReference(),
+                    action.getScriptName(),
+                    action.getCommandEncoded()));
       }
+    }
+    int batchCount = (int) Math.ceil(dispatches.size() / (double) paginationLimit);
+    for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
+      int fromIndex = batchIndex * paginationLimit;
+      int toIndex = Math.min(fromIndex + paginationLimit, dispatches.size());
+      List<Runnable> batch = dispatches.subList(fromIndex, toIndex);
+      scheduledExecutorService.schedule(
+          () -> batch.forEach(Runnable::run), batchIndex * 5L, TimeUnit.SECONDS);
     }
   }
 
