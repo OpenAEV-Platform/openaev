@@ -52,7 +52,11 @@ runs:
 
         KEYWORD_NUMS=$(echo "$FULLTEXT" | grep -oiP '(close[sd]?|fix(es|ed)?|resolve[sd]?)\s*:?\s*#\d+' | grep -oP '\d+' || true)
 
-        ISSUES=$(echo "$TITLE_NUMS $KEYWORD_NUMS" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un | tr '\n' ' ' | sed 's/ $//')
+        # NOTE: grep exits 1 when it finds no match. With `set -euo pipefail`,
+        # that would silently abort the whole script if no issue reference is
+        # found anywhere in the title/body. `|| true` makes "no issues
+        # detected" a normal (empty) outcome instead of a hard failure.
+        ISSUES=$(echo "$TITLE_NUMS $KEYWORD_NUMS" | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un | tr '\n' ' ' | sed 's/ $//' || true)
 
         echo "Detected issues: ${ISSUES:-<none>}"
         echo "issues=$ISSUES" >> "$GITHUB_OUTPUT"
