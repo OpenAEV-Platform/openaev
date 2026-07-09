@@ -18,10 +18,11 @@ reason; the reasons are written down so a hand-written test does not drift.
 Full code templates: [`examples/tenant-isolation-templates.md`](examples/tenant-isolation-templates.md).
 
 This skill pairs with:
-- the `activate-tenant-table` skill (PR #6594): its isolation-test phase
+- the `activate-tenant-table` skill
+  (`.github/skills/activate-tenant-table/SKILL.md`): its isolation-test phase
   produces exactly this file, first red, then green as the wiring lands;
-- the "tenant scope coverage" CI gate (#6389): once it lands, this file carries
-  `@CoversTenantIsolation("{table}")`. Until then the template puts the
+- the future "tenant scope coverage" CI gate: once it lands, this file will
+  carry `@CoversTenantIsolation("{table}")`. Until then the template puts the
   annotation in a comment.
 
 ## v1 is gone from this skill
@@ -101,13 +102,20 @@ would test a path that cannot work.
 | Rule | Reason |
 |---|---|
 | One tenant path per test method | the scope is set once per transaction; `TenantScopeTransactionAspect` refuses to redefine it. Testing the other tenant means a new request in a new test. |
-| Seed with a native `INSERT ... VALUES` carrying an explicit `tenant_id` | no scope is set during setup, and the inspector does not attribute or block VALUES inserts. Seeding through the API would need a scope and would couple the setup to the write path under test. |
+| Seed with a native `INSERT ... VALUES` carrying an explicit `tenant_id`, not through the API | the setup seeds **two** tenants (A and B). A MockMvc create joins the test transaction and sets the scope; two API creates would set it **twice in one transaction** and `TenantScopeTransactionAspect` throws (same reason as one-tenant-per-test). Native inserts set no scope, so both rows land cleanly; they also let a read test run without depending on the create endpoint working. This is a hard v2 constraint, not a style choice: a second API create to a different tenant throws `IllegalStateException` ("Tenant scope … is already set for this transaction … tried to change it"). |
 | Ground-truth reads in raw JDBC on the test's own connection | the inspector only rewrites Hibernate-emitted SQL; raw JDBC sees the table unfiltered. This is how the test proves a cross-tenant write really did not happen, and that a hidden row really exists. `entityManager.flush()` first, so pending scoped writes reach the database. |
 | Cross-tenant DELETE asserts 2xx and a surviving row, not 404 | the inspector adds `can_access_tenant` to the DELETE's WHERE; the statement matches no row and succeeds. Expecting 404 is v1 reasoning and fails on correct v2 code. |
 | Cross-tenant UPDATE asserts 404 | the handler looks the row up first inside the scope; the lookup finds nothing. |
 | `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")` on the class | activates the table for this test only, before the production go-live. The test classpath keeps the allowlist empty on purpose; never add the table to test-wide properties. |
 | Dedicated test file, not a nested class in `*ApiTest` | `@TestPropertySource` is class-level and forks the Spring context. On `*ApiTest` it would impose the activated context on every unrelated test in the class. This diverges from the old nested-class convention deliberately. |
 | Admin user is fine for the isolation cases | the scope comes from tenant membership, never from the isAdmin flag. The non-admin proof exists once at plumbing level (`ImportMapperNonAdminIsolationTest`, `TenantSelectorMembershipTest` for the 403); per-table tests do not re-prove it. |
+
+On boilerplate: the seed stays a native insert (see the rule above), but the
+rest does not have to be hand-rolled. For a **create/write** test, build the
+input DTO from the entity's `*Fixture` if one exists instead of inlining
+setters. And the generic JDBC plumbing of the ground-truth helpers
+(`doReturningWork` + `PreparedStatement`) is identical across tables — factor
+it into a shared test base and keep only the per-table SQL string in each test.
 
 ## Red and green: what to expect before the wiring
 

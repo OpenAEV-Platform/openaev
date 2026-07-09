@@ -76,6 +76,10 @@ class {Entity}HttpIsolationTest extends IntegrationTest {
 
   // -- helpers, all from the pilot --
 
+  // Native insert, not an API create: the setup seeds two tenants, and two
+  // MockMvc creates would set the tenant scope twice in one transaction, which
+  // TenantScopeTransactionAspect rejects. See the "why native seed" rule in
+  // TENANT_ISOLATION.md.
   private String seedRow(String tenantId, String name) {
     String id = UUID.randomUUID().toString();
     entityManager
