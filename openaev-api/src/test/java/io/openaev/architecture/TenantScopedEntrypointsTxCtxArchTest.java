@@ -31,6 +31,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
 
   private static final Set<String> TX_SCOPED_ENTRYPOINTS =
       Set.of(
+          // import_mappers (v2)
           "io.openaev.rest.mapper.MapperApi#getImportMapper",
           "io.openaev.rest.mapper.MapperApi#getImportMapperById",
           "io.openaev.rest.mapper.MapperApi#createImportMapper",
@@ -49,7 +50,15 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.scenario.ScenarioImportApi#dryRunImportXLSFile",
           "io.openaev.rest.scenario.ScenarioImportApi#validateImportXLSFile",
           "io.openaev.rest.exercise.ExerciseImportApi#dryRunImportXLSFile",
-          "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile");
+          "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile",
+          // mitigations (v2)
+          "io.openaev.rest.mitigation.MitigationApi#mitigations",
+          "io.openaev.rest.mitigation.MitigationApi#mitigation",
+          "io.openaev.rest.mitigation.MitigationApi#injectorContracts",
+          "io.openaev.rest.mitigation.MitigationApi#createMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =
