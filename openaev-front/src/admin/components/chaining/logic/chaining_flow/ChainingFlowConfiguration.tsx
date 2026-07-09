@@ -92,7 +92,7 @@ const ChainingFlowConfiguration = ({
       inject_injector_contract: meta.inject_injector_contract ?? '',
       inject_injector: meta.inject_injector,
       inject_assets: meta.inject_assets ?? [],
-      inject_content: {},
+      inject_content: meta.inject_content ?? {},
       inject_field_links: {},
       contract_fields: meta.contract_fields ?? [],
     };

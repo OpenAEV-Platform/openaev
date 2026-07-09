@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
@@ -195,5 +196,61 @@ public class InjectorContractContentUtils {
     } catch (JsonProcessingException e) {
       return false;
     }
+  }
+
+  /**
+   * Ensures the inject content has expectations populated.
+   *
+   * <p>If the content does not already contain expectations, this method reads the injector
+   * contract's predefined expectations and injects them into the content with a default score of
+   * 100. If expectations are already present, the content is returned unchanged.
+   *
+   * @param injectorContract the contract defining the available predefined expectations
+   * @param finalContent the inject content node to populate; may be {@code null}
+   * @return the updated content node with expectations set, or the original if already populated
+   */
+  public ObjectNode setExpectations(InjectorContract injectorContract, ObjectNode finalContent) {
+    if (finalContent == null
+        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS) == null
+        || finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
+      try {
+        JsonNode jsonNode = mapper.readTree(injectorContract.getContent());
+        List<JsonNode> contractElements =
+            StreamSupport.stream(jsonNode.get("fields").spliterator(), false)
+                .filter(
+                    contractElement ->
+                        contractElement
+                            .get("type")
+                            .asText()
+                            .equals(ContractFieldType.Expectation.name().toLowerCase()))
+                .toList();
+        if (!contractElements.isEmpty()) {
+          JsonNode contractElement = contractElements.getFirst();
+          if (!contractElement.get(PREDEFINED_EXPECTATIONS).isNull()
+              && !contractElement.get(PREDEFINED_EXPECTATIONS).isEmpty()) {
+            finalContent = finalContent != null ? finalContent : mapper.createObjectNode();
+            ArrayNode predefinedExpectations = mapper.createArrayNode();
+            StreamSupport.stream(contractElement.get(PREDEFINED_EXPECTATIONS).spliterator(), false)
+                .forEach(
+                    predefinedExpectation -> {
+                      ObjectNode newExpectation = predefinedExpectation.deepCopy();
+                      newExpectation.put("expectation_score", 100);
+                      predefinedExpectations.add(newExpectation);
+                    });
+            // We need the remove in case there are empty expectations because put is deprecated and
+            // putifabsent doesn't replace empty expectations
+            if (finalContent.has(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS)
+                && finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
+              finalContent.remove(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
+            }
+            finalContent.putIfAbsent(
+                CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, predefinedExpectations);
+          }
+        }
+      } catch (JsonProcessingException e) {
+        log.error("Cannot open injector contract", e);
+      }
+    }
+    return finalContent;
   }
 }

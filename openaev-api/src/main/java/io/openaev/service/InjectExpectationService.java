@@ -1242,8 +1242,9 @@ public class InjectExpectationService {
 
     final boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
     final boolean isScheduledInject = !executableInject.isDirect();
+    final boolean isChainingExecution = executableInject.isChainingExecution();
 
-    if (!isScheduledInject && !isAtomicTesting) {
+    if (!isScheduledInject && !isAtomicTesting && !isChainingExecution) {
       return;
     }
 
