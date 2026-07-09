@@ -1,3 +1,5 @@
-# Test file
+# Test file for sync-status-on-merge workflow
 
-This file exists only to trigger a test run (v4) of the sync-status-on-merge workflow for issue #6619. Safe to delete after test.
+This file is used to trigger a dummy PR for testing `.github/workflows/sync-status-on-merge.yml`.
+
+Test run: v5 - checking Issues permission (addLabelsToLabelable / closeIssue) after App permission update.
