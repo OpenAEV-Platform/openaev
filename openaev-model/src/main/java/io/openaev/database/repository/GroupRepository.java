@@ -36,6 +36,8 @@ public interface GroupRepository
 
   Optional<Group> findByNameAndTenantId(String name, String tenantId);
 
+  Optional<Group> findByNameAndTenantIsNull(String name);
+
   Optional<Group> findByName(String name);
 
   @Query(value = "SELECT user_id FROM users_groups WHERE group_id = :groupId", nativeQuery = true)

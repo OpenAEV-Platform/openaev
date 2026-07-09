@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.service.UserMappingService;
@@ -18,6 +19,7 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.apache.commons.lang3.NotImplementedException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,10 +43,17 @@ public class UserMappingServiceTest extends IntegrationTest {
   @Autowired protected EntityManager entityManager;
 
   private static final String TEST_REGISTRATION_ID = "test";
+  private Environment originalEnvironment;
 
   @BeforeEach
   public void setup() {
     tenantGroupComposer.reset();
+    originalEnvironment = (Environment) ReflectionTestUtils.getField(userMappingService, "env");
+  }
+
+  @AfterEach
+  public void tearDown() {
+    ReflectionTestUtils.setField(userMappingService, "env", originalEnvironment);
   }
 
   private String tenantScopedId(String id) {
@@ -401,6 +410,95 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("When provider user scope is configured")
+  class ProviderUserScope {
+
+    @Test
+    @DisplayName(
+        "Given no user_scope and no tenant_id, should auto-create tenant-scoped group in default tenant")
+    void given_noUserScopeAndNoTenantId_should_createTenantScopedGroupInDefaultTenant() {
+      // -- ARRANGE --
+      mockProviderConfiguration(TEST_REGISTRATION_ID, "", null);
+      String object =
+          "[{\"idpGroup\": \"observer\",\"userGroup\": \"GROUP_SCOPE_DEFAULT\",\"autoCreate\": true}]";
+      User user = UserFixture.getUser();
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, List.of("observer"));
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+      Group mappedGroup = user.getUnscopedGroups().getFirst();
+      assertThat(mappedGroup.getName()).isEqualTo("GROUP_SCOPE_DEFAULT");
+      assertThat(mappedGroup.getTenant()).isNotNull();
+      assertThat(mappedGroup.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(
+              user.getTenants().stream()
+                  .anyMatch(tenant -> Tenant.DEFAULT_TENANT_UUID.equals(tenant.getId())))
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("Given platform user_scope, should auto-create a platform-scoped group")
+    void given_platformUserScope_should_createPlatformScopedGroup() {
+      // -- ARRANGE --
+      mockProviderConfiguration(TEST_REGISTRATION_ID, Tenant.DEFAULT_TENANT_UUID, "platform");
+      String object =
+          "[{\"idpGroup\": \"observer\",\"userGroup\": \"GROUP_SCOPE_PLATFORM\",\"autoCreate\": true}]";
+      User user = UserFixture.getUser();
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, List.of("observer"));
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(1);
+      Group mappedGroup = user.getUnscopedGroups().getFirst();
+      assertThat(mappedGroup.getName()).isEqualTo("GROUP_SCOPE_PLATFORM");
+      assertThat(mappedGroup.getTenant()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+        "Given platform and tenant user_scope, should auto-create both platform and tenant groups")
+    void given_platformAndTenantUserScope_should_createBothScopedGroups() {
+      // -- ARRANGE --
+      mockProviderConfiguration(TEST_REGISTRATION_ID, "", "{platform,tenant}");
+      String object =
+          "[{\"idpGroup\": \"observer\",\"userGroup\": \"GROUP_SCOPE_BOTH\",\"autoCreate\": true}]";
+      User user = UserFixture.getUser();
+      userComposer.forUser(user).persist();
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT --
+      userMappingService.mapCurrentUserWithGroup(
+          object, TEST_REGISTRATION_ID, user, List.of("observer"));
+
+      // -- ASSERT --
+      assertThat(user.getUnscopedGroups().size()).isEqualTo(2);
+      long platformScopedGroups =
+          user.getUnscopedGroups().stream().filter(group -> group.getTenant() == null).count();
+      long tenantScopedGroups =
+          user.getUnscopedGroups().stream()
+              .filter(
+                  group ->
+                      group.getTenant() != null
+                          && Tenant.DEFAULT_TENANT_UUID.equals(group.getTenant().getId()))
+              .count();
+      assertThat(platformScopedGroups).isEqualTo(1L);
+      assertThat(tenantScopedGroups).isEqualTo(1L);
+    }
+  }
+
+  @Nested
   class TestRolesAndGroupsExtraction {
     @Test
     @DisplayName("When oidc user, extract roles accordingly")
@@ -568,5 +666,20 @@ public class UserMappingServiceTest extends IntegrationTest {
           NotImplementedException.class,
           () -> userMappingService.extractGroupsFromUser(user, "oidc"));
     }
+  }
+
+  private void mockProviderConfiguration(String registrationId, String tenantId, String userScope) {
+    Environment env = Mockito.mock(Environment.class);
+    when(env.getProperty(Mockito.anyString(), Mockito.eq(String.class), Mockito.anyString()))
+        .thenAnswer(invocation -> invocation.getArgument(2));
+    if (tenantId != null) {
+      when(env.getProperty("openaev.provider." + registrationId + ".tenant_id", String.class, ""))
+          .thenReturn(tenantId);
+    }
+    if (userScope != null) {
+      when(env.getProperty("openaev.provider." + registrationId + ".user_scope", String.class, ""))
+          .thenReturn(userScope);
+    }
+    ReflectionTestUtils.setField(userMappingService, "env", env);
   }
 }
