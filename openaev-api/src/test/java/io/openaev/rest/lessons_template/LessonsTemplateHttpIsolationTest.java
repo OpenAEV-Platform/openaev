@@ -89,9 +89,6 @@ class LessonsTemplateHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
-  @Disabled(
-      "Header-route tenant selection still returns an empty set in this flow; keep disabled while"
-          + " we complete the follow-up investigation for lessons_templates.")
   @DisplayName(
       "via the X-Tenant-Ids header (no path tenant): list returns A's template and not B's")
   void listViaHeaderReturnsOnlyA() throws Exception {
