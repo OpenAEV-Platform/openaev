@@ -15,7 +15,6 @@ import org.hibernate.jdbc.Expectation;
 
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of = {"injectExpectation", "type", "value"})
@@ -53,7 +52,6 @@ public class InjectExpectationSignature {
   @JsonProperty("value")
   private String value;
 
-  @Builder.Default
   @NotNull
   @JsonIgnore
   @Column(name = "inject_expectation_signature_created_at", updatable = false)
