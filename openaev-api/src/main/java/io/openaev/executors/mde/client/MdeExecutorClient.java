@@ -158,7 +158,7 @@ public class MdeExecutorClient {
           machineId,
           scriptName);
       post(MACHINES_URI + "/" + machineId + "/runliveresponse", body);
-    } catch (IOException e) {
+    } catch (Exception e) {
       log.error(
           "Error executing MDE Live Response action on machine {}: {}",
           machineId,
@@ -186,17 +186,19 @@ public class MdeExecutorClient {
       String json = get(MACHINE_ACTIONS_URI + "?$filter=" + filter + "&$top=50");
       MdeMachineActionListResponse response =
           objectMapper.readValue(json, new TypeReference<>() {});
-      if (response.getValue() == null) {
+      if (response.getValue() == null || response.getValue().isEmpty()) {
         return;
       }
-      Instant staleBefore =
-          Instant.now().minusSeconds(config.getStalePendingThresholdMinutes() * 60L);
+      Integer thresholdMinutes = config.getStalePendingThresholdMinutes();
+      long thresholdSeconds = (thresholdMinutes != null ? thresholdMinutes : 30) * 60L;
+      Instant staleBefore = Instant.now().minusSeconds(thresholdSeconds);
       for (MdeMachineAction action : response.getValue()) {
         if (isStalePendingAction(action, staleBefore)) {
           cancelMachineAction(action.getId());
         }
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
+      // Best-effort cleanup: never let a failure here block the actual dispatch below.
       log.warn(
           "Could not clear stale pending Live Response on machine {}: {}",
           machineId,
