@@ -43,9 +43,15 @@ class ScopeChannelSourceTripwireTest {
   @DisplayName("no production class outside the sanctioned pair sets app.current_tenants")
   void onlySanctionedClassesSetTheScopeGuc() throws IOException {
     List<Path> roots = productionRoots();
+    // Pin the two known scope-channel homes by NAME instead of counting modules: a renamed or
+    // restructured module cannot silently drop out of the scan, and retiring a deprecated module
+    // does not falsely fail this tripwire.
     assertTrue(
-        roots.size() >= 3,
-        "expected at least model, framework and api production sources, got " + roots);
+        roots.stream().anyMatch(root -> root.endsWith(Path.of("openaev-model/src/main/java"))),
+        "openaev-model production sources must be scanned, got " + roots);
+    assertTrue(
+        roots.stream().anyMatch(root -> root.endsWith(Path.of("openaev-api/src/main/java"))),
+        "openaev-api production sources must be scanned, got " + roots);
     List<String> offenders = new ArrayList<>();
     int sanctionedSeen = 0;
     for (Path root : roots) {

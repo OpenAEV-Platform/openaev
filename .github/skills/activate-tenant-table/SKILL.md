@@ -272,7 +272,11 @@ model: `openaev-api/src/test/java/io/openaev/rest/vulnerability/CweHttpIsolation
 (cwes proven through the vulnerability endpoints: own-path read exposes the
 row, cross-tenant read sees an empty association, ground truth by raw JDBC).
 Such a test cannot be `@Transactional` when it must touch two tenant paths:
-each request needs its own transaction (see the model's javadoc).
+each request needs its own transaction (see the model's javadoc). Everything it
+creates is therefore COMMITTED: clean the table rows explicitly in `@AfterEach`,
+then remove the tenants with
+`TenantIsolationTestHelper#deleteCommittedTenants` (null-safe, handles the one
+non-cascading tenant child).
 Place the new test next to the API under test
 (`openaev-api/src/test/java/io/openaev/rest/{domain}/`).
 Copy the model's structure. Key elements that must all be present:
