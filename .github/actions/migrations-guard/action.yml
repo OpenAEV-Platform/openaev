@@ -12,8 +12,6 @@ runs:
     - name: Check new migrations block is strictly appended to the end since the last release
       run: |
         echo "Comparing migration files from the last release with the current branch... (reverse chronological order)"
-        diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac
-        echo "do compare"
         diff_files=$(diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
         
         echo "Diff between release ${{ inputs.last-release-number }} and current branch (a chevron means a difference)"
@@ -34,7 +32,7 @@ runs:
               NO_DIFF_ALLOWED=true;
               ;;
           esac
-        done <<< "diff_files"
+        done <<< "${diff_files}"
         
         echo "All good: no change in the previously released migrations block."
       shell: bash
