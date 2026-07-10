@@ -1,13 +1,15 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
+import https from 'https';
 
 const basePath = '';
 
 const backProxy = () => ({
-  target: 'http://localhost:8080',
+  target: 'https://localhost:8080',
   changeOrigin: true,
   ws: true,
+  agent: new https.Agent({ rejectUnauthorized: false }),
 });
 
 export default ({ mode }: { mode: string }) => {

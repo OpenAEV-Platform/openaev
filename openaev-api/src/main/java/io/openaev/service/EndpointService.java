@@ -899,6 +899,7 @@ public class EndpointService implements AuditLoggedService {
             "${OPENAEV_UNSECURED_CERTIFICATE}",
             String.valueOf(openAEVConfig.isUnsecuredCertificate()))
         .replace("${OPENAEV_WITH_PROXY}", String.valueOf(openAEVConfig.isWithProxy()))
+        .replace("${OPENAEV_SPKI_PINSET_ENABLED}", String.valueOf(openAEVConfig.isSPKIPinsetEnabled()))
         .replace("${OPENAEV_SERVICE_NAME}", serviceNameOrPrefix)
         .replace("${OPENAEV_INSTALL_DIR}", installationDir)
         .replace("${OPENAEV_TENANT_ID}", tenantId);

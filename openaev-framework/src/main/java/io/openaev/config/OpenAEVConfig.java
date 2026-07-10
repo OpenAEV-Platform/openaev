@@ -132,6 +132,9 @@ public class OpenAEVConfig {
   @Value("${openbas.with-proxy:${openaev.with-proxy:false}}")
   private boolean withProxy;
 
+  @Value("${openaev.enabled-spki-pinset:false}")
+  private boolean isSPKIPinsetEnabled;
+
   @JsonProperty("max_size")
   @Value("${openaev.implant-logs-max-size:1000000}")
   private int logsMaxSize;
