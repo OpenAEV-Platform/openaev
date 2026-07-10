@@ -18,10 +18,8 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -560,28 +558,34 @@ class WorkflowServiceTest {
               .id("run")
               .status(WorkflowStatus.RUN)
               .workflowTemplate(workflowTemplate)
-              .allowlist(
-                  List.of(
-                      WorkflowScopeRule.builder()
-                          .valueType(ScopeRuleValueType.IP)
-                          .ruleValue("192.168.10.10")
-                          .build(),
-                      WorkflowScopeRule.builder()
-                          .valueType(ScopeRuleValueType.DOMAIN)
-                          .ruleValue("example.org")
-                          .build(),
-                      WorkflowScopeRule.builder()
-                          .valueType(ScopeRuleValueType.IP_SUBNET)
-                          .ruleValue("10.0.0.0/24")
-                          .build(),
-                      WorkflowScopeRule.builder()
-                          .valueType(ScopeRuleValueType.ASSET_ID)
-                          .ruleValue("asset-123")
-                          .build(),
-                      WorkflowScopeRule.builder()
-                          .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
-                          .ruleValue("group-456")
-                          .build()))
+              .workflowScopeRules(
+                  new java.util.ArrayList<>(
+                      List.of(
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP)
+                              .ruleValue("192.168.10.10")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.DOMAIN)
+                              .ruleValue("example.org")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP_SUBNET)
+                              .ruleValue("10.0.0.0/24")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.ASSET_ID)
+                              .ruleValue("asset-123")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+                              .ruleValue("group-456")
+                              .build())))
               .build();
 
       when(stepService.findAllStepTemplateByWorkflow("template"))
