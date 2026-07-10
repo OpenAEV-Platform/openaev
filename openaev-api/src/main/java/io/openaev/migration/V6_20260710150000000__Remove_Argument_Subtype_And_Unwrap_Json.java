@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * steps.step_data}.
  */
 @Component
-public class V6_20260708153000000__Normalize_Payload_Arguments_Wrapped_Json
+public class V6_20260710150000000__Remove_Argument_Subtype_And_Unwrap_Json
     extends BaseJavaMigration {
 
   @Override
