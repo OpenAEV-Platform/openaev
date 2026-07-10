@@ -23,7 +23,7 @@ runs:
         while IFS= read -r line
         do
           case "$line" in
-            *\>*)
+            *\>* | *\<*)
               if [ "true" = "${NO_DIFF_ALLOWED}" ]; then
                 echo "ERROR: the block of previously released migrations was changed (check diff above). Exiting."
                 exit 1
