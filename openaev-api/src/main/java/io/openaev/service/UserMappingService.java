@@ -6,7 +6,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.sso.GroupMapping;
-import io.openaev.utils.ReadPropertiesHelper;
+import io.openaev.service.utils.ReadPropertiesHelper;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;

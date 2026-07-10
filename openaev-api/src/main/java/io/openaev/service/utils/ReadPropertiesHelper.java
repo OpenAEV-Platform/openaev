@@ -1,4 +1,4 @@
-package io.openaev.utils;
+package io.openaev.service.utils;
 
 import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
 
