@@ -82,6 +82,23 @@ public final class ExpectationResultBuilder {
     return Collections.max(results.stream().map(InjectExpectationResult::getScore).toList());
   }
 
+  /**
+   * Evaluate overall status from per-source results.
+   *
+   * <p>* SUCCESS if any expected source reports expectedScore
+   *
+   * <p>* NO_DATA if no success and at least one expected source is missing
+   *
+   * <p>* ERROR if no success and all expected sources reported but none matched
+   */
+  public static Double computeResultsScore(@NotNull final List<InjectExpectationResult> results) {
+    if (hasNoResults(results) || hasAnyEmptyResult(results)) {
+      return null;
+    }
+
+    return Collections.max(results.stream().map(InjectExpectationResult::getScore).toList());
+  }
+
   // -- SETUP --
 
   private static InjectExpectationResult setUp(

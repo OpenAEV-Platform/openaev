@@ -15,6 +15,7 @@ import io.openaev.engine.model.injectexpectation.EsInjectExpectation;
 import io.openaev.engine.model.scenario.EsScenario;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.query.EsEntities;
+import io.openaev.scheduler.jobs.engine_sync.EngineSyncExecutionJob;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -38,9 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
  * io.openaev.database.repository.EndpointRepository}.
  *
  * <p>Unlike {@link IndexingRegressionTest} which calls handlers directly, these tests exercise the
- * full pipeline: data preparation → {@link io.openaev.scheduler.jobs.EngineSyncExecutionJob} →
- * ES/OpenSearch bulk indexing → query via {@link EngineService}. This validates that query changes
- * surface correctly all the way to the engine layer.
+ * full pipeline: data preparation → {@link EngineSyncExecutionJob} → ES/OpenSearch bulk indexing →
+ * query via {@link EngineService}. This validates that query changes surface correctly all the way
+ * to the engine layer.
  *
  * <p>Key regression covered: endpoint is detected for re-indexing when a <em>linked finding</em>
  * has {@code finding_updated_at > :from} (new UNION branch in the {@code changed_assets} CTE).

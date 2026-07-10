@@ -58,7 +58,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
     return expectationConverter(
         baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
@@ -68,7 +68,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
     if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
       tableTop.setTeam(team);
     }
@@ -82,7 +82,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
     if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
       tableTop.setTeam(team);
       tableTop.setUser(user);
@@ -140,8 +140,8 @@ public class InjectExpectationUtils {
   }
 
   private static BaseInjectExpectation newExpectationByType(
-      @NotNull final Expectation expectation) {
-    return switch (expectation.type()) {
+      @NotNull final BaseInjectExpectation.EXPECTATION_TYPE type) {
+    return switch (type) {
       case ARTICLE -> new ArticleInjectExpectation();
       case CHALLENGE -> new ChallengeInjectExpectation();
       case MANUAL -> new ManualInjectExpectation();
@@ -152,6 +152,45 @@ public class InjectExpectationUtils {
   }
 
   // -- RULES OF ENGAGEMENT --
+  public static double computeScore(@NotNull Double expectedScore, final boolean success) {
+    return success ? expectedScore : FAILED_SCORE_VALUE;
+  }
+
+  public static Double computeChildrenScore(
+      boolean isGroupExpectation,
+      @NotNull Double expectedScore,
+      @NotNull final List<? extends BaseInjectExpectation> childrenExpectations) {
+    final boolean noExpectationScore = noExpectationScore(childrenExpectations);
+    final boolean allSuccess =
+        allExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean anySuccess =
+        anyExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean allError =
+        allExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+    final boolean anyError =
+        anyExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+
+    if (noExpectationScore) {
+      return null;
+    }
+
+    Double score = null;
+
+    if (isGroupExpectation) {
+      if (anySuccess) {
+        score = InjectExpectationUtils.computeScore(expectedScore, true);
+      } else if (allError) {
+        score = InjectExpectationUtils.computeScore(expectedScore, false);
+      }
+    } else {
+      if (allSuccess) {
+        score = InjectExpectationUtils.computeScore(expectedScore, true);
+      } else if (anyError) {
+        score = InjectExpectationUtils.computeScore(expectedScore, false);
+      }
+    }
+    return score;
+  }
 
   public static void computeScores(
       @NotNull final List<? extends BaseInjectExpectation> childrenExpectations,

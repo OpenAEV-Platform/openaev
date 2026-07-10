@@ -188,4 +188,15 @@ public class ExpectationFixture {
         expirationTime,
         signatures);
   }
+
+  public static ArticleInjectExpectation createArticleInjectExpectationForPlayer(
+      Team team, User user, String name) {
+    ArticleInjectExpectation articleInjectExpectation = new ArticleInjectExpectation();
+    articleInjectExpectation.setUser(user);
+    articleInjectExpectation.setTeam(team);
+    articleInjectExpectation.setName(name);
+    articleInjectExpectation.setDescription("Article Inject Expectation Description");
+    articleInjectExpectation.setExpectedScore(SCORE);
+    return articleInjectExpectation;
+  }
 }
