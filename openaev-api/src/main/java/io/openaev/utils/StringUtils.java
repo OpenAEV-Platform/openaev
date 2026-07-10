@@ -116,22 +116,4 @@ public class StringUtils {
       throw new BadRequestException("Invalid import ID format, It couldn't be parsed as UUID.");
     }
   }
-
-  /**
-   * Validates whether a string is a UUID format.
-   *
-   * @param uuid the string to validate
-   * @return {@code true} if the string is a valid UUID format, {@code false} otherwise
-   */
-  public static boolean isValidUUIDFormat(String uuid) {
-    if (isBlank(uuid)) {
-      return false;
-    }
-    try {
-      UUID.fromString(uuid);
-      return true;
-    } catch (IllegalArgumentException e) {
-      return false;
-    }
-  }
 }

@@ -2,7 +2,6 @@ package io.openaev.service.chaining;
 
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.utils.IpAddressUtils;
-import io.openaev.utils.StringUtils;
 import java.util.Locale;
 import org.apache.commons.validator.routines.DomainValidator;
 
@@ -36,9 +35,7 @@ public final class PrimitiveValueValidator {
       case AssetId ->
           context.allowedAssetIds() != null && context.allowedAssetIds().contains(value);
       case AssetGroupId ->
-          StringUtils.isValidUUIDFormat(value)
-              && context.allowedAssetGroupIds() != null
-              && context.allowedAssetGroupIds().contains(value);
+          context.allowedAssetGroupIds() != null && context.allowedAssetGroupIds().contains(value);
       default -> true;
     };
   }
