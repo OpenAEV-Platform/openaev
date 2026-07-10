@@ -93,7 +93,11 @@ public class MdeExecutorContextService extends ExecutorContextService {
    * call fires at once and most get throttled, leaving only a handful of machines executed.
    */
   public void executeActions(List<MdeAction> actions) {
-    int paginationLimit = mdeExecutorConfig.getApiBatchExecutionActionPagination();
+    Integer configuredLimit = mdeExecutorConfig.getApiBatchExecutionActionPagination();
+    // A new/absent connector config key is deserialized as null (it overrides the field default),
+    // so
+    // guard against null/non-positive values to avoid an NPE or a division-by-zero in the batching.
+    int paginationLimit = (configuredLimit != null && configuredLimit > 0) ? configuredLimit : 10;
     List<Runnable> dispatches = new ArrayList<>();
     for (MdeAction action : actions) {
       for (Agent agent : action.getAgents()) {
