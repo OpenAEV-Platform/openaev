@@ -3,6 +3,7 @@ package io.openaev.api.attackpath;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
@@ -20,8 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * POC-only attack-path endpoints (issue 6647). The whole controller is gated behind the {@code
  * ATTACK_PATH_POC} preview feature ({@code openaev.enabled-dev-features}), so it is not even
- * registered — and its routes return 404 — unless the feature is turned on. Tenant isolation is
- * enforced by the statement inspector from the request scope, not by hand.
+ * registered — and its routes return 404 — unless the feature is turned on.
+ *
+ * <p>Tenant isolation is enforced by the statement inspector, not by hand: each read declares a
+ * {@link TxCtx} parameter, so the transaction aspect writes the request's tenant scope (from the
+ * {@code {tenantId}} path or the {@code X-Tenant-Ids} header) into {@code app.current_tenants}, and
+ * the inspector filters every read of the activated {@code attackpath_*} tables against it. Without
+ * that parameter the scope would stay empty and the reads would fail closed.
  */
 @RestController
 @RequiredArgsConstructor
@@ -41,7 +47,7 @@ public class AttackPathPocApi extends RestBehavior {
   @GetMapping("/simulations/{simulationId}/graph")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
-  public AttackPathDTO graph(@PathVariable String simulationId) {
+  public AttackPathDTO graph(TxCtx ctx, @PathVariable String simulationId) {
     return graphService.buildGraph(simulationId);
   }
 
@@ -52,7 +58,8 @@ public class AttackPathPocApi extends RestBehavior {
   @GetMapping("/simulations/{simulationId}/endpoint/findings")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
-  public AttackPathExpandDTO expand(@PathVariable String simulationId, @RequestParam String ref) {
+  public AttackPathExpandDTO expand(
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
     return graphService.expandEndpoint(simulationId, ref);
   }
 
@@ -64,7 +71,7 @@ public class AttackPathPocApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public AttackPathEndpointRelationsDTO relations(
-      @PathVariable String simulationId, @RequestParam String ref) {
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
     return graphService.endpointRelations(simulationId, ref);
   }
 }
