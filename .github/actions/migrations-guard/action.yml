@@ -17,6 +17,8 @@ runs:
         echo "now do branch migrations list"
         find openaev-api/src/main/java/io/openaev/migration/* | sort > branch
         echo "now do diff"
+        diff --side-by-side source branch | tac
+        echo "pipe to file diffs"
         diff --side-by-side source branch | tac > diffs
         
         echo "Diff between release ${{ inputs.last-release-number }} and current branch (a chevron means a difference)"
