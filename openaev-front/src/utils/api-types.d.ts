@@ -1763,24 +1763,27 @@ export interface ConditionCreateInput {
   condition_key?: string;
   /** Path to the value in the output of the step from */
   condition_key_type?:
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
+    | "targeted-asset"
+    | "text"
+    | "username";
   /** Mapping type: DEFAULT, LOCAL, or GLOBAL. Required when condition type is MAPPER, must be null otherwise. */
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   /** ID of the step linked to the key */
@@ -1814,24 +1817,27 @@ export interface ConditionOutput {
   condition_id?: string;
   condition_key?: string;
   condition_key_type?:
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
+    | "targeted-asset"
+    | "text"
+    | "username";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_parent_id?: string;
   condition_type?: string;
@@ -6116,24 +6122,27 @@ export interface LoginUserInput {
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_type?:
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
+    | "targeted-asset"
+    | "text"
+    | "username";
   condition_mapping_type?: "DEFAULT" | "LOCAL" | "GLOBAL";
   condition_value?: string;
 }
@@ -7122,24 +7131,27 @@ export interface PayloadArgument {
   key: string;
   separator?: string | null;
   type:
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
+    | "targeted-asset"
+    | "text"
+    | "username";
 }
 
 export interface PayloadCommandBlock {
@@ -8522,24 +8534,27 @@ export interface ScopeVariableInput {
   scope_variable_key: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type:
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
+    | "targeted-asset"
+    | "text"
+    | "username";
   /**
    * Value of the variable.
    * @minLength 1
@@ -8557,24 +8572,27 @@ export interface ScopeVariableOutput {
   scope_variable_key?: string;
   /** Argument type driving how the variable value is interpreted. */
   scope_variable_type?:
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
-    | "targeted-asset";
+    | "targeted-asset"
+    | "text"
+    | "username";
   /** Value of the variable. */
   scope_variable_value?: string;
 }
@@ -9015,24 +9033,27 @@ export interface StepInput {
 export interface StepOutput {
   step_condition_ids?: string[];
   step_condition_key_types?: (
-    | "text"
-    | "number"
+    | "asset_group_id"
+    | "asset_id"
+    | "cve"
+    | "document"
+    | "domain"
+    | "hash"
     | "host"
     | "hostname"
-    | "domain"
     | "ipv4"
     | "ipv6"
-    | "port"
-    | "username"
+    | "ip_subnet"
+    | "number"
     | "password"
-    | "hash"
+    | "permissions"
+    | "port"
     | "service"
-    | "cve"
     | "severity"
     | "share_name"
-    | "permissions"
-    | "document"
     | "targeted-asset"
+    | "text"
+    | "username"
   )[];
   /** @format date-time */
   step_created_at?: string;

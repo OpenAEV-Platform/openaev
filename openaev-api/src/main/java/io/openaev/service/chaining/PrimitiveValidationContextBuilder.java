@@ -86,14 +86,14 @@ public class PrimitiveValidationContextBuilder {
             : Collections.emptySet();
 
     return new PrimitiveValidationContext(
-        allowedAssetIds,
         allowedAssetGroupIds,
-        allowlistedIps,
-        denylistedIps,
-        allowlistedSubnets,
-        denylistedSubnets,
+        allowedAssetIds,
         allowlistedDomains,
-        denylistedDomains);
+        allowlistedIps,
+        allowlistedSubnets,
+        denylistedDomains,
+        denylistedIps,
+        denylistedSubnets);
   }
 
   private boolean requiresPrimitiveValidation(

@@ -18,9 +18,9 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
+import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import ActionTypeIcon from '../ActionTypeIcon';
 import { useOutputProviders } from '../useOutputProviders';
-import useArgumentTypes from '../../../threat_arsenal/form/useArgumentTypes';
 import {
   CASE_SENSITIVE_OPERATORS,
   COMPARISON_OPERATORS,

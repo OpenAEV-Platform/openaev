@@ -380,14 +380,14 @@ class WorkflowStateServiceTest {
 
       PrimitiveValidationContext validationContext =
           new PrimitiveValidationContext(
-              Set.of(validAssetId),
               Set.of(validAssetGroupId),
-              Set.of(),
-              Set.of(deniedIp),
-              Set.of(),
-              Set.of(),
+              Set.of(validAssetId),
               Set.of("example.org"),
-              Set.of(deniedDomain));
+              Set.of(),
+              Set.of(),
+              Set.of(deniedDomain),
+              Set.of(deniedIp),
+              Set.of());
       when(primitiveValidationContextBuilder.build(anyMap(), eq(workflow)))
           .thenReturn(validationContext);
 
