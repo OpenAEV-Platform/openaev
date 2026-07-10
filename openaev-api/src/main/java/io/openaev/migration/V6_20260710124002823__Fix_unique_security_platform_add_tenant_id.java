@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260706120000000__Fix_unique_security_platform_add_tenant_id
+public class V6_20260710124002823__Fix_unique_security_platform_add_tenant_id
     extends BaseJavaMigration {
 
   @Override
@@ -18,14 +18,14 @@ public class V6_20260706120000000__Fix_unique_security_platform_add_tenant_id
       // Recreate with tenant_id to allow same name+type across tenants
       stmt.execute(
           """
-              CREATE UNIQUE INDEX unique_security_platform_name_type_ci_idx
-              ON assets (
-                  tenant_id,
-                  lower(asset_name::text),
-                  security_platform_type
-              )
-              WHERE asset_type::text = 'SecurityPlatform';
-          """);
+                  CREATE UNIQUE INDEX unique_security_platform_name_type_ci_idx
+                  ON assets (
+                      tenant_id,
+                      lower(asset_name::text),
+                      security_platform_type
+                  )
+                  WHERE asset_type::text = 'SecurityPlatform';
+              """);
     }
   }
 }

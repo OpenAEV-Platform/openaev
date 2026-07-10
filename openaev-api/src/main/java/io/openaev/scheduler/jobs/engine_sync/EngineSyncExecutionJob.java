@@ -15,9 +15,11 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("!test")
 @Slf4j
 public class EngineSyncExecutionJob extends SelfConfiguredPlatformJob {
   private static final String MODEL_NAME_KEY = "modelName";
