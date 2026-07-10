@@ -38,16 +38,6 @@ public class V6_20260710150000000__Remove_Argument_Subtype_And_Unwrap_Json
       stmt.execute(
           """
           UPDATE injects_statuses
-          SET status_payload_output = (status_payload_output ->> 'value')::json
-          WHERE status_payload_output IS NOT NULL
-            AND json_typeof(status_payload_output) = 'object'
-            AND status_payload_output ->> 'type' = 'json'
-            AND status_payload_output -> 'value' IS NOT NULL;
-          """);
-
-      stmt.execute(
-          """
-          UPDATE injects_statuses
           SET status_payload_output = jsonb_set(
             status_payload_output::jsonb,
             '{payload_arguments}',
