@@ -35,15 +35,21 @@ public class ExecutorHelper {
       String agentId,
       String tenantId,
       String token,
-      String baseUrl) {
+      String baseUrl,
+      String maxSize,
+      String unsecuredCertificate,
+      String withProxy) {
     if (platformType == null
         || command == null
         || injectId == null
         || agentId == null
         || tenantId == null
-        || baseUrl == null) {
+        || baseUrl == null
+        || maxSize == null
+        || unsecuredCertificate == null
+        || withProxy == null) {
       throw new IllegalArgumentException(
-          "Platform type, command, injectId, tenantId, agentId and baseUrl must not be null.");
+          "Platform type, command, injectId, tenantId, agentId, baseUrl, maxSize, unsecuredCertificate and withProxy must not be null.");
     }
 
     String location =
@@ -60,6 +66,9 @@ public class ExecutorHelper {
         .replace("#{agent}", agentId)
         .replace("#{tenant}", tenantId)
         .replace("#{token}", token)
-        .replace("#{baseUrl}", baseUrl);
+        .replace("#{baseUrl}", baseUrl)
+        .replace("#{maxSize}", maxSize)
+        .replace("#{unsecuredCertificate}", unsecuredCertificate)
+        .replace("#{withProxy}", withProxy);
   }
 }

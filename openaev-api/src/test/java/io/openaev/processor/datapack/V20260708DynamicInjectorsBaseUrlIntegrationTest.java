@@ -179,6 +179,51 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Should replace URL prefix in escaped curl implant command")
+    void given_escapedCurlImplantCommand_should_replaceUrlPrefixWithConfiguredBaseUrl() {
+      // Arrange
+      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
+      Injector injector =
+          persistInjectorWithCommands(
+              Map.of("run", "curl -s -X GET \\\"URL/api/tenants/#{tenant}/implant/"), Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .contains("\\\"https://openaev.example.com/api/tenants/#{tenant}/implant/")
+          .doesNotContain("\\\"URL/api/tenants/#{tenant}/implant/");
+    }
+
+    @Test
+    @DisplayName("Should replace server URL and escaped curl implant URL in the same command")
+    void given_commandWithServerAndEscapedCurlImplant_should_replaceBothPatterns() {
+      // Arrange
+      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
+      Injector injector =
+          persistInjectorWithCommands(
+              Map.of(
+                  "run",
+                  "server=\\\"http://192.168.1.13:3001\\\" && curl -s -X GET \\\"URL/api/tenants/#{tenant}/implant/"),
+              Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .contains("server=\\\"https://openaev.example.com\\\"")
+          .contains("\\\"https://openaev.example.com/api/tenants/#{tenant}/implant/")
+          .doesNotContain("server=\\\"http://192.168.1.13:3001\\\"")
+          .doesNotContain("\\\"URL/api/tenants/#{tenant}/implant/");
+    }
+
+    @Test
     @DisplayName("Should not modify command when command value is null")
     void given_nullCommandValue_should_notModifyInjectorCommands() {
       // Arrange

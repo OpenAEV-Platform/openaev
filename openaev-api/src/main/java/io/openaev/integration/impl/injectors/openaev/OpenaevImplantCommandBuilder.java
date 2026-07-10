@@ -31,19 +31,19 @@ final class OpenaevImplantCommandBuilder {
       String maxSizeVar,
       String unsecuredCertificateVar,
       String withProxyVar) {
-    CommandVars(OpenAEVConfig cfg) {
+    CommandVars() {
       this(
           "token=\"#{token}\"",
           "server=\"#{baseUrl}\"",
-          "max_size=\"" + cfg.getLogsMaxSize() + "\"",
-          "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"",
-          "with_proxy=\"" + cfg.isWithProxy() + "\"");
+          "max_size=\"#{maxSize}\"",
+          "unsecured_certificate=\"#{unsecuredCertificate}\"",
+          "with_proxy=\"#{withProxy}\"");
     }
   }
 
-  static Map<String, String> buildExecutorCommands(OpenAEVConfig cfg) {
+  static Map<String, String> buildExecutorCommands() {
     Map<String, String> commands = new HashMap<>();
-    CommandVars vars = new CommandVars(cfg);
+    CommandVars vars = new CommandVars();
     // --- PALO ALTO WINDOWS SPECIFIC ---
     buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
     buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);

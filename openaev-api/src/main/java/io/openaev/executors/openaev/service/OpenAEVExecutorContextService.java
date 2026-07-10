@@ -54,7 +54,10 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
             agentId,
             inject.getTenant().getId(),
             token,
-            openAEVConfig.getBaseUrlForAgent());
+            openAEVConfig.getBaseUrlForAgent(),
+            Integer.toString(openAEVConfig.getLogsMaxSize()),
+            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+            Boolean.toString(openAEVConfig.isWithProxy()));
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };

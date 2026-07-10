@@ -156,7 +156,10 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               agent.getId(),
               inject.getTenant().getId(),
               token,
-              openAEVConfig.getBaseUrlForAgent());
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -195,7 +198,10 @@ public class TaniumExecutorContextService extends ExecutorContextService {
               agent.getId(),
               inject.getTenant().getId(),
               token,
-              openAEVConfig.getBaseUrlForAgent());
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));
