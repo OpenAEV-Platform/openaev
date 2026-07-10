@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -7,6 +8,8 @@ import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
+import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
+import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -63,6 +66,51 @@ public class AttackPathGraphService {
     return assemble(executions, findings);
   }
 
+  /**
+   * Expand one endpoint into its finding-type nodes and finding nodes, from a single indexed read.
+   * {@code endpointKey} is the asset id or the raw value of a discovered endpoint.
+   */
+  @Transactional(readOnly = true)
+  public AttackPathExpandDTO expandEndpoint(String simulationId, String endpointKey) {
+    List<AttackPathEndpointFindingRow> findings =
+        findingRepository.findByEndpoint(simulationId, endpointKey);
+    String assetNodeId = AttackPathIds.endpointNode(endpointKey);
+    Map<String, AttackPathNodeDTO> typeNodes = new LinkedHashMap<>();
+    Map<String, AttackPathNodeDTO> findingNodes = new LinkedHashMap<>();
+    for (AttackPathEndpointFindingRow f : findings) {
+      String typeNodeId = AttackPathIds.findingTypeNode(f.type(), endpointKey);
+      typeNodes.computeIfAbsent(typeNodeId, id -> findingTypeNode(id, f.type(), assetNodeId));
+      String findingNodeId = AttackPathIds.findingNode(f.type(), f.value());
+      findingNodes.computeIfAbsent(
+          findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
+    }
+    return new AttackPathExpandDTO(
+        new ArrayList<>(typeNodes.values()), new ArrayList<>(findingNodes.values()));
+  }
+
+  /**
+   * An endpoint's relations: the executions targeting it (as feed nodes) and the grouped edges into
+   * it, from a single indexed read. {@code targetKey} is the asset id or the raw value.
+   */
+  @Transactional(readOnly = true)
+  public AttackPathEndpointRelationsDTO endpointRelations(String simulationId, String targetKey) {
+    List<AttackPathExecutionRow> executions =
+        executionRepository.findByTarget(simulationId, targetKey);
+    String targetNodeId = AttackPathIds.endpointNode(targetKey);
+    Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
+    List<AttackPathNodeDTO> feed = new ArrayList<>();
+    for (AttackPathExecutionRow e : executions) {
+      String sourceNodeId = sourceNodeId(e);
+      String edgeId = AttackPathIds.executionsEdge(sourceNodeId, targetNodeId);
+      AttackPathEdges edge =
+          edges.computeIfAbsent(edgeId, id -> executionEdge(id, sourceNodeId, targetNodeId));
+      edge.setCount(edge.getCount() + 1);
+      edge.getExecutionIds().add(e.id());
+      feed.add(executionFeedNode(e));
+    }
+    return new AttackPathEndpointRelationsDTO(feed, new ArrayList<>(edges.values()));
+  }
+
   private AttackPathDTO assemble(
       List<AttackPathExecutionRow> executions, List<AttackPathFindingRow> findings) {
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
@@ -113,7 +161,8 @@ public class AttackPathGraphService {
 
       String findingNodeId = AttackPathIds.findingNode(f.type(), f.value());
       AttackPathNodeDTO findingNode =
-          nodes.computeIfAbsent(findingNodeId, id -> findingNode(id, f, typeNodeId, assetNodeId));
+          nodes.computeIfAbsent(
+              findingNodeId, id -> findingNode(id, f.type(), f.value(), typeNodeId, assetNodeId));
       if (seenFindingNodes.add(findingNodeId)) {
         staticFindings.add(findingNode);
       }
@@ -166,16 +215,21 @@ public class AttackPathGraphService {
         counters);
   }
 
+  private String sourceNodeId(AttackPathExecutionRow e) {
+    return SOURCE_INJECTOR.equals(e.sourceKind())
+        ? AttackPathIds.injectorNode(e.sourceInjector())
+        : AttackPathIds.endpointNode(e.sourceAssetId());
+  }
+
   private String sourceNode(AttackPathExecutionRow e, Map<String, AttackPathNodeDTO> nodes) {
+    String id = sourceNodeId(e);
     if (SOURCE_INJECTOR.equals(e.sourceKind())) {
-      String id = AttackPathIds.injectorNode(e.sourceInjector());
       nodes.computeIfAbsent(id, key -> node(key, TYPE_INJECTOR, e.sourceInjector()));
-      return id;
+    } else {
+      // Agent/asset source: the source endpoint. A placeholder node, overwritten if it is also a
+      // target (a pivot chain) by the ASSET pass above.
+      nodes.computeIfAbsent(id, key -> node(key, TYPE_ASSET, e.sourceAssetId()));
     }
-    // Agent/asset source: the source endpoint. A placeholder node, overwritten if it is also a
-    // target (a pivot chain) by the ASSET pass above.
-    String id = AttackPathIds.endpointNode(e.sourceAssetId());
-    nodes.computeIfAbsent(id, key -> node(key, TYPE_ASSET, e.sourceAssetId()));
     return id;
   }
 
@@ -247,13 +301,13 @@ public class AttackPathGraphService {
   }
 
   private AttackPathNodeDTO findingNode(
-      String id, AttackPathFindingRow f, String typeNodeId, String assetNodeId) {
+      String id, String type, String value, String typeNodeId, String assetNodeId) {
     AttackPathNodeDTO node = new AttackPathNodeDTO();
     node.setId(id);
     node.setType(TYPE_FINDING);
-    node.setLabel(f.value());
-    node.setValue(f.value());
-    node.setTypeFindings(f.type());
+    node.setLabel(value);
+    node.setValue(value);
+    node.setTypeFindings(type);
     node.setFindingsTypeNodeId(typeNodeId);
     node.setAssetNodeId(assetNodeId);
     return node;

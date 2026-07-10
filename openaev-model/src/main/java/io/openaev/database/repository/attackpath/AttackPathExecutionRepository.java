@@ -23,4 +23,19 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.preventionStatus, e.detectionStatus, e.stepTemplateId) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
+
+  /**
+   * An endpoint's relations: the executions targeting it. A single indexed read using {@code
+   * idx_ap_exec_sim_targetkey}; {@code targetKey} is the asset id or the raw value.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathExecutionRow("
+          + "e.id, e.sourceKind, e.sourceAssetId, e.agentId, e.agentName, e.agentPrivilege, "
+          + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
+          + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
+          + "e.preventionStatus, e.detectionStatus, e.stepTemplateId) "
+          + "FROM AttackPathExecution e "
+          + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
+  List<AttackPathExecutionRow> findByTarget(
+      @Param("simulationId") String simulationId, @Param("targetKey") String targetKey);
 }

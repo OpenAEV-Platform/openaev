@@ -84,4 +84,29 @@ class AttackPathPocApiTest extends IntegrationTest {
     mvc.perform(get(tenantUri(TENANT_PREFIX + "/poc/attack-path/simulations/" + SIM + "/graph")))
         .andExpect(status().isOk());
   }
+
+  @Test
+  @DisplayName("GET /endpoint/findings?ref= resolves and returns the expand shape")
+  void expand_endpoint_route_resolves() throws Exception {
+    mvc.perform(
+            get(AttackPathPocApi.ATTACK_PATH_POC_URI + "/simulations/" + SIM + "/endpoint/findings")
+                .param("ref", "dc-01"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.findingTypes").exists())
+        .andExpect(jsonPath("$.findings").exists());
+  }
+
+  @Test
+  @DisplayName("GET /endpoint/relations?ref= resolves and returns the relations shape")
+  void relations_endpoint_route_resolves() throws Exception {
+    mvc.perform(
+            get(AttackPathPocApi.ATTACK_PATH_POC_URI
+                    + "/simulations/"
+                    + SIM
+                    + "/endpoint/relations")
+                .param("ref", "dc-01"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.executions").exists())
+        .andExpect(jsonPath("$.edges").exists());
+  }
 }

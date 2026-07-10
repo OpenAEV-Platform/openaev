@@ -6,12 +6,15 @@ import io.openaev.aop.AccessControl;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
+import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
+import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -40,5 +43,28 @@ public class AttackPathPocApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathDTO graph(@PathVariable String simulationId) {
     return graphService.buildGraph(simulationId);
+  }
+
+  /**
+   * Expand an endpoint into its finding types and findings, from a single indexed read. {@code ref}
+   * is the endpoint key (asset id or the raw value of a discovered endpoint), URL-encoded.
+   */
+  @GetMapping("/simulations/{simulationId}/endpoint/findings")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public AttackPathExpandDTO expand(@PathVariable String simulationId, @RequestParam String ref) {
+    return graphService.expandEndpoint(simulationId, ref);
+  }
+
+  /**
+   * An endpoint's relations: its executions and the grouped edges into it, from a single indexed
+   * read. {@code ref} is the endpoint key (asset id or raw value), URL-encoded.
+   */
+  @GetMapping("/simulations/{simulationId}/endpoint/relations")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public AttackPathEndpointRelationsDTO relations(
+      @PathVariable String simulationId, @RequestParam String ref) {
+    return graphService.endpointRelations(simulationId, ref);
   }
 }

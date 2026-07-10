@@ -12,6 +12,8 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
+import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
+import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.time.Instant;
@@ -182,6 +184,70 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     assertThat(large).isEqualTo(2);
   }
 
+  @Test
+  @DisplayName("Expand an endpoint returns its finding types and findings in a single query")
+  void expand_returns_finding_types_and_findings() {
+    Statistics stats =
+        entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+    stats.setStatisticsEnabled(true);
+    stats.clear();
+    AttackPathExpandDTO dto = service.expandEndpoint(SIM, "dc-01");
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+
+    assertThat(dto.findingTypes())
+        .extracting(AttackPathNodeDTO::getTypeFindings)
+        .containsExactlyInAnyOrder("credentials", "cve");
+    assertThat(dto.findings())
+        .extracting(AttackPathNodeDTO::getValue)
+        .containsExactlyInAnyOrder("admin:secret", "CVE-2023-1");
+  }
+
+  @Test
+  @DisplayName("Endpoint relations returns the targeting executions and grouped edge in one query")
+  void relations_returns_executions_and_grouped_edge() {
+    Statistics stats =
+        entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+    stats.setStatisticsEnabled(true);
+    stats.clear();
+    AttackPathEndpointRelationsDTO dto = service.endpointRelations(SIM, "dc-01");
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+
+    assertThat(dto.executions()).hasSize(2);
+    assertThat(dto.edges()).hasSize(1);
+    AttackPathEdges edge = dto.edges().get(0);
+    assertThat(edge.getCount()).isEqualTo(2);
+    assertThat(edge.getExecutionIds()).containsExactlyInAnyOrder(exec1Id, exec2Id);
+  }
+
+  @Test
+  @DisplayName("Expand and relations work for a discovered (raw-value) endpoint")
+  void expand_and_relations_for_raw_endpoint() {
+    String raw = "honey.scanme.sh";
+    String rawExecId = rawExecution("NUCLEI", raw, "Not Prevented", at(10));
+
+    AttackPathFinding rawFinding = new AttackPathFinding();
+    rawFinding.setTenant(tenant);
+    rawFinding.setSimulationId(SIM);
+    rawFinding.setType("cve");
+    rawFinding.setValue("CVE-2024-9");
+    rawFinding.setEndpointKey(raw); // endpoint_id stays null: a discovered endpoint has no asset id
+    String rawFindingId = findingRepository.save(rawFinding).getId();
+    AttackPathExecutionFinding link = new AttackPathExecutionFinding();
+    link.setExecutionId(rawExecId);
+    link.setFindingId(rawFindingId);
+    executionFindingRepository.save(link);
+    entityManager.flush();
+
+    AttackPathExpandDTO expand = service.expandEndpoint(SIM, raw);
+    assertThat(expand.findings())
+        .extracting(AttackPathNodeDTO::getValue)
+        .containsExactly("CVE-2024-9");
+
+    AttackPathEndpointRelationsDTO relations = service.endpointRelations(SIM, raw);
+    assertThat(relations.executions()).hasSize(1);
+    assertThat(relations.edges()).hasSize(1);
+  }
+
   // --- seeding helpers ---
 
   private String injectorExecution(
@@ -204,6 +270,22 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     e.setTargetPlatform("Windows");
     e.setPreventionStatus(prevention);
     e.setPayloadName(payload);
+    e.setExecutedAt(executedAt);
+    return executionRepository.save(e).getId();
+  }
+
+  private String rawExecution(
+      String injector, String rawValue, String prevention, Instant executedAt) {
+    AttackPathExecution e = new AttackPathExecution();
+    e.setTenant(tenant);
+    e.setSimulationId(SIM);
+    e.setSourceKind("INJECTOR");
+    e.setSourceInjector(injector);
+    e.setTargetKind("RAW");
+    e.setTargetRawValue(rawValue);
+    e.setTargetKey(rawValue);
+    e.setPreventionStatus(prevention);
+    e.setPayloadName("Nuclei Scan");
     e.setExecutedAt(executedAt);
     return executionRepository.save(e).getId();
   }

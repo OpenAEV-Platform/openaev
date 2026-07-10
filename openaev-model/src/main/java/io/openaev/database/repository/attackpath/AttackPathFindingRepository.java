@@ -1,6 +1,7 @@
 package io.openaev.database.repository.attackpath;
 
 import io.openaev.database.model.attackpath.AttackPathFinding;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import java.util.List;
 import org.springframework.data.jpa.repository.Query;
@@ -21,4 +22,16 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
           + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
           + "WHERE f.simulationId = :simulationId")
   List<AttackPathFindingRow> findGraphRows(@Param("simulationId") String simulationId);
+
+  /**
+   * Expand one endpoint: its findings' (type, value). A single indexed read using {@code
+   * idx_ap_find_sim_endpointkey_type}; {@code endpointKey} is the asset id or the raw value.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow("
+          + "f.type, f.value) "
+          + "FROM AttackPathFinding f "
+          + "WHERE f.simulationId = :simulationId AND f.endpointKey = :endpointKey")
+  List<AttackPathEndpointFindingRow> findByEndpoint(
+      @Param("simulationId") String simulationId, @Param("endpointKey") String endpointKey);
 }
