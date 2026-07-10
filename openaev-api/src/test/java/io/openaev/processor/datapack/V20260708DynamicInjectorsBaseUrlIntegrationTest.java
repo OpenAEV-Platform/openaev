@@ -97,7 +97,8 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should replace unsecured_certificate value with unsecuredCertificate placeholder")
-    void given_unsecuredCertificateCommand_should_replaceUnsecuredCertificateValueWithPlaceholder() {
+    void
+        given_unsecuredCertificateCommand_should_replaceUnsecuredCertificateValueWithPlaceholder() {
       // Arrange
       Injector injector =
           persistInjectorWithCommands(
@@ -261,7 +262,8 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
     void given_datapackAlreadyProcessed_should_skipSecondExecution() {
       // Arrange
       Injector injector =
-          persistInjectorWithCommands(Map.of("run", "server=\\\"http://192.168.1.13:3001\\\""), Map.of());
+          persistInjectorWithCommands(
+              Map.of("run", "server=\\\"http://192.168.1.13:3001\\\""), Map.of());
       dataPackService.registerDataPack(
           dataPack.getPackId(), new Tenant(TenantContext.getCurrentTenant()));
 
