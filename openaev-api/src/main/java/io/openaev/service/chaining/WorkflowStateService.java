@@ -239,12 +239,22 @@ public class WorkflowStateService {
   }
 
   /**
-   * Parses structured output fields and adds their values to the state entries.
+   * Parses structured output fields and adds their values to the global state entries.
    *
-   * @param entries state entries to populate
-   * @param structuredOutput JSON object with field arrays
-   * @param typeMappings mapping from field name to resolved chaining mapped type
-   * @return map of primitive type names to extracted string values
+   * <p>Two paths are handled per array element:
+   *
+   * <ul>
+   *   <li><b>Primitive</b>: scalar values are validated against scope rules and stored per
+   *       primitive type.
+   *   <li><b>Complex</b>: JSON objects (e.g. port-scan tuples) are stored as correlated key-value
+   *       pairs.
+   * </ul>
+   *
+   * @param entries global state entries to populate
+   * @param structuredOutput JSON object with field arrays produced by the step
+   * @param typeMappings mapping from output field name to its resolved chaining type
+   * @param workflowRun the running workflow execution
+   * @return map of primitive type names to extracted, scope-validated values
    */
   private Map<String, List<String>> saveToEntries(
       WorkflowStateEntries entries,
@@ -257,52 +267,57 @@ public class WorkflowStateService {
         primitiveValidationContextBuilder.build(typeMappings, workflowRun);
 
     for (Map.Entry<String, JsonElement> entry : structuredOutput.entrySet()) {
-      String nodeName = entry.getKey();
+      String fieldName = entry.getKey();
       JsonElement jsonValue = entry.getValue();
 
+      // Each output field must be a non-null array to be processed
       if (jsonValue.isJsonNull() || !jsonValue.isJsonArray()) {
         continue;
       }
 
-      ChainingMappedType mappedType = typeMappings.get(nodeName);
-      List<PrimitiveType> primitiveTypes;
-
-      if (mappedType != null) {
-        if (mappedType.kind() == ChainingTypeKind.NON_CHAINABLE) {
-          continue;
-        }
-        primitiveTypes = mappedType.primitiveTypes();
-      } else {
-        log.warn("Skipping output field '{}' because no primitive type mapping exists.", nodeName);
+      ChainingMappedType mappedType = typeMappings.get(fieldName);
+      if (mappedType == null) {
+        log.warn("Skipping output field '{}' because no primitive type mapping exists.", fieldName);
+        continue;
+      }
+      if (mappedType.kind() == ChainingTypeKind.NON_CHAINABLE) {
         continue;
       }
 
-      JsonArray array = jsonValue.getAsJsonArray();
+      // Resolve primitive types once, avoids re-evaluating inside the element loop
+      List<PrimitiveType> primitiveTypes = mappedType.primitiveTypes();
+      boolean isComplex = mappedType.kind() == ChainingTypeKind.COMPLEX;
 
-      for (JsonElement element : array) {
-        if (element.isJsonPrimitive()) {
-          if (primitiveTypes.isEmpty()) {
-            continue;
-          }
+      for (JsonElement element : jsonValue.getAsJsonArray()) {
+        if (element.isJsonPrimitive() && !isComplex && !primitiveTypes.isEmpty()) {
+          // Validate scalar value against scope rules and record under each matching primitive type
           String val = element.getAsString();
           for (PrimitiveType primitiveType : primitiveTypes) {
-            if (!PrimitiveValueValidator.isValidForPrimitiveType(
+            if (PrimitiveValueValidator.isValidForPrimitiveType(
                 primitiveType, val, validationContext)) {
-              continue;
+              recordValue(primitiveType.name(), val, entries, parsedByType);
             }
-            String key = primitiveType.name();
-            entries.getInputByKey(key).getValues().add(val);
-            parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
           }
-        } else if (element.isJsonObject()) {
-          // e.g. "portscan": [{"port": 22, "host": "1.1.1.1"}]
-          if (mappedType.kind() == ChainingTypeKind.COMPLEX) {
-            saveCorrelatedObject(entries, element.getAsJsonObject());
-          }
+        } else if (element.isJsonObject() && isComplex) {
+          // Complex output (e.g. {port: 22, host: "1.1.1.1"}): store as correlated pairs
+          saveCorrelatedObject(entries, element.getAsJsonObject());
         }
       }
     }
     return parsedByType;
+  }
+
+  /**
+   * Records a validated primitive value into both the global state entries and the by-type
+   * accumulator used for local-state propagation.
+   */
+  private void recordValue(
+      String key,
+      String value,
+      WorkflowStateEntries entries,
+      Map<String, List<String>> parsedByType) {
+    entries.getInputByKey(key).getValues().add(value);
+    parsedByType.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
   }
 
   /**
