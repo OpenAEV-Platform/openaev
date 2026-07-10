@@ -56,8 +56,7 @@ class AssetMetricCollectorTest {
   }
 
   private static Attributes attributes(String category, String coverage) {
-    return Attributes.of(
-        stringKey("category"), category, stringKey("agent_coverage"), coverage);
+    return Attributes.of(stringKey("category"), category, stringKey("agent_coverage"), coverage);
   }
 
   @Test

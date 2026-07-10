@@ -17,6 +17,13 @@ import org.springframework.stereotype.Service;
  * Telemetry on the asset inventory of the platform: assets broken down by category (HOST,
  * CLOUD_RESOURCE, WEB_APPLICATION, ...) and agent coverage (agent based when at least one agent is
  * installed on the asset, agentless otherwise). Counts only, no asset content is ever collected.
+ *
+ * <p>The counts are intentionally instance-wide (all tenants): the query runs on the OTel exporter
+ * thread, outside any request or tenant context. Note for multi-tenancy v2: if the {@code assets}
+ * or {@code agents} tables are ever activated in {@code openaev.tenant.active-tables}, the
+ * fail-closed {@link io.openaev.config.TenantStatementInspector} will reject this query on a thread
+ * without a tenant scope and the gauge will degrade to empty (error logged); the collector must
+ * then move to an inspector-bypassing path (e.g. raw JDBC) to stay instance-wide.
  */
 @Slf4j
 @Service
