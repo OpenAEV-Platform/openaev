@@ -1,34 +1,26 @@
 package io.openaev.utils;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
+import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAgent;
+import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAsset;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
-import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAgent;
-import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAsset;
-import static io.openaev.model.expectation.ManualExpectation.manualExpectationForAgent;
-import static io.openaev.model.expectation.ManualExpectation.manualExpectationForAsset;
-import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAgent;
-import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAsset;
+import static io.openaev.expectation.ManualExpectation.manualExpectationForAgent;
+import static io.openaev.expectation.ManualExpectation.manualExpectationForAsset;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAgent;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAsset;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAgent;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildForMediaPressure;
 
 import io.openaev.database.model.*;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.model.expectation.VulnerabilityExpectation;
+import io.openaev.expectation.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.OptionalDouble;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -46,8 +38,8 @@ import java.util.stream.Stream;
  * <p>This is a utility class and cannot be instantiated.
  *
  * @see io.openaev.database.model.BaseInjectExpectation
- * @see io.openaev.model.expectation.PreventionExpectation
- * @see io.openaev.model.expectation.DetectionExpectation
+ * @see io.openaev.expectation.PreventionExpectation
+ * @see io.openaev.expectation.DetectionExpectation
  */
 public class ExpectationUtils {
 
@@ -440,28 +432,32 @@ public class ExpectationUtils {
     }
   }
 
-  public static List<InjectExpectationSignature> computeSignatures(
+  public static List<ExpectationSignature> computeSignatures(
       String prefixSignature,
       String injectId,
       Asset sourceAsset,
       String agentId,
       Map<String, Endpoint> valueTargetedAssetsMap) {
-    List<InjectExpectationSignature> signatures = new ArrayList<>();
+    List<ExpectationSignature> signatures = new ArrayList<>();
 
     signatures.add(
-        new InjectExpectationSignature(
+        new ExpectationSignature(
             EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME,
             prefixSignature + injectId + "-agent-" + agentId));
 
     getIpsFromAsset(sourceAsset)
-        .forEach(ip -> signatures.add(InjectExpectationSignature.createIpSignature(ip, false)));
+        .forEach(ip -> signatures.add(ExpectationSignatureUtils.createIpSignature(ip, false)));
 
     valueTargetedAssetsMap.forEach(
         (value, endpoint) -> {
           if (value.equals(endpoint.getHostname())) {
-            signatures.add(InjectExpectationSignature.createHostnameSignature(value));
+            signatures.add(ExpectationSignatureUtils.createHostnameSignature(value));
           } else {
-            signatures.add(InjectExpectationSignature.createIpSignature(value, true));
+            ExpectationSignature ipSignature =
+                ExpectationSignatureUtils.createIpSignature(value, true);
+            if (ipSignature != null) {
+              signatures.add(ipSignature);
+            }
           }
         });
 

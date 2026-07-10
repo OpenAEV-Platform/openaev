@@ -22,6 +22,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
@@ -135,8 +137,12 @@ public class BaseInjectExpectation implements Base, Cloneable {
   private String description;
 
   @Setter
-  @Type(JsonType.class)
-  @Column(name = "inject_expectation_signatures")
+  @OneToMany(
+      mappedBy = "injectExpectation",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("inject_expectation_signatures")
   private List<InjectExpectationSignature> signatures = new ArrayList<>();
 

@@ -2,8 +2,6 @@ package io.openaev.rest.inject;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.ExerciseStatus.RUNNING;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
@@ -11,6 +9,8 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
 import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;

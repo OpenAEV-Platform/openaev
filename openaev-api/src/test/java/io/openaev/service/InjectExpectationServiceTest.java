@@ -12,12 +12,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.DetectionExpectation;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ExpectationSignature;
+import io.openaev.expectation.ManualExpectation;
+import io.openaev.expectation.PreventionExpectation;
+import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.model.expectation.VulnerabilityExpectation;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -116,7 +117,7 @@ class InjectExpectationServiceTest {
   }
 
   private void invokeComputeExpectationsForAssetAndAgents(
-      List<io.openaev.model.Expectation> expectations,
+      List<Expectation> expectations,
       BaseInjectContent content,
       AssetToExecute assetToExecute,
       Inject currentInject,
@@ -141,9 +142,7 @@ class InjectExpectationServiceTest {
   }
 
   private void invokeComputeExpectationsForAssetGroup(
-      List<io.openaev.model.Expectation> expectations,
-      BaseInjectContent content,
-      AssetGroup assetGroup)
+      List<Expectation> expectations, BaseInjectContent content, AssetGroup assetGroup)
       throws Exception {
     Method method =
         InjectExpectationService.class.getDeclaredMethod(
@@ -272,7 +271,7 @@ class InjectExpectationServiceTest {
       throws Exception {
     // Arrange
     BaseInjectContent content = new BaseInjectContent();
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
 
@@ -293,7 +292,7 @@ class InjectExpectationServiceTest {
     BaseInjectContent content = new BaseInjectContent();
     content.setExpectations(
         List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE)));
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
     Endpoint endpoint = EndpointFixture.createEndpoint();
     endpoint.setId("asset-id");
     inject.setId("inject-id");
@@ -314,7 +313,7 @@ class InjectExpectationServiceTest {
   void given_emptyContentExpectations_should_notComputeAssetGroupExpectations() throws Exception {
     // Arrange
     BaseInjectContent content = new BaseInjectContent();
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
     AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
     assetGroup.setId("ag-id");
 
@@ -385,7 +384,7 @@ class InjectExpectationServiceTest {
         ManualExpectation.manualExpectationForAsset(
             100.0, "m-other", "desc", nonMatchingAsset, assetGroup, 60L);
 
-    List<io.openaev.model.Expectation> expectations =
+    List<Expectation> expectations =
         new ArrayList<>(
             List.of(
                 preventionWithNullAsset,
@@ -426,7 +425,7 @@ class InjectExpectationServiceTest {
     inject.setId("inject-id");
 
     when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    List<io.openaev.model.Expectation> expectations = new ArrayList<>();
+    List<Expectation> expectations = new ArrayList<>();
 
     // Act
     invokeComputeExpectationsForAssetAndAgents(
@@ -475,7 +474,7 @@ class InjectExpectationServiceTest {
         ManualExpectation.manualExpectationForAsset(
             100.0, "m", "desc", matchingAsset, assetGroup, 60L);
 
-    List<io.openaev.model.Expectation> expectations =
+    List<Expectation> expectations =
         new ArrayList<>(
             List.of(preventionMatching, detectionMatching, vulnerabilityMatching, manualMatching));
     int initialSize = expectations.size();
@@ -844,8 +843,8 @@ class InjectExpectationServiceTest {
     @Test
     @DisplayName("Returns without side effects for a non-technical expectation type")
     void givenNonTechnicalExpectationTypeShouldReturnWithoutSideEffects() {
-      List<InjectExpectationSignature> signatures =
-          List.of(new InjectExpectationSignature("signature-type", "signature-value"));
+      List<ExpectationSignature> signatures =
+          List.of(new ExpectationSignature("signature-type", "signature-value"));
 
       assertDoesNotThrow(
           () ->
@@ -877,10 +876,10 @@ class InjectExpectationServiceTest {
           null,
           null,
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
-          List.of(new InjectExpectationSignature("signature-type", "signature-value")));
+          List.of(new ExpectationSignature("signature-type", "signature-value")));
 
       verify(injectExpectationLockService, times(2))
-          .applySignaturesForExpectationWithLock(anyString(), anyString());
+          .applySignaturesForExpectationWithLock(anyString(), any());
     }
   }
 }
