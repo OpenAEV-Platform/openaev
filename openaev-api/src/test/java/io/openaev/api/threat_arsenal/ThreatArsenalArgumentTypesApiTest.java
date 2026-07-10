@@ -25,7 +25,7 @@ class ThreatArsenalArgumentTypesApiTest {
   @InjectMocks private ThreatArsenalApi threatArsenalApi;
 
   @Test
-  @DisplayName("Should return only text/document when chaining is disabled")
+  @DisplayName("Should return text/document/targeted-asset when chaining is disabled")
   void given_chainingDisabled_should_returnCoreTypesOnly() {
     when(previewFeatureService.isFeatureEnabled(INJECT_CHAINING)).thenReturn(false);
 
