@@ -3,6 +3,7 @@ package io.openaev.processor.datapack;
 import io.openaev.database.model.Injector;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.service.DataPackService;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -45,7 +46,7 @@ public class V20260708_Dynamic_injectors_base_url extends DataPack {
         injectors.stream().filter(this::replaceParamsInInjectorCommands).toList();
 
     if (!updatedInjectors.isEmpty()) {
-      injectorRepository.saveAll(updatedInjectors);
+      injectorRepository.saveAllAndFlush(updatedInjectors);
       log.info("Updated server params in {} injectors.", updatedInjectors.size());
     }
 
@@ -53,19 +54,33 @@ public class V20260708_Dynamic_injectors_base_url extends DataPack {
   }
 
   private boolean replaceParamsInInjectorCommands(Injector injector) {
-    boolean executorCommandsUpdated = replaceParamsInCommandMap(injector.getExecutorCommands());
-    boolean executorClearCommandsUpdated =
-        replaceParamsInCommandMap(injector.getExecutorClearCommands());
-    return executorCommandsUpdated || executorClearCommandsUpdated;
-  }
+    boolean isUpdated = false;
 
-  private boolean replaceParamsInCommandMap(Map<String, String> commands) {
-    if (commands == null || commands.isEmpty()) {
-      return false;
+    Map<String, String> updatedExecutorCommands =
+        replaceParamsInCommandMap(injector.getExecutorCommands());
+    if (updatedExecutorCommands != null) {
+      injector.setExecutorCommands(updatedExecutorCommands);
+      isUpdated = true;
     }
 
+    Map<String, String> updatedExecutorClearCommands =
+        replaceParamsInCommandMap(injector.getExecutorClearCommands());
+    if (updatedExecutorClearCommands != null) {
+      injector.setExecutorClearCommands(updatedExecutorClearCommands);
+      isUpdated = true;
+    }
+
+    return isUpdated;
+  }
+
+  private Map<String, String> replaceParamsInCommandMap(Map<String, String> commands) {
+    if (commands == null || commands.isEmpty()) {
+      return null;
+    }
+
+    Map<String, String> updatedCommands = new HashMap<>(commands);
     boolean isUpdated = false;
-    for (Map.Entry<String, String> entry : commands.entrySet()) {
+    for (Map.Entry<String, String> entry : updatedCommands.entrySet()) {
       String value = entry.getValue();
       if (value != null) {
         String updatedValue =
@@ -103,6 +118,6 @@ public class V20260708_Dynamic_injectors_base_url extends DataPack {
         }
       }
     }
-    return isUpdated;
+    return isUpdated ? updatedCommands : null;
   }
 }
