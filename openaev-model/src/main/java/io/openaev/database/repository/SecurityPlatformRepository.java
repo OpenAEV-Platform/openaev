@@ -24,6 +24,8 @@ public interface SecurityPlatformRepository
   Optional<SecurityPlatform> findByExternalReference(
       @Param("externalReference") String externalReference);
 
+  Optional<SecurityPlatform> findByIdAndTenantId(String id, String tenantId);
+
   @Override
   @Query(
       "select COUNT(DISTINCT a) from Inject i "

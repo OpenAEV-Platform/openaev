@@ -40,6 +40,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -86,6 +87,87 @@ public class InjectExpectationService {
   private final InjectService injectService;
 
   @Resource protected ObjectMapper mapper;
+
+  private final List<ExpectationBehavior> behaviors;
+
+  private ExpectationBehavior resolveFor(BaseInjectExpectation expectation) {
+    return behaviors.stream()
+        .filter(b -> b.supports(expectation))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "No behavior found for " + expectation.getClass().getSimpleName()));
+  }
+
+  // -- BEHAVIOR-BASED EXPECTATION CREATION --
+
+  /**
+   * Creates and persists inject expectations for each target and for each kind of expectations
+   *
+   * <p>Dead code — not wired into any executor yet. Part of the {@code InjectExpectation}
+   * refactoring (Vertical 2).
+   *
+   * @param executableInject the executable inject to process
+   * @throws JsonProcessingException if the inject content cannot be parsed
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void computeAndSaveExpectationsUsingBehaviors(
+      ExecutableInject executableInject,
+      List<Expectation> expectationsFromInjectContent,
+      @Nullable String implantType)
+      throws JsonProcessingException {
+
+    if (expectationsFromInjectContent.isEmpty()) {
+      return;
+    }
+
+    List<BaseInjectExpectation> injectExpectationsToApply =
+        expectationsFromInjectContent.stream()
+            .map(
+                expectation ->
+                    expectationConverter(
+                        executableInject, expectation, expectationPropertiesConfig))
+            .toList();
+
+    injectExpectationsToApply.forEach(
+        expectationTemplate -> {
+          ExpectationBehavior behavior = resolveFor(expectationTemplate);
+          behavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+              executableInject, expectationTemplate, implantType);
+        });
+  }
+
+  /**
+   * Updates an inject expectation
+   *
+   * <p>Dead code — not wired into any executor yet. Part of the {@code InjectExpectation}
+   * refactoring (Vertical 2).
+   *
+   * @param expectationId
+   * @param input
+   * @return
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public BaseInjectExpectation updateInjectExpectationUsingBehaviors(
+      @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
+    BaseInjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
+    if (injectExpectation == null) {
+      throw new ElementNotFoundException("Inject expectation not found for id: " + expectationId);
+    }
+
+    ExpectationBehavior behavior = resolveFor(injectExpectation);
+    List<? extends BaseInjectExpectation> updatedLeaves =
+        behavior.applyResultToLeaves(injectExpectation, input);
+    List<? extends BaseInjectExpectation> updatedParents =
+        behavior.recomputeParentScores(injectExpectation);
+
+    List<BaseInjectExpectation> allUpdated = new ArrayList<>(updatedLeaves);
+    allUpdated.addAll(updatedParents);
+    injectExpectationRepository.saveAll(allUpdated);
+
+    return injectExpectation;
+  }
 
   // -- CRUD --
 
@@ -140,7 +222,7 @@ public class InjectExpectationService {
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalExpectation) && !isAgentless) {
         List<TechnicalInjectExpectation> expectationsForAgents =
-            getExpectationsAgentsForAsset(technicalExpectation);
+            getAgentsExpectationsForAsset(technicalExpectation);
         expectationsForAgents.forEach(
             e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
         this.injectExpectationRepository.saveAll(expectationsForAgents);
@@ -279,7 +361,8 @@ public class InjectExpectationService {
     // If I update the expectation team: What happens with children? -> update expectation score
     // for all children -> set score from BaseInjectExpectation
     List<TableTopInjectExpectation> expectationsForPlayers =
-        getExpectationsPlayersForTeam(tableTopInjectExpectation);
+        getPlayersExpectationsForTeam(tableTopInjectExpectation);
+
     for (BaseInjectExpectation expectationsForPlayer : expectationsForPlayers) {
       expectationsForPlayer.getResults().clear();
       if (result != null) {
@@ -303,9 +386,9 @@ public class InjectExpectationService {
       @NotNull final TableTopInjectExpectation tableTopInjectExpectation,
       @Nullable final String result) {
     List<TableTopInjectExpectation> expectationsForPlayers =
-        getExpectationsPlayersForTeam(tableTopInjectExpectation);
+        getPlayersExpectationsForTeam(tableTopInjectExpectation);
     List<TableTopInjectExpectation> expectationForTeams =
-        getExpectationTeams(tableTopInjectExpectation);
+        getTeamsExpectations(tableTopInjectExpectation);
     computeScores(
         expectationsForPlayers,
         expectationForTeams,
@@ -374,9 +457,9 @@ public class InjectExpectationService {
       @NotNull final TechnicalInjectExpectation technicalInjectExpectation,
       @Nullable final Function<Double, InjectExpectationResult> addResult) {
     List<TechnicalInjectExpectation> expectationsForAgents =
-        getExpectationsAgentsForAsset(technicalInjectExpectation);
+        getAgentsExpectationsForAsset(technicalInjectExpectation);
     List<TechnicalInjectExpectation> expectationsForAssets =
-        getExpectationsAssets(technicalInjectExpectation);
+        getAssetsExpectations(technicalInjectExpectation);
     computeScores(
         expectationsForAgents, expectationsForAssets, technicalInjectExpectation, addResult);
     return expectationsForAssets;
