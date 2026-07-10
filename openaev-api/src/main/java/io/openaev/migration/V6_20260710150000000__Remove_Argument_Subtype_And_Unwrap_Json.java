@@ -31,36 +31,6 @@ public class V6_20260710150000000__Remove_Argument_Subtype_And_Unwrap_Json
               WHERE argument::jsonb ? 'subtype'
             );
           """);
-
-      stmt.execute(
-          """
-          UPDATE steps
-          SET step_data = jsonb_set(
-            step_data::jsonb,
-            '{inject_injector_contract,injector_contract_payload,payload_arguments}',
-            (
-              SELECT COALESCE(
-                jsonb_agg(argument - 'subtype'),
-                '[]'::jsonb
-              )
-              FROM jsonb_array_elements(
-                step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
-              ) argument
-            )
-          )
-          WHERE step_data IS NOT NULL
-            AND jsonb_typeof(
-              step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
-            ) = 'array'
-            AND EXISTS (
-              SELECT 1
-              FROM jsonb_array_elements(
-                step_data::jsonb #> '{inject_injector_contract,injector_contract_payload,payload_arguments}'
-              ) argument
-              WHERE argument ? 'subtype'
-            );
-          """);
-
     }
   }
 }
