@@ -8879,17 +8879,10 @@ __metadata:
     "@microsoft/fetch-event-source": "npm:2.0.1"
     "@mui/icons-material": "npm:9.1.1"
     "@mui/lab": "npm:7.0.0-beta.17"
-<<<<<<< HEAD
     "@mui/material": "npm:9.1.1"
     "@mui/system": "npm:9.1.1"
     "@mui/x-date-pickers": "npm:9.5.0"
-    "@playwright/test": "npm:1.60.0"
-=======
-    "@mui/material": "npm:7.3.11"
-    "@mui/system": "npm:7.3.11"
-    "@mui/x-date-pickers": "npm:8.29.0"
     "@playwright/test": "npm:1.61.1"
->>>>>>> origin/main
     "@redux-devtools/extension": "npm:4.0.0"
     "@stylistic/eslint-plugin": "npm:5.10.0"
     "@tanstack/react-virtual": "npm:3.14.4"

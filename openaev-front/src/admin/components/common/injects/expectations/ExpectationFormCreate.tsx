@@ -169,17 +169,9 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         label={t('Name')}
         className={classes.marginTop_2}
         error={!!errors.expectation_name}
-<<<<<<< HEAD
-        helperText={
-          errors.expectation_name && errors.expectation_name?.message
-        }
-        slotProps={{
-          htmlInput: register('expectation_name'),
-=======
         helperText={errors.expectation_name?.message}
         slotProps={{
           htmlInput: { ...register('expectation_name') },
->>>>>>> origin/main
           inputLabel: { required: true },
         }}
       />
@@ -190,15 +182,8 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         className={classes.marginTop_2}
         multiline
         error={!!errors.expectation_description}
-<<<<<<< HEAD
-        helperText={
-          errors.expectation_description && errors.expectation_description?.message
-        }
-        slotProps={{ htmlInput: register('expectation_description') }}
-=======
         helperText={errors.expectation_description?.message}
         slotProps={{ htmlInput: { ...register('expectation_description') } }}
->>>>>>> origin/main
       />
       {(watchType !== 'VULNERABILITY') && (
         <div className={classes.duration}>
