@@ -173,14 +173,17 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              // Base the agent active status on the device's real MDE lastSeen. Live Response only
-              // works while the Defender sensor is actively connected, and the freshest available
-              // proxy for that is lastSeen. healthStatus "Active" is NOT a reachability signal (MDE
-              // keeps it Active for ~7 days), so a machine offline for hours still reported Active
-              // and its Live Response stayed Pending until the inject timed out. Forcing
-              // Instant.now() had the same effect for every device. Offline machines no longer
-              // poison the fleet because stale pending Live Response is cancelled before dispatch.
-              input.setLastSeen(parseDeviceLastSeen(device.getLastSeen()));
+              // Mark the agent active when the MDE sensor is healthy (healthStatus "Active"). This
+              // is the best available signal: a controlled test proved a device with a hours-old
+              // lastSeen still runs Live Response within seconds, so lastSeen does NOT predict
+              // reachability and filtering on it wrongly hid reachable machines. healthStatus is
+              // MDE's own health flag (a device stops being "Active" after it goes silent), and
+              // offline edge cases no longer poison the fleet thanks to stale pending cancellation.
+              // Other statuses keep their real lastSeen so they surface as inactive.
+              input.setLastSeen(
+                  "Active".equalsIgnoreCase(device.getHealthStatus())
+                      ? Instant.now()
+                      : parseDeviceLastSeen(device.getLastSeen()));
               return input;
             })
         .collect(Collectors.toList());
