@@ -1,21 +1,32 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+
+import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Telemetry on the asset coverage of the platform: how many assets (endpoints) exist and how many
- * of them are agent based (at least one agent installed) versus agentless. Counts only, no asset
- * content is ever collected.
+ * Telemetry on the asset inventory of the platform: assets broken down by category (HOST,
+ * CLOUD_RESOURCE, WEB_APPLICATION, ...) and agent coverage (agent based when at least one agent is
+ * installed on the asset, agentless otherwise). Counts only, no asset content is ever collected.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AssetMetricCollector {
+
+  private static final String ATTRIBUTE_CATEGORY = "category";
+  private static final String ATTRIBUTE_AGENT_COVERAGE = "agent_coverage";
+  private static final String AGENT_BASED = "agent_based";
+  private static final String AGENTLESS = "agentless";
 
   private final MetricRegistry metricRegistry;
 
@@ -23,26 +34,37 @@ public class AssetMetricCollector {
 
   @PostConstruct
   public void init() {
-    metricRegistry.registerGauge(
-        "total_assets_count",
-        "Number of assets (endpoints), agent based or agentless",
-        () -> safeCount("select count(e) from Endpoint e"));
-    metricRegistry.registerGauge(
-        "total_agent_based_assets_count",
-        "Number of assets (endpoints) with at least one agent installed",
-        () -> safeCount("select count(e) from Endpoint e where e.agents is not empty"));
-    metricRegistry.registerGauge(
-        "total_agentless_assets_count",
-        "Number of assets (endpoints) without any agent installed",
-        () -> safeCount("select count(e) from Endpoint e where e.agents is empty"));
+    metricRegistry.registerMultiGauge(
+        "assets_total",
+        "Assets broken down by category and agent coverage (agent_based/agentless)",
+        this::collectAssets);
   }
 
-  private long safeCount(String jpql) {
+  private Map<Attributes, Long> collectAssets() {
+    Map<Attributes, Long> result = new HashMap<>();
     try {
-      return entityManager.createQuery(jpql, Long.class).getSingleResult();
+      @SuppressWarnings("unchecked")
+      List<Object[]> rows =
+          entityManager
+              .createNativeQuery(
+                  "select t.asset_category, t.has_agent, count(*) from ("
+                      + "  select a.asset_category,"
+                      + "    exists (select 1 from agents ag where ag.agent_asset = a.asset_id) as has_agent"
+                      + "  from assets a"
+                      + ") t group by 1, 2")
+              .getResultList();
+      for (Object[] row : rows) {
+        Attributes attributes =
+            Attributes.of(
+                stringKey(ATTRIBUTE_CATEGORY),
+                MetricRegistry.normalizeLabel(row[0] == null ? null : row[0].toString()),
+                stringKey(ATTRIBUTE_AGENT_COVERAGE),
+                Boolean.TRUE.equals(row[1]) ? AGENT_BASED : AGENTLESS);
+        result.merge(attributes, ((Number) row[2]).longValue(), Long::sum);
+      }
     } catch (Exception e) {
-      log.error("Telemetry - Failed to collect asset coverage metrics", e);
-      return 0;
+      log.error("Telemetry - Failed to collect asset inventory metrics", e);
     }
+    return result;
   }
 }

@@ -32,7 +32,7 @@ The application collects statistical data related to its usage. Here is an exhau
 - The deployment tags, when configured by the operator (`telemetry.tags` / `TELEMETRY_TAGS` - comma-separated freeform tags such as `saas,eu-west`, normalized to lowercase and sorted before export)
 - Enterprise Edition status (activated or not)
 - The total number of users
-- The total number of assets (endpoints) and their coverage: assets with at least one agent installed (agent based) versus assets without any agent (agentless)
+- The number of assets, broken down by asset category (host, cloud resource, web application, ...) and by agent coverage (agent based when at least one agent is installed on the asset, agentless otherwise). Counts only, no asset content.
 - The deployed injectors, collectors, and executors broken down by catalog identity (the catalog connector slug for components deployed from the catalog, otherwise the component's own type identifier, with a managed/manual flag). No component configuration is ever collected.
 - The number of simulations, scenarios, and atomic tests created
 - The number of simulations or injects executed

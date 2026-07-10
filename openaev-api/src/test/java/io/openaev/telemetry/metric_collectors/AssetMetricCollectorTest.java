@@ -1,15 +1,19 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.opentelemetry.api.common.Attributes;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.TypedQuery;
+import jakarta.persistence.Query;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +34,7 @@ class AssetMetricCollectorTest {
 
   private AssetMetricCollector collector;
 
-  @Captor private ArgumentCaptor<Supplier<Long>> gaugeCaptor;
+  @Captor private ArgumentCaptor<Supplier<Map<Attributes, Long>>> supplierCaptor;
 
   @BeforeEach
   void setUp() {
@@ -39,49 +43,59 @@ class AssetMetricCollectorTest {
     ReflectionTestUtils.setField(collector, "entityManager", entityManager);
   }
 
-  @SuppressWarnings("unchecked")
-  private void mockCount(String jpqlFragment, long count) {
-    TypedQuery<Long> query = mock(TypedQuery.class);
-    when(query.getSingleResult()).thenReturn(count);
-    when(entityManager.createQuery(contains(jpqlFragment), eq(Long.class))).thenReturn(query);
+  private void mockRows(List<Object[]> rows) {
+    Query query = mock(Query.class);
+    when(query.getResultList()).thenReturn(rows);
+    when(entityManager.createNativeQuery(anyString())).thenReturn(query);
   }
 
-  private Supplier<Long> capturedGauge(String gaugeName) {
+  private Supplier<Map<Attributes, Long>> capturedSupplier() {
     collector.init();
-    verify(metricRegistry).registerGauge(eq(gaugeName), any(), gaugeCaptor.capture());
-    return gaugeCaptor.getValue();
+    verify(metricRegistry).registerMultiGauge(eq("assets_total"), any(), supplierCaptor.capture());
+    return supplierCaptor.getValue();
+  }
+
+  private static Attributes attributes(String category, String coverage) {
+    return Attributes.of(
+        stringKey("category"), category, stringKey("agent_coverage"), coverage);
   }
 
   @Test
-  @DisplayName("total_assets_count reports the number of endpoints, agent based or agentless")
-  void given_endpoints_should_reportTotalAssetsCount() {
-    mockCount("select count(e) from Endpoint e", 42L);
+  @DisplayName("assets are broken down by category and agent coverage")
+  void given_assetRows_should_exposeCategoryAndCoverageDimensions() {
+    mockRows(
+        List.of(
+            new Object[] {"HOST", true, 30L},
+            new Object[] {"HOST", false, 12L},
+            new Object[] {"CLOUD_RESOURCE", false, 5L}));
 
-    assertThat(capturedGauge("total_assets_count").get()).isEqualTo(42L);
+    Map<Attributes, Long> inventory = capturedSupplier().get();
+
+    assertThat(inventory)
+        .containsOnly(
+            Map.entry(attributes("HOST", "agent_based"), 30L),
+            Map.entry(attributes("HOST", "agentless"), 12L),
+            Map.entry(attributes("CLOUD_RESOURCE", "agentless"), 5L));
   }
 
   @Test
-  @DisplayName("total_agent_based_assets_count reports endpoints with at least one agent")
-  void given_agentBasedEndpoints_should_reportAgentBasedAssetsCount() {
-    mockCount("e.agents is not empty", 30L);
+  @DisplayName("a null category is normalized to unknown")
+  void given_nullCategory_should_normalizeToUnknown() {
+    mockRows(List.<Object[]>of(new Object[] {null, false, 3L}));
 
-    assertThat(capturedGauge("total_agent_based_assets_count").get()).isEqualTo(30L);
+    Map<Attributes, Long> inventory = capturedSupplier().get();
+
+    assertThat(inventory).containsOnly(Map.entry(attributes("unknown", "agentless"), 3L));
   }
 
   @Test
-  @DisplayName("total_agentless_assets_count reports endpoints without any agent")
-  void given_agentlessEndpoints_should_reportAgentlessAssetsCount() {
-    mockCount("where e.agents is empty", 12L);
-
-    assertThat(capturedGauge("total_agentless_assets_count").get()).isEqualTo(12L);
-  }
-
-  @Test
-  @DisplayName("a query failure reports zero instead of throwing")
-  void given_queryFailure_should_reportZero() {
-    when(entityManager.createQuery(contains("from Endpoint"), eq(Long.class)))
+  @DisplayName("a query failure returns an empty inventory instead of throwing")
+  void given_queryFailure_should_returnEmptyInventory() {
+    when(entityManager.createNativeQuery(anyString()))
         .thenThrow(new IllegalStateException("database is down"));
 
-    assertThat(capturedGauge("total_assets_count").get()).isZero();
+    Map<Attributes, Long> inventory = capturedSupplier().get();
+
+    assertThat(inventory).isEmpty();
   }
 }
