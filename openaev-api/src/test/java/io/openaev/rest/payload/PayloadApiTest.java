@@ -402,10 +402,10 @@ class PayloadApiTest extends IntegrationTest {
               "arg_text",
               "arg_number",
               "arg_port",
-              "arg_portscan",
+              "arg_host",
               "arg_ipv4",
               "arg_ipv6",
-              "arg_credentials",
+              "arg_username",
               "arg_cve");
       Map<String, String> keyToContractType = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
