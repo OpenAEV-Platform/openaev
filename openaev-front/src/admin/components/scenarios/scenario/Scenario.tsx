@@ -3,7 +3,7 @@ import {
   Avatar,
   Button,
   Chip,
-  GridLegacy,
+  Grid,
   Paper,
   Tooltip,
   Typography,
@@ -206,8 +206,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
           {t('Latest 10 Finished Simulations')}
         </Typography>
         <Paper classes={{ root: classes.paper }} variant="outlined">
-          <GridLegacy container spacing={3}>
-            <GridLegacy item xs={12} style={{ paddingTop: 10 }}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -219,8 +219,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 source={scenario.scenario_description}
                 limit={300}
               />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -232,8 +232,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 severity={scenario.scenario_severity}
                 label={t(scenario.scenario_severity ?? 'Unknown')}
               />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -245,8 +245,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 category={scenario.scenario_category}
                 label={t(scenario.scenario_category ?? 'Unknown')}
               />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -258,8 +258,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 mainFocus={scenario.scenario_main_focus}
                 label={t(scenario.scenario_main_focus ?? 'Unknown')}
               />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -268,8 +268,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 {t('Tags')}
               </Typography>
               <ItemTags tags={scenario.scenario_tags} limit={10} />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -290,8 +290,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                   />
                 ),
               )}
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -300,8 +300,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                 {t('Type Affinity')}
               </Typography>
               <TypeAffinityChip affinity_text={scenario?.scenario_type_affinity} />
-            </GridLegacy>
-            <GridLegacy item xs={4} style={{ paddingTop: 10 }}>
+            </Grid>
+            <Grid size={{ xs: 4 }} style={{ paddingTop: 10 }}>
               <Typography
                 variant="h3"
                 gutterBottom
@@ -319,8 +319,8 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
                   label={killChainPhase.phase_name}
                 />
               ))}
-            </GridLegacy>
-          </GridLegacy>
+            </Grid>
+          </Grid>
         </Paper>
         <Paper classes={{ root: classes.paper }} variant="outlined">
           <ScenarioDistributionByExercise scenarioId={scenarioId} />

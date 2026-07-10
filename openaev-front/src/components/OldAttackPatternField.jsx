@@ -106,14 +106,17 @@ class OldAttackPatternFieldComponent extends Component {
           style={style}
           openCreate={this.handleOpenAttackPatternCreation.bind(this)}
           onKeyDown={onKeyDown}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              <div className={classes.icon}>
-                <RouteOutlined />
-              </div>
-              <div className={classes.text}>{option.label}</div>
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return (
+              <Box component="li" key={key || option.id} {...optionProps}>
+                <div className={classes.icon}>
+                  <RouteOutlined />
+                </div>
+                <div className={classes.text}>{option.label}</div>
+              </Box>
+            );
+          }}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>

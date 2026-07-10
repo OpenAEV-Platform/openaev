@@ -149,7 +149,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth
           error={!!errors.expectation_type}
-          slotProps={{ htmlInput: register('expectation_type') }}
+          slotProps={{ input: register('expectation_type') }}
         >
           {availableTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
         </MUISelect>

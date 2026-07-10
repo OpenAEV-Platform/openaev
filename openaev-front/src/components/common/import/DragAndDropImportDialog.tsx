@@ -1,5 +1,4 @@
-// @ts-expect-error -- MUI v9 migration: TS2724
-import { CloudUploadOutlined, DeleteOutline } from '@mui/icons-material';
+import { CloudUploadOutlined, DeleteOutlined } from '@mui/icons-material';
 import { Box, Button, IconButton, Typography } from '@mui/material';
 import { type ChangeEvent, type DragEvent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -255,7 +254,7 @@ const DragAndDropImportDialog = ({ open, onClose, onImport, maxFiles }: Props) =
                   size="small"
                   onClick={() => removeFile(index)}
                 >
-                  <DeleteOutline color="primary" fontSize="small" />
+                  <DeleteOutlined color="primary" fontSize="small" />
                 </IconButton>
               </div>
             ))}

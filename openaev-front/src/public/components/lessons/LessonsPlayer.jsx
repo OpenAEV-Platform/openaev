@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, GridLegacy, Paper, Typography } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
@@ -163,12 +163,12 @@ const LessonsPlayer = (props) => {
                             classes={{ root: classes.paper }}
                             style={{ marginTop: 14 }}
                           >
-                            <GridLegacy
+                            <Grid
                               container
                               spacing={3}
                               style={{ marginTop: -10 }}
                             >
-                              <GridLegacy item xs={3}>
+                              <Grid size={{ xs: 3 }}>
                                 <Typography
                                   variant="h4"
                                   style={{ marginBottom: 15 }}
@@ -183,8 +183,8 @@ const LessonsPlayer = (props) => {
                                 <Typography variant="body2">
                                   {question.lessons_question_explanation || t('No explanation')}
                                 </Typography>
-                              </GridLegacy>
-                              <GridLegacy item xs={3}>
+                              </Grid>
+                              <Grid size={{ xs: 3 }}>
                                 <Typography
                                   variant="h4"
                                   style={{ marginBottom: 15 }}
@@ -202,8 +202,8 @@ const LessonsPlayer = (props) => {
                                   max={100}
                                   defaultValue={0}
                                 />
-                              </GridLegacy>
-                              <GridLegacy item xs={3}>
+                              </Grid>
+                              <Grid size={{ xs: 3 }}>
                                 <Typography variant="h4">
                                   {t('What worked well')}
                                 </Typography>
@@ -216,8 +216,8 @@ const LessonsPlayer = (props) => {
                                   rows={2}
                                   fullWidth
                                 />
-                              </GridLegacy>
-                              <GridLegacy item xs={3}>
+                              </Grid>
+                              <Grid size={{ xs: 3 }}>
                                 <Typography variant="h4">
                                   {t('What didn\'t work well')}
                                 </Typography>
@@ -230,8 +230,8 @@ const LessonsPlayer = (props) => {
                                   fullWidth
                                   rows={2}
                                 />
-                              </GridLegacy>
-                            </GridLegacy>
+                              </Grid>
+                            </Grid>
                           </Paper>
                         );
                       })}

@@ -92,14 +92,17 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
           }
         }}
         isOptionEqualToValue={(option, value: ChannelTransformed) => value === undefined || option.id === value.id}
-        renderOption={(p, option) => (
-          <Box component="li" {...p} key={option.id}>
-            <div className={classes.icon} style={{ color: option.color }}>
-              <ChannelIcon type={option.type} />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
-        )}
+        renderOption={(p, option) => {
+          const { key, ...optionProps } = p as typeof p & { key?: string };
+          return (
+            <Box component="li" key={key ?? option.id} {...optionProps}>
+              <div className={classes.icon} style={{ color: option.color }}>
+                <ChannelIcon type={option.type} />
+              </div>
+              <div className={classes.text}>{option.label}</div>
+            </Box>
+          );
+        }}
         renderInput={params => (
           <TextField
             label={t('Channels')}

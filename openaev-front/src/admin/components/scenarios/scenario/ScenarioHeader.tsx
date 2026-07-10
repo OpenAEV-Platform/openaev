@@ -261,7 +261,6 @@ const ScenarioHeader = ({
       />
       <Dialog
         open={openInstantiateSimulationAndStart}
-        // @ts-expect-error -- MUI v9 migration: TS2322
         TransitionComponent={Transition}
         onClose={() => setOpenInstantiateSimulationAndStart(false)}
         PaperProps={{ elevation: 1 }}

@@ -85,14 +85,17 @@ class OrganizationFieldComponent extends Component {
           options={organizationsOptions}
           style={{ marginTop: 20 }}
           openCreate={this.props.userRight && this.handleOpenOrganizationCreation.bind(this)}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              <div className={classes.icon}>
-                <DomainOutlined />
-              </div>
-              <div className={classes.text}>{option.label}</div>
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return (
+              <Box component="li" key={key || option.id} {...optionProps}>
+                <div className={classes.icon}>
+                  <DomainOutlined />
+                </div>
+                <div className={classes.text}>{option.label}</div>
+              </Box>
+            );
+          }}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Dialog

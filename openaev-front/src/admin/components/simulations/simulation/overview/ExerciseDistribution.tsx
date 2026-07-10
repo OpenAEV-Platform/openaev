@@ -1,4 +1,4 @@
-import { GridLegacy, Paper, Typography } from '@mui/material';
+import { Grid, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -84,8 +84,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
   }
 
   return (
-    <GridLegacy id="exercise_distribution" container spacing={3} sx={{ marginBottom: 1 }}>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+    <Grid id="exercise_distribution" container spacing={3} sx={{ marginBottom: 1 }}>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Distribution of score by team (in % of expectations)')}
         </Typography>
@@ -96,8 +96,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreByTeamInPercentage exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Teams scores over time (in % of expectations)')}
         </Typography>
@@ -108,8 +108,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreOverTimeByTeamInPercentage exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Distribution of total score by team')}
         </Typography>
@@ -120,8 +120,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreByTeam exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">{t('Teams scores over time')}</Typography>
         <Paper variant="outlined" classes={{ root: classes.paperChart }}>
           {
@@ -130,8 +130,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreOverTimeByTeam exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Distribution of total score by inject type')}
         </Typography>
@@ -142,8 +142,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionByInjectorContract exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Inject types scores over time')}
         </Typography>
@@ -154,8 +154,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreOverTimeByInjectorContract exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={6} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 6 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Distribution of total score by organization')}
         </Typography>
@@ -166,8 +166,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreByOrganization exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={3} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 3 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Distribution of total score by player')}
         </Typography>
@@ -178,8 +178,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreByPlayer exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-      <GridLegacy item xs={3} style={{ marginTop: 25 }}>
+      </Grid>
+      <Grid size={{ xs: 3 }} style={{ marginTop: 25 }}>
         <Typography variant="h4">
           {t('Distribution of total score by inject')}
         </Typography>
@@ -190,8 +190,8 @@ const ExerciseDistribution: FunctionComponent<Props> = ({
               : <ExerciseDistributionScoreByInject exerciseId={exerciseId} />
           }
         </Paper>
-      </GridLegacy>
-    </GridLegacy>
+      </Grid>
+    </Grid>
   );
 };
 export default ExerciseDistribution;

@@ -1,5 +1,5 @@
 import { Draggable, Droppable } from '@hello-pangea/dnd';
-import { AddOutlined, DeleteOutline } from '@mui/icons-material';
+import { AddOutlined, DeleteOutlined } from '@mui/icons-material';
 import { Box, Button, Stack } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
@@ -93,7 +93,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
             <Button
               size="small"
               color="error"
-              startIcon={<DeleteOutline fontSize="small" />}
+              startIcon={<DeleteOutlined fontSize="small" />}
               onClick={onDelete}
               sx={{ ml: 1 }}
             >

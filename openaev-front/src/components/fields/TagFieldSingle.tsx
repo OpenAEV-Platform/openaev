@@ -104,14 +104,17 @@ const TagFieldSingle: FunctionComponent<Props> = ({
         onChange={(_, value) => {
           fieldOnChange(value?.label ?? '');
         }}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.id}>
-            <div className={classes.icon} style={{ color: option.color }}>
-              <LabelOutlined />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
-        )}
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props as typeof props & { key?: string };
+          return (
+            <Box component="li" key={key ?? option.id} {...optionProps}>
+              <div className={classes.icon} style={{ color: option.color }}>
+                <LabelOutlined />
+              </div>
+              <div className={classes.text}>{option.label}</div>
+            </Box>
+          );
+        }}
         isOptionEqualToValue={(option, value) => option.id === value.id}
         renderInput={params => (
           <TextField
@@ -141,7 +144,6 @@ const TagFieldSingle: FunctionComponent<Props> = ({
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}
-          // @ts-expect-error -- MUI v9 migration: TS2322
           PaperProps={{ elevation: 1 }}
         >
           <DialogTitle>{t('Create a new tag')}</DialogTitle>

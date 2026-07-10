@@ -99,14 +99,17 @@ class TagFieldComponent extends Component {
           style={style}
           openCreate={!disabled ? this.handleOpenTagCreation.bind(this) : null}
           onKeyDown={onKeyDown}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              <div className={classes.icon} style={{ color: option.color }}>
-                <LabelOutlined />
-              </div>
-              <div className={classes.text}>{option.label}</div>
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return (
+              <Box component="li" key={key || option.id} {...optionProps}>
+                <div className={classes.icon} style={{ color: option.color }}>
+                  <LabelOutlined />
+                </div>
+                <div className={classes.text}>{option.label}</div>
+              </Box>
+            );
+          }}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>

@@ -300,12 +300,13 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
               }}
 
               renderOption={(props, option) => {
+                const { key, ...optionProps } = props as typeof props & { key?: string };
                 if (option.isHint) {
                   return (
                     <Box
                       component="li"
-                      {...props}
-                      key={option.id}
+                      key={key ?? option.id}
+                      {...optionProps}
                       sx={{
                         fontStyle: 'italic',
                         color: 'text.secondary',
@@ -318,7 +319,7 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
                   );
                 } else {
                   return (
-                    <Box component="li" {...props} key={option.id}>
+                    <Box component="li" key={key ?? option.id} {...optionProps}>
                       <div className={classes.icon}>
                         <TableViewOutlined color="primary" />
                       </div>

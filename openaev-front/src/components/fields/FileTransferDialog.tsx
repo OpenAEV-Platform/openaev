@@ -1,7 +1,5 @@
 import { DescriptionOutlined } from '@mui/icons-material';
-// @ts-expect-error -- MUI v9 migration: TS2305
-
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, GridLegacy, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -174,24 +172,24 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     >
       <DialogTitle>{t(label)}</DialogTitle>
       <DialogContent>
-        <GridLegacy container spacing={3}>
-          <GridLegacy item xs={multiple ? 8 : 12}>
-            <GridLegacy container spacing={3}>
-              <GridLegacy item xs={6}>
+        <Grid container spacing={3}>
+          <Grid size={{ xs: multiple ? 8 : 12 }}>
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 6 }}>
                 <SearchFilter
                   onChange={handleSearchDocuments}
                   fullWidth
                 />
-              </GridLegacy>
-              <GridLegacy item xs={6}>
+              </Grid>
+              <Grid size={{ xs: 6 }}>
                 <TagsFilter
                   onAddTag={handleAddTag}
                   onClearTag={handleClearTag}
                   currentTags={tags}
                   fullWidth
                 />
-              </GridLegacy>
-            </GridLegacy>
+              </Grid>
+            </Grid>
             <List>
               {filteredDocuments.map((document: RawDocument) => {
                 return (
@@ -222,9 +220,9 @@ const FileTransferDialog: FunctionComponent<Props> = ({
                 />
               </Can>
             </List>
-          </GridLegacy>
+          </Grid>
           {multiple && (
-            <GridLegacy item xs={4}>
+            <Grid size={{ xs: 4 }}>
               <Box className={classes.box}>
                 {selectedDocuments.map(document => (
                   <Chip
@@ -237,9 +235,9 @@ const FileTransferDialog: FunctionComponent<Props> = ({
                   />
                 ))}
               </Box>
-            </GridLegacy>
+            </Grid>
           )}
-        </GridLegacy>
+        </Grid>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>{t('Cancel')}</Button>

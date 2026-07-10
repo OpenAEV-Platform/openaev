@@ -1,5 +1,5 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, AttachmentOutlined } from '@mui/icons-material';
-import { Box, Button, GridLegacy, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material';
+import { Box, Button, Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 import { Form } from 'react-final-form';
@@ -232,14 +232,17 @@ const ArticleForm = ({
               fullWidth
               multiple={false}
               options={sortedChannels}
-              renderOption={(renderProps, option) => (
-                <Box component="li" {...renderProps} key={option.id}>
-                  <div className={classes.icon}>
-                    <ChannelIcon type={option.type} />
-                  </div>
-                  <div className={classes.text}>{t(option.label)}</div>
-                </Box>
-              )}
+              renderOption={(renderProps, option) => {
+                const { key, ...optionProps } = renderProps;
+                return (
+                  <Box component="li" key={key || option.id} {...optionProps}>
+                    <div className={classes.icon}>
+                      <ChannelIcon type={option.type} />
+                    </div>
+                    <div className={classes.text}>{t(option.label)}</div>
+                  </Box>
+                );
+              }}
               classes={{ clearIndicator: classes.autoCompleteIndicator }}
             />
             <OldTextField
@@ -263,8 +266,8 @@ const ArticleForm = ({
               askAi={true}
               inArticle={true}
             />
-            <GridLegacy container spacing={3} style={{ marginTop: 0 }}>
-              <GridLegacy item xs={4}>
+            <Grid container spacing={3} style={{ marginTop: 0 }}>
+              <Grid size={{ xs: 4 }}>
                 <OldTextField
                   variant="standard"
                   name="article_comments"
@@ -272,8 +275,8 @@ const ArticleForm = ({
                   type="number"
                   label={t('Comments')}
                 />
-              </GridLegacy>
-              <GridLegacy item xs={4}>
+              </Grid>
+              <Grid size={{ xs: 4 }}>
                 <OldTextField
                   variant="standard"
                   name="article_shares"
@@ -281,8 +284,8 @@ const ArticleForm = ({
                   type="number"
                   label={t('Shares')}
                 />
-              </GridLegacy>
-              <GridLegacy item xs={4}>
+              </Grid>
+              <Grid size={{ xs: 4 }}>
                 <OldTextField
                   variant="standard"
                   name="article_likes"
@@ -290,8 +293,8 @@ const ArticleForm = ({
                   type="number"
                   label={t('Likes')}
                 />
-              </GridLegacy>
-            </GridLegacy>
+              </Grid>
+            </Grid>
             <Typography variant="h2" style={{ marginTop: 30 }}>
               {t('Documents')}
             </Typography>

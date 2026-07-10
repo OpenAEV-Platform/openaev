@@ -35,14 +35,17 @@ class CountryFieldComponent extends Component {
           label={t('Country')}
           options={countryOptions()}
           style={{ marginTop: 20 }}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              <div className={classes.icon}>
-                <FlagOutlined />
-              </div>
-              <div className={classes.text}>{option.label}</div>
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return (
+              <Box component="li" key={key || option.id} {...optionProps}>
+                <div className={classes.icon}>
+                  <FlagOutlined />
+                </div>
+                <div className={classes.text}>{option.label}</div>
+              </Box>
+            );
+          }}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
       </div>

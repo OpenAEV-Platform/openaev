@@ -270,7 +270,6 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                         setInputValue(newInputValue);
                       }}
                       disableClearable={true}
-                      // @ts-expect-error -- MUI v9 migration: TS2322
                       renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
                         return (
                           <Chip

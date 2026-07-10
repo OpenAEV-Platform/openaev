@@ -217,7 +217,6 @@ const ScenarioRecurringFormDialog: FunctionComponent<Props> = ({ cronObject, set
     <Dialog
       open={open}
       onClose={handleClose}
-      // @ts-expect-error -- MUI v9 migration: TS2322
       TransitionComponent={Transition}
       PaperProps={{ elevation: 1 }}
       maxWidth="xs"

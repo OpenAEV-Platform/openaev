@@ -54,7 +54,6 @@ const MenuItemSub: FunctionComponent<Props> = ({
           primary={t(label)}
           slotProps={{
             primary: {
-              // @ts-expect-error -- MUI v9 migration: TS2353
               paddingLeft: navOpen ? `${theme.spacing(1)}` : `${theme.spacing(2)}`,
               fontWeight: theme.typography.h4.fontWeight,
               fontSize: theme.typography.h4.fontSize,

@@ -152,21 +152,23 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
             onChange={(_event, pattern) => {
               onChange(pattern.map(p => p.id));
             }}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} key={option.id}>
-                <div className={classes.icon}>
-                  <RouteOutlined />
-                </div>
-                <div className={classes.text}>{option.label}</div>
-              </Box>
-            )}
+            renderOption={(props, option) => {
+              const { key, ...optionProps } = props as typeof props & { key?: string };
+              return (
+                <Box component="li" key={key ?? option.id} {...optionProps}>
+                  <div className={classes.icon}>
+                    <RouteOutlined />
+                  </div>
+                  <div className={classes.text}>{option.label}</div>
+                </Box>
+              );
+            }}
             classes={{ clearIndicator: classes.autoCompleteIndicator }}
           />
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Dialog
               open={attackPatternCreation}
               onClose={handleCloseAttackPatternCreation}
-              // @ts-expect-error -- MUI v9 migration: TS2322
               PaperProps={{ elevation: 1 }}
             >
               <DialogTitle>{t('Create a new attack pattern')}</DialogTitle>

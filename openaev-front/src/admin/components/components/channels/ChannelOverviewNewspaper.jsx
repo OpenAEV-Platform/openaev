@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, GridLegacy, Skeleton, Typography } from '@mui/material';
+import { Card, CardContent, CardHeader, Grid, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Fragment } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -57,8 +57,8 @@ const ChannelOverviewNewspaper = ({ channel }) => {
       >
         {channel.channel_description}
       </Typography>
-      <GridLegacy container={true} spacing={3}>
-        <GridLegacy item={true} xs={8}>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 8 }}>
           <Card sx={{ width: '100%' }}>
             <CardHeader
               avatar={(
@@ -101,8 +101,8 @@ const ChannelOverviewNewspaper = ({ channel }) => {
               </Fragment>
             </CardContent>
           </Card>
-        </GridLegacy>
-        <GridLegacy item={true} xs={4}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Card sx={{ width: '100%' }}>
             <CardHeader
               avatar={(
@@ -187,10 +187,10 @@ const ChannelOverviewNewspaper = ({ channel }) => {
               </Fragment>
             </CardContent>
           </Card>
-        </GridLegacy>
-      </GridLegacy>
-      <GridLegacy container={true} spacing={3} style={{ marginTop: 0 }}>
-        <GridLegacy item={true} xs={4}>
+        </Grid>
+      </Grid>
+      <Grid container spacing={3} style={{ marginTop: 0 }}>
+        <Grid size={{ xs: 4 }}>
           <Card sx={{ width: '100%' }}>
             <CardHeader
               avatar={(
@@ -233,8 +233,8 @@ const ChannelOverviewNewspaper = ({ channel }) => {
               </Fragment>
             </CardContent>
           </Card>
-        </GridLegacy>
-        <GridLegacy item={true} xs={4}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Card sx={{ width: '100%' }}>
             <CardHeader
               avatar={(
@@ -277,8 +277,8 @@ const ChannelOverviewNewspaper = ({ channel }) => {
               </Fragment>
             </CardContent>
           </Card>
-        </GridLegacy>
-        <GridLegacy item={true} xs={4}>
+        </Grid>
+        <Grid size={{ xs: 4 }}>
           <Card sx={{ width: '100%' }}>
             <CardHeader
               avatar={(
@@ -321,8 +321,8 @@ const ChannelOverviewNewspaper = ({ channel }) => {
               </Fragment>
             </CardContent>
           </Card>
-        </GridLegacy>
-      </GridLegacy>
+        </Grid>
+      </Grid>
     </div>
   );
 };

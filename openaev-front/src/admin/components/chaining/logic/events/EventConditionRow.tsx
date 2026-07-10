@@ -1,5 +1,5 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
-import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
+import { DeleteOutlined, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
 import {
   Box,
   FormControl,
@@ -262,7 +262,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
             }}
             aria-label={t('Delete condition')}
           >
-            <DeleteOutline fontSize="small" />
+            <DeleteOutlined fontSize="small" />
           </IconButton>
         )}
       </Box>

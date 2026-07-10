@@ -80,14 +80,17 @@ const PlatformFieldController: FunctionComponent<Props> = ({
           onChange={(_event, platform) => {
             field.onChange(platform.map(p => p.id));
           }}
-          renderOption={(props, option) => (
-            <Box component="li" {...props}>
-              <div className={classes.icon}>
-                <PlatformIcon platform={option.id} width={15} />
-              </div>
-              <div className={classes.text}>{option.label}</div>
-            </Box>
-          )}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props as typeof props & { key?: string };
+            return (
+              <Box component="li" key={key ?? option.id} {...optionProps}>
+                <div className={classes.icon}>
+                  <PlatformIcon platform={option.id} width={15} />
+                </div>
+                <div className={classes.text}>{option.label}</div>
+              </Box>
+            );
+          }}
           classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
       )}

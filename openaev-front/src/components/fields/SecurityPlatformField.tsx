@@ -83,8 +83,9 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
           fieldOnChange(value?.id ?? '');
         }}
         renderOption={(props, option) => {
+          const { key, ...optionProps } = props as typeof props & { key?: string };
           return (
-            <Box component="li" {...props} key={option.id}>
+            <Box component="li" key={key ?? option.id} {...optionProps}>
               <div className={classes.icon}>
                 <img
                   src={buildTenantApiPath(`/api/images/security_platforms/id/${option.id}/${theme.palette.mode}`)}
