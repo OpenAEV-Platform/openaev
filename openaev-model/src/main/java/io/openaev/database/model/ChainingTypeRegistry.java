@@ -2,6 +2,17 @@ package io.openaev.database.model;
 
 import java.util.List;
 
+/**
+ * Central registry that translates injector contract output types into chaining-engine semantics.
+ *
+ * <p>Injector contracts declare what they produce using {@link ContractOutputType} (e.g. PORT,
+ * PORTSCAN, TEXT). The chaining engine works with {@link ChainingMappedType}, which classifies each
+ * output as PRIMITIVE, COMPLEX, or NON_CHAINABLE and, for primitives, resolves the exact {@link
+ * PrimitiveType} to store values under.
+ *
+ * <p>This registry is the single source of truth for that translation. Any new contract output type
+ * must be registered in {@link ChainingOutputType} for the chaining engine to handle it.
+ */
 public final class ChainingTypeRegistry {
 
   private ChainingTypeRegistry() {}
@@ -10,6 +21,15 @@ public final class ChainingTypeRegistry {
     return List.of(PrimitiveType.values());
   }
 
+  /**
+   * Translates a contract output type into the chaining-engine type used at runtime.
+   *
+   * <p>Example: ContractOutputType.PORT -> ChainingMappedType.primitive(PrimitiveType.Port)
+   *
+   * @param type the contract output type declared by the injector
+   * @return the resolved chaining mapped type
+   * @throws IllegalArgumentException if the contract output type has no registered mapping
+   */
   public static ChainingMappedType getMappedTypeForContractOutputType(ContractOutputType type) {
     ChainingOutputType outputType = ChainingOutputType.fromContractOutputType(type);
     return switch (outputType.kind()) {

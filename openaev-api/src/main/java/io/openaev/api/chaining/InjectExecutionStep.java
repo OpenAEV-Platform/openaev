@@ -772,7 +772,31 @@ public class InjectExecutionStep implements ActionStep {
 
   private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
 
-  /** Builds resolved chaining mapped types for structured output fields. */
+  /**
+   * Builds the type mapping used by the chaining engine to interpret structured output fields.
+   *
+   * <p>An injector contract (or payload) declares its output fields with a {@link
+   * ContractOutputType}, e.g. field "ports" -> PORT. The chaining engine does not work with
+   * contract types directly. Instead, {@link ChainingTypeRegistry} translates each contract type
+   * into a {@link ChainingMappedType} that tells the engine how to treat the produced values:
+   *
+   * <ul>
+   *   <li>PRIMITIVE: scalar values stored per {@link PrimitiveType} (e.g. PORT ->
+   *       PrimitiveType.Port)
+   *   <li>COMPLEX: JSON objects stored as correlated pairs (e.g. PORTSCAN -> host+port tuples)
+   *   <li>NON_CHAINABLE: values ignored by the chaining engine entirely
+   * </ul>
+   *
+   * <p>Two sources are supported:
+   *
+   * <ul>
+   *   <li>Payload-based inject: output parsers define the fields and their types
+   *   <li>Contract-based inject: the injector contract defines the fields and their types
+   * </ul>
+   *
+   * @param inject the inject whose output fields are being mapped
+   * @return map of output field name to its resolved chaining type
+   */
   private Map<String, ChainingMappedType> buildTypeMappingsFromInject(Inject inject) {
     Map<String, ChainingMappedType> typeMappings = new HashMap<>();
 
