@@ -385,6 +385,8 @@ class WorkflowStateServiceTest {
               Set.of("example.org"),
               Set.of(),
               Set.of(),
+              Set.of(),
+              Set.of(),
               Set.of(deniedDomain),
               Set.of(deniedIp),
               Set.of());

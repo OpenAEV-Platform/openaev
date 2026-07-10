@@ -32,12 +32,31 @@ public final class PrimitiveValueValidator {
       case IpSubnet ->
           (IpAddressUtils.isIpv4Subnet(value) || IpAddressUtils.isIpv6Subnet(value))
               && isSubnetAllowedByScope(value, context);
-      case AssetId ->
-          context.allowedAssetIds() != null && context.allowedAssetIds().contains(value);
-      case AssetGroupId ->
-          context.allowedAssetGroupIds() != null && context.allowedAssetGroupIds().contains(value);
+      case AssetId -> isAssetIdAllowedByScope(value, context);
+      case AssetGroupId -> isAssetGroupIdAllowedByScope(value, context);
       default -> true;
     };
+  }
+
+  private static boolean isAssetIdAllowedByScope(String id, PrimitiveValidationContext context) {
+    if (context.denylistedAssetIds().contains(id)) {
+      return false;
+    }
+    if (context.allowlistedAssetIds().isEmpty()) {
+      return true;
+    }
+    return context.allowlistedAssetIds().contains(id);
+  }
+
+  private static boolean isAssetGroupIdAllowedByScope(
+      String id, PrimitiveValidationContext context) {
+    if (context.denylistedAssetGroupIds().contains(id)) {
+      return false;
+    }
+    if (context.allowlistedAssetGroupIds().isEmpty()) {
+      return true;
+    }
+    return context.allowlistedAssetGroupIds().contains(id);
   }
 
   private static boolean isIpAllowedByScope(String ip, PrimitiveValidationContext context) {

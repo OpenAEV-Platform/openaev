@@ -14,8 +14,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PrimitiveValidationContextBuilder {
 
-  private final ScopeService scopeService;
-
   /**
    * Builds a precomputed context used to validate primitive values during workflow-state ingestion.
    *
@@ -35,24 +33,27 @@ public class PrimitiveValidationContextBuilder {
         requiresPrimitiveValidation(typeMappings, PrimitiveType.IpSubnet);
     boolean needsDomainValidation = requiresPrimitiveValidation(typeMappings, PrimitiveType.Domain);
 
-    Set<String> allowedAssetIds =
+    Set<String> allowlistedAssetIds =
         needsAssetIdValidation
-            ? scopeService.getValidAssets(workflowRun.getId()).stream()
-                .map(Asset::getId)
-                .collect(Collectors.toSet())
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_ID)
+            : Collections.emptySet();
+    Set<String> denylistedAssetIds =
+        needsAssetIdValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.ASSET_ID)
             : Collections.emptySet();
 
-    Set<String> allowedAssetGroupIds = Collections.emptySet();
-    if (needsAssetGroupValidation) {
-      Set<String> allowlistedGroupIds =
-          collectRuleValues(
-              workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_GROUP_ID);
-      Set<String> denylistedGroupIds =
-          collectRuleValues(
-              workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.ASSET_GROUP_ID);
-      allowlistedGroupIds.removeAll(denylistedGroupIds);
-      allowedAssetGroupIds = allowlistedGroupIds;
-    }
+    Set<String> allowlistedAssetGroupIds =
+        needsAssetGroupValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_GROUP_ID)
+            : Collections.emptySet();
+    Set<String> denylistedAssetGroupIds =
+        needsAssetGroupValidation
+            ? collectRuleValues(
+                workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.ASSET_GROUP_ID)
+            : Collections.emptySet();
 
     Set<String> allowlistedIps =
         needsIpValidation || needsSubnetValidation
@@ -62,6 +63,7 @@ public class PrimitiveValidationContextBuilder {
         needsIpValidation || needsSubnetValidation
             ? collectRuleValues(workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP)
             : Collections.emptySet();
+
     Set<String> allowlistedSubnets =
         needsIpValidation || needsSubnetValidation
             ? collectRuleValues(
@@ -72,6 +74,7 @@ public class PrimitiveValidationContextBuilder {
             ? collectRuleValues(
                 workflowRun, ScopeRuleSelectedMode.DENYLIST, ScopeRuleValueType.IP_SUBNET)
             : Collections.emptySet();
+
     Set<String> allowlistedDomains =
         needsDomainValidation
             ? normalizeDomains(
@@ -86,11 +89,13 @@ public class PrimitiveValidationContextBuilder {
             : Collections.emptySet();
 
     return new PrimitiveValidationContext(
-        allowedAssetGroupIds,
-        allowedAssetIds,
+        allowlistedAssetGroupIds,
+        allowlistedAssetIds,
         allowlistedDomains,
         allowlistedIps,
         allowlistedSubnets,
+        denylistedAssetGroupIds,
+        denylistedAssetIds,
         denylistedDomains,
         denylistedIps,
         denylistedSubnets);
@@ -118,11 +123,7 @@ public class PrimitiveValidationContextBuilder {
         .collect(Collectors.toSet());
   }
 
-  private String normalizeDomain(String domain) {
-    return domain.toLowerCase(Locale.ROOT);
-  }
-
   private Set<String> normalizeDomains(Set<String> domains) {
-    return domains.stream().map(this::normalizeDomain).collect(Collectors.toSet());
+    return domains.stream().map(d -> d.toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
   }
 }
