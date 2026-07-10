@@ -173,20 +173,14 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              // Base the agent active status on the MDE sensor health, not the cloud lastSeen:
-              // MDE's
-              // lastSeen lags real connectivity by tens of minutes to hours, so filtering on it (1h
-              // active threshold) wrongly hid the large majority of healthy machines. A device
-              // reporting healthStatus "Active" has a healthy, communicating sensor and is the best
-              // available "reachable" signal; offline edge cases no longer poison the fleet because
-              // stale pending Live Response actions are cancelled before each dispatch. Devices
-              // with
-              // any other health status keep their real (stale) lastSeen so they surface as
-              // inactive.
-              input.setLastSeen(
-                  "Active".equalsIgnoreCase(device.getHealthStatus())
-                      ? Instant.now()
-                      : parseDeviceLastSeen(device.getLastSeen()));
+              // Base the agent active status on the device's real MDE lastSeen. Live Response only
+              // works while the Defender sensor is actively connected, and the freshest available
+              // proxy for that is lastSeen. healthStatus "Active" is NOT a reachability signal (MDE
+              // keeps it Active for ~7 days), so a machine offline for hours still reported Active
+              // and its Live Response stayed Pending until the inject timed out. Forcing
+              // Instant.now() had the same effect for every device. Offline machines no longer
+              // poison the fleet because stale pending Live Response is cancelled before dispatch.
+              input.setLastSeen(parseDeviceLastSeen(device.getLastSeen()));
               return input;
             })
         .collect(Collectors.toList());
