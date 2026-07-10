@@ -10,7 +10,8 @@ public class RelationshipObject extends ObjectBase {
     SOURCE_REF("source_ref"),
     START_TIME("start_time"),
     STOP_TIME("stop_time"),
-    RELATIONSHIP_TYPE("relationship_type");
+    RELATIONSHIP_TYPE("relationship_type"),
+    COVERAGE_EXTERNAL_URI("coverage_external_uri");
 
     private final String value;
 
