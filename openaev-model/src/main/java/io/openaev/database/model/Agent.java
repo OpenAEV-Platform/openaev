@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.AgentHelper;
@@ -30,7 +32,7 @@ import org.hibernate.annotations.JoinFormula;
 @Table(name = "agents")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Agent implements TenantBase {
+public class Agent implements TenantBase, AuditStateCapturable {
 
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
@@ -53,7 +55,6 @@ public class Agent implements TenantBase {
   @Column(name = "agent_id")
   @JsonProperty("agent_id")
   @NotBlank
-  // ID is UUID by default and external reference for CrowdStrike agent
   private String id = UUID.randomUUID().toString();
 
   @Queryable(sortable = true, filterable = true, path = "asset.id")
@@ -63,6 +64,7 @@ public class Agent implements TenantBase {
   @JsonProperty("agent_asset")
   @Schema(implementation = String.class)
   @NotNull
+  @AuditStateIgnore
   private Asset asset;
 
   @Queryable(sortable = true)
@@ -109,6 +111,7 @@ public class Agent implements TenantBase {
   @JoinColumn(name = "agent_parent")
   @JsonProperty("agent_parent")
   @Schema(implementation = String.class)
+  @AuditStateIgnore
   private Agent parent;
 
   /** Used for Caldera only */
@@ -117,6 +120,7 @@ public class Agent implements TenantBase {
   @JoinColumn(name = "agent_inject")
   @JsonProperty("agent_inject")
   @Schema(implementation = String.class)
+  @AuditStateIgnore
   private Inject inject;
 
   @JsonProperty("agent_active")
@@ -133,6 +137,7 @@ public class Agent implements TenantBase {
   @JsonProperty("agent_external_reference")
   private String externalReference;
 
+  @AuditStateIgnore
   @Column(name = "agent_last_seen")
   @JsonProperty("agent_last_seen")
   private Instant lastSeen;
@@ -140,8 +145,10 @@ public class Agent implements TenantBase {
   @Column(name = "agent_created_at")
   @JsonProperty("agent_created_at")
   @NotNull
+  @AuditStateIgnore
   private Instant createdAt = now();
 
+  @AuditStateIgnore
   @Column(name = "agent_updated_at")
   @JsonProperty("agent_updated_at")
   @NotNull
@@ -149,6 +156,7 @@ public class Agent implements TenantBase {
 
   @Column(name = "agent_cleared_at")
   @JsonProperty("agent_cleared_at")
+  @AuditStateIgnore
   private Instant clearedAt = now();
 
   @Getter(onMethod_ = @JsonIgnore)

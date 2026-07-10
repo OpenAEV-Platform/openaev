@@ -118,7 +118,7 @@ public class StepService {
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);
 
-    if (executionBatches == null) {
+    if (executionBatches == null || executionBatches.isEmpty()) {
       return List.of();
     }
 
@@ -492,16 +492,22 @@ public class StepService {
     existing.setData(updatedCandidate.getData());
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
-    Step updated = saveStep(existing);
 
     // Remove all existing conditions (full replace strategy),
     // but preserve conditions referenced by conditionIds so they can be re-linked
-    conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
+    conditionService.deleteAllConditionsByStepId(
+        stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
+
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
 
     // Recreate conditions from input (same logic as create)
-    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), updated);
-    conditionService.linkExistingConditionsToStep(updated, stepInput.getConditionIds());
-    return updated;
+    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
+    return saveStep(existing);
   }
 
   /**
@@ -587,11 +593,8 @@ public class StepService {
    * @param injectId inject id to find step id
    * @return optional step id
    */
-  public String findStepIdByInjectId(final String injectId) {
-    return stepRepository
-        .findStepIdByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Step id not found for inject id : " + injectId));
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
   }
 
   /**

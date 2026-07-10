@@ -2,7 +2,7 @@ site_name: OpenAEV Documentation
 site_description: Documentation about OpenAEV, the next-generation Open Adversary Exposure Validation Platform.
 site_author: Filigran
 site_url: https://docs.openaev.io
-copyright: © 2025 Filigran. All rights reserved
+copyright: © 2026 Filigran. All rights reserved
 repo_name: GitHub
 repo_url: https://github.com/OpenAEV-Platform/openaev
 edit_uri: https://github.com/OpenAEV-Platform/openaev/blob/main/docs/docs/
@@ -22,7 +22,6 @@ theme:
     - content.code.annotate
     - content.code.copy
     - search.highlight
-    - announce.dismiss
   palette:
     scheme: filigran
   font:
@@ -127,14 +126,15 @@ nav:
       - Executors: deployment/ecosystem/executors.md
       - Injectors: deployment/ecosystem/injectors.md
       - Collectors: deployment/ecosystem/collectors.md
+      - MCP server (via XTM One): deployment/ecosystem/mcp-server.md
       - Integration Manager:
           - Overview: deployment/ecosystem/integration-manager/overview.md
           - Quick start: deployment/ecosystem/integration-manager/quick-start.md
           - Installation guide: deployment/ecosystem/integration-manager/installation.md
           - Configuration:
-              - Configuration reference : deployment/ecosystem/integration-manager/configuration.md
-              - Proxy : deployment/ecosystem/integration-manager/proxy-configuration.md
-              - Private Registry : deployment/ecosystem/integration-manager/registry-authentification.md
+              - Configuration reference: deployment/ecosystem/integration-manager/configuration.md
+              - Proxy: deployment/ecosystem/integration-manager/proxy-configuration.md
+              - Private registry: deployment/ecosystem/integration-manager/registry-authentication.md
           - Troubleshooting: deployment/ecosystem/integration-manager/troubleshooting.md
     - Advanced:
       - Platform managers: deployment/managers.md
@@ -207,6 +207,7 @@ nav:
     - Introduction: administration/introduction.md
     - Enterprise edition: administration/enterprise.md
     - Multi-tenancy: administration/multi-tenancy.md
+    - Debug mode: administration/debug-mode.md
     - Platform settings:
       - Parameters: administration/parameters.md
       - Security:
@@ -224,6 +225,7 @@ nav:
       - Ubuntu: development/environment-ubuntu.md
       - Windows: development/environment-windows.md
     - Building and running from source: development/build-from-source.md
+    - Database migrations: development/database-migrations.md
     - Platform: development/platform.md
     - Collectors: development/collectors.md
     - Injectors: development/injectors.md

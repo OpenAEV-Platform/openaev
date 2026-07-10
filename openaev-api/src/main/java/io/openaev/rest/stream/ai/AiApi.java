@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -27,10 +28,16 @@ import reactor.core.publisher.Flux;
 public class AiApi extends RestBehavior {
   public static final String X_ACCEL_BUFFERING = "X-Accel-Buffering";
   private AiConfig aiConfig;
+  private AiMetricCollector aiMetricCollector;
 
   @Autowired
   public void setAiConfig(AiConfig aiConfig) {
     this.aiConfig = aiConfig;
+  }
+
+  @Autowired
+  public void setAiMetricCollector(AiMetricCollector aiMetricCollector) {
+    this.aiMetricCollector = aiMetricCollector;
   }
 
   public ResponseEntity<Flux<AiResult>> queryAi(String body) {
@@ -106,6 +113,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("fix_spelling");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -133,6 +141,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("make_shorter");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -160,6 +169,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("make_longer");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -188,6 +198,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("change_tone");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -217,6 +228,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("summarize");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -243,6 +255,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("explain");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -266,6 +279,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("generate_message");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -306,6 +320,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("generate_subject");
     String prompt =
         "\n"
             + "# Instructions\n"
@@ -343,6 +358,7 @@ public class AiApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
     }
+    aiMetricCollector.recordAiCall("generate_media");
     String prompt =
         "\n"
             + "# Instructions\n"

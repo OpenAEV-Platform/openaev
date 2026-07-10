@@ -58,8 +58,9 @@ Here are the configuration keys, for both containers (environment variables) and
 | openaev.with-proxy              | OPENAEV_WITH-PROXY              | `false`                 | Turn on to authorize environment with proxy                                                                                                                                                                                                                                                                                                                                                                                 |
 | openaev.extra-trusted-certs-dir | OPENAEV_EXTRA-TRUSTED-CERTS-DIR |                         | If you want to set extra trusted self-signed TLS certificates to communicate with external applications (Crowdstrike, Tanium, SentinelOne,...),<br/>fill this attribute with you local folder containing your public .PEM certs. If you install OpenAEV with Docker,<br/>uncomment the volume and set the attribute in the [docker compose file](https://github.com/OpenAEV-Platform/docker/blob/master/docker-compose.yml) | 
 
-⚠️ **Important**: If you are using the parameter `openaev.extra-trusted-certs-dir`, the file format needed for the
-certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 certs.
+!!! warning "Extra trusted certificates format"
+
+    If you are using the parameter `openaev.extra-trusted-certs-dir`, the file format needed for the certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 certs.
 
 #### Logging
 
@@ -75,7 +76,10 @@ certificates in the folder are public PEM-armoured (*.pem), DER-encoded X509 cer
 #### Audit Logging
 
 Audit logging will allow you to have a trace of the actions performed using API calls.
-⚠️ **Important**: Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions. 
+
+!!! warning "Modifying actions only"
+
+    Please note that only modifying actions are logged (creating, updating, deleting) and not reading actions.
 
 | Parameter                          | Environment variable               | Default value    | Description                                                                                                                                              |
 |:-----------------------------------|:-----------------------------------|:-----------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -240,8 +244,9 @@ integrations with APIs such as O365 and Google Apps.
 | spring.mail.properties.mail.smtp.auth            | SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH            | true              | Enable SMTP authentication   |
 | spring.mail.properties.mail.smtp.starttls.enable | SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE | true              | Enable SMTP STARTTLS         |
 
-⚠️ **Important**: If you are using two-factor authentication on your Gmail account, an app-specific password is
-required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
+!!! warning "Gmail two-factor authentication"
+
+    If you are using two-factor authentication on your Gmail account, an app-specific password is required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
 
 ##### IMAP
 
@@ -276,8 +281,9 @@ required. You can find a guide [here](https://support.google.com/accounts/answer
 | openaev.mail.imap.auth       | OPENAEV_MAIL_IMAP_AUTH       | true              | Enable IMAP authentication              |
 | openaev.mail.imap.sent       | OPENAEV_MAIL_IMAP_SENT       | [Gmail]/Sent Mail | IMAP sent directory to synchronize from |
 
-⚠️ **Important**: If you are using two-factor authentication on your Gmail account, an app-specific password is
-required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
+!!! warning "Gmail two-factor authentication"
+
+    If you are using two-factor authentication on your Gmail account, an app-specific password is required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
 
 #### AI Service
 

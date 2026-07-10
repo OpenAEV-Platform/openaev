@@ -811,7 +811,8 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     private InjectExpectationComposer.Composer createExpectationComposer(
-        InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        BaseInjectExpectation.EXPECTATION_STATUS status) {
       return injectExpectationComposer.forExpectation(
           InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
     }
@@ -919,48 +920,48 @@ class DashboardApiTest extends IntegrationTest {
               attackPattern1,
               List.of(
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       Inject inject2 =
           createTechnicalInject(
               null,
               attackPattern1,
               List.of(
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       Inject inject3 =
           createTechnicalInject(
               null,
               attackPattern2,
               List.of(
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       createTechnicalInject(
           null,
           attackPattern3,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
 
       Widget widget =
           createWidgetWithDashboard(
               WidgetFixture.createSecurityConverageWidget(
-                  ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION));
+                  ALL_TIME, "base_created_at", BaseInjectExpectation.EXPECTATION_TYPE.DETECTION));
 
       flushAndProcessElastic();
 
@@ -1009,28 +1010,28 @@ class DashboardApiTest extends IntegrationTest {
           null,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.FAILED),
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       createTechnicalInject(
           networkDomain,
           null,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       createTechnicalInject(
           endpointDomain,
           null,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
 
       Widget widget =
           createWidgetWithDashboard(

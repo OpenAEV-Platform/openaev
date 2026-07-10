@@ -78,8 +78,7 @@ public class VariableApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String variableId,
       @Valid @RequestBody final VariableInput input) {
-    Variable variable = this.variableService.variable(variableId);
-    assert exerciseId.equals(variable.getExercise().getId());
+    Variable variable = this.variableService.variableForExercise(variableId, exerciseId);
     variable.setUpdateAttributes(input);
     return this.variableService.updateVariable(variable);
   }
@@ -96,8 +95,7 @@ public class VariableApi extends RestBehavior {
   public void deleteVariableForExercise(
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String variableId) {
-    Variable variable = this.variableService.variable(variableId);
-    assert exerciseId.equals(variable.getExercise().getId());
+    this.variableService.variableForExercise(variableId, exerciseId);
     this.variableService.deleteVariable(variableId);
   }
 
@@ -148,8 +146,7 @@ public class VariableApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String variableId,
       @Valid @RequestBody final VariableInput input) {
-    Variable variable = this.variableService.variable(variableId);
-    assert scenarioId.equals(variable.getScenario().getId());
+    Variable variable = this.variableService.variableForScenario(variableId, scenarioId);
     variable.setUpdateAttributes(input);
     return this.variableService.updateVariable(variable);
   }
@@ -166,8 +163,7 @@ public class VariableApi extends RestBehavior {
   public void deleteVariableForScenario(
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String variableId) {
-    Variable variable = this.variableService.variable(variableId);
-    assert scenarioId.equals(variable.getScenario().getId());
+    this.variableService.variableForScenario(variableId, scenarioId);
     this.variableService.deleteVariable(variableId);
   }
 }

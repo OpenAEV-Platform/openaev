@@ -77,7 +77,7 @@ class StepRepositoryTest extends IntegrationTest {
   void whenFindStepIdsByExpectationIds_thenReturnsCorrectStepIds() {
     // GIVEN: an inject with an expectation, and a step referencing that inject
     Inject inject = InjectFixture.getDefaultInject();
-    InjectExpectation expectation =
+    BaseInjectExpectation expectation =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
 
     injectComposer
@@ -120,11 +120,11 @@ class StepRepositoryTest extends IntegrationTest {
 
     // Create inject1 with 3 expectations
     Inject inject1 = InjectFixture.getDefaultInject();
-    InjectExpectation expectation1 =
+    BaseInjectExpectation expectation1 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-    InjectExpectation expectation2 =
+    BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-    InjectExpectation expectation3 =
+    BaseInjectExpectation expectation3 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
 
     injectComposer
@@ -146,7 +146,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     // Create inject2 with 1 expectation
     Inject inject2 = InjectFixture.getDefaultInject();
-    InjectExpectation expectation4 =
+    BaseInjectExpectation expectation4 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
 
     injectComposer

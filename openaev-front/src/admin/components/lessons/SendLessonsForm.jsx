@@ -47,10 +47,7 @@ class SendLessonsFormComponent extends Component {
               name="body"
               label={t('Message')}
               fullWidth
-              style={{
-                marginTop: 20,
-                height: 300,
-              }}
+              style={{ marginTop: 20 }}
             />
             <div style={{
               float: 'right',

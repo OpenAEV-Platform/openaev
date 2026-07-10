@@ -82,6 +82,7 @@ public class ConditionUtils {
       return true;
     }
     String target = filter.getValue();
+    boolean caseSensitive = filter.isCaseSensitive();
 
     switch (type) {
       case IS_NULL:
@@ -89,15 +90,22 @@ public class ConditionUtils {
       case IS_NOT_NULL:
         return actualValue != null;
       case EQ:
-        return actualValue != null && actualValue.equalsIgnoreCase(target);
+        return actualValue != null
+            && (caseSensitive ? actualValue.equals(target) : actualValue.equalsIgnoreCase(target));
       case NEQ:
-        return actualValue != null && !actualValue.equalsIgnoreCase(target);
+        return actualValue != null
+            && (caseSensitive
+                ? !actualValue.equals(target)
+                : !actualValue.equalsIgnoreCase(target));
       case IN, NIN:
         if (actualValue == null || target == null) {
           return false;
         }
         List<String> targetList = Arrays.asList(target.split("\\s*,\\s*"));
-        boolean contains = targetList.stream().anyMatch(actualValue::equalsIgnoreCase);
+        boolean contains =
+            caseSensitive
+                ? targetList.stream().anyMatch(actualValue::equals)
+                : targetList.stream().anyMatch(actualValue::equalsIgnoreCase);
         return (type == ConditionType.IN) == contains;
       case GT, GTE, LT, LTE:
         return handleNumericComparison(actualValue, target, type);

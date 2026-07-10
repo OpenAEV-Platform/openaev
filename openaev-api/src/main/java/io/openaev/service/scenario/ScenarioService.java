@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
@@ -542,27 +543,49 @@ public class ScenarioService {
       objectMapper.addMixIn(Variable.class, VariableMixin.class);
     }
 
-    // Add Documents
-    List<Document> documentExports = new ArrayList<>();
-    documentExports.addAll(scenario.getDocuments());
-    documentExports.addAll(
-        scenario.getInjects().stream()
-            .flatMap(
-                inject -> {
-                  if (inject.getPayload().isEmpty()) {
-                    return Stream.of();
-                  }
-                  Payload pl = inject.getPayload().get();
-                  return pl.getAttachedDocument().isPresent()
-                      ? Stream.of(pl.getAttachedDocument().get())
-                      : Stream.of();
-                })
-            .toList());
+    // Add Documents — collect from:
+    // 1. documents directly attached to the scenario
+    // 2. documents directly attached to injects (InjectDocument)
+    // 3. payload's attached document (e.g., FileDrop)
+    // 4. documents referenced by Document-type payload arguments in inject content
+    List<Document> documentExports =
+        Stream.of(
+                scenario.getDocuments().stream(),
+                scenario.getInjects().stream()
+                    .flatMap(
+                        inject -> inject.getDocuments().stream().map(InjectDocument::getDocument)),
+                scenario.getInjects().stream()
+                    .flatMap(
+                        inject -> {
+                          if (inject.getPayload().isEmpty()) {
+                            return Stream.of();
+                          }
+                          Payload pl = inject.getPayload().get();
+                          return pl.getAttachedDocument().isPresent()
+                              ? Stream.of(pl.getAttachedDocument().get())
+                              : Stream.of();
+                        }),
+                scenario.getInjects().stream()
+                    .flatMap(
+                        inject -> {
+                          if (inject.getPayload().isEmpty() || inject.getContent() == null) {
+                            return Stream.of();
+                          }
+                          ObjectNode content = inject.getContent();
+                          return inject.getPayload().get().getArguments().stream()
+                              .filter(arg -> ArgumentType.Document == arg.getType())
+                              .map(arg -> content.path(arg.getKey()))
+                              .filter(node -> node.isTextual() && hasText(node.asText()))
+                              .map(node -> documentRepository.findById(node.asText()))
+                              .flatMap(Optional::stream);
+                        }))
+            .flatMap(s -> s)
+            .distinct()
+            .collect(Collectors.toCollection(ArrayList::new));
 
     scenarioFileExport.setDocuments(documentExports);
     objectMapper.addMixIn(Document.class, Mixins.Document.class);
-    scenarioTags.addAll(
-        scenario.getDocuments().stream().flatMap(doc -> doc.getTags().stream()).toList());
+    scenarioTags.addAll(documentExports.stream().flatMap(doc -> doc.getTags().stream()).toList());
     List<String> documentIds =
         new ArrayList<>(documentExports.stream().map(Document::getId).toList());
 

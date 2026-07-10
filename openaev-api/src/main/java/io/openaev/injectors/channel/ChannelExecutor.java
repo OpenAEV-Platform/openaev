@@ -12,13 +12,13 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.ChannelExpectation;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.channel.model.ArticleVariable;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ChannelExpectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -71,7 +71,8 @@ public class ChannelExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChannelContent content = contentConvert(injection, ChannelContent.class);
+      ChannelContent content =
+          injectExpectationService.contentConvert(injection, ChannelContent.class);
       List<Article> articles = fromIterable(articleRepository.findAllById(content.getArticles()));
       if (articles.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one article");

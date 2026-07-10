@@ -15,6 +15,8 @@ public class PresetDomain {
   private static final Domain URL_FILTERING =
       Domain.builder().name("URL Filtering").color("#66CCFF").build();
   private static final Domain CLOUD = Domain.builder().name("Cloud").color("#9999CC").build();
+  private static final Domain ARTIFICIAL_INTELLIGENCE =
+      Domain.builder().name("Artificial Intelligence").color("#7C4DFF").build();
   private static final Domain TABLETOP = Domain.builder().name("Tabletop").color("#FFCC33").build();
   private static final Domain TOCLASSIFY =
       Domain.builder().name("To classify").color("#FFFFFF").build();
@@ -56,6 +58,10 @@ public class PresetDomain {
     return new Domain(CLOUD);
   }
 
+  public static Domain getArtificialIntelligence() {
+    return new Domain(ARTIFICIAL_INTELLIGENCE);
+  }
+
   public static Domain getTabletop() {
     return new Domain(TABLETOP);
   }
@@ -75,6 +81,7 @@ public class PresetDomain {
             DATA_EXFILTRATION,
             URL_FILTERING,
             CLOUD,
+            ARTIFICIAL_INTELLIGENCE,
             TABLETOP,
             TOCLASSIFY);
     for (Domain domain : listToInsert) {

@@ -4,8 +4,8 @@ import static io.openaev.aop.lock.LockResourceType.MANAGER_FACTORY;
 
 import io.openaev.aop.lock.Lock;
 import io.openaev.database.model.Tenant;
-import io.openaev.datapack.DataPackProcessor;
 import io.openaev.multitenancy.DependenciesManager;
+import io.openaev.processor.MigrationProcessor;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -39,10 +39,10 @@ public class ManagerFactory implements DependenciesManager {
 
   /**
    * Creates a new {@link Manager} for the given tenant. Integration discovery and startup are
-   * handled by the next {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle via
-   * {@link #monitorAllTenants()} — no immediate {@link Manager#monitorIntegrations()} call here to
-   * avoid connecting to external services (Caldera, Tanium, etc.) during bean initialization or
-   * tenant creation, where those services may not be reachable.
+   * handled by the next {@link io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob} cycle — no
+   * immediate {@link Manager#monitorIntegrations()} call here to avoid connecting to external
+   * services (Caldera, Tanium, etc.) during bean initialization or tenant creation, where those
+   * services may not be reachable.
    */
   private Manager createManager(@NotBlank final String tenantId) {
     try {
@@ -80,6 +80,6 @@ public class ManagerFactory implements DependenciesManager {
 
   @Override
   public List<Class<? extends DependenciesManager>> getPrerequisite() {
-    return List.of(InjectorContractService.class, DataPackProcessor.class);
+    return List.of(InjectorContractService.class, MigrationProcessor.class);
   }
 }

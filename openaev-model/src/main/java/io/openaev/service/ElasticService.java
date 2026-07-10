@@ -341,8 +341,17 @@ public class ElasticService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
+                  long fetchStart = System.currentTimeMillis();
                   List<? extends EsBase> results =
                       handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                  long fetchMs = System.currentTimeMillis() - fetchStart;
+                  if (fetchMs > 1000) {
+                    log.warn(
+                        "Slow fetch for model {} ({}ms, from={})",
+                        model.getName(),
+                        fetchMs,
+                        fetchInstant);
+                  }
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();

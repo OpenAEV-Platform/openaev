@@ -1,5 +1,6 @@
 package io.openaev.aop.audit_log;
 
+import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -20,14 +21,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
+import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +59,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private ExecutorComposer executorComposer;
+  @Autowired private ExecutorFixture executorFixture;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -318,6 +326,66 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               anyString());
     }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_auditContextDisabled_should_notLogSuccessEvent() throws Exception {
+      // Arrange — set up executor and service account required for agent registration
+      executorComposer.reset();
+      executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+      serviceAccountPrivilegeService.ensurePrivilegedUserExists(
+          io.openaev.context.TenantContext.getCurrentTenant());
+      entityManager.flush();
+
+      // Register the same agent twice; the second registration is a heartbeat
+      String registerJson =
+          objectMapper.writeValueAsString(
+              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput());
+
+      // First registration — creates the agent (audit IS expected)
+      mvc.perform(
+              post(ENDPOINT_URI + "/register")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(registerJson))
+          .andExpect(status().isOk());
+
+      // Wait for first audit event and then reset the spy
+      verify(auditLogger, timeout(1000))
+          .logAccessControlEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+      reset(auditLogger);
+      doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+
+      // Act — second registration with same data (heartbeat, no significant change)
+      mvc.perform(
+              post(ENDPOINT_URI + "/register")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(registerJson))
+          .andExpect(status().isOk());
+
+      // Assert — audit should be suppressed for the heartbeat
+      verify(auditLogger, after(1000).never())
+          .logAccessControlEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+    }
   }
 
   @Nested
@@ -431,22 +499,22 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
     void given_entityDiffsInContext_should_serializeAndPassToAuditLogger() throws Exception {
-      // Arrange — pre-populate EntityDiffContext via request attributes (the storage used during
+      // Arrange — pre-populate AuditLogContext via request attributes (the storage used during
       // HTTP requests) to simulate snapshots stored by @PreUpdate listener
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
       entityManager.flush();
 
-      Map<String, EntityDiffContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
+      Map<String, AuditLogContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
       snapshotsMap.put(
           team.getId(),
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               "Team", "update", Map.of("name", "Old Name"), Map.of("name", "New Name")));
 
       @SuppressWarnings("unchecked")
-      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
-      // Act — pass snapshots as request attribute so EntityDiffContext finds them during the
+      // Act — pass snapshots as request attribute so AuditLogContext finds them during the
       // request
       mvc.perform(
               delete(TEAM_URI + "/{teamId}", team.getId())
@@ -467,10 +535,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               snapshotsCaptor.capture(),
               anyString());
 
-      Map<String, EntityDiffContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
+      Map<String, AuditLogContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
       assertThat(captured).isNotNull();
       assertThat(captured).containsKey(team.getId());
-      EntityDiffContext.EntitySnapshot snapshot = captured.get(team.getId());
+      AuditLogContext.EntitySnapshot snapshot = captured.get(team.getId());
       assertThat(snapshot.entityType()).isEqualTo("Team");
       assertThat(snapshot.operation()).isEqualTo("update");
       assertThat(snapshot.before().get("name")).isEqualTo("Old Name");
@@ -480,11 +548,11 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
     void given_noDiffsInContext_should_passEmptyEntityDiffs() throws Exception {
-      // Arrange — no snapshots in EntityDiffContext
+      // Arrange — no snapshots in AuditLogContext
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
       @SuppressWarnings("unchecked")
-      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
       // Act

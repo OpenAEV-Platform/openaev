@@ -2,7 +2,7 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.expectation.ExpectationType.*;
 
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.InjectExpectationResultUtils.ResultDistribution;
@@ -11,7 +11,7 @@ import java.util.List;
 public class ExpectationResultByTypeFixture {
   public static ExpectationResultsByType createDefaultExpectationResultsByType(
       ExpectationType type,
-      InjectExpectation.EXPECTATION_STATUS avgResult,
+      BaseInjectExpectation.EXPECTATION_STATUS avgResult,
       int successCount,
       int pendingCount,
       int partialCount,

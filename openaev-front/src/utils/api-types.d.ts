@@ -43,6 +43,7 @@ export interface AgentCallInput {
   agent_slug: string;
   /** @minLength 1 */
   content: string;
+  intent?: string;
 }
 
 export interface AgentCallOutput {
@@ -176,6 +177,67 @@ export interface AggregatedFindingOutput {
   finding_value: string;
 }
 
+export interface AiAttack {
+  ai_attack_category?: string;
+  ai_attack_content?: string;
+  ai_attack_converters?: string[];
+  ai_attack_engine: "native" | "garak" | "pyrit" | "promptfoo";
+  ai_attack_multi_turn?: Record<string, any>;
+  ai_attack_success_detector?: Record<string, any>;
+  listened?: boolean;
+  payload_arguments?: PayloadArgument[];
+  payload_cleanup_command?: string;
+  payload_cleanup_executor?: string;
+  payload_collector_type?: string;
+  /** @format date-time */
+  payload_created_at: string;
+  payload_description?: string;
+  payload_detection_remediations?: DetectionRemediation[];
+  payload_elevation_required?: boolean;
+  payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  payload_expectations?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "VULNERABILITY"
+  )[];
+  payload_external_id?: string;
+  /** @minLength 1 */
+  payload_id: string;
+  /** @minLength 1 */
+  payload_name: string;
+  /** @uniqueItems true */
+  payload_output_parsers?: OutputParser[];
+  /** @minItems 1 */
+  payload_platforms: (
+    | "Linux"
+    | "Windows"
+    | "MacOS"
+    | "Android"
+    | "iOS"
+    | "Container"
+    | "Service"
+    | "Generic"
+    | "Internal"
+    | "Unknown"
+  )[];
+  payload_prerequisites?: PayloadPrerequisite[];
+  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_type?: string;
+  /** @format date-time */
+  payload_updated_at: string;
+  typeEnum?:
+    | "COMMAND"
+    | "EXECUTABLE"
+    | "FILE_DROP"
+    | "DNS_RESOLUTION"
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
+}
+
 export interface AiGenericTextInput {
   /** @minLength 1 */
   ai_content: string;
@@ -211,6 +273,170 @@ export interface AiMessageInput {
 export interface AiResult {
   chunk_content?: string;
   chunk_id?: string;
+}
+
+export interface AiTarget {
+  ai_target_api_key_variable?: string;
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string;
+  ai_target_modality: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string;
+  ai_target_provider:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP";
+  ai_target_system_prompt?: string;
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string;
+  /** @format date-time */
+  asset_created_at: string;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_id: string;
+  asset_internet_facing?: boolean;
+  asset_linked_person?: string;
+  asset_metadata?: Record<string, any>;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
+  asset_tags?: string[];
+  asset_type?: string;
+  /** @format date-time */
+  asset_updated_at: string;
+  listened?: boolean;
+}
+
+export interface AiTargetInput {
+  ai_target_api_key_variable?: string | null;
+  ai_target_configuration?: Record<string, any>;
+  ai_target_endpoint?: string | null;
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  ai_target_model?: string | null;
+  ai_target_provider:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP";
+  ai_target_system_prompt?: string | null;
+  asset_description?: string;
+  asset_external_reference?: string;
+  /** @minLength 1 */
+  asset_name: string;
+  asset_tags?: string[];
 }
 
 export interface ArgumentTypeOutput {
@@ -425,6 +651,8 @@ export interface AtomicInjectorContractOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -626,8 +854,6 @@ interface BasePayload {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -647,6 +873,8 @@ interface BasePayload {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -664,7 +892,8 @@ interface BasePayload {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 interface BasePayloadCreateInput {
@@ -684,8 +913,6 @@ interface BasePayloadCreateInput {
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -705,6 +932,8 @@ interface BasePayloadCreateInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -1195,8 +1424,6 @@ export interface Command {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -1216,6 +1443,8 @@ export interface Command {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -1233,7 +1462,8 @@ export interface Command {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface Communication {
@@ -1269,6 +1499,8 @@ export interface Condition {
 
 /** Condition used to execute a step. Can be a Template or an Execution depending on the status of stepFrom. */
 export interface ConditionCreateInput {
+  /** Whether the comparison is case-sensitive */
+  condition_case_sensitive?: boolean;
   /** Property to be mapped */
   condition_key?: string;
   /** Condition key subtype */
@@ -1335,6 +1567,7 @@ export interface ConditionCreateInput {
 }
 
 export interface ConditionOutput {
+  condition_case_sensitive?: boolean;
   condition_id?: string;
   condition_key?: string;
   condition_key_subtype?:
@@ -1978,8 +2211,6 @@ export interface DnsResolution {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -1999,6 +2230,8 @@ export interface DnsResolution {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -2016,7 +2249,8 @@ export interface DnsResolution {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface Document {
@@ -2104,58 +2338,276 @@ export interface DomainBaseInput {
 
 export interface Endpoint {
   asset_agents?: Agent[];
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string;
   /** @format date-time */
   asset_created_at: string;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
   /** @minLength 1 */
   asset_id: string;
+  asset_internet_facing?: boolean;
+  asset_linked_person?: string;
+  asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
   asset_updated_at: string;
-  endpoint_arch: "x86_64" | "arm64" | "Unknown";
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
   endpoint_ips?: string[];
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
-  endpoint_platform:
+  endpoint_platform?:
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
     | "Internal"
     | "Unknown";
   endpoint_seen_ip?: string;
+  endpoint_url?: string;
   listened?: boolean;
 }
 
 export interface EndpointInput {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string | null;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
+  asset_internet_facing?: boolean | null;
+  asset_linked_person?: string | null;
+  asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
   asset_tags?: string[];
   endpoint_agent_version?: string;
-  endpoint_arch: "x86_64" | "arm64" | "Unknown";
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
   endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
-  endpoint_platform:
+  endpoint_platform?:
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
     | "Internal"
     | "Unknown";
+  endpoint_url?: string | null;
 }
 
 export interface EndpointOutput {
@@ -2164,6 +2616,35 @@ export interface EndpointOutput {
    * @uniqueItems true
    */
   asset_agents: AgentOutput[];
+  /** Asset category */
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  /** Cloud native type */
+  asset_cloud_native_type?: string;
+  /** Cloud provider */
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  /** Cloud region */
+  asset_cloud_region?: string;
+  /** Asset criticality */
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset external reference */
   asset_external_reference?: string;
   /**
@@ -2171,11 +2652,95 @@ export interface EndpointOutput {
    * @minLength 1
    */
   asset_id: string;
+  /** Whether the asset is internet-facing */
+  asset_internet_facing?: boolean;
+  /** Linked person (user id) for identity assets */
+  asset_linked_person?: string;
   /**
    * Asset name
    * @minLength 1
    */
   asset_name: string;
+  /** Asset subcategory */
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
   /**
    * Tags
    * @uniqueItems true
@@ -2196,6 +2761,8 @@ export interface EndpointOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -2211,6 +2778,35 @@ export interface EndpointOverviewOutput {
    * @uniqueItems true
    */
   asset_agents: AgentOutput[];
+  /** Asset category */
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  /** Cloud native type */
+  asset_cloud_native_type?: string;
+  /** Cloud provider */
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  /** Cloud region */
+  asset_cloud_region?: string;
+  /** Asset criticality */
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   /** Asset description */
   asset_description?: string;
   /**
@@ -2218,11 +2814,97 @@ export interface EndpointOverviewOutput {
    * @minLength 1
    */
   asset_id: string;
+  /** Whether the asset is internet-facing */
+  asset_internet_facing?: boolean;
+  /** Linked person (user id) for identity assets */
+  asset_linked_person?: string;
+  /** Free-form category-specific attributes */
+  asset_metadata?: Record<string, any>;
   /**
    * Asset name
    * @minLength 1
    */
   asset_name: string;
+  /** Asset subcategory */
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
   /**
    * Tags
    * @uniqueItems true
@@ -2249,6 +2931,8 @@ export interface EndpointOverviewOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -2256,6 +2940,8 @@ export interface EndpointOverviewOutput {
     | "Unknown";
   /** Seen IP */
   endpoint_seen_ip?: string;
+  /** URL */
+  endpoint_url?: string;
 }
 
 export interface EndpointRegisterInput {
@@ -2265,28 +2951,137 @@ export interface EndpointRegisterInput {
   agent_is_elevated?: boolean;
   agent_is_service?: boolean;
   agent_service_name?: string;
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string | null;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string | null;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference: string;
+  asset_internet_facing?: boolean | null;
+  asset_linked_person?: string | null;
+  asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
   asset_tags?: string[];
   elevated?: boolean;
   endpoint_agent_version?: string;
-  endpoint_arch: "x86_64" | "arm64" | "Unknown";
+  endpoint_arch?: "x86_64" | "arm64" | "Unknown";
   endpoint_hostname?: string;
   endpoint_ips?: string[];
   /** True if the endpoint is in an End of Life state */
   endpoint_is_eol?: boolean;
   endpoint_mac_addresses?: string[];
-  endpoint_platform:
+  endpoint_platform?:
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
     | "Internal"
     | "Unknown";
+  endpoint_url?: string | null;
   seenIp?: string;
   service?: boolean;
 }
@@ -2850,8 +3645,6 @@ export interface Executable {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -2871,6 +3664,8 @@ export interface Executable {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -2888,7 +3683,8 @@ export interface Executable {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface ExecutionTrace {
@@ -3092,6 +3888,8 @@ export interface Exercise {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -3247,8 +4045,6 @@ export interface FileDrop {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -3268,6 +4064,8 @@ export interface FileDrop {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -3285,7 +4083,8 @@ export interface FileDrop {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface Filter {
@@ -3724,6 +4523,7 @@ export interface InjectExecutionInput {
     | "dns_resolution"
     | "file_execution"
     | "file_drop"
+    | "data"
     | "complete";
   /**
    * Duration of the execution in miliseconds
@@ -3759,8 +4559,6 @@ export interface InjectExpectationAgentOutput {
     | "UNKNOWN"
     | "SUCCESS";
   inject_expectation_type:
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -3833,8 +4631,6 @@ export interface InjectExpectationOutput {
   inject_expectation_traces?: InjectExpectationTrace[];
   /** Type of the inject expectation */
   inject_expectation_type:
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -3883,8 +4679,10 @@ export interface InjectExpectationResultsByType {
 }
 
 export interface InjectExpectationSignature {
-  type?: string;
-  value?: string;
+  /** @minLength 1 */
+  type: string;
+  /** @minLength 1 */
+  value: string;
 }
 
 export interface InjectExpectationSimple {
@@ -4048,7 +4846,7 @@ export interface InjectOutput {
   inject_enabled?: boolean;
   /** Simulation ID of the inject */
   inject_exercise?: string;
-  inject_expectations?: string[];
+  inject_expectations?: InjectExpectationOutput[];
   inject_healthchecks?: HealthCheck[];
   /**
    * ID of the inject
@@ -4318,6 +5116,8 @@ export interface InjectorContract {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -4424,6 +5224,8 @@ export interface InjectorContractFullOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -4453,6 +5255,8 @@ export interface InjectorContractInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -4504,6 +5308,8 @@ export interface InjectorContractSimple {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -5093,8 +5899,6 @@ export interface NetworkTraffic {
   payload_elevation_required?: boolean;
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -5114,6 +5918,8 @@ export interface NetworkTraffic {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -5131,7 +5937,8 @@ export interface NetworkTraffic {
     | "EXECUTABLE"
     | "FILE_DROP"
     | "DNS_RESOLUTION"
-    | "NETWORK_TRAFFIC";
+    | "NETWORK_TRAFFIC"
+    | "AI_ATTACK";
 }
 
 export interface NotificationRuleOutput {
@@ -5259,6 +6066,25 @@ export interface OutputParserSimple {
 
 export interface PageAggregatedFindingOutput {
   content?: AggregatedFindingOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageAiTarget {
+  content?: AiTarget[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -5956,6 +6782,7 @@ export type Payload = BasePayload &
     | BasePayloadPayloadTypeMapping<"FileDrop", FileDrop>
     | BasePayloadPayloadTypeMapping<"DnsResolution", DnsResolution>
     | BasePayloadPayloadTypeMapping<"NetworkTraffic", NetworkTraffic>
+    | BasePayloadPayloadTypeMapping<"AiAttack", AiAttack>
   );
 
 export interface PayloadArgument {
@@ -6032,8 +6859,6 @@ export interface PayloadInput {
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -6052,6 +6877,8 @@ export interface PayloadInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -6099,8 +6926,6 @@ export interface PayloadOutput {
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   /** Expected output types for payload execution */
   payload_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -6130,6 +6955,8 @@ export interface PayloadOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -6186,8 +7013,6 @@ export interface PayloadUpdateInput {
   payload_domains: string[];
   payload_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -6206,6 +7031,8 @@ export interface PayloadUpdateInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -6238,8 +7065,6 @@ export interface PayloadUpsertInput {
   payload_elevation_required?: boolean;
   payload_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   payload_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -6260,6 +7085,8 @@ export interface PayloadUpsertInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -6399,6 +7226,7 @@ export interface PlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
+    | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -6669,6 +7497,7 @@ export interface PublicPlatformSettings {
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
     | "AUDIT_LOG"
+    | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -7129,6 +7958,8 @@ export interface Scenario {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -7449,14 +8280,120 @@ export interface SearchTerm {
 }
 
 export interface SecurityPlatform {
+  asset_category?:
+    | "HOST"
+    | "CONTAINER_WORKLOAD"
+    | "CLOUD_RESOURCE"
+    | "WEB_APPLICATION"
+    | "NETWORK_DEVICE"
+    | "MOBILE_DEVICE"
+    | "IOT_OT_DEVICE"
+    | "IDENTITY"
+    | "SAAS_APPLICATION"
+    | "AI_TARGET"
+    | "SECURITY_PLATFORM"
+    | "GENERIC_ASSET";
+  asset_cloud_native_type?: string;
+  asset_cloud_provider?:
+    | "AWS"
+    | "AZURE"
+    | "GCP"
+    | "OCI"
+    | "ALIBABA"
+    | "KUBERNETES"
+    | "OTHER";
+  asset_cloud_region?: string;
   /** @format date-time */
   asset_created_at: string;
+  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
   /** @minLength 1 */
   asset_id: string;
+  asset_internet_facing?: boolean;
+  asset_linked_person?: string;
+  asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
+  asset_subcategory?:
+    | "SERVER"
+    | "WORKSTATION"
+    | "LAPTOP"
+    | "VIRTUAL_MACHINE"
+    | "HYPERVISOR"
+    | "MAINFRAME"
+    | "THIN_CLIENT"
+    | "CONTAINER"
+    | "CONTAINER_IMAGE"
+    | "KUBERNETES_POD"
+    | "KUBERNETES_CLUSTER"
+    | "KUBERNETES_NODE"
+    | "SERVERLESS_FUNCTION"
+    | "COMPUTE"
+    | "STORAGE"
+    | "DATABASE"
+    | "NETWORKING"
+    | "SERVERLESS"
+    | "CONTAINER_REGISTRY"
+    | "KUBERNETES"
+    | "IAM_PRINCIPAL"
+    | "SECRETS_KEY_MGMT"
+    | "MESSAGING_QUEUE"
+    | "ANALYTICS_DATA"
+    | "AI_ML_SERVICE"
+    | "IAC_TEMPLATE"
+    | "CLOUD_OTHER"
+    | "WEBSITE"
+    | "WEB_API"
+    | "SINGLE_PAGE_APP"
+    | "GRAPHQL_API"
+    | "WEB_SERVICE"
+    | "MICROSERVICE"
+    | "ROUTER"
+    | "SWITCH"
+    | "FIREWALL"
+    | "LOAD_BALANCER"
+    | "VPN_GATEWAY"
+    | "WIRELESS_AP"
+    | "PROXY"
+    | "DNS_SERVER"
+    | "DHCP_SERVER"
+    | "SAN_NAS"
+    | "NETWORK_OTHER"
+    | "SMARTPHONE"
+    | "TABLET"
+    | "IOT_SENSOR"
+    | "IP_CAMERA"
+    | "GATEWAY"
+    | "POINT_OF_SALE"
+    | "MEDIA_DEVICE"
+    | "PLC"
+    | "RTU"
+    | "HMI"
+    | "SCADA_HISTORIAN"
+    | "MEDICAL_DEVICE"
+    | "PRINTER_PERIPHERAL"
+    | "BUILDING_MGMT"
+    | "USER_ACCOUNT"
+    | "SERVICE_ACCOUNT"
+    | "GROUP"
+    | "ROLE"
+    | "SHARED_MAILBOX"
+    | "NON_HUMAN_IDENTITY"
+    | "SAAS_APP"
+    | "SAAS_TENANT"
+    | "LLM_MODEL"
+    | "AI_AGENT"
+    | "MCP_SERVER"
+    | "RAG_PIPELINE"
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
   asset_tags?: string[];
   asset_type?: string;
   /** @format date-time */
@@ -7465,7 +8402,15 @@ export interface SecurityPlatform {
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
   security_platform_traces?: InjectExpectationTrace[];
-  security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
 }
 
 export interface SecurityPlatformInput {
@@ -7476,7 +8421,15 @@ export interface SecurityPlatformInput {
   asset_tags?: string[];
   security_platform_logo_dark?: string | null;
   security_platform_logo_light?: string | null;
-  security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
 }
 
 export interface SecurityPlatformUpsertInput {
@@ -7487,7 +8440,15 @@ export interface SecurityPlatformUpsertInput {
   asset_tags?: string[];
   security_platform_logo_dark?: string;
   security_platform_logo_light?: string;
-  security_platform_type: "EDR" | "XDR" | "SIEM" | "SOAR" | "NDR" | "ISPM";
+  security_platform_type:
+    | "EDR"
+    | "XDR"
+    | "SIEM"
+    | "SOAR"
+    | "NDR"
+    | "ISPM"
+    | "LLM_FIREWALL"
+    | "AI_GATEWAY";
 }
 
 export interface Series {
@@ -7647,6 +8608,8 @@ export interface StatusPayloadOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -7701,6 +8664,7 @@ export interface StepOutput {
   step_data?: JsonNode;
   step_id?: string;
   step_mapper_conditions?: MapperConditionOutput[];
+  step_output_types?: string[];
   step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;
@@ -8105,6 +9069,8 @@ export interface ThreatArsenalAction {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -8143,8 +9109,6 @@ export interface ThreatArsenalActionCreateInput {
   action_domains: string[];
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   action_expectations: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -8164,6 +9128,8 @@ export interface ThreatArsenalActionCreateInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -8209,8 +9175,6 @@ export interface ThreatArsenalActionFullOutput {
   action_execution_arch: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   /** Expected output types for action execution */
   action_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -8237,6 +9201,8 @@ export interface ThreatArsenalActionFullOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -8282,8 +9248,6 @@ export interface ThreatArsenalActionUpdateInput {
   action_domains: string[];
   action_execution_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   action_expectations?: (
-    | "TEXT"
-    | "DOCUMENT"
     | "ARTICLE"
     | "CHALLENGE"
     | "MANUAL"
@@ -8302,6 +9266,8 @@ export interface ThreatArsenalActionUpdateInput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"
@@ -8338,6 +9304,8 @@ export interface ThreatArsenalActionWithContentOutput {
     | "Linux"
     | "Windows"
     | "MacOS"
+    | "Android"
+    | "iOS"
     | "Container"
     | "Service"
     | "Generic"

@@ -1,5 +1,6 @@
 package io.openaev.database.helper;
 
+import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.database.model.ExecutionTrace;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Repository;
  *
  * @see ExecutionTrace
  */
+@AllowRawJdbc(reason = "writes execution_traces and injects_statuses, both non-tenant tables")
 @Repository
 @RequiredArgsConstructor
 public class ExecutionTraceRepositoryHelper {
@@ -114,21 +116,5 @@ public class ExecutionTraceRepositoryHelper {
 
     jdbcTemplate.update(
         sql, name, endDate != null ? Timestamp.from(endDate) : null, injectStatusId);
-  }
-
-  /**
-   * Updates the last modification timestamp of an inject using direct JDBC.
-   *
-   * <p>This lightweight operation updates only the {@code inject_updated_at} column without
-   * triggering a full entity update, useful for tracking inject modifications efficiently.
-   *
-   * @param id the ID of the inject to update
-   * @param updatedAt the new update timestamp, or {@code null} to clear the value
-   * @throws org.springframework.dao.DataAccessException if the database update fails
-   */
-  public void updateInjectUpdateDate(String id, Instant updatedAt) {
-    String sql = "UPDATE injects SET inject_updated_at = ? WHERE inject_id = ?";
-
-    jdbcTemplate.update(sql, updatedAt != null ? Timestamp.from(updatedAt) : null, id);
   }
 }

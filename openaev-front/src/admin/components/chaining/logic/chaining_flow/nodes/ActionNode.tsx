@@ -1,14 +1,18 @@
-import { DeleteOutlined, EditOutlined, MoreVert, TerminalOutlined } from '@mui/icons-material';
-import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
+import { MoreVert } from '@mui/icons-material';
+import { IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Handle, type Node, type NodeProps, Position } from '@xyflow/react';
 import { memo, type MouseEvent, useState } from 'react';
 
-import { useFormatter } from '../../../../../../components/i18n';
+import ActionTypeIcon from '../../ActionTypeIcon';
 import { ACTION_WIDTH } from '../../logic-flow-helpers';
+import NodePopover from './NodePopover';
 
 export type ActionNodeData = Node<{
   label: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
   injectorContract?: string;
   onEdit?: (id: string, type: string) => void;
   onDelete?: (id: string) => void;
@@ -16,7 +20,6 @@ export type ActionNodeData = Node<{
 
 const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
   const theme = useTheme();
-  const { t } = useFormatter();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const handleMenuOpen = (e: MouseEvent<HTMLElement>) => {
@@ -69,7 +72,11 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
           gap: theme.spacing(1),
         }}
         >
-          <TerminalOutlined sx={{ color: theme.palette.primary.main }} />
+          <ActionTypeIcon
+            injectorType={data.injectorType}
+            payloadType={data.payloadType}
+            isPayload={data.isPayload}
+          />
           <Typography variant="body2" color="text.secondary" sx={{ userSelect: 'none' }}>
             -
           </Typography>
@@ -96,24 +103,12 @@ const ActionNode = ({ id, data }: NodeProps<ActionNodeData>) => {
       >
         {data.label}
       </Typography>
-      <Menu
+      <NodePopover
         anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
         onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleEdit}>
-          <ListItemIcon>
-            <EditOutlined fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('Edit')}</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleDelete}>
-          <ListItemIcon>
-            <DeleteOutlined fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('Delete')}</ListItemText>
-        </MenuItem>
-      </Menu>
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
       <Handle
         type="source"
         position={Position.Right}

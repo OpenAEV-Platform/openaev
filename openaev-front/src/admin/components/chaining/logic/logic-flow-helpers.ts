@@ -1,9 +1,26 @@
 import { type Edge, MarkerType, type Node } from '@xyflow/react';
 
 import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
-import type { EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
+import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
+import {
+  type ComparisonOperator,
+  type ConditionGroup,
+  type ConditionKeyType,
+  createEmptyCondition,
+  createEmptyGroup,
+  type EventCondition, generateId,
+  type LogicalOperator,
+} from './events/event-types';
 import type { ActionMeta, EventMeta } from './types';
+
+export interface MapperConditionRow {
+  condition_key_type: string;
+  condition_key_subtype?: string;
+  condition_key: string;
+  condition_value?: string;
+  condition_mapping_type: string;
+}
 
 // Layout design tokens for tactic groups (px)
 const TACTIC_WIDTH = 280; // Width of each tactic column
@@ -45,47 +62,198 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
       const contract = typeof rawContract === 'string'
         ? rawContract
         : (rawContract as Record<string, unknown>)?.injector_contract_id as string ?? '';
-      const rawInjector = data?.inject_injector;
-      const injector = typeof rawInjector === 'string'
-        ? rawInjector
-        : (rawInjector as Record<string, unknown>)?.injector_id as string ?? undefined;
 
       // Extract kill_chain_phase_ids from embedded attack pattern objects
-      const rawAttackPatterns = (data?.inject_attack_patterns ?? []) as Array<{
-        attack_pattern_id?: string;
-        attack_pattern_kill_chain_phases?: string[];
-      }>;
+      const rawAttackPatterns = (data?.inject_attack_patterns ?? []) as Array<{ attack_pattern_kill_chain_phases?: string[] }>;
       const killChainPhaseIds = rawAttackPatterns
         .flatMap(ap => ap.attack_pattern_kill_chain_phases ?? []);
+
+      // Icon resolution
+      const contractObj = typeof rawContract === 'object' ? rawContract as Record<string, unknown> : undefined;
+      const injectorType = contractObj?.injector_contract_injector_type as string | undefined;
+      const payload = contractObj?.injector_contract_payload as Record<string, unknown> | undefined;
+      const payloadType = payload?.payload_type as string | undefined;
+      const payloadCollectorType = payload?.payload_collector_type as string | undefined;
 
       metas[s.step_id] = {
         inject_title: (data?.inject_title as string) ?? `Step ${s.step_id.slice(0, 6)}`,
         inject_description: (data?.inject_description as string) ?? '',
         inject_injector_contract: contract,
-        inject_injector: injector,
+        inject_injector: injectorType,
+        inject_payload_type: payloadType,
+        inject_payload_collector_type: payloadCollectorType,
+        inject_content: (data?.inject_content as Record<string, unknown>) ?? {},
         inject_attack_patterns_ids: (data?.inject_attack_patterns_ids as string[]) ?? [],
         inject_kill_chain_phase_ids: killChainPhaseIds,
         inject_assets: (data?.inject_assets as string[]) ?? [],
         inject_asset_objects: [],
         step_condition_ids: s.step_condition_ids ?? [],
-        step_conditions: (((s as unknown as Record<string, unknown>).step_mapper_conditions ?? []) as Array<{
-          condition_key_type?: string;
-          condition_key_subtype?: string;
-          condition_key?: string;
-          condition_value?: string;
-          condition_mapping_type?: string;
-        }>).map(mc => ({
+        step_conditions: (s.step_mapper_conditions ?? []).map(mc => ({
           condition_key_type: mc.condition_key_type ?? 'text',
-          condition_key_subtype: mc.condition_key_subtype,
           condition_key: mc.condition_key ?? '',
           condition_value: mc.condition_value,
           condition_mapping_type: mc.condition_mapping_type ?? 'GLOBAL',
         })),
+        step_output_types: s.step_output_types ?? [],
         contract_fields: [],
       };
     });
 
   return metas;
+};
+
+export interface OutputProviderEntry {
+  stepId: string;
+  actionTitle: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
+}
+
+/**
+ * Build the inverted map: output type → list of actions that produce it.
+ * Used to populate the OutputProvidersContext.
+ */
+export const buildOutputProvidersMap = (
+  actionMetas: Record<string, ActionMeta>,
+): Record<string, OutputProviderEntry[]> => {
+  const map: Record<string, OutputProviderEntry[]> = {};
+  for (const [stepId, meta] of Object.entries(actionMetas)) {
+    for (const outputType of meta.step_output_types) {
+      if (!outputType) continue;
+      if (!map[outputType]) map[outputType] = [];
+      if (!map[outputType].some(p => p.stepId === stepId)) {
+        map[outputType].push({
+          stepId,
+          actionTitle: meta.inject_title,
+          injectorType: meta.inject_injector,
+          payloadType: meta.inject_payload_collector_type ?? meta.inject_payload_type,
+          isPayload: !!meta.inject_payload_type,
+        });
+      }
+    }
+  }
+  return map;
+};
+
+/**
+ * Reconstruct a ConditionGroup tree from a flat list of ConditionOutput nodes.
+ * The tree is built by finding the root (no parent), then recursively building children.
+ */
+const reconstructConditionGroups = (
+  allConditions: ConditionOutput[],
+): {
+  groups: ConditionGroup[];
+  groupOperators: LogicalOperator[];
+} => {
+  if (allConditions.length === 0) {
+    return {
+      groups: [createEmptyGroup('AND')],
+      groupOperators: [],
+    };
+  }
+
+  const LOGICAL_TYPES: Set<string> = new Set(['AND', 'OR']);
+
+  // Index by ID for O(1) lookup
+  const byId: Record<string, ConditionOutput> = {};
+  for (const c of allConditions) {
+    if (c.condition_id) byId[c.condition_id] = c;
+  }
+
+  // Group children by parent_id
+  const childrenOf: Record<string, ConditionOutput[]> = {};
+  for (const c of allConditions) {
+    const parentId = c.condition_parent_id ?? '__root__';
+    childrenOf[parentId] = childrenOf[parentId] ?? [];
+    childrenOf[parentId].push(c);
+  }
+
+  const buildGroup = (groupNode: ConditionOutput): ConditionGroup => {
+    const groupId = groupNode.condition_id ?? generateId();
+    const children = childrenOf[groupId] ?? [];
+    const conditions: EventCondition[] = [];
+    const subGroups: ConditionGroup[] = [];
+
+    for (const child of children) {
+      const isLogical = LOGICAL_TYPES.has(child.condition_type ?? '');
+      if (isLogical) {
+        subGroups.push(buildGroup(child));
+      } else {
+        conditions.push({
+          id: child.condition_id ?? generateId(),
+          field: (child.condition_key_type as ConditionKeyType) ?? 'text',
+          operator: (child.condition_type as ComparisonOperator) ?? 'IN',
+          value: child.condition_value ?? '',
+          caseSensitive: child.condition_case_sensitive !== false,
+        });
+      }
+    }
+
+    return {
+      id: groupId,
+      operator: (groupNode.condition_type as LogicalOperator) ?? 'AND',
+      conditions: conditions.length > 0 ? conditions : [createEmptyCondition()],
+      subGroups,
+    };
+  };
+
+  // Find roots: conditions with no parent
+  const roots = allConditions.filter(c => !c.condition_parent_id);
+
+  if (roots.length === 0) {
+    return {
+      groups: [createEmptyGroup('AND')],
+      groupOperators: [],
+    };
+  }
+
+  // Single root logical node → its children are top-level groups
+  if (roots.length === 1 && LOGICAL_TYPES.has(roots[0].condition_type ?? '')) {
+    const rootNode = roots[0];
+    const rootId = rootNode.condition_id ?? '';
+    const topChildren = childrenOf[rootId] ?? [];
+
+    const topGroups = topChildren.filter(c => LOGICAL_TYPES.has(c.condition_type ?? ''));
+    const topConditions = topChildren.filter(c => !LOGICAL_TYPES.has(c.condition_type ?? ''));
+
+    if (topGroups.length > 0) {
+      // Multiple groups under root: rootNode operator goes between them
+      const groups = topGroups.map(g => buildGroup(g));
+      const groupOperators: LogicalOperator[] = groups.slice(1).map(
+        () => (rootNode.condition_type as LogicalOperator) ?? 'AND',
+      );
+      return {
+        groups,
+        groupOperators,
+      };
+    }
+
+    // Root has direct leaf conditions → single group
+    const group: ConditionGroup = {
+      id: rootId,
+      operator: (rootNode.condition_type as LogicalOperator) ?? 'AND',
+      conditions: topConditions.map(c => ({
+        id: c.condition_id ?? generateId(),
+        field: (c.condition_key_type as ConditionKeyType) ?? 'text',
+        operator: (c.condition_type as ComparisonOperator) ?? 'IN',
+        value: c.condition_value ?? '',
+        caseSensitive: c.condition_case_sensitive !== false,
+      })),
+      subGroups: [],
+    };
+    return {
+      groups: [group],
+      groupOperators: [],
+    };
+  }
+
+  // Multiple roots (each a logical group)
+  const groups = roots.filter(r => LOGICAL_TYPES.has(r.condition_type ?? '')).map(buildGroup);
+  return {
+    groups: groups.length > 0 ? groups : [createEmptyGroup('AND')],
+    groupOperators: groups.slice(1).map(() => 'AND' as LogicalOperator),
+  };
 };
 
 /**
@@ -99,26 +267,16 @@ export const buildEventData = (events: EventOutput[]): {
 
   const eventNodes: Node[] = events.map((e, i) => {
     const allConditions = e.event_conditions ?? [];
-    const rootCondition = allConditions.find(c => !c.condition_parent_id);
-    const leafConditions = allConditions
-      .filter(c => !!c.condition_parent_id)
-      .map(c => ({
-        condition_type: (c.condition_type as string) ?? 'EQ',
-        condition_key_type: (c.condition_key_type as string) ?? 'status',
-        condition_value: c.condition_value ?? '',
-      }));
+    const { groups, groupOperators } = reconstructConditionGroups(allConditions);
 
     eventMetas[e.event_id] = {
-      event_name: e.event_name ?? '',
-      event_description: e.event_description ?? '',
-      root_logical_type: (rootCondition?.condition_type as string) ?? 'AND',
-      conditions: leafConditions.length > 0
-        ? leafConditions
-        : [{
-            condition_type: 'EQ',
-            condition_key_type: 'status',
-            condition_value: 'SUCCESS',
-          }],
+      eventId: e.event_id,
+      formData: {
+        name: e.event_name ?? '',
+        description: e.event_description ?? '',
+        groupOperators,
+        conditionGroups: groups,
+      },
     };
 
     return {
@@ -280,7 +438,12 @@ export const buildTacticNodes = (
         },
         parentId: groupId, // Link action to group for collective movement
         extent: 'parent' as const, // Prevents dragging action outside its column
-        data: { label: meta.inject_title },
+        data: {
+          label: meta.inject_title,
+          injectorType: meta.inject_injector,
+          payloadType: meta.inject_payload_collector_type ?? meta.inject_payload_type,
+          isPayload: !!meta.inject_payload_type,
+        },
       });
     }
   }
@@ -291,17 +454,21 @@ export const buildTacticNodes = (
   };
 };
 
+// Layout design tokens for event column (px)
+const EVENT_NODE_HEIGHT = 70;
+const EVENT_GAP = 20;
+
 /**
  * Position event nodes to the left of the first tactic group.
- * Todo : update this when we'll do event creation
  */
 export const positionEventNodes = (eventNodes: Node[]): Node[] =>
   eventNodes.map((en, i) => ({
     ...en,
     position: {
       x: -300,
-      y: 50 + i * 140,
+      y: 50 + i * (EVENT_NODE_HEIGHT + EVENT_GAP),
     },
+    style: { width: 180 },
   }));
 
 /**

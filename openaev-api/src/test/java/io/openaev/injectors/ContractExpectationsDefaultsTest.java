@@ -1,12 +1,12 @@
 package io.openaev.injectors;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.ARTICLE;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALLENGE;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.fields.ContractExpectations;

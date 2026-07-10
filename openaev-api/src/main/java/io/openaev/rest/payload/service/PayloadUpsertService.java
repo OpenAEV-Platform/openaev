@@ -17,6 +17,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -44,9 +45,12 @@ public class PayloadUpsertService {
   private final InjectorContractRepository injectorContractRepository;
   private final DocumentService documentService;
   private final DomainService domainService;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(PayloadUpsertInput input) {
+    // Telemetry: one payload upserted by a collector (attempts semantics).
+    resultsMetricCollector.recordPayloadUpserted();
     Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {

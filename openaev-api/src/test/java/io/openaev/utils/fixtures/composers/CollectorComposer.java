@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.repository.CollectorRepository;
@@ -39,11 +40,15 @@ public class CollectorComposer extends ComposerBase<Collector> {
               .persist()
               .get();
       collector.setCollectorType(collectorType);
-      // If a collector with this ID already exists, mark as not new to trigger merge (UPDATE)
-      collectorRepository
-          .findById(collector.getId())
-          .ifPresent(existing -> collector.setNewEntity(false));
-      collectorRepository.save(this.collector);
+      // Idempotent under the composite (id, tenant_id) key: the same collector may already have
+      // been created for this tenant by another wrapper in the same test. A plain save() would
+      // merge against a still-null tenant_id, fail to match the existing row, and re-INSERT,
+      // violating collectors_pkey. Only insert when the row is not already present.
+      if (collectorRepository
+          .findByIdAndTenantId(collector.getId(), TenantContext.getCurrentTenant())
+          .isEmpty()) {
+        collectorRepository.save(this.collector);
+      }
       return this;
     }
 

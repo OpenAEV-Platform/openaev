@@ -1,6 +1,6 @@
 package io.openaev.helper;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_STATUS;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_STATUS;
 import jakarta.annotation.Nullable;
 
 /**
@@ -9,7 +9,7 @@ import jakarta.annotation.Nullable;
  * <p>This utility class provides methods for computing expectation statuses based on scores,
  * supporting the evaluation of detection and prevention expectations during simulations.
  *
- * @see io.openaev.database.model.InjectExpectation
+ * @see io.openaev.database.model.BaseInjectExpectation
  */
 public class InjectExpectationHelper {
 

@@ -1,6 +1,5 @@
 package io.openaev.rest.collector.service;
 
-import static io.openaev.database.specification.CollectorSpecification.hasSecurityPlatform;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
@@ -135,8 +134,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return getConnectorRelationsId(collectorId);
   }
 
-  public List<Collector> securityPlatformCollectors() {
-    return fromIterable(collectorRepository.findAll(hasSecurityPlatform()));
+  public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
+    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
@@ -204,13 +203,23 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
-            ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
+            ? securityPlatformRepository
+                .findByIdAndTenantId(securityPlatformId, tenantId)
+                .orElse(null)
             : null;
+
+    if (securityPlatformId != null && securityPlatform == null) {
+      log.warn(
+          "SecurityPlatform {} not found for tenant {} during collector registration (collector: {})",
+          securityPlatformId,
+          tenantId,
+          id);
+    }
 
     if (collector == null) {
       collector = new Collector();
       collector.setId(id);
-      collector.setTenant(new Tenant(tenantId));
+      collector.setTenantId(tenantId);
       collector.setPeriod(period); // immutable after creation
     }
 

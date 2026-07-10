@@ -31,12 +31,14 @@ import {
   buildActionMetas,
   buildEdges,
   buildEventData,
+  buildOutputProvidersMap,
   buildTacticForStep,
   buildTacticNodes,
   enrichActionMetasWithContracts,
   positionEventNodes,
 } from '../logic-flow-helpers';
 import type { ActionMeta, EventMeta } from '../types';
+import { useOutputProviders } from '../useOutputProviders';
 import edgeTypes from './edges';
 import nodeTypes from './nodes';
 
@@ -45,6 +47,7 @@ interface LogicFlowProps {
   reloadTrigger?: number;
   onAddComponent: () => void;
   onEditStep?: (stepId: string, meta: ActionMeta) => void;
+  onEditEvent?: (eventId: string, meta: EventMeta) => void;
 }
 
 const proOptions = {
@@ -57,9 +60,10 @@ const proOptions = {
  * grouped into MITRE tactic columns. Supports connecting events to actions, editing,
  * deleting nodes, and adding new components.
  */
-const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: LogicFlowProps) => {
+const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep, onEditEvent }: LogicFlowProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { setProviders: setContextProviders } = useOutputProviders();
 
   // Access kill chain phases from store for tactic column ordering
   const { killChainPhasesMap } = useHelper(
@@ -82,7 +86,7 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
 
   // Extra metadata per node (keyed by node id)
   const [actionMetas, setActionMetas] = useState<Record<string, ActionMeta>>({});
-  const [_eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
+  const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
   // Graph loading state — true until first data load completes
   const [loading, setLoading] = useState(true);
@@ -113,8 +117,8 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
         inject_title: action.inject_title,
         inject_description: action.inject_description,
         inject_injector_contract: action.inject_injector_contract,
-        inject_injector: action.inject_injector,
         inject_assets: action.inject_assets,
+        inject_content: action.inject_content,
       },
     };
   }, [workflowId]);
@@ -154,11 +158,12 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
     const edgesData = buildEdges(enrichedActionMetas, eventMetas);
 
     setActionMetas(enrichedActionMetas);
+    setContextProviders(buildOutputProvidersMap(enrichedActionMetas));
     setEventMetas(eventMetas);
     setNodes([...groupNodes, ...positionedEventNodes, ...actionNodes]);
     setEdges(edgesData);
     setLoading(false);
-  }, [workflowId, t, setNodes, setEdges]);
+  }, [workflowId, t, setNodes, setEdges, setContextProviders]);
 
   useEffect(() => {
     refreshGraph();
@@ -204,7 +209,6 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
     [nodes, setEdges, workflowId, actionMetas, buildStepUpdate],
   );
 
-  // ----- TODO : update all method about edges when we'll do edge creation ----------
   /**
      * Remove an edge between an event and an action node.
      * Unlinks the event from the step's condition list and persists to the backend.
@@ -303,12 +307,19 @@ const LogicFlow = ({ workflowId, reloadTrigger, onAddComponent, onEditStep }: Lo
      * @param nodeId the step ID to edit
      * @param _type the node type (unused)
      */
-  const editNode = useCallback((nodeId: string, _type: string) => {
-    const meta = actionMetas[nodeId];
-    if (meta && onEditStep) {
-      onEditStep(nodeId, meta);
+  const editNode = useCallback((nodeId: string, type: string) => {
+    if (type === 'action') {
+      const meta = actionMetas[nodeId];
+      if (meta && onEditStep) {
+        onEditStep(nodeId, meta);
+      }
+    } else if (type === 'event') {
+      const meta = eventMetas[nodeId];
+      if (meta && onEditEvent) {
+        onEditEvent(nodeId, meta);
+      }
     }
-  }, [actionMetas, onEditStep]);
+  }, [actionMetas, eventMetas, onEditStep, onEditEvent]);
 
   /**
      * Enrich all nodes with edit/delete callbacks so custom node components can trigger actions.

@@ -2,18 +2,16 @@ package io.openaev.injects.manual;
 
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Injection;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.manual.ManualExecutor;
 import io.openaev.injectors.manual.model.ManualContent;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -33,7 +31,6 @@ public class ManualExecutorTest extends IntegrationTest {
 
   @Mock InjectExpectationService injectExpectationService;
 
-  @Mock ObjectMapper mapper;
   @InjectMocks private InjectorContext injectorContext;
 
   @Test
@@ -44,7 +41,7 @@ public class ManualExecutorTest extends IntegrationTest {
     expectation.setExpectationGroup(false);
     expectation.setName("Expectation 1");
     expectation.setDescription("Expectation 1");
-    expectation.setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
+    expectation.setType(BaseInjectExpectation.EXPECTATION_TYPE.MANUAL);
     expectation.setScore(80D);
     expectation.setExpirationTime(Instant.now().toEpochMilli());
     ManualContent manualContent = new ManualContent();
@@ -53,11 +50,9 @@ public class ManualExecutorTest extends IntegrationTest {
     ExecutableInject executableInject = mock(ExecutableInject.class);
     Injection injection = mock(Injection.class);
     Inject inject = mock(Inject.class);
-    ObjectNode content = mock(ObjectNode.class);
-    when(inject.getContent()).thenReturn(content);
+    when(injectExpectationService.contentConvert(any(), any())).thenReturn(manualContent);
     when(injection.getInject()).thenReturn(inject);
     when(executableInject.getInjection()).thenReturn(injection);
-    when(mapper.treeToValue(content, ManualContent.class)).thenReturn(manualContent);
 
     ManualExecutor executor = new ManualExecutor(injectorContext, injectExpectationService);
     executor.process(execution, executableInject);

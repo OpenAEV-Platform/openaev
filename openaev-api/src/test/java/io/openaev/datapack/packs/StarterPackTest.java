@@ -15,6 +15,7 @@ import io.openaev.database.repository.*;
 import io.openaev.injector_contract.ContractCardinality;
 import io.openaev.injector_contract.fields.ContractAsset;
 import io.openaev.injector_contract.fields.ContractAssetGroup;
+import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.utils.fixtures.DomainFixture;

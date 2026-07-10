@@ -102,15 +102,15 @@ public class ChallengeService {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     SimulationChallengesReader reader = new SimulationChallengesReader(exercise);
-    List<InjectExpectation> challengeExpectations =
+    List<ChallengeInjectExpectation> challengeExpectations =
         injectExpectationRepository.findChallengeExpectationsByExerciseAndUser(
             exerciseId, user.getId());
 
     // Filter expectations by unique challenge
     Set<String> seenChallenges = new HashSet<>();
-    List<InjectExpectation> distinctExpectations = new ArrayList<>();
+    List<ChallengeInjectExpectation> distinctExpectations = new ArrayList<>();
 
-    for (InjectExpectation expectation : challengeExpectations) {
+    for (ChallengeInjectExpectation expectation : challengeExpectations) {
       String challengeId = expectation.getChallenge().getId();
       if (!seenChallenges.contains(challengeId)) {
         seenChallenges.add(challengeId);
@@ -150,7 +150,7 @@ public class ChallengeService {
     ChallengeResult challengeResult = tryChallenge(challengeId, input);
     if (challengeResult.isResult()) {
       // Success: Find and update the user's expectations and challenge attempt
-      List<InjectExpectation> playerExpectations =
+      List<ChallengeInjectExpectation> playerExpectations =
           injectExpectationRepository.findByUserAndExerciseAndChallenge(
               user.getId(), exerciseId, challengeId);
       playerExpectations.forEach(
@@ -180,7 +180,7 @@ public class ChallengeService {
           });
     } else {
       // Failure: Find and update the user's challenge attempt
-      List<InjectExpectation> playerExpectations =
+      List<ChallengeInjectExpectation> playerExpectations =
           injectExpectationRepository.findByUserAndExerciseAndChallenge(
               user.getId(), exerciseId, challengeId);
       List<String> injectStatusIds =
@@ -192,10 +192,10 @@ public class ChallengeService {
                           .orElseThrow(() -> new ElementNotFoundException("Status should exist"))
                           .getId())
               .toList();
-      Map<ChallengeAttemptId, InjectExpectation> expectationMap = new HashMap<>();
+      Map<ChallengeAttemptId, ChallengeInjectExpectation> expectationMap = new HashMap<>();
       List<ChallengeAttemptId> challengeAttemptIds = new ArrayList<>();
       for (int i = 0; i < playerExpectations.size(); i++) {
-        InjectExpectation expectation = playerExpectations.get(i);
+        ChallengeInjectExpectation expectation = playerExpectations.get(i);
         String injectStatusId = injectStatusIds.get(i);
         ChallengeAttemptId challengeAttemptId =
             buildChallengeAttemptID(challengeId, injectStatusId, user.getId());
@@ -207,7 +207,7 @@ public class ChallengeService {
       List<ChallengeAttempt> attemptsToSave = new ArrayList<>();
       Map<String, ExpectationUpdateInput> expectationsToUpdate = new HashMap<>();
       for (ChallengeAttemptId id : challengeAttemptIds) {
-        InjectExpectation expectation = expectationMap.get(id);
+        ChallengeInjectExpectation expectation = expectationMap.get(id);
         ChallengeAttempt attempt =
             challengeAttempts.stream()
                 .filter(ca -> ca.getCompositeId().equals(id))

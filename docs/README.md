@@ -52,19 +52,13 @@ Upgrade dependencies
 $ cd docs/
 $ source .venv/bin/activate
 $ pip install --upgrade -r requirements.txt
-$ pip install --upgrade git+https://TOKEN@github.com/squidfunk/mkdocs-material-insiders.git
 ```
 
 ## Deploy the documentation
 
 ### Update the source
 
-Commiting on the main branch does not impact (for now) the deployed documentation,
-please commit as many times as possible:
-```shell
-$ git commit -a -m "[docs] MESSAGE"
-$ git push
-```
+Committing on the main branch does not impact (for now) the deployed documentation. Commits must follow the repository's Conventional Commits convention (e.g. `docs: update simulation page (#1234)`).
 
 ### Deploy and update the current version
 

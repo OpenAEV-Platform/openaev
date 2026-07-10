@@ -40,4 +40,10 @@ public class AgentFixture {
     agent.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return agent;
   }
+
+  public static Agent createInactiveAgent() {
+    Agent agent = createDefaultAgentService();
+    agent.setLastSeen(Instant.now().minusSeconds(3600 * 24 * 30));
+    return agent;
+  }
 }

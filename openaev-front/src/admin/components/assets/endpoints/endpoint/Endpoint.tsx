@@ -5,6 +5,8 @@ import { makeStyles } from 'tss-react/mui';
 
 import { type EndpointHelper } from '../../../../../actions/assets/asset-helper';
 import { searchDistinctFindingsOnEndpoint, searchFindingsOnEndpoint } from '../../../../../actions/findings/finding-actions';
+import { type UserHelper } from '../../../../../actions/helper';
+import { fetchPlayers } from '../../../../../actions/users/User';
 import InverseBooleanFragment from '../../../../../components/common/list/fragments/InverseBooleanFragment';
 import Empty from '../../../../../components/Empty';
 import ExpandableMarkdown from '../../../../../components/ExpandableMarkdown';
@@ -15,9 +17,13 @@ import PlatformIcon from '../../../../../components/PlatformIcon';
 import { INJECT, SIMULATION } from '../../../../../constants/Entities';
 import { useHelper } from '../../../../../store';
 import { type AggregatedFindingOutput, type EndpointOverviewOutput as EndpointType, type RelatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../../../utils/api-types';
+import { useAppDispatch } from '../../../../../utils/hooks';
+import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../../utils/String';
 import FindingContextLink from '../../../findings/FindingContextLink';
 import FindingList from '../../../findings/FindingList';
+import { humanizeEnum } from '../../asset-categories';
+import AssetCategoryIcon from '../../AssetCategoryIcon';
 import AgentList from './AgentList';
 
 const useStyles = makeStyles()(theme => ({
@@ -48,7 +54,22 @@ const Endpoint = () => {
   const theme = useTheme();
 
   // Fetching data
+  const dispatch = useAppDispatch();
   const { endpoint } = useHelper((helper: EndpointHelper) => ({ endpoint: helper.getEndpoint(endpointId) }));
+  const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
+  useDataLoader(() => {
+    if (endpoint?.asset_linked_person) {
+      dispatch(fetchPlayers());
+    }
+  }, [endpoint?.asset_linked_person]);
+  const linkedPerson = endpoint?.asset_linked_person ? usersMap?.[endpoint.asset_linked_person] : undefined;
+  const linkedPersonName = linkedPerson
+    ? ([linkedPerson.user_firstname, linkedPerson.user_lastname].filter(Boolean).join(' ').trim() || linkedPerson.user_email)
+    : endpoint?.asset_linked_person;
+  let internetFacingLabel = '-';
+  if (endpoint?.asset_internet_facing != null) {
+    internetFacingLabel = endpoint.asset_internet_facing ? t('Yes') : t('No');
+  }
 
   const additionalFilterNames = [
     'finding_inject_id',
@@ -92,12 +113,61 @@ const Endpoint = () => {
 
   return (
     <div className={classes.endpointPage}>
-      <Typography variant="h4">{t('Endpoint Information')}</Typography>
+      <Typography variant="h4">{t('Asset Information')}</Typography>
       <Paper className={`paper ${classes.gridContainer}`} variant="outlined">
         <div>
           <Typography variant="h3" gutterBottom>{t('Description')}</Typography>
           <ExpandableMarkdown source={endpoint.asset_description} limit={300} />
         </div>
+        <div>
+          <Typography variant="h3" gutterBottom>{t('Category')}</Typography>
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+          }}
+          >
+            <AssetCategoryIcon category={endpoint.asset_category} fontSize="small" />
+            {endpoint.asset_category ? t(humanizeEnum(endpoint.asset_category)) : '-'}
+            {endpoint.asset_subcategory ? ` / ${t(humanizeEnum(endpoint.asset_subcategory))}` : ''}
+          </span>
+        </div>
+        <div>
+          <Typography variant="h3" gutterBottom>{t('Criticality')}</Typography>
+          <Typography variant="body2" gutterBottom>{endpoint.asset_criticality ? t(humanizeEnum(endpoint.asset_criticality)) : '-'}</Typography>
+        </div>
+        <div>
+          <Typography variant="h3" gutterBottom>{t('Internet-facing')}</Typography>
+          <Typography variant="body2" gutterBottom>{internetFacingLabel}</Typography>
+        </div>
+        {endpoint.endpoint_url && (
+          <div>
+            <Typography variant="h3" gutterBottom>{t('URL')}</Typography>
+            <Typography variant="body2" gutterBottom>{endpoint.endpoint_url}</Typography>
+          </div>
+        )}
+        {endpoint.asset_linked_person && (
+          <div>
+            <Typography variant="h3" gutterBottom>{t('Person')}</Typography>
+            <Typography variant="body2" gutterBottom>{emptyFilled(linkedPersonName)}</Typography>
+          </div>
+        )}
+        {endpoint.asset_cloud_provider && (
+          <>
+            <div>
+              <Typography variant="h3" gutterBottom>{t('Cloud provider')}</Typography>
+              <Typography variant="body2" gutterBottom>{endpoint.asset_cloud_provider ? t(humanizeEnum(endpoint.asset_cloud_provider)) : '-'}</Typography>
+            </div>
+            <div>
+              <Typography variant="h3" gutterBottom>{t('Native type')}</Typography>
+              <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.asset_cloud_native_type)}</Typography>
+            </div>
+            <div>
+              <Typography variant="h3" gutterBottom>{t('Region')}</Typography>
+              <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.asset_cloud_region)}</Typography>
+            </div>
+          </>
+        )}
         <div>
           <Typography variant="h3" gutterBottom>{t('Hostname')}</Typography>
           <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.endpoint_hostname)}</Typography>

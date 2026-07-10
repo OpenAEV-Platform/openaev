@@ -3,8 +3,8 @@ package io.openaev.api.threat_arsenal.dto;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Payload.PAYLOAD_SOURCE;
 import io.openaev.database.model.Payload.PAYLOAD_STATUS;

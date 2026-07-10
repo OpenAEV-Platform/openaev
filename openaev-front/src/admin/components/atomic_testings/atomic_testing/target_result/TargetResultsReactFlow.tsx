@@ -57,7 +57,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
     let color;
     let background;
     switch (status) {
-      case 'SUCCESS':
+      case 'SUCCESSFUL':
         color = theme.palette.success.main;
         background = 'rgba(176, 211, 146, 0.21)';
         break;

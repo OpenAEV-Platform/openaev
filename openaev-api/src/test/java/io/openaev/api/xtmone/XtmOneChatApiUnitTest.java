@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +33,7 @@ class XtmOneChatApiUnitTest {
 
   @Mock private XtmOneClient client;
   @Mock private XtmOneConfig config;
+  @Mock private AiMetricCollector aiMetricCollector;
   @InjectMocks private XtmOneChatApi api;
 
   @Test

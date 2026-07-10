@@ -213,14 +213,16 @@ public class ChallengeServiceTest extends IntegrationTest {
     Inject inject = InjectFixture.getDefaultInject();
     inject.setStatus(status);
 
-    InjectExpectation expectation =
-        InjectExpectationFixture.createExpectationWithTypeAndStatus(
-            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-            InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+    ChallengeInjectExpectation expectation =
+        (ChallengeInjectExpectation)
+            InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
     expectation.setChallenge(challenge);
     expectation.setInject(inject);
     expectation.setUser(user);
-    List<InjectExpectation> expectations = new ArrayList<>(List.of(expectation, expectation));
+    List<ChallengeInjectExpectation> expectations =
+        new ArrayList<>(List.of(expectation, expectation));
 
     // MOCK
     when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
@@ -263,14 +265,15 @@ public class ChallengeServiceTest extends IntegrationTest {
     status.setId("test");
     Inject inject = InjectFixture.getDefaultInject();
     inject.setStatus(status);
-    InjectExpectation expectation =
-        InjectExpectationFixture.createExpectationWithTypeAndStatus(
-            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-            InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+    ChallengeInjectExpectation expectation =
+        (ChallengeInjectExpectation)
+            InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
     expectation.setInject(inject);
     expectation.setChallenge(challenge);
     expectation.setUser(user);
-    List<InjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
+    List<ChallengeInjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
 
     // MOCK
     when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
@@ -282,7 +285,7 @@ public class ChallengeServiceTest extends IntegrationTest {
         .thenReturn(playerExpectations);
     when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.empty());
     when(injectExpectationService.updateInjectExpectation(any(), (ExpectationUpdateInput) any()))
-        .thenReturn(new InjectExpectation());
+        .thenReturn(new ChallengeInjectExpectation());
 
     // EXECUTE
     SimulationChallengesReader reader =
@@ -322,14 +325,15 @@ public class ChallengeServiceTest extends IntegrationTest {
     status.setId("test");
     Inject inject = InjectFixture.getDefaultInject();
     inject.setStatus(status);
-    InjectExpectation expectation =
-        InjectExpectationFixture.createExpectationWithTypeAndStatus(
-            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-            InjectExpectation.EXPECTATION_STATUS.SUCCESS);
+    ChallengeInjectExpectation expectation =
+        (ChallengeInjectExpectation)
+            InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
     expectation.setInject(inject);
     expectation.setChallenge(challenge);
     expectation.setUser(user);
-    List<InjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
+    List<ChallengeInjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
 
     // MOCK
     when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
