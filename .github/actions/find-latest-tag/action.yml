@@ -1,0 +1,16 @@
+name: Find latest tag
+description: Gets the latest known release tag
+
+outputs:
+  latest-tag:
+    description: The latest known release tag
+    value: ${{ steps.latest-tag.outputs.tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check new migrations block is strictly appended to the end since the last release
+      id: latest-tag
+      run: |
+        echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+      shell: bash
