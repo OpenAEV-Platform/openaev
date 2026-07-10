@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -37,27 +36,20 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
-    ReflectionTestUtils.setField(dataPack, "baseUrl", null);
     clearDatapackRegistration();
   }
 
   @Nested
-  @DisplayName("Base URL replacement behavior")
-  class BaseUrlReplacementBehavior {
+  @DisplayName("Dynamic placeholder replacement behavior")
+  class DynamicPlaceholderReplacementBehavior {
 
     @Test
-    @DisplayName("Should replace configured base URL in injector commands")
-    void given_configuredBaseUrl_should_replaceMatchingValuesInInjectorCommandMaps() {
+    @DisplayName("Should replace server value with baseUrl placeholder")
+    void given_serverCommand_should_replaceServerValueWithBaseUrlPlaceholder() {
       // Arrange
-      String configuredBaseUrl = "https://openaev.example.com/";
-      ReflectionTestUtils.setField(dataPack, "baseUrl", configuredBaseUrl);
-
       Injector injector =
           persistInjectorWithCommands(
-              Map.of(
-                  "run", "curl https://openaev.example.com/api/run",
-                  "keep", "echo untouched"),
-              Map.of("clear", "wget https://openaev.example.com/cleanup"));
+              Map.of("run", "server=\\\"http://192.168.1.13:3001\\\""), Map.of());
 
       // Act
       MigrationProcessingResult result = processForCurrentTenant();
@@ -65,124 +57,13 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
 
       // Assert
       assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
-      assertThat(updated.getExecutorCommands().get("run")).isEqualTo("curl #{baseUrl}/api/run");
-      assertThat(updated.getExecutorCommands().get("keep")).isEqualTo("echo untouched");
-      assertThat(updated.getExecutorClearCommands().get("clear"))
-          .isEqualTo("wget #{baseUrl}/cleanup");
+      assertThat(updated.getExecutorCommands().get("run")).isEqualTo("server=\\\"#{baseUrl}\\\"");
     }
 
     @Test
-    @DisplayName("Should not modify commands when configured base URL is blank")
-    void given_blankBaseUrl_should_notModifyInjectorCommands() {
+    @DisplayName("Should replace implant URL prefix with baseUrl placeholder")
+    void given_escapedCurlImplantCommand_should_replaceUrlPrefixWithBaseUrlPlaceholder() {
       // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "   ");
-      Injector injector =
-          persistInjectorWithCommands(
-              Map.of("run", "curl https://openaev.example.com/api/run"),
-              Map.of("clear", "wget https://openaev.example.com/cleanup"));
-
-      // Act
-      MigrationProcessingResult result = processForCurrentTenant();
-      Injector updated = findInjector(injector.getId());
-
-      // Assert
-      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
-      assertThat(updated.getExecutorCommands().get("run"))
-          .isEqualTo("curl https://openaev.example.com/api/run");
-      assertThat(updated.getExecutorClearCommands().get("clear"))
-          .isEqualTo("wget https://openaev.example.com/cleanup");
-    }
-
-    @Test
-    @DisplayName("Should not modify commands when configured base URL is absent")
-    void given_baseUrlAbsentInCommands_should_notModifyInjectorCommands() {
-      // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
-      Injector injector =
-          persistInjectorWithCommands(
-              Map.of("run", "curl https://another.example.com/api/run"),
-              Map.of("clear", "wget https://another.example.com/cleanup"));
-
-      // Act
-      MigrationProcessingResult result = processForCurrentTenant();
-      Injector updated = findInjector(injector.getId());
-
-      // Assert
-      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
-      assertThat(updated.getExecutorCommands().get("run"))
-          .isEqualTo("curl https://another.example.com/api/run");
-      assertThat(updated.getExecutorClearCommands().get("clear"))
-          .isEqualTo("wget https://another.example.com/cleanup");
-    }
-
-    @Test
-    @DisplayName("Should not modify commands when configured base URL is null")
-    void given_nullBaseUrl_should_notModifyInjectorCommands() {
-      // Arrange
-      Injector injector =
-          persistInjectorWithCommands(
-              Map.of("run", "curl https://openaev.example.com/api/run"),
-              Map.of("clear", "wget https://openaev.example.com/cleanup"));
-
-      // Act
-      MigrationProcessingResult result = processForCurrentTenant();
-      Injector updated = findInjector(injector.getId());
-
-      // Assert
-      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
-      assertThat(updated.getExecutorCommands().get("run"))
-          .isEqualTo("curl https://openaev.example.com/api/run");
-      assertThat(updated.getExecutorClearCommands().get("clear"))
-          .isEqualTo("wget https://openaev.example.com/cleanup");
-    }
-
-    @Test
-    @DisplayName("Should not modify commands when configured base URL formats to empty")
-    void given_baseUrlFormattingToEmpty_should_notModifyInjectorCommands() {
-      // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "/");
-      Injector injector =
-          persistInjectorWithCommands(
-              Map.of("run", "curl https://openaev.example.com/api/run"),
-              Map.of("clear", "wget https://openaev.example.com/cleanup"));
-
-      // Act
-      MigrationProcessingResult result = processForCurrentTenant();
-      Injector updated = findInjector(injector.getId());
-
-      // Assert
-      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
-      assertThat(updated.getExecutorCommands().get("run"))
-          .isEqualTo("curl https://openaev.example.com/api/run");
-      assertThat(updated.getExecutorClearCommands().get("clear"))
-          .isEqualTo("wget https://openaev.example.com/cleanup");
-    }
-
-    @Test
-    @DisplayName("Should replace clear commands when executor commands map is null")
-    void given_nullExecutorCommands_should_replaceOnlyClearCommands() {
-      // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
-      Injector injector =
-          persistInjectorWithCommands(
-              null, Map.of("clear", "wget https://openaev.example.com/cleanup"));
-
-      // Act
-      MigrationProcessingResult result = processForCurrentTenant();
-      Injector updated = findInjector(injector.getId());
-
-      // Assert
-      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
-      assertThat(updated.getExecutorCommands()).isNull();
-      assertThat(updated.getExecutorClearCommands().get("clear"))
-          .isEqualTo("wget #{baseUrl}/cleanup");
-    }
-
-    @Test
-    @DisplayName("Should replace URL prefix in escaped curl implant command")
-    void given_escapedCurlImplantCommand_should_replaceUrlPrefixWithConfiguredBaseUrl() {
-      // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
       Injector injector =
           persistInjectorWithCommands(
               Map.of("run", "curl -s -X GET \\\"URL/api/tenants/#{tenant}/implant/"), Map.of());
@@ -194,15 +75,125 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
       // Assert
       assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
       assertThat(updated.getExecutorCommands().get("run"))
-          .contains("\\\"https://openaev.example.com/api/tenants/#{tenant}/implant/")
+          .contains("\\\"#{baseUrl}/api/tenants/#{tenant}/implant/")
           .doesNotContain("\\\"URL/api/tenants/#{tenant}/implant/");
+    }
+
+    @Test
+    @DisplayName("Should replace max_size value with maxSize placeholder")
+    void given_maxSizeCommand_should_replaceMaxSizeValueWithPlaceholder() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(Map.of("run", "max_size=\\\"50\\\""), Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run")).isEqualTo("max_size=\\\"#{maxSize}\\\"");
+    }
+
+    @Test
+    @DisplayName("Should replace unsecured_certificate value with unsecuredCertificate placeholder")
+    void given_unsecuredCertificateCommand_should_replaceUnsecuredCertificateValueWithPlaceholder() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(
+              Map.of("run", "unsecured_certificate=\\\"true\\\""), Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .isEqualTo("unsecured_certificate=\\\"#{unsecuredCertificate}\\\"");
+    }
+
+    @Test
+    @DisplayName("Should replace with_proxy value with withProxy placeholder")
+    void given_withProxyCommand_should_replaceWithProxyValueWithPlaceholder() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(Map.of("run", "with_proxy=\\\"false\\\""), Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .isEqualTo("with_proxy=\\\"#{withProxy}\\\"");
+    }
+
+    @Test
+    @DisplayName("Should replace all supported dynamic values in a single command")
+    void given_commandWithAllSupportedPatterns_should_replaceAllWithPlaceholders() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(
+              Map.of(
+                  "run",
+                  "server=\\\"http://192.168.1.13:3001\\\" max_size=\\\"50\\\" unsecured_certificate=\\\"true\\\" with_proxy=\\\"false\\\""),
+              Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .contains("server=\\\"#{baseUrl}\\\"")
+          .contains("max_size=\\\"#{maxSize}\\\"")
+          .contains("unsecured_certificate=\\\"#{unsecuredCertificate}\\\"")
+          .contains("with_proxy=\\\"#{withProxy}\\\"");
+    }
+
+    @Test
+    @DisplayName("Should not modify commands when no pattern matches")
+    void given_commandWithoutMatchingPattern_should_notModifyInjectorCommands() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(Map.of("run", "echo untouched"), Map.of("clear", "noop"));
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run")).isEqualTo("echo untouched");
+      assertThat(updated.getExecutorClearCommands().get("clear")).isEqualTo("noop");
+    }
+
+    @Test
+    @DisplayName("Should replace clear commands when executor commands map is null")
+    void given_nullExecutorCommands_should_replaceOnlyClearCommands() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(
+              null, Map.of("clear", "server=\\\"http://192.168.1.13:3001\\\""));
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands()).isNull();
+      assertThat(updated.getExecutorClearCommands().get("clear"))
+          .isEqualTo("server=\\\"#{baseUrl}\\\"");
     }
 
     @Test
     @DisplayName("Should replace server URL and escaped curl implant URL in the same command")
     void given_commandWithServerAndEscapedCurlImplant_should_replaceBothPatterns() {
       // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
       Injector injector =
           persistInjectorWithCommands(
               Map.of(
@@ -217,8 +208,8 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
       // Assert
       assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
       assertThat(updated.getExecutorCommands().get("run"))
-          .contains("server=\\\"https://openaev.example.com\\\"")
-          .contains("\\\"https://openaev.example.com/api/tenants/#{tenant}/implant/")
+          .contains("server=\\\"#{baseUrl}\\\"")
+          .contains("\\\"#{baseUrl}/api/tenants/#{tenant}/implant/")
           .doesNotContain("server=\\\"http://192.168.1.13:3001\\\"")
           .doesNotContain("\\\"URL/api/tenants/#{tenant}/implant/");
     }
@@ -227,7 +218,6 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
     @DisplayName("Should not modify command when command value is null")
     void given_nullCommandValue_should_notModifyInjectorCommands() {
       // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com");
       Map<String, String> executorCommands = new HashMap<>();
       executorCommands.put("run", null);
       executorCommands.put("other", "echo untouched");
@@ -243,6 +233,23 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
       assertThat(updated.getExecutorCommands()).containsEntry("run", null);
       assertThat(updated.getExecutorCommands()).containsEntry("other", "echo untouched");
     }
+
+    @Test
+    @DisplayName("Should replace with_proxy when prefixed with dollar sign")
+    void given_dollarPrefixedWithProxy_should_replaceWithProxyPlaceholder() {
+      // Arrange
+      Injector injector =
+          persistInjectorWithCommands(Map.of("run", "$with_proxy=\\\"false\\\""), Map.of());
+
+      // Act
+      MigrationProcessingResult result = processForCurrentTenant();
+      Injector updated = findInjector(injector.getId());
+
+      // Assert
+      assertThat(result).isEqualTo(MigrationProcessingResult.PROCESSED);
+      assertThat(updated.getExecutorCommands().get("run"))
+          .isEqualTo("$with_proxy=\\\"#{withProxy}\\\"");
+    }
   }
 
   @Nested
@@ -253,10 +260,8 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
     @DisplayName("Should skip second execution for the same tenant")
     void given_datapackAlreadyProcessed_should_skipSecondExecution() {
       // Arrange
-      ReflectionTestUtils.setField(dataPack, "baseUrl", "https://openaev.example.com/");
       Injector injector =
-          persistInjectorWithCommands(
-              Map.of("run", "curl https://openaev.example.com/api/run"), Map.of());
+          persistInjectorWithCommands(Map.of("run", "server=\\\"http://192.168.1.13:3001\\\""), Map.of());
       dataPackService.registerDataPack(
           dataPack.getPackId(), new Tenant(TenantContext.getCurrentTenant()));
 
@@ -267,7 +272,7 @@ class V20260708DynamicInjectorsBaseUrlIntegrationTest extends IntegrationTest {
       // Assert
       assertThat(result).isEqualTo(MigrationProcessingResult.SKIPPED);
       assertThat(unchanged.getExecutorCommands().get("run"))
-          .isEqualTo("curl https://openaev.example.com/api/run");
+          .isEqualTo("server=\\\"http://192.168.1.13:3001\\\"");
     }
   }
 

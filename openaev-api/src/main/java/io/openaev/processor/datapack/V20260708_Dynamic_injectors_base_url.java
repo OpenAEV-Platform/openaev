@@ -16,15 +16,15 @@ import org.springframework.stereotype.Component;
 public class V20260708_Dynamic_injectors_base_url extends DataPack {
 
   private static final Pattern SERVER_URL_PATTERN =
-      Pattern.compile("(server=\\\\?\")([^\"]*)(\\\\?\")");
+      Pattern.compile("(server=\\\\?\")([^\"]*?)(\\\\?\")");
   private static final Pattern IMPLANT_API_URL_PATTERN =
       Pattern.compile("(\\\\?\")([^\"\\s]+)(/api/tenants/#\\{tenant}/implant/)");
   private static final Pattern MAX_SIZE_PATTERN =
-      Pattern.compile("(max_size=\\\\?\")([^\"]*)(\\\\?\")");
+      Pattern.compile("(max_size=\\\\?\")([^\"]*?)(\\\\?\")");
   private static final Pattern UNSECURED_CERTIFICATE_PATTERN =
-      Pattern.compile("(unsecured_certificate=\\\\?\")([^\"]*)(\\\\?\")");
+      Pattern.compile("(unsecured_certificate=\\\\?\")([^\"]*?)(\\\\?\")");
   private static final Pattern WITH_PROXY_PATTERN =
-      Pattern.compile("(with_proxy=\\\\?\")([^\"]*)(\\\\?\")");
+      Pattern.compile("(with_proxy=\\\\?\")([^\"]*?)(\\\\?\")");
 
   private static final String SERVER_VAR_NAME = "#{baseUrl}";
   private static final String MAX_SIZE_VAR_NAME = "#{maxSize}";
