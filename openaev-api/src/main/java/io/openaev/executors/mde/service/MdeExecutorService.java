@@ -173,11 +173,20 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              // Reflect the device's real MDE lastSeen so OpenAEV's active status (lastSeen within
-              // the active threshold) mirrors whether the machine is actually reporting. Forcing
-              // Instant.now() marked every synced device active even when it had been offline for
-              // hours, so users targeted machines that could not run Live Response.
-              input.setLastSeen(parseDeviceLastSeen(device.getLastSeen()));
+              // Base the agent active status on the MDE sensor health, not the cloud lastSeen:
+              // MDE's
+              // lastSeen lags real connectivity by tens of minutes to hours, so filtering on it (1h
+              // active threshold) wrongly hid the large majority of healthy machines. A device
+              // reporting healthStatus "Active" has a healthy, communicating sensor and is the best
+              // available "reachable" signal; offline edge cases no longer poison the fleet because
+              // stale pending Live Response actions are cancelled before each dispatch. Devices
+              // with
+              // any other health status keep their real (stale) lastSeen so they surface as
+              // inactive.
+              input.setLastSeen(
+                  "Active".equalsIgnoreCase(device.getHealthStatus())
+                      ? Instant.now()
+                      : parseDeviceLastSeen(device.getLastSeen()));
               return input;
             })
         .collect(Collectors.toList());
