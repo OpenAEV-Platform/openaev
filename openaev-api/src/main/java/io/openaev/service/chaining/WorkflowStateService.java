@@ -241,15 +241,6 @@ public class WorkflowStateService {
   /**
    * Parses structured output fields and adds their values to the global state entries.
    *
-   * <p>Two paths are handled per array element:
-   *
-   * <ul>
-   *   <li><b>Primitive</b>: scalar values are validated against scope rules and stored per
-   *       primitive type.
-   *   <li><b>Complex</b>: JSON objects (e.g. port-scan tuples) are stored as correlated key-value
-   *       pairs.
-   * </ul>
-   *
    * @param entries global state entries to populate
    * @param structuredOutput JSON object with field arrays produced by the step
    * @param typeMappings mapping from output field name to its resolved chaining type
