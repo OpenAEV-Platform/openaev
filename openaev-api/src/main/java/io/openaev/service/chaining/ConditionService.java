@@ -55,7 +55,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
     Condition root =
@@ -108,7 +107,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
     // Multiple roots are only allowed when all roots are MAPPER conditions
@@ -237,7 +235,6 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
 
@@ -953,7 +950,8 @@ public class ConditionService {
   private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
     return mappers.stream()
         .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
-        .map(mapper -> mapper.getKeyType().name())
+        .map(this::resolveMapperKey)
+        .filter(Objects::nonNull)
         .collect(Collectors.toSet());
   }
 
@@ -969,7 +967,13 @@ public class ConditionService {
     Map<String, String> staticValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
-      String key = mapper.getKeyType().name();
+      String key = resolveMapperKey(mapper);
+      if (key == null) {
+        log.warn(
+            "[Chaining] Skipping mapper {} because keyType and key are both missing",
+            mapper.getId());
+        return new MapperInputPreparation(List.of(), Map.of(), true);
+      }
 
       if (mapper.getMappingType() == MappingType.DEFAULT) {
         staticValues.put(key, mapper.getValue());
@@ -1052,8 +1056,14 @@ public class ConditionService {
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
-    resolved.setValue(fullInput.get(template.getKeyType().name()));
+    String key = resolveMapperKey(template);
+    resolved.setValue(key != null ? fullInput.get(key) : null);
     return resolved;
+  }
+
+  /** Resolves the mapper input key used in workflow state. */
+  private String resolveMapperKey(Condition mapper) {
+    return mapper.getKeyType() != null ? mapper.getKeyType().name() : null;
   }
 
   /**
