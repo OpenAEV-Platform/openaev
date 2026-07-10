@@ -1,7 +1,9 @@
 package io.openaev.api.attackpath;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -108,5 +110,23 @@ class AttackPathPocApiTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.executions").exists())
         .andExpect(jsonPath("$.edges").exists());
+  }
+
+  @Test
+  @DisplayName("POST /seed is allowed for an admin and returns the row counts")
+  void seed_endpoint_returns_counts_for_admin() throws Exception {
+    mvc.perform(post(AttackPathPocApi.ATTACK_PATH_POC_URI + "/seed").with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.simulations").value(6))
+        .andExpect(jsonPath("$.executions").isNumber())
+        .andExpect(jsonPath("$.findings").isNumber());
+  }
+
+  @Test
+  @DisplayName("POST /seed is forbidden for a non-admin")
+  @WithMockUser(isAdmin = false)
+  void seed_endpoint_forbidden_for_non_admin() throws Exception {
+    mvc.perform(post(AttackPathPocApi.ATTACK_PATH_POC_URI + "/seed").with(csrf()))
+        .andExpect(status().isForbidden());
   }
 }

@@ -3,20 +3,28 @@ package io.openaev.api.attackpath;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.SessionHelper;
 import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.attackpath.AttackPathGraphService;
+import io.openaev.service.attackpath.AttackPathSeedService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
+import io.openaev.service.attackpath.dto.AttackPathSeedInput;
+import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Conditional;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * POC-only attack-path endpoints (issue 6647). The whole controller is gated behind the {@code
@@ -38,6 +46,7 @@ public class AttackPathPocApi extends RestBehavior {
   public static final String ATTACK_PATH_POC_URI = "/api/poc/attack-path";
 
   private final AttackPathGraphService graphService;
+  private final AttackPathSeedService seedService;
 
   /**
    * Full graph of a simulation, built from two flat reads plus one in-memory pass. {@code
@@ -73,5 +82,21 @@ public class AttackPathPocApi extends RestBehavior {
   public AttackPathEndpointRelationsDTO relations(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
     return graphService.endpointRelations(simulationId, ref);
+  }
+
+  /**
+   * Generate a synthetic dataset for the scaling tests. Admin-only, and only reachable when the POC
+   * flag is on. Not tenant-scoped from the request: the generator writes its own synthetic tenants
+   * and sets {@code tenant_id} on every row itself.
+   */
+  @PostMapping("/seed")
+  @Transactional
+  @AccessControl(skipRBAC = true)
+  public AttackPathSeedResultDTO seed(@RequestBody(required = false) AttackPathSeedInput input) {
+    if (!SessionHelper.currentUser().isAdmin()) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
+    }
+    AttackPathSeedInput params = input != null ? input : new AttackPathSeedInput(null, null);
+    return seedService.generate(params.toParams());
   }
 }
