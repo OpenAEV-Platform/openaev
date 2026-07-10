@@ -14,10 +14,10 @@ runs:
         echo "Comparing migration files from the last release with the current branch... (reverse chronological order)"
         diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac
         echo "do compare"
-        DIFF_FILES=$(diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
+        diff_files=$(diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
         
         echo "Diff between release ${{ inputs.last-release-number }} and current branch (a chevron means a difference)"
-        echo "${DIFF_FILES}"
+        echo "${diff_files}"
         
         NO_DIFF_ALLOWED=false
         
@@ -34,7 +34,7 @@ runs:
               NO_DIFF_ALLOWED=true;
               ;;
           esac
-        done <<< "$DIFF_FILES"
+        done <<< "diff_files"
         
         echo "All good: no change in the previously released migrations block."
       shell: bash
