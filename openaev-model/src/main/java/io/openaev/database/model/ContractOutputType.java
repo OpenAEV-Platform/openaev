@@ -69,7 +69,7 @@ public enum ContractOutputType {
   Asset("asset"),
 
   @JsonProperty("expectation_signature")
-  ExpectationSignature("expectation_signature ");
+  ExpectationSignature("expectation_signature");
 
   private final String label;
 

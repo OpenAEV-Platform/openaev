@@ -3,8 +3,8 @@ package io.openaev.rest.payload.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
@@ -46,9 +46,10 @@ public class PayloadUpdateInput {
 
   @JsonProperty("payload_expectations")
   @NotNull
-  private InjectExpectation.EXPECTATION_TYPE[] expectations =
-      new InjectExpectation.EXPECTATION_TYPE[] {
-        InjectExpectation.EXPECTATION_TYPE.PREVENTION, InjectExpectation.EXPECTATION_TYPE.DETECTION
+  private BaseInjectExpectation.EXPECTATION_TYPE[] expectations =
+      new BaseInjectExpectation.EXPECTATION_TYPE[] {
+        BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+        BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
       };
 
   @JsonProperty("executable_file")

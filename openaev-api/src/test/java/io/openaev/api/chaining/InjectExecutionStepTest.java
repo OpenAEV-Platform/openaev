@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
@@ -14,15 +15,10 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
-import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.tag.TagService;
-import io.openaev.service.AssetService;
-import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepService;
@@ -34,26 +30,19 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
 @Transactional
 public class InjectExecutionStepTest extends IntegrationTest {
 
   @MockitoBean private InjectorContractService injectorContractService;
   @MockitoBean private UserService userService;
-  @MockitoBean private TeamService teamService;
-  @MockitoBean private AssetService assetService;
-  @MockitoBean private TagService tagService;
-  @MockitoBean private DocumentService documentService;
   @MockitoBean private InjectService injectService;
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
-  @MockitoBean private InjectStatusService injectStatusService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -71,15 +60,11 @@ public class InjectExecutionStepTest extends IntegrationTest {
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
-    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new User()).when(userService).currentUser();
-    doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
-    doReturn(new ArrayList<>()).when(assetService).assets(any());
-    doReturn(new HashSet<>()).when(tagService).tagSet(any());
-    doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
 
@@ -170,7 +155,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setId("step-1");
     step.setInput("{\"IPv4\":\"10.10.10.10\"}");
 
-    String contentJson = "{\"target_ip\":\"0.0.0.0\",\"file\":\"script.bat\"}";
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
+    contentNode.put("file", "script.bat");
 
     Condition mapperCondition = new Condition();
     mapperCondition.setType(ConditionType.MAPPER);
@@ -183,7 +170,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -197,12 +184,13 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step step = new Step();
     step.setId("step-2");
     step.setInput("{}");
-    String contentJson = "{\"target_ip\":\"0.0.0.0\"}";
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -211,16 +199,18 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_invalidContractContent_should_returnEmptyObject() {
+  void given_invalidStepInput_should_returnEmptyObject() {
     // Arrange
     Step step = new Step();
     step.setId("step-3");
-    step.setInput("{\"IPv4\":\"10.10.10.10\"}");
+    step.setInput("{invalid-json");
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, "{invalid-json");
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -416,6 +406,118 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // ASSERT
     assertNotNull(StepService.getField(stepReady.getData(), "inject_id"));
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    Inject createdInject = injectRepository.findById(injectId).orElseThrow();
+    assertEquals(2, createdInject.getContent().withArray("expectations").size());
+  }
+
+  @Test
+  public void run_shouldSetPredefinedExpectations_whenStepHasNoExpectationsInData()
+      throws JsonProcessingException, ChainingException {
+    // PREPARE
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    JsonNode injectorContractContent = mapper.readTree(injectorContractSaved.getContent());
+    int expectedPredefinedExpectations = 0;
+    for (JsonNode field : injectorContractContent.path("fields")) {
+      if ("expectations".equals(field.path("key").asText())) {
+        expectedPredefinedExpectations = field.path("predefinedExpectations").size();
+        break;
+      }
+    }
+
+    ObjectNode injectInputNode = (ObjectNode) mapper.readTree(injectInputJson);
+    ((ObjectNode) injectInputNode.get("inject_content")).remove("expectations");
+    InjectInput injectInput = mapper.treeToValue(injectInputNode, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .keyType(ConditionKeyType.IPv4)
+            .value("output.message.ip")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    // ACT
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
+    Optional<Step> stepReadyOpt =
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+    assertTrue(stepReadyOpt.isPresent());
+    Step stepReady = stepReadyOpt.get();
+
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    assertTrue(stepRunOpt.isPresent());
+
+    // ASSERT
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    Inject createdInject = injectRepository.findById(injectId).orElseThrow();
+    assertEquals(
+        expectedPredefinedExpectations,
+        createdInject.getContent().withArray("expectations").size());
+  }
+
+  @Test
+  public void run_shouldKeepStepExpectations_whenCustomExpectationProvidedInStepData()
+      throws JsonProcessingException, ChainingException {
+    // PREPARE
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    ObjectNode injectInputNode = (ObjectNode) mapper.readTree(injectInputJson);
+    ObjectNode injectContentNode = (ObjectNode) injectInputNode.get("inject_content");
+    ObjectNode customExpectationNode = mapper.createObjectNode();
+    customExpectationNode.put("expectation_type", "DETECTION");
+    customExpectationNode.put("expectation_name", "Custom detection expectation");
+    customExpectationNode.putNull("expectation_description");
+    customExpectationNode.put("expectation_score", 80);
+    customExpectationNode.put("expectation_expectation_group", false);
+    customExpectationNode.put("expectation_expiration_time", 3600);
+    injectContentNode.set("expectations", mapper.createArrayNode().add(customExpectationNode));
+
+    InjectInput injectInput = mapper.treeToValue(injectInputNode, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .keyType(ConditionKeyType.IPv4)
+            .value("output.message.ip")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    // ACT
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
+    Optional<Step> stepReadyOpt =
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+    assertTrue(stepReadyOpt.isPresent());
+    Step stepReady = stepReadyOpt.get();
+
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    assertTrue(stepRunOpt.isPresent());
+
+    // ASSERT
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    Inject createdInject = injectRepository.findById(injectId).orElseThrow();
+    assertEquals(1, createdInject.getContent().withArray("expectations").size());
+    assertEquals(
+        "Custom detection expectation",
+        createdInject
+            .getContent()
+            .withArray("expectations")
+            .get(0)
+            .path("expectation_name")
+            .asText());
   }
 
   @Test
@@ -465,7 +567,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     entityManager.clear();
 
     // Clear injectors from the mocked contract so the code cannot resolve them
-    injectorContractSaved.getInjectors().clear();
+    injectorContractSaved.clearInjectors();
 
     // ACT
     ChainingException ex =

@@ -9,6 +9,7 @@ import io.openaev.database.repository.CollectorTypeRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import jakarta.validation.constraints.NotNull;
@@ -31,9 +32,12 @@ public class DetectionRemediationService {
 
   private final DetectionRemediationRepository detectionRemediationRepository;
   private final CollectorTypeRepository collectorTypeRepository;
+  private final AiMetricCollector aiMetricCollector;
 
   private @NotNull String getDetectionRemediationAIResponse(
       String collectorType, String agentSlug, DetectionRemediationRequest request) {
+    // Telemetry: counted before the routing branch (backend-agnostic).
+    aiMetricCollector.recordDetectionRemediation(collectorType);
     if (xtmOneConfig.isConfigured()) {
       return generateRulesViaXtmOne(request, collectorType, agentSlug).formateRules();
     } else { // Legacy webservice path

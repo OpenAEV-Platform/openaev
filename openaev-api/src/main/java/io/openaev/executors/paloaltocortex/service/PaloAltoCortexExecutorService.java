@@ -60,14 +60,14 @@ public class PaloAltoCortexExecutorService implements Runnable {
       if (!paloAltoCortexEndpoints.isEmpty()) {
         Optional<AssetGroup> existingAssetGroup =
             assetGroupService.findByExternalReference(
-                PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName, executor.getTenant().getId());
+                PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName, executor.getTenantId());
         AssetGroup assetGroup;
         if (existingAssetGroup.isPresent()) {
           assetGroup = existingAssetGroup.get();
         } else {
           assetGroup = new AssetGroup();
           assetGroup.setExternalReference(PALOALTOCORTEX_EXECUTOR_TYPE + "_" + groupName);
-          assetGroup.setTenant(executor.getTenant());
+          assetGroup.setTenant(new Tenant(executor.getTenantId()));
         }
         assetGroup.setName(groupName);
         log.info(
@@ -79,8 +79,8 @@ public class PaloAltoCortexExecutorService implements Runnable {
             endpointService.syncAgentsEndpoints(
                 toAgentEndpoint(paloAltoCortexEndpoints),
                 agentService.getAgentsByExecutorIdAndTenantId(
-                    executor.getId(), executor.getTenant().getId()),
-                executor.getTenant().getId());
+                    executor.getId(), executor.getTenantId()),
+                executor.getTenantId());
         assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }

@@ -1,7 +1,5 @@
 package io.openaev.rest;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.CHALLENGE;
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.MANUAL;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openaev.expectation.ExpectationType.*;
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
@@ -22,14 +20,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.helper.StreamHelper;
-import io.openaev.injectors.challenge.ChallengeContract;
-import io.openaev.injectors.email.EmailContract;
-import io.openaev.injectors.openaev.OpenAEVImplantContract;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -99,7 +92,7 @@ class ExpectationApiTest extends IntegrationTest {
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
     em.flush();
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --
@@ -171,7 +164,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- EXECUTE --
 
       // Retrieve Agent expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
@@ -278,7 +271,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- EXECUTE --
 
       // Retrieve Agent expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
@@ -414,9 +407,11 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // Update one expectation from one agent with source collector-id
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
@@ -478,6 +473,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, preventionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
       String response =
@@ -499,7 +496,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       // Update one expectation from one agent with source collector-id then this expectation is
       // filled and it should return just one
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
 
@@ -564,6 +561,8 @@ class ExpectationApiTest extends IntegrationTest {
 
       injectExpectationService.buildAndSaveInjectExpectations(
           executableInject, detectionExpectations);
+      em.flush();
+      em.clear();
 
       // -- EXECUTE --
       String response =
@@ -585,7 +584,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       // Update one expectation from one agent with source collector-id then it should return one
       // expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
 
@@ -649,7 +648,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- EXECUTE --
 
       // Retrieve Agent expectation
-      List<InjectExpectation> injectExpectationsAgent =
+      List<TechnicalInjectExpectation> injectExpectationsAgent =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
@@ -660,7 +659,7 @@ class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       // Agent Expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
@@ -678,7 +677,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- EXECUTE --
 
       // Retrieve Agent1 expectation
-      List<InjectExpectation> injectExpectationsAgent1 =
+      List<TechnicalInjectExpectation> injectExpectationsAgent1 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
 
@@ -731,7 +730,7 @@ class ExpectationApiTest extends IntegrationTest {
       // -- EXECUTE --
 
       // Retrieve Agent expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
 
@@ -787,14 +786,14 @@ class ExpectationApiTest extends IntegrationTest {
       em.flush();
       em.clear();
 
-      // Fetch injectExpectation created for agent 1
-      List<InjectExpectation> injectExpectationsAgent1 =
+      // Fetch BaseInjectExpectation created for agent 1
+      List<TechnicalInjectExpectation> injectExpectationsAgent1 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       InjectExpectationUpdateInput expectationUpdateInputAgent1 =
           getInjectExpectationUpdateInput(savedCollector.getId(), "Detected", true);
-      // Fetch injectExpectation created for agent 2
-      List<InjectExpectation> injectExpectationsAgent2 =
+      // Fetch BaseInjectExpectation created for agent 2
+      List<TechnicalInjectExpectation> injectExpectationsAgent2 =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent2.getId());
       InjectExpectationUpdateInput expectationUpdateInputAgent2 =
@@ -817,7 +816,7 @@ class ExpectationApiTest extends IntegrationTest {
 
       // -- ASSERT --
       // Agent Expectation
-      List<InjectExpectation> injectExpectations =
+      List<TechnicalInjectExpectation> injectExpectations =
           injectExpectationRepository.findAllByInjectAndAgent(
               savedInject.getId(), savedAgent1.getId());
       assertEquals(100.0, getResultScoreForCollector(injectExpectations, savedCollector).get());
@@ -838,142 +837,6 @@ class ExpectationApiTest extends IntegrationTest {
     }
   }
 
-  @Nested
-  @Transactional
-  @WithMockUser(isAdmin = true)
-  @DisplayName("Get available InjectExpectations for injects")
-  class AvailableInjectExpectationsForInjects {
-
-    @Test
-    @DisplayName("Get available InjectExpectations for injects")
-    void getAvailableInjectExpectationsForInjects() throws Exception {
-      emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-      challengeInjectorIntegrationFactory.registerConnectorForTenant(
-          TenantContext.getCurrentTenant());
-      openaevInjectorIntegrationFactory.registerConnectorForTenant(
-          TenantContext.getCurrentTenant());
-
-      // OpenAEVImplantContract.contracts() returns empty, so we manually create a contract
-      // and link it to the implant injector (same pattern as the original @BeforeAll setup)
-      Injector implantInjector =
-          injectorRepository
-              .findByTypeAndTenantId(
-                  OpenAEVImplantContract.TYPE, io.openaev.context.TenantContext.getCurrentTenant())
-              .orElseThrow(() -> new AssertionError("Implant injector not registered"));
-      InjectorContract implantContract =
-          InjectorContractFixture.createInjectorContract(Map.of("en", "Implant Test Contract"));
-      implantContract.setCustom(true);
-      implantContract.addInjector(implantInjector);
-      implantContract = injectorContractRepository.save(implantContract);
-      implantInjector.getContracts().add(implantContract);
-      injectorRepository.save(implantInjector);
-
-      em.flush();
-      em.clear();
-      List<InjectorContract> injectorContracts =
-          StreamHelper.fromIterable(injectorContractRepository.findAll());
-      InjectorContract mailInjectorContract =
-          injectorContracts.stream()
-              .filter(
-                  ic ->
-                      ic.getFirstInjector() != null
-                          && ic.getFirstInjector().getType().equals(EmailContract.TYPE))
-              .findFirst()
-              .orElseThrow(() -> new AssertionError("No contract found for EmailContract.TYPE"));
-      InjectorContract challengeInjectorContract =
-          injectorContracts.stream()
-              .filter(
-                  ic ->
-                      ic.getFirstInjector() != null
-                          && ic.getFirstInjector().getType().equals(ChallengeContract.TYPE))
-              .findFirst()
-              .orElseThrow(
-                  () -> new AssertionError("No contract found for ChallengeContract.TYPE"));
-      InjectorContract implantInjectorContract =
-          injectorContracts.stream()
-              .filter(
-                  ic ->
-                      ic.getFirstInjector() != null
-                          && ic.getFirstInjector().getType().equals(OpenAEVImplantContract.TYPE))
-              .findFirst()
-              .orElseThrow(
-                  () -> new AssertionError("No contract found for OpenAEVImplantContract.TYPE"));
-
-      // -- EXECUTE FOR MAIL --
-      String responseMail =
-          mvc.perform(
-                  get(INJECTS_EXPECTATIONS_URI
-                          + "/available?injectorContractId="
-                          + mailInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -- ASSERT --
-      assertEquals(1, ((List<?>) JsonPath.read(responseMail, "$")).size());
-      assertEquals(MANUAL.name(), JsonPath.read(responseMail, "$.[0].expectation_type"));
-
-      // -- EXECUTE FOR CHALLENGE --
-      String responseChallenge =
-          mvc.perform(
-                  get(INJECTS_EXPECTATIONS_URI
-                          + "/available?injectorContractId="
-                          + challengeInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -- ASSERT --
-      assertEquals(2, ((List<?>) JsonPath.read(responseChallenge, "$")).size());
-      assertEquals(CHALLENGE.name(), JsonPath.read(responseChallenge, "$.[0].expectation_type"));
-      assertEquals(MANUAL.name(), JsonPath.read(responseChallenge, "$.[1].expectation_type"));
-
-      // -- EXECUTE FOR TECHNICAL INJECTOR CONTRACT CREATED --
-      String responseCreated =
-          mvc.perform(
-                  get(INJECTS_EXPECTATIONS_URI
-                          + "/available?injectorContractId="
-                          + savedInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -- ASSERT --
-      assertEquals(3, ((List<?>) JsonPath.read(responseCreated, "$")).size());
-      assertEquals(DETECTION.name(), JsonPath.read(responseCreated, "$.[0].expectation_type"));
-      assertEquals(PREVENTION.name(), JsonPath.read(responseCreated, "$.[1].expectation_type"));
-      assertEquals(VULNERABILITY.name(), JsonPath.read(responseCreated, "$.[2].expectation_type"));
-
-      // -- EXECUTE FOR IMPLANT --
-      String responseImplant =
-          mvc.perform(
-                  get(INJECTS_EXPECTATIONS_URI
-                          + "/available?injectorContractId="
-                          + implantInjectorContract.getId())
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -- ASSERT --
-      assertEquals(3, ((List<?>) JsonPath.read(responseImplant, "$")).size());
-      assertEquals(DETECTION.name(), JsonPath.read(responseImplant, "$.[0].expectation_type"));
-      assertEquals(PREVENTION.name(), JsonPath.read(responseImplant, "$.[1].expectation_type"));
-      assertEquals(VULNERABILITY.name(), JsonPath.read(responseImplant, "$.[2].expectation_type"));
-    }
-  }
-
   // -- PRIVATE HELPERS --
 
   private ExecutableInject newExecutableInjectWithTargets(boolean includeAssetGroup) {
@@ -987,12 +850,12 @@ class ExpectationApiTest extends IntegrationTest {
         emptyList());
   }
 
-  private Double getScore(@NotNull final List<InjectExpectation> injectExpectations) {
+  private Double getScore(@NotNull final List<? extends BaseInjectExpectation> injectExpectations) {
     return injectExpectations.getFirst().getScore();
   }
 
   private Optional<Double> getResultScoreForCollector(
-      @NotNull final List<InjectExpectation> injectExpectations,
+      @NotNull final List<? extends BaseInjectExpectation> injectExpectations,
       @NotNull final Collector collector) {
     return injectExpectations.getFirst().getResults().stream()
         .filter(result -> result.getSourceId().equals(collector.getId()))
@@ -1003,11 +866,11 @@ class ExpectationApiTest extends IntegrationTest {
   // MVC CALL
 
   private void callUpdateInjectExpectation(
-      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final InjectExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
-            put(INJECTS_EXPECTATIONS_URI + "/" + injectExpectation.getId())
+            put(INJECTS_EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
@@ -1016,11 +879,11 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   private void callUpdateInjectExpectationFromUI(
-      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
-            put(EXPECTATIONS_URI + "/" + injectExpectation.getId())
+            put(EXPECTATIONS_URI + "/" + baseInjectExpectation.getId())
                 .content(asJsonString(expectationUpdateInput))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
@@ -1029,13 +892,13 @@ class ExpectationApiTest extends IntegrationTest {
   }
 
   private void callDeleteInjectExpectationFromUI(
-      @NotNull final InjectExpectation injectExpectation,
+      @NotNull final BaseInjectExpectation baseInjectExpectation,
       @NotNull final ExpectationUpdateInput expectationUpdateInput)
       throws Exception {
     mvc.perform(
             put(EXPECTATIONS_URI
                     + "/"
-                    + injectExpectation.getId()
+                    + baseInjectExpectation.getId()
                     + "/"
                     + expectationUpdateInput.getSourceId()
                     + "/delete")

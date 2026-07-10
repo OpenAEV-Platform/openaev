@@ -12,6 +12,8 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
@@ -43,6 +45,8 @@ public class WorkflowService {
   private final ScopeVariableRepository scopeVariableRepository;
 
   private final ScopeMetricCollector scopeMetricCollector;
+  private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   // -- READ --
 
@@ -474,25 +478,33 @@ public class WorkflowService {
    */
   private boolean applyConfigurationInput(WorkflowConfigurationInput input, Workflow workflow) {
     boolean changed = false;
+    boolean rateLimitChanged = false;
+    boolean timeoutChanged = false;
+
     if (workflow.isRateLimitEnabled() != input.isRateLimitEnabled()) {
       workflow.setRateLimitEnabled(input.isRateLimitEnabled());
       changed = true;
+      rateLimitChanged = true;
     }
     if (!Objects.equals(workflow.getMaxAttempts(), input.getMaxAttempts())) {
       workflow.setMaxAttempts(input.getMaxAttempts());
       changed = true;
+      rateLimitChanged = true;
     }
     if (!Objects.equals(workflow.getMaxTemporalRateSeconds(), input.getMaxTemporalRateSeconds())) {
       workflow.setMaxTemporalRateSeconds(input.getMaxTemporalRateSeconds());
       changed = true;
+      rateLimitChanged = true;
     }
     if (workflow.isTimeoutEnabled() != input.isTimeoutEnabled()) {
       workflow.setTimeoutEnabled(input.isTimeoutEnabled());
       changed = true;
+      timeoutChanged = true;
     }
     if (!Objects.equals(workflow.getTimeoutSeconds(), input.getTimeoutSeconds())) {
       workflow.setTimeoutSeconds(input.getTimeoutSeconds());
       changed = true;
+      timeoutChanged = true;
     }
     if (workflow.isSafeModeEnabled() != input.isSafeModeEnabled()) {
       workflow.setSafeModeEnabled(input.isSafeModeEnabled());
@@ -500,6 +512,20 @@ public class WorkflowService {
     }
     boolean rulesChanged = applyScopeRules(input.getWorkflowScopeRules(), workflow);
     boolean variablesChanged = applyScopeVariables(input.getWorkflowScopeVariables(), workflow);
+
+    if (timeoutChanged) {
+      long timeoutSec = input.getTimeoutSeconds() != null ? input.getTimeoutSeconds() : 0L;
+      chainingSafetyPolicyMetricCollector.recordTimeoutConfigured(
+          timeoutSec / 3600, (timeoutSec % 3600) / 60, timeoutSec == DEFAULT_TIMEOUT_SECONDS);
+    }
+    if (rateLimitChanged) {
+      int attempts = input.getMaxAttempts() != null ? input.getMaxAttempts() : 0;
+      long seconds =
+          input.getMaxTemporalRateSeconds() != null ? input.getMaxTemporalRateSeconds() : 0L;
+      chainingSafetyPolicyMetricCollector.recordRateLimitConfigured(
+          attempts, seconds, !input.isRateLimitEnabled());
+    }
+
     return rulesChanged || variablesChanged || changed;
   }
 
@@ -773,6 +799,8 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
+    // Telemetry: one chaining workflow run started.
+    resultsMetricCollector.recordWorkflowRun();
 
     Map<String, ContractOutputType> fieldTypeMap =
         java.util.Arrays.stream(ContractOutputType.values())
@@ -860,19 +888,19 @@ public class WorkflowService {
     }
 
     // At least one template generated one or more ready execution steps.
-    boolean hasReadySteps = false;
+    boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
 
     for (Step step : stepsTemplate) {
       List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
       if (!stepReadys.isEmpty()) {
-        hasReadySteps = true;
+        hasActiveSteps = true;
         stepService.enqueueReadySteps(stepReadys, workflowRun);
       }
     }
 
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
     // status END
-    if (!hasReadySteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
+    if (!hasActiveSteps && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowRun.setStatus(WorkflowStatus.END);
     }
 

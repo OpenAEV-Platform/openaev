@@ -36,6 +36,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,7 +59,7 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.createEndpoint(input);
+    return this.endpointService.createEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})
@@ -127,6 +128,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI, TENANT_ENDPOINT_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<Endpoint> endpoints() {
@@ -135,6 +137,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI + "/{endpointId}", TENANT_ENDPOINT_URI + "/{endpointId}"})
   @AccessControl(
       resourceId = "#endpointId",
@@ -147,6 +150,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/search", TENANT_ENDPOINT_URI + "/search"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointOutput> endpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -160,6 +164,7 @@ public class EndpointApi extends RestBehavior {
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<EndpointTargetOutput> targetEndpoints(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
@@ -202,9 +207,19 @@ public class EndpointApi extends RestBehavior {
     this.endpointService.deleteEndpoint(endpointId);
   }
 
+  @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
+  // DNS resolution is network I/O and touches no DB. The endpoint @Transactional rule still
+  // requires the annotation, so NOT_SUPPORTED keeps it while suspending any DB transaction.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public List<String> resolveHostname(@RequestParam @NotBlank final String hostname) {
+    return this.endpointService.resolveHostnameToIps(hostname);
+  }
+
   // -- OPTION --
 
   @GetMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
@@ -260,6 +275,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
+  @Transactional
   @GetMapping({ENDPOINT_URI + "/findings/options", TENANT_ENDPOINT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
@@ -270,6 +286,7 @@ public class EndpointApi extends RestBehavior {
   }
 
   @PostMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
+  @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
     return fromIterable(this.endpointRepository.findAllById(ids)).stream()

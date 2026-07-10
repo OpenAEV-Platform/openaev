@@ -14,10 +14,11 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
-import jakarta.transaction.Transactional;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -35,11 +36,12 @@ public class PayloadCreationService {
   private final TagRepository tagRepository;
   private final DomainService domainService;
   private final DocumentService documentService;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   public record PayloadInjectorContractCreationResult(
       Payload payload, InjectorContract injectorContract) {}
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public PayloadInjectorContractCreationResult createPayload(PayloadCreateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
@@ -69,6 +71,9 @@ public class PayloadCreationService {
             fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())),
             iterableToSet(domainService.findAllById(input.getDomainIds())),
             iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    // Telemetry: one payload created, by type - recorded only once the payload and
+    // its injector contract are persisted (a rollback would otherwise inflate the counter).
+    resultsMetricCollector.recordPayloadCreated(payloadType.key);
     return new PayloadInjectorContractCreationResult(payloadSaved, injectorContract);
   }
 }

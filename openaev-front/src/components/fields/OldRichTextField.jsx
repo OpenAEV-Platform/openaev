@@ -1,10 +1,10 @@
+import { RichTextEditor } from '@filigran/rich-text-editor';
 import { FormHelperText, InputLabel } from '@mui/material';
 import { Field } from 'react-final-form';
 import { makeStyles } from 'tss-react/mui';
 
 // eslint-disable-next-line import/no-cycle
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
-import CKEditor from '../CKEditor';
 import { useFormatter } from '../i18n';
 
 const useStyles = makeStyles()(theme => ({ errorColor: { color: theme.palette.error.main } }));
@@ -36,9 +36,10 @@ const RichTextFieldBase = ({
         >
           {label}
         </InputLabel>
-        <CKEditor
+        <RichTextEditor
+          variant="outlined"
           data={value}
-          onChange={(event, editor) => {
+          onChange={(_, editor) => {
             onChange(editor.getData());
           }}
           onBlur={event => onBlur(event)}

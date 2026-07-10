@@ -42,6 +42,24 @@ export const stripDetailSegments = (pathname: string): string => {
 // ---------------------------------------------------------------------------
 
 /**
+ * Returns the value only when it is a syntactically valid http(s) URL,
+ * otherwise undefined. Guards against a misconfigured (or otherwise
+ * unexpected) platform URL - e.g. a `javascript:` scheme - ever reaching
+ * an anchor href.
+ */
+export const toHttpUrl = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    const { protocol } = new URL(value);
+    return protocol === 'http:' || protocol === 'https:' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
  * Returns the current pathname stripped of APP_BASE_PATH.
  */
 const getAppRelativePath = (): string => {
@@ -151,7 +169,6 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/capabilities',
   '/api/xtmhub/contact-us',
   '/api/xtmhub/auto-register',
-  '/api/xtm-composer',
   '/api/schemas',
   '/api/engine',
 ];

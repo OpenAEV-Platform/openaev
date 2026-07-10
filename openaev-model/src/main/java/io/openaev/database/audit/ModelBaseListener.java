@@ -30,9 +30,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * </ul>
  *
  * <p>When an entity is annotated with {@link AuditDiffTracked}, this listener also captures
- * before/after snapshots and stores computed diffs in {@link EntityDiffContext} for enrichment of
- * the audit log. A transaction synchronization is registered to guarantee cleanup of the thread-
- * local context after every transaction, regardless of whether the audit aspect consumed the diffs.
+ * before/after snapshots and stores computed diffs in {@link AuditLogContext} for enrichment of the
+ * audit log. A transaction synchronization is registered to guarantee cleanup of the thread-local
+ * context after every transaction, regardless of whether the audit aspect consumed the diffs.
  *
  * <p>To enable this listener on an entity, use the {@link EntityListeners} annotation:
  *
@@ -46,7 +46,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * @see BaseEvent
  * @see IndexEvent
- * @see EntityDiffContext
+ * @see AuditLogContext
  */
 @Component
 @Slf4j
@@ -80,7 +80,7 @@ public class ModelBaseListener {
     if (instance.getId() == null) return;
     try {
       registerCleanupIfNeeded();
-      EntityDiffContext.storeBefore(instance.getId(), buildSnapshot(instance));
+      AuditLogContext.storeBefore(instance.getId(), buildSnapshot(instance));
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to store before-snapshot for {}: {}",
@@ -107,9 +107,9 @@ public class ModelBaseListener {
     try {
       registerCleanupIfNeeded();
       Map<String, Object> snapshot = buildSnapshot(instance);
-      EntityDiffContext.storeSnapshot(
+      AuditLogContext.storeSnapshot(
           instance.getId(),
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               instance.getClass().getSimpleName(), "create", null, snapshot));
     } catch (Exception e) {
       log.error(
@@ -123,7 +123,7 @@ public class ModelBaseListener {
    * Captures before/after snapshots for {@link AuditDiffTracked} entities just before they are
    * flushed to the database. Diff computation is deferred to the async audit logger.
    *
-   * <p>The "before" state is taken from the {@link EntityDiffContext} snapshot captured at
+   * <p>The "before" state is taken from the {@link AuditLogContext} snapshot captured at
    * {@code @PostLoad} time. If no before-snapshot exists (entity was created in this transaction),
    * the snapshot is skipped.
    */
@@ -132,12 +132,12 @@ public class ModelBaseListener {
     if (!shouldCaptureAuditDiff(base)) return;
     Base instance = (Base) base;
     try {
-      Map<String, Object> before = EntityDiffContext.getBefore(instance.getId());
+      Map<String, Object> before = AuditLogContext.getBefore(instance.getId());
       if (before == null) return;
       Map<String, Object> after = buildSnapshot(instance);
-      EntityDiffContext.storeSnapshot(
+      AuditLogContext.storeSnapshot(
           instance.getId(),
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               instance.getClass().getSimpleName(), "update", before, after));
     } catch (Exception e) {
       log.error(
@@ -179,9 +179,9 @@ public class ModelBaseListener {
     try {
       registerCleanupIfNeeded();
       Map<String, Object> snapshot = buildSnapshot(instance);
-      EntityDiffContext.storeSnapshot(
+      AuditLogContext.storeSnapshot(
           instance.getId(),
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               instance.getClass().getSimpleName(), "delete", snapshot, null));
     } catch (Exception e) {
       log.error(
@@ -209,18 +209,18 @@ public class ModelBaseListener {
   // -- Diff helpers --
 
   /**
-   * Registers a {@link TransactionSynchronization} to clear {@link EntityDiffContext} after the
+   * Registers a {@link TransactionSynchronization} to clear {@link AuditLogContext} after the
    * current transaction completes. Registers at most once per transaction.
    */
   private static void registerCleanupIfNeeded() {
-    if (!EntityDiffContext.isCleanupRegistered()
+    if (!AuditLogContext.isCleanupRegistered()
         && TransactionSynchronizationManager.isSynchronizationActive()) {
-      EntityDiffContext.markCleanupRegistered();
+      AuditLogContext.markCleanupRegistered();
       TransactionSynchronizationManager.registerSynchronization(
           new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
-              EntityDiffContext.clearAfterTransactionCompletion();
+              AuditLogContext.clearAfterTransactionCompletion();
             }
           });
     }
@@ -239,6 +239,7 @@ public class ModelBaseListener {
   private boolean shouldCaptureAuditDiff(Object entity) {
     return auditLogProperties.isEnabled()
         && entity instanceof Base
-        && entity.getClass().isAnnotationPresent(AuditDiffTracked.class);
+        && entity.getClass().isAnnotationPresent(AuditDiffTracked.class)
+        && AuditLogContext.hasRequestContext();
   }
 }

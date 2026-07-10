@@ -19,9 +19,9 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.objective.form.EvaluationInput;
 import io.openaev.rest.objective.form.ObjectiveInput;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -38,6 +38,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -54,7 +55,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Objective createObjective(
       @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
@@ -71,6 +72,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -89,6 +91,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -104,6 +107,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -117,6 +121,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -134,7 +139,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Evaluation createEvaluation(
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
@@ -163,6 +168,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
@@ -193,6 +199,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}",
     TENANT_SCENARIO_URI + "/{scenarioId}/objectives/{objectiveId}/evaluations/{evaluationId}"
   })
+  @Transactional
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,

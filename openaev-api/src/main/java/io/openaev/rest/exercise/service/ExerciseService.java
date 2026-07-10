@@ -675,7 +675,7 @@ public class ExerciseService {
           run.forEach(
               workflow -> {
                 workflow.setStatus(WorkflowStatus.END);
-                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
+                List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
                 steps.forEach(step -> step.setStatus(StepStatus.END));
                 stepsToUpdate.addAll(steps);
               });
@@ -1169,9 +1169,9 @@ public class ExerciseService {
       }
 
       // we ignore if one of the 2 expectation is still PENDING
-      if (InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
+      if (BaseInjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               lastSimulationResultsByType.avgResult())
-          || InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
+          || BaseInjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               secondLastSimulationResultsByType.avgResult())) {
         continue;
       }

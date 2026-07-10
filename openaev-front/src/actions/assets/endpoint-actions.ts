@@ -58,6 +58,10 @@ export const searchEndpointByIdAsOption = (ids: string[]) => {
   return simplePostCall(`${ENDPOINT_URI}/options`, ids);
 };
 
+export const resolveHostnameToIps = (hostname: string) => {
+  return simpleCall(`${ENDPOINT_URI}/resolve`, { params: { hostname } });
+};
+
 export const searchEndpointLinkedToFindingsAsOption = (searchText: string = '', sourceId: string = '') => {
   const params = {
     searchText,

@@ -1,8 +1,8 @@
 package io.openaev.expectation;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.model.inject.form.Expectation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -118,32 +118,14 @@ public class ExpectationBuilderService {
   }
 
   /**
-   * Builds a text expectation with default configuration.
-   *
-   * @return a configured text expectation
-   */
-  public Expectation buildTextExpectation() {
-    return buildExpectation(TEXT, TEXT_NAME, expectationPropertiesConfig.getManualExpirationTime());
-  }
-
-  /**
-   * Builds a manual expectation with default configuration.
+   * Builds a manual expectation with default configuration MANUAL expectations are not limited (can
+   * be added multiple times).
    *
    * @return a configured manual expectation
    */
   public Expectation buildManualExpectation() {
     return buildExpectation(
-        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime());
-  }
-
-  /**
-   * Builds a document upload expectation with default configuration.
-   *
-   * @return a configured document expectation
-   */
-  public Expectation buildDocumentExpectation() {
-    return buildExpectation(
-        DOCUMENT, DOCUMENT_NAME, expectationPropertiesConfig.getManualExpirationTime());
+        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime(), true);
   }
 
   /**
@@ -152,14 +134,21 @@ public class ExpectationBuilderService {
    * @param type the expectation type
    * @param name the display name
    * @param expirationTime the expiration time in seconds
+   * @param multiSelectable whether the expectation can be added multiple times to the same inject
    * @return a configured expectation
    */
-  private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
+  private Expectation buildExpectation(
+      EXPECTATION_TYPE type, String name, long expirationTime, boolean multiSelectable) {
     Expectation expectation = new Expectation();
     expectation.setType(type);
     expectation.setName(name);
     expectation.setScore(DEFAULT_EXPECTATION_SCORE);
     expectation.setExpirationTime(expirationTime);
+    expectation.setMultiSelectable(multiSelectable);
     return expectation;
+  }
+
+  private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
+    return buildExpectation(type, name, expirationTime, false);
   }
 }

@@ -3,11 +3,9 @@ package io.openaev.executors;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.utils.InjectionUtils.isInInjectableRange;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.model.ExecutionProcess;
-import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -66,14 +64,6 @@ public abstract class Injector {
   }
 
   // region utils
-
-  public <T> T contentConvert(
-      @NotNull final ExecutableInject injection, @NotNull final Class<T> converter)
-      throws Exception {
-    Inject inject = injection.getInjection().getInject();
-    ObjectNode content = inject.getContent();
-    return this.context.getMapper().treeToValue(content, converter);
-  }
 
   public List<DataAttachment> resolveAttachments(
       Execution execution, ExecutableInject injection, List<Document> documents) {

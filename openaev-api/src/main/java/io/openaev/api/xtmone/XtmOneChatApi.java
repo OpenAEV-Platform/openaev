@@ -3,6 +3,7 @@ package io.openaev.api.xtmone;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.util.ArrayList;
@@ -15,6 +16,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,8 +42,10 @@ public class XtmOneChatApi extends RestBehavior {
   private static final Pattern CONVERSATION_ID_PATTERN = FILE_ID_PATTERN;
   private final XtmOneClient client;
   private final XtmOneConfig config;
+  private final AiMetricCollector aiMetricCollector;
 
   @GetMapping(XTM_ONE_URI + "/chat/agents")
+  @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<List<ChatbotAgentOutput>> listAgents() {
     if (!config.isConfigured()) {
       return ResponseEntity.ok(List.of());
@@ -49,6 +54,7 @@ public class XtmOneChatApi extends RestBehavior {
   }
 
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
+  @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<Map<String, Object>> createSession(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
@@ -65,6 +71,7 @@ public class XtmOneChatApi extends RestBehavior {
 
   /** Lists past conversations for the chatbot history menu. */
   @GetMapping(XTM_ONE_URI + "/chat/sessions")
+  @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: chat data lives in XTM One and is scoped there to the per-user JWT minted by
   // XtmOneClient — there is no OpenAEV resource to check grants against. The EE gate matches the
   // Ariane feature gating (see AskArianeButton) and XtmOneProxyApi.
@@ -83,6 +90,7 @@ public class XtmOneChatApi extends RestBehavior {
 
   /** Removes a conversation from the chatbot history menu (archived upstream). */
   @DeleteMapping(XTM_ONE_URI + "/chat/sessions/{conversationId}")
+  @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Void> deleteSession(@PathVariable String conversationId) {
@@ -104,6 +112,7 @@ public class XtmOneChatApi extends RestBehavior {
    * — the chatbot rolls back its optimistic bubble on any non-2xx.
    */
   @PostMapping(XTM_ONE_URI + "/chat/messages/steer")
+  @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> steerMessage(@RequestBody Map<String, Object> body) {
@@ -122,10 +131,15 @@ public class XtmOneChatApi extends RestBehavior {
   }
 
   @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<StreamingResponseBody> sendMessage(@RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
+    // Telemetry: one chatbot message (attempts semantics, before the upstream call).
+    aiMetricCollector.recordChatbotMessage();
     String content = body.get("content") != null ? body.get("content").toString() : "";
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
@@ -185,6 +199,7 @@ public class XtmOneChatApi extends RestBehavior {
   }
 
   @PostMapping(path = XTM_ONE_URI + "/chat/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<Map<String, Object>> uploadFiles(
       @RequestParam("conversation_id") String conversationId, MultipartHttpServletRequest request) {
     if (!config.isConfigured()) {
@@ -225,6 +240,7 @@ public class XtmOneChatApi extends RestBehavior {
    * (relative to its {@code apiBaseUrl} of {@code /api/xtmone/chat}).
    */
   @GetMapping(XTM_ONE_URI + "/chat/files/{fileId}/download")
+  @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();

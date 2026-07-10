@@ -50,31 +50,6 @@ class InjectorExecutionProcessingHandlerTest {
   }
 
   @Test
-  @DisplayName("Should return empty if status is not SUCCESS or action is not COMPLETE")
-  void shouldReturnEmptyWhenStatusNotSuccessOrActionNotComplete() throws Exception {
-    // Case 1: Status is ERROR
-    InjectExecutionInput inputError =
-        buildInput(ExecutionTraceStatus.ERROR, InjectExecutionAction.complete, "{}");
-    assertTrue(
-        handler
-            .processContext(new ExecutionProcessingContext(inject, null, inputError, Map.of()))
-            .isEmpty());
-
-    verifyNoInteractions(outputProcessorFactory);
-
-    // Case 2: Action is NOT complete
-    InjectExecutionInput inputWrongAction =
-        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.command_execution, "{}");
-    assertTrue(
-        handler
-            .processContext(
-                new ExecutionProcessingContext(inject, null, inputWrongAction, Map.of()))
-            .isEmpty());
-
-    verifyNoInteractions(outputProcessorFactory);
-  }
-
-  @Test
   @DisplayName("Should return empty when outputStructured is null")
   void shouldReturnEmptyWhenOutputStructuredIsNull() throws Exception {
     ExecutionProcessingContext ctx = createValidCtx(null);

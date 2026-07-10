@@ -66,7 +66,6 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -89,6 +88,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
@@ -311,7 +311,7 @@ public class InjectService {
         true);
   }
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteAllByIds(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
@@ -323,7 +323,7 @@ public class InjectService {
    *
    * @param injects the injects to delete
    */
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public void deleteAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
       injectRepository.deleteAll(injects);
@@ -345,7 +345,7 @@ public class InjectService {
    *
    * @param injects the injects to save
    */
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public List<Inject> saveAll(List<Inject> injects) {
     if (!CollectionUtils.isEmpty(injects)) {
       return injectRepository.saveAll(injects);
@@ -1356,7 +1356,8 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Collector> collectors =
+        this.collectorService.securityPlatformCollectors(inject.getTenant().getId());
     List<Injector> injectors = this.injectorService.findAll();
     List<HealthCheck> healthChecks = new ArrayList<>();
 
@@ -1391,7 +1392,7 @@ public class InjectService {
    * @return distinct security platforms
    */
   public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
-    Stream<InjectExpectation> allInjectExpectationsStream =
+    Stream<BaseInjectExpectation> allInjectExpectationsStream =
         extractInjectExpectationsFromInjects(injects);
     Set<String> assetIds =
         extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);

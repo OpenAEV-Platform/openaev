@@ -327,7 +327,7 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     Specification<InjectorContract> excludeTabletop =
         (root, query, cb) -> {
-          Join<InjectorContract, Injector> injectorJoin = root.join("injectors");
+          Join<?, Injector> injectorJoin = root.join("injectorLinks").join("injector");
           return cb.not(injectorJoin.get("type").in(TABLETOP_INJECTOR_TYPES));
         };
 

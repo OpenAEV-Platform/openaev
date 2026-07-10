@@ -785,6 +785,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -794,7 +795,7 @@ class InjectServiceTest {
 
     // MOCK
     when(smtpService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -821,6 +822,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -830,7 +832,7 @@ class InjectServiceTest {
 
     // MOCK
     when(imapService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -856,10 +858,11 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
     inject.getInjectorContract().get().setNeedsExecutor(true);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -886,14 +889,15 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     ObjectNode expectationDetection = mapper.createObjectNode();
     expectationDetection.put(
-        "expectation_type", InjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
+        "expectation_type", BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
 
     ObjectNode expectationPrevention = mapper.createObjectNode();
     expectationPrevention.put(
-        "expectation_type", InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
+        "expectation_type", BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
 
     ArrayNode expectationsArray = mapper.createArrayNode();
     expectationsArray.add(expectationDetection);
@@ -904,7 +908,7 @@ class InjectServiceTest {
     inject.setContent(content);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -933,6 +937,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
     inject
         .getInjectorContract()
         .get()
@@ -940,7 +945,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     Injector nmapInjector = new Injector();
     nmapInjector.setId("testNmap");
     nmapInjector.setType("openaev_nmap");
@@ -961,6 +966,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -969,7 +975,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -995,6 +1001,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -1003,7 +1010,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN

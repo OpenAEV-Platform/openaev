@@ -9,7 +9,8 @@ import { useHelper } from '../../../../store';
 import type { Endpoint, EndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import EndpointForm from './EndpointForm';
+import { type AssetCategory } from '../asset-categories';
+import AssetForm from '../AssetForm';
 
 interface Props {
   open: boolean;
@@ -59,14 +60,16 @@ const EndpointUpdate: FunctionComponent<Props> = ({
   if (loading) {
     return <Loader />;
   }
+  const category = (endpoint?.asset_category as AssetCategory) ?? 'HOST';
   return (
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={t('Update an endpoint')}
+      title={t('Update an asset')}
     >
-      <EndpointForm
-        initialValues={endpoint}
+      <AssetForm
+        category={category}
+        initialValues={endpoint as unknown as Partial<EndpointInput>}
         editing
         onSubmit={onSubmit}
         agentless={agentless}

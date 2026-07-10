@@ -41,9 +41,9 @@ public class SentinelOneGarbageCollectorService implements Runnable {
       List<SentinelOneAction> actions = new ArrayList<>();
       log.info("Running SentinelOne executor garbage collector on " + agents.size() + " agents");
       List<Agent> windowsAgents = getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Windows);
-      if (!windowsAgents.isEmpty()) {
+      for (Agent agent : windowsAgents) {
         SentinelOneAction action = new SentinelOneAction();
-        action.setAgents(windowsAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptId(this.config.getWindowsScriptId());
         action.setCommandEncoded(
             Base64.getEncoder()
@@ -54,9 +54,9 @@ public class SentinelOneGarbageCollectorService implements Runnable {
       List<Agent> unixAgents = new ArrayList<>();
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Linux));
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.MacOS));
-      if (!unixAgents.isEmpty()) {
+      for (Agent agent : unixAgents) {
         SentinelOneAction action = new SentinelOneAction();
-        action.setAgents(unixAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptId(this.config.getUnixScriptId());
         action.setCommandEncoded(
             Base64.getEncoder()

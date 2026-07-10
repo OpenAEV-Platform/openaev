@@ -71,34 +71,17 @@ public class InjectUtils {
           .orElseThrow(
               () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
     }
-    // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
-      return injectorContract.getFirstInjector();
+    // Auto-resolve from linked injectors (single-instance fallback)
+    if (injectorContract != null
+        && injectorContract.getInjectors() != null
+        && !injectorContract.getInjectors().isEmpty()) {
+      return injectorContract.getInjectors().getFirst();
     }
-    return null;
-  }
-
-  /**
-   * Resolves the {@link Injector} as a lightweight proxy reference (no SELECT query).
-   *
-   * <p>Use this variant when the injector is only needed for FK assignment (e.g. serialization via
-   * {@link io.openaev.helper.MonoIdSerializer} which only calls {@code getId()}). Accessing any
-   * property other than the ID on the returned proxy will trigger a lazy load.
-   *
-   * <p>If {@code injectorId} is blank/null, falls back to the contract's first linked injector.
-   *
-   * @param injectorId explicit injector ID from the input (may be null/blank)
-   * @param injectorContract the contract associated with the inject
-   * @return the resolved Injector proxy, or {@code null} if no contract is provided
-   */
-  public Injector resolveInjectorReference(
-      @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
-    if (StringUtils.isNotBlank(injectorId)) {
-      return injectorRepository.getReferenceById(injectorId);
-    }
-    // Auto-resolve from the contract's linked injector (single-instance fallback)
-    if (injectorContract != null && injectorContract.getFirstInjector() != null) {
-      return injectorContract.getFirstInjector();
+    if (injectorContract != null) {
+      return injectorRepository
+          .findFirstByContractsCompositeIdIdAndTenantId(
+              injectorContract.getId(), TenantContext.getCurrentTenant())
+          .orElse(null);
     }
     return null;
   }
@@ -265,7 +248,7 @@ public class InjectUtils {
    * @param inject the inject to get expectations from
    * @return a list of expectations matching the inject's direct targets
    */
-  public List<InjectExpectation> getPrimaryExpectations(Inject inject) {
+  public List<BaseInjectExpectation> getPrimaryExpectations(Inject inject) {
     List<String> firstIds = new ArrayList<>();
 
     firstIds.addAll(inject.getTeams().stream().map(Team::getId).toList());
@@ -277,13 +260,17 @@ public class InjectUtils {
         .filter(
             expectation -> {
               boolean teamMatch =
-                  expectation.getTeam() != null && firstIds.contains(expectation.getTeam().getId());
+                  expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
+                      && tableTopInjectExpectation.getTeam() != null
+                      && firstIds.contains(tableTopInjectExpectation.getTeam().getId());
               boolean assetMatch =
-                  isAssetExpectation(expectation)
-                      && firstIds.contains(expectation.getAsset().getId());
+                  expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                      && isAssetExpectation(technicalInjectExpectation)
+                      && firstIds.contains(technicalInjectExpectation.getAsset().getId());
               boolean assetGroupMatch =
-                  isAssetGroupExpectation(expectation)
-                      && firstIds.contains(expectation.getAssetGroup().getId());
+                  expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
+                      && isAssetGroupExpectation(technicalInjectExpectation)
+                      && firstIds.contains(technicalInjectExpectation.getAssetGroup().getId());
               return teamMatch || assetMatch || assetGroupMatch;
             })
         .collect(Collectors.toList());
@@ -378,7 +365,7 @@ public class InjectUtils {
    * @param injects to retrive all inject expectations
    * @return a stream of all retrieve inject expectations
    */
-  public static Stream<InjectExpectation> extractInjectExpectationsFromInjects(
+  public static Stream<BaseInjectExpectation> extractInjectExpectationsFromInjects(
       List<Inject> injects) {
     return injects.stream().flatMap(inject -> inject.getExpectations().stream());
   }

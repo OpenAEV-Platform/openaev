@@ -1,6 +1,5 @@
 package io.openaev.rest.collector.service;
 
-import static io.openaev.database.specification.CollectorSpecification.hasSecurityPlatform;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
@@ -22,7 +21,6 @@ import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -30,6 +28,7 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -135,8 +134,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return getConnectorRelationsId(collectorId);
   }
 
-  public List<Collector> securityPlatformCollectors() {
-    return fromIterable(collectorRepository.findAll(hasSecurityPlatform()));
+  public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
+    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
@@ -204,13 +203,23 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
-            ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
+            ? securityPlatformRepository
+                .findByIdAndTenantId(securityPlatformId, tenantId)
+                .orElse(null)
             : null;
+
+    if (securityPlatformId != null && securityPlatform == null) {
+      log.warn(
+          "SecurityPlatform {} not found for tenant {} during collector registration (collector: {})",
+          securityPlatformId,
+          tenantId,
+          id);
+    }
 
     if (collector == null) {
       collector = new Collector();
       collector.setId(id);
-      collector.setTenant(new Tenant(tenantId));
+      collector.setTenantId(tenantId);
       collector.setPeriod(period); // immutable after creation
     }
 

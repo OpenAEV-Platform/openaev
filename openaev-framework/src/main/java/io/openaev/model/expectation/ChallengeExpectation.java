@@ -1,7 +1,7 @@
 package io.openaev.model.expectation;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Challenge;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.model.Expectation;
 import java.util.Objects;
 import lombok.Getter;
@@ -52,7 +52,7 @@ public class ChallengeExpectation implements Expectation {
   }
 
   @Override
-  public InjectExpectation.EXPECTATION_TYPE type() {
-    return InjectExpectation.EXPECTATION_TYPE.CHALLENGE;
+  public BaseInjectExpectation.EXPECTATION_TYPE type() {
+    return BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE;
   }
 }

@@ -15,6 +15,7 @@ import io.openaev.injectors.channel.model.ChannelContent;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,7 +97,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(challengeInjectorContract.getId());
       this.injectorContract.setContent(challengeInjectorContract.getContent());
       this.injectorContract.setConvertedContent(challengeInjectorContract.getConvertedContent());
-      this.injectorContract.getInjectors().clear();
+      this.injectorContract.clearInjectors();
       this.injectorContract.addInjectors(challengeInjectorContract.getInjectors());
       this.injectorContract.setPlatforms(challengeInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(challengeInjectorContract.getUpdatedAt());
@@ -116,7 +117,7 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
       this.injectorContract.setId(articleInjectorContract.getId());
       this.injectorContract.setContent(articleInjectorContract.getContent());
       this.injectorContract.setConvertedContent(articleInjectorContract.getConvertedContent());
-      this.injectorContract.getInjectors().clear();
+      this.injectorContract.clearInjectors();
       this.injectorContract.addInjector(articleInjectorContract.getFirstInjector());
       this.injectorContract.setPlatforms(articleInjectorContract.getPlatforms());
       this.injectorContract.setUpdatedAt(articleInjectorContract.getUpdatedAt());
@@ -127,8 +128,22 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
     }
 
     public Composer withInjector(Injector injector) {
-      this.injectorContract.getInjectors().clear();
-      this.injectorContract.addInjector(injector);
+      // Leave the existing join row untouched only when the contract is already linked to exactly
+      // this injector AND that link carries the contract's current id. This preserves a managed
+      // well-known contract's link (re-adding it would orphan-delete then re-insert the same
+      // composite id, colliding in the session with EntityExistsException), while still rebuilding
+      // a stale link left by a fixture that linked the injector before the contract id was set (the
+      // link would otherwise point at the pre-setId contract id and violate the join foreign key).
+      List<InjectorInjectorContract> links = this.injectorContract.getInjectorLinks();
+      boolean alreadyCurrentlyLinked =
+          links.size() == 1
+              && Objects.equals(links.get(0).getInjectorId(), injector.getId())
+              && Objects.equals(
+                  links.get(0).getInjectorContractId(), this.injectorContract.getId());
+      if (!alreadyCurrentlyLinked) {
+        this.injectorContract.clearInjectors();
+        this.injectorContract.addInjector(injector);
+      }
       return this;
     }
 

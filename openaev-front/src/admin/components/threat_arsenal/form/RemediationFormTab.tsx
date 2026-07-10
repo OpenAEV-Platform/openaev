@@ -1,9 +1,8 @@
-import type { ClassicEditor } from 'ckeditor5';
+import { RichTextEditor, type RichTextEditorAdapter } from '@filigran/rich-text-editor';
 import { useRef } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { postDetectionRemediationAIRulesByPayload } from '../../../../actions/detection-remediation/detectionremediation-action';
-import CKEditor from '../../../../components/CKEditor';
 import { type Collector, type PayloadInput } from '../../../../utils/api-types';
 import { isNotEmptyField } from '../../../../utils/utils';
 import {
@@ -22,9 +21,8 @@ interface RemediationFormTabProps { activeTab: Collector }
 
 const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
   const { control, watch, setValue, getValues, formState: { isValid, defaultValues } } = useFormContext();
-
   const { snapshot, setSnapshot } = useSnapshotRemediation();
-  const editorRef = useRef<ClassicEditor | null>(null);
+  const editorRef = useRef<RichTextEditorAdapter | null>(null);
   const fieldName = 'remediations.' + activeTab.collector_type;
 
   const setLoadingSnapshot = (collectorType: string, isLoading: boolean) => {
@@ -49,8 +47,6 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     setValue(fieldName, updated);
 
     if (!editor) {
-      // Editor is not mounted yet (e.g. user triggered AI before CKEditor finished initialising):
-      // clear the loading flag so the UI doesn't stay stuck in `isLoading: true`.
       setLoadingSnapshot(activeTab.collector_type, false);
       return;
     }
@@ -113,6 +109,30 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
     });
   }
 
+  // Author rule update on user keypress (mirrors the CKEditor keyup listener)
+  const handleKeyUp = () => {
+    const latest = getValues(fieldName);
+    if (snapshot?.get(activeTab.collector_type)?.AIRules === latest.content) {
+      const isAiOutdated = hasSpecificDirtyFieldAI(
+        defaultValues,
+        snapshot?.get(activeTab.collector_type)?.trackedFields,
+        getValues(trackedFields),
+      );
+      const defaultAuthor = snapshot?.get(activeTab.collector_type)?.trackedFields == undefined
+        ? defaultValues?.['remediations'][activeTab.collector_type].author_rule
+        : 'AI';
+      setValue(fieldName, {
+        ...latest,
+        author_rule: isAiOutdated ? 'AI_OUTDATED' : defaultAuthor,
+      });
+    } else {
+      setValue(fieldName, {
+        ...latest,
+        author_rule: 'HUMAN',
+      });
+    }
+  };
+
   return (
     <>
       <div style={{
@@ -139,46 +159,26 @@ const RemediationFormTab = ({ activeTab }: RemediationFormTabProps) => {
           position: 'relative',
           display: activeTab.collector_type === activeTab.collector_type ? 'block' : 'none',
         }}
+        onKeyUp={handleKeyUp}
       >
         <Controller
           name={fieldName}
           control={control}
           defaultValue={{ content: '' }}
           render={({ field: { onChange, value } }) => (
-            <CKEditor
+            <RichTextEditor
+              variant="outlined"
               onReady={(editor) => {
                 editorRef.current = editor;
                 initSnap();
               }}
               id={'payload-remediation-editor' + activeTab.collector_type}
-              data={value?.content}
+              data={value?.content ?? ''}
               onChange={(_, editor) => {
                 const latest = getValues(fieldName);
-
                 onChange({
                   ...latest,
                   content: editor.getData(),
-                });
-
-                editor.editing.view.document.on('keyup', () => {
-                  const latest = getValues(fieldName);
-                  if (snapshot?.get(activeTab.collector_type)?.AIRules === latest.content) {
-                    const isAiOutdated = hasSpecificDirtyFieldAI(defaultValues, snapshot?.get(activeTab.collector_type)?.trackedFields, getValues(trackedFields));
-                    const defaultAuthor = snapshot?.get(activeTab.collector_type)?.trackedFields == undefined
-                      ? defaultValues?.['remediations'][activeTab.collector_type].author_rule
-                      : 'AI';
-                    onChange({
-                      ...latest,
-                      content: editor.getData(),
-                      author_rule: isAiOutdated ? 'AI_OUTDATED' : defaultAuthor,
-                    });
-                  } else {
-                    onChange({
-                      ...latest,
-                      content: editor.getData(),
-                      author_rule: 'HUMAN',
-                    });
-                  }
                 });
               }}
             />

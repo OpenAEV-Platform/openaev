@@ -2,7 +2,7 @@ package io.openaev.expectation;
 
 import static java.util.Optional.ofNullable;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import jakarta.validation.constraints.NotNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -199,7 +199,6 @@ public class ExpectationPropertiesConfig {
       case CHALLENGE -> getChallengeExpirationTime();
       case ARTICLE -> getArticleExpirationTime();
       case MANUAL -> getManualExpirationTime();
-      case DOCUMENT, TEXT -> getHumanExpirationTimeOrDefault();
     };
   }
 

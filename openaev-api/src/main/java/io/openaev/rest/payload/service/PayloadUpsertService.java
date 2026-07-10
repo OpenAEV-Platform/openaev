@@ -17,7 +17,7 @@ import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.tag.TagService;
-import jakarta.transaction.Transactional;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +25,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -44,9 +45,12 @@ public class PayloadUpsertService {
   private final InjectorContractRepository injectorContractRepository;
   private final DocumentService documentService;
   private final DomainService domainService;
+  private final ResultsMetricCollector resultsMetricCollector;
 
-  @Transactional(rollbackOn = Exception.class)
+  @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(PayloadUpsertInput input) {
+    // Telemetry: one payload upserted by a collector (attempts semantics).
+    resultsMetricCollector.recordPayloadUpserted();
     Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {

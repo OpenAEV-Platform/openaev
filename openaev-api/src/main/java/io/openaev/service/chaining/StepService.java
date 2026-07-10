@@ -36,6 +36,8 @@ public class StepService {
 
   private final StepRepository stepRepository;
 
+  static final List<StepStatus> ACTIVE_STEP_STATUS = List.of(StepStatus.READY, StepStatus.RUN);
+
   /**
    * Create a single step template.
    *
@@ -116,7 +118,7 @@ public class StepService {
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);
 
-    if (executionBatches == null) {
+    if (executionBatches == null || executionBatches.isEmpty()) {
       return List.of();
     }
 
@@ -204,6 +206,16 @@ public class StepService {
   public int countExecutedStep(String workflowRunId, String stepTemplateId) {
     return stepRepository.countStepExecutedByStepTemplateIdAndWorkflowRunId(
         workflowRunId, stepTemplateId);
+  }
+
+  /**
+   * Count active step by status
+   *
+   * @param workflowRunId id of the executed workflow
+   * @return long
+   */
+  public long countActiveSteps(String workflowRunId) {
+    return stepRepository.countActiveSteps(workflowRunId, ACTIVE_STEP_STATUS);
   }
 
   /**
@@ -480,16 +492,22 @@ public class StepService {
     existing.setData(updatedCandidate.getData());
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
-    Step updated = saveStep(existing);
 
     // Remove all existing conditions (full replace strategy),
     // but preserve conditions referenced by conditionIds so they can be re-linked
-    conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
+    conditionService.deleteAllConditionsByStepId(
+        stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
+
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
 
     // Recreate conditions from input (same logic as create)
-    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), updated);
-    conditionService.linkExistingConditionsToStep(updated, stepInput.getConditionIds());
-    return updated;
+    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
+    return saveStep(existing);
   }
 
   /**
@@ -575,11 +593,8 @@ public class StepService {
    * @param injectId inject id to find step id
    * @return optional step id
    */
-  public String findStepIdByInjectId(final String injectId) {
-    return stepRepository
-        .findStepIdByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Step id not found for inject id : " + injectId));
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
   }
 
   /**
@@ -600,26 +615,24 @@ public class StepService {
   }
 
   /**
-   * Returns all RUN and READY steps for a given workflow execution.
+   * Returns all active steps for a given workflow execution.
    *
    * @param id workflow run ID
-   * @return list of steps currently executing or ready
+   * @return list of steps active
    */
-  public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
-    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-        id, List.of(StepStatus.RUN, StepStatus.READY));
+  public List<Step> findAllStepActiveByWorkflowRunId(String id) {
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, ACTIVE_STEP_STATUS);
   }
 
   /**
-   * Ends all active steps (READY or RUN) for the given workflow run.
+   * Ends all active steps for the given workflow run.
    *
    * @param workflowId the workflow run ID
    * @return number of steps terminated
    */
   public int endActiveStepsByWorkflowId(String workflowId) {
     List<Step> activeSteps =
-        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-            workflowId, List.of(StepStatus.READY, StepStatus.RUN));
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(workflowId, ACTIVE_STEP_STATUS);
     for (Step step : activeSteps) {
       step.setStatus(StepStatus.END);
     }

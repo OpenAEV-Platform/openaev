@@ -160,8 +160,12 @@ public class InjectHelper {
   public List<ExecutableInject> getInjectsToRun() {
     // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
     entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    // Get injects
-    List<Inject> injects = this.injectRepository.findAll(InjectSpecification.executable());
+    // Get injects whose planned date can already be reached (coarse SQL filter); the exact
+    // pause-aware date check is still applied in memory below
+    List<Inject> injects =
+        this.injectRepository.findAll(
+            InjectSpecification.executable()
+                .and(InjectSpecification.plannedDateReachable(Instant.now())));
     Stream<ExecutableInject> executableInjects =
         injects.stream()
             .filter(this::isBeforeOrEqualsNow)

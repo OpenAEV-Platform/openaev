@@ -6,7 +6,7 @@ import Dialog from '../../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { PermissionsContext } from '../../Context';
@@ -41,7 +41,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   const [openEdit, setOpenEdit] = useState(false);
 
   // Hook must be called at the top level of the component
-  const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectation['inject_expectation_type']);
+  const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectationOutput['inject_expectation_type']);
 
   const getExpirationTime = (expirationTime: number): number => {
     if (expirationTime !== null && expirationTime !== undefined) {

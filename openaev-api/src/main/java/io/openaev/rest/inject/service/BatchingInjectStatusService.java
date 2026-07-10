@@ -14,7 +14,6 @@ import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -28,6 +27,8 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -59,7 +60,7 @@ public class BatchingInjectStatusService {
    * @param injectExecutionCallbacks the inject execution callbacks
    */
   @LogExecutionTime
-  @Transactional(Transactional.TxType.REQUIRES_NEW)
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
@@ -218,7 +219,27 @@ public class BatchingInjectStatusService {
         injectTraceQueueService.publish(callback);
         callbacksToRequeue.poll();
       } catch (Exception e) {
-        log.warn("Unable to requeue inject execution callback, keeping it in memory for retry", e);
+        log.warn(
+            "Unable to requeue inject execution callback injectId="
+                + callback.getInjectId()
+                + " agentId="
+                + callback.getAgentId()
+                + " retryCount="
+                + callback.getRetryCount()
+                + " message="
+                + (callback.getInjectExecutionInput() != null
+                    ? callback.getInjectExecutionInput().getMessage()
+                    : null)
+                + " outputStructured="
+                + (callback.getInjectExecutionInput() != null
+                    ? callback.getInjectExecutionInput().getOutputStructured()
+                    : null)
+                + " outputRaw="
+                + (callback.getInjectExecutionInput() != null
+                    ? callback.getInjectExecutionInput().getOutputRaw()
+                    : null)
+                + " , keeping it in memory for retry",
+            e);
         break;
       }
     }

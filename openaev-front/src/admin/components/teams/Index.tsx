@@ -20,8 +20,10 @@ const Index = () => {
     <div className={classes.root}>
       <Suspense fallback={<Loader />}>
         <Routes>
-          <Route path="" element={<Navigate to="players" replace={true} />} />
-          <Route path="players" element={errorWrapper(Players)()} />
+          <Route path="" element={<Navigate to="persons" replace={true} />} />
+          <Route path="persons" element={errorWrapper(Players)()} />
+          {/* Back-compat alias for the previous Players route. */}
+          <Route path="players" element={<Navigate to="../persons" replace={true} />} />
           <Route path="teams" element={errorWrapper(Teams)()} />
           <Route
             path="organizations"

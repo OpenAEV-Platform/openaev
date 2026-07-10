@@ -287,6 +287,30 @@ public interface ExerciseRepository
   List<RawFinishedExerciseWithInjects> rawLatestFinishedExercisesWithInjectsByScenarioId(
       @Param("scenarioId") String scenarioId);
 
+  /**
+   * Get the latest tenant-scoped exercise ids for a given status, ordered by end date descending
+   * (latest first) and capped at {@code limit} rows. Used to compute the tenant-wide MITRE ATT&CK
+   * coverage matrix when it is scoped to the latest N simulations. Only exercises with an end date
+   * are returned so the ordering is meaningful, and the LIMIT is applied at the database so callers
+   * never load the full result set into memory.
+   *
+   * @param status the exercise status name (e.g. {@code FINISHED})
+   * @param limit the maximum number of exercise ids to return
+   * @return the ordered list of exercise ids (latest end date first), at most {@code limit} entries
+   */
+  @Query(
+      value =
+          "SELECT ex.exercise_id "
+              + "FROM exercises ex "
+              + "WHERE ex.exercise_status = :status "
+              + "AND ex.exercise_end_date IS NOT NULL "
+              + "AND ex.tenant_id = :#{#tenantContext.currentTenant} "
+              + "ORDER BY ex.exercise_end_date DESC "
+              + "LIMIT :limit;",
+      nativeQuery = true)
+  List<String> findLatestExerciseIdsByStatus(
+      @Param("status") String status, @Param("limit") int limit);
+
   @Query(
       value =
           """
@@ -323,27 +347,49 @@ public interface ExerciseRepository
   /** Called by background job (scheduled task) — cross-tenant scoped by design. */
   @Query(
       value =
-          "WITH exercise_data AS ("
-              + "SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date, ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id, MAX(se.scenario_id) AS scenario_id, " // MAX here is used to get 1 element and not a list because we know that 1 exercise is linked to only 1 scenario
-              + "GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as exercise_injects_updated_at, "
-              + "array_agg(DISTINCT et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags, "
-              + "array_agg(DISTINCT ete.team_id) FILTER ( WHERE ete.team_id IS NOT NULL ) as exercise_teams, "
-              + "array_agg(DISTINCT ia.asset_id) FILTER ( WHERE ia.asset_id IS NOT NULL ) as exercise_assets, "
-              + "array_agg(DISTINCT iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as exercise_asset_groups, "
-              + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as exercise_platforms "
-              + "FROM exercises ex "
-              + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
-              + "LEFT JOIN exercises_teams ete ON ete.exercise_id = ex.exercise_id "
-              + "LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise "
-              + "LEFT JOIN injects_assets ia ON ia.inject_id = inj.inject_id "
-              + "LEFT JOIN injects_asset_groups iag ON iag.inject_id = inj.inject_id "
-              + "LEFT JOIN scenarios_exercises se ON ex.exercise_id = se.exercise_id "
-              + "LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract "
-              + "GROUP BY ex.exercise_id, ex.exercise_name, ex.exercise_created_at, ex.exercise_updated_at"
-              + ") "
-              + "SELECT * FROM exercise_data ed "
-              + "WHERE ed.exercise_injects_updated_at > :from "
-              + "ORDER BY ed.exercise_injects_updated_at ASC LIMIT :limit;",
+          """
+    WITH changed_exercises AS (
+        SELECT ex.exercise_id FROM exercises ex WHERE ex.exercise_updated_at > :from
+        UNION
+        SELECT inj.inject_exercise FROM injects inj WHERE inj.inject_updated_at > :from AND inj.inject_exercise IS NOT NULL
+        UNION
+        SELECT inj.inject_exercise FROM injects inj
+          JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+          WHERE ic.injector_contract_updated_at > :from AND inj.inject_exercise IS NOT NULL
+    ),
+    ranked_exercises AS (
+        SELECT ce.exercise_id FROM changed_exercises ce
+        JOIN exercises ex ON ex.exercise_id = ce.exercise_id
+        LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise
+        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+        GROUP BY ce.exercise_id, ex.exercise_updated_at
+        ORDER BY GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) ASC
+        LIMIT :limit
+    ),
+    exercise_data AS (
+        SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date,
+          ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id,
+          MAX(se.scenario_id) AS scenario_id,
+          GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as exercise_injects_updated_at,
+          array_agg(DISTINCT et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags,
+          array_agg(DISTINCT ete.team_id) FILTER ( WHERE ete.team_id IS NOT NULL ) as exercise_teams,
+          array_agg(DISTINCT ia.asset_id) FILTER ( WHERE ia.asset_id IS NOT NULL ) as exercise_assets,
+          array_agg(DISTINCT iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as exercise_asset_groups,
+          array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as exercise_platforms
+        FROM exercises ex
+        JOIN ranked_exercises re ON ex.exercise_id = re.exercise_id
+        LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id
+        LEFT JOIN exercises_teams ete ON ete.exercise_id = ex.exercise_id
+        LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise
+        LEFT JOIN injects_assets ia ON ia.inject_id = inj.inject_id
+        LEFT JOIN injects_asset_groups iag ON iag.inject_id = inj.inject_id
+        LEFT JOIN scenarios_exercises se ON ex.exercise_id = se.exercise_id
+        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+        GROUP BY ex.exercise_id, ex.exercise_name, ex.exercise_created_at, ex.exercise_updated_at
+    )
+    SELECT * FROM exercise_data ed
+    ORDER BY ed.exercise_injects_updated_at ASC
+    """,
       nativeQuery = true)
   List<RawSimulationIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);

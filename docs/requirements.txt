@@ -1,0 +1,9 @@
+mkdocs
+mkdocs-material
+mkdocs-git-authors-plugin
+mkdocs-git-committers-plugin-2
+mkdocs-git-revision-date-localized-plugin
+mkdocs-glightbox
+mkdocs-macros-plugin
+git+https://github.com/jimporter/mike
+lxml

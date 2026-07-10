@@ -5,6 +5,7 @@ import static io.openaev.database.model.ExerciseStatus.RUNNING;
 import io.openaev.database.model.CollectExecutionStatus;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.validation.constraints.NotBlank;
@@ -75,6 +76,36 @@ public class InjectSpecification {
     };
   }
 
+  /**
+   * Coarse SQL predicate keeping only injects whose planned date can already be reached: the
+   * exercise started at least {@code dependsDuration} seconds ago, or a trigger-now was requested.
+   * Pauses only push the planned date later, so this is a safe superset of the exact in-memory
+   * check ({@code isBeforeOrEqualsNow}) which must still be applied afterwards.
+   *
+   * <p>The reference is rounded up by one second on purpose: {@link Instant#getEpochSecond()}
+   * truncates to whole seconds while {@code date_part('epoch', start)} is fractional. Without the
+   * rounding {@code elapsedSeconds} could be under-counted by up to ~1s and wrongly exclude an
+   * inject whose {@code dependsDuration} was just reached (it would never be loaded, so the
+   * in-memory check could not re-include it). Over-counting by up to 1s only widens the candidate
+   * set, which the exact check then prunes, so this stays a true superset.
+   *
+   * @param now the reference instant
+   * @return the constructed specification
+   */
+  public static Specification<Inject> plannedDateReachable(Instant now) {
+    return (root, query, cb) -> {
+      Path<Object> exercisePath = root.get("exercise");
+      Expression<Double> startEpochSeconds =
+          cb.function(
+              "date_part", Double.class, cb.literal("epoch"), exercisePath.<Instant>get("start"));
+      Expression<Double> elapsedSeconds =
+          cb.diff(cb.literal((double) (now.getEpochSecond() + 1)), startEpochSeconds);
+      return cb.or(
+          cb.isNotNull(root.get("triggerNowDate")),
+          cb.lessThanOrEqualTo(root.get("dependsDuration").as(Double.class), elapsedSeconds));
+    };
+  }
+
   public static Specification<Inject> forAtomicTesting() {
     return Specification.<Inject>unrestricted()
         .and(isAtomicTesting())
@@ -118,7 +149,11 @@ public class InjectSpecification {
       if (query != null) {
         query.distinct(true);
       }
-      return root.join("injectorContract").join("injectors").get("type").in(VALID_TESTABLE_TYPES);
+      return root.join("injectorContract")
+          .join("injectorLinks")
+          .join("injector")
+          .get("type")
+          .in(VALID_TESTABLE_TYPES);
     };
   }
 

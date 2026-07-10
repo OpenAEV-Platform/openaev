@@ -21,6 +21,21 @@ Your job is to ensure no code introduces cross-tenant data leaks or breaks tenan
 5. **Read `.github/instructions/database.instructions.md`** for schema and migration conventions
 6. **Follow `.github/skills/review-multi-tenancy/SKILL.md`** step-by-step — run every command
 
+## Model Policy
+
+Use **Opus 4.6** for this review — cross-tenant reasoning is subtle and false negatives are critical.
+
+## Responsibility Boundary — Tenant Isolation Tests
+
+**Multi-Tenancy Reviewer** and **Test Specialist** have complementary, non-overlapping responsibilities:
+
+| Responsibility | Owner |
+|---|---|
+| **Writing** tenant isolation test code | ✅ Test Specialist |
+| **Verifying correctness** of isolation logic (filters, queries, scoping) | ✅ Multi-Tenancy Reviewer |
+
+When the Test Specialist writes isolation tests, flag this agent to verify the production isolation logic is correct.
+
 ## Severity Rubric
 
 | Severity | Criteria | Action |
@@ -78,14 +93,11 @@ For tenant-scoped tables:
 
 ## What NOT to Flag
 
-- Platform-level entities (`Tenant`) without `@Filter` → correct by design
-- Dual-scope entities (Settings, User, Role, Group) without `@Filter` → correct by design, scope enforced by services
-- `TenantContext.getCurrentTenant()` used in **legacy `io.openaev.rest` controllers** to pass tenant as argument to services → acceptable (legacy), but new code must use `TENANT_PREFIX` + `@PathVariable`
+In addition to **Shared Exceptions** in `AGENTS.md`:
+
 - `@PathVariable String tenantId` in new `io.openaev.api` controllers → this is the correct pattern
 - Service receiving `tenantId` as a method parameter (not calling `TenantContext` directly) → correct
-- Migration using default tenant UUID `2cffad3a-0001-4078-b0e2-ef74274022c3` → standard seed data
-- Test fixtures setting tenant context explicitly → test-only setup
-- `@JsonIgnore` already present on tenant relation → already handled
+- Test fixtures setting tenant context explicitly → test-only setup (distinct from hardcoded credentials)
 
 ## Output Format
 
@@ -115,4 +127,3 @@ Findings: 🔴 [n] Critical | 🟠 [n] High | 🟡 [n] Medium | 🟢 [n] Low
 - Focus exclusively on tenant isolation — leave RBAC to Security Reviewer, perf to Performance Reviewer
 - When unsure if an entity should be tenant-scoped, flag as 🟢 LOW with your reasoning
 - If you find a 🔴 CRITICAL leak, say so explicitly and recommend blocking the PR
-

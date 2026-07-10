@@ -27,7 +27,8 @@ public interface ConnectorInstanceRepository
   List<ConnectorInstancePersisted> findAllByCatalogConnectorId(String catalogConnectorId);
 
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
-  List<ConnectorInstancePersisted> findAllByTenantId(String tenantId);
+  List<ConnectorInstancePersisted> findAllByTenantIdAndCatalogConnectorClassName(
+      String tenantId, String className);
 
   /** Loads a single instance with configurations and catalogConnector eagerly initialized. */
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})

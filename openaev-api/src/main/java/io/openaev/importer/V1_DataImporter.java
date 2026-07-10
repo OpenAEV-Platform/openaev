@@ -138,6 +138,37 @@ public class V1_DataImporter implements Importer {
           return null;
         }
       }
+      // For payload injects, remap Document-type argument values so the inject references the
+      // newly uploaded document UUID rather than the original export UUID.
+      default -> {
+        try {
+          Optional<InjectorContract> contractOpt = injectorContractRepository.findById(contract);
+          if (contractOpt.isEmpty() || contractOpt.get().getPayload() == null) {
+            break;
+          }
+          List<String> docArgKeys =
+              contractOpt.get().getPayload().getArguments().stream()
+                  .filter(arg -> ArgumentType.Document == arg.getType())
+                  .map(PayloadArgument::getKey)
+                  .toList();
+          if (docArgKeys.isEmpty()) {
+            break;
+          }
+          ObjectNode contentNode = (ObjectNode) mapper.readTree(content);
+          for (String key : docArgKeys) {
+            JsonNode valueNode = contentNode.get(key);
+            if (valueNode != null && valueNode.isTextual()) {
+              Base newBase = baseIds.get(valueNode.asText());
+              if (newBase != null) {
+                contentNode.put(key, newBase.getId());
+              }
+            }
+          }
+          content = mapper.writeValueAsString(contentNode);
+        } catch (Exception e) {
+          // Error rewriting content, keep original
+        }
+      }
     }
     return content;
   }
@@ -1394,7 +1425,7 @@ public class V1_DataImporter implements Importer {
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
     Injector dummyInjector = createOrGetDummyInjector(importNode);
     injectorContract.addInjector(dummyInjector);
-    injectorContract.setTenant(dummyInjector.getTenant());
+    injectorContract.setTenant(new Tenant(dummyInjector.getTenantId()));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
 

@@ -350,7 +350,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               label={t('Input (describe what you want)')}
               value={messageInput}
               onChange={(value: string) => setMessageInput(value)}
-              style={{ height: 200 }}
             />
             <FormControl style={{
               width: '100%',
@@ -450,7 +449,6 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               label={t('Input (describe what you want)')}
               value={messageInput}
               onChange={(value: string) => setMessageInput(value)}
-              style={{ height: 200 }}
             />
             <FormControl style={{
               width: '100%',

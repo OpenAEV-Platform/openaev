@@ -27,13 +27,13 @@ public class StructuredOutputUtils {
   public Set<OutputParser> extractOutputParsers(Inject inject) {
     Optional<Payload> optionalPayload = inject.getPayload();
     if (optionalPayload.isEmpty()) {
-      log.info("No payload found for inject: " + inject.getId());
+      log.info("No payload found for inject: {}", inject.getId());
       return Collections.emptySet();
     }
 
     Set<OutputParser> outputParsers = optionalPayload.get().getOutputParsers();
     if (outputParsers == null || outputParsers.isEmpty()) {
-      log.info("No output parsers available for payload used in inject: " + inject.getId());
+      log.info("No output parsers available for payload used in inject: {}", inject.getId());
       return Collections.emptySet();
     }
     return outputParsers;

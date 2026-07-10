@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, HelpOutlineOutlined } from '@mui/icons-material';
+import { HelpOutlineOutlined } from '@mui/icons-material';
 import {
   List,
   ListItem,
@@ -33,6 +33,8 @@ import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
+import { humanizeEnum } from '../asset-categories';
+import AssetCategoryIcon from '../AssetCategoryIcon';
 import EndpointCreation from './EndpointCreation';
 import EndpointPopover from './EndpointPopover';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
@@ -43,13 +45,15 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  asset_name: { width: '25%' },
-  endpoint_active: { width: '10%' },
-  endpoint_agents_privilege: { width: '12%' },
-  endpoint_platform: { width: '10%' },
-  endpoint_arch: { width: '10%' },
-  endpoint_agents_executor: { width: '13%' },
-  asset_tags: { width: '15%' },
+  asset_name: { width: '16%' },
+  asset_category: { width: '12%' },
+  endpoint_active: { width: '9%' },
+  endpoint_agents_privilege: { width: '11%' },
+  endpoint_platform: { width: '9%' },
+  endpoint_arch: { width: '8%' },
+  endpoint_agents_executor: { width: '12%' },
+  asset_criticality: { width: '9%' },
+  asset_tags: { width: '14%' },
 };
 
 const Endpoints = () => {
@@ -63,6 +67,11 @@ const Endpoints = () => {
   const [search] = searchParams.getAll('search');
 
   const availableFilterNames = [
+    'asset_category',
+    'asset_subcategory',
+    'asset_criticality',
+    'asset_cloud_provider',
+    'asset_internet_facing',
     'endpoint_platform',
     'endpoint_arch',
     'asset_tags',
@@ -99,6 +108,22 @@ const Endpoints = () => {
       value: (endpoint: EndpointOutput) => endpoint.asset_name,
     },
     {
+      field: 'asset_category',
+      label: 'Category',
+      isSortable: true,
+      value: (endpoint: EndpointOutput) => (
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+        >
+          <AssetCategoryIcon category={endpoint.asset_category} fontSize="small" />
+          {endpoint.asset_category ? t(humanizeEnum(endpoint.asset_category)) : '-'}
+        </span>
+      ),
+    },
+    {
       field: EndpointListItemFragments.ENDPOINT_ACTIVE,
       label: 'Status',
       isSortable: false,
@@ -129,6 +154,12 @@ const Endpoints = () => {
       value: (endpoint: EndpointOutput) => <EndpointAgentsExecutorsFragment endpoint={endpoint} />,
     },
     {
+      field: 'asset_criticality',
+      label: 'Criticality',
+      isSortable: true,
+      value: (endpoint: EndpointOutput) => (endpoint.asset_criticality ? t(humanizeEnum(endpoint.asset_criticality)) : '-'),
+    },
+    {
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
       isSortable: false,
@@ -141,7 +172,7 @@ const Endpoints = () => {
       <Breadcrumbs
         variant="list"
         elements={[{ label: t('Assets') }, {
-          label: t('Endpoints'),
+          label: t('Inventory'),
           current: true,
         }]}
       />
@@ -203,7 +234,7 @@ const Endpoints = () => {
                       classes={{ root: classes.item }}
                     >
                       <ListItemIcon>
-                        <DevicesOtherOutlined color="primary" />
+                        <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
                       </ListItemIcon>
                       <ListItemText
                         primary={(

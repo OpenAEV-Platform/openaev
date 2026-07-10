@@ -13,6 +13,7 @@ const Endpoints = lazy(() => import('./endpoints/Endpoints'));
 const IndexEndpoint = lazy(() => import('./endpoints/endpoint/Index'));
 const AssetGroups = lazy(() => import('./asset_groups/AssetGroups'));
 const SecurityPlatforms = lazy(() => import('./security_platforms/SecurityPlatforms'));
+const AiTargets = lazy(() => import('./ai_targets/AiTargets'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
@@ -24,9 +25,9 @@ const Index = () => {
     <div className={classes.root}>
       <Suspense fallback={<Loader />}>
         <Routes>
-          <Route path="" element={<Navigate to={ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) ? 'endpoints' : 'security_platforms'} replace={true} />} />
+          <Route path="" element={<Navigate to={ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) ? 'inventory' : 'security_platforms'} replace={true} />} />
           <Route
-            path="endpoints"
+            path="inventory"
             element={(
               <ProtectedRoute
                 checks={[{
@@ -37,6 +38,8 @@ const Index = () => {
               />
             )}
           />
+          {/* Back-compat alias for the previous Endpoints list route. */}
+          <Route path="endpoints" element={<Navigate to="../inventory" replace={true} />} />
           <Route
             path="endpoints/:endpointId/*"
             element={(
@@ -70,6 +73,18 @@ const Index = () => {
                   subject: SUBJECTS.SECURITY_PLATFORMS,
                 }]}
                 Component={errorWrapper(SecurityPlatforms)()}
+              />
+            )}
+          />
+          <Route
+            path="ai_targets"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.ASSETS,
+                }]}
+                Component={errorWrapper(AiTargets)()}
               />
             )}
           />

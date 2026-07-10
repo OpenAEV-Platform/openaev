@@ -8,6 +8,7 @@ import io.openaev.database.model.*;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +30,7 @@ class WorkflowTimeoutServiceTest {
   @Mock private ExerciseService simulationService;
   @Mock private InjectService injectService;
   @Mock private InjectStatusService injectStatusService;
+  @Mock private ResultsMetricCollector resultsMetricCollector;
 
   @InjectMocks private WorkflowTimeoutService workflowTimeoutService;
 

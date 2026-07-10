@@ -157,7 +157,11 @@ class UserApiTest extends IntegrationTest {
 
     @AfterEach
     public void after() {
-      userRepository.deleteAll();
+      // Only remove the user created by this test. A blunt deleteAll() would also remove the
+      // bootstrap admin, who now belongs to the default-tenant "Administrators" group; deleting a
+      // group member through Hibernate without clearing the bidirectional users_groups link raises
+      // a TransientObjectException (see TenantGroupService.delete()).
+      userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
     }
 
     @DisplayName("With a known email")

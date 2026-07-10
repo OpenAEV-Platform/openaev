@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { createStep, updateStep } from '../../../../../actions/chaining/chaining-actions';
+import {
+  createCondition,
+  createStep,
+  updateCondition,
+  updateStep,
+} from '../../../../../actions/chaining/chaining-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import type {
   ConditionCreateInput,
@@ -12,9 +17,14 @@ import { MESSAGING$ } from '../../../../../utils/Environment';
 import AddActionList from '../drawer/AddActionList';
 import AddComponentDrawer from '../drawer/AddComponentDrawer';
 import ConfigureActionDetail from '../drawer/ConfigureActionDetail';
-import type { ActionDetailData, ActionMeta } from '../types';
+import ConfigureEventDetail from '../events/ConfigureEventDetail';
+import {
+  conditionGroupsToApi,
+  type EventFormData,
+} from '../events/event-types';
+import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
 
-export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail';
+export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail' | 'event';
 
 interface ChainingFlowConfigurationProps {
   workflowId: string | undefined;
@@ -29,7 +39,17 @@ interface ChainingFlowConfigurationProps {
     stepId: string;
     meta: ActionMeta;
   } | null) => void;
+  editingEvent: {
+    eventId: string;
+    meta: EventMeta;
+  } | null;
+  onEditingEventChange: (event: {
+    eventId: string;
+    meta: EventMeta;
+  } | null) => void;
   onStepCreated: () => void;
+  onEventCreated: () => void;
+  eventCount: number;
 }
 
 const ChainingFlowConfiguration = ({
@@ -39,7 +59,11 @@ const ChainingFlowConfiguration = ({
   onDrawerViewChange,
   editingStep,
   onEditingStepChange,
+  editingEvent,
+  onEditingEventChange,
   onStepCreated,
+  onEventCreated,
+  eventCount,
 }: ChainingFlowConfigurationProps) => {
   const { t } = useFormatter();
 
@@ -68,7 +92,7 @@ const ChainingFlowConfiguration = ({
       inject_injector_contract: meta.inject_injector_contract ?? '',
       inject_injector: meta.inject_injector,
       inject_assets: meta.inject_assets ?? [],
-      inject_content: {},
+      inject_content: meta.inject_content ?? {},
       inject_field_links: {},
       contract_fields: meta.contract_fields ?? [],
     };
@@ -100,14 +124,14 @@ const ChainingFlowConfiguration = ({
     onDrawerViewChange('closed');
     setSelectedAction(null);
     onEditingStepChange(null);
-  }, [onDrawerViewChange, onEditingStepChange]);
+    onEditingEventChange(null);
+  }, [onDrawerViewChange, onEditingStepChange, onEditingEventChange]);
 
   const handleSelectComponent = (type: 'action' | 'event') => {
     if (type === 'action') {
       onDrawerViewChange('action');
     } else {
-      // TODO: handle event creation drawers
-      onDrawerViewChange('closed');
+      onDrawerViewChange('event');
     }
   };
 
@@ -184,6 +208,7 @@ const ChainingFlowConfiguration = ({
     const stepPayload = {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION' as const,
+      step_condition_ids: editingStep?.meta.step_condition_ids ?? [],
       step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
       step_data_step: {
         inject_title: data.inject_title,
@@ -214,7 +239,34 @@ const ChainingFlowConfiguration = ({
     });
   };
 
-  // -- Events (future drawers will go here) --
+  // -- Events --
+  const handleSaveEvent = async (data: EventFormData) => {
+    if (!workflowId) return;
+
+    const apiConditions = conditionGroupsToApi(data.conditionGroups, data.groupOperators);
+    const event = {
+      event_name: data.name,
+      event_description: data.description || undefined,
+      event_workflow_id: workflowId,
+      event_conditions: apiConditions,
+    };
+
+    try {
+      if (editingEvent) {
+        await updateCondition(editingEvent.eventId, event);
+        MESSAGING$.notifySuccess(t('Event updated successfully.'));
+      } else {
+        await createCondition(event);
+        MESSAGING$.notifySuccess(t('Event added successfully.'));
+        onEventCreated();
+      }
+      handleCloseAll();
+      onStepCreated();
+    } catch {
+      if (editingEvent) MESSAGING$.notifyError(t('Failed to update event.'));
+      else MESSAGING$.notifyError(t('Failed to create event.'));
+    }
+  };
 
   // Resolve the action to show in ConfigureActionDetail
   const activeAction = editingAction ?? selectedAction;
@@ -242,6 +294,15 @@ const ChainingFlowConfiguration = ({
         onBack={editingStepId ? handleCloseAll : handleBackToActionList}
         onBackToRoot={handleCloseAll}
         onSave={handleSaveActionDetail}
+      />
+      <ConfigureEventDetail
+        open={drawerView === 'event'}
+        onClose={handleCloseAll}
+        onBack={editingEvent ? handleCloseAll : handleBackToChoose}
+        onSave={handleSaveEvent}
+        initialData={editingEvent?.meta.formData}
+        isEditing={!!editingEvent}
+        defaultEventName={!editingEvent ? `Event ${eventCount + 1}` : undefined}
       />
     </>
   );

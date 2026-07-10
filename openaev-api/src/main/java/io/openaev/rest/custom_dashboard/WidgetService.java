@@ -3,9 +3,9 @@ package io.openaev.rest.custom_dashboard;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Filters;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Widget;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.WidgetRepository;
@@ -164,8 +164,8 @@ public class WidgetService {
         this.convertWidgetToListConfiguration(widget, 0, attackPatternFilterValues);
     List<String> statusFilters =
         List.of(
-            InjectExpectation.EXPECTATION_STATUS.FAILED.name(),
-            InjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
+            BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name(),
+            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name());
     WidgetUtils.setOrAddFilterByKey(
         listInjectExpectationsConfig.getPerspective().getFilter(),
         "inject_expectation_status",

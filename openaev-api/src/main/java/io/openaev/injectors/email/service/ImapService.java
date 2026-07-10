@@ -207,61 +207,66 @@ public class ImapService extends ExternalServiceBase {
     for (Message message : messages) {
       MimeMessage mimeMessage = (MimeMessage) message;
       String messageID = mimeMessage.getMessageID();
-      boolean messageAlreadyAvailable = communicationRepository.existsByIdentifier(messageID);
-      if (!messageAlreadyAvailable) {
-        String content = getTextFromMessage(message);
-        String contentHtml = getHtmlFromMessage(message);
-        Inject inject = injectResolver(content, contentHtml);
-        List<String> participants = computeParticipants(message);
-        List<User> users = userRepository.findAllByEmailInIgnoreCase(participants);
-        if (inject != null && !users.isEmpty()) {
-          String subject = message.getSubject();
-          String from = String.valueOf(Arrays.stream(message.getFrom()).toList().get(0));
-          String to = String.valueOf(Arrays.stream(message.getAllRecipients()).toList());
-          Date receivedDate = message.getReceivedDate();
-          Date sentDate = message.getSentDate();
-          // Save messaging
-          Communication communication = new Communication();
-          communication.setReceivedAt(receivedDate.toInstant());
-          communication.setSentAt(sentDate.toInstant());
-          communication.setSubject(subject);
-          communication.setContent(content);
-          communication.setContentHtml(contentHtml);
-          communication.setIdentifier(messageID);
-          communication.setUsers(users);
-          communication.setInject(inject);
-          communication.setAnimation(isSent);
-          communication.setFrom(from);
-          communication.setTo(to);
-          try {
-            // Save the communication
-            Communication comm = communicationRepository.save(communication);
-            // Update inject for real time
-            inject.setUpdatedAt(now());
-            injectRepository.save(inject);
-            // Upload attachments in communication
-            final MimeMessageParser mimeParser = new MimeMessageParser(mimeMessage).parse();
-            final List<DataSource> attachmentList = mimeParser.getAttachmentList();
-            final List<String> uploads = new ArrayList<>();
-            String exerciseId = null;
-            if (inject.getExercise() != null) {
-              exerciseId = inject.getExercise().getId();
+      String content = getTextFromMessage(message);
+      String contentHtml = getHtmlFromMessage(message);
+      Inject inject = injectResolver(content, contentHtml);
+      if (inject != null) {
+        String tenantId = inject.getTenant().getId();
+        boolean messageAlreadyAvailable =
+            communicationRepository.existsByIdentifierAndInjectTenantId(messageID, tenantId);
+        if (!messageAlreadyAvailable) {
+          List<String> participants = computeParticipants(message);
+          List<User> users =
+              userRepository.findAllByEmailInIgnoreCaseAndTenantId(participants, tenantId);
+          if (!users.isEmpty()) {
+            String subject = message.getSubject();
+            String from = String.valueOf(Arrays.stream(message.getFrom()).toList().get(0));
+            String to = String.valueOf(Arrays.stream(message.getAllRecipients()).toList());
+            Date receivedDate = message.getReceivedDate();
+            Date sentDate = message.getSentDate();
+            // Save messaging
+            Communication communication = new Communication();
+            communication.setReceivedAt(receivedDate.toInstant());
+            communication.setSentAt(sentDate.toInstant());
+            communication.setSubject(subject);
+            communication.setContent(content);
+            communication.setContentHtml(contentHtml);
+            communication.setIdentifier(messageID);
+            communication.setUsers(users);
+            communication.setInject(inject);
+            communication.setAnimation(isSent);
+            communication.setFrom(from);
+            communication.setTo(to);
+            try {
+              // Save the communication
+              Communication comm = communicationRepository.save(communication);
+              // Update inject for real time
+              inject.setUpdatedAt(now());
+              injectRepository.save(inject);
+              // Upload attachments in communication
+              final MimeMessageParser mimeParser = new MimeMessageParser(mimeMessage).parse();
+              final List<DataSource> attachmentList = mimeParser.getAttachmentList();
+              final List<String> uploads = new ArrayList<>();
+              String exerciseId = null;
+              if (inject.getExercise() != null) {
+                exerciseId = inject.getExercise().getId();
+              }
+              for (DataSource dataSource : attachmentList) {
+                final String fileName = dataSource.getName();
+                String path =
+                    exerciseId != null
+                        ? "/" + exerciseId + "/communications/" + comm.getId()
+                        : "/communications/" + comm.getId();
+                String uploadName =
+                    fileService.uploadStream(path, fileName, dataSource.getInputStream());
+                uploads.add(uploadName);
+              }
+              // Add attachment in the communication
+              comm.setAttachments(uploads.toArray(String[]::new));
+              communicationRepository.save(comm);
+            } catch (Exception e) {
+              log.error(e.getMessage(), e);
             }
-            for (DataSource dataSource : attachmentList) {
-              final String fileName = dataSource.getName();
-              String path =
-                  exerciseId != null
-                      ? "/" + exerciseId + "/communications/" + comm.getId()
-                      : "/communications/" + comm.getId();
-              String uploadName =
-                  fileService.uploadStream(path, fileName, dataSource.getInputStream());
-              uploads.add(uploadName);
-            }
-            // Add attachment in the communication
-            comm.setAttachments(uploads.toArray(String[]::new));
-            communicationRepository.save(comm);
-          } catch (Exception e) {
-            log.error(e.getMessage(), e);
           }
         }
       }
