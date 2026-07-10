@@ -2,7 +2,7 @@ name: "[OpenAEV] Sync Project Status on PR Merge"
 
 on:
   pull_request:
-    branches: [ main, chore/pr-merge-status-sync ]
+    branches: [ main ]
     types: [ closed ]
   workflow_dispatch:
     inputs:
