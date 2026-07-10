@@ -25,4 +25,5 @@ public record AttackPathExecutionRow(
     String payloadName,
     Instant executedAt,
     String preventionStatus,
-    String detectionStatus) {}
+    String detectionStatus,
+    String stepTemplateId) {}
