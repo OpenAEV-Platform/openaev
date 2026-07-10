@@ -56,7 +56,7 @@ public record ChainingOutputType(
 
   private static void registerNonChainable(ContractOutputType outputType) {
     INDEX.put(
-        outputType, new ChainingOutputType(outputType, ChainingTypeKind.NON_CHAINABLE, null, null));
+        outputType, new ChainingOutputType(outputType, ChainingTypeKind.NOT_CHAINABLE, null, null));
   }
 
   public static ChainingOutputType fromContractOutputType(ContractOutputType type) {

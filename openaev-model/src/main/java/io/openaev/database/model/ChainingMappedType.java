@@ -21,6 +21,6 @@ public record ChainingMappedType(ChainingTypeKind kind, List<PrimitiveType> prim
   }
 
   public static ChainingMappedType nonChainable() {
-    return new ChainingMappedType(ChainingTypeKind.NON_CHAINABLE, List.of());
+    return new ChainingMappedType(ChainingTypeKind.NOT_CHAINABLE, List.of());
   }
 }

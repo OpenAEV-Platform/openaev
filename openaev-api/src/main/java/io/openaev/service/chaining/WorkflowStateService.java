@@ -271,7 +271,7 @@ public class WorkflowStateService {
         log.warn("Skipping output field '{}' because no primitive type mapping exists.", fieldName);
         continue;
       }
-      if (mappedType.kind() == ChainingTypeKind.NON_CHAINABLE) {
+      if (mappedType.kind() == ChainingTypeKind.NOT_CHAINABLE) {
         continue;
       }
 

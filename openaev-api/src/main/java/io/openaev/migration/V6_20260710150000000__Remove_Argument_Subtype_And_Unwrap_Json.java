@@ -5,7 +5,10 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/** Removes deprecated {@code subtype} from payload arguments in payloads and step snapshots. */
+/**
+ * Removes deprecated {@code subtype} from payload arguments and unwraps legacy wrapped JSON in
+ * inject status payload output.
+ */
 @Component
 public class V6_20260710150000000__Remove_Argument_Subtype_And_Unwrap_Json
     extends BaseJavaMigration {
@@ -29,6 +32,39 @@ public class V6_20260710150000000__Remove_Argument_Subtype_And_Unwrap_Json
               SELECT 1
               FROM json_array_elements(payload_arguments) argument
               WHERE argument::jsonb ? 'subtype'
+            );
+          """);
+
+      stmt.execute(
+          """
+          UPDATE injects_statuses
+          SET status_payload_output = (status_payload_output ->> 'value')::json
+          WHERE status_payload_output IS NOT NULL
+            AND json_typeof(status_payload_output) = 'object'
+            AND status_payload_output ->> 'type' = 'json'
+            AND status_payload_output -> 'value' IS NOT NULL;
+          """);
+
+      stmt.execute(
+          """
+          UPDATE injects_statuses
+          SET status_payload_output = jsonb_set(
+            status_payload_output::jsonb,
+            '{payload_arguments}',
+            (
+              SELECT COALESCE(
+                jsonb_agg(argument - 'subtype'),
+                '[]'::jsonb
+              )
+              FROM jsonb_array_elements(status_payload_output::jsonb -> 'payload_arguments') argument
+            )
+          )::json
+          WHERE status_payload_output IS NOT NULL
+            AND jsonb_typeof(status_payload_output::jsonb -> 'payload_arguments') = 'array'
+            AND EXISTS (
+              SELECT 1
+              FROM jsonb_array_elements(status_payload_output::jsonb -> 'payload_arguments') argument
+              WHERE argument ? 'subtype'
             );
           """);
     }

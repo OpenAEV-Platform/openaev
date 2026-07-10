@@ -84,9 +84,9 @@ class ChainingTypeRegistryTest {
     for (ContractOutputType type : ContractOutputType.values()) {
       ChainingTypeKind kind = ChainingTypeRegistry.getMappedTypeForContractOutputType(type).kind();
       if (type == ContractOutputType.ExpectationSignature) {
-        assertThat(kind).isEqualTo(ChainingTypeKind.NON_CHAINABLE);
+        assertThat(kind).isEqualTo(ChainingTypeKind.NOT_CHAINABLE);
       } else {
-        assertThat(kind).isNotEqualTo(ChainingTypeKind.NON_CHAINABLE);
+        assertThat(kind).isNotEqualTo(ChainingTypeKind.NOT_CHAINABLE);
       }
     }
   }
