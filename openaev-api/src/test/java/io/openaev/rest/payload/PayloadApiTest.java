@@ -507,7 +507,7 @@ class PayloadApiTest extends IntegrationTest {
       }
       assertNotNull(scanField, "Contract must contain a field for 'scan_result'");
       assertEquals("text", scanField.get("type").asText());
-      assertEquals("10.0.0.0/24", scanField.get("defaultValue").asText());
+      assertEquals("srv-01", scanField.get("defaultValue").asText());
     }
   }
 
