@@ -6,16 +6,12 @@ inputs:
     description: The last OpenAEV release number
     required: true
 
-env:
-  MIGRATIONS_IN_LAST_RELEASE_CMD="git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/"
-  MIGRATIONS_IN_BRANCH_CMD="find openaev-api/src/main/java/io/openaev/migration/* | sort"
-
 runs:
   using: composite
   steps:
     - name: Check new migrations block is strictly appended to the end since the last release
       run: |
-        DIFF_FILES=$(diff --side-by-side <(eval "${MIGRATIONS_IN_LAST_RELEASE_CMD}") <(eval "${MIGRATIONS_IN_BRANCH_CMD}") | tac)
+        DIFF_FILES=$(diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
         echo "Comparing migration files from the last release with the current branch... (reverse chronological order)"
         
         echo "Diff between release ${{ inputs.last-release-number }} and current branch (a chevron means a difference)"
