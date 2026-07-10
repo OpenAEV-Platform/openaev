@@ -1,17 +1,13 @@
 package io.openaev.service;
 
-import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.sso.GroupMapping;
+import io.openaev.utils.ReadPropertiesHelper;
 import jakarta.validation.constraints.NotBlank;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,7 +18,6 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.core.env.Environment;
 import org.springframework.security.core.AuthenticatedPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
@@ -35,11 +30,9 @@ public class UserMappingService {
 
   private final GroupRepository groupRepository;
   private final TenantRepository tenantRepository;
-  private final Environment env;
+  private final ReadPropertiesHelper readPropertiesHelper;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
-  public static final String TENANT_ID_SUFFIX = ".tenant_id";
-  public static final String USER_SCOPE_SUFFIX = ".user_scope";
 
   /**
    * Maps a user to OpenAEV groups based on SSO group mapping configuration. Resolves the tenant
@@ -57,9 +50,9 @@ public class UserMappingService {
         property,
         registrationId);
 
-    String providerTenantId = resolveProviderTenantId(registrationId);
+    String providerTenantId = readPropertiesHelper.resolveProviderTenantId(registrationId);
     Set<GroupScope> providerScopes = resolveProviderGroupScopes(registrationId);
-    List<GroupMapping> groupMappings = safeParseMappings(property);
+    List<GroupMapping> groupMappings = readPropertiesHelper.safeParseMappings(property);
 
     for (GroupMapping mapping : groupMappings) {
       String idpGroup = mapping.getIdpGroup();
@@ -118,41 +111,12 @@ public class UserMappingService {
     }
   }
 
-  private static List<GroupMapping> safeParseMappings(String json) {
-    if (json == null || json.isBlank()) {
-      return List.of();
-    }
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      return mapper.readValue(json, new TypeReference<>() {});
-    } catch (IOException e) {
-      // Log and return empty list instead of throwing
-      log.error("Failed to parse group mappings: {}", e.getMessage(), e);
-      return List.of();
-    }
-  }
-
-  /** Resolves the tenant ID from the provider configuration property. */
-  private String resolveProviderTenantId(String registrationId) {
-    if (registrationId == null || registrationId.isBlank()) {
-      return Tenant.DEFAULT_TENANT_UUID;
-    }
-    String configuredProviderTenantId =
-        env.getProperty(
-            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
-    if (configuredProviderTenantId == null || configuredProviderTenantId.isBlank()) {
-      return Tenant.DEFAULT_TENANT_UUID;
-    }
-    return configuredProviderTenantId;
-  }
-
+  // Read openaev.provider.<registrationID>>.user_scope=platform,tenant to know where to create
+  // groups.
+  // If not configured, default to tenant scope. If configured with an unknown value, log a warning
+  // and default to tenant scope.
   private Set<GroupScope> resolveProviderGroupScopes(String registrationId) {
-    if (registrationId == null || registrationId.isBlank()) {
-      return Set.of(GroupScope.TENANT);
-    }
-    String configuredScopes =
-        env.getProperty(
-            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + USER_SCOPE_SUFFIX, String.class, "");
+    String configuredScopes = readPropertiesHelper.resolveProviderUserScope(registrationId);
     if (configuredScopes == null || configuredScopes.isBlank()) {
       return Set.of(GroupScope.TENANT);
     }
@@ -174,8 +138,9 @@ public class UserMappingService {
             registrationId);
       }
     }
+
     if (scopes.isEmpty()) {
-      scopes.add(GroupScope.TENANT);
+      return Set.of(GroupScope.TENANT);
     }
     return scopes;
   }
@@ -184,7 +149,7 @@ public class UserMappingService {
     LinkedHashSet<String> scopes = new LinkedHashSet<>();
     for (GroupScope scope : providerScopes) {
       if (scope == GroupScope.PLATFORM) {
-        scopes.add(null);
+        scopes.add(null); // For platform group, tenantId is null
       } else {
         scopes.add(
             (tenantId != null && !tenantId.isBlank()) ? tenantId : Tenant.DEFAULT_TENANT_UUID);
@@ -349,9 +314,7 @@ public class UserMappingService {
    */
   private List<String> getProviderProperty(
       @NotBlank final String registrationId, final String property) {
-    String rolesPathConfig = OPENAEV_PROVIDER_PATH_PREFIX + registrationId + "." + property;
-    //noinspection unchecked
-    return env.getProperty(rolesPathConfig, List.class, new ArrayList<String>());
+    return readPropertiesHelper.getProviderPropertyAsList(registrationId, property);
   }
 
   private enum GroupScope {

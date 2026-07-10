@@ -12,6 +12,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.opencti.connectors.Constants;
 import io.openaev.service.UserMappingService;
+import io.openaev.utils.ReadPropertiesHelper;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
@@ -40,6 +41,7 @@ public class UserMappingServiceTest extends IntegrationTest {
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired UserComposer userComposer;
   @Autowired private UserMappingService userMappingService;
+  @Autowired private ReadPropertiesHelper readPropertiesHelper;
   @Autowired protected EntityManager entityManager;
 
   private static final String TEST_REGISTRATION_ID = "test";
@@ -48,12 +50,12 @@ public class UserMappingServiceTest extends IntegrationTest {
   @BeforeEach
   public void setup() {
     tenantGroupComposer.reset();
-    originalEnvironment = (Environment) ReflectionTestUtils.getField(userMappingService, "env");
+    originalEnvironment = (Environment) ReflectionTestUtils.getField(readPropertiesHelper, "env");
   }
 
   @AfterEach
   public void tearDown() {
-    ReflectionTestUtils.setField(userMappingService, "env", originalEnvironment);
+    ReflectionTestUtils.setField(readPropertiesHelper, "env", originalEnvironment);
   }
 
   private String tenantScopedId(String id) {
@@ -506,7 +508,7 @@ public class UserMappingServiceTest extends IntegrationTest {
       // -- ARRANGE ---
       Environment env = Mockito.mock(Environment.class);
 
-      ReflectionTestUtils.setField(userMappingService, "env", env);
+      ReflectionTestUtils.setField(readPropertiesHelper, "env", env);
       when(env.getProperty("openaev.provider.oidc.roles_path", List.class, new ArrayList<String>()))
           .thenReturn(List.of("roles"));
 
@@ -543,7 +545,7 @@ public class UserMappingServiceTest extends IntegrationTest {
       // -- ARRANGE ---
       Environment env = Mockito.mock(Environment.class);
 
-      ReflectionTestUtils.setField(userMappingService, "env", env);
+      ReflectionTestUtils.setField(readPropertiesHelper, "env", env);
       when(env.getProperty(
               "openaev.provider.oidc.groups_path", List.class, new ArrayList<String>()))
           .thenReturn(List.of("groups"));
@@ -581,7 +583,7 @@ public class UserMappingServiceTest extends IntegrationTest {
       // -- ARRANGE ---
       Environment env = Mockito.mock(Environment.class);
 
-      ReflectionTestUtils.setField(userMappingService, "env", env);
+      ReflectionTestUtils.setField(readPropertiesHelper, "env", env);
       when(env.getProperty("openaev.provider.saml.roles_path", List.class, new ArrayList<String>()))
           .thenReturn(List.of("roles"));
 
@@ -613,7 +615,7 @@ public class UserMappingServiceTest extends IntegrationTest {
       // -- ARRANGE ---
       Environment env = Mockito.mock(Environment.class);
 
-      ReflectionTestUtils.setField(userMappingService, "env", env);
+      ReflectionTestUtils.setField(readPropertiesHelper, "env", env);
       when(env.getProperty(
               "openaev.provider.saml.groups_path", List.class, new ArrayList<String>()))
           .thenReturn(List.of("groups"));
@@ -646,7 +648,7 @@ public class UserMappingServiceTest extends IntegrationTest {
       // -- ARRANGE ---
       Environment env = Mockito.mock(Environment.class);
 
-      ReflectionTestUtils.setField(userMappingService, "env", env);
+      ReflectionTestUtils.setField(readPropertiesHelper, "env", env);
       when(env.getProperty(
               "openaev.provider.oidc.groups_path", List.class, new ArrayList<String>()))
           .thenReturn(List.of("groups"));
@@ -677,9 +679,10 @@ public class UserMappingServiceTest extends IntegrationTest {
           .thenReturn(tenantId);
     }
     if (userScope != null) {
-      when(env.getProperty("openaev.provider." + registrationId + ".user_scope", String.class, ""))
+      when(env.getProperty(
+              "openaev.provider." + registrationId + ".user_scope", String.class, "{tenant}"))
           .thenReturn(userScope);
     }
-    ReflectionTestUtils.setField(userMappingService, "env", env);
+    ReflectionTestUtils.setField(readPropertiesHelper, "env", env);
   }
 }
