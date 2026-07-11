@@ -34,8 +34,8 @@ const GroupedEdge = ({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: selected ? theme.palette.primary.main : theme.palette.divider,
-          strokeWidth: selected ? 2 : 1,
+          stroke: selected ? theme.palette.primary.main : theme.palette.grey[500],
+          strokeWidth: selected ? 2.5 : 1.5,
         }}
       />
       {count > 1 && (

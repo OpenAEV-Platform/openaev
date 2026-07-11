@@ -59,10 +59,16 @@ const AttackPathPocFlow = ({ nodes, edges, onEndpointClick }: AttackPathPocFlowP
       proOptions={proOptions}
       fitView
       minZoom={0.05}
+      // Cull off-screen nodes: a large collapsed graph is hundreds of endpoints, so only paint the
+      // ones in the viewport to keep pan/zoom responsive.
+      onlyRenderVisibleElements
       style={{ background: 'transparent' }}
       defaultEdgeOptions={{
         type: 'apGrouped',
-        markerEnd: { type: MarkerType.ArrowClosed },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: theme.palette.grey[500],
+        },
       }}
     >
       <Background color={theme.palette.divider} gap={24} />
