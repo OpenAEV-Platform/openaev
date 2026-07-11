@@ -104,6 +104,7 @@ class AttackPathBenchmark extends IntegrationTest {
     ormOverhead(out, params, targets, sizeBySim);
     heavyColumnRead(out, params, targets, sizeBySim);
     explain(out, params, targets, sizeBySim);
+    indexOnOff(out, params, targets, sizeBySim);
 
     line(out, "\n## Notes");
     line(
@@ -117,7 +118,7 @@ class AttackPathBenchmark extends IntegrationTest {
         "  medium and full presets to see it (see results.md). Not volume-independent at scale.");
     line(
         out,
-        "- Index on/off and date-partition retention (DETACH/DROP) demos: see results.md direction.");
+        "- Date-partition retention (DETACH/DROP) is demonstrated by AttackPathPartitioningDemoTest.");
 
     Files.writeString(REPORT, out.toString());
     System.out.println(out);
@@ -274,6 +275,75 @@ class AttackPathBenchmark extends IntegrationTest {
         .getResultList();
   }
 
+  /**
+   * Drops {@code idx_ap_exec_sim}, re-measures the largest simulation's read (now a sequential scan
+   * of the whole table), then recreates it — a before/after that puts a number on the index. All
+   * inside the rolled-back transaction, so the schema is unchanged after the run.
+   */
+  private void indexOnOff(
+      StringBuilder out,
+      AttackPathSeedParams params,
+      List<String> targets,
+      Map<String, Long> sizes) {
+    String sim = targets.get(targets.size() - 1);
+    setScope(tenantOf(sim, params));
+    for (int i = 0; i < WARMUP; i++) {
+      executionRepository.findGraphRows(sim);
+    }
+    List<Long> withIndex = new ArrayList<>();
+    for (int i = 0; i < ITERATIONS; i++) {
+      long t0 = System.nanoTime();
+      executionRepository.findGraphRows(sim);
+      withIndex.add(System.nanoTime() - t0);
+    }
+
+    // Both indexes lead with simulation_id, so dropping only the single-column one leaves the
+    // composite to serve this read (a finding in itself). Drop both to force a real sequential
+    // scan.
+    ddl("DROP INDEX idx_ap_exec_sim");
+    ddl("DROP INDEX idx_ap_exec_sim_targetkey");
+    List<String> seqPlan =
+        rawRows(
+            "EXPLAIN SELECT id FROM attackpath_execution"
+                + " WHERE simulation_id = '"
+                + sim
+                + "' AND can_access_tenant(tenant_id)");
+    List<Long> withoutIndex = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      long t0 = System.nanoTime();
+      executionRepository.findGraphRows(sim);
+      withoutIndex.add(System.nanoTime() - t0);
+    }
+    ddl("CREATE INDEX idx_ap_exec_sim ON attackpath_execution (simulation_id)");
+    ddl(
+        "CREATE INDEX idx_ap_exec_sim_targetkey ON attackpath_execution"
+            + " (simulation_id, target_key)");
+
+    boolean seqScan = seqPlan.stream().anyMatch(l -> l.contains("Seq Scan"));
+    line(
+        out,
+        "\n## Index on/off — read of the largest simulation (%d rows)"
+            .formatted(sizes.getOrDefault(sim, 0L)));
+    line(
+        out,
+        "with idx_ap_exec_sim p50: %.0f ms | without it (%s) p50: %.0f ms"
+            .formatted(
+                ms(percentile(withIndex, 0.50)),
+                seqScan ? "seq scan" : "no index",
+                ms(percentile(withoutIndex, 0.50))));
+  }
+
+  private void ddl(String sql) {
+    entityManager
+        .unwrap(Session.class)
+        .doWork(
+            connection -> {
+              try (var statement = connection.createStatement()) {
+                statement.execute(sql);
+              }
+            });
+  }
+
   /** Gives the planner statistics on the freshly seeded (uncommitted) rows before measuring. */
   private void analyze() {
     entityManager
@@ -392,9 +462,11 @@ class AttackPathBenchmark extends IntegrationTest {
   }
 
   private AttackPathSeedParams preset() {
-    return "full".equals(presetName())
-        ? AttackPathSeedParams.full(SEED)
-        : AttackPathSeedParams.medium(SEED);
+    return switch (presetName()) {
+      case "full" -> AttackPathSeedParams.full(SEED);
+      case "large" -> AttackPathSeedParams.large(SEED);
+      default -> AttackPathSeedParams.medium(SEED);
+    };
   }
 
   private String presetName() {

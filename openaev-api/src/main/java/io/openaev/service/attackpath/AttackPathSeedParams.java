@@ -38,6 +38,12 @@ public record AttackPathSeedParams(
         20, 2, 20000, 50, 20, 4, 0.4, 0.15, 0.7, List.of(100_000), seed);
   }
 
+  /** Intermediate dataset (~2M) — the middle point for the volume-scaling comparison. */
+  public static AttackPathSeedParams large(long seed) {
+    return new AttackPathSeedParams(
+        80, 4, 25000, 50, 20, 4, 0.4, 0.15, 0.7, List.of(100_000), seed);
+  }
+
   /**
    * Headline dataset: at least 5,000,000 executions across ~200 simulations and a few tenants, plus
    * the ~100k / ~300k / ~500k single-simulation outliers. Used by the benchmark harness, not the
