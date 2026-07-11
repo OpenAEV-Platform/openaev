@@ -38,6 +38,7 @@ const Chat = lazy(() => import('./chat/Chat'));
 const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
+const SimulationAttackPathPoc = lazy(() => import('./attack_path_poc/SimulationAttackPathPoc'));
 
 const useStyles = makeStyles()(() => ({
   scheduling: {
@@ -54,6 +55,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
   const location = useLocation();
   const { classes } = useStyles();
   const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const isAttackPathPocEnabled = isFeatureEnabled('ATTACK_PATH_POC');
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
@@ -83,6 +85,8 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
     tabValue = `/admin/simulations/${exercise.exercise_id}/results`;
   } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/tests`)) {
     tabValue = `/admin/simulations/${exercise.exercise_id}/tests`;
+  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/attack-path`)) {
+    tabValue = `/admin/simulations/${exercise.exercise_id}/attack-path`;
   }
 
   return (
@@ -142,6 +146,14 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                               value={`/admin/simulations/${exercise.exercise_id}/animation`}
                               label={t('Animation')}
                             />
+                            {isAttackPathPocEnabled && (
+                              <Tab
+                                component={Link}
+                                to={`/admin/simulations/${exercise.exercise_id}/attack-path`}
+                                value={`/admin/simulations/${exercise.exercise_id}/attack-path`}
+                                label={t('Attack path')}
+                              />
+                            )}
                           </Tabs>
                         )
                       : (
@@ -194,6 +206,14 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                               value={`/admin/simulations/${exercise.exercise_id}/analysis`}
                               label={t('Analysis')}
                             />
+                            {isAttackPathPocEnabled && (
+                              <Tab
+                                component={Link}
+                                to={`/admin/simulations/${exercise.exercise_id}/attack-path`}
+                                value={`/admin/simulations/${exercise.exercise_id}/attack-path`}
+                                label={t('Attack path')}
+                              />
+                            )}
                           </Tabs>
                         )}
                     {permissionsContext.permissions.canManage && (
@@ -221,6 +241,7 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
                       <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
                       <Route path="scope" element={errorWrapper(SimulationScope)()} />
                       <Route path="logic" element={errorWrapper(SimulationLogic)()} />
+                      {isAttackPathPocEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPathPoc)()} />}
                       {/* Not found */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
