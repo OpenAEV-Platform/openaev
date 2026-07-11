@@ -4,6 +4,7 @@ import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
+import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import java.util.List;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -46,6 +47,16 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query("SELECT count(e) FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   long countExecutions(@Param("simulationId") String simulationId);
+
+  /**
+   * One summary row per simulation (id, distinct endpoints, executions) for the front's picker.
+   * {@code GROUP BY} on the tenant-filtered rows, ordered by size so the biggest sims come first.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow("
+          + "e.simulationId, count(distinct e.targetKey), count(e)) "
+          + "FROM AttackPathExecution e GROUP BY e.simulationId ORDER BY count(e) DESC")
+  List<AttackPathSimSummaryRow> findSimulationSummaries();
 
   /**
    * Collapsed mode: one endpoint per {@code target_key}, with a representative of its frozen

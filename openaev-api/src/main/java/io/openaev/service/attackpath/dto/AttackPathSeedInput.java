@@ -19,6 +19,7 @@ public record AttackPathSeedInput(String preset, Long seed, String tenantId) {
       case "full" -> AttackPathSeedParams.full(resolvedSeed);
       case "large" -> AttackPathSeedParams.large(resolvedSeed);
       case "medium" -> AttackPathSeedParams.medium(resolvedSeed);
+      case "nav" -> AttackPathSeedParams.navigation(resolvedSeed);
       default -> AttackPathSeedParams.smoke(resolvedSeed);
     };
   }

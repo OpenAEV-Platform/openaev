@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.config.SessionHelper;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
@@ -13,6 +14,7 @@ import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.http.HttpStatus;
@@ -59,6 +61,17 @@ public class AttackPathPocApi extends RestBehavior {
   public AttackPathDTO graph(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
     return graphService.buildGraph(simulationId, mode);
+  }
+
+  /**
+   * Simulations that have attack-path data in the caller's tenant (id, endpoint count, execution
+   * count), for the front's picker. Tenant-scoped through the {@link TxCtx} like every other read.
+   */
+  @GetMapping("/simulations")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public List<AttackPathSimSummaryRow> simulations(TxCtx ctx) {
+    return graphService.listSimulations();
   }
 
   /**

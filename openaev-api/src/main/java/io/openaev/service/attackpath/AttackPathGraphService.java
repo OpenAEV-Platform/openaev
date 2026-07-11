@@ -6,6 +6,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRo
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
@@ -92,6 +93,14 @@ public class AttackPathGraphService {
       return false;
     }
     return executionRepository.countExecutions(simulationId) > collapseThreshold;
+  }
+
+  /**
+   * Summaries of the simulations that have attack-path data in the caller's tenant, for the picker.
+   */
+  @Transactional(readOnly = true)
+  public List<AttackPathSimSummaryRow> listSimulations() {
+    return executionRepository.findSimulationSummaries();
   }
 
   @Transactional(readOnly = true)

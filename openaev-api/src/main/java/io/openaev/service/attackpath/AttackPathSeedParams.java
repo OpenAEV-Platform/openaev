@@ -32,6 +32,14 @@ public record AttackPathSeedParams(
     return new AttackPathSeedParams(6, 2, 20, 5, 3, 3, 0.3, 0.25, 0.67, List.of(200), seed);
   }
 
+  /**
+   * ~100-endpoint single simulation: the mid navigation dataset between the tiny demo and the
+   * benchmark sizes, to feel pan/zoom/expand on a real-but-navigable graph.
+   */
+  public static AttackPathSeedParams navigation(long seed) {
+    return new AttackPathSeedParams(1, 1, 3000, 100, 8, 4, 0.4, 0.15, 0.7, List.of(), seed);
+  }
+
   /** Mid dataset (~0.5M, one ~100k outlier) to validate the benchmark without the full run. */
   public static AttackPathSeedParams medium(long seed) {
     return new AttackPathSeedParams(

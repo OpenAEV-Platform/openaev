@@ -151,6 +151,30 @@ class AttackPathPocApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("GET /simulations lists the tenant's simulations with endpoint counts")
+  void simulations_list_returns_summaries() throws Exception {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-list-tenant"));
+    AttackPathExecution execution = new AttackPathExecution();
+    execution.setTenant(tenant);
+    execution.setSimulationId("SIM-LIST");
+    execution.setSourceKind("INJECTOR");
+    execution.setSourceInjector("nmap");
+    execution.setTargetKind("ASSET");
+    execution.setTargetAssetId("dc-9");
+    execution.setTargetKey("dc-9");
+    execution.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
+    execution.setPreventionStatus("Prevented");
+    executionRepository.save(execution);
+    entityManager.flush();
+
+    mvc.perform(get(AttackPathPocApi.ATTACK_PATH_POC_URI + "/simulations"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].simulationId").value("SIM-LIST"))
+        .andExpect(jsonPath("$[0].endpointCount").value(1))
+        .andExpect(jsonPath("$[0].executionCount").value(1));
+  }
+
+  @Test
   @DisplayName("POST /seed is allowed for an admin and returns the row counts")
   void seed_endpoint_returns_counts_for_admin() throws Exception {
     mvc.perform(post(AttackPathPocApi.ATTACK_PATH_POC_URI + "/seed").with(csrf()))
