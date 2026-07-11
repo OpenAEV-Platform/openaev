@@ -768,6 +768,14 @@ export interface AttackPathSeedResultDTO {
   simulations?: number;
 }
 
+export interface AttackPathSimSummaryRow {
+  /** @format int64 */
+  endpointCount?: number;
+  /** @format int64 */
+  executionCount?: number;
+  simulationId?: string;
+}
+
 export interface AttackPattern {
   /** @format date-time */
   attack_pattern_created_at?: string;

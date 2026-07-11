@@ -35,4 +35,10 @@ describe('attack path POC actions', () => {
     await fetchEndpointRelations('SIM-1', '10.0.0.1');
     expect(simpleCall).toHaveBeenCalledWith('/api/poc/attack-path/simulations/SIM-1/endpoint/relations?ref=10.0.0.1');
   });
+
+  it('fetchAttackPathSimulations hits the simulations list endpoint', async () => {
+    const { fetchAttackPathSimulations } = await importActions();
+    await fetchAttackPathSimulations();
+    expect(simpleCall).toHaveBeenCalledWith('/api/poc/attack-path/simulations');
+  });
 });

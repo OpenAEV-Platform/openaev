@@ -1,14 +1,14 @@
 import { Refresh } from '@mui/icons-material';
-import { Alert, Box, Chip, IconButton, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Chip, IconButton, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchAttackPathGraph, fetchEndpointFindings, fetchEndpointRelations } from '../../../../../actions/attack-path-poc/attack-path-poc-actions';
+import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations } from '../../../../../actions/attack-path-poc/attack-path-poc-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathNodeDTO } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-poc-colors';
 import { buildAttackPathFlow } from './attack-path-poc-flow-helpers';
 import AttackPathPocFlow from './AttackPathPocFlow';
@@ -70,9 +70,10 @@ const SimulationAttackPathPoc = () => {
   const theme = useTheme();
   const { t } = useFormatter();
 
-  // Default to this exercise's id; a text override lets the POC point at a seeded outlier simulation.
+  // Default to this exercise's id; the picker (or free text) lets the POC point at a seeded dataset.
   const [simulationInput, setSimulationInput] = useState(exerciseId ?? '');
   const [simulationId, setSimulationId] = useState(exerciseId ?? '');
+  const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
   const [mode, setMode] = useState<Mode>('collapsed');
   const [dto, setDto] = useState<AttackPathDTO | null>(null);
   const [loading, setLoading] = useState(false);
@@ -102,6 +103,11 @@ const SimulationAttackPathPoc = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Load the picker options once: the simulations that have attack-path data in this tenant.
+  useEffect(() => {
+    fetchAttackPathSimulations().then(r => setSimulations(r.data ?? []));
+  }, []);
 
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
     setSelectedNodeId(nodeId);
@@ -178,16 +184,56 @@ const SimulationAttackPathPoc = () => {
         flexWrap: 'wrap',
       }}
       >
-        <TextField
+        <Autocomplete
+          freeSolo
           size="small"
-          label={t('Simulation id')}
+          options={simulations}
           value={simulationInput}
-          onChange={e => setSimulationInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') applySimulation();
+          inputValue={simulationInput}
+          getOptionLabel={o => (typeof o === 'string' ? o : (o.simulationId ?? ''))}
+          filterOptions={(opts, state) => opts.filter(o => (o.simulationId ?? '').toLowerCase().includes(state.inputValue.toLowerCase()))}
+          onInputChange={(_, v) => setSimulationInput(v)}
+          onChange={(_, v) => {
+            const id = typeof v === 'string' ? v : v?.simulationId;
+            if (id) {
+              setSimulationInput(id);
+              setSimulationId(id);
+            }
           }}
-          onBlur={applySimulation}
-          sx={{ minWidth: 320 }}
+          renderOption={(props, o) => {
+            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
+            return (
+              <li
+                key={key}
+                {...rest}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                }}
+              >
+                <span>{o.simulationId}</span>
+                <span style={{
+                  marginLeft: 'auto',
+                  opacity: 0.65,
+                  fontSize: 12,
+                }}
+                >
+                  {`${o.endpointCount} ${t('endpoints')} · ${o.executionCount} ${t('exec.')}`}
+                </span>
+              </li>
+            );
+          }}
+          renderInput={params => (
+            <TextField
+              {...params}
+              label={t('Simulation id')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') applySimulation();
+              }}
+              onBlur={applySimulation}
+            />
+          )}
+          sx={{ minWidth: 440 }}
         />
         <ToggleButtonGroup
           size="small"
