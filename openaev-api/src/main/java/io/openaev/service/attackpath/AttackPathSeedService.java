@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import jakarta.persistence.EntityManager;
 import java.sql.Connection;
@@ -43,6 +44,11 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @RequiredArgsConstructor
+@AllowRawJdbc(
+    reason =
+        "seed generator bypasses the inspector on purpose (ADR-002): batched raw JDBC with tenant_id"
+            + " set explicitly on every row; the inspector adds no guarantee to a VALUES insert and"
+            + " is ~17x slower. Admin-only, flag-gated, isolated to this service.")
 public class AttackPathSeedService {
 
   // Small rows batch large; the execution rows carry the heavy command/terminal_output text, so
@@ -391,6 +397,8 @@ public class AttackPathSeedService {
    * whose per-statement parse otherwise caps bulk writes; {@code tenant_id} is set explicitly, so
    * no tenant guarantee is lost.
    */
+  @AllowRawJdbc(
+      reason = "batched multi-row INSERT for the seed generator; see the class reason above")
   private static final class BatchTable {
     private final Connection connection;
     private final String insertPrefix;
