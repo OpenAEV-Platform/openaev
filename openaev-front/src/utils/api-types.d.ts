@@ -680,6 +680,93 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackPathCounters {
+  /** @format int64 */
+  credentials?: number;
+  /** @format int64 */
+  cves?: number;
+  /** @format int64 */
+  endpoints?: number;
+  /** @format int64 */
+  ports?: number;
+  /** @format int64 */
+  users?: number;
+}
+
+export interface AttackPathDTO {
+  attackPathEdges?: AttackPathEdges[];
+  attackPathExecutions?: AttackPathNodeDTO[];
+  attackPathNodes?: AttackPathNodeDTO[];
+  counters?: AttackPathCounters;
+  mode?: string;
+  staticAttackPathFindings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathEdges {
+  /** @format int32 */
+  count?: number;
+  edgeId?: string;
+  edgeSourceId?: string;
+  edgeTargetId?: string;
+  executionIds?: string[];
+  label?: string;
+  type?: string;
+}
+
+export interface AttackPathEndpointRelationsDTO {
+  edges?: AttackPathEdges[];
+  executions?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathExpandDTO {
+  findingTypes?: AttackPathNodeDTO[];
+  findings?: AttackPathNodeDTO[];
+}
+
+export interface AttackPathNodeDTO {
+  agentName?: string;
+  agents?: string[];
+  arguments?: any[];
+  assetNodeId?: string;
+  command?: string;
+  executedAt?: string;
+  executionsTraces?: any[];
+  expectations?: any[];
+  findingCounts?: Record<string, number>;
+  findingsNodeIds?: string[];
+  findingsTypeNodeId?: string;
+  hostname?: string;
+  id?: string;
+  ip?: string;
+  label?: string;
+  payloadName?: string;
+  platform?: string;
+  privilege?: string;
+  ref?: string;
+  status?: string;
+  stepTemplateId?: string;
+  type?: string;
+  typeFindings?: string;
+  value?: string;
+}
+
+export interface AttackPathSeedInput {
+  preset?: string;
+  /** @format int64 */
+  seed?: number;
+}
+
+export interface AttackPathSeedResultDTO {
+  /** @format int64 */
+  elapsedMs?: number;
+  /** @format int64 */
+  executions?: number;
+  /** @format int64 */
+  findings?: number;
+  /** @format int64 */
+  simulations?: number;
+}
+
 export interface AttackPattern {
   /** @format date-time */
   attack_pattern_created_at?: string;
@@ -7225,6 +7312,7 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH_POC"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
@@ -7496,6 +7584,7 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "INJECT_CHAINING"
+    | "ATTACK_PATH_POC"
     | "AUDIT_LOG"
     | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
