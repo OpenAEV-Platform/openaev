@@ -45,7 +45,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AttackPathSeedService {
 
+  // Small rows batch large; the execution rows carry the heavy command/terminal_output text, so
+  // they
+  // batch smaller to keep each multi-row INSERT a sane size.
   private static final int BATCH_ROWS = 200;
+  private static final int EXECUTION_BATCH_ROWS = 50;
+  private static final int EXECS_PER_ENDPOINT = 250;
   private static final String SEED_ID_PREFIX = "ap-seed-";
   private static final Instant BASE_TIME = Instant.parse("2026-01-01T00:00:00Z");
 
@@ -55,6 +60,8 @@ public class AttackPathSeedService {
   private static final String[] INJECTORS = {
     "nmap", "hydra", "crackmapexec", "metasploit", "impacket"
   };
+  private static final String TERMINAL_LINE =
+      " bytes=4096 status=ok hash=a1b2c3d4e5f60718 latency_ms=12 conn=tcp/445 result=delivered";
 
   private static final String[] EXECUTION_COLUMNS = {
     "id",
@@ -77,7 +84,9 @@ public class AttackPathSeedService {
     "payload_name",
     "executed_at",
     "prevention_status",
-    "detection_status"
+    "detection_status",
+    "command",
+    "terminal_output"
   };
   private static final String[] FINDING_COLUMNS = {
     "id",
@@ -111,7 +120,7 @@ public class AttackPathSeedService {
     List<String> tenants = createTenants(connection, params);
 
     BatchTable executions =
-        new BatchTable(connection, "attackpath_execution", EXECUTION_COLUMNS, BATCH_ROWS);
+        new BatchTable(connection, "attackpath_execution", EXECUTION_COLUMNS, EXECUTION_BATCH_ROWS);
     BatchTable findings =
         new BatchTable(connection, "attackpath_finding", FINDING_COLUMNS, BATCH_ROWS);
     BatchTable links =
@@ -177,7 +186,10 @@ public class AttackPathSeedService {
       BatchTable findings,
       BatchTable links)
       throws SQLException {
-    int endpointCount = Math.max(2, Math.min(size, params.endpointsPerSimulation()));
+    // Endpoints scale with the simulation size (a real spray hits ~one endpoint per few hundred
+    // executions), so a 500k-execution outlier fans out to thousands of endpoints, not a fixed few.
+    int endpointCount =
+        Math.max(4, Math.min(size, params.endpointsPerSimulation() + size / EXECS_PER_ENDPOINT));
     List<Endpoint> endpoints = buildEndpoints(random, simulationId, endpointCount, params);
     List<Injector> injectors = buildInjectors(simulationId, params);
 
@@ -188,7 +200,8 @@ public class AttackPathSeedService {
     List<List<String>> findingIdsByEndpoint = new ArrayList<>();
     for (Endpoint endpoint : endpoints) {
       List<String> ids = new ArrayList<>();
-      for (int k = 0; k < params.findingsPerEndpoint(); k++) {
+      int findingsHere = 1 + random.nextInt(2 * params.findingsPerEndpoint());
+      for (int k = 0; k < findingsHere; k++) {
         FindingKind kind = findingKind(random, pool, simulationId, endpoint, k, params);
         String id = UUID.randomUUID().toString();
         findings.add(
@@ -214,9 +227,11 @@ public class AttackPathSeedService {
     List<String> executionIds = new ArrayList<>(size);
     int[] endpointOfExecution = new int[size];
     for (int x = 0; x < size; x++) {
-      int endpointIndex = x % endpoints.size();
+      // Power-law fan-out, not uniform: a few endpoints and injectors carry most executions (the
+      // hotspots a real attack path and its "+N" grouping have), the rest a long tail.
+      int endpointIndex = skewedIndex(random, endpoints.size(), 2.0);
       endpointOfExecution[x] = endpointIndex;
-      Injector injector = injectors.get(random.nextInt(injectors.size()));
+      Injector injector = injectors.get(skewedIndex(random, injectors.size(), 1.5));
       String executionId = UUID.randomUUID().toString();
       executionIds.add(executionId);
       executions.add(
@@ -334,8 +349,40 @@ public class AttackPathSeedService {
       injector.name() + "-payload",
       Timestamp.from(BASE_TIME.plusSeconds(random.nextInt(86_400))),
       random.nextDouble() < params.preventedRatio() ? "Prevented" : "Not Prevented",
-      random.nextBoolean() ? "Detected" : "Not Detected"
+      random.nextBoolean() ? "Detected" : "Not Detected",
+      command(injector, endpoint),
+      terminalOutput(random)
     };
+  }
+
+  private static String command(Injector injector, Endpoint endpoint) {
+    return injector.name()
+        + " --target "
+        + endpoint.key()
+        + " --payload "
+        + injector.name()
+        + "-payload --timeout 30 --format json --verbose";
+  }
+
+  /**
+   * A realistic terminal capture: most executions produce a short output, ~30% a verbose one large
+   * enough to be TOASTed off-row. This is what makes the short-column Read A meaningful — it never
+   * selects this column, so it stays cheap even though the row is wide on disk in production.
+   */
+  private static String terminalOutput(Random random) {
+    int lines = random.nextDouble() < 0.3 ? 20 + random.nextInt(50) : 2 + random.nextInt(7);
+    StringBuilder output = new StringBuilder(lines * 96);
+    for (int i = 0; i < lines; i++) {
+      output.append("[step ").append(i).append("]").append(TERMINAL_LINE).append('\n');
+    }
+    return output.toString();
+  }
+
+  /**
+   * Biases index selection toward 0 (exponent &gt; 1), so fan-out follows a power law, not uniform.
+   */
+  private static int skewedIndex(Random random, int bound, double exponent) {
+    return Math.min(bound - 1, (int) (bound * Math.pow(random.nextDouble(), exponent)));
   }
 
   /**

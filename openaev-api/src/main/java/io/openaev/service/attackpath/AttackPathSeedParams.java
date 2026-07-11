@@ -32,6 +32,12 @@ public record AttackPathSeedParams(
     return new AttackPathSeedParams(6, 2, 20, 5, 3, 3, 0.3, 0.25, 0.67, List.of(200), seed);
   }
 
+  /** Mid dataset (~0.5M, one ~100k outlier) to validate the benchmark without the full run. */
+  public static AttackPathSeedParams medium(long seed) {
+    return new AttackPathSeedParams(
+        20, 2, 20000, 50, 20, 4, 0.4, 0.15, 0.7, List.of(100_000), seed);
+  }
+
   /**
    * Headline dataset: at least 5,000,000 executions across ~200 simulations and a few tenants, plus
    * the ~100k / ~300k / ~500k single-simulation outliers. Used by the benchmark harness, not the
@@ -39,6 +45,6 @@ public record AttackPathSeedParams(
    */
   public static AttackPathSeedParams full(long seed) {
     return new AttackPathSeedParams(
-        200, 4, 25000, 400, 20, 4, 0.2, 0.15, 0.7, List.of(100_000, 300_000, 500_000), seed);
+        200, 4, 25000, 50, 20, 4, 0.4, 0.15, 0.7, List.of(100_000, 300_000, 500_000), seed);
   }
 }
