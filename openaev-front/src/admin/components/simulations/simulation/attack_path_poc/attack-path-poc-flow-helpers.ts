@@ -58,6 +58,10 @@ export interface AttackPathFlowNodeData {
 export interface AttackPathFlowEdgeData {
   count: number;
   edgeType?: string;
+  // GREEN/ORANGE/RED (from the target endpoint for execution edges; RED for finding edges) so the
+  // edge is coloured like the mockup; label shows the finding type on finding edges.
+  status?: string;
+  label?: string;
   [key: string]: unknown;
 }
 
@@ -76,16 +80,30 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
   agents: n.agents,
 });
 
-const toEdge = (e: AttackPathEdges): AttackPathFlowEdge => ({
-  id: e.edgeId ?? `${e.edgeSourceId}-${e.edgeTargetId}`,
-  source: e.edgeSourceId ?? '',
-  target: e.edgeTargetId ?? '',
-  type: AP_FLOW_EDGE_TYPE,
-  data: {
-    count: e.count ?? 1,
-    edgeType: e.type,
-  },
-});
+const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';
+
+// Enrich an edge with a status colour and an optional label: execution edges (injector -> endpoint)
+// take the target endpoint's status (a heatmap of the endpoint set); finding edges are red and carry
+// the finding type as their label.
+const toEdge = (
+  e: AttackPathEdges,
+  nodeById: Map<string, AttackPathFlowNode>,
+): AttackPathFlowEdge => {
+  const target = nodeById.get(e.edgeTargetId ?? '');
+  const isExecution = e.type === EDGE_EXECUTIONS;
+  return {
+    id: e.edgeId ?? `${e.edgeSourceId}-${e.edgeTargetId}`,
+    source: e.edgeSourceId ?? '',
+    target: e.edgeTargetId ?? '',
+    type: AP_FLOW_EDGE_TYPE,
+    data: {
+      count: e.count ?? 1,
+      edgeType: e.type,
+      status: isExecution ? target?.data.status : 'RED',
+      label: isExecution ? undefined : target?.data.typeFindings,
+    },
+  };
+};
 
 /**
  * Map an AttackPathDTO onto React Flow nodes and edges. Nodes are laid out in grid bands by kind;
@@ -134,9 +152,10 @@ export const buildAttackPathFlow = (
     bandStartX += subColumns * COL_W + BAND_GAP;
   }
 
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
   const edges = (dto.attackPathEdges ?? [])
     .filter(e => presentIds.has(e.edgeSourceId ?? '') && presentIds.has(e.edgeTargetId ?? ''))
-    .map(toEdge);
+    .map(e => toEdge(e, nodeById));
 
   return {
     nodes,
