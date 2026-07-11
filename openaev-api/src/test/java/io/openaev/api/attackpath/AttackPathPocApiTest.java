@@ -113,6 +113,44 @@ class AttackPathPocApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("GET /graph?mode=collapsed returns the DB-aggregated collapsed DTO")
+  void graph_collapsed_mode_returns_aggregated_dto() throws Exception {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-collapsed-ep"));
+    String sim = "SIM-COLLAPSED-EP";
+
+    AttackPathExecution execution = new AttackPathExecution();
+    execution.setTenant(tenant);
+    execution.setSimulationId(sim);
+    execution.setSourceKind("INJECTOR");
+    execution.setSourceInjector("nmap");
+    execution.setTargetKind("ASSET");
+    execution.setTargetAssetId("dc-01");
+    execution.setTargetKey("dc-01");
+    execution.setTargetHostname("CORP-DC-01");
+    execution.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
+    execution.setPreventionStatus("Prevented");
+    executionRepository.save(execution);
+
+    AttackPathFinding finding = new AttackPathFinding();
+    finding.setTenant(tenant);
+    finding.setSimulationId(sim);
+    finding.setType("credentials");
+    finding.setValue("admin:secret");
+    finding.setEndpointKey("dc-01");
+    findingRepository.save(finding);
+    entityManager.flush();
+
+    mvc.perform(
+            get(AttackPathPocApi.ATTACK_PATH_POC_URI + "/simulations/" + sim + "/graph")
+                .param("mode", "collapsed"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mode").value("collapsed"))
+        .andExpect(jsonPath("$.attackPathExecutions").isEmpty())
+        .andExpect(jsonPath("$.attackPathNodes").isNotEmpty())
+        .andExpect(jsonPath("$.counters.endpoints").value(1));
+  }
+
+  @Test
   @DisplayName("POST /seed is allowed for an admin and returns the row counts")
   void seed_endpoint_returns_counts_for_admin() throws Exception {
     mvc.perform(post(AttackPathPocApi.ATTACK_PATH_POC_URI + "/seed").with(csrf()))

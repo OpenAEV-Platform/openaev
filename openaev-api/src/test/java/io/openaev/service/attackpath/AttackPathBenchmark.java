@@ -303,23 +303,29 @@ class AttackPathBenchmark extends IntegrationTest {
     }
 
     // idx_ap_exec_sim_targetkey is the only simulation_id index (the redundant single-column
-    // idx_ap_exec_sim was removed), so dropping it forces a real sequential scan.
-    ddl("DROP INDEX idx_ap_exec_sim_targetkey");
-    List<String> seqPlan =
-        rawRows(
-            "EXPLAIN SELECT id FROM attackpath_execution"
-                + " WHERE simulation_id = '"
-                + sim
-                + "' AND can_access_tenant(tenant_id)");
+    // idx_ap_exec_sim was removed), so dropping it forces a real sequential scan. Recreate it in a
+    // finally: this DDL is not reliably rolled back with the test transaction, so a failure between
+    // the drop and the recreate would otherwise leave the schema without the index.
+    List<String> seqPlan;
     List<Long> withoutIndex = new ArrayList<>();
-    for (int i = 0; i < 3; i++) {
-      long t0 = System.nanoTime();
-      executionRepository.findGraphRows(sim);
-      withoutIndex.add(System.nanoTime() - t0);
+    ddl("DROP INDEX idx_ap_exec_sim_targetkey");
+    try {
+      seqPlan =
+          rawRows(
+              "EXPLAIN SELECT id FROM attackpath_execution"
+                  + " WHERE simulation_id = '"
+                  + sim
+                  + "' AND can_access_tenant(tenant_id)");
+      for (int i = 0; i < 3; i++) {
+        long t0 = System.nanoTime();
+        executionRepository.findGraphRows(sim);
+        withoutIndex.add(System.nanoTime() - t0);
+      }
+    } finally {
+      ddl(
+          "CREATE INDEX IF NOT EXISTS idx_ap_exec_sim_targetkey ON attackpath_execution"
+              + " (simulation_id, target_key)");
     }
-    ddl(
-        "CREATE INDEX idx_ap_exec_sim_targetkey ON attackpath_execution"
-            + " (simulation_id, target_key)");
 
     boolean seqScan = seqPlan.stream().anyMatch(l -> l.contains("Seq Scan"));
     line(

@@ -56,8 +56,9 @@ public class AttackPathPocApi extends RestBehavior {
   @GetMapping("/simulations/{simulationId}/graph")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
-  public AttackPathDTO graph(TxCtx ctx, @PathVariable String simulationId) {
-    return graphService.buildGraph(simulationId);
+  public AttackPathDTO graph(
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
+    return graphService.buildGraph(simulationId, mode);
   }
 
   /**

@@ -1,8 +1,12 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
@@ -21,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +63,36 @@ public class AttackPathGraphService {
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
+
+  /**
+   * Above this many executions a simulation is served collapsed by default. Tied to the front
+   * render ceiling (T12), not the backend latency: a full graph of more nodes than this is not
+   * renderable.
+   */
+  @Value("${openaev.attackpath.collapse-threshold:20000}")
+  private long collapseThreshold;
+
+  /**
+   * Graph for a simulation, choosing the mode: {@code full} or {@code collapsed} forces it,
+   * otherwise a large simulation (more executions than the collapse threshold) is served collapsed.
+   * A cheap indexed {@code COUNT} decides; it costs a fraction of the collapsed rebuild.
+   */
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildGraph(String simulationId, String requestedMode) {
+    return resolveCollapsed(simulationId, requestedMode)
+        ? buildCollapsedGraph(simulationId)
+        : buildGraph(simulationId);
+  }
+
+  private boolean resolveCollapsed(String simulationId, String requestedMode) {
+    if ("collapsed".equals(requestedMode)) {
+      return true;
+    }
+    if ("full".equals(requestedMode)) {
+      return false;
+    }
+    return executionRepository.countExecutions(simulationId) > collapseThreshold;
+  }
 
   @Transactional(readOnly = true)
   public AttackPathDTO buildGraph(String simulationId) {
@@ -212,7 +247,113 @@ public class AttackPathGraphService {
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(nodes.values()),
         new ArrayList<>(edges.values()),
-        counters);
+        counters,
+        "full");
+  }
+
+  /**
+   * Collapsed rebuild for a large simulation (issue 6647, ADR-002): the same {@link AttackPathDTO}
+   * with {@code mode = collapsed}, built entirely from DB aggregations, so the per-execution and
+   * per-finding rows are never materialized. Nodes are the injectors and one node per endpoint
+   * (carrying its status and a per-type finding-count summary); edges are grouped; the
+   * per-execution and per-finding lists are empty, and the front loads detail on click via the
+   * expand/relations endpoints.
+   */
+  @Transactional(readOnly = true)
+  public AttackPathDTO buildCollapsedGraph(String simulationId) {
+    List<AttackPathEndpointGroupRow> endpoints =
+        executionRepository.findEndpointGroups(simulationId);
+    List<AttackPathEdgeGroupRow> edges = executionRepository.findEdgeGroups(simulationId);
+    List<AttackPathTypeCountRow> typeCounts = findingRepository.findTypeCounts(simulationId);
+    List<AttackPathEndpointTypeCountRow> endpointTypeCounts =
+        findingRepository.findEndpointTypeCounts(simulationId);
+
+    Map<String, Map<String, Long>> findingCountsByEndpoint = new LinkedHashMap<>();
+    for (AttackPathEndpointTypeCountRow row : endpointTypeCounts) {
+      findingCountsByEndpoint
+          .computeIfAbsent(row.endpointKey(), k -> new LinkedHashMap<>())
+          .put(row.type(), row.distinctValues());
+    }
+
+    Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
+    for (AttackPathEndpointGroupRow e : endpoints) {
+      String nodeId = AttackPathIds.endpointNode(e.targetKey());
+      AttackPathNodeDTO node = new AttackPathNodeDTO();
+      node.setId(nodeId);
+      node.setType(TYPE_ASSET);
+      node.setHostname(e.targetHostname());
+      node.setIp(e.targetIp());
+      node.setPlatform(e.targetPlatform());
+      node.setLabel(e.targetHostname() != null ? e.targetHostname() : e.targetKey());
+      node.setStatus(collapsedColour(e.prevented(), e.total()));
+      node.setFindingCounts(findingCountsByEndpoint.get(e.targetKey()));
+      nodes.put(nodeId, node);
+    }
+
+    List<AttackPathEdges> collapsedEdges = new ArrayList<>();
+    for (AttackPathEdgeGroupRow g : edges) {
+      String sourceNodeId = collapsedSourceNodeId(g);
+      nodes.computeIfAbsent(sourceNodeId, id -> collapsedSourceNode(g, id));
+      String targetNodeId = AttackPathIds.endpointNode(g.targetKey());
+      AttackPathEdges edge =
+          plainEdge(
+              AttackPathIds.executionsEdge(sourceNodeId, targetNodeId),
+              sourceNodeId,
+              targetNodeId,
+              EDGE_EXECUTIONS);
+      edge.setCount((int) g.count());
+      collapsedEdges.add(edge);
+    }
+
+    return new AttackPathDTO(
+        List.of(),
+        List.of(),
+        new ArrayList<>(nodes.values()),
+        collapsedEdges,
+        collapsedCounters(endpoints.size(), typeCounts),
+        "collapsed");
+  }
+
+  private AttackPathCounters collapsedCounters(
+      int endpoints, List<AttackPathTypeCountRow> typeCounts) {
+    long credentials = 0;
+    long users = 0;
+    long cves = 0;
+    long ports = 0;
+    for (AttackPathTypeCountRow t : typeCounts) {
+      switch (t.type()) {
+        case "credentials" -> credentials += t.distinctValues();
+        case "username", "admin_username" -> users += t.distinctValues();
+        case "cve" -> cves += t.distinctValues();
+        case "port" -> ports += t.distinctValues();
+        default -> {
+          // other finding types do not feed a top-bar counter
+        }
+      }
+    }
+    return new AttackPathCounters(endpoints, credentials, users, cves, ports);
+  }
+
+  private String collapsedColour(long prevented, long total) {
+    if (total > 0 && prevented == total) {
+      return GREEN;
+    }
+    if (prevented == 0) {
+      return RED;
+    }
+    return ORANGE;
+  }
+
+  private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
+    return SOURCE_INJECTOR.equals(g.sourceKind())
+        ? AttackPathIds.injectorNode(g.sourceInjector())
+        : AttackPathIds.endpointNode(g.sourceAssetId());
+  }
+
+  private AttackPathNodeDTO collapsedSourceNode(AttackPathEdgeGroupRow g, String id) {
+    return SOURCE_INJECTOR.equals(g.sourceKind())
+        ? node(id, TYPE_INJECTOR, g.sourceInjector())
+        : node(id, TYPE_ASSET, g.sourceAssetId());
   }
 
   private String sourceNodeId(AttackPathExecutionRow e) {

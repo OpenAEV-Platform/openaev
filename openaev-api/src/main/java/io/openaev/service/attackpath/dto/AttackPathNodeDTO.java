@@ -2,6 +2,7 @@ package io.openaev.service.attackpath.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,6 +28,8 @@ public class AttackPathNodeDTO {
   private String ip;
   private String platform;
   private List<String> agents;
+  // Collapsed mode only: distinct finding values per type on this endpoint (finding_type -> count).
+  private Map<String, Long> findingCounts;
 
   // EXECUTION (left feed)
   private String payloadName;

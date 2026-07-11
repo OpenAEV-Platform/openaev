@@ -2,7 +2,9 @@ package io.openaev.database.repository.attackpath;
 
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
+import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import java.util.List;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -34,4 +36,27 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
           + "WHERE f.simulationId = :simulationId AND f.endpointKey = :endpointKey")
   List<AttackPathEndpointFindingRow> findByEndpoint(
       @Param("simulationId") String simulationId, @Param("endpointKey") String endpointKey);
+
+  /**
+   * Collapsed mode: the top-bar counters, one row per finding type with its distinct-value count. A
+   * {@code GROUP BY}, so the per-finding rows are never materialized.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow("
+          + "f.type, count(distinct f.value)) "
+          + "FROM AttackPathFinding f WHERE f.simulationId = :simulationId GROUP BY f.type")
+  List<AttackPathTypeCountRow> findTypeCounts(@Param("simulationId") String simulationId);
+
+  /**
+   * Collapsed mode: per-endpoint finding-type counts, to summarise findings on each collapsed
+   * endpoint node. A {@code GROUP BY endpoint_key, type}, so the per-finding rows are never
+   * materialized.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow("
+          + "f.endpointKey, f.type, count(distinct f.value)) "
+          + "FROM AttackPathFinding f WHERE f.simulationId = :simulationId "
+          + "GROUP BY f.endpointKey, f.type")
+  List<AttackPathEndpointTypeCountRow> findEndpointTypeCounts(
+      @Param("simulationId") String simulationId);
 }

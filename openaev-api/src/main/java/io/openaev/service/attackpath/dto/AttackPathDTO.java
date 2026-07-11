@@ -13,6 +13,9 @@ import java.util.List;
  *   <li>{@code attackPathNodes} — every node for the map (injector, asset, finding type, finding).
  *   <li>{@code attackPathEdges} — the edges.
  *   <li>{@code counters} — top-bar counts (D2).
+ *   <li>{@code mode} — {@code full} (every node) or {@code collapsed} (DB-aggregated: injector and
+ *       endpoint nodes with per-type finding counts, grouped edges, counters; the per-execution and
+ *       per-finding lists are empty, and detail is loaded on click). See ADR-002.
  * </ul>
  */
 public record AttackPathDTO(
@@ -20,4 +23,5 @@ public record AttackPathDTO(
     List<AttackPathNodeDTO> attackPathExecutions,
     List<AttackPathNodeDTO> attackPathNodes,
     List<AttackPathEdges> attackPathEdges,
-    AttackPathCounters counters) {}
+    AttackPathCounters counters,
+    String mode) {}
