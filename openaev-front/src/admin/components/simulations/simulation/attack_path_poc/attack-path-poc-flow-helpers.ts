@@ -25,17 +25,21 @@ const DTO_TYPE_TO_FLOW: Record<string, string> = {
   FINDING: AP_FLOW_NODE_TYPE.finding,
 };
 
-// Left-to-right column per node kind: injector -> endpoint -> finding type -> finding.
-const COLUMN: Record<string, number> = {
-  [AP_FLOW_NODE_TYPE.injector]: 0,
-  [AP_FLOW_NODE_TYPE.asset]: 1,
-  [AP_FLOW_NODE_TYPE.findingType]: 2,
-  [AP_FLOW_NODE_TYPE.finding]: 3,
-};
-
 const PADDING = 40;
-const X_GAP = 340;
-const Y_GAP = 90;
+// Each node kind is a left-to-right band; within a band nodes wrap into a grid (MAX_ROWS tall) so a
+// large simulation's hundreds of endpoints read as a compact block, not a single 40,000px column.
+const COL_W = 300;
+const ROW_H = 88;
+const MAX_ROWS = 22;
+const BAND_GAP = 160;
+
+// Left-to-right order of the type bands.
+const BAND_ORDER = [
+  AP_FLOW_NODE_TYPE.injector,
+  AP_FLOW_NODE_TYPE.asset,
+  AP_FLOW_NODE_TYPE.findingType,
+  AP_FLOW_NODE_TYPE.finding,
+];
 
 export interface AttackPathFlowNodeData {
   label?: string;
@@ -83,7 +87,7 @@ const toEdge = (e: AttackPathEdges): AttackPathFlowEdge => ({
 });
 
 /**
- * Map an AttackPathDTO onto React Flow nodes and edges. Nodes are laid out in columns by kind;
+ * Map an AttackPathDTO onto React Flow nodes and edges. Nodes are laid out in grid bands by kind;
  * edges keep only those whose endpoints are both present (so an edge into a not-yet-expanded
  * finding level is dropped rather than dangling).
  */
@@ -93,28 +97,40 @@ export const buildAttackPathFlow = (
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
 } => {
-  const rowByColumn: Record<string, number> = {};
   const presentIds = new Set<string>();
-  const nodes: AttackPathFlowNode[] = [];
+  const byType: Record<string, AttackPathNodeDTO[]> = {};
 
   for (const n of dto.attackPathNodes ?? []) {
     const flowType = DTO_TYPE_TO_FLOW[n.type ?? ''];
     if (!flowType || !n.id) {
       continue;
     }
-    const column = COLUMN[flowType];
-    const row = rowByColumn[flowType] ?? 0;
-    rowByColumn[flowType] = row + 1;
+    (byType[flowType] ??= []).push(n);
     presentIds.add(n.id);
-    nodes.push({
-      id: n.id,
-      type: flowType,
-      position: {
-        x: PADDING + column * X_GAP,
-        y: PADDING + row * Y_GAP,
-      },
-      data: nodeData(n),
+  }
+
+  // Lay each kind out as its own band, left to right; within a band, wrap into a grid so a large
+  // endpoint set is a compact block rather than one very tall column.
+  const nodes: AttackPathFlowNode[] = [];
+  let bandStartX = PADDING;
+  for (const flowType of BAND_ORDER) {
+    const list = byType[flowType] ?? [];
+    if (list.length === 0) {
+      continue;
+    }
+    const subColumns = Math.ceil(list.length / MAX_ROWS);
+    list.forEach((n, i) => {
+      nodes.push({
+        id: n.id as string,
+        type: flowType,
+        position: {
+          x: bandStartX + Math.floor(i / MAX_ROWS) * COL_W,
+          y: PADDING + (i % MAX_ROWS) * ROW_H,
+        },
+        data: nodeData(n),
+      });
     });
+    bandStartX += subColumns * COL_W + BAND_GAP;
   }
 
   const edges = (dto.attackPathEdges ?? [])
