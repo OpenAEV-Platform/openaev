@@ -46,12 +46,12 @@ class AttackPathCollapsedTest extends IntegrationTest {
   @BeforeEach
   void seedSmallGraph() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("collapsed-tenant"));
-    // dc-01 gets a Prevented and a Not-Prevented execution (mixed -> ORANGE); dc-02 gets two
-    // Prevented (all -> GREEN). nmap sprays both, hydra only hits dc-01.
-    execution(tenant, "nmap", "dc-01", "Prevented");
-    execution(tenant, "hydra", "dc-01", "Not Prevented");
-    execution(tenant, "nmap", "dc-02", "Prevented");
-    execution(tenant, "nmap", "dc-02", "Prevented");
+    // dc-01: one prevented, one detected-but-not-prevented -> ORANGE (worst-case); dc-02: two
+    // prevented -> GREEN. nmap sprays both, hydra only hits dc-01.
+    execution(tenant, "nmap", "dc-01", "Prevented", "Not Detected");
+    execution(tenant, "hydra", "dc-01", "Not Prevented", "Detected");
+    execution(tenant, "nmap", "dc-02", "Prevented", "Not Detected");
+    execution(tenant, "nmap", "dc-02", "Prevented", "Not Detected");
     // dc-01: one credential + one CVE; dc-02: the same credential value (shared).
     finding(tenant, "dc-01", "credentials", "admin:secret");
     finding(tenant, "dc-01", "cve", "CVE-2026-1");
@@ -104,7 +104,8 @@ class AttackPathCollapsedTest extends IntegrationTest {
     assertThat(graphService.buildGraph(SIM, "collapsed").mode()).isEqualTo("collapsed");
   }
 
-  private void execution(Tenant tenant, String injector, String endpoint, String prevention) {
+  private void execution(
+      Tenant tenant, String injector, String endpoint, String prevention, String detection) {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
@@ -116,6 +117,7 @@ class AttackPathCollapsedTest extends IntegrationTest {
     e.setTargetHostname(endpoint);
     e.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
     e.setPreventionStatus(prevention);
+    e.setDetectionStatus(detection);
     executionRepository.save(e);
   }
 

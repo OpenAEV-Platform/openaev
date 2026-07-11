@@ -68,7 +68,10 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow("
           + "e.targetKey, max(e.targetAssetId), max(e.targetHostname), max(e.targetIp), "
           + "max(e.targetPlatform), max(e.executedAt), "
-          + "sum(case when e.preventionStatus = 'Prevented' then 1 else 0 end), count(e)) "
+          + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
+          + "and (e.detectionStatus is null or e.detectionStatus <> 'Detected') then 1 else 0 end), "
+          + "sum(case when (e.preventionStatus is null or e.preventionStatus <> 'Prevented') "
+          + "and e.detectionStatus = 'Detected' then 1 else 0 end)) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId GROUP BY e.targetKey")
   List<AttackPathEndpointGroupRow> findEndpointGroups(@Param("simulationId") String simulationId);
 

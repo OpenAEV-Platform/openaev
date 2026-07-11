@@ -47,15 +47,21 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @BeforeEach
   void seedGraph() {
     tenant = tenantRepository.save(TenantFixture.getTenant("ap-graph-tenant"));
-    // NMAP hits CORP-DC-01 twice with mixed prevention -> ORANGE, one grouped edge of count 2.
-    exec1Id = injectorExecution("NMAP", "dc-01", "CORP-DC-01", "Prevented", "Nmap Scan", at(1));
+    // NMAP hits CORP-DC-01 twice: one prevented, one detected-but-not-prevented -> ORANGE
+    // (worst-case), one grouped edge of count 2.
+    exec1Id =
+        injectorExecution(
+            "NMAP", "dc-01", "CORP-DC-01", "Prevented", "Not Detected", "Nmap Scan", at(1));
     exec2Id =
-        injectorExecution("NMAP", "dc-01", "CORP-DC-01", "Not Prevented", "Nmap CVE Scan", at(2));
-    // NMAP hits CORP-APP-01 once, all prevented -> GREEN.
+        injectorExecution(
+            "NMAP", "dc-01", "CORP-DC-01", "Not Prevented", "Detected", "Nmap CVE Scan", at(2));
+    // NMAP hits CORP-APP-01 once, prevented -> GREEN.
     String exec3Id =
-        injectorExecution("NMAP", "app-01", "CORP-APP-01", "Prevented", "Nmap Scan", at(3));
-    // A pivot dc-01 -> web-01 (agent-based), not prevented -> RED.
-    pivotExecution("dc-01", "OpenAEV", "web-01", "CORP-WEB-01", "Not Prevented", at(4));
+        injectorExecution(
+            "NMAP", "app-01", "CORP-APP-01", "Prevented", "Not Detected", "Nmap Scan", at(3));
+    // A pivot dc-01 -> web-01 (agent-based), neither prevented nor detected -> RED.
+    pivotExecution(
+        "dc-01", "OpenAEV", "web-01", "CORP-WEB-01", "Not Prevented", "Not Detected", at(4));
 
     finding("credentials", "admin:secret", "dc-01", exec1Id);
     finding("cve", "CVE-2023-1", "dc-01", exec2Id);
@@ -172,7 +178,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     long small = stats.getPrepareStatementCount();
 
     for (int i = 0; i < 40; i++) {
-      injectorExecution("NMAP", "extra-" + i, "H-" + i, "Prevented", "Nmap Scan", at(100 + i));
+      injectorExecution(
+          "NMAP", "extra-" + i, "H-" + i, "Prevented", "Not Detected", "Nmap Scan", at(100 + i));
     }
     entityManager.flush();
 
@@ -223,7 +230,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @DisplayName("Expand and relations work for a discovered (raw-value) endpoint")
   void expand_and_relations_for_raw_endpoint() {
     String raw = "honey.scanme.sh";
-    String rawExecId = rawExecution("NUCLEI", raw, "Not Prevented", at(10));
+    String rawExecId = rawExecution("NUCLEI", raw, "Not Prevented", "Not Detected", at(10));
 
     AttackPathFinding rawFinding = new AttackPathFinding();
     rawFinding.setTenant(tenant);
@@ -255,6 +262,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
       String targetKey,
       String hostname,
       String prevention,
+      String detection,
       String payload,
       Instant executedAt) {
     AttackPathExecution e = new AttackPathExecution();
@@ -269,13 +277,14 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     e.setTargetIp("10.10.0.1");
     e.setTargetPlatform("Windows");
     e.setPreventionStatus(prevention);
+    e.setDetectionStatus(detection);
     e.setPayloadName(payload);
     e.setExecutedAt(executedAt);
     return executionRepository.save(e).getId();
   }
 
   private String rawExecution(
-      String injector, String rawValue, String prevention, Instant executedAt) {
+      String injector, String rawValue, String prevention, String detection, Instant executedAt) {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
     e.setSimulationId(SIM);
@@ -285,6 +294,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     e.setTargetRawValue(rawValue);
     e.setTargetKey(rawValue);
     e.setPreventionStatus(prevention);
+    e.setDetectionStatus(detection);
     e.setPayloadName("Nuclei Scan");
     e.setExecutedAt(executedAt);
     return executionRepository.save(e).getId();
@@ -296,6 +306,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
       String targetKey,
       String hostname,
       String prevention,
+      String detection,
       Instant executedAt) {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
@@ -310,6 +321,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     e.setTargetKey(targetKey);
     e.setTargetHostname(hostname);
     e.setPreventionStatus(prevention);
+    e.setDetectionStatus(detection);
     e.setExecutedAt(executedAt);
     executionRepository.save(e);
   }

@@ -322,7 +322,7 @@ const SimulationAttackPathPoc = () => {
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: attackPathStatusColor(theme, e.status === 'Prevented' ? 'GREEN' : 'RED'),
+                  background: attackPathStatusColor(theme, e.status),
                 }}
                 />
                 <div style={{ minWidth: 0 }}>

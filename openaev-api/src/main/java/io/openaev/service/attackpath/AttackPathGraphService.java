@@ -47,6 +47,7 @@ public class AttackPathGraphService {
 
   private static final String SOURCE_INJECTOR = "INJECTOR";
   private static final String PREVENTED = "Prevented";
+  private static final String DETECTED = "Detected";
 
   private static final String TYPE_INJECTOR = "INJECTOR";
   private static final String TYPE_ASSET = "ASSET";
@@ -295,7 +296,7 @@ public class AttackPathGraphService {
       node.setIp(e.targetIp());
       node.setPlatform(e.targetPlatform());
       node.setLabel(e.targetHostname() != null ? e.targetHostname() : e.targetKey());
-      node.setStatus(collapsedColour(e.prevented(), e.total()));
+      node.setStatus(collapsedColour(e.redCount(), e.orangeCount()));
       node.setFindingCounts(findingCountsByEndpoint.get(e.targetKey()));
       nodes.put(nodeId, node);
     }
@@ -344,14 +345,15 @@ public class AttackPathGraphService {
     return new AttackPathCounters(endpoints, credentials, users, cves, ports);
   }
 
-  private String collapsedColour(long prevented, long total) {
-    if (total > 0 && prevented == total) {
-      return GREEN;
-    }
-    if (prevented == 0) {
+  /** Worst-case severity of an endpoint's executions from the aggregated red/orange counts. */
+  private String collapsedColour(long redCount, long orangeCount) {
+    if (redCount > 0) {
       return RED;
     }
-    return ORANGE;
+    if (orangeCount > 0) {
+      return ORANGE;
+    }
+    return GREEN;
   }
 
   private String collapsedSourceNodeId(AttackPathEdgeGroupRow g) {
@@ -409,23 +411,44 @@ public class AttackPathGraphService {
     return node;
   }
 
-  private String endpointColour(List<AttackPathExecutionRow> executions) {
-    boolean anyPrevented = false;
-    boolean anyNotPrevented = false;
-    for (AttackPathExecutionRow e : executions) {
-      if (PREVENTED.equals(e.preventionStatus())) {
-        anyPrevented = true;
-      } else {
-        anyNotPrevented = true;
-      }
-    }
-    if (anyPrevented && !anyNotPrevented) {
+  /**
+   * The three-state severity of one execution, combining prevention and detection: GREEN if it was
+   * prevented (blocked), else ORANGE if it was detected but not prevented (seen but got through),
+   * else RED (neither detected nor prevented, the worst).
+   */
+  private String severity(String preventionStatus, String detectionStatus) {
+    if (PREVENTED.equals(preventionStatus)) {
       return GREEN;
     }
-    if (anyNotPrevented && !anyPrevented) {
-      return RED;
+    if (DETECTED.equals(detectionStatus)) {
+      return ORANGE;
     }
-    return ORANGE;
+    return RED;
+  }
+
+  private static int severityRank(String colour) {
+    if (RED.equals(colour)) {
+      return 2;
+    }
+    return ORANGE.equals(colour) ? 1 : 0;
+  }
+
+  /**
+   * An endpoint takes the worst-case severity of the executions targeting it (RED > ORANGE >
+   * GREEN).
+   */
+  private String endpointColour(List<AttackPathExecutionRow> executions) {
+    String worst = GREEN;
+    for (AttackPathExecutionRow e : executions) {
+      String s = severity(e.preventionStatus(), e.detectionStatus());
+      if (severityRank(s) > severityRank(worst)) {
+        worst = s;
+      }
+      if (RED.equals(worst)) {
+        return RED;
+      }
+    }
+    return worst;
   }
 
   private AttackPathNodeDTO executionFeedNode(AttackPathExecutionRow e) {
@@ -433,7 +456,7 @@ public class AttackPathGraphService {
     node.setId(AttackPathIds.executionNode(e.id(), e.targetKey(), e.agentId()));
     node.setType(TYPE_EXECUTION);
     node.setLabel(e.payloadName());
-    node.setStatus(e.preventionStatus());
+    node.setStatus(severity(e.preventionStatus(), e.detectionStatus()));
     node.setPayloadName(e.payloadName());
     node.setExecutedAt(e.executedAt() == null ? null : e.executedAt().toString());
     node.setAgentName(e.agentName());

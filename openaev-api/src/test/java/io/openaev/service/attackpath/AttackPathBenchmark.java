@@ -252,7 +252,10 @@ class AttackPathBenchmark extends IntegrationTest {
         rawRows(
             "EXPLAIN (ANALYZE, BUFFERS) SELECT target_key, max(target_asset_id),"
                 + " max(target_hostname), max(target_ip), max(target_platform), max(executed_at),"
-                + " sum(case when prevention_status = 'Prevented' then 1 else 0 end), count(*)"
+                + " sum(case when prevention_status <> 'Prevented' and detection_status <> 'Detected'"
+                + " then 1 else 0 end),"
+                + " sum(case when prevention_status <> 'Prevented' and detection_status = 'Detected'"
+                + " then 1 else 0 end)"
                 + " FROM attackpath_execution WHERE simulation_id = '"
                 + sim
                 + "' AND can_access_tenant(tenant_id) GROUP BY target_key");
