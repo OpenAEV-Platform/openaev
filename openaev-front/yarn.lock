@@ -6610,10 +6610,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"immutable@npm:5.1.8":
-  version: 5.1.8
-  resolution: "immutable@npm:5.1.8"
-  checksum: 10c0/b34b237d324a94ed0f7749ae293c4b10aaa1755e0cb04c73360e18f4f35d5684551fe92c2b195c97562e57aab970ff47d04e25c5bc8c393ecde7da0f54356b48
+"immutable@npm:5.1.9":
+  version: 5.1.9
+  resolution: "immutable@npm:5.1.9"
+  checksum: 10c0/ae7032b60b81b682f3e7e4df13e1ec9a401a603eb81b15bb3e37331ed6666e318c71994c6936e1462eb443d32d04769396562a7e2669da22457c8ba279c03ad2
   languageName: node
   linkType: hard
 
@@ -8926,7 +8926,7 @@ __metadata:
     html-to-image: "npm:1.11.13"
     http-proxy-middleware: "npm:3.0.6"
     i18n-auto-translation: "npm:2.2.3"
-    immutable: "npm:5.1.8"
+    immutable: "npm:5.1.9"
     ipaddr.js: "npm:^2.2.0"
     js-file-download: "npm:0.4.12"
     license-checker-rseidelsohn: "npm:4.4.2"
