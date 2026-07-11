@@ -51,6 +51,7 @@ class AttackPathPocHttpIsolationTest extends IntegrationTest {
       "/api/tenants/{tenantId}/poc/attack-path/simulations/{simulationId}/endpoint/findings";
   private static final String RELATIONS =
       "/api/tenants/{tenantId}/poc/attack-path/simulations/{simulationId}/endpoint/relations";
+  private static final String LIST = "/api/tenants/{tenantId}/poc/attack-path/simulations";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -142,6 +143,22 @@ class AttackPathPocHttpIsolationTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.executions").isEmpty())
         .andExpect(jsonPath("$.edges").isEmpty());
+  }
+
+  @Test
+  @DisplayName("the simulations picker lists the owner tenant's simulation")
+  void simulationsListUnderOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(LIST, tenantA))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").exists());
+  }
+
+  @Test
+  @DisplayName("the simulations picker under another tenant does not list the owner's simulation")
+  void simulationsListUnderOtherTenantIsHidden() throws Exception {
+    mvc.perform(get(LIST, tenantB))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.simulationId=='" + SIM + "')]").doesNotExist());
   }
 
   @Test
