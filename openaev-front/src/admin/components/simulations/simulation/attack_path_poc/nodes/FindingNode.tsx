@@ -26,7 +26,7 @@ const FindingNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
           height: AP_FINDING_SIZE,
           borderRadius: '50%',
           border: `1px solid ${theme.palette.divider}`,
-          background: theme.palette.background.default,
+          background: theme.palette.background.paper,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

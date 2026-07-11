@@ -59,6 +59,9 @@ const AttackPathPocFlow = ({ nodes, edges, onEndpointClick }: AttackPathPocFlowP
       proOptions={proOptions}
       fitView
       minZoom={0.05}
+      // Follow the app theme so the canvas is not the default white; dark theme gives the dark
+      // navy background the graph is designed for.
+      colorMode={theme.palette.mode}
       // Cull off-screen nodes: a large collapsed graph is hundreds of endpoints, so only paint the
       // ones in the viewport to keep pan/zoom responsive.
       onlyRenderVisibleElements
@@ -71,7 +74,7 @@ const AttackPathPocFlow = ({ nodes, edges, onEndpointClick }: AttackPathPocFlowP
         },
       }}
     >
-      <Background color={theme.palette.divider} gap={24} />
+      <Background bgColor={theme.palette.background.default} color={theme.palette.divider} gap={24} />
       <Controls />
       <MiniMap
         position="bottom-right"

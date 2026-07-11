@@ -32,9 +32,11 @@ const AssetNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
           width: AP_ENDPOINT_SIZE,
           height: AP_ENDPOINT_SIZE,
           borderRadius: '50%',
-          border: `2px ${knownNoFindings ? 'dashed' : 'solid'} ${color}`,
-          background: selected ? alpha(color, 0.12) : theme.palette.background.paper,
-          boxShadow: selected ? `0 0 0 3px ${alpha(color, 0.4)}` : 'none',
+          border: `${selected ? 3 : 2}px ${knownNoFindings ? 'dashed' : 'solid'} ${color}`,
+          // Keep the dark node fill (readable white label); show selection with a halo ring, not a
+          // pale fill that would wash the text out.
+          background: theme.palette.background.paper,
+          boxShadow: selected ? `0 0 0 4px ${alpha(color, 0.45)}` : 'none',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
