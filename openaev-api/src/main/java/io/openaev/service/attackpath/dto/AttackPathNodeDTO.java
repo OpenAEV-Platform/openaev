@@ -28,6 +28,9 @@ public class AttackPathNodeDTO {
   private String ip;
   private String platform;
   private List<String> agents;
+  // The raw endpoint key (asset id or discovered raw value); the ref the front passes to the
+  // expand/relations reads to load an endpoint's detail on click.
+  private String ref;
   // Collapsed mode only: distinct finding values per type on this endpoint (finding_type -> count).
   private Map<String, Long> findingCounts;
 

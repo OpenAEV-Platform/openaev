@@ -281,6 +281,7 @@ public class AttackPathGraphService {
       AttackPathNodeDTO node = new AttackPathNodeDTO();
       node.setId(nodeId);
       node.setType(TYPE_ASSET);
+      node.setRef(e.targetKey());
       node.setHostname(e.targetHostname());
       node.setIp(e.targetIp());
       node.setPlatform(e.targetPlatform());
@@ -383,6 +384,7 @@ public class AttackPathGraphService {
     AttackPathNodeDTO node = new AttackPathNodeDTO();
     node.setId(id);
     node.setType(TYPE_ASSET);
+    node.setRef(targetKey);
     node.setHostname(representative.targetHostname());
     node.setIp(representative.targetIp());
     node.setPlatform(representative.targetPlatform());
