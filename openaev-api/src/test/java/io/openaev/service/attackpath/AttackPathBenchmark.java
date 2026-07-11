@@ -218,10 +218,15 @@ class AttackPathBenchmark extends IntegrationTest {
         "\n## EXPLAIN (ANALYZE, BUFFERS) on the execution read of the largest simulation (%d rows)"
             .formatted(sizes.getOrDefault(sim, 0L)));
     boolean indexScan =
-        plan.stream().anyMatch(l -> l.contains("Index") && l.contains("idx_ap_exec_sim"));
+        plan.stream().anyMatch(l -> l.contains("Index") && l.contains("idx_ap_exec_sim_targetkey"));
     boolean recursive = plan.stream().anyMatch(l -> l.toLowerCase().contains("recursive"));
     plan.forEach(l -> line(out, "  " + l));
-    line(out, "index scan on idx_ap_exec_sim: " + indexScan + " | recursive plan: " + recursive);
+    line(
+        out,
+        "index scan on idx_ap_exec_sim_targetkey: "
+            + indexScan
+            + " | recursive plan: "
+            + recursive);
   }
 
   /**
@@ -276,9 +281,9 @@ class AttackPathBenchmark extends IntegrationTest {
   }
 
   /**
-   * Drops {@code idx_ap_exec_sim}, re-measures the largest simulation's read (now a sequential scan
-   * of the whole table), then recreates it — a before/after that puts a number on the index. All
-   * inside the rolled-back transaction, so the schema is unchanged after the run.
+   * Drops the {@code simulation_id} index, re-measures the largest simulation's read (now a
+   * sequential scan of the whole table), then recreates it — a before/after that puts a number on
+   * the index. All inside the rolled-back transaction, so the schema is unchanged after the run.
    */
   private void indexOnOff(
       StringBuilder out,
@@ -297,10 +302,8 @@ class AttackPathBenchmark extends IntegrationTest {
       withIndex.add(System.nanoTime() - t0);
     }
 
-    // Both indexes lead with simulation_id, so dropping only the single-column one leaves the
-    // composite to serve this read (a finding in itself). Drop both to force a real sequential
-    // scan.
-    ddl("DROP INDEX idx_ap_exec_sim");
+    // idx_ap_exec_sim_targetkey is the only simulation_id index (the redundant single-column
+    // idx_ap_exec_sim was removed), so dropping it forces a real sequential scan.
     ddl("DROP INDEX idx_ap_exec_sim_targetkey");
     List<String> seqPlan =
         rawRows(
@@ -314,7 +317,6 @@ class AttackPathBenchmark extends IntegrationTest {
       executionRepository.findGraphRows(sim);
       withoutIndex.add(System.nanoTime() - t0);
     }
-    ddl("CREATE INDEX idx_ap_exec_sim ON attackpath_execution (simulation_id)");
     ddl(
         "CREATE INDEX idx_ap_exec_sim_targetkey ON attackpath_execution"
             + " (simulation_id, target_key)");
@@ -326,7 +328,7 @@ class AttackPathBenchmark extends IntegrationTest {
             .formatted(sizes.getOrDefault(sim, 0L)));
     line(
         out,
-        "with idx_ap_exec_sim p50: %.0f ms | without it (%s) p50: %.0f ms"
+        "with idx_ap_exec_sim_targetkey p50: %.0f ms | without it (%s) p50: %.0f ms"
             .formatted(
                 ms(percentile(withIndex, 0.50)),
                 seqScan ? "seq scan" : "no index",

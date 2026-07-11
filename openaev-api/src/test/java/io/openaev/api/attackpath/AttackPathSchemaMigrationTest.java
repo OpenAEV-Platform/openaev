@@ -75,7 +75,9 @@ class AttackPathSchemaMigrationTest extends IntegrationTest {
   @Test
   @DisplayName("The indexes lead with simulation_id")
   void indexes_exist() {
-    assertThat(indexCount("idx_ap_exec_sim")).isEqualTo(1);
+    // No single-column idx_ap_exec_sim: the composite below leads with simulation_id and covers the
+    // graph read too, so the single-column index would be redundant.
+    assertThat(indexCount("idx_ap_exec_sim")).isZero();
     assertThat(indexCount("idx_ap_exec_sim_targetkey")).isEqualTo(1);
     assertThat(indexCount("idx_ap_find_sim")).isEqualTo(1);
     assertThat(indexCount("idx_ap_find_sim_endpointkey_type")).isEqualTo(1);
