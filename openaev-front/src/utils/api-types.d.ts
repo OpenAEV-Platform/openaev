@@ -754,6 +754,7 @@ export interface AttackPathSeedInput {
   preset?: string;
   /** @format int64 */
   seed?: number;
+  tenantId?: string;
 }
 
 export interface AttackPathSeedResultDTO {

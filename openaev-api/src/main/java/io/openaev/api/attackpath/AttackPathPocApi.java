@@ -87,8 +87,9 @@ public class AttackPathPocApi extends RestBehavior {
 
   /**
    * Generate a synthetic dataset for the scaling tests. Admin-only, and only reachable when the POC
-   * flag is on. Not tenant-scoped from the request: the generator writes its own synthetic tenants
-   * and sets {@code tenant_id} on every row itself.
+   * flag is on. The generator sets {@code tenant_id} on every row itself: by default it writes its
+   * own synthetic tenants, or, when the body carries a {@code tenantId}, under that existing tenant
+   * so the seeded simulations are visible in the front for it.
    */
   @PostMapping("/seed")
   @Transactional
@@ -97,7 +98,7 @@ public class AttackPathPocApi extends RestBehavior {
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
-    AttackPathSeedInput params = input != null ? input : new AttackPathSeedInput(null, null);
-    return seedService.generate(params.toParams());
+    AttackPathSeedInput params = input != null ? input : new AttackPathSeedInput(null, null, null);
+    return seedService.generate(params.toParams(), params.tenantId());
   }
 }

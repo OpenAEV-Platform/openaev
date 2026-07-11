@@ -109,21 +109,32 @@ public class AttackPathSeedService {
   private final EntityManager entityManager;
 
   /**
-   * Generates a dataset and returns the row counts it inserted. Runs in the caller's transaction,
-   * so the surrounding boundary decides commit or rollback.
+   * Generates a dataset under synthetic tenants and returns the row counts. Runs in the caller's
+   * transaction, so the surrounding boundary decides commit or rollback.
    */
   @Transactional
   public AttackPathSeedResultDTO generate(AttackPathSeedParams params) {
+    return generate(params, null);
+  }
+
+  /**
+   * Generates a dataset and returns the row counts it inserted. When {@code tenantId} is set every
+   * row is written under that existing tenant (so the seed is visible to it in the front); when
+   * null the generator creates its own synthetic tenants (the benchmark path).
+   */
+  @Transactional
+  public AttackPathSeedResultDTO generate(AttackPathSeedParams params, String tenantId) {
     long start = System.currentTimeMillis();
     Session session = entityManager.unwrap(Session.class);
-    long[] counts = session.doReturningWork(connection -> insertAll(connection, params));
+    long[] counts = session.doReturningWork(connection -> insertAll(connection, params, tenantId));
     return new AttackPathSeedResultDTO(
         counts[0], counts[1], counts[2], System.currentTimeMillis() - start);
   }
 
-  private long[] insertAll(Connection connection, AttackPathSeedParams params) throws SQLException {
+  private long[] insertAll(Connection connection, AttackPathSeedParams params, String tenantId)
+      throws SQLException {
     Random random = new Random(params.seed());
-    List<String> tenants = createTenants(connection, params);
+    List<String> tenants = tenantId != null ? List.of(tenantId) : createTenants(connection, params);
 
     BatchTable executions =
         new BatchTable(connection, "attackpath_execution", EXECUTION_COLUMNS, EXECUTION_BATCH_ROWS);
@@ -137,11 +148,11 @@ public class AttackPathSeedService {
     long findingCount = 0;
     for (int s = 0; s < params.simulations(); s++) {
       String simulationId = SEED_ID_PREFIX + params.seed() + "-sim-" + s;
-      String tenantId = tenants.get(s % tenants.size());
+      String simTenantId = tenants.get(s % tenants.size());
       int size = sizeForSimulation(s, params, random);
       long[] simCounts =
           generateSimulation(
-              random, simulationId, tenantId, size, params, executions, findings, links);
+              random, simulationId, simTenantId, size, params, executions, findings, links);
       executionCount += simCounts[0];
       findingCount += simCounts[1];
       simulationCount++;
