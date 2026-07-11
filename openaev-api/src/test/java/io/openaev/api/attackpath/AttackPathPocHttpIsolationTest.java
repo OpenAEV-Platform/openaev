@@ -89,6 +89,28 @@ class AttackPathPocHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("collapsed mode under the owner tenant's path: the aggregated graph is visible")
+  void collapsedGraphUnderOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(GRAPH, tenantA, SIM).param("mode", "collapsed"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.mode").value("collapsed"))
+        .andExpect(jsonPath("$.counters.endpoints").value(1))
+        .andExpect(jsonPath("$.attackPathNodes").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("collapsed mode under another tenant's path: the aggregations are empty (no leak)")
+  void collapsedGraphUnderOtherTenantIsHidden() throws Exception {
+    // The collapsed reads are separate GROUP BY queries; prove the inspector filters them too, so
+    // the aggregated view cannot leak another tenant's counts or endpoint groups.
+    mvc.perform(get(GRAPH, tenantB, SIM).param("mode", "collapsed"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counters.endpoints").value(0))
+        .andExpect(jsonPath("$.attackPathNodes").isEmpty())
+        .andExpect(jsonPath("$.attackPathEdges").isEmpty());
+  }
+
+  @Test
   @DisplayName("under the owner tenant's path: expanding the endpoint returns its findings")
   void expandUnderOwnerTenantIsVisible() throws Exception {
     mvc.perform(get(EXPAND, tenantA, SIM).param("ref", ENDPOINT_KEY))
