@@ -81,10 +81,12 @@ const nodeData = (n: AttackPathNodeDTO): AttackPathFlowNodeData => ({
 });
 
 const EDGE_EXECUTIONS = 'EDGE_EXECUTIONS';
+const EDGE_ENDPOINT_FINDINGS_TYPE = 'EDGE_ENDPOINT_FINDINGS_TYPE';
 
 // Enrich an edge with a status colour and an optional label: execution edges (injector -> endpoint)
-// take the target endpoint's status (a heatmap of the endpoint set); finding edges are red and carry
-// the finding type as their label.
+// take the target endpoint's status (a heatmap of the endpoint set); finding edges are red. Only the
+// endpoint -> finding-type edge is labelled with the type (the finding-type node itself is an icon),
+// so the type is named exactly once rather than repeated on the edge and the node.
 const toEdge = (
   e: AttackPathEdges,
   nodeById: Map<string, AttackPathFlowNode>,
@@ -100,7 +102,7 @@ const toEdge = (
       count: e.count ?? 1,
       edgeType: e.type,
       status: isExecution ? target?.data.status : 'RED',
-      label: isExecution ? undefined : target?.data.typeFindings,
+      label: e.type === EDGE_ENDPOINT_FINDINGS_TYPE ? target?.data.typeFindings : undefined,
     },
   };
 };
