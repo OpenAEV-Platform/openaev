@@ -40,9 +40,11 @@ import org.springframework.transaction.annotation.Transactional;
  * medium} (~0.5M, one outlier) by default for a quick check, or {@code full} (~5M, the
  * ~100k/300k/500k outliers) for the headline numbers. It reports, per bucket: buildGraph p50/p95,
  * the SQL-vs-assembly split (the two reads timed apart from the in-memory pass), and the peak heap
- * of the largest simulations; plus the ORM-overhead A/B (JPQL projection vs a native query through
- * Hibernate, both under the inspector) and an {@code EXPLAIN} of the read. It writes the report to
- * {@code benchmark-latest.txt} in the workspace and to stdout.
+ * of the largest simulations; the full-vs-collapsed rebuild on the outliers (latency, heap and the
+ * collapsed reads-vs-assembly split), with an {@code EXPLAIN} of the collapsed endpoint GROUP BY
+ * and a check that an endpoint expand reads only its one endpoint; plus the ORM-overhead A/B (JPQL
+ * projection vs a native query through Hibernate, both under the inspector) and an {@code EXPLAIN}
+ * of the read. It writes the report to {@code benchmark-latest.txt} in the workspace and to stdout.
  */
 @Tag("benchmark")
 @EnabledIfEnvironmentVariable(named = "ATTACKPATH_BENCHMARK", matches = "true")
@@ -58,6 +60,9 @@ class AttackPathBenchmark extends IntegrationTest {
   private static final long SEED = 20_260_710L;
   private static final int WARMUP = 3;
   private static final int ITERATIONS = 12;
+  // The full rebuild of an outlier is seconds and gigabytes of heap, so its comparison uses fewer
+  // iterations than the light reads above.
+  private static final int FULL_COLLAPSE_ITERATIONS = 6;
   private static final int TYPICAL_SAMPLES = 3;
   private static final Path REPORT =
       Path.of("/home/lgi/Documents/chaining/attack-path-execution-step/benchmark-latest.txt");
@@ -101,9 +106,11 @@ class AttackPathBenchmark extends IntegrationTest {
       measureBucket(out, sim, sizeBySim.getOrDefault(sim, 0L), params);
     }
 
+    fullVsCollapsed(out, params, targets, sizeBySim);
     ormOverhead(out, params, targets, sizeBySim);
     heavyColumnRead(out, params, targets, sizeBySim);
     explain(out, params, targets, sizeBySim);
+    collapsedPlans(out, params, targets, sizeBySim);
     indexOnOff(out, params, targets, sizeBySim);
 
     line(out, "\n## Notes");
@@ -155,6 +162,142 @@ class AttackPathBenchmark extends IntegrationTest {
                 ms(percentile(reads, 0.50)),
                 Math.max(0, ms(totalP50) - ms(percentile(reads, 0.50))),
                 peakBytes / (1024 * 1024)));
+  }
+
+  /**
+   * The large-simulation lever (ADR-002): the full rebuild (two flat reads plus the in-memory pass
+   * that materializes every node and edge) against the collapsed rebuild (four DB aggregations, no
+   * per-row materialization) on the same simulation. Measured on the outliers, where the choice
+   * actually matters, with the collapsed total split into its aggregation reads vs the assembly.
+   */
+  private void fullVsCollapsed(
+      StringBuilder out,
+      AttackPathSeedParams params,
+      List<String> targets,
+      Map<String, Long> sizes) {
+    line(out, "\n## Full vs collapsed rebuild — the large-simulation lever (ADR-002)");
+    line(
+        out,
+        "(full forces the two-read + in-memory assembly; collapsed forces the four aggregations. A");
+    line(
+        out,
+        " simulation above the collapse threshold is served collapsed, so collapsed is that path.)");
+    line(
+        out,
+        "sim | executions | full p50/p95 ms | collapsed p50/p95 ms | speedup | full heap MB |"
+            + " collapsed heap MB | collapsed reads/assembly p50 ms");
+    for (String sim : outliers(params, targets)) {
+      setScope(tenantOf(sim, params));
+      for (int i = 0; i < WARMUP; i++) {
+        graphService.buildGraph(sim, "full");
+        graphService.buildGraph(sim, "collapsed");
+      }
+      List<Long> full = new ArrayList<>();
+      List<Long> collapsed = new ArrayList<>();
+      List<Long> collapsedReads = new ArrayList<>();
+      for (int i = 0; i < FULL_COLLAPSE_ITERATIONS; i++) {
+        long f0 = System.nanoTime();
+        graphService.buildGraph(sim, "full");
+        full.add(System.nanoTime() - f0);
+
+        long r0 = System.nanoTime();
+        executionRepository.findEndpointGroups(sim);
+        executionRepository.findEdgeGroups(sim);
+        findingRepository.findTypeCounts(sim);
+        findingRepository.findEndpointTypeCounts(sim);
+        collapsedReads.add(System.nanoTime() - r0);
+
+        long c0 = System.nanoTime();
+        graphService.buildGraph(sim, "collapsed");
+        collapsed.add(System.nanoTime() - c0);
+      }
+      long fullHeap = peakHeapDuring(() -> graphService.buildGraph(sim, "full"));
+      long collapsedHeap = peakHeapDuring(() -> graphService.buildGraph(sim, "collapsed"));
+      double fullP50 = ms(percentile(full, 0.50));
+      double collP50 = ms(percentile(collapsed, 0.50));
+      double readsP50 = ms(percentile(collapsedReads, 0.50));
+      line(
+          out,
+          "%s | %d | %.0f / %.0f | %.0f / %.0f | %.1fx | %d | %d | %.0f / %.0f"
+              .formatted(
+                  sim.substring(sim.lastIndexOf("sim-")),
+                  sizes.getOrDefault(sim, 0L),
+                  fullP50,
+                  ms(percentile(full, 0.95)),
+                  collP50,
+                  ms(percentile(collapsed, 0.95)),
+                  collP50 > 0 ? fullP50 / collP50 : 0,
+                  fullHeap / (1024 * 1024),
+                  collapsedHeap / (1024 * 1024),
+                  readsP50,
+                  Math.max(0, collP50 - readsP50)));
+    }
+  }
+
+  /**
+   * The collapsed reads are single indexed aggregations and an endpoint expand touches only one
+   * endpoint. EXPLAIN the endpoint GROUP BY of the largest simulation, then EXPLAIN the single
+   * endpoint's relations read and show it returns a small bounded slice, not the whole simulation.
+   */
+  private void collapsedPlans(
+      StringBuilder out,
+      AttackPathSeedParams params,
+      List<String> targets,
+      Map<String, Long> sizes) {
+    String sim = targets.get(targets.size() - 1);
+    setScope(tenantOf(sim, params));
+    long total = sizes.getOrDefault(sim, 0L);
+
+    List<String> groupPlan =
+        rawRows(
+            "EXPLAIN (ANALYZE, BUFFERS) SELECT target_key, max(target_asset_id),"
+                + " max(target_hostname), max(target_ip), max(target_platform), max(executed_at),"
+                + " sum(case when prevention_status = 'Prevented' then 1 else 0 end), count(*)"
+                + " FROM attackpath_execution WHERE simulation_id = '"
+                + sim
+                + "' AND can_access_tenant(tenant_id) GROUP BY target_key");
+    line(
+        out,
+        "\n## EXPLAIN on the collapsed endpoint GROUP BY of the largest simulation (%d rows)"
+            .formatted(total));
+    groupPlan.forEach(l -> line(out, "  " + l));
+
+    String endpointKey =
+        rawRows(
+                "SELECT target_key FROM attackpath_execution WHERE simulation_id = '"
+                    + sim
+                    + "' AND can_access_tenant(tenant_id) LIMIT 1")
+            .get(0);
+    long endpointRows = executionRepository.findByTarget(sim, endpointKey).size();
+    List<String> expandPlan =
+        rawRows(
+            "EXPLAIN (ANALYZE, BUFFERS) SELECT id FROM attackpath_execution WHERE simulation_id = '"
+                + sim
+                + "' AND target_key = '"
+                + endpointKey
+                + "' AND can_access_tenant(tenant_id)");
+    boolean indexScan =
+        expandPlan.stream()
+            .anyMatch(l -> l.contains("Index") && l.contains("idx_ap_exec_sim_targetkey"));
+    line(
+        out,
+        "\n## Endpoint expand touches one endpoint, not the simulation (target_key=%s)"
+            .formatted(endpointKey));
+    line(
+        out,
+        "expand read returns %d of %d executions (%.2f%%); index scan on idx_ap_exec_sim_targetkey: %s"
+            .formatted(
+                endpointRows, total, total > 0 ? 100.0 * endpointRows / total : 0.0, indexScan));
+    expandPlan.forEach(l -> line(out, "  " + l));
+  }
+
+  /** The outlier simulations (the large ones), where full vs collapsed actually diverges. */
+  private List<String> outliers(AttackPathSeedParams params, List<String> targets) {
+    int count = params.outlierSizes().size();
+    if (count == 0) {
+      return List.of(targets.get(targets.size() - 1));
+    }
+    return new ArrayList<>(targets.subList(targets.size() - count, targets.size()));
   }
 
   private void ormOverhead(
