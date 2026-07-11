@@ -28,10 +28,11 @@ const DTO_TYPE_TO_FLOW: Record<string, string> = {
 const PADDING = 40;
 // Each node kind is a left-to-right band; within a band nodes wrap into a grid (MAX_ROWS tall) so a
 // large simulation's hundreds of endpoints read as a compact block, not a single 40,000px column.
-const COL_W = 300;
-const ROW_H = 88;
-const MAX_ROWS = 22;
-const BAND_GAP = 160;
+// Spacing is sized for the circular nodes (endpoint ~96px, finding ~64px + a label under it).
+const COL_W = 200;
+const ROW_H = 132;
+const MAX_ROWS = 20;
+const BAND_GAP = 200;
 
 // Left-to-right order of the type bands.
 const BAND_ORDER = [

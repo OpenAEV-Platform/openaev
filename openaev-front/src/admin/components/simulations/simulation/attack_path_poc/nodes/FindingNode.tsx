@@ -3,35 +3,52 @@ import { useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
+import FindingIcon from '../../../../../../components/FindingIcon';
 import { type AttackPathFlowNode } from '../attack-path-poc-flow-helpers';
-import { AP_NODE_WIDTH } from './InjectorNode';
+import { AP_FINDING_SIZE } from './FindingTypeNode';
 
-// A leaf finding node: the discovered value (a credential, a CVE id, a port, ...).
+// A leaf finding node: a circle with the type icon and the discovered value under it (a credential,
+// a CVE id, a port, ...). Mirrors the product mockup's finding node.
 const FindingNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
   return (
-    <div
-      style={{
-        width: AP_NODE_WIDTH * 0.75,
-        borderRadius: theme.spacing(2),
-        border: `1px solid ${theme.palette.divider}`,
-        padding: theme.spacing(0.5, 1.5),
-        background: theme.palette.background.default,
-      }}
+    <div style={{
+      width: 120,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 2,
+    }}
     >
-      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+      <div
+        style={{
+          width: AP_FINDING_SIZE,
+          height: AP_FINDING_SIZE,
+          borderRadius: '50%',
+          border: `1px solid ${theme.palette.divider}`,
+          background: theme.palette.background.default,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
+        <FindingIcon findingType={data.typeFindings ?? ''} />
+        <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      </div>
       <Typography
         variant="caption"
         sx={{
-          display: 'block',
+          maxWidth: 120,
+          textAlign: 'center',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          fontSize: 10,
         }}
       >
         {data.label}
       </Typography>
-      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>
   );
 };

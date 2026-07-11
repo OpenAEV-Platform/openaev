@@ -5,36 +5,48 @@ import { memo } from 'react';
 
 import { type AttackPathFlowNode } from '../attack-path-poc-flow-helpers';
 
-export const AP_NODE_WIDTH = 240;
+export const AP_INJECTOR_WIDTH = 150;
 
-// The injector (source) node: a hexagon, echoing the attack-path widget's source shape.
+// The injector (source) node: a hexagon with the injector name and an INJECTOR sublabel, the source
+// of the execution edges. Mirrors the product mockup's injector node.
 const InjectorNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
   return (
     <div
       style={{
-        width: AP_NODE_WIDTH,
-        height: 56,
+        width: AP_INJECTOR_WIDTH,
+        height: 64,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: theme.spacing(0, 3),
         background: theme.palette.background.paper,
-        border: `1px solid ${theme.palette.primary.main}`,
-        clipPath: 'polygon(12% 0, 88% 0, 100% 50%, 88% 100%, 12% 100%, 0 50%)',
+        border: `1px solid ${theme.palette.text.secondary}`,
+        clipPath: 'polygon(14% 0, 86% 0, 100% 50%, 86% 100%, 14% 100%, 0 50%)',
       }}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Typography
         variant="body2"
-        fontWeight={600}
+        fontWeight={700}
         sx={{
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          maxWidth: AP_INJECTOR_WIDTH - 40,
         }}
       >
         {data.label}
+      </Typography>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          fontSize: 9,
+          letterSpacing: 1,
+        }}
+      >
+        INJECTOR
       </Typography>
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>
