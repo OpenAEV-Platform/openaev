@@ -4,40 +4,251 @@
 
     The attack-path execution store is a proof of concept (issue 6647). It is off by default and gated
     behind the `ATTACK_PATH_POC` preview feature, so its tab and endpoints do not exist unless the flag
-    is on. See `adr/ADR-002-attack-path-execution-store-on-postgresql.md` at the repository root for the
-    design and the measured results.
+    is on. The design rationale and the options weighed are in
+    `adr/ADR-002-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
+    hands-on companion for developers building on the POC.
 
-## What it is
+## 1. The big picture
 
-A chaining simulation's attack path is stored in three normalized PostgreSQL tables
-(`attackpath_execution`, `attackpath_finding`, `attackpath_execution_finding`) instead of the
-`step_data` JSONB blob, so the interactive graph rebuilds from flat, indexed reads. The POC proves the
-store, the rebuild, per-simulation read performance, tenant isolation, and a collapsed (aggregated)
-mode for large simulations.
+During a breach-and-attack simulation, **injectors** (tools such as `nmap`, `hydra`, `crackmapexec`)
+run steps against **endpoints** (machines on the target network). Each step is an **execution**, and it
+has an outcome — was it **prevented** (blocked) and was it **detected** (seen)? — and it may uncover
+**findings**: credentials, CVEs, open ports, usernames.
 
-The front adds an **Attack path** tab to a simulation, rendering the graph with React Flow.
+The **attack path** view is the graph of all of that for one simulation: which injector hit which
+endpoint, what each hit found, and how it chains. It is read as four left-to-right levels:
 
-## Enable the feature
+```mermaid
+flowchart LR
+    I["Injector<br/>(nmap, hydra…)"] -->|executions| E["Endpoint<br/>(a machine)"]
+    E -->|has findings of type| T["Finding type<br/>(credentials, cve, port…)"]
+    T -->|discovered value| F["Finding<br/>(admin:secret, CVE-2026-1…)"]
+```
 
-Add `ATTACK_PATH_POC` to the enabled preview features (or `*` for all), for example in
-`application-dev.properties`:
+**The problem this POC addresses.** Today the chaining engine stores each step as a serialized `Inject`
+object inside one JSONB column, `step_data`. That blob is a weak base for the attack path: every update
+rewrites the whole document (write amplification, table bloat), reading one value parses the whole
+document, and there is no clean index to aggregate. So rebuilding the graph would mean parsing every
+blob and walking it — the feared "one giant recursive query".
+
+**What the POC does.** It stores the attack path in three small, normalized PostgreSQL tables and
+rebuilds the graph from flat, indexed reads — no recursion, a constant two SQL statements regardless of
+graph size. It proves the store, the rebuild, per-simulation read performance, tenant isolation
+(multi-tenancy v2), and a **collapsed** (aggregated) mode for very large simulations. A React Flow
+front renders it as an **Attack path** tab on a simulation.
+
+## 2. The data model
+
+Three tables, all prefixed `attackpath_`, additive and droppable. The key idea: **reference ids**
+(simulation, asset, agent, contract) are stored as **plain columns frozen at execution time**, not
+foreign keys to the live product tables. The one real foreign key is to `tenants`, because that is what
+the tenant inspector enforces isolation through (see §6).
+
+```mermaid
+erDiagram
+    TENANTS ||--o{ ATTACKPATH_EXECUTION : "owns (FK)"
+    TENANTS ||--o{ ATTACKPATH_FINDING : "owns (FK)"
+    ATTACKPATH_EXECUTION ||--o{ ATTACKPATH_EXECUTION_FINDING : "produces"
+    ATTACKPATH_FINDING ||--o{ ATTACKPATH_EXECUTION_FINDING : "found by"
+    ATTACKPATH_EXECUTION {
+        varchar id PK
+        varchar tenant_id FK
+        varchar simulation_id "ref exercises, no FK"
+        text source_kind "INJECTOR or AGENT_ASSET"
+        varchar source_injector
+        varchar target_asset_id "ref assets, no FK"
+        text target_key "asset id or raw value"
+        varchar target_hostname
+        varchar target_ip
+        text prevention_status
+        text detection_status
+        timestamp executed_at
+        text command "heavy, TOASTed, never read by the graph"
+        text terminal_output "heavy, TOASTed, never read by the graph"
+    }
+    ATTACKPATH_FINDING {
+        varchar id PK
+        varchar tenant_id FK
+        varchar simulation_id
+        text type "credentials, cve, port, username"
+        text value
+        text endpoint_key "matches an execution target_key"
+    }
+    ATTACKPATH_EXECUTION_FINDING {
+        varchar execution_id FK
+        varchar finding_id FK
+    }
+```
+
+- **`attackpath_execution`** — one row is one **hop**: a source (an injector, or an agent on an already
+  compromised asset) acting on a target endpoint. It carries a snapshot of the run (hostname, ip,
+  platform, agent, prevention/detection status, payload), plus two heavy text columns (`command`,
+  `terminal_output`) that PostgreSQL stores off-row (TOAST) and that **the graph read never touches**.
+- **`attackpath_finding`** — one row is one `(endpoint, type, value)`: a thing discovered on an
+  endpoint. `endpoint_key` matches an execution's `target_key`, which is how a finding attaches to an
+  endpoint.
+- **`attackpath_execution_finding`** — the many-to-many link that records **which execution produced
+  which finding** (used to cross-reference the feed with the finding nodes).
+
+Why no foreign keys to `exercises` / `assets` / `agents`? So the POC is **self-contained and
+droppable**: you can add and remove these tables without touching product tables, and the ids are a
+frozen snapshot (an endpoint renamed after the run keeps the name it had at execution time).
+
+## 3. The rebuild: two reads and one pass
+
+The whole graph is rebuilt from exactly **two flat reads plus one in-memory pass**. No recursion; the
+number of SQL statements is a constant two, whatever the graph size. This is the heart of the POC.
+
+```mermaid
+flowchart TB
+    A["Read A: executions WHERE simulation_id = ?<br/>(short columns only, never command/terminal_output)"]
+    B["Read B: findings joined to their producing execution"]
+    P["One in-memory pass:<br/>group rows by deterministic id →<br/>injector/endpoint nodes, grouped edges, finding nodes, counters"]
+    O["{ nodes, edges, counters }"]
+    R["React Flow graph"]
+    A --> P
+    B --> P
+    P --> O --> R
+```
+
+- **Read A** (`findGraphRows`, a JPQL projection — JPQL is Hibernate's typed query language) becomes the
+  **edges** (one grouped edge per `source → target`, carrying how many executions it groups) and the
+  **injector** and **endpoint** nodes.
+- **Read B** (findings joined to their execution) becomes the **finding** nodes, deduplicated by
+  `(type, value)` so the same credential on two endpoints is one node.
+- The **single pass** turns the rows into `{ nodes, edges, counters }`. The counters (endpoints,
+  credentials, users, cves, ports) are accumulated **in that same pass** — no extra query, and each read
+  is walked exactly once.
+
+An **execution is carried on the edge** (its `executionIds`), not drawn as its own node on the map
+(design decision O2). The left-hand **feed** still lists every execution; the graph stays a handful of
+node kinds no matter how many executions ran.
+
+### Source and target resolution
+
+A row's source and target depend on how the step ran. An injector scanning a machine and an agent
+pivoting from an already-compromised machine produce different source nodes; a target can be a known
+asset or a raw discovered value (an IP that is not a registered asset).
+
+```mermaid
+flowchart TB
+    S{"source_kind?"}
+    S -->|INJECTOR| SI["source node = injector(source_injector)"]
+    S -->|AGENT_ASSET| SA["source node = endpoint(source_asset_id)<br/>(a pivot from a compromised host)"]
+    T{"target_kind?"}
+    T -->|ASSET| TA["target_key = asset id"]
+    T -->|RAW| TR["target_key = raw value (e.g. an IP)"]
+```
+
+### Deterministic ids
+
+Every node and edge id is computed **deterministically from its content** (`AttackPathIds`), so the two
+reads and the in-memory pass can reference the same node without a lookup table, and the same input
+always yields the same id (idempotent, collision-safe even when a value contains the delimiter).
+
+| Node / edge | Derived from |
+| --- | --- |
+| injector node | the injector name |
+| endpoint node | `target_key` |
+| finding-type node | `(type, endpoint_key)` |
+| finding node | `(type, value)` |
+| execution feed node | `(execution id, target_key, agent id)` |
+| grouped execution edge | `(source node id, target node id)` |
+
+## 4. Two read modes: full and collapsed
+
+The rebuild above is the **full** mode. It materializes every node and edge and the per-execution feed.
+That is fine for a small or medium simulation, but a very large one has too many rows to send and render
+(a 500k-execution simulation is seconds of rebuild and gigabytes of heap — see §9). So there is a second
+mode.
+
+- **Full** — the two reads + in-memory pass above. Every endpoint, every finding, every execution.
+- **Collapsed** — the graph is built entirely from **four DB aggregations** (`GROUP BY`): one endpoint
+  node per `target_key`, grouped edges, and per-type / per-endpoint-type distinct finding counts. The
+  per-execution and per-finding rows are **never materialized**; the front loads an endpoint's detail on
+  click (the expand / relations reads).
+
+The mode is chosen automatically: a cheap indexed `COUNT` compares the execution count to a **configurable
+threshold** (`openaev.attackpath.collapse-threshold`, default 20000); above it the simulation is served
+collapsed. The front can also force a mode (`?mode=full` / `?mode=collapsed`).
+
+Collapsed is the answer to scale: it removes the JVM materialization cost and bounds the number of nodes
+the front renders (one per endpoint, not one per execution). It is measured in §9.
+
+## 5. Severity colours (prevention + detection)
+
+An endpoint and its edges are coloured by a **three-state severity** that combines both outcomes, worst
+first:
+
+- **GREEN** — prevented (blocked).
+- **ORANGE** — detected but not prevented (seen, but it got through).
+- **RED** — neither detected nor prevented (it went unnoticed — the worst case).
+
+An endpoint takes the **worst-case** severity of the executions targeting it (`RED > ORANGE > GREEN`).
+In full mode the service computes this per execution and folds to the worst; in collapsed mode the
+`GROUP BY` counts, per endpoint, the executions that are RED and those that are ORANGE (null-safe: a
+missing status counts as "not prevented" / "not detected"), and the worst non-zero bucket wins.
+
+## 6. Tenant isolation (multi-tenancy v2)
+
+Isolation is **not** written by hand in the queries. The `attackpath_*` tables are declared tenant-active
+(`openaev.tenant.active-tables`), and every read goes through Hibernate, so the **statement inspector**
+rewrites each query to add `can_access_tenant(tenant_id)` against the tenant scope of the request.
+
+```mermaid
+flowchart TB
+    Q["JPQL read (e.g. findGraphRows)"]
+    TX["@Transactional method with a TxCtx parameter →<br/>the transaction aspect writes app.current_tenants<br/>(the request's tenant, from the {tenantId} path)"]
+    INS["TenantStatementInspector rewrites the SQL:<br/>… AND can_access_tenant(tenant_id)"]
+    PG["PostgreSQL returns only this tenant's rows"]
+    Q --> TX --> INS --> PG
+    SEED["Seed generator (raw JDBC INSERT)"] -.->|"bypasses the inspector on purpose;<br/>sets tenant_id explicitly on every row (see §8)"| PG
+```
+
+The crucial detail: each read endpoint declares a **`TxCtx` parameter**. That is what makes the
+transaction aspect write the request's tenant scope into `app.current_tenants`; without it the scope
+stays empty and the inspector **fails closed** (returns nothing) rather than leaking. This is proven
+end-to-end by `AttackPathPocHttpIsolationTest` (owner sees its data, another tenant sees empty, a
+scope-less read is empty although the rows exist) — for the full graph, the collapsed aggregations, the
+expand/relations reads, and the simulation picker.
+
+## 7. The API
+
+All endpoints live under `/api/poc/attack-path` (and the tenant-prefixed
+`/api/tenants/{tenantId}/poc/attack-path`, which the front uses). They exist only when the flag is on.
+
+| Method & path | Returns |
+| --- | --- |
+| `GET /simulations` | the tenant's simulations with endpoint + execution counts (the picker) |
+| `GET /simulations/{id}/graph?mode=` | the `AttackPathDTO` (full or collapsed) |
+| `GET /simulations/{id}/endpoint/findings?ref=` | one endpoint's finding-type and finding nodes |
+| `GET /simulations/{id}/endpoint/relations?ref=` | one endpoint's executions (feed) and grouped edges |
+| `POST /seed` | admin-only; generates synthetic data (see §8) |
+
+`ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
+`ref` field, since the node id is a non-reversible hash.
+
+## 8. Enable, seed, explore
+
+### Enable the feature
+
+Add `ATTACK_PATH_POC` to the enabled preview features (or `*` for all), for example in your dev
+configuration (`application-dev.properties`):
 
 ```properties
 openaev.enabled-dev-features=ATTACK_PATH_POC
 ```
 
-Then start the backend and the front (`cd openaev-front && yarn start`). The tab appears on every
-simulation page.
+Start the backend and the front (`cd openaev-front && yarn start`, the dev server runs on port 3001 and
+proxies `/api` to the backend on 8080). The tab appears on every simulation page.
 
-## Seed demo data
+### Seed demo data
 
 The `attackpath_*` tables are tenant-active, so a simulation's rows are only visible under **your own
 tenant**. The seed endpoint therefore takes a `tenantId`: pass yours (the single-tenant default is
-`2cffad3a-0001-4078-b0e2-ef74274022c3`, and it is also the `{tenantId}` segment in the URLs the front
-calls) so the seeded simulations show up in your tab.
-
-`POST /api/poc/attack-path/seed` is admin-only. Authenticate with the admin token
-(`openaev.admin.token`) or your logged-in session.
+`2cffad3a-0001-4078-b0e2-ef74274022c3`, also the `{tenantId}` segment in the URLs the front calls) so the
+seeded simulations show up in your tab. `POST /api/poc/attack-path/seed` is admin-only — authenticate
+with the admin token (`openaev.admin.token`) or your logged-in session.
 
 | preset   | shape                                                   | ~rows   | seed time |
 |----------|---------------------------------------------------------|---------|-----------|
@@ -68,38 +279,124 @@ curl -X POST http://localhost:8080/api/poc/attack-path/seed \
 The seed is reproducible: the same `seed` integer produces the same rows. Seeded simulation ids are
 `ap-seed-<seed>-sim-<n>`; `sim-0` is the largest.
 
-## Explore the graph
+!!! note "Why the seed uses raw JDBC (the one inspector exception)"
 
-Open any simulation → the **Attack path** tab. The **Simulation id** field is a dropdown listing your
-seeded simulations with their **endpoint count** (the number of graph nodes, which drives the render
-cost — not the execution count), largest first. Pick one, then:
+    The seed writes millions of rows with batched, multi-row **raw JDBC** that bypasses the tenant
+    inspector. This is safe: the inspector adds no guarantee to a plain `INSERT ... VALUES` (it passes
+    those through unchanged), and the seed sets `tenant_id` explicitly on every row — the exact guarantee
+    the ORM path would have given. Going through the inspector was measured at ~1,500 rows/s (it parses
+    every statement), which would make the 5M-row seed take ~4 hours; raw JDBC is ~17x faster. The bypass
+    is admin-only, flag-gated, and isolated to the seed service (allowlisted with `@AllowRawJdbc`). It
+    must not spread to the read path.
 
-- **Collapsed / Full / Auto** toggle. Collapsed is a DB aggregation (one node per endpoint, bounded);
-  full materializes every node and the per-execution feed. On the 100k outlier (`ap-seed-7-sim-0`)
-  collapsed is ~0.3 s / ~450 nodes vs full ~2.3 s / ~2,800 nodes plus a 100k-row feed — the lever the
-  POC is about. Above a threshold a simulation is served collapsed automatically.
+### Explore the graph
+
+Open any simulation → the **Attack path** tab. The **Simulation id** field is a dropdown of your seeded
+simulations with their **endpoint count** (the number of graph nodes, which drives the render cost — not
+the execution count), largest first. Pick one, then:
+
+- Toggle **Collapsed / Full / Auto**. On the 100k outlier (`ap-seed-7-sim-0`), collapsed is ~0.3 s / ~450
+  nodes vs full ~2.3 s / ~2,800 nodes plus a 100k-row feed — the lever the POC is about.
 - **Click an endpoint** to lazy-load its findings (collapsed) and its executions (side panel), and to
   highlight its path.
 
-## How it works (short)
+### Run the tests
 
-- **Model**: `attackpath_execution` (one row = one injector→endpoint hop carrying the run snapshot),
-  `attackpath_finding` (one row = one endpoint/type/value), and the link table. Reference ids
-  (`simulation_id`, asset/agent ids) are stored without hard FKs to product tables, so the POC is
-  isolated and droppable.
-- **Rebuild**: two flat JPQL reads (executions; findings joined to their producing execution) plus one
-  in-memory pass into `{ nodes, edges, counters }` with deterministic ids. No recursion; the number of
-  SQL statements is a constant two, independent of graph size.
-- **Collapsed mode**: four `GROUP BY` aggregations (endpoint groups, grouped edges, per-type and
-  per-endpoint-type distinct counts) that never materialize the per-row data; the front loads
-  per-endpoint detail on click.
-- **Tenant isolation**: entities are `TenantBase`, the tables are listed in
-  `openaev.tenant.active-tables`, and each read endpoint declares a `TxCtx` so the statement inspector
-  rewrites every query with `can_access_tenant(tenant_id)`. The seed is the one audited exception: it
-  writes with batched raw JDBC (bypassing the inspector) and sets `tenant_id` explicitly on every row
-  (ADR-002).
+```bash
+# backend (real PostgreSQL): the whole POC suite plus the arch rule
+mvn -pl openaev-api test -Dtest="AttackPath*,TenantNonOrmAccessArchTest"
 
-!!! note "To be completed"
+# front (from openaev-front): unit tests, typecheck, lint
+yarn vitest run src/__tests__/actions/attack-path-poc src/__tests__/admin/components/simulations/simulation/attack_path_poc
+yarn check-ts && yarn lint
+```
 
-    Architecture diagrams (mermaid) for the model, the rebuild, and tenant enforcement land with the
-    rest of this guide.
+The scaling benchmark is not a unit test; it is env-gated and run explicitly:
+`ATTACKPATH_BENCHMARK=true ATTACKPATH_BENCHMARK_PRESET=medium mvn -pl openaev-api test -Dtest=AttackPathBenchmark`.
+
+## 9. Performance and results
+
+### Method
+
+The `AttackPathBenchmark` harness (env-gated, `ATTACKPATH_BENCHMARK=true`, skipped in CI) seeds a
+prod-fidelity dataset (rows carry realistic TOAST-able `command`/`terminal_output`, power-law fan-out,
+endpoints scaling with size), `ANALYZE`s the tables, then times `buildGraph` per simulation-size bucket
+(p50/p95), with the reads-vs-assembly split, peak heap, an ORM A/B, a heavy-column A/B, `EXPLAIN`, and a
+full-vs-collapsed comparison. Numbers below are the `full` preset: **5.78M executions across 200
+simulations / 4 tenants, 148k findings**. Single-run, dev machine, local PostgreSQL — indicative, not a
+lab benchmark. Full detail and caveats are in the POC's `results.md`.
+
+### What we measured
+
+- **The rebuild works and scales as designed for typical sizes.** The read plan is a bounded index scan
+  on the `simulation_id` composite index, **no recursion**, a constant two statements. A typical ~30k
+  simulation is ~0.75 s (p50) even at 5M total.
+- **A large single simulation's full rebuild is expensive.** It grows with the simulation and, once the
+  wide-row table outgrows cache, becomes IO-bound:
+
+  | full rebuild | p50 / p95 | peak heap |
+  | --- | --- | --- |
+  | 100k executions | 1.4 / 1.8 s | ~0.9 GB |
+  | 300k executions | 3.8 / 4.3 s | ~1.9 GB |
+  | 500k executions | 6.3 / 8.2 s | ~3.2 GB |
+
+- **Collapsed mode is the lever, and it is large.** Forcing collapsed on the same outliers:
+
+  | outlier | full → collapsed (p50) | heap | speed-up |
+  | --- | --- | --- | --- |
+  | 100k | 1.4 s → **0.32 s** | 0.9 GB → ~0 | 4.3x |
+  | 300k | 3.8 s → **0.84 s** | 1.9 GB → 8 MB | 4.5x |
+  | 500k | 6.3 s → **1.2 s** | 3.2 GB → 16 MB | **5.2x, ~200x heap** |
+
+  The collapsed `GROUP BY` on the 500k simulation is one indexed scan (`Finalize GroupAggregate` over a
+  parallel bitmap scan on `idx_ap_exec_sim_targetkey`), **2,050 endpoint groups out of 500k rows in
+  577 ms** — so the front renders ~2,050 nodes, not 500k.
+- **An endpoint expand touches one endpoint, not the simulation.** The relations read for a single
+  `target_key` on the 500k simulation returns **898 of 500,000 rows (0.18%) in 2.2 ms** (index scan).
+- **The short-column read is worth ~2x.** The 500k read is 1.3 s (short projection) vs 2.5 s for a
+  `SELECT *` that detoasts the heavy columns — which is why Read A never selects them.
+- **ORM overhead is negligible** (JPQL vs a native query through Hibernate), so no native read fallback
+  was needed.
+
+### What it means
+
+- **The relational store is the right choice.** It gives flat, indexed, per-simulation reads, a real
+  join, and tenant isolation on the existing stack, with no new datastore.
+- **Interactive latency for the very largest single simulations is not fully solved.** Even collapsed,
+  the 500k aggregation is ~1.2 s because the scan is IO-bound at 5M total — collapsed removes the **heap
+  wall** and the **render wall**, not the underlying database scan. It is not a free 300 ms.
+- **The front render ceiling is real.** React Flow stays interactive to roughly a couple thousand nodes;
+  the collapsed 500k (~2,050 nodes) is at that band. The front lays nodes out in a grid and culls
+  off-screen elements to cope; past that, endpoint clustering is the lever (see §10).
+
+## 10. How to continue
+
+Ordered by importance:
+
+1. **Ingest from the real chaining engine.** The POC validates the store, rebuild, and read performance
+   only, on synthetic data. Feeding these tables from real executions — and the blast radius of pulling
+   fields out of `step_data` — is the number-one next step and the biggest unknown.
+2. **A production model, not a parallel store.** In production the finding side already exists (the real
+   `findings` table, `ContractOutputType`, `findings_assets`), so a production implementation would
+   **reuse and extend it**. The genuinely new relational object is the per-execution edge that lives in
+   `step_data` today, which becomes `attackpath_execution`.
+3. **Endpoint clustering (front) for very large simulations.** Collapse the many-endpoint mesh into
+   cluster super-nodes that expand on click, so a 2,050-endpoint simulation is a handful of clusters. The
+   front is structured so a cluster node type can be added; the grouping key (subnet, status, platform, or
+   a product concept) is an open product decision.
+4. **Shave the last of the large-simulation read.** Sub-second on a giant simulation would need a
+   pre-computed rollup, or the open comparison of PostgreSQL `GROUP BY` vs an Elasticsearch terms
+   aggregation kept as a **separate read model** fed from PostgreSQL (a read-optimised copy queried
+   instead of the source of truth; needs an ES instance and an A/B).
+
+**Explicitly out of scope** (decided): path computation and named "attack paths" (e.g. "PrintNightmare →
+Jump → DC"). The graph shows all executions, not a chosen path.
+
+### Where things live
+
+- Backend: `io.openaev.api.attackpath` (the controller), `io.openaev.service.attackpath` (rebuild,
+  collapsed, ids, seed), `io.openaev.database.model.attackpath` + `…repository.attackpath` (entities,
+  projections, queries), `io.openaev.migration.V6_2026071…` (the Flyway tables).
+- Front: `openaev-front/src/admin/components/simulations/simulation/attack_path_poc/` (the flow, nodes,
+  edges, helpers) and `src/actions/attack-path-poc/`.
+- Benchmark: `AttackPathBenchmark` (env-gated). Design rationale: `adr/ADR-002-…md`.

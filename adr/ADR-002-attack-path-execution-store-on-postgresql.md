@@ -5,6 +5,13 @@
 | Status | Accepted (POC-backed) |
 | Related | https://github.com/OpenAEV-Platform/openaev/issues/6647 |
 
+> **In one paragraph.** The attack-path view rebuilds a graph of what a simulation did (which injector
+> hit which endpoint, what it found). Today that data lives in a JSONB blob (`step_data`) that is slow to
+> read and impossible to index well. We decided to store it instead in three small, normalized
+> PostgreSQL tables, so the graph rebuilds from two flat, indexed reads with no recursion. A proof of
+> concept measured this at scale; the numbers and the trade-offs are below. A hands-on guide for building
+> on it is in `docs/docs/development/attack-path-poc.md`.
+
 ## 1. Context
 
 The attack path view rebuilds an interactive graph of what a chaining simulation did: which injector hit which endpoint, what each execution found, and how it all links together. Today the chaining engine stores each step as a serialized `Inject` object inside one JSONB column, `step_data`.
@@ -125,7 +132,8 @@ Read A becomes the edges and the injector and endpoint nodes; Read B becomes the
 
 Measured single-run, on a dev machine, local PostgreSQL. Full detail in the POC `results.md`.
 
-- Per-simulation rebuild: a typical ~30k-execution simulation is about 0.75 s (p50) at 5M total. The deliberate outliers are about 1.4 s (100k), 3.5 s (300k), and 6.8 s with about 2.6 GB of heap (500k).
+- Per-simulation full rebuild: a typical ~30k-execution simulation is about 0.75 s (p50) at 5M total. The deliberate outliers are about 1.4 s (100k), 3.8 s (300k), and 6.3 s with about 3.2 GB of heap (500k).
+- The collapsed (aggregated) mode is the lever for large simulations: forcing it on the 500k outlier is about 1.2 s and 16 MB of heap, roughly 5x faster and 200x less heap. Its `GROUP BY` is one indexed scan producing about 2,050 endpoint groups from 500k rows in about 577 ms, so the front renders ~2,050 nodes rather than 500k, and a single endpoint's detail is a bounded read (about 0.18% of the rows, a few milliseconds).
 - The short-column read is worth about 2x: the 500k read is 1.3 s, versus 2.5 s for a `SELECT *` that detoasts the heavy columns.
 - The read plan is a bounded index scan on the `simulation_id` index, no recursion. The single-column `simulation_id` index turned out redundant (the composite `(simulation_id, target_key)` covers the read) and was removed.
 
@@ -143,7 +151,7 @@ Measured single-run, on a dev machine, local PostgreSQL. Full detail in the POC 
 - For the POC the endpoint status is denormalized onto the execution row rather than resolved live.
 - No hard foreign keys to the real product tables (self-contained and droppable), so referential integrity to `exercises`, `assets`, and `agents` is not enforced by the database.
 - Date partitioning by `executed_at` does not speed the per-simulation read (that read is keyed on `simulation_id`); its only value is cheap retention (`DETACH` or `DROP` a period).
-- Rebuilding the whole graph of a very large single simulation is expensive (seconds and gigabytes of heap for the outliers), and per-simulation cost is not volume-independent once the wide-row table outgrows cache. This is addressed by a two-mode read: full for small and medium simulations, and a DB-aggregated collapsed mode for large ones (endpoint groups, grouped edges, and counters computed with a `GROUP BY`, never materializing the rows), which brings a 500k simulation from about 6.8 s toward about 3 s and makes it renderable. Collapsed removes the JVM materialization cost, not the underlying database scan, so it is about 3 s, not sub-second; sub-second on a giant simulation would need a pre-computed rollup, which is out of scope. A very large spray can still have a high endpoint count, where a further injector-level grouping is the direction.
+- Rebuilding the whole graph of a very large single simulation is expensive (seconds and gigabytes of heap for the outliers), and per-simulation cost is not volume-independent once the wide-row table outgrows cache. This is addressed by a two-mode read: full for small and medium simulations, and a DB-aggregated collapsed mode for large ones (endpoint groups, grouped edges, and counters computed with a `GROUP BY`, never materializing the rows), which brings a 500k simulation from about 6.3 s to about 1.2 s and about 16 MB of heap (roughly 5x faster, 200x less heap) and makes it renderable. Collapsed removes the JVM materialization cost, not the underlying database scan, so it is about 1.2 s, not sub-second; sub-second on a giant simulation would need a pre-computed rollup, which is out of scope. A very large spray can still have a high endpoint count (about 2,050 for a 500k simulation), where front-side endpoint clustering is the direction.
 - The seed bypasses the inspector (raw JDBC). Justified and isolated above, but it is a real exception to the "everything through Hibernate" rule and must not spread to the read path.
 
 ### Neutral
