@@ -937,6 +937,7 @@
   "Failed to create event.": "创建事件失败。",
   "Failed to delete vulnerability.": "删除漏洞失败",
   "Failed to import CSV file": "导入 CSV 文件失败",
+  "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to update event.": "更新事件失败。",
   "Failed to update vulnerability.": "更新漏洞失败。",
   "Failure": "失败",

@@ -937,6 +937,7 @@
   "Failed to create event.": "이벤트 생성에 실패했습니다.",
   "Failed to delete vulnerability.": "취약점을 삭제하지 못했습니다.",
   "Failed to import CSV file": "CSV 파일을 가져오지 못했습니다",
+  "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to update event.": "이벤트 업데이트에 실패했습니다.",
   "Failed to update vulnerability.": "취약점을 업데이트하지 못했습니다.",
   "Failure": "실패",

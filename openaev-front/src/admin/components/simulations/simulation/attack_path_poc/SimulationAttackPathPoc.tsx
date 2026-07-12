@@ -77,6 +77,7 @@ const SimulationAttackPathPoc = () => {
   const [mode, setMode] = useState<Mode>('collapsed');
   const [dto, setDto] = useState<AttackPathDTO | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   const [extraNodes, setExtraNodes] = useState<AttackPathNodeDTO[]>([]);
   const [extraEdges, setExtraEdges] = useState<AttackPathEdges[]>([]);
@@ -90,6 +91,7 @@ const SimulationAttackPathPoc = () => {
       return;
     }
     setLoading(true);
+    setError(false);
     setExtraNodes([]);
     setExtraEdges([]);
     setExpandedRefs(new Set());
@@ -97,6 +99,11 @@ const SimulationAttackPathPoc = () => {
     setExecutions([]);
     fetchAttackPathGraph(simulationId, mode === 'auto' ? undefined : mode)
       .then(r => setDto(r.data))
+      .catch(() => {
+        // Clear the previous simulation's graph so a failed load shows an error, not stale data.
+        setDto(null);
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, [simulationId, mode]);
 
@@ -106,7 +113,9 @@ const SimulationAttackPathPoc = () => {
 
   // Load the picker options once: the simulations that have attack-path data in this tenant.
   useEffect(() => {
-    fetchAttackPathSimulations().then(r => setSimulations(r.data ?? []));
+    fetchAttackPathSimulations()
+      .then(r => setSimulations(r.data ?? []))
+      .catch(() => setSimulations([]));
   }, []);
 
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
@@ -120,19 +129,30 @@ const SimulationAttackPathPoc = () => {
     // only once per endpoint. The executions feed is per click (it drives the side panel).
     if (dto?.mode !== 'full' && !expandedRefs.has(ref)) {
       setExpandedRefs(prev => new Set(prev).add(ref));
-      fetchEndpointFindings(simulationId, ref).then((r) => {
-        const expand = r.data;
-        setExtraNodes(prev => mergeNodesById(prev, [...(expand.findingTypes ?? []), ...(expand.findings ?? [])]));
-        setExtraEdges((prev) => {
-          const next = new Map(prev.map(e => [e.edgeId, e]));
-          for (const e of expandEdges(expand)) {
-            if (e.edgeId) next.set(e.edgeId, e);
-          }
-          return [...next.values()];
+      fetchEndpointFindings(simulationId, ref)
+        .then((r) => {
+          const expand = r.data;
+          setExtraNodes(prev => mergeNodesById(prev, [...(expand.findingTypes ?? []), ...(expand.findings ?? [])]));
+          setExtraEdges((prev) => {
+            const next = new Map(prev.map(e => [e.edgeId, e]));
+            for (const e of expandEdges(expand)) {
+              if (e.edgeId) next.set(e.edgeId, e);
+            }
+            return [...next.values()];
+          });
+        })
+        .catch(() => {
+          // Forget the ref on failure so a later click retries the expand instead of no-op.
+          setExpandedRefs((prev) => {
+            const next = new Set(prev);
+            next.delete(ref);
+            return next;
+          });
         });
-      });
     }
-    fetchEndpointRelations(simulationId, ref).then(r => setExecutions(r.data.executions ?? []));
+    fetchEndpointRelations(simulationId, ref)
+      .then(r => setExecutions(r.data.executions ?? []))
+      .catch(() => setExecutions([]));
   }, [simulationId, dto?.mode, expandedRefs]);
 
   // Merge the base graph with whatever endpoints have been expanded, then lay it out; finally mark
@@ -282,12 +302,17 @@ const SimulationAttackPathPoc = () => {
           }}
         >
           {loading && <Loader />}
-          {!loading && nodes.length === 0 && (
+          {!loading && error && (
+            <Alert severity="error" sx={{ m: 2 }}>
+              {t('Failed to load the attack-path graph. Check the simulation id or reload.')}
+            </Alert>
+          )}
+          {!loading && !error && nodes.length === 0 && (
             <Alert severity="info" sx={{ m: 2 }}>
               {t('No attack-path data for this simulation. Seed data (POST /poc/attack-path/seed) or enter a seeded simulation id above.')}
             </Alert>
           )}
-          {!loading && nodes.length > 0 && (
+          {!loading && !error && nodes.length > 0 && (
             <ReactFlowProvider>
               <AttackPathPocFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} />
             </ReactFlowProvider>

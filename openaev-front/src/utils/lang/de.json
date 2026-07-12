@@ -937,6 +937,7 @@
   "Failed to create event.": "Ereignis konnte nicht erstellt werden.",
   "Failed to delete vulnerability.": "Schwachstelle konnte nicht gelöscht werden.",
   "Failed to import CSV file": "Import der CSV-Datei fehlgeschlagen",
+  "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to update event.": "Das Ereignis konnte nicht aktualisiert werden.",
   "Failed to update vulnerability.": "Aktualisierung der Sicherheitslücke fehlgeschlagen.",
   "Failure": "Fehlgeschlagen",

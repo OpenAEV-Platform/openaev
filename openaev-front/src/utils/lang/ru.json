@@ -937,6 +937,7 @@
   "Failed to create event.": "Не удалось создать событие.",
   "Failed to delete vulnerability.": "Не удалось удалить уязвимость.",
   "Failed to import CSV file": "Не удалось импортировать CSV-файл",
+  "Failed to load the attack-path graph. Check the simulation id or reload.": "Failed to load the attack-path graph. Check the simulation id or reload.",
   "Failed to update event.": "Не удалось обновить событие.",
   "Failed to update vulnerability.": "Не удалось обновить уязвимость.",
   "Failure": "Сбой",
