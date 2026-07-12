@@ -21,10 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
  * Smoke coverage for the seed generator (issue 6647). It is a randomized bulk generator, so this
  * asserts the shape it must produce — fan-out, shared findings, discovered endpoints, a status mix,
  * populated run-snapshot columns, a skewed size distribution with an outlier — and its determinism,
- * not exact rows. The {@code attackpath_*} tables are activated, so the generator's inserts run
- * through the live {@code TenantStatementInspector} (the production write path, not an inert one).
- * Ground truth is read with raw JDBC on the test's own connection, so it sees the seed's rows in
- * this transaction directly, unfiltered.
+ * not exact rows. The {@code attackpath_*} tables are activated, so this also proves the seed's
+ * deliberate raw-JDBC path (which bypasses the {@code TenantStatementInspector} by design, ADR-002)
+ * still writes correctly with the tables active — it sets {@code tenant_id} explicitly on every
+ * row. Ground truth is read with raw JDBC on the test's own connection, so it sees the seed's rows
+ * in this transaction directly, unfiltered.
  */
 @Transactional
 @WithMockUser(isAdmin = true)

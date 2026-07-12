@@ -12,12 +12,18 @@ import org.hibernate.Session;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Verifies the attack path POC migration is applied, additive, and idempotent: the three tables and
  * their indexes exist, {@code tenant_id} is NOT NULL with a FK to {@code tenants}, and re-running
  * the migration is a no-op.
+ *
+ * <p>{@code @Transactional} so the idempotency test's re-run of the create migration (a {@code
+ * CREATE INDEX IF NOT EXISTS idx_ap_exec_sim}) rolls back with the test transaction instead of
+ * leaking the dropped index into the other tests and making {@code indexes_exist} order-dependent.
  */
+@Transactional
 @WithMockUser(isAdmin = true)
 class AttackPathSchemaMigrationTest extends IntegrationTest {
 

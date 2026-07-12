@@ -1,5 +1,6 @@
 package io.openaev.database.model.attackpath;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
@@ -35,6 +36,7 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "id")
   private String id;
 
+  @JsonIgnore
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   private Tenant tenant;
