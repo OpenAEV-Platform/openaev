@@ -27,10 +27,10 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
 
   /**
    * Expand one endpoint: its findings' (type, value), restricted to findings a producing execution
-   * links to. That {@code EXISTS} semi-join is the graph invariant (a finding is in the graph iff an
-   * execution produced it), so expand agrees with the full rebuild (Read B, an inner join) and with
-   * the collapsed counters. One indexed read using {@code idx_ap_find_sim_endpointkey_type}; {@code
-   * endpointKey} is the asset id or the raw value.
+   * links to. That {@code EXISTS} semi-join is the graph invariant (a finding is in the graph iff
+   * an execution produced it), so expand agrees with the full rebuild (Read B, an inner join) and
+   * with the collapsed counters. One indexed read using {@code idx_ap_find_sim_endpointkey_type};
+   * {@code endpointKey} is the asset id or the raw value.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow("
