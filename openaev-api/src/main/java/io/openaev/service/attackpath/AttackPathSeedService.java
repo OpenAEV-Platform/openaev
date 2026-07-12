@@ -31,9 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       concern"). The seed sets {@code tenant_id} explicitly on every row, which is the exact same
  *       guarantee the ORM path would have given.
  *   <li><b>The alternative is infeasible.</b> Measured on Postgres, going through the inspector
- *       caps writes at ~1.5k rows/s (it parses every statement with jsqlparser), so the 5M-row
- *       {@code full} dataset would take ~4 hours; the raw-JDBC path reaches tens of thousands of
- *       rows/s. The numbers are in {@code results.md}.
+ *       caps writes at ~1.5k rows/s (it parses every statement with jsqlparser), so the {@code
+ *       full} dataset (~20M rows once findings and links are counted) would take ~4 hours; the
+ *       raw-JDBC path reaches tens of thousands of rows/s. The numbers are in {@code results.md}.
  * </ul>
  *
  * <p>The write is admin-only and flag-gated, and it runs on the caller's own transaction (opened
@@ -244,9 +244,11 @@ public class AttackPathSeedService {
     List<String> executionIds = new ArrayList<>(size);
     int[] endpointOfExecution = new int[size];
     for (int x = 0; x < size; x++) {
-      // Power-law fan-out, not uniform: a few endpoints and injectors carry most executions (the
-      // hotspots a real attack path and its "+N" grouping have), the rest a long tail.
-      int endpointIndex = skewedIndex(random, endpoints.size(), 2.0);
+      // Every endpoint gets at least one execution (first pass: one-per-endpoint), then the rest
+      // follow a power-law fan-out (a few endpoints and injectors carry most executions, the
+      // hotspots a real attack path and its "+N" grouping have; the rest a long tail). Guaranteeing
+      // coverage means every finding has a producing execution to link to, so none is orphaned.
+      int endpointIndex = x < endpoints.size() ? x : skewedIndex(random, endpoints.size(), 2.0);
       endpointOfExecution[x] = endpointIndex;
       Injector injector = injectors.get(skewedIndex(random, injectors.size(), 1.5));
       String executionId = UUID.randomUUID().toString();
@@ -264,15 +266,29 @@ public class AttackPathSeedService {
     }
     executions.flush();
 
-    // Links: both parents are now in the database, so any flush order is safe.
+    // Links: both parents are now in the database, so any flush order is safe. Every finding is
+    // produced by at least one execution on its endpoint (the graph invariant: a finding is in the
+    // graph iff an execution produced it, so full and collapsed report identical counters and no
+    // finding is orphaned); about a quarter also get a second producer, so fan-in (one finding seen
+    // by several executions) and the US6 execution->finding cross-reference are exercised.
+    List<List<String>> executionIdsByEndpoint = new ArrayList<>();
+    for (int e = 0; e < endpoints.size(); e++) {
+      executionIdsByEndpoint.add(new ArrayList<>());
+    }
     for (int x = 0; x < size; x++) {
-      List<String> findingIds = findingIdsByEndpoint.get(endpointOfExecution[x]);
-      if (findingIds.isEmpty()) {
+      executionIdsByEndpoint.get(endpointOfExecution[x]).add(executionIds.get(x));
+    }
+    for (int e = 0; e < endpoints.size(); e++) {
+      List<String> findingIds = findingIdsByEndpoint.get(e);
+      List<String> endpointExecutions = executionIdsByEndpoint.get(e);
+      if (findingIds.isEmpty() || endpointExecutions.isEmpty()) {
         continue;
       }
-      int linkCount = 1 + random.nextInt(findingIds.size());
-      for (int l = 0; l < linkCount; l++) {
-        links.add(executionIds.get(x), findingIds.get((x + l) % findingIds.size()));
+      for (int f = 0; f < findingIds.size(); f++) {
+        links.add(endpointExecutions.get(f % endpointExecutions.size()), findingIds.get(f));
+        if (endpointExecutions.size() > 1 && random.nextDouble() < 0.25) {
+          links.add(endpointExecutions.get((f + 1) % endpointExecutions.size()), findingIds.get(f));
+        }
       }
     }
     return new long[] {executionCount, findingCount};

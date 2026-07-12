@@ -61,8 +61,10 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   /**
    * Collapsed mode: one endpoint per {@code target_key}, with a representative of its frozen
    * display attributes ({@code max} per column, which is the constant value within one simulation)
-   * and its prevented / total execution counts. A {@code GROUP BY}, so the per-execution rows are
-   * never materialized; the tenant filter is added by the inspector.
+   * and its per-endpoint RED (neither prevented nor detected) and ORANGE (detected but not
+   * prevented) execution counts, which {@code collapsedColour} turns into the worst-case status. A
+   * {@code GROUP BY}, so the per-execution rows are never materialized; the tenant filter is added
+   * by the inspector.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow("

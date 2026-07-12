@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
+import io.openaev.database.repository.attackpath.AttackPathExecutionFindingRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -42,20 +44,22 @@ class AttackPathCollapsedTest extends IntegrationTest {
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
+  @Autowired private AttackPathExecutionFindingRepository executionFindingRepository;
 
   @BeforeEach
   void seedSmallGraph() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("collapsed-tenant"));
     // dc-01: one prevented, one detected-but-not-prevented -> ORANGE (worst-case); dc-02: two
     // prevented -> GREEN. nmap sprays both, hydra only hits dc-01.
-    execution(tenant, "nmap", "dc-01", "Prevented", "Not Detected");
+    String nmapDc01 = execution(tenant, "nmap", "dc-01", "Prevented", "Not Detected");
     execution(tenant, "hydra", "dc-01", "Not Prevented", "Detected");
+    String nmapDc02 = execution(tenant, "nmap", "dc-02", "Prevented", "Not Detected");
     execution(tenant, "nmap", "dc-02", "Prevented", "Not Detected");
-    execution(tenant, "nmap", "dc-02", "Prevented", "Not Detected");
-    // dc-01: one credential + one CVE; dc-02: the same credential value (shared).
-    finding(tenant, "dc-01", "credentials", "admin:secret");
-    finding(tenant, "dc-01", "cve", "CVE-2026-1");
-    finding(tenant, "dc-02", "credentials", "admin:secret");
+    // dc-01: one credential + one CVE; dc-02: the same credential value (shared). Each finding is
+    // linked to a producing execution on its endpoint (the graph invariant).
+    finding(tenant, "dc-01", "credentials", "admin:secret", nmapDc01);
+    finding(tenant, "dc-01", "cve", "CVE-2026-1", nmapDc01);
+    finding(tenant, "dc-02", "credentials", "admin:secret", nmapDc02);
     entityManager.flush();
   }
 
@@ -104,7 +108,7 @@ class AttackPathCollapsedTest extends IntegrationTest {
     assertThat(graphService.buildGraph(SIM, "collapsed").mode()).isEqualTo("collapsed");
   }
 
-  private void execution(
+  private String execution(
       Tenant tenant, String injector, String endpoint, String prevention, String detection) {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);
@@ -118,10 +122,11 @@ class AttackPathCollapsedTest extends IntegrationTest {
     e.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
     e.setPreventionStatus(prevention);
     e.setDetectionStatus(detection);
-    executionRepository.save(e);
+    return executionRepository.save(e).getId();
   }
 
-  private void finding(Tenant tenant, String endpoint, String type, String value) {
+  private void finding(
+      Tenant tenant, String endpoint, String type, String value, String executionId) {
     AttackPathFinding f = new AttackPathFinding();
     f.setTenant(tenant);
     f.setSimulationId(SIM);
@@ -129,7 +134,12 @@ class AttackPathCollapsedTest extends IntegrationTest {
     f.setValue(value);
     f.setEndpointId(endpoint);
     f.setEndpointKey(endpoint);
-    findingRepository.save(f);
+    String findingId = findingRepository.save(f).getId();
+
+    AttackPathExecutionFinding link = new AttackPathExecutionFinding();
+    link.setExecutionId(executionId);
+    link.setFindingId(findingId);
+    executionFindingRepository.save(link);
   }
 
   private static List<AttackPathNodeDTO> nodesOfType(AttackPathDTO dto, String type) {
