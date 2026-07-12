@@ -6,6 +6,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,7 +45,9 @@ import org.springframework.transaction.annotation.Transactional;
  * collapsed reads-vs-assembly split), with an {@code EXPLAIN} of the collapsed endpoint GROUP BY
  * and a check that an endpoint expand reads only its one endpoint; plus the ORM-overhead A/B (JPQL
  * projection vs a native query through Hibernate, both under the inspector) and an {@code EXPLAIN}
- * of the read. It writes the report to {@code benchmark-latest.txt} in the workspace and to stdout.
+ * of the read. It prints the report to stdout and also writes it to {@code
+ * attackpath-benchmark-latest.txt} in the JVM temp dir (override with {@code
+ * -Dattackpath.benchmark.report=<path>}).
  */
 @Tag("benchmark")
 @EnabledIfEnvironmentVariable(named = "ATTACKPATH_BENCHMARK", matches = "true")
@@ -64,8 +67,16 @@ class AttackPathBenchmark extends IntegrationTest {
   // iterations than the light reads above.
   private static final int FULL_COLLAPSE_ITERATIONS = 6;
   private static final int TYPICAL_SAMPLES = 3;
-  private static final Path REPORT =
-      Path.of("/home/lgi/Documents/chaining/attack-path-execution-step/benchmark-latest.txt");
+  // Report path: overridable with -Dattackpath.benchmark.report=..., else the JVM temp dir, so the
+  // run is reproducible on any machine (no hardcoded workspace path).
+  private static final Path REPORT = resolveReportPath();
+
+  private static Path resolveReportPath() {
+    String override = System.getProperty("attackpath.benchmark.report");
+    return override != null
+        ? Path.of(override)
+        : Path.of(System.getProperty("java.io.tmpdir"), "attackpath-benchmark-latest.txt");
+  }
 
   @Autowired private AttackPathSeedService seedService;
   @Autowired private AttackPathGraphService graphService;
@@ -127,8 +138,22 @@ class AttackPathBenchmark extends IntegrationTest {
         out,
         "- Date-partition retention (DETACH/DROP) is demonstrated by AttackPathPartitioningDemoTest.");
 
-    Files.writeString(REPORT, out.toString());
+    // Print first so the numbers survive even if the file write fails; then persist the report.
     System.out.println(out);
+    writeReport(out.toString());
+  }
+
+  private static void writeReport(String content) {
+    try {
+      if (REPORT.getParent() != null) {
+        Files.createDirectories(REPORT.getParent());
+      }
+      Files.writeString(REPORT, content);
+      System.out.println("benchmark report written to " + REPORT);
+    } catch (IOException e) {
+      System.out.println(
+          "benchmark report not written (" + e.getMessage() + "); output above stands");
+    }
   }
 
   private void measureBucket(
