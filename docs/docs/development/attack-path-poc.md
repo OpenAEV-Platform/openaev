@@ -32,7 +32,7 @@ document, and there is no clean index to aggregate. So rebuilding the graph woul
 blob and walking it — the feared "one giant recursive query".
 
 **What the POC does.** It stores the attack path in three small, normalized PostgreSQL tables and
-rebuilds the graph from flat, indexed reads — no recursion, a constant two SQL statements regardless of
+rebuilds the graph from flat, indexed reads — no recursion, a constant two reads regardless of
 graph size. It proves the store, the rebuild, per-simulation read performance, tenant isolation
 (multi-tenancy v2), and a **collapsed** (aggregated) mode for very large simulations. A React Flow
 front renders it as an **Attack path** tab on a simulation.
@@ -63,7 +63,7 @@ erDiagram
         text prevention_status
         text detection_status
         timestamp executed_at
-        text command "heavy, TOASTed, never read by the graph"
+        text command "short; Read A skips it too"
         text terminal_output "heavy, TOASTed, never read by the graph"
     }
     ATTACKPATH_FINDING {
@@ -82,8 +82,9 @@ erDiagram
 
 - **`attackpath_execution`** — one row is one **hop**: a source (an injector, or an agent on an already
   compromised asset) acting on a target endpoint. It carries a snapshot of the run (hostname, ip,
-  platform, agent, prevention/detection status, payload), plus two heavy text columns (`command`,
-  `terminal_output`) that PostgreSQL stores off-row (TOAST) and that **the graph read never touches**.
+  platform, agent, prevention/detection status, payload), plus the heavy `terminal_output` text column
+  that PostgreSQL stores off-row (TOAST) and a shorter `command` column — **neither is read by the
+  graph** (Read A selects only the short display columns).
 - **`attackpath_finding`** — one row is one `(endpoint, type, value)`: a thing discovered on an
   endpoint. `endpoint_key` matches an execution's `target_key`, which is how a finding attaches to an
   endpoint.
@@ -97,7 +98,9 @@ frozen snapshot (an endpoint renamed after the run keeps the name it had at exec
 ## 3. The rebuild: two reads and one pass
 
 The whole graph is rebuilt from exactly **two flat reads plus one in-memory pass**. No recursion; the
-number of SQL statements is a constant two, whatever the graph size. This is the heart of the POC.
+number of read statements is a constant two, whatever the graph size (an auto-served request first runs
+one cheap indexed `COUNT` to choose full vs collapsed — an O(1) probe, not a third read of the graph).
+This is the heart of the POC.
 
 ```mermaid
 flowchart TB
@@ -139,6 +142,11 @@ flowchart TB
     T -->|ASSET| TA["target_key = asset id"]
     T -->|RAW| TR["target_key = raw value (e.g. an IP)"]
 ```
+
+> The **seed and benchmark generate injector-sourced executions only** (a single-hop injector →
+> endpoint star). The `AGENT_ASSET` pivot branch above is exercised by the rebuild unit test
+> (`AttackPathGraphServiceTest`), not seeded or scale-tested; adding a fraction of pivot rows to the
+> seed is a small follow-up.
 
 ### Deterministic ids
 
@@ -285,7 +293,8 @@ The seed is reproducible: the same `seed` integer produces the same rows. Seeded
     inspector. This is safe: the inspector adds no guarantee to a plain `INSERT ... VALUES` (it passes
     those through unchanged), and the seed sets `tenant_id` explicitly on every row — the exact guarantee
     the ORM path would have given. Going through the inspector was measured at ~1,500 rows/s (it parses
-    every statement), which would make the 5M-row seed take ~4 hours; raw JDBC is ~17x faster. The bypass
+    every statement), which would make the full dataset (~20M rows once findings and links are counted)
+    take ~4 hours; raw JDBC is ~17x faster. The bypass
     is admin-only, flag-gated, and isolated to the seed service (allowlisted with `@AllowRawJdbc`). It
     must not spread to the read path.
 
@@ -295,8 +304,10 @@ Open any simulation → the **Attack path** tab. The **Simulation id** field is 
 simulations with their **endpoint count** (the number of graph nodes, which drives the render cost — not
 the execution count), largest first. Pick one, then:
 
-- Toggle **Collapsed / Full / Auto**. On the 100k outlier (`ap-seed-7-sim-0`), collapsed is ~0.3 s / ~450
-  nodes vs full ~2.3 s / ~2,800 nodes plus a 100k-row feed — the lever the POC is about.
+- Toggle **Collapsed / Full / Auto**. On the 100k outlier (`ap-seed-7-sim-0`), collapsed renders ~450
+  nodes vs full's ~2,800 nodes plus a 100k-row feed — the render-cost lever the POC is about. (The
+  backend rebuild for this outlier is ~0.3 s collapsed vs ~1.4 s full, §9; the front latency itself was
+  reasoned from node counts, not browser-measured — see §9 and results.md.)
 - **Click an endpoint** to lazy-load its findings (collapsed) and its executions (side panel), and to
   highlight its path.
 
@@ -328,9 +339,13 @@ lab benchmark. Full detail and caveats are in the POC's `results.md`.
 
 ### What we measured
 
-- **The rebuild works and scales as designed for typical sizes.** The read plan is a bounded index scan
-  on the `simulation_id` composite index, **no recursion**, a constant two statements. A typical ~30k
-  simulation is ~0.75 s (p50) even at 5M total.
+- **The rebuild works, but full mode is above target at 5M for typical sizes.** The read plan is a
+  bounded index scan on the `simulation_id` composite index, **no recursion**, a constant two reads. A
+  typical ~30k simulation's *full* rebuild is ~0.75 s p50 (up to ~1.4 s p95) at 5M total — above the
+  300 ms design target. Because ~30k is over the collapse threshold (20k), the auto mode serves such a
+  simulation **collapsed**, where the cost tracks the aggregation scan (well under the full cost; the
+  collapsed numbers below are measured on the 100k+ outliers, so ~30k collapsed is faster still). So
+  collapsed, not full, is what keeps typical simulations fast at 5M.
 - **A large single simulation's full rebuild is expensive.** It grows with the simulation and, once the
   wide-row table outgrows cache, becomes IO-bound:
 
