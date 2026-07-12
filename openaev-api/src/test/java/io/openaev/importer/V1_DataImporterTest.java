@@ -527,6 +527,8 @@ class V1_DataImporterTest extends IntegrationTest {
           "inject_depends_on": ["old-parent-id"],
           "inject_exercise": "old-exercise-id",
           "inject_scenario": "old-scenario-id",
+          "inject_assets": ["old-asset-id"],
+          "inject_asset_groups": ["old-asset-group-id"],
           "inject_injector_contract": {
             "injector_contract_id": "%s"
           }
@@ -546,6 +548,8 @@ class V1_DataImporterTest extends IntegrationTest {
     assertFalse(resolvedJson.has("inject_depends_on"));
     assertFalse(resolvedJson.has("inject_exercise"));
     assertFalse(resolvedJson.has("inject_scenario"));
+    assertFalse(resolvedJson.has("inject_assets"));
+    assertFalse(resolvedJson.has("inject_asset_groups"));
     assertEquals(
         contractId,
         resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());

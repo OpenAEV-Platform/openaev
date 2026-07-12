@@ -2214,6 +2214,8 @@ public class V1_DataImporter implements Importer {
       dataObject.remove("inject_depends_on");
       dataObject.remove("inject_exercise");
       dataObject.remove("inject_scenario");
+      dataObject.remove("inject_assets");
+      dataObject.remove("inject_asset_groups");
       return mapper.writeValueAsString(dataObject);
     } catch (Exception e) {
       log.warn("Failed to sanitize workflow step_data for import", e);
