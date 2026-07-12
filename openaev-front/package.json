@@ -35,7 +35,7 @@
     "node": ">= 22.11.0"
   },
   "dependencies": {
-    "@casl/ability": "7.0.0",
+    "@casl/ability": "7.0.1",
     "@casl/react": "5.0.1",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",

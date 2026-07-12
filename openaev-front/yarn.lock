@@ -251,12 +251,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@casl/ability@npm:7.0.0":
-  version: 7.0.0
-  resolution: "@casl/ability@npm:7.0.0"
+"@casl/ability@npm:7.0.1":
+  version: 7.0.1
+  resolution: "@casl/ability@npm:7.0.1"
   dependencies:
     "@ucast/mongo2js": "npm:^2.0.0"
-  checksum: 10c0/543ec3d58faa781c28cb65d825aba7692d933445e5487f2c9044929fe91ca5a6599997b6f57c1be6de5dcc5356248da214f8c68a5df3dfdc82fd369defb8c947
+  checksum: 10c0/87b7a66b9c5a62a8d413efa858ffb80d103b41eae07f9b62c1c0a61a3641c83bf6374a02fc449b1f958e282205abef95a41738f648447f60415e72ec89d899d6
   languageName: node
   linkType: hard
 
@@ -8858,7 +8858,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "openaev-front@workspace:."
   dependencies:
-    "@casl/ability": "npm:7.0.0"
+    "@casl/ability": "npm:7.0.1"
     "@casl/react": "npm:5.0.1"
     "@emotion/react": "npm:11.14.0"
     "@emotion/styled": "npm:11.14.1"
