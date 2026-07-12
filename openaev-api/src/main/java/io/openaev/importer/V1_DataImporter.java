@@ -2134,30 +2134,33 @@ public class V1_DataImporter implements Importer {
     // Extract injector contract info from step_data
     JsonNode injectContractNode = dataJson.get("inject_injector_contract");
     if (injectContractNode == null || injectContractNode.isNull()) {
-      return stepDataRaw;
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
     String injectorContractId = extractInjectorContractId(injectContractNode);
     if (!hasText(injectorContractId)) {
-      return stepDataRaw;
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
     // Contract already exists in DB — no resolution needed
     if (injectorContractRepository.existsByContractId(injectorContractId)) {
-      return stepDataRaw;
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
     // Already resolved by a previous step or by importInjects — reuse
     String alreadyResolved = resolvedContracts.get(injectorContractId);
     if (alreadyResolved != null) {
-      return updateContractIdInStepData(dataJson, alreadyResolved, stepDataRaw);
+      if (!updateContractIdInStepData(dataJson, alreadyResolved)) {
+        return stepDataRaw;
+      }
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
     if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
       log.warn(
           "Step data references missing injector contract {} in textual form with no payload to recreate",
           injectorContractId);
-      return stepDataRaw;
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
     // Contract is missing — resolve using the same logic as importInjects
@@ -2166,7 +2169,7 @@ public class V1_DataImporter implements Importer {
       log.warn(
           "Step data references missing injector contract {} with no payload to recreate",
           injectorContractId);
-      return stepDataRaw;
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
     String newContractId = resolveInjectorContract(injectContractObject, baseIds);
@@ -2174,14 +2177,16 @@ public class V1_DataImporter implements Importer {
     // Update step_data and cache the mapping
     if (newContractId != null) {
       resolvedContracts.put(injectorContractId, newContractId);
-      return updateContractIdInStepData(dataJson, newContractId, stepDataRaw);
+      if (!updateContractIdInStepData(dataJson, newContractId)) {
+        return stepDataRaw;
+      }
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
     }
 
-    return stepDataRaw;
+    return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
   }
 
-  private String updateContractIdInStepData(
-      JsonNode dataJson, String newContractId, String fallback) {
+  private boolean updateContractIdInStepData(JsonNode dataJson, String newContractId) {
     try {
       ObjectNode dataObject = (ObjectNode) dataJson;
       JsonNode injectContractNode = dataObject.get("inject_injector_contract");
@@ -2192,9 +2197,26 @@ public class V1_DataImporter implements Importer {
         normalizedInjectContractNode.put("injector_contract_id", newContractId);
         dataObject.set("inject_injector_contract", normalizedInjectContractNode);
       }
-      return mapper.writeValueAsString(dataObject);
+      return true;
     } catch (Exception e) {
       log.warn("Failed to update step_data with resolved injector contract", e);
+      return false;
+    }
+  }
+
+  private String sanitizeStepDataForWorkflowImport(JsonNode dataJson, String fallback) {
+    try {
+      if (!(dataJson instanceof ObjectNode dataObject)) {
+        return fallback;
+      }
+      dataObject.remove("inject_id");
+      dataObject.remove("inject_status");
+      dataObject.remove("inject_depends_on");
+      dataObject.remove("inject_exercise");
+      dataObject.remove("inject_scenario");
+      return mapper.writeValueAsString(dataObject);
+    } catch (Exception e) {
+      log.warn("Failed to sanitize workflow step_data for import", e);
       return fallback;
     }
   }

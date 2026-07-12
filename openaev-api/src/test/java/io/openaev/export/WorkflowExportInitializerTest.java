@@ -136,12 +136,15 @@ class WorkflowExportInitializerTest {
         "10.0.0.0/24",
         ScopeRuleValueType.IP_SUBNET.name());
 
-    assertEquals("INJECT", exportedWorkflow.get("workflow_steps").get(0).get("step_action_class").asText());
-    assertEquals("INJECT", exportedWorkflow.get("workflow_steps").get(1).get("step_action_class").asText());
+    assertEquals(
+        "INJECT", exportedWorkflow.get("workflow_steps").get(0).get("step_action_class").asText());
+    assertEquals(
+        "INJECT", exportedWorkflow.get("workflow_steps").get(1).get("step_action_class").asText());
 
     ObjectNode textualStepData =
         (ObjectNode)
-            objectMapper.readTree(exportedWorkflow.get("workflow_steps").get(0).get("step_data").asText());
+            objectMapper.readTree(
+                exportedWorkflow.get("workflow_steps").get(0).get("step_data").asText());
     ObjectNode objectStepDataAfter =
         (ObjectNode) exportedWorkflow.get("workflow_steps").get(1).get("step_data");
 

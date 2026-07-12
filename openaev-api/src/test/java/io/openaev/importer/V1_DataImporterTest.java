@@ -510,6 +510,47 @@ class V1_DataImporterTest extends IntegrationTest {
         resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
   }
 
+  @Test
+  @Transactional
+  void
+      given_stepDataWithRuntimeReferences_when_resolvingStepData_should_sanitizeStaleInjectFields() {
+    // -- Arrange --
+    String contractId = UUID.randomUUID().toString();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode stepNode = objectMapper.createObjectNode();
+    stepNode.put(
+        "step_data",
+        """
+        {
+          "inject_id": "old-inject-id",
+          "inject_status": "old-status-id",
+          "inject_depends_on": ["old-parent-id"],
+          "inject_exercise": "old-exercise-id",
+          "inject_scenario": "old-scenario-id",
+          "inject_injector_contract": {
+            "injector_contract_id": "%s"
+          }
+        }
+        """
+            .formatted(contractId));
+
+    // -- Act --
+    String resolvedStepData =
+        ReflectionTestUtils.invokeMethod(
+            importer, "resolveStepData", stepNode, new HashMap<String, String>(), new HashMap<>());
+    JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
+
+    // -- Assert --
+    assertFalse(resolvedJson.has("inject_id"));
+    assertFalse(resolvedJson.has("inject_status"));
+    assertFalse(resolvedJson.has("inject_depends_on"));
+    assertFalse(resolvedJson.has("inject_exercise"));
+    assertFalse(resolvedJson.has("inject_scenario"));
+    assertEquals(
+        contractId,
+        resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+  }
+
   // -- UTILS --
 
   private static Specification<Exercise> exerciseByName(@NotNull final String name) {
