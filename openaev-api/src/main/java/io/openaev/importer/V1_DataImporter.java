@@ -37,6 +37,7 @@ import io.openaev.service.ImportEntry;
 import io.openaev.service.InjectorService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.WorkflowScopeRuleUtils;
 import jakarta.activation.MimetypesFileTypeMap;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -290,11 +291,19 @@ public class V1_DataImporter implements Importer {
     resolveJsonElements(importNode, prefix + "domains")
         .forEach(
             nodeDomain -> {
-              JsonNode idNode = nodeDomain.get("domain_id");
-              if (idNode == null) {
+              if (nodeDomain == null || nodeDomain.isNull()) {
                 return;
               }
-              String id = idNode.textValue();
+
+              String id =
+                  nodeDomain.isTextual()
+                      ? nodeDomain.asText()
+                      : ofNullable(nodeDomain.get("domain_id"))
+                          .map(JsonNode::textValue)
+                          .orElse(null);
+              if (!hasText(id)) {
+                return;
+              }
 
               if (baseIds.get(id) != null) {
                 domains.add((Domain) baseIds.get(id));
@@ -306,12 +315,15 @@ public class V1_DataImporter implements Importer {
                 baseIds.put(id, existingDomain.get());
                 domains.add(existingDomain.get());
               } else {
+                if (nodeDomain.isTextual()) {
+                  return;
+                }
                 Domain createdDomain =
                     this.domainService.upsert(
                         nodeDomain.get("domain_name").textValue(),
                         nodeDomain.get("domain_color").textValue(),
                         new Tenant(TenantContext.getCurrentTenant()));
-                baseIds.put(createdDomain.getId(), createdDomain);
+                baseIds.put(id, createdDomain);
                 domains.add(createdDomain);
               }
             });
@@ -1832,6 +1844,20 @@ public class V1_DataImporter implements Importer {
       if (workflowNode.has("workflow_scope_rules")) {
         List<WorkflowScopeRule> scopeRules = new ArrayList<>();
         for (JsonNode ruleNode : workflowNode.get("workflow_scope_rules")) {
+          ScopeRuleSource ruleSource =
+              ruleNode.has("workflow_scope_rule_source")
+                      && !ruleNode.get("workflow_scope_rule_source").isNull()
+                  ? ScopeRuleSource.valueOf(ruleNode.get("workflow_scope_rule_source").asText())
+                  : null;
+          ScopeRuleValueType ruleValueType =
+              ruleNode.has("workflow_scope_rule_value_type")
+                      && !ruleNode.get("workflow_scope_rule_value_type").isNull()
+                  ? ScopeRuleValueType.valueOf(
+                      ruleNode.get("workflow_scope_rule_value_type").asText())
+                  : null;
+          if (WorkflowScopeRuleUtils.isAssetScopeRule(ruleSource, ruleValueType)) {
+            continue;
+          }
           WorkflowScopeRule rule =
               WorkflowScopeRule.builder()
                   .selectedMode(
@@ -1840,22 +1866,12 @@ public class V1_DataImporter implements Importer {
                           ? ScopeRuleSelectedMode.valueOf(
                               ruleNode.get("workflow_scope_rule_selected_mode").asText())
                           : null)
-                  .ruleSource(
-                      ruleNode.has("workflow_scope_rule_source")
-                              && !ruleNode.get("workflow_scope_rule_source").isNull()
-                          ? ScopeRuleSource.valueOf(
-                              ruleNode.get("workflow_scope_rule_source").asText())
-                          : null)
+                  .ruleSource(ruleSource)
                   .ruleValue(
                       ruleNode.has("workflow_scope_rule_value")
                           ? ruleNode.get("workflow_scope_rule_value").asText()
                           : null)
-                  .valueType(
-                      ruleNode.has("workflow_scope_rule_value_type")
-                              && !ruleNode.get("workflow_scope_rule_value_type").isNull()
-                          ? ScopeRuleValueType.valueOf(
-                              ruleNode.get("workflow_scope_rule_value_type").asText())
-                          : null)
+                  .valueType(ruleValueType)
                   .workflow(workflow)
                   .build();
           scopeRules.add(rule);
@@ -2121,12 +2137,10 @@ public class V1_DataImporter implements Importer {
       return stepDataRaw;
     }
 
-    JsonNode contractIdNode = injectContractNode.get("injector_contract_id");
-    if (contractIdNode == null || contractIdNode.isNull() || contractIdNode.asText().isBlank()) {
+    String injectorContractId = extractInjectorContractId(injectContractNode);
+    if (!hasText(injectorContractId)) {
       return stepDataRaw;
     }
-
-    String injectorContractId = contractIdNode.asText();
 
     // Contract already exists in DB — no resolution needed
     if (injectorContractRepository.existsByContractId(injectorContractId)) {
@@ -2139,8 +2153,15 @@ public class V1_DataImporter implements Importer {
       return updateContractIdInStepData(dataJson, alreadyResolved, stepDataRaw);
     }
 
+    if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
+      log.warn(
+          "Step data references missing injector contract {} in textual form with no payload to recreate",
+          injectorContractId);
+      return stepDataRaw;
+    }
+
     // Contract is missing — resolve using the same logic as importInjects
-    JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
+    JsonNode payloadNode = injectContractObject.get("injector_contract_payload");
     if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
       log.warn(
           "Step data references missing injector contract {} with no payload to recreate",
@@ -2148,7 +2169,7 @@ public class V1_DataImporter implements Importer {
       return stepDataRaw;
     }
 
-    String newContractId = resolveInjectorContract(injectContractNode, baseIds);
+    String newContractId = resolveInjectorContract(injectContractObject, baseIds);
 
     // Update step_data and cache the mapping
     if (newContractId != null) {
@@ -2163,13 +2184,30 @@ public class V1_DataImporter implements Importer {
       JsonNode dataJson, String newContractId, String fallback) {
     try {
       ObjectNode dataObject = (ObjectNode) dataJson;
-      ObjectNode contractObject = (ObjectNode) dataObject.get("inject_injector_contract");
-      contractObject.put("injector_contract_id", newContractId);
+      JsonNode injectContractNode = dataObject.get("inject_injector_contract");
+      if (injectContractNode instanceof ObjectNode injectContractObjectNode) {
+        injectContractObjectNode.put("injector_contract_id", newContractId);
+      } else {
+        ObjectNode normalizedInjectContractNode = mapper.createObjectNode();
+        normalizedInjectContractNode.put("injector_contract_id", newContractId);
+        dataObject.set("inject_injector_contract", normalizedInjectContractNode);
+      }
       return mapper.writeValueAsString(dataObject);
     } catch (Exception e) {
       log.warn("Failed to update step_data with resolved injector contract", e);
       return fallback;
     }
+  }
+
+  private static String extractInjectorContractId(JsonNode injectContractNode) {
+    if (injectContractNode == null || injectContractNode.isNull()) {
+      return null;
+    }
+    if (injectContractNode.isTextual()) {
+      return injectContractNode.asText();
+    }
+    JsonNode contractIdNode = injectContractNode.get("injector_contract_id");
+    return contractIdNode != null && !contractIdNode.isNull() ? contractIdNode.asText() : null;
   }
 
   private static class BaseHolder implements Base {

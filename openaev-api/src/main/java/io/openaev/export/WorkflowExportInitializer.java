@@ -9,7 +9,9 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.utils.WorkflowScopeRuleUtils;
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +25,12 @@ import org.springframework.util.StringUtils;
 @Component
 @Slf4j
 public class WorkflowExportInitializer {
+
+  private static final String WORKFLOW_STEPS = "workflow_steps";
+  private static final String WORKFLOW_SCOPE_RULES = "workflow_scope_rules";
+  private static final String STEP_DATA = "step_data";
+  private static final String INJECT_INJECTOR_CONTRACT = "inject_injector_contract";
+  private static final String INJECTOR_CONTRACT_ID = "injector_contract_id";
 
   @Resource private ConditionRepository conditionRepository;
   @Resource private InjectorContractRepository injectorContractRepository;
@@ -87,18 +95,35 @@ public class WorkflowExportInitializer {
     if (!(workflowNode instanceof ObjectNode workflowObject)) {
       return;
     }
-    JsonNode stepsNode = workflowObject.get("workflow_steps");
+    filterAssetScopeRules(workflowObject, objectMapper);
+    JsonNode stepsNode = workflowObject.get(WORKFLOW_STEPS);
     if (!(stepsNode instanceof ArrayNode stepsArray)) {
       return;
     }
     stepsArray.forEach(stepNode -> enrichStepData(stepNode, objectMapper));
   }
 
+  private static void filterAssetScopeRules(ObjectNode workflowObject, ObjectMapper objectMapper) {
+    JsonNode scopeRulesNode = workflowObject.get(WORKFLOW_SCOPE_RULES);
+    if (!(scopeRulesNode instanceof ArrayNode scopeRulesArray)) {
+      return;
+    }
+
+    ArrayNode filteredScopeRules = objectMapper.createArrayNode();
+    scopeRulesArray.forEach(
+        ruleNode -> {
+          if (!WorkflowScopeRuleUtils.isAssetScopeRule(ruleNode)) {
+            filteredScopeRules.add(ruleNode);
+          }
+        });
+    workflowObject.set(WORKFLOW_SCOPE_RULES, filteredScopeRules);
+  }
+
   private void enrichStepData(JsonNode stepNode, ObjectMapper objectMapper) {
     if (!(stepNode instanceof ObjectNode stepObject)) {
       return;
     }
-    JsonNode stepDataNode = stepObject.get("step_data");
+    JsonNode stepDataNode = stepObject.get(STEP_DATA);
     if (stepDataNode == null || stepDataNode.isNull()) {
       return;
     }
@@ -112,7 +137,7 @@ public class WorkflowExportInitializer {
       }
 
       String injectorContractId =
-          extractInjectorContractId(stepDataObject.get("inject_injector_contract"));
+          extractInjectorContractId(stepDataObject.get(INJECT_INJECTOR_CONTRACT));
       if (!StringUtils.hasText(injectorContractId)) {
         return;
       }
@@ -124,15 +149,24 @@ public class WorkflowExportInitializer {
       }
 
       initializeInjectorContractForExport(injectorContract);
-      stepDataObject.set("inject_injector_contract", objectMapper.valueToTree(injectorContract));
-      if (isTextual) {
-        stepObject.put("step_data", objectMapper.writeValueAsString(stepDataObject));
-      } else {
-        stepObject.set("step_data", stepDataObject);
-      }
+      stepDataObject.set(INJECT_INJECTOR_CONTRACT, objectMapper.valueToTree(injectorContract));
+      setStepData(stepObject, stepDataObject, isTextual, objectMapper);
     } catch (Exception e) {
       log.warn("Unable to enrich workflow step_data for export", e);
     }
+  }
+
+  private static void setStepData(
+      ObjectNode stepObject,
+      ObjectNode stepDataObject,
+      boolean isTextual,
+      ObjectMapper objectMapper)
+      throws IOException {
+    if (isTextual) {
+      stepObject.put(STEP_DATA, objectMapper.writeValueAsString(stepDataObject));
+      return;
+    }
+    stepObject.set(STEP_DATA, stepDataObject);
   }
 
   private static String extractInjectorContractId(JsonNode injectorContractNode) {
@@ -142,7 +176,7 @@ public class WorkflowExportInitializer {
     if (injectorContractNode.isTextual()) {
       return injectorContractNode.asText();
     }
-    JsonNode idNode = injectorContractNode.get("injector_contract_id");
+    JsonNode idNode = injectorContractNode.get(INJECTOR_CONTRACT_ID);
     return idNode != null && idNode.isTextual() ? idNode.asText() : null;
   }
 
