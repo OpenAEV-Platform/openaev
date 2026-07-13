@@ -32,6 +32,7 @@ runs:
         if [ -n "$PR_NUMBER_INPUT" ]; then
           PR_JSON=$(gh pr view "$PR_NUMBER_INPUT" --repo "$OWNER/$REPO_NAME" --json title,body)
         else
+		env:
           PR_JSON='${{ toJson(github.event.pull_request) }}'
         fi
 
