@@ -63,7 +63,8 @@
     "palette.background.default (dark background.nav rides along for free, same constant)",
     "palette.background.paper (+ paperInCard dark, code dark via THEME_*_ACCENT)",
     "palette.background.accent (dark) / background.code (both modes) via THEME_*_ACCENT -- NOT the same as the standalone light background.accent literal, see notMigrated",
-    "palette.background.secondary (newly wired -- was declared in Theme.ts but never assigned before this lot)"
+    "palette.background.secondary (newly wired -- was declared in Theme.ts but never assigned before this lot)",
+    "MuiCssBaseline html/body background (newly wired two-stop gradient, ISO OpenCTI's getAppBodyGradientEndColor pattern -- OpenAEV previously had zero gradient, flat fill only; found during Sandy's Phase 5 review)"
   ],
   "notMigrated": [
     "palette.background.accent (light, standalone '#d3eaff' literal, ItemCopy.tsx/AttackPatternBox.tsx) -- no FDS token match on either OpenCTI or OpenAEV side, genuine cross-product gap, see TOKEN-MAPPING.md §3.5 and the Figma backlog",

@@ -102,6 +102,53 @@ on the import-drawer's drag zone.
 
 ---
 
+## 2b. ISO OpenCTI — body/html gradient (found during your Phase 5 review)
+
+**You caught a real gap, not a false alarm.** OpenAEV's `MuiCssBaseline`
+never gave `html`/`body` a `background` at all — it only set
+`scrollbarColor`/`scrollbarWidth`. The actual rendered background came
+purely from MUI `CssBaseline`'s own default (a **flat fill** off
+`background.default`). Zero gradient, on either mode, before this fix.
+
+OpenCTI's `ThemeDark.ts`/`ThemeLight.ts` build a real two-stop
+`background: linear-gradient(100deg, <background> 0%, <end-stop> 100%)` on
+both `html` and `body` (`backgroundAttachment: 'fixed'` alongside it), where
+`<end-stop>` comes from a small `getAppBodyGradientEndColor(background)`
+helper:
+- if the DB-configured `background` param is null (using the FDS default):
+  return the FDS `--color-elevation-background-layer-0-gradient` token
+  as-is.
+- if an admin **has** overridden `background` in a custom theme: return
+  `lighten(background, 0.05)` instead — so a custom background still gets a
+  live, coherent gradient end-stop even though no form field lets anyone
+  author that end-stop directly.
+
+Ported verbatim (same helper name, same 100deg angle, same
+`backgroundAttachment: 'fixed'`, same html+body duplication) into
+`ThemeDark.ts`/`ThemeLight.ts` — new `THEME_<MODE>_DEFAULT_BODY_END_GRADIENT`
+constants, wired to the same token OpenCTI uses:
+
+| Mode | Start (`background.default`, already wired §1) | End (new) | FDS token (end) |
+|---|---|---|---|
+| dark | `#070d18` | `#0c1527` | `--color-elevation-background-layer-0-gradient` |
+| light | `#f2f2f3` | `#ffffff` | `--color-elevation-background-layer-0-gradient` |
+
+**Visual delta: minor** (unlike OpenCTI, which was replacing an already-visible-but-wrong
+gradient, OpenAEV had no gradient at all — the two stops are close enough
+in value that the change reads as a subtle diagonal depth cue, not a color
+shift; still worth a dedicated look at the checkpoint since it touches
+every single screen's canvas, per your call that this is the most
+consequential ISO delta of the lot).
+
+Left untouched, matching OpenCTI's own scope decision on this exact point:
+`palette.gradient.main` (OpenAEV) / `palette.gradient.background` (OpenCTI)
+— confirmed dead code on both products, neither's `MuiCssBaseline` ever
+reads it; the real body background is always hand-built inline as shown
+above. No DB schema change considered or needed (same reasoning as OpenCTI:
+`lighten()` already covers the custom-theme case).
+
+---
+
 ## 3. §C detail — usages, classification, treatment (per your requested methodology)
 
 All 6 properties you named came back **DURABLE** (none JETABLE) — consistent

@@ -1,4 +1,4 @@
-import { buttonClasses, type ThemeOptions } from '@mui/material';
+import { buttonClasses, lighten, type ThemeOptions } from '@mui/material';
 
 import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
@@ -12,6 +12,9 @@ import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 const EE_COLOR = FDS.colors.light['--color-filigran-tonic-primary'];
 
 export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--color-elevation-background-layer-0'];
+// fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — body/html gradient end-stop (was entirely unwired: no
+// gradient existed on OpenAEV's body/html before this, ISO'd on OpenCTI's proven two-stop pattern).
+const THEME_LIGHT_DEFAULT_BODY_END_GRADIENT = FDS.colors.light['--color-elevation-background-layer-0-gradient'];
 const THEME_LIGHT_DEFAULT_PRIMARY = FDS.colors.light['--color-darkblue-600'];
 const THEME_LIGHT_DEFAULT_SECONDARY = FDS.colors.light['--color-filigran-tonic-primary'];
 const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--color-elevation-background-layer-3'];
@@ -19,6 +22,15 @@ const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--color-elevation-background
 // NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item" flag (Sandy hasn't signed
 // off on this specific, visibly-notable white -> #f2f2f3 shift yet).
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
+
+// Same derivation as OpenCTI's ThemeLight.ts: a custom (DB-overridden) background still gets a live
+// gradient end-stop via lighten(), since no field lets an admin author that end-stop directly today.
+const getAppBodyGradientEndColor = (background: string | null): string => {
+  if (background && background !== THEME_LIGHT_DEFAULT_BACKGROUND) {
+    return lighten(background, 0.05);
+  }
+  return THEME_LIGHT_DEFAULT_BODY_END_GRADIENT;
+};
 
 const ThemeLight = (
   logo: string | null = null,
@@ -232,10 +244,16 @@ const ThemeLight = (
         html: {
           scrollbarColor: `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,
           scrollbarWidth: 'thin',
+          // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — two-stop body/html gradient (was a flat fill).
+          background: `linear-gradient(100deg, ${background || THEME_LIGHT_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
+          backgroundAttachment: 'fixed',
+          backgroundColor: background || THEME_LIGHT_DEFAULT_BACKGROUND,
         },
         body: {
           'scrollbarColor': `${accent || THEME_LIGHT_DEFAULT_ACCENT} ${paper || THEME_LIGHT_DEFAULT_PAPER}`,
           'scrollbarWidth': 'thin',
+          'background': `linear-gradient(100deg, ${background || THEME_LIGHT_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
+          'backgroundAttachment': 'fixed',
           'html': { WebkitFontSmoothing: 'auto' },
           'a': { color: primary || THEME_LIGHT_DEFAULT_PRIMARY },
           'input:-webkit-autofill': {
