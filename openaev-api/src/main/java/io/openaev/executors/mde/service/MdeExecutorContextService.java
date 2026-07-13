@@ -97,7 +97,10 @@ public class MdeExecutorContextService extends ExecutorContextService {
     // A new/absent connector config key is deserialized as null (it overrides the field default),
     // so
     // guard against null/non-positive values to avoid an NPE or a division-by-zero in the batching.
-    int paginationLimit = (configuredLimit != null && configuredLimit > 0) ? configuredLimit : 10;
+    int paginationLimit =
+        (configuredLimit != null && configuredLimit > 0)
+            ? configuredLimit
+            : MdeExecutorConfig.DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION;
     List<Runnable> dispatches = new ArrayList<>();
     for (MdeAction action : actions) {
       for (Agent agent : action.getAgents()) {

@@ -39,7 +39,6 @@ import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -124,14 +123,15 @@ public class MdeExecutorClient {
   }
 
   /**
-   * Runs a Live Response script on a single MDE machine. The call is async (fire-and-forget via
-   * {@code @Async}) — MDE creates a machine action that executes the script independently.
+   * Runs a Live Response script on a single MDE machine. MDE creates a machine action that executes
+   * the script independently; OpenAEV then awaits the implant callback. Throttled dispatch across
+   * agents is handled by {@code MdeExecutorContextService.executeActions}, which schedules these
+   * calls in rate-limited batches.
    *
    * @param machineId MDE machine ID (40-char hex)
    * @param scriptName name of the script pre-uploaded to the MDE Live Response Library
    * @param encodedCommand Base64-encoded command string passed as script argument
    */
-  @Async
   public void executeAction(
       @NotBlank String machineId, @NotBlank String scriptName, @NotBlank String encodedCommand) {
     try {
@@ -240,7 +240,11 @@ public class MdeExecutorClient {
         return;
       }
       Integer thresholdMinutes = config.getStalePendingThresholdMinutes();
-      long thresholdSeconds = (thresholdMinutes != null ? thresholdMinutes : 30) * 60L;
+      long thresholdSeconds =
+          (thresholdMinutes != null
+                  ? thresholdMinutes
+                  : MdeExecutorConfig.DEFAULT_STALE_PENDING_THRESHOLD_MINUTES)
+              * 60L;
       Instant staleBefore = Instant.now().minusSeconds(thresholdSeconds);
       for (MdeMachineAction action : response.getValue()) {
         if (isStalePendingAction(action, staleBefore)) {
@@ -306,7 +310,12 @@ public class MdeExecutorClient {
             // The values are inlined in the message (not SLF4J placeholders) so the HTTP code and
             // MDE error body remain visible in log pipelines that drop structured arguments.
             if (code < 200 || code >= 300) {
-              log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + respBody);
+              // MDE error responses carry a short structured error (code/message), not the request
+              // body, but truncate defensively so an unexpectedly large or reflective body is never
+              // dumped wholesale into logs.
+              String safeBody =
+                  respBody.length() > 500 ? respBody.substring(0, 500) + "…(truncated)" : respBody;
+              log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + safeBody);
             }
             return respBody;
           });

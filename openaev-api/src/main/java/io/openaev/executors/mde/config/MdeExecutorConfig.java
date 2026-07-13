@@ -20,6 +20,12 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "executor.mde")
 public class MdeExecutorConfig extends BaseIntegrationConfiguration {
 
+  /** Defaults reused by both the field initializers and the null-guards on the consuming paths. */
+  public static final int DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION = 10;
+
+  public static final int DEFAULT_API_REGISTER_INTERVAL = 1200;
+  public static final int DEFAULT_STALE_PENDING_THRESHOLD_MINUTES = 30;
+
   @IntegrationConfigKey(
       key = "EXECUTOR_ID",
       description = "ID of the builtin Microsoft Defender for Endpoint executor",
@@ -109,7 +115,7 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotNull
   @Min(1)
-  private Integer apiBatchExecutionActionPagination = 10;
+  private Integer apiBatchExecutionActionPagination = DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_MDE_API_REGISTER_INTERVAL",
@@ -119,7 +125,7 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotNull
   @Min(1)
-  private Integer apiRegisterInterval = 1200;
+  private Integer apiRegisterInterval = DEFAULT_API_REGISTER_INTERVAL;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_MDE_STALE_PENDING_THRESHOLD_MINUTES",
@@ -129,5 +135,5 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
   @Getter
   @NotNull
   @Min(1)
-  private Integer stalePendingThresholdMinutes = 30;
+  private Integer stalePendingThresholdMinutes = DEFAULT_STALE_PENDING_THRESHOLD_MINUTES;
 }

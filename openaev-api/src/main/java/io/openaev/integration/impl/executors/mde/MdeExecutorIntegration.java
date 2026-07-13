@@ -135,9 +135,14 @@ public class MdeExecutorIntegration extends Integration {
         new MdeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);
 
+    Integer registerInterval = this.config.getApiRegisterInterval();
+    long registerIntervalSeconds =
+        registerInterval != null
+            ? registerInterval
+            : MdeExecutorConfig.DEFAULT_API_REGISTER_INTERVAL;
     timers.add(
         taskScheduler.scheduleAtFixedRate(
-            mdeExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
+            mdeExecutorService, Duration.ofSeconds(registerIntervalSeconds)));
   }
 
   @Override

@@ -91,6 +91,13 @@ public class MdeExecutorService implements Runnable {
       String rawGroup = config.getDeviceGroup();
       boolean noGroupConfigured = rawGroup == null || rawGroup.isBlank();
 
+      // Query Advanced Hunting once per sync for near real-time device activity (the machines
+      // inventory lastSeen lags by up to a day). null means it is unavailable (missing
+      // AdvancedQuery.Read.All) and callers fall back to the sensor health flag.
+      Map<String, Instant> recentActivity =
+          client.getRecentDeviceActivity(RECENT_ACTIVITY_WINDOW_MINUTES);
+      boolean advancedHuntingAvailable = recentActivity != null;
+
       if (noGroupConfigured) {
         // No device group configured — fetch all machines and register without asset group
         List<MdeDevice> devices = client.devicesAll();
@@ -100,7 +107,7 @@ public class MdeExecutorService implements Runnable {
         }
         log.info("MDE executor provisioning {} devices (no group filter)", devices.size());
         endpointService.syncAgentsEndpoints(
-            toAgentEndpoint(devices),
+            toAgentEndpoint(devices, recentActivity, advancedHuntingAvailable),
             agentService.getAgentsByExecutorIdAndTenantId(executor.getId(), executor.getTenantId()),
             executor.getTenantId());
         return;
@@ -141,7 +148,7 @@ public class MdeExecutorService implements Runnable {
             assetGroup.getName());
         List<Agent> agents =
             endpointService.syncAgentsEndpoints(
-                toAgentEndpoint(devices),
+                toAgentEndpoint(devices, recentActivity, advancedHuntingAvailable),
                 agentService.getAgentsByExecutorIdAndTenantId(
                     executor.getId(), executor.getTenantId()),
                 executor.getTenantId());
@@ -153,15 +160,10 @@ public class MdeExecutorService implements Runnable {
     }
   }
 
-  private List<AgentRegisterInput> toAgentEndpoint(@NotNull final List<MdeDevice> devices) {
-    // The MDE machines inventory lastSeen refreshes on a slow (up to daily) cadence and badly lags
-    // real connectivity, so it cannot decide whether a device is currently reachable for Live
-    // Response. Query Advanced Hunting once for near real-time device activity; null means the
-    // feature is unavailable (missing AdvancedQuery.Read.All permission) and we fall back to the
-    // sensor health flag.
-    Map<String, Instant> recentActivity =
-        client.getRecentDeviceActivity(RECENT_ACTIVITY_WINDOW_MINUTES);
-    boolean advancedHuntingAvailable = recentActivity != null;
+  private List<AgentRegisterInput> toAgentEndpoint(
+      @NotNull final List<MdeDevice> devices,
+      final Map<String, Instant> recentActivity,
+      final boolean advancedHuntingAvailable) {
     return devices.stream()
         .map(
             device -> {
