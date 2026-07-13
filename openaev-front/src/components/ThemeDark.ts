@@ -4,16 +4,18 @@ import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
+import { FDS } from './fds-tokens.generated';
 import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
-const EE_COLOR = '#00f1bd';
+// fds-migration/TOKEN-MAPPING.md § B/C — recalibrated on FDS tokens (see report for old→new rationale).
+const EE_COLOR = FDS.colors.dark['--color-filigran-tonic-primary'];
 
-export const THEME_DARK_DEFAULT_BACKGROUND = '#070d19';
-const THEME_DARK_DEFAULT_PRIMARY = '#0fbcff';
-const THEME_DARK_DEFAULT_SECONDARY = '#00f1bd';
-const THEME_DARK_DEFAULT_ACCENT = '#0f1e38';
-const THEME_DARK_DEFAULT_PAPER = '#09101e';
-const THEME_DARK_DEFAULT_NAV = '#070d19';
+export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--color-elevation-background-layer-0'];
+const THEME_DARK_DEFAULT_PRIMARY = FDS.colors.dark['--color-filigran-brand-primary'];
+const THEME_DARK_DEFAULT_SECONDARY = FDS.colors.dark['--color-filigran-tonic-primary'];
+const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--color-elevation-background-layer-3'];
+const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--color-elevation-background-layer-1'];
+const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--color-elevation-surface-heading-layer-0'];
 
 const ThemeDark = (
   logo: string | null = null,
@@ -52,7 +54,7 @@ const ThemeDark = (
     warning: { main: '#ffa726' },
     primary: { main: primary || THEME_DARK_DEFAULT_PRIMARY },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
-    gradient: { main: '#00f1bd' },
+    gradient: { main: FDS.colors.dark['--color-filigran-tonic-primary'] },
     border: {
       primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
       secondary: hexToRGB(secondary || THEME_DARK_DEFAULT_SECONDARY, 0.3),
@@ -88,7 +90,7 @@ const ThemeDark = (
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
     },
-    xtmhub: { main: '#00f1bd' },
+    xtmhub: { main: FDS.colors.dark['--color-filigran-tonic-primary'] },
     background: {
       default: background || THEME_DARK_DEFAULT_BACKGROUND,
       paper: paper || THEME_DARK_DEFAULT_PAPER,
@@ -97,6 +99,9 @@ const ThemeDark = (
       shadow: 'rgba(200, 200, 200, 0.15)',
       code: accent || THEME_DARK_DEFAULT_ACCENT,
       paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
+      // fds-migration/TOKEN-MAPPING.md § D — was declared in Theme.ts but never assigned (resolved to
+      // undefined at runtime); DragAndDropImportDialog.tsx already consumes it.
+      secondary: FDS.colors.dark['--color-elevation-surface-highlight'],
     },
     widgets: {
       securityDomains: {
