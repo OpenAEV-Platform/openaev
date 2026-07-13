@@ -7,7 +7,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
-import io.openaev.database.repository.attackpath.AttackPathExecutionFindingRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -33,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH_POC",
+      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
       "openaev.attackpath.collapse-threshold=2"
     })
 @DisplayName("attack path collapsed mode and automatic switching")
@@ -44,7 +43,6 @@ class AttackPathCollapsedTest extends IntegrationTest {
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
-  @Autowired private AttackPathExecutionFindingRepository executionFindingRepository;
 
   @BeforeEach
   void seedSmallGraph() {
@@ -139,7 +137,7 @@ class AttackPathCollapsedTest extends IntegrationTest {
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(executionId);
     link.setFindingId(findingId);
-    executionFindingRepository.save(link);
+    entityManager.persist(link);
   }
 
   private static List<AttackPathNodeDTO> nodesOfType(AttackPathDTO dto, String type) {

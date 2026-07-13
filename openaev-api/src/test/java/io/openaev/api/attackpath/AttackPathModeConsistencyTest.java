@@ -7,7 +7,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
-import io.openaev.database.repository.attackpath.AttackPathExecutionFindingRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -43,7 +42,6 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
-  @Autowired private AttackPathExecutionFindingRepository executionFindingRepository;
 
   private Tenant tenant;
 
@@ -140,7 +138,7 @@ class AttackPathModeConsistencyTest extends IntegrationTest {
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(executionId);
     link.setFindingId(findingId);
-    executionFindingRepository.save(link);
+    entityManager.persist(link);
   }
 
   private void orphanFinding(String endpoint, String type, String value) {

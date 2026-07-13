@@ -10,6 +10,7 @@ import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
@@ -46,8 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class AttackPathGraphService {
 
   private static final String SOURCE_INJECTOR = "INJECTOR";
-  private static final String PREVENTED = "Prevented";
-  private static final String DETECTED = "Detected";
+  private static final String PREVENTED = ExpectationType.PREVENTION.successLabel;
+  private static final String DETECTED = ExpectationType.DETECTION.successLabel;
 
   private static final String TYPE_INJECTOR = "INJECTOR";
   private static final String TYPE_ASSET = "ASSET";

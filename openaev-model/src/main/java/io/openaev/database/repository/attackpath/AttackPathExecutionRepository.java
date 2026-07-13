@@ -64,7 +64,9 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    * and its per-endpoint RED (neither prevented nor detected) and ORANGE (detected but not
    * prevented) execution counts, which {@code collapsedColour} turns into the worst-case status. A
    * {@code GROUP BY}, so the per-execution rows are never materialized; the tenant filter is added
-   * by the inspector.
+   * by the inspector. The {@code 'Prevented'} / {@code 'Detected'} literals below match {@code
+   * ExpectationType.PREVENTION.successLabel} / {@code ExpectationType.DETECTION.successLabel} (they
+   * are query-string literals, so they cannot reference the enum directly).
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow("

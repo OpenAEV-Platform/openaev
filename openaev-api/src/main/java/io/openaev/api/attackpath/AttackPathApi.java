@@ -7,6 +7,8 @@ import io.openaev.config.SessionHelper;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
@@ -16,7 +18,6 @@ import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,9 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * POC-only attack-path endpoints (issue 6647). The whole controller is gated behind the {@code
- * ATTACK_PATH_POC} preview feature ({@code openaev.enabled-dev-features}), so it is not even
- * registered — and its routes return 404 — unless the feature is turned on.
+ * Attack-path endpoints (issue 6647). Gated behind the {@code ATTACK_PATH} preview feature: every
+ * endpoint checks {@link PreviewFeatureService#isFeatureEnabled} and returns 404 unless the feature
+ * is turned on ({@code openaev.enabled-dev-features}), the same way the platform's other preview
+ * features gate their code.
  *
  * <p>Tenant isolation is enforced by the statement inspector, not by hand: each read declares a
  * {@link TxCtx} parameter, so the transaction aspect writes the request's tenant scope (from the
@@ -41,25 +43,36 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestController
 @RequiredArgsConstructor
-@Conditional(AttackPathPocCondition.class)
-@RequestMapping({AttackPathPocApi.ATTACK_PATH_POC_URI, TENANT_PREFIX + "/poc/attack-path"})
-public class AttackPathPocApi extends RestBehavior {
+@RequestMapping({AttackPathApi.ATTACK_PATH_URI, TENANT_PREFIX + "/attack-path"})
+public class AttackPathApi extends RestBehavior {
 
-  public static final String ATTACK_PATH_POC_URI = "/api/poc/attack-path";
+  public static final String ATTACK_PATH_URI = "/api/attack-path";
 
   private final AttackPathGraphService graphService;
   private final AttackPathSeedService seedService;
+  private final PreviewFeatureService previewFeatureService;
+
+  /** Runtime feature gate: return 404 unless the {@code ATTACK_PATH} preview feature is enabled. */
+  private void requireAttackPathFeature() {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+  }
 
   /**
    * Full graph of a simulation, built from two flat reads plus one in-memory pass. {@code
    * skipRBAC}: synthetic seeded simulations are not real {@code exercises}, so resource-level RBAC
    * cannot resolve them; tenant isolation is still enforced by the statement inspector.
+   *
+   * <p>TODO(#6647): {@code skipRBAC} is a concession while the store is fed by the synthetic seed.
+   * Once these tables are fed from real simulations, resource-level RBAC must apply on every read.
    */
   @GetMapping("/simulations/{simulationId}/graph")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public AttackPathDTO graph(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam(required = false) String mode) {
+    requireAttackPathFeature();
     return graphService.buildGraph(simulationId, mode);
   }
 
@@ -71,6 +84,7 @@ public class AttackPathPocApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
   public List<AttackPathSimSummaryRow> simulations(TxCtx ctx) {
+    requireAttackPathFeature();
     return graphService.listSimulations();
   }
 
@@ -81,8 +95,9 @@ public class AttackPathPocApi extends RestBehavior {
   @GetMapping("/simulations/{simulationId}/endpoint/findings")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true)
-  public AttackPathExpandDTO expand(
+  public AttackPathExpandDTO expandEndpointFindings(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
+    requireAttackPathFeature();
     return graphService.expandEndpoint(simulationId, ref);
   }
 
@@ -95,19 +110,24 @@ public class AttackPathPocApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public AttackPathEndpointRelationsDTO relations(
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
+    requireAttackPathFeature();
     return graphService.endpointRelations(simulationId, ref);
   }
 
   /**
-   * Generate a synthetic dataset for the scaling tests. Admin-only, and only reachable when the POC
-   * flag is on. The generator sets {@code tenant_id} on every row itself: by default it writes its
-   * own synthetic tenants, or, when the body carries a {@code tenantId}, under that existing tenant
-   * so the seeded simulations are visible in the front for it.
+   * Generate a synthetic dataset for the scaling tests. Admin-only, and only reachable when the
+   * feature flag is on. The generator sets {@code tenant_id} on every row itself: by default it
+   * writes its own synthetic tenants, or, when the body carries a {@code tenantId}, under that
+   * existing tenant so the seeded simulations are visible in the front for it.
+   *
+   * <p>TODO(#6647): remove this seed generator from the API before production. It is a development
+   * data generator; production data comes from ingesting real simulation executions.
    */
   @PostMapping("/seed")
   @Transactional
   @AccessControl(skipRBAC = true)
   public AttackPathSeedResultDTO seed(@RequestBody(required = false) AttackPathSeedInput input) {
+    requireAttackPathFeature();
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }

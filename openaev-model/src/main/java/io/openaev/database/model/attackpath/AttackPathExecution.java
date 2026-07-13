@@ -33,7 +33,7 @@ public class AttackPathExecution implements TenantBase {
 
   @Id
   @ControlledUuidGeneration
-  @Column(name = "id")
+  @Column(name = "attackpath_execution_id")
   private String id;
 
   @JsonIgnore
@@ -41,74 +41,74 @@ public class AttackPathExecution implements TenantBase {
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   private Tenant tenant;
 
-  @Column(name = "simulation_id", nullable = false)
+  @Column(name = "attackpath_execution_simulation_id", nullable = false)
   private String simulationId;
 
-  @Column(name = "step_id")
+  @Column(name = "attackpath_execution_step_id")
   private String stepId;
 
-  @Column(name = "step_template_id")
+  @Column(name = "attackpath_execution_step_template_id")
   private String stepTemplateId;
 
-  @Column(name = "contract_external_id")
+  @Column(name = "attackpath_execution_contract_external_id")
   private String contractExternalId;
 
-  @Column(name = "source_kind", nullable = false)
+  @Column(name = "attackpath_execution_source_kind", nullable = false)
   private String sourceKind;
 
-  @Column(name = "source_asset_id")
+  @Column(name = "attackpath_execution_source_asset_id")
   private String sourceAssetId;
 
-  @Column(name = "agent_id")
+  @Column(name = "attackpath_execution_agent_id")
   private String agentId;
 
-  @Column(name = "agent_name")
+  @Column(name = "attackpath_execution_agent_name")
   private String agentName;
 
-  @Column(name = "agent_privilege")
+  @Column(name = "attackpath_execution_agent_privilege")
   private String agentPrivilege;
 
-  @Column(name = "source_injector")
+  @Column(name = "attackpath_execution_source_injector")
   private String sourceInjector;
 
-  @Column(name = "target_kind", nullable = false)
+  @Column(name = "attackpath_execution_target_kind", nullable = false)
   private String targetKind;
 
-  @Column(name = "target_asset_id")
+  @Column(name = "attackpath_execution_target_asset_id")
   private String targetAssetId;
 
-  @Column(name = "target_raw_value")
+  @Column(name = "attackpath_execution_target_raw_value")
   private String targetRawValue;
 
-  @Column(name = "target_key", nullable = false)
+  @Column(name = "attackpath_execution_target_key", nullable = false)
   private String targetKey;
 
-  @Column(name = "target_hostname")
+  @Column(name = "attackpath_execution_target_hostname")
   private String targetHostname;
 
-  @Column(name = "target_ip")
+  @Column(name = "attackpath_execution_target_ip")
   private String targetIp;
 
-  @Column(name = "target_platform")
+  @Column(name = "attackpath_execution_target_platform")
   private String targetPlatform;
 
-  @Column(name = "payload_name")
+  @Column(name = "attackpath_execution_payload_name")
   private String payloadName;
 
-  @Column(name = "executed_at", nullable = false)
+  @Column(name = "attackpath_execution_executed_at", nullable = false)
   private Instant executedAt;
 
-  @Column(name = "prevention_status")
+  @Column(name = "attackpath_execution_prevention_status")
   private String preventionStatus;
 
-  @Column(name = "detection_status")
+  @Column(name = "attackpath_execution_detection_status")
   private String detectionStatus;
 
   /** Heavy; TOAST keeps it off-row and the graph read never selects it. */
-  @Column(name = "command")
+  @Column(name = "attackpath_execution_command")
   private String command;
 
   /** Heavy; loaded only when a terminal drawer opens, never by the graph read. */
-  @Column(name = "terminal_output")
+  @Column(name = "attackpath_execution_terminal_output")
   private String terminalOutput;
 }

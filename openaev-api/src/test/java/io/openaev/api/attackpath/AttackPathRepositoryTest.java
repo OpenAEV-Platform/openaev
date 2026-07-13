@@ -9,7 +9,6 @@ import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
-import io.openaev.database.repository.attackpath.AttackPathExecutionFindingRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -32,7 +31,6 @@ class AttackPathRepositoryTest extends IntegrationTest {
 
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
-  @Autowired private AttackPathExecutionFindingRepository executionFindingRepository;
 
   @Test
   @DisplayName("Read A and Read B return flat projections filtered by simulation")
@@ -66,7 +64,7 @@ class AttackPathRepositoryTest extends IntegrationTest {
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(execution.getId());
     link.setFindingId(finding.getId());
-    executionFindingRepository.save(link);
+    entityManager.persist(link);
     entityManager.flush();
 
     // Read A: short display columns, including the run-snapshot ones; never the heavy columns

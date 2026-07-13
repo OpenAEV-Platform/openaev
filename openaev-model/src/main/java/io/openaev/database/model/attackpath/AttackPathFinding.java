@@ -31,7 +31,7 @@ public class AttackPathFinding implements TenantBase {
 
   @Id
   @ControlledUuidGeneration
-  @Column(name = "id")
+  @Column(name = "attackpath_finding_id")
   private String id;
 
   @JsonIgnore
@@ -39,21 +39,21 @@ public class AttackPathFinding implements TenantBase {
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   private Tenant tenant;
 
-  @Column(name = "simulation_id", nullable = false)
+  @Column(name = "attackpath_finding_simulation_id", nullable = false)
   private String simulationId;
 
-  @Column(name = "type", nullable = false)
+  @Column(name = "attackpath_finding_type", nullable = false)
   private String type;
 
-  @Column(name = "value", nullable = false)
+  @Column(name = "attackpath_finding_value", nullable = false)
   private String value;
 
-  @Column(name = "endpoint_id")
+  @Column(name = "attackpath_finding_endpoint_id")
   private String endpointId;
 
-  @Column(name = "endpoint_raw")
+  @Column(name = "attackpath_finding_endpoint_raw")
   private String endpointRaw;
 
-  @Column(name = "endpoint_key", nullable = false)
+  @Column(name = "attackpath_finding_endpoint_key", nullable = false)
   private String endpointKey;
 }

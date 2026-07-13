@@ -36,22 +36,22 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH_POC",
+      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
       "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
     })
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path POC read isolation through the real HTTP endpoints")
-class AttackPathPocHttpIsolationTest extends IntegrationTest {
+class AttackPathHttpIsolationTest extends IntegrationTest {
 
   private static final String SIM = "SIM-ISO";
   private static final String ENDPOINT_KEY = "dc-01";
   private static final String GRAPH =
-      "/api/tenants/{tenantId}/poc/attack-path/simulations/{simulationId}/graph";
+      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/graph";
   private static final String EXPAND =
-      "/api/tenants/{tenantId}/poc/attack-path/simulations/{simulationId}/endpoint/findings";
+      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/findings";
   private static final String RELATIONS =
-      "/api/tenants/{tenantId}/poc/attack-path/simulations/{simulationId}/endpoint/relations";
-  private static final String LIST = "/api/tenants/{tenantId}/poc/attack-path/simulations";
+      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/relations";
+  private static final String LIST = "/api/tenants/{tenantId}/attack-path/simulations";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -176,10 +176,14 @@ class AttackPathPocHttpIsolationTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO attackpath_execution (id, tenant_id, simulation_id, source_kind,"
-                + " source_injector, target_kind, target_asset_id, target_key, target_hostname,"
-                + " executed_at, prevention_status) VALUES (:id, :tenant, :sim, 'INJECTOR', 'NMAP',"
-                + " 'ASSET', :ep, :ep, 'CORP-DC-01', TIMESTAMP '2026-06-18 08:00:00', 'Prevented')")
+            "INSERT INTO attackpath_execution (attackpath_execution_id, tenant_id,"
+                + " attackpath_execution_simulation_id, attackpath_execution_source_kind,"
+                + " attackpath_execution_source_injector, attackpath_execution_target_kind,"
+                + " attackpath_execution_target_asset_id, attackpath_execution_target_key,"
+                + " attackpath_execution_target_hostname, attackpath_execution_executed_at,"
+                + " attackpath_execution_prevention_status) VALUES (:id, :tenant, :sim, 'INJECTOR',"
+                + " 'NMAP', 'ASSET', :ep, :ep, 'CORP-DC-01', TIMESTAMP '2026-06-18 08:00:00',"
+                + " 'Prevented')")
         .setParameter("id", id)
         .setParameter("tenant", tenantId)
         .setParameter("sim", SIM)
@@ -192,9 +196,11 @@ class AttackPathPocHttpIsolationTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO attackpath_finding (id, tenant_id, simulation_id, type, value, endpoint_id,"
-                + " endpoint_key) VALUES (:id, :tenant, :sim, 'credentials', 'admin:secret', :ep,"
-                + " :ep)")
+            "INSERT INTO attackpath_finding (attackpath_finding_id, tenant_id,"
+                + " attackpath_finding_simulation_id, attackpath_finding_type,"
+                + " attackpath_finding_value, attackpath_finding_endpoint_id,"
+                + " attackpath_finding_endpoint_key) VALUES (:id, :tenant, :sim, 'credentials',"
+                + " 'admin:secret', :ep, :ep)")
         .setParameter("id", id)
         .setParameter("tenant", tenantId)
         .setParameter("sim", SIM)
@@ -224,7 +230,7 @@ class AttackPathPocHttpIsolationTest extends IntegrationTest {
             connection -> {
               try (PreparedStatement statement =
                   connection.prepareStatement(
-                      "SELECT count(*) FROM attackpath_execution WHERE id = ?")) {
+                      "SELECT count(*) FROM attackpath_execution WHERE attackpath_execution_id = ?")) {
                 statement.setString(1, id);
                 try (ResultSet rows = statement.executeQuery()) {
                   rows.next();

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
-import io.openaev.migration.V6_20260710120000000__Add_attack_path_poc_tables;
+import io.openaev.migration.V6_20260710120000000__Add_attack_path_tables;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
@@ -19,15 +19,14 @@ import org.springframework.transaction.annotation.Transactional;
  * their indexes exist, {@code tenant_id} is NOT NULL with a FK to {@code tenants}, and re-running
  * the migration is a no-op.
  *
- * <p>{@code @Transactional} so the idempotency test's re-run of the create migration (a {@code
- * CREATE INDEX IF NOT EXISTS idx_ap_exec_sim}) rolls back with the test transaction instead of
- * leaking the dropped index into the other tests and making {@code indexes_exist} order-dependent.
+ * <p>{@code @Transactional} so the idempotency test's re-run of the migration rolls back with the
+ * test transaction instead of leaking any DDL side effect into the other tests.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
 class AttackPathSchemaMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20260710120000000__Add_attack_path_poc_tables migration;
+  @Autowired private V6_20260710120000000__Add_attack_path_tables migration;
 
   private long tableCount(String table) {
     return ((Number)

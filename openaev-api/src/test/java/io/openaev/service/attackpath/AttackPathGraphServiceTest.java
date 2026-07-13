@@ -7,7 +7,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
-import io.openaev.database.repository.attackpath.AttackPathExecutionFindingRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
@@ -38,7 +37,6 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @Autowired private AttackPathGraphService service;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
-  @Autowired private AttackPathExecutionFindingRepository executionFindingRepository;
 
   private Tenant tenant;
   private String exec1Id;
@@ -242,7 +240,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(rawExecId);
     link.setFindingId(rawFindingId);
-    executionFindingRepository.save(link);
+    entityManager.persist(link);
     entityManager.flush();
 
     AttackPathExpandDTO expand = service.expandEndpoint(SIM, raw);
@@ -339,7 +337,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();
     link.setExecutionId(executionId);
     link.setFindingId(findingId);
-    executionFindingRepository.save(link);
+    entityManager.persist(link);
   }
 
   private static Instant at(int minute) {

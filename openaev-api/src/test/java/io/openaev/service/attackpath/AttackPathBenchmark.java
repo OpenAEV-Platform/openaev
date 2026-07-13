@@ -55,7 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH_POC",
+      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
       "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
     })
 class AttackPathBenchmark extends IntegrationTest {
@@ -275,15 +275,15 @@ class AttackPathBenchmark extends IntegrationTest {
 
     List<String> groupPlan =
         rawRows(
-            "EXPLAIN (ANALYZE, BUFFERS) SELECT target_key, max(target_asset_id),"
-                + " max(target_hostname), max(target_ip), max(target_platform), max(executed_at),"
-                + " sum(case when prevention_status <> 'Prevented' and detection_status <> 'Detected'"
+            "EXPLAIN (ANALYZE, BUFFERS) SELECT attackpath_execution_target_key, max(attackpath_execution_target_asset_id),"
+                + " max(attackpath_execution_target_hostname), max(attackpath_execution_target_ip), max(attackpath_execution_target_platform), max(attackpath_execution_executed_at),"
+                + " sum(case when attackpath_execution_prevention_status <> 'Prevented' and attackpath_execution_detection_status <> 'Detected'"
                 + " then 1 else 0 end),"
-                + " sum(case when prevention_status <> 'Prevented' and detection_status = 'Detected'"
+                + " sum(case when attackpath_execution_prevention_status <> 'Prevented' and attackpath_execution_detection_status = 'Detected'"
                 + " then 1 else 0 end)"
-                + " FROM attackpath_execution WHERE simulation_id = '"
+                + " FROM attackpath_execution WHERE attackpath_execution_simulation_id = '"
                 + sim
-                + "' AND can_access_tenant(tenant_id) GROUP BY target_key");
+                + "' AND can_access_tenant(tenant_id) GROUP BY attackpath_execution_target_key");
     line(
         out,
         "\n## EXPLAIN on the collapsed endpoint GROUP BY of the largest simulation (%d rows)"
@@ -292,14 +292,14 @@ class AttackPathBenchmark extends IntegrationTest {
 
     String endpointKey =
         rawRows(
-                "SELECT target_key FROM attackpath_execution WHERE simulation_id = '"
+                "SELECT attackpath_execution_target_key FROM attackpath_execution WHERE attackpath_execution_simulation_id = '"
                     + sim
                     + "' AND can_access_tenant(tenant_id) LIMIT 1")
             .get(0);
     long endpointRows = executionRepository.findByTarget(sim, endpointKey).size();
     List<String> expandPlan =
         rawRows(
-            "EXPLAIN (ANALYZE, BUFFERS) SELECT id FROM attackpath_execution WHERE simulation_id = '"
+            "EXPLAIN (ANALYZE, BUFFERS) SELECT attackpath_execution_id FROM attackpath_execution WHERE attackpath_execution_simulation_id = '"
                 + sim
                 + "' AND target_key = '"
                 + endpointKey
@@ -379,9 +379,9 @@ class AttackPathBenchmark extends IntegrationTest {
     setScope(tenantOf(sim, params));
     List<String> plan =
         rawRows(
-            "EXPLAIN (ANALYZE, BUFFERS) SELECT id, source_kind, target_key, executed_at"
+            "EXPLAIN (ANALYZE, BUFFERS) SELECT attackpath_execution_id, attackpath_execution_source_kind, attackpath_execution_target_key, attackpath_execution_executed_at"
                 + " FROM attackpath_execution"
-                + " WHERE simulation_id = '"
+                + " WHERE attackpath_execution_simulation_id = '"
                 + sim
                 + "' AND can_access_tenant(tenant_id)");
     line(
@@ -412,7 +412,7 @@ class AttackPathBenchmark extends IntegrationTest {
       Map<String, Long> sizes) {
     line(
         out,
-        "\n## Heavy-column cost — Read A (short projection) vs SELECT * (detoasts command/terminal_output)");
+        "\n## Heavy-column cost — Read A (short projection) vs SELECT * (detoasts attackpath_execution_command/attackpath_execution_terminal_output)");
     line(out, "sim | executions | Read A p50 ms | SELECT * p50 ms | detoast cost ms");
     for (String sim : List.of(targets.get(0), targets.get(targets.size() - 1))) {
       setScope(tenantOf(sim, params));
@@ -446,7 +446,8 @@ class AttackPathBenchmark extends IntegrationTest {
 
   private List<?> nativeSelectStar(String sim) {
     return entityManager
-        .createNativeQuery("SELECT * FROM attackpath_execution WHERE simulation_id = :sim")
+        .createNativeQuery(
+            "SELECT * FROM attackpath_execution WHERE attackpath_execution_simulation_id = :sim")
         .setParameter("sim", sim)
         .getResultList();
   }
@@ -483,8 +484,8 @@ class AttackPathBenchmark extends IntegrationTest {
     try {
       seqPlan =
           rawRows(
-              "EXPLAIN SELECT id FROM attackpath_execution"
-                  + " WHERE simulation_id = '"
+              "EXPLAIN SELECT attackpath_execution_id FROM attackpath_execution"
+                  + " WHERE attackpath_execution_simulation_id = '"
                   + sim
                   + "' AND can_access_tenant(tenant_id)");
       for (int i = 0; i < 3; i++) {
@@ -541,11 +542,11 @@ class AttackPathBenchmark extends IntegrationTest {
   private List<?> nativeExecutionRead(String sim) {
     return entityManager
         .createNativeQuery(
-            "SELECT id, source_kind, source_asset_id, agent_id, agent_name, agent_privilege,"
+            "SELECT attackpath_execution_id, attackpath_execution_source_kind, attackpath_execution_source_asset_id, attackpath_execution_agent_id, attackpath_execution_agent_name, attackpath_execution_agent_privilege,"
                 + " source_injector, target_kind, target_asset_id, target_raw_value, target_key,"
                 + " target_hostname, target_ip, target_platform, payload_name, executed_at,"
                 + " prevention_status, detection_status, step_template_id"
-                + " FROM attackpath_execution WHERE simulation_id = :sim")
+                + " FROM attackpath_execution WHERE attackpath_execution_simulation_id = :sim")
         .setParameter("sim", sim)
         .getResultList();
   }
@@ -590,8 +591,8 @@ class AttackPathBenchmark extends IntegrationTest {
     Map<String, Long> sizes = new LinkedHashMap<>();
     for (String row :
         rawRows(
-            "SELECT simulation_id || '=' || count(*) FROM attackpath_execution"
-                + " WHERE simulation_id LIKE 'ap-seed-%' GROUP BY simulation_id")) {
+            "SELECT attackpath_execution_simulation_id || '=' || count(*) FROM attackpath_execution"
+                + " WHERE attackpath_execution_simulation_id LIKE 'ap-seed-%' GROUP BY attackpath_execution_simulation_id")) {
       int eq = row.lastIndexOf('=');
       sizes.put(row.substring(0, eq), Long.parseLong(row.substring(eq + 1)));
     }

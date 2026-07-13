@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
     properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH_POC",
+      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
       "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
     })
 @DisplayName("attack path seed generator produces the expected shape")
@@ -49,49 +49,60 @@ class AttackPathSeedServiceTest extends IntegrationTest {
     assertThat(result.executions()).isGreaterThan(200); // at least the one outlier simulation
     assertThat(result.findings()).isPositive();
 
-    assertThat(scalar("SELECT count(DISTINCT prevention_status) FROM attackpath_execution" + WHERE))
+    assertThat(
+            scalar(
+                "SELECT count(DISTINCT attackpath_execution_prevention_status) FROM attackpath_execution"
+                    + WHERE_EXEC))
         .as("a mix of prevention statuses (green/red/orange endpoints)")
         .isGreaterThan(1);
     assertThat(
             scalar(
-                "SELECT count(*) FROM (SELECT type, value FROM attackpath_finding"
-                    + WHERE
-                    + " GROUP BY type, value HAVING count(DISTINCT endpoint_key) > 1) shared"))
+                "SELECT count(*) FROM (SELECT attackpath_finding_type, attackpath_finding_value"
+                    + " FROM attackpath_finding"
+                    + WHERE_FIND
+                    + " GROUP BY attackpath_finding_type, attackpath_finding_value"
+                    + " HAVING count(DISTINCT attackpath_finding_endpoint_key) > 1) shared"))
         .as("findings whose (type, value) is reused across endpoints")
         .isPositive();
     assertThat(
             scalar(
                 "SELECT count(*) FROM attackpath_execution"
-                    + WHERE
-                    + " AND target_asset_id IS NULL AND target_raw_value IS NOT NULL"))
+                    + WHERE_EXEC
+                    + " AND attackpath_execution_target_asset_id IS NULL"
+                    + " AND attackpath_execution_target_raw_value IS NOT NULL"))
         .as("discovered (raw) endpoints, not backed by an asset id")
         .isPositive();
     assertThat(
             scalar(
-                "SELECT max(fanout) FROM (SELECT count(DISTINCT target_key) fanout"
+                "SELECT max(fanout) FROM (SELECT count(DISTINCT attackpath_execution_target_key) fanout"
                     + " FROM attackpath_execution"
-                    + WHERE
-                    + " GROUP BY source_injector) spray"))
+                    + WHERE_EXEC
+                    + " GROUP BY attackpath_execution_source_injector) spray"))
         .as("spray: one injector reaches many endpoints")
         .isGreaterThan(1);
     assertThat(
             scalar(
                 "SELECT count(*) FROM attackpath_execution"
-                    + WHERE
-                    + " AND agent_name IS NOT NULL"))
+                    + WHERE_EXEC
+                    + " AND attackpath_execution_agent_name IS NOT NULL"))
         .as("run snapshot: agent columns populated on some executions")
         .isPositive();
     assertThat(
             scalar(
                 "SELECT count(*) FROM attackpath_execution"
-                    + WHERE
-                    + " AND target_hostname IS NOT NULL AND target_ip IS NOT NULL"
-                    + " AND target_platform IS NOT NULL AND step_template_id IS NOT NULL"))
+                    + WHERE_EXEC
+                    + " AND attackpath_execution_target_hostname IS NOT NULL"
+                    + " AND attackpath_execution_target_ip IS NOT NULL"
+                    + " AND attackpath_execution_target_platform IS NOT NULL"
+                    + " AND attackpath_execution_step_template_id IS NOT NULL"))
         .as("run snapshot: endpoint and step columns populated on some executions")
         .isPositive();
 
     List<Long> sizes =
-        counts("SELECT count(*) FROM attackpath_execution" + WHERE + " GROUP BY simulation_id");
+        counts(
+            "SELECT count(*) FROM attackpath_execution"
+                + WHERE_EXEC
+                + " GROUP BY attackpath_execution_simulation_id");
     assertThat(max(sizes))
         .as("the skewed distribution has an outlier far above the median")
         .isGreaterThan(median(sizes) * 3);
@@ -108,7 +119,10 @@ class AttackPathSeedServiceTest extends IntegrationTest {
     assertThat(second.findings()).isEqualTo(first.findings());
   }
 
-  private static final String WHERE = " WHERE simulation_id LIKE 'ap-seed-%'";
+  private static final String WHERE_EXEC =
+      " WHERE attackpath_execution_simulation_id LIKE 'ap-seed-%'";
+  private static final String WHERE_FIND =
+      " WHERE attackpath_finding_simulation_id LIKE 'ap-seed-%'";
 
   private long scalar(String sql) {
     return entityManager

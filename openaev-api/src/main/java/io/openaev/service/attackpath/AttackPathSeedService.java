@@ -1,6 +1,7 @@
 package io.openaev.service.attackpath;
 
 import io.openaev.annotation.AllowRawJdbc;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import jakarta.persistence.EntityManager;
 import java.sql.Connection;
@@ -70,39 +71,39 @@ public class AttackPathSeedService {
       " bytes=4096 status=ok hash=a1b2c3d4e5f60718 latency_ms=12 conn=tcp/445 result=delivered";
 
   private static final String[] EXECUTION_COLUMNS = {
-    "id",
+    "attackpath_execution_id",
     "tenant_id",
-    "simulation_id",
-    "step_template_id",
-    "contract_external_id",
-    "source_kind",
-    "agent_id",
-    "agent_name",
-    "agent_privilege",
-    "source_injector",
-    "target_kind",
-    "target_asset_id",
-    "target_raw_value",
-    "target_key",
-    "target_hostname",
-    "target_ip",
-    "target_platform",
-    "payload_name",
-    "executed_at",
-    "prevention_status",
-    "detection_status",
-    "command",
-    "terminal_output"
+    "attackpath_execution_simulation_id",
+    "attackpath_execution_step_template_id",
+    "attackpath_execution_contract_external_id",
+    "attackpath_execution_source_kind",
+    "attackpath_execution_agent_id",
+    "attackpath_execution_agent_name",
+    "attackpath_execution_agent_privilege",
+    "attackpath_execution_source_injector",
+    "attackpath_execution_target_kind",
+    "attackpath_execution_target_asset_id",
+    "attackpath_execution_target_raw_value",
+    "attackpath_execution_target_key",
+    "attackpath_execution_target_hostname",
+    "attackpath_execution_target_ip",
+    "attackpath_execution_target_platform",
+    "attackpath_execution_payload_name",
+    "attackpath_execution_executed_at",
+    "attackpath_execution_prevention_status",
+    "attackpath_execution_detection_status",
+    "attackpath_execution_command",
+    "attackpath_execution_terminal_output"
   };
   private static final String[] FINDING_COLUMNS = {
-    "id",
+    "attackpath_finding_id",
     "tenant_id",
-    "simulation_id",
-    "type",
-    "value",
-    "endpoint_id",
-    "endpoint_raw",
-    "endpoint_key"
+    "attackpath_finding_simulation_id",
+    "attackpath_finding_type",
+    "attackpath_finding_value",
+    "attackpath_finding_endpoint_id",
+    "attackpath_finding_endpoint_raw",
+    "attackpath_finding_endpoint_key"
   };
   private static final String[] LINK_COLUMNS = {"execution_id", "finding_id"};
 
@@ -381,8 +382,12 @@ public class AttackPathSeedService {
       endpoint.platform(),
       injector.name() + "-payload",
       Timestamp.from(BASE_TIME.plusSeconds(random.nextInt(86_400))),
-      random.nextDouble() < params.preventedRatio() ? "Prevented" : "Not Prevented",
-      random.nextBoolean() ? "Detected" : "Not Detected",
+      random.nextDouble() < params.preventedRatio()
+          ? ExpectationType.PREVENTION.successLabel
+          : ExpectationType.PREVENTION.failureLabel,
+      random.nextBoolean()
+          ? ExpectationType.DETECTION.successLabel
+          : ExpectationType.DETECTION.failureLabel,
       command(injector, endpoint),
       terminalOutput(random)
     };
