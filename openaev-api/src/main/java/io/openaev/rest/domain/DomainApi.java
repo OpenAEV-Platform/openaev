@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ResourceType;
@@ -56,7 +57,9 @@ public class DomainApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
-    return domainService.upsert(input);
+    // Tenant resolved here (Controller layer, has the request/URL context) and passed explicitly
+    // down to the Service — see DomainService Javadoc for the rationale.
+    return domainService.upsert(input, TenantContext.getCurrentTenant());
   }
 
   // -- OPTION --
