@@ -149,6 +149,68 @@ above. No DB schema change considered or needed (same reasoning as OpenCTI:
 
 ---
 
+## 2c. Live `getComputedStyle` verification — §B + §C + §2b + gradient-token proof
+
+Closes two open items: (1) your standing request for proof that these hex values
+reach real rendered pixels, not just the theme source files; (2) the gradient
+token-name check — confirmed **no naming drift**: `--color-elevation-background-layer-0-gradient`
+is the canonical name in `theme.css` (lines 150/480/575) and both OpenCTI's and
+OpenAEV's generated files reference the exact same literal string. The
+alternate name searched for (`--bg-elevation-default-layer-0-gradient`) has
+zero matches anywhere in lib/openaev/opencti, including git history.
+
+Method: a throwaway Playwright script (`_fds_computed_style_probe.mjs`, not
+committed) logged in, toggled `platform_theme`/`user_theme` via the same
+proven-safe API+restore lifecycle as the capture script, and on 5 real pages
+(dashboard, scenarios list, entity detail, settings/parameters,
+settings/experience) either read `getComputedStyle()` directly off known
+elements or scanned every injected stylesheet rule for the target `rgb()`
+value — proof the color reached actual CSS, not just the JS theme object.
+
+**§B — near-invisible recalibrations, live-confirmed:**
+
+| Value | Expected | Rendered proof | Verdict |
+|---|---|---|---|
+| `PRIMARY` (light, typo `a`→`b`) | `#001bdb` | `body a { color: rgb(0, 27, 219) }` — 19–37 rule hits/page, light mode only (dark unchanged, as expected) | ✅ exact |
+| `SECONDARY`/`EE_COLOR` (dark) | `#00f0bc` | EE chip: `color`/`border-color: rgb(0, 240, 188)` (dashboard + scenarios list, dark) | ✅ exact |
+| `xtmhub.main` (both modes, `GradientButton` end-color) | `#00f0bc` | `GradientButton` `background-image` border-box layer: `...rgb(0, 240, 188) 100%)` — **both modes**, confirming the mode-invariant token | ✅ exact |
+
+**§C — ISO-OpenCTI alignments, live-confirmed:**
+
+| Value | Expected | Rendered proof | Verdict |
+|---|---|---|---|
+| `SECONDARY`/`EE_COLOR` (light, **notable**) | `#00f0bc` | Same EE chip, light mode: `rgb(0, 240, 188)` — identical to dark, confirms unification | ✅ exact |
+| `ACCENT` (dark, **notable**) | `#1f3965` | `scrollbar-color` thumb stop: `rgb(31, 57, 101)` (5/5 pages) | ✅ exact |
+| `ACCENT` (light) | `#e4e5e7` | `scrollbar-color` thumb stop: `rgb(228, 229, 231)` (5/5 pages) | ✅ exact |
+| `PAPER` (dark) | `#0d172b` | `.leaflet-container`/search-root backgrounds: `rgb(13, 23, 43)` (5/5 pages) + `GradientButton` padding-box layer (double-sourced) | ✅ exact |
+| `BACKGROUND` (dark) | `#070d18` | `body`/`html` text-color rule scope + `body::backdrop`: `rgb(7, 13, 24)` (5/5 pages) | ✅ exact |
+| `BACKGROUND` (light) | `#f2f2f3` | `body::backdrop`: `rgb(242, 242, 243)` (5/5 pages) | ✅ exact |
+
+**§2b — body/html gradient, both stops, both modes** (`document.body`/`document.documentElement` `getComputedStyle().backgroundImage`, direct read — the single most consequential ISO delta of the lot):
+
+| Mode | Rendered | Expected | Verdict |
+|---|---|---|---|
+| dark | `linear-gradient(100deg, rgb(7, 13, 24) 0%, rgb(12, 21, 39) 100%)` | `#070d18` → `#0c1527` | ✅ exact, both stops |
+| light | `linear-gradient(100deg, rgb(242, 242, 243) 0%, rgb(255, 255, 255) 100%)` | `#f2f2f3` → `#ffffff` | ✅ exact, both stops |
+
+**§D — `background.secondary`, targeted follow-up probe** (the gap above, now closed):
+opened the real `DragAndDropImportDialog` (Threat Arsenal page → "Import
+payloads" button), used a real Playwright `.hover()` (actual mouse move, real
+`:hover` CSS matching, not a synthetic class) on the drop-area, waited past
+its 200ms `background-color` transition, then read `getComputedStyle`:
+
+| Mode | State | Rendered | Expected | Verdict |
+|---|---|---|---|---|
+| dark | rest (no hover) | `rgba(0, 0, 0, 0)` | `transparent` (base style) | ✅ exact |
+| dark | hover | `rgb(16, 27, 51)` | `#101b33` | ✅ exact |
+| light | rest (no hover) | `rgba(0, 0, 0, 0)` | `transparent` (base style) | ✅ exact |
+| light | hover | `rgb(228, 229, 231)` | `#e4e5e7` | ✅ exact — same numeric value as `ACCENT` (light), confirmed coincidental not a bug (different FDS token, `--color-elevation-surface-highlight` vs `--color-elevation-background-layer-3`, that happen to resolve to the same hex) |
+
+No more open gaps in §B/§C live verification — all 8 recalibrated/aligned
+values now confirmed reaching real rendered CSS, both modes.
+
+---
+
 ## 3. §C detail — usages, classification, treatment (per your requested methodology)
 
 All 6 properties you named came back **DURABLE** (none JETABLE) — consistent
@@ -334,6 +396,7 @@ OpenCTI and OpenAEV, for the shared Figma backlog with Thibault.
 | Raw blue hue scale gap | n/a (OpenAEV has no `tertiary.*` scale) | `designSystem.tertiary.blue` (`#0099CC`/`#003242`) — no FDS match at all, closest is `blue-500` which is a completely different, much brighter color | OpenCTI-only | `--color-blue-{step}` scale extension |
 | Generic "border" concept | n/a | `designSystem.border.{main,border1,border2}` — no FDS "border" concept exists today | OpenCTI-only | `--color-border-*` (new family) |
 | Light-mode tonic sub-shades | n/a (OpenAEV has no `secondary.light`/`.dark`) | `designSystem.secondary.{light,dark}` (light mode only) — old values don't match `tonic-secondary`/`tonic-tertiary` the way dark mode's did | OpenCTI-only | Possibly a light-mode-specific tonic sub-shade pair |
+| Dialog/modal background (distinct from generic paper elevation) | No dedicated value — dialogs inherit `background.paper` directly, no `MuiDialog` override exists | `MuiDialog.styleOverrides.paper` hardcoded: `#0F1D34` (dark, distinct from paper `#0d172b`) / `#FFFFFF` (light, = paper `#ffffff`) — already self-flagged "no confident FDS match" in OpenCTI's own `TOKEN-MAPPING.md` (`THEME_DARK_DIALOG_BACKGROUND`/`THEME_LIGHT_DIALOG_BACKGROUND`) | Different per product (OpenAEV has no distinct value at all) | `--color-elevation-background-dialog` (working name) — added following the 2026-07-13 cross-product comparison, see `reports/tokens-visual-validation.md` annex |
 
 Everything else durable in both products **already has** a matching FDS
 token as of this lot (see §1/§3) — this table is the genuine remaining gap,
@@ -354,14 +417,43 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
   `background.default`, `background.secondary` (dark `nav` for free). 9
   fields, both modes.
 - **(b) Hardcoded, DURABLE, awaiting a Figma token — wave 2** (token
-  creation in Figma + wiring iteration on both products): `background.accent`
-  (light), `palette.severity.*` (partial — 5/7 levels have a portable
-  mapping already validated by OpenCTI, `none`/`default` need a new
-  `feedback-neutral` family), `THEME_LIGHT_DEFAULT_NAV` (technically has a
-  token already — `surface-heading-layer-0` — just not applied pending your
-  sign-off, so this one may resolve to (a) as soon as you decide).
+  creation in Figma + wiring iteration on both products):
+  - `background.accent` (light), `palette.severity.*` (partial — 5/7 levels
+    have a portable mapping already validated by OpenCTI, `none`/`default`
+    need a new `feedback-neutral` family), `THEME_LIGHT_DEFAULT_NAV`
+    (technically has a token already — `surface-heading-layer-0` — just not
+    applied pending your sign-off, so this one may resolve to (a) as soon as
+    you decide).
+  - **Added from the OpenCTI ↔ OpenAEV cross-product comparison (checkpoint
+    2026-07-13) — arbitrated: none of these in this lot, all confirmed wave
+    2.** Full evidence in `reports/tokens-visual-validation.md`'s annex.
+    - **`text.secondary` — marked HIGH PRIORITY for wave 2 (your call).**
+      Currently undefined on OpenAEV (falls through to MUI's translucent
+      dark-mode default, `rgba(255,255,255,0.7)`); OpenCTI wires it to
+      `--color-text-default-primary` (opaque, `#f2f2f3` dark / `#18191b`
+      light). Widest-reaching of the newly-found gaps — touches secondary
+      text app-wide.
+    - `error.main` / `warn.main` / `warning.main` / `success.main` —
+      hardcoded legacy values on OpenAEV (`#f44336` / `#ffa726` / `#03a847`
+      dark); OpenCTI already wires these to `--color-feedback-error-primary`
+      / `--color-feedback-warning-primary` / `--color-feedback-success-primary`.
+    - `dangerZone` / `ai` — same treatment: hardcoded on OpenAEV, already
+      FDS-wired (error/ia families) on OpenCTI.
+    - `primary.light` — undefined on OpenAEV (falls through to MUI's
+      auto-lightened `primary.main`); OpenCTI hand-tunes a dedicated value
+      (`#B2ECFF` dark / `#7587FF` light). Note this OpenCTI value is *itself*
+      not FDS-sourced either — wave-2 work here is parity/hand-tuning, not a
+      ready-made token application.
+    - `MuiDialog` background — component-level override, not a `palette.*`
+      key (doesn't count toward the 9-field tally above), flagged for
+      symmetry: OpenCTI hardcodes a dedicated shade via
+      `MuiDialog.styleOverrides.paper` (see §6's new Figma-backlog row);
+      OpenAEV has no such override, dialogs inherit `background.paper`
+      directly.
 - **(c) Hardcoded, JETABLE (dies with component migration) — wave 3**: none
-  identified in this lot's 6 named properties. (`background.gradient`,
+  identified in this lot's 6 named properties, and none of the wave-2 items
+  above either (all classified DURABLE — cross-cutting platform colors, not
+  tied to a component slated for replacement). (`background.gradient`,
   `leftBar`, `designSystem` are dead code today, not JETABLE in the
   "consumed-by-a-doomed-component" sense — they have zero consumers at all,
   so they carry no convergence debt either way.)
