@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.jsonapi.*;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
@@ -108,7 +109,9 @@ public class PayloadImportService {
     DomainBaseInput input = new DomainBaseInput();
     input.setName(object.attributes().get("domain_name").toString());
     input.setColor(object.attributes().get("domain_color").toString());
-    return domainService.upsert(input);
+    // Tenant resolved here (closest caller boundary for this ZIP-import path, which has no
+    // Controller of its own) and passed explicitly — see DomainService Javadoc for the rationale.
+    return domainService.upsert(input, TenantContext.getCurrentTenant());
   }
 
   private Tag handleTagImport(ResourceObject object) {
