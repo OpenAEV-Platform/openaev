@@ -57,8 +57,6 @@ public class DomainApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
   public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
-    // Tenant resolved here (Controller layer, has the request/URL context) and passed explicitly
-    // down to the Service — see DomainService Javadoc for the rationale.
     return domainService.upsert(input, TenantContext.getCurrentTenant());
   }
 
