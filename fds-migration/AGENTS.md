@@ -14,9 +14,9 @@ in the Filigran workspace. This repo NEVER defines a design-system token
 locally: every color, spacing, radius and typography value used here traces
 back to `filigran-design-system/packages/filigran-design-system/src/tokens/theme.css`.
 
-Full machine-readable reference: not yet published — the docs site isn't
-deployed yet (as of 2026-07). Until it is, read
-`filigran-design-system/llms-full.txt` directly from the sibling checkout.
+Full machine-readable reference: `https://silver-doodle-mnyv84e.pages.github.io/llms-full.txt`
+(same content as the sibling checkout's `filigran-design-system/llms-full.txt`,
+served by the docs site).
 
 ## Non-negotiable rules
 

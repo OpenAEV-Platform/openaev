@@ -1,7 +1,7 @@
 # Component Mapping — OpenAEV
 
 GENERATED — do not edit by hand. Regenerate: `pnpm generate:fds-migration --product openaev --write-to-product` (filigran-design-system repo).
-Derived from filigran-design-system's `ROADMAP.json` × `process/mui-crosswalk.json` × `process/mui-inventory.json` (as of 2026-07-08).
+Derived from filigran-design-system's `ROADMAP.json` × `process/mui-crosswalk.json` × `process/mui-inventory.json` (as of 2026-07-13).
 
 Recognize a MUI component in this product, look up its design-system
 replacement and current readiness. "Lib status" = is the design-system

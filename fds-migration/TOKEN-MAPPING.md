@@ -385,6 +385,18 @@ tss-react (`makeStyles` from `tss-react/mui`, ~280 usages) calls MUI's own
 is sufficient; every tss-react consumer inherits automatically, zero extra
 work.
 
+## Docs site — placeholder resolved
+
+`fds-migration/AGENTS.md`'s "Source of truth" section originally said the
+docs site wasn't deployed yet (mission override #8). It went live 2026-07
+(private GitHub Pages, PR filigran-design-system#19/#23) at
+`https://silver-doodle-mnyv84e.pages.github.io` — `AGENTS.md` was
+regenerated (`pnpm generate:fds-migration --product openaev --out-dir
+fds-migration`) to reference `https://silver-doodle-mnyv84e.pages.github.io/llms-full.txt`
+instead. The generator template (`filigran-design-system/scripts/generate-fds-migration.ts`,
+`DOCS_SITE_URL` constant) was updated too, so every future regeneration —
+this product or any other — picks it up automatically.
+
 ---
 
 *All FDS values above are taken from `fds-tokens.generated.ts`
