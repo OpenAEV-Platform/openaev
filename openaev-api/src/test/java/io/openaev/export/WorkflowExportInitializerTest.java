@@ -3,17 +3,22 @@ package io.openaev.export;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Workflow;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import java.util.Optional;
 import java.util.Set;
@@ -203,5 +208,28 @@ class WorkflowExportInitializerTest {
     tag.setId(id);
     tag.setName(id);
     return tag;
+  }
+
+  @Test
+  void given_initializeWorkflow_should_requestStandaloneConditionsExcludingMapperType() {
+    // -- Arrange --
+    WorkflowExportInitializer workflowExportInitializer = new WorkflowExportInitializer();
+    ConditionRepository conditionRepository = mock(ConditionRepository.class);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "conditionRepository", conditionRepository);
+
+    Workflow workflow = new Workflow();
+    workflow.setId("workflow-id");
+    workflow.setSteps(new java.util.ArrayList<>());
+    when(conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+            "workflow-id", ConditionType.MAPPER))
+        .thenReturn(java.util.List.of(new Condition()));
+
+    // -- Act --
+    workflowExportInitializer.initialize(workflow, false);
+
+    // -- Assert --
+    verify(conditionRepository)
+        .findAllByWorkflowIdAndConditionParentIsNullAndTypeNot("workflow-id", ConditionType.MAPPER);
   }
 }

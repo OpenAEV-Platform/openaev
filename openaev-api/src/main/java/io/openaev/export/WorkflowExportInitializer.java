@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ConditionRepository;
@@ -60,9 +61,12 @@ public class WorkflowExportInitializer {
             .collect(Collectors.toSet());
 
     List<Condition> standaloneRoots =
-        conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflow.getId()).stream()
+        conditionRepository
+            .findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
+                workflow.getId(), ConditionType.MAPPER)
+            .stream()
             .filter(c -> !linkedConditionIds.contains(c.getId()))
-            .collect(Collectors.toList());
+            .toList();
     standaloneRoots.forEach(WorkflowExportInitializer::initializeConditionTree);
 
     // Flatten the tree (roots + all descendants) so the importer can reconstruct it via parent IDs

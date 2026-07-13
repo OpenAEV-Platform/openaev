@@ -232,17 +232,33 @@ public class V1_DataImporter implements Importer {
     // import. This prevents duplicate payload creation when exercise_injects and workflow_steps
     // reference the same (missing) injector contract.
     Map<String, String> resolvedContracts = new HashMap<>();
-    importInjects(
-        importNode,
-        prefix,
-        savedExercise,
-        savedScenario,
-        asset,
-        assetGroup,
-        baseIds,
-        resolvedContracts);
+    if (!hasWorkflowImport(importNode, prefix)) {
+      importInjects(
+          importNode,
+          prefix,
+          savedExercise,
+          savedScenario,
+          asset,
+          assetGroup,
+          baseIds,
+          resolvedContracts);
+    }
     importVariables(importNode, savedExercise, savedScenario, baseIds);
     importWorkflow(importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
+  }
+
+  private boolean hasWorkflowImport(JsonNode importNode, String prefix) {
+    String workflowKey =
+        switch (prefix) {
+          case "scenario_" -> "scenario_workflow";
+          case "exercise_" -> "exercise_workflow";
+          default -> null;
+        };
+    if (workflowKey == null) {
+      return false;
+    }
+    JsonNode workflowNode = importNode.get(workflowKey);
+    return workflowNode != null && !workflowNode.isNull() && !workflowNode.isEmpty();
   }
 
   // -- TAGS --
@@ -2041,6 +2057,15 @@ public class V1_DataImporter implements Importer {
 
       Step stepFrom = stepFromId != null ? stepIdMap.get(stepFromId) : null;
       Condition parentCondition = parentId != null ? conditionIdMap.get(parentId) : null;
+      ConditionType conditionType =
+          condNode.has("condition_type") && !condNode.get("condition_type").isNull()
+              ? ConditionType.valueOf(condNode.get("condition_type").asText())
+              : null;
+
+      // Standalone conditions are workflow events and must never be MAPPER conditions.
+      if (step == null && ConditionType.MAPPER.equals(conditionType)) {
+        continue;
+      }
 
       Condition condition =
           Condition.builder()
@@ -2060,10 +2085,7 @@ public class V1_DataImporter implements Importer {
                       ? mapper.convertValue(
                           condNode.get("condition_key_subtype").asText(), ConditionKeySubtype.class)
                       : null)
-              .type(
-                  condNode.has("condition_type") && !condNode.get("condition_type").isNull()
-                      ? ConditionType.valueOf(condNode.get("condition_type").asText())
-                      : null)
+              .type(conditionType)
               .mappingType(
                   condNode.has("condition_mapping_type")
                           && !condNode.get("condition_mapping_type").isNull()

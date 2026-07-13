@@ -21,6 +21,7 @@ import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -77,6 +78,10 @@ public class ExportService {
         ExerciseFileExport.fromExercise(
                 exercise, objectMapper, this.challengeService, this.articleService)
             .withOptions(exportOptionsMask);
+    boolean isChaining = workflowService.isSimulationChaining(exercise.getId());
+    if (isChaining) {
+      importExport.setInjects(new ArrayList<>());
+    }
 
     // Choose workflow mixin based on scope definition option
     objectMapper.addMixIn(

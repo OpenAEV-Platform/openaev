@@ -516,6 +516,9 @@ public class ScenarioService {
       throws IOException {
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
     Scenario scenario = this.scenario(scenarioId);
+    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    List<Inject> exportedInjects =
+        isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
 
     // Start exporting scenario
     ScenarioFileExport scenarioFileExport = new ScenarioFileExport();
@@ -554,10 +557,10 @@ public class ScenarioService {
     List<Document> documentExports =
         Stream.of(
                 scenario.getDocuments().stream(),
-                scenario.getInjects().stream()
+                exportedInjects.stream()
                     .flatMap(
                         inject -> inject.getDocuments().stream().map(InjectDocument::getDocument)),
-                scenario.getInjects().stream()
+                exportedInjects.stream()
                     .flatMap(
                         inject -> {
                           if (inject.getPayload().isEmpty()) {
@@ -568,7 +571,7 @@ public class ScenarioService {
                               ? Stream.of(pl.getAttachedDocument().get())
                               : Stream.of();
                         }),
-                scenario.getInjects().stream()
+                exportedInjects.stream()
                     .flatMap(
                         inject -> {
                           if (inject.getPayload().isEmpty() || inject.getContent() == null) {
@@ -628,21 +631,19 @@ public class ScenarioService {
 
     // Add Injects
     objectMapper.addMixIn(Inject.class, Mixins.Inject.class);
-    scenarioFileExport.setInjects(scenario.getInjects());
-    scenario
-        .getInjects()
-        .forEach(
-            inject -> {
-              scenarioTags.addAll(inject.getTags());
-              inject
-                  .getInjectorContract()
-                  .ifPresent(
-                      injectorContract -> {
-                        if (injectorContract.getPayload() != null) {
-                          scenarioTags.addAll(injectorContract.getTags());
-                        }
-                      });
-            });
+    scenarioFileExport.setInjects(exportedInjects);
+    exportedInjects.forEach(
+        inject -> {
+          scenarioTags.addAll(inject.getTags());
+          inject
+              .getInjectorContract()
+              .ifPresent(
+                  injectorContract -> {
+                    if (injectorContract.getPayload() != null) {
+                      scenarioTags.addAll(injectorContract.getTags());
+                    }
+                  });
+        });
 
     // Add Articles
     objectMapper.addMixIn(Article.class, Mixins.Article.class);
@@ -700,7 +701,7 @@ public class ScenarioService {
     objectMapper.addMixIn(Payload.class, Mixins.Payload.class);
 
     // load the killchainphases
-    scenario.getInjects().stream()
+    exportedInjects.stream()
         .map(Inject::getInjectorContract)
         .filter(Optional::isPresent)
         .map(Optional::get)
@@ -711,7 +712,6 @@ public class ScenarioService {
         .forEach(attackPattern -> Hibernate.initialize(attackPattern.getKillChainPhases()));
 
     // Build the response
-    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
     String infos;
     if (isChaining) {
       infos =

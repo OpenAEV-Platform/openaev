@@ -352,6 +352,7 @@ class V1_DataImporterTest extends IntegrationTest {
             .filter(s -> expectedName.equals(s.getName()))
             .findFirst()
             .orElseThrow();
+    assertTrue(injectRepository.findByScenarioId(scenario.getId()).isEmpty());
 
     // Workflow
     List<Workflow> workflows =
@@ -568,6 +569,71 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(
         contractId,
         resolvedJson.get("inject_injector_contract").get("injector_contract_id").asText());
+  }
+
+  @Test
+  @Transactional
+  void given_workflowStandaloneMapperConditions_should_ignoreMapperStandaloneOnImport()
+      throws Exception {
+    // -- Arrange --
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode workflowImport =
+        objectMapper.readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+
+    ArrayNode standaloneConditions = objectMapper.createArrayNode();
+    ObjectNode mapperStandalone = objectMapper.createObjectNode();
+    mapperStandalone.put("condition_id", "standalone-mapper-1");
+    mapperStandalone.put("condition_type", "MAPPER");
+    mapperStandalone.put("condition_key", "target_ip");
+    mapperStandalone.put("condition_key_type", "IPv4");
+    mapperStandalone.put("condition_value", "$.output.parsed.ip");
+    mapperStandalone.put("condition_is_root", true);
+    standaloneConditions.add(mapperStandalone);
+
+    ObjectNode validStandalone = objectMapper.createObjectNode();
+    validStandalone.put("condition_id", "standalone-event-1");
+    validStandalone.put("condition_type", "EQ");
+    validStandalone.put("condition_key", "status");
+    validStandalone.put("condition_key_type", "status");
+    validStandalone.put("condition_value", "SUCCESS");
+    validStandalone.put("condition_is_root", true);
+    standaloneConditions.add(validStandalone);
+
+    ((ObjectNode) workflowImport.get("scenario_workflow"))
+        .set("workflow_standalone_conditions", standaloneConditions);
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    Workflow workflow =
+        workflowRepository
+            .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+            .getFirst();
+
+    List<Step> steps = stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(workflow.getId());
+    Set<String> linkedRootConditionIds =
+        steps.stream()
+            .flatMap(step -> conditionRepository.findAllLinkedToStepId(step.getId()).stream())
+            .map(Condition::getId)
+            .collect(java.util.stream.Collectors.toSet());
+
+    List<Condition> standaloneRoots =
+        conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflow.getId()).stream()
+            .filter(condition -> !linkedRootConditionIds.contains(condition.getId()))
+            .toList();
+
+    assertEquals(1, standaloneRoots.size());
+    assertEquals(ConditionType.EQ, standaloneRoots.getFirst().getType());
   }
 
   // -- UTILS --
