@@ -1650,7 +1650,6 @@ public class V1_DataImporter implements Importer {
    *
    * @return the resolved injector contract ID, or null if resolution failed
    */
-  @jakarta.annotation.Nullable
   private String resolveInjectorContract(
       @NotNull JsonNode injectContractNode, Map<String, Base> baseIds) {
     JsonNode payloadNode = injectContractNode.get("injector_contract_payload");
@@ -1681,7 +1680,7 @@ public class V1_DataImporter implements Importer {
       }
     }
 
-    // Not found — create the payload and its contract
+    // Not found then create the payload and its contract
     InjectorContract created = importPayload(payloadNode, injectContractNode, baseIds);
     return created != null ? created.getId() : null;
   }
