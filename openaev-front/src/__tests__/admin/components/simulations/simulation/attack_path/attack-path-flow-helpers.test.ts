@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, buildAttackPathFlow } from '../../../../../../admin/components/simulations/simulation/attack_path_poc/attack-path-poc-flow-helpers';
+import { AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, buildAttackPathFlow } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 const dto: AttackPathDTO = {

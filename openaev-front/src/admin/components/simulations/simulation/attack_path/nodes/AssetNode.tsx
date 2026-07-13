@@ -3,8 +3,8 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
-import attackPathStatusColor from '../attack-path-poc-colors';
-import { type AttackPathFlowNode } from '../attack-path-poc-flow-helpers';
+import attackPathStatusColor from '../attack-path-colors';
+import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 
 export const AP_ENDPOINT_SIZE = 96;
 

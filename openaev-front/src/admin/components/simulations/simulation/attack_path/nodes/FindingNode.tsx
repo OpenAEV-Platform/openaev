@@ -4,7 +4,7 @@ import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import FindingIcon from '../../../../../../components/FindingIcon';
-import { type AttackPathFlowNode } from '../attack-path-poc-flow-helpers';
+import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 import { AP_FINDING_SIZE } from './FindingTypeNode';
 
 // A leaf finding node: a circle with the type icon and the discovered value under it (a credential,

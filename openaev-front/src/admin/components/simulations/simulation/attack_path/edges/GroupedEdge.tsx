@@ -1,8 +1,8 @@
 import { alpha, useTheme } from '@mui/material/styles';
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from '@xyflow/react';
 
-import attackPathStatusColor from '../attack-path-poc-colors';
-import { type AttackPathFlowEdge } from '../attack-path-poc-flow-helpers';
+import attackPathStatusColor from '../attack-path-colors';
+import { type AttackPathFlowEdge } from '../attack-path-flow-helpers';
 
 // One edge stands for however many executions ran the same source -> target hop. It is coloured by
 // status (the target endpoint's prevention status for execution edges, red for finding edges); a
@@ -57,9 +57,9 @@ const GroupedEdge = ({
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               background: theme.palette.background.paper,
               border: `1px solid ${alpha(color, 0.6)}`,
-              borderRadius: 10,
-              padding: '0 6px',
-              fontSize: 11,
+              borderRadius: theme.shape.borderRadius,
+              padding: `0 ${theme.spacing(0.75)}`,
+              fontSize: theme.typography.caption.fontSize,
               color: theme.palette.text.secondary,
               whiteSpace: 'nowrap',
             }}

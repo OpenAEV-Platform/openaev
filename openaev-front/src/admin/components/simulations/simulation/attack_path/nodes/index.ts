@@ -1,6 +1,6 @@
 import { type NodeTypes } from '@xyflow/react';
 
-import { AP_FLOW_NODE_TYPE } from '../attack-path-poc-flow-helpers';
+import { AP_FLOW_NODE_TYPE } from '../attack-path-flow-helpers';
 import AssetNode from './AssetNode';
 import FindingNode from './FindingNode';
 import FindingTypeNode from './FindingTypeNode';

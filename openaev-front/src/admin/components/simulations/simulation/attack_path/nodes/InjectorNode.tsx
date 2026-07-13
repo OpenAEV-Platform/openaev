@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
-import { type AttackPathFlowNode } from '../attack-path-poc-flow-helpers';
+import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 
 export const AP_INJECTOR_WIDTH = 150;
 

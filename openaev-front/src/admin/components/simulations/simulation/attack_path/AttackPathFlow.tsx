@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import { useEffect } from 'react';
 
-import { AP_FLOW_NODE_TYPE, type AttackPathFlowEdge, type AttackPathFlowNode, type AttackPathFlowNodeData } from './attack-path-poc-flow-helpers';
+import { AP_FLOW_NODE_TYPE, type AttackPathFlowEdge, type AttackPathFlowNode, type AttackPathFlowNodeData } from './attack-path-flow-helpers';
 import edgeTypes from './edges';
 import nodeTypes from './nodes';
 
@@ -21,7 +21,7 @@ const proOptions = {
   hideAttribution: true,
 };
 
-interface AttackPathPocFlowProps {
+interface AttackPathFlowProps {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
@@ -29,7 +29,7 @@ interface AttackPathPocFlowProps {
 
 // Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports endpoint
 // clicks up to the page, which loads that endpoint's detail on demand (T12).
-const AttackPathPocFlow = ({ nodes, edges, onEndpointClick }: AttackPathPocFlowProps) => {
+const AttackPathFlow = ({ nodes, edges, onEndpointClick }: AttackPathFlowProps) => {
   const theme = useTheme();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(nodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(edges);
@@ -91,4 +91,4 @@ const AttackPathPocFlow = ({ nodes, edges, onEndpointClick }: AttackPathPocFlowP
   );
 };
 
-export default AttackPathPocFlow;
+export default AttackPathFlow;

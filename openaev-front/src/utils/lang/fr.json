@@ -1562,7 +1562,7 @@
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "Aucun bien n'est sélectionné. Ajoutez un poste manuellement en saisissant des IP, des CIDR ou des noms d'hôte, ou sélectionnez-en un dans la liste des postes.",
   "No asset selected. Add asset manually or select some in the asset list.": "Aucun bien n'a été sélectionné. Ajoutez un bien manuellement ou sélectionnez-en un dans la liste des biens.",
   "No assets in the allow list.": "Aucun actif dans la liste autorisée.",
-  "No attack-path data for this simulation. Seed data (POST /poc/attack-path/seed) or enter a seeded simulation id above.": "Aucune donnée pour cette simulation. Générez des données (POST /poc/attack-path/seed) ou saisissez ci-dessus l'id d'une simulation générée.",
+  "No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.": "Aucune donnée pour cette simulation. Générez des données (POST /attack-path/seed) ou saisissez ci-dessus l'id d'une simulation générée.",
   "No available options": "Aucune option disponible",
   "No category": "Aucune catégorie",
   "No challenge are used in the injects of this simulation.": "Aucun défi n'est utilisé dans les stimulis de cette simulation.",

@@ -5,13 +5,13 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations } from '../../../../../actions/attack-path-poc/attack-path-poc-actions';
+import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations } from '../../../../../actions/attack-path/attack-path-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
-import attackPathStatusColor from './attack-path-poc-colors';
-import { buildAttackPathFlow } from './attack-path-poc-flow-helpers';
-import AttackPathPocFlow from './AttackPathPocFlow';
+import attackPathStatusColor from './attack-path-colors';
+import { buildAttackPathFlow } from './attack-path-flow-helpers';
+import AttackPathFlow from './AttackPathFlow';
 
 type Mode = 'auto' | 'full' | 'collapsed';
 
@@ -60,12 +60,12 @@ const expandEdges = (expand: AttackPathExpandDTO): AttackPathEdges[] => {
 };
 
 /**
- * Attack-path execution-store POC tab (issue 6647), gated by the ATTACK_PATH_POC preview feature.
+ * Attack-path execution-store POC tab (issue 6647), gated by the ATTACK_PATH preview feature.
  * Loads a simulation's graph collapsed by default (bounded node count), and on an endpoint click
  * lazy-loads that endpoint's findings and executions — the collapsed-first, expand-on-demand shape
  * the benchmark showed is what keeps a large simulation renderable.
  */
-const SimulationAttackPathPoc = () => {
+const SimulationAttackPath = () => {
   const { exerciseId } = useParams() as { exerciseId: string };
   const theme = useTheme();
   const { t } = useFormatter();
@@ -309,12 +309,12 @@ const SimulationAttackPathPoc = () => {
           )}
           {!loading && !error && nodes.length === 0 && (
             <Alert severity="info" sx={{ m: 2 }}>
-              {t('No attack-path data for this simulation. Seed data (POST /poc/attack-path/seed) or enter a seeded simulation id above.')}
+              {t('No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.')}
             </Alert>
           )}
           {!loading && !error && nodes.length > 0 && (
             <ReactFlowProvider>
-              <AttackPathPocFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} />
+              <AttackPathFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} />
             </ReactFlowProvider>
           )}
         </Paper>
@@ -377,4 +377,4 @@ const SimulationAttackPathPoc = () => {
   );
 };
 
-export default SimulationAttackPathPoc;
+export default SimulationAttackPath;

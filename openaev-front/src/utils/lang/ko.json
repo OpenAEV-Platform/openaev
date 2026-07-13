@@ -1562,7 +1562,7 @@
   "No asset selected. Add asset manually by typing IPs, CIDRs or hostnames or select some in the asset list.": "선택한 자산이 없습니다. IP, CIDR 또는 호스트 이름을 입력하여 자산을 수동으로 추가하거나 자산 목록에서 일부를 선택하세요.",
   "No asset selected. Add asset manually or select some in the asset list.": "선택한 에셋이 없습니다. 자산을 수동으로 추가하거나 자산 목록에서 일부 자산을 선택하세요.",
   "No assets in the allow list.": "허용 목록에 자산이 없습니다.",
-  "No attack-path data for this simulation. Seed data (POST /poc/attack-path/seed) or enter a seeded simulation id above.": "No attack-path data for this simulation. Seed data (POST /poc/attack-path/seed) or enter a seeded simulation id above.",
+  "No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.": "No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.",
   "No available options": "사용 가능한 옵션이 없습니다",
   "No category": "카테고리 없음",
   "No challenge are used in the injects of this simulation.": "이 시뮬레이션의 인젝트에는 챌린지가 사용되지 않습니다.",
