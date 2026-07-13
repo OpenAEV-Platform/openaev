@@ -109,8 +109,6 @@ public class PayloadImportService {
     DomainBaseInput input = new DomainBaseInput();
     input.setName(object.attributes().get("domain_name").toString());
     input.setColor(object.attributes().get("domain_color").toString());
-    // Tenant resolved here (closest caller boundary for this ZIP-import path, which has no
-    // Controller of its own) and passed explicitly — see DomainService Javadoc for the rationale.
     return domainService.upsert(input, TenantContext.getCurrentTenant());
   }
 
