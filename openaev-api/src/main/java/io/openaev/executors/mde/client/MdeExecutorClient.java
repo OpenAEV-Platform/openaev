@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
+import io.openaev.executors.mde.model.MdeAdvancedQueryResponse;
 import io.openaev.executors.mde.model.MdeAuthentication;
 import io.openaev.executors.mde.model.MdeDevice;
 import io.openaev.executors.mde.model.MdeDeviceGroup;
@@ -52,6 +53,7 @@ public class MdeExecutorClient {
   private static final String MACHINES_URI = "/machines";
   private static final String MACHINE_GROUPS_URI = "/machinegroups";
   private static final String MACHINE_ACTIONS_URI = "/machineactions";
+  private static final String ADVANCED_QUERIES_URI = "/advancedqueries/run";
 
   private final MdeExecutorConfig config;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -164,6 +166,54 @@ public class MdeExecutorClient {
           machineId,
           e.getMessage(),
           e);
+    }
+  }
+
+  /**
+   * Returns the freshest activity timestamp per device seen in the last {@code windowMinutes},
+   * queried from MDE Advanced Hunting ({@code DeviceInfo} table). The machines inventory {@code
+   * lastSeen} refreshes only on a slow (up to daily) cadence and badly lags real connectivity, so
+   * it cannot be used to decide whether a device is currently reachable for Live Response. Advanced
+   * Hunting reflects near real-time device activity instead.
+   *
+   * @return device id → last activity instant, or {@code null} when Advanced Hunting is unavailable
+   *     (e.g. the app registration lacks the {@code AdvancedQuery.Read.All} permission), so callers
+   *     can fall back to the inventory data.
+   */
+  public Map<String, Instant> getRecentDeviceActivity(int windowMinutes) {
+    try {
+      String query =
+          "DeviceInfo | where Timestamp > ago("
+              + windowMinutes
+              + "m) | summarize LastSeen=max(Timestamp) by DeviceId";
+      Map<String, Object> body = new HashMap<>();
+      body.put("Query", query);
+      String json = post(ADVANCED_QUERIES_URI, body);
+      MdeAdvancedQueryResponse response = objectMapper.readValue(json, new TypeReference<>() {});
+      if (response.getResults() == null) {
+        // No "Results" field means the call did not succeed (error body): treat as unavailable.
+        return null;
+      }
+      Map<String, Instant> activityByDeviceId = new HashMap<>();
+      response
+          .getResults()
+          .forEach(
+              row -> {
+                if (row.getDeviceId() != null && row.getLastSeen() != null) {
+                  try {
+                    activityByDeviceId.put(row.getDeviceId(), Instant.parse(row.getLastSeen()));
+                  } catch (Exception ignored) {
+                    // Skip rows with an unparseable timestamp.
+                  }
+                }
+              });
+      return activityByDeviceId;
+    } catch (Exception e) {
+      log.warn(
+          "MDE Advanced Hunting unavailable (add AdvancedQuery.Read.All to the app registration for"
+              + " accurate device activity): {}",
+          e.getMessage());
+      return null;
     }
   }
 

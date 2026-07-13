@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -26,6 +27,11 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class MdeExecutorService implements Runnable {
+
+  // Advanced Hunting look-back window used to build the near real-time device activity map. Kept
+  // comfortably above OpenAEV's 1h active threshold so the accurate activity timestamp (not this
+  // window) decides whether an agent is active.
+  private static final int RECENT_ACTIVITY_WINDOW_MINUTES = 180;
 
   private final MdeExecutorClient client;
   private final MdeExecutorConfig config;
@@ -148,6 +154,14 @@ public class MdeExecutorService implements Runnable {
   }
 
   private List<AgentRegisterInput> toAgentEndpoint(@NotNull final List<MdeDevice> devices) {
+    // The MDE machines inventory lastSeen refreshes on a slow (up to daily) cadence and badly lags
+    // real connectivity, so it cannot decide whether a device is currently reachable for Live
+    // Response. Query Advanced Hunting once for near real-time device activity; null means the
+    // feature is unavailable (missing AdvancedQuery.Read.All permission) and we fall back to the
+    // sensor health flag.
+    Map<String, Instant> recentActivity =
+        client.getRecentDeviceActivity(RECENT_ACTIVITY_WINDOW_MINUTES);
+    boolean advancedHuntingAvailable = recentActivity != null;
     return devices.stream()
         .map(
             device -> {
@@ -173,20 +187,28 @@ public class MdeExecutorService implements Runnable {
                   Endpoint.PLATFORM_TYPE.Windows.equals(platform)
                       ? Agent.ADMIN_SYSTEM_WINDOWS
                       : Agent.ADMIN_SYSTEM_UNIX);
-              // Mark the agent active when the MDE sensor is healthy (healthStatus "Active"). This
-              // is the best available signal: a controlled test proved a device with a hours-old
-              // lastSeen still runs Live Response within seconds, so lastSeen does NOT predict
-              // reachability and filtering on it wrongly hid reachable machines. healthStatus is
-              // MDE's own health flag (a device stops being "Active" after it goes silent), and
-              // offline edge cases no longer poison the fleet thanks to stale pending cancellation.
-              // Other statuses keep their real lastSeen so they surface as inactive.
-              input.setLastSeen(
-                  "Active".equalsIgnoreCase(device.getHealthStatus())
-                      ? Instant.now()
-                      : parseDeviceLastSeen(device.getLastSeen()));
+              input.setLastSeen(resolveLastSeen(device, recentActivity, advancedHuntingAvailable));
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  /**
+   * Resolves the agent lastSeen used for the active status. Prefers the near real-time Advanced
+   * Hunting activity; when Advanced Hunting is unavailable, approximates reachability with the MDE
+   * sensor health flag rather than the badly lagging inventory lastSeen.
+   */
+  private static Instant resolveLastSeen(
+      MdeDevice device, Map<String, Instant> recentActivity, boolean advancedHuntingAvailable) {
+    if (advancedHuntingAvailable) {
+      Instant fresh = recentActivity.get(device.getId());
+      // A device absent from the activity window has not been active recently, so its stale
+      // inventory lastSeen surfaces it as inactive.
+      return fresh != null ? fresh : parseDeviceLastSeen(device.getLastSeen());
+    }
+    return "Active".equalsIgnoreCase(device.getHealthStatus())
+        ? Instant.now()
+        : parseDeviceLastSeen(device.getLastSeen());
   }
 
   /**

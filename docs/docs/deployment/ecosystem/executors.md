@@ -475,6 +475,7 @@ OpenAEV authenticates to the MDE API with the OAuth2 **client credentials** flow
     |------------|-----|
     | `Machine.Read.All` | List devices / device groups and sync them into OpenAEV |
     | `Machine.LiveResponse.All` | Run the Live Response script that launches the implant |
+    | `AdvancedQuery.Read.All` | Read near real-time device activity (Advanced Hunting) so only genuinely-reachable machines are marked active — the device inventory `lastSeen` lags by up to a day |
 
     Application permissions (not delegated) are mandatory because OpenAEV runs without a signed-in user.
 
@@ -583,9 +584,20 @@ after the first sync (up to the register interval).
 
 !!! tip "Devices are missing or show as inactive"
 
-    OpenAEV filters devices by the configured **device group** and marks an agent active when it was last seen within the
-    last hour. MDE's own cloud `lastSeen` can be stale for asleep/offline machines, so they may be excluded from a sync and
-    appear inactive. Confirm the device group ID and that the machines are onboarded and reporting to MDE.
+    OpenAEV filters devices by the configured **device group** and marks an agent active from **near
+    real-time Advanced Hunting activity** (the device inventory `lastSeen` lags by up to a day and is
+    not reliable). If the app registration lacks `AdvancedQuery.Read.All`, OpenAEV falls back to the
+    sensor `healthStatus` and logs a warning. Confirm the device group ID, that the machines are
+    onboarded and reporting to MDE, and that `AdvancedQuery.Read.All` is granted.
+
+!!! tip "An inject times out on a device that looks active"
+
+    Live Response only runs while the Defender sensor is **actively connected**. A device can be
+    onboarded and healthy yet asleep/offline right now: the `runliveresponse` action is then created
+    but stays **Pending** until the machine reconnects, so the inject times out. This is an inherent
+    MDE constraint (one Live Response session per machine, no execution while offline), not an OpenAEV
+    error. Stale Pending actions are cancelled automatically before the next dispatch so they never
+    block future injects.
 
 ---
 
