@@ -18,6 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
 public interface DomainRepository
     extends CrudRepository<Domain, String>, JpaSpecificationExecutor<Domain> {
 
+  /**
+   * Looks up a domain by its ID using a JPQL query so that the active Hibernate tenant filter
+   * ({@code tenantFilter}) is applied. The default CrudRepository#findById uses
+   * EntityManager.find(), which bypasses Hibernate filters and must not be used directly for
+   * tenant-scoped entities. Same fix as ChannelRepository (#6033) / ChallengeRepository (#6027).
+   */
+  @NotNull
+  @Query("SELECT d FROM Domain d WHERE d.id = :id")
+  Optional<Domain> findById(@NotNull @Param("id") String id);
+
   @NotNull
   @Transactional(readOnly = true)
   Optional<Domain> findByName(@NotNull String name);
