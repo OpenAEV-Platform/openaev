@@ -44,12 +44,13 @@ public class ExecutorHelper {
         || injectId == null
         || agentId == null
         || tenantId == null
+        || token == null
         || baseUrl == null
         || maxSize == null
         || unsecuredCertificate == null
         || withProxy == null) {
       throw new IllegalArgumentException(
-          "Platform type, command, injectId, tenantId, agentId, baseUrl, maxSize, unsecuredCertificate and withProxy must not be null.");
+          "Platform type, command, injectId, tenantId, agentId, token, baseUrl, maxSize, unsecuredCertificate and withProxy must not be null.");
     }
 
     String location =
