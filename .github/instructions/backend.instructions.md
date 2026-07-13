@@ -116,24 +116,3 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
   created with `new Connector()`). Comments should explain *why*, not *what*.
 - **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)
   and pass as an argument — never repeat the same `.formatted(...)` expression in multiple places.
-## Tanium Executor Scripts
-
-When adding or modifying Tanium package scripts (`.sh`, `.ps1`) and their JSON package definition:
-
-### Fail-fast on missing argument
-Both `.sh` and `.ps1` scripts must **fail fast** with `exit 1` + explicit error message when the payload argument is missing.
-- **✅ Correct (`.sh`)**: `if [ -z "${1:-}" ]; then echo "[ERROR] no payload argument" >&2; exit 1; fi`
-- **✅ Correct (`.ps1`)**: `if(-not $arg) { Write-Host "[ERROR] No payload argument supplied"; exit 1 }`
-- **❌ Wrong**: silent NOOP substitution (`$arg = "NOOP"`) that masks the error and reports success
-
-### Post-launch verification
-After submitting the payload, confirm it actually started (not just "accepted"):
-- **nohup/setsid**: capture launcher PID, `sleep 1`, then verify with `kill -0 $PID` or `wait`
-- **systemd-run**: use `--wait` flag so the call blocks until the transient unit exits (real exit code)
-- **`at` / fire-and-forget**: acceptable when the scheduler provides no status API
-
-### Package JSON integrity
-Every file entry in the Tanium package JSON must include `hash` (SHA-256 hex) and `size` (bytes) fields, matching the actual script content. **Recompute hash and size after any script change.**
-```json
-{ "hash": "<sha256>", "name": "openaev-ttr.sh", "source": "", "size": 4648, ... }
-```
