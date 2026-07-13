@@ -50,7 +50,7 @@ public class StepApi {
       resourceType = ResourceType.SIMULATION_OR_SCENARIO)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
@@ -109,7 +109,7 @@ public class StepApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.STEP)
   @PutMapping("/{stepId}")
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
     return toOutput(stepService.updateStepTemplate(stepId, input));

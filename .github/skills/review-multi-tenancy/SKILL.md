@@ -31,6 +31,9 @@ done
 Expected: every `TenantBase` entity has `@Filter(name = "tenantFilter")`.
 Missing `@Filter` = 🔴 CRITICAL — Hibernate won't apply tenant filtering.
 
+> NOTE: if the API, entity class is using v2 API isolation mechanism, then the `@Filter` annotation should not be there. 
+> Check the ./activate-tenant-table/SKILL.md. 
+
 ## Step 3 — Audit native queries
 
 ```bash

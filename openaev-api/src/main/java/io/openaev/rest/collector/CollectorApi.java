@@ -149,7 +149,8 @@ public class CollectorApi extends RestBehavior {
   @Transactional
   public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
       throws IOException {
-    Optional<Collector> collector = collectorRepository.findById(collectorId);
+    Optional<Collector> collector =
+        collectorRepository.findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }

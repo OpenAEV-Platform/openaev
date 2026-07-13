@@ -12,7 +12,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.model.Expectation;
+import io.openaev.expectation.Expectation;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -61,7 +61,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     // Use the builtin injector if already registered, otherwise create it
     savedInjector =
         injectorRepository
-            .findById(OPENAEV_INJECTOR_ID)
+            .findByIdAndTenantId(OPENAEV_INJECTOR_ID, TenantContext.getCurrentTenant())
             .orElseGet(
                 () ->
                     injectorRepository.save(
@@ -77,7 +77,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
     }
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --

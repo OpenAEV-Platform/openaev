@@ -13,6 +13,7 @@ import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,6 +34,7 @@ public class InjectAssistantService {
   private final InjectService injectService;
   private final AttackPatternService attackPatternService;
   private final InjectorContractService injectorContractService;
+  private final AiMetricCollector aiMetricCollector;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -47,6 +49,8 @@ public class InjectAssistantService {
    * @return a list of generated injects
    */
   public List<Inject> generateInjectsForScenario(Scenario scenario, InjectAssistantInput input) {
+    // Telemetry: one scenario inject assistant run.
+    aiMetricCollector.recordInjectAssistantRun();
     if (input.getInjectByTTPNumber() > MAX_NUMBER_INJECTS) {
       throw new UnsupportedOperationException(
           "Number of inject by Attack Pattern must be less than or equal to 5");

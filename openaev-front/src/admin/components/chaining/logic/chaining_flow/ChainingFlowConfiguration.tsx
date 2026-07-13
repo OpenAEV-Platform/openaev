@@ -92,7 +92,7 @@ const ChainingFlowConfiguration = ({
       inject_injector_contract: meta.inject_injector_contract ?? '',
       inject_injector: meta.inject_injector,
       inject_assets: meta.inject_assets ?? [],
-      inject_content: {},
+      inject_content: meta.inject_content ?? {},
       inject_field_links: {},
       contract_fields: meta.contract_fields ?? [],
     };
@@ -208,6 +208,7 @@ const ChainingFlowConfiguration = ({
     const stepPayload = {
       step_workflow_id: workflowId,
       step_action: 'INJECT_EXECUTION' as const,
+      step_condition_ids: editingStep?.meta.step_condition_ids ?? [],
       step_conditions: stepConditions.length > 0 ? stepConditions : undefined,
       step_data_step: {
         inject_title: data.inject_title,

@@ -5,8 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
-import io.openaev.database.model.*;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.ConnectorInstance;
+import io.openaev.database.model.ConnectorInstanceInMemory;
+import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -57,6 +61,7 @@ public class PaloAltoCortexExecutorIntegrationTest {
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   @Autowired private PreviewFeatureService previewFeatureService;
   @Autowired private EncryptionFactory encryptionFactory;
+  @Autowired private OpenAEVConfig openAEVConfig;
 
   @Autowired private FileService fileService;
 
@@ -74,7 +79,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
         taskScheduler,
         fileService,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig);
   }
 
   /**
@@ -161,7 +167,8 @@ public class PaloAltoCortexExecutorIntegrationTest {
                     executorService,
                     taskScheduler,
                     null,
-                    httpClientFactory))
+                    httpClientFactory,
+                    openAEVConfig))
         .isInstanceOf(ExecutorException.class)
         .hasMessageContaining("Error during initialization of the Executor");
   }

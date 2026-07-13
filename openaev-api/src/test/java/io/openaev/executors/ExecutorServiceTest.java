@@ -58,8 +58,7 @@ class ExecutorServiceTest {
               new String[] {"Linux", "Windows"});
 
       // -------- Assert --------
-      assertThat(result.getTenant()).as("Executor should have tenant set").isNotNull();
-      assertThat(result.getTenant().getId())
+      assertThat(result.getTenantId())
           .as("Executor tenant ID should match current tenant")
           .isEqualTo("tenant-001");
       assertThat(result.getTenantId())
@@ -128,9 +127,10 @@ class ExecutorServiceTest {
 
       // -------- Assert --------
       Executor saved = captor.getValue();
-      assertThat(saved.getTenant().getId())
-          .as("tenant.getId() and tenantId must be the same value for composite join")
-          .isEqualTo(saved.getTenantId());
+      assertThat(saved.getTenantId())
+          .as("tenantId must be set correctly")
+          .isNotNull()
+          .isEqualTo("tenant-001");
     }
   }
 }

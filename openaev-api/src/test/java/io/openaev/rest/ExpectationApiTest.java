@@ -1,7 +1,8 @@
 package io.openaev.rest;
 
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
-import static io.openaev.expectation.ExpectationType.*;
+import static io.openaev.expectation.ExpectationType.DETECTION;
+import static io.openaev.expectation.ExpectationType.PREVENTION;
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.EXPECTATIONS_URI;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
@@ -23,10 +24,10 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.Expectation;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
-import io.openaev.model.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -92,7 +93,7 @@ class ExpectationApiTest extends IntegrationTest {
     injectorContract.addInjector(savedInjector);
     savedInjectorContract = injectorContractRepository.save(injectorContract);
     em.flush();
-    savedInjector.getContracts().add(savedInjectorContract);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
 
     // -- Targets --

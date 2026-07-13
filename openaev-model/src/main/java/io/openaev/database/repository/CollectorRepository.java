@@ -1,6 +1,7 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorCompositeId;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CollectorRepository
-    extends CrudRepository<Collector, String>, JpaSpecificationExecutor<Collector> {
+    extends CrudRepository<Collector, ConnectorCompositeId>, JpaSpecificationExecutor<Collector> {
 
   Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
@@ -47,8 +48,6 @@ public interface CollectorRepository
       nativeQuery = true,
       value = "DELETE FROM collectors WHERE collector_id = :id AND tenant_id = :tenantId")
   void deleteByIdAndTenantId(@Param("id") String id, @Param("tenantId") String tenantId);
-
-  Optional<Collector> findByTypeAndTenantId(@NotNull String type, @NotNull String tenantId);
 
   /**
    * Native query to bypass Hibernate's @Filter("tenantFilter"). This is called from

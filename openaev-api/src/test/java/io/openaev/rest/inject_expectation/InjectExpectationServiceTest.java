@@ -11,7 +11,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.model.Expectation;
+import io.openaev.expectation.Expectation;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
@@ -62,8 +62,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     injectorContract.addInjector(savedInjector);
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
-    savedInjector.setNewEntity(false);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("asset name"));
     savedCollector =

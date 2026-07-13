@@ -31,6 +31,9 @@ public class StepOutput {
   @JsonProperty("step_condition_key_types")
   private List<ConditionKeyType> conditionKeyTypes;
 
+  @JsonProperty("step_output_types")
+  private List<String> outputTypes;
+
   @JsonProperty("step_data")
   private JsonNode data;
 

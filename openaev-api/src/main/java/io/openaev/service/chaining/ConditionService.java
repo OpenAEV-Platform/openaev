@@ -254,7 +254,11 @@ public class ConditionService {
     if (root.getConditionChildren() != null) {
       root.getConditionChildren().clear();
     }
-    if (root.getConditionSteps() != null) {
+
+    // Only clear step links if stepIds is explicitly provided (non-null);
+    // null means "preserve existing links" (frontend may not send step_ids on simple edits)
+    boolean hasExplicitStepIds = input.getStepIds() != null;
+    if (hasExplicitStepIds && root.getConditionSteps() != null) {
       root.getConditionSteps().clear();
     }
 
@@ -268,7 +272,7 @@ public class ConditionService {
           return child;
         },
         (condition, isRoot) -> {
-          if (isRoot) {
+          if (isRoot && hasExplicitStepIds) {
             linkStepsToRoot(condition, input.getStepIds());
           }
         },

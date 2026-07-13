@@ -4,6 +4,7 @@ import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -31,20 +32,12 @@ import org.springframework.stereotype.Service;
 public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   public static final String SERVICE_NAME = CROWDSTRIKE_EXECUTOR_NAME;
 
-  private static final String AGENT_ID_VARIABLE = "$agentID";
-
-  private static final String WINDOWS_EXTERNAL_REFERENCE =
-      "$agentID=[System.BitConverter]::ToString(((Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\CSAgent\\Sim').AG)).ToLower() -replace '-','';";
-  private static final String LINUX_EXTERNAL_REFERENCE =
-      "agentID=$(sudo /opt/CrowdStrike/falconctl -g --aid | sed 's/aid=\"//g' | sed 's/\".//g');";
-  private static final String MAC_EXTERNAL_REFERENCE =
-      "agentID=$(sudo /Applications/Falcon.app/Contents/Resources/falconctl stats | grep agentID | sed 's/agentID: //g' | tr '[:upper:]' '[:lower:]' | sed 's/-//g');";
-
   private final CrowdStrikeExecutorConfig crowdStrikeExecutorConfig;
   private final CrowdStrikeExecutorClient crowdStrikeExecutorClient;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
+  private final OpenAEVConfig openAEVConfig;
 
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -100,30 +93,32 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
 
   public void executeActions(List<CrowdStrikeAction> actions) {
     int paginationLimit = this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
-    for (CrowdStrikeAction action : actions) {
-      int paginationCount = (int) Math.ceil(action.getAgents().size() / (double) paginationLimit);
-      for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-        int fromIndex = (batchIndex * paginationLimit);
-        int toIndex = Math.min(fromIndex + paginationLimit, action.getAgents().size());
-        List<String> batchAgentIds =
-            action.getAgents().subList(fromIndex, toIndex).stream().map(Agent::getId).toList();
-        // Pagination of XXX agents (paginationLimit) per batch with 5s waiting
-        // because each XXX actions will call the CS API to execute the implants
-        // and each implant will call OpenAEV API to set traces
-        scheduledExecutorService.schedule(
-            () ->
-                this.crowdStrikeExecutorClient.executeAction(
-                    batchAgentIds, action.getScriptName(), action.getCommandEncoded()),
-            batchIndex * 5L,
-            TimeUnit.SECONDS);
-      }
+    int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
+
+    for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
+      int fromIndex = (batchIndex * paginationLimit);
+      int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
+      List<CrowdStrikeAction> batchActions = actions.subList(fromIndex, toIndex);
+      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
+      // because each action will call the CS API to execute the implant
+      // and each implant will call OpenAEV API to set traces
+      scheduledExecutorService.schedule(
+          () ->
+              batchActions.forEach(
+                  action ->
+                      this.crowdStrikeExecutorClient.executeAction(
+                          action.getAgentExternalReference(),
+                          action.getScriptName(),
+                          action.getCommandEncoded())),
+          batchIndex * 5L,
+          TimeUnit.SECONDS);
     }
   }
 
   private List<CrowdStrikeAction> getWindowsActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
     List<CrowdStrikeAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       CrowdStrikeAction actionWindows = new CrowdStrikeAction();
       actionWindows.setScriptName(this.crowdStrikeExecutorConfig.getWindowsScriptName());
       String implantLocation =
@@ -141,12 +136,8 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       // CS
       // - WINDOWS_ARCH: CS doesn't know the endpoint architecture so we include it to get the
       // architecture before downloading the implant and we replace the default x86_64 put before
-      // - WINDOWS_EXTERNAL_REFERENCE: the agent id in the openAEV DB for CS is the CS agent id to
-      // make the batch attack works so we get it with a command line from the endpoint and give it
-      // to the implant
       command =
           WINDOWS_ARCH
-              + WINDOWS_EXTERNAL_REFERENCE
               + command.replace(
                   Endpoint.PLATFORM_ARCH.x86_64.name(),
                   ARCH_VARIABLE
@@ -156,16 +147,20 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
               platform,
               command,
               inject.getId(),
-              AGENT_ID_VARIABLE,
+              agent.getId(),
               inject.getTenant().getId(),
-              token);
+              token,
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
               Matcher.quoteReplacement(implantLocation));
       actionWindows.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_16LE)));
-      actionWindows.setAgents(agents);
+      actionWindows.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionWindows);
     }
     return actions;
@@ -174,13 +169,12 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private List<CrowdStrikeAction> getLinuxActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
     List<CrowdStrikeAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       CrowdStrikeAction actionLinux = new CrowdStrikeAction();
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.Linux, injector, inject, LINUX_EXTERNAL_REFERENCE, token));
-      actionLinux.setAgents(agents);
+          getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, token));
+      actionLinux.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionLinux);
     }
     return actions;
@@ -189,13 +183,12 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
   private List<CrowdStrikeAction> getMacOSActions(
       List<Agent> agents, Injector injector, Inject inject, String token) {
     List<CrowdStrikeAction> actions = new ArrayList<>();
-    if (!agents.isEmpty()) {
+    for (Agent agent : agents) {
       CrowdStrikeAction actionMac = new CrowdStrikeAction();
       actionMac.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionMac.setCommandEncoded(
-          getUnixCommand(
-              Endpoint.PLATFORM_TYPE.MacOS, injector, inject, MAC_EXTERNAL_REFERENCE, token));
-      actionMac.setAgents(agents);
+          getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, token));
+      actionMac.setAgentExternalReference(agent.getExternalReference());
       actions.add(actionMac);
     }
     return actions;
@@ -205,7 +198,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       Endpoint.PLATFORM_TYPE platform,
       Injector injector,
       Inject inject,
-      String externalReferenceVariable,
+      Agent agent,
       String token) {
     String implantLocation =
         "location="
@@ -220,21 +213,19 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     // The default command to download the openaev implant and execute the attack is modified for CS
     // - UNIX_ARCH: CS doesn't know the endpoint architecture so we include it to get the
     // architecture before downloading the implant and we replace the default x86_64 put before
-    // - externalReferenceVariable: the agent id in the openAEV DB for CS is the CS agent id to make
-    // the batch attack works so we get it with a command line from the endpoint and give it to the
-    // implant
-    command =
-        UNIX_ARCH
-            + externalReferenceVariable
-            + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
+    command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
     command =
         replaceArgs(
             platform,
             command,
             inject.getId(),
-            AGENT_ID_VARIABLE,
+            agent.getId(),
             inject.getTenant().getId(),
-            token);
+            token,
+            openAEVConfig.getBaseUrlForAgent(),
+            Integer.toString(openAEVConfig.getLogsMaxSize()),
+            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+            Boolean.toString(openAEVConfig.isWithProxy()));
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

@@ -43,6 +43,7 @@ export interface AgentCallInput {
   agent_slug: string;
   /** @minLength 1 */
   content: string;
+  intent?: string;
 }
 
 export interface AgentCallOutput {
@@ -4678,8 +4679,10 @@ export interface InjectExpectationResultsByType {
 }
 
 export interface InjectExpectationSignature {
-  type?: string;
-  value?: string;
+  /** @minLength 1 */
+  type: string;
+  /** @minLength 1 */
+  value: string;
 }
 
 export interface InjectExpectationSimple {
@@ -8661,6 +8664,7 @@ export interface StepOutput {
   step_data?: JsonNode;
   step_id?: string;
   step_mapper_conditions?: MapperConditionOutput[];
+  step_output_types?: string[];
   step_status?: "TEMPLATE" | "READY" | "RUN" | "END";
   /** @format date-time */
   step_updated_at?: string;

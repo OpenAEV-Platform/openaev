@@ -13,6 +13,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
 import jakarta.validation.constraints.NotBlank;
@@ -45,6 +46,7 @@ public class WorkflowService {
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
+  private final ResultsMetricCollector resultsMetricCollector;
 
   // -- READ --
 
@@ -797,6 +799,8 @@ public class WorkflowService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
+    // Telemetry: one chaining workflow run started.
+    resultsMetricCollector.recordWorkflowRun();
 
     Map<String, ContractOutputType> fieldTypeMap =
         java.util.Arrays.stream(ContractOutputType.values())

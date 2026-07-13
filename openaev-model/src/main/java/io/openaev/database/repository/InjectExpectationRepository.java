@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -316,55 +315,6 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
 
-  @Modifying
-  @Query(
-      value =
-          """
-                UPDATE injects_expectations
-                SET inject_expectation_signatures =
-                    COALESCE(inject_expectation_signatures, '[]'::jsonb) ||
-                    jsonb_build_array(jsonb_build_object('type', :sigType, 'value', :sigValue))
-                WHERE inject_id = :injectId AND agent_id = :agentId
-                """,
-      nativeQuery = true)
-  void insertSignature(
-      @Param("sigType") String sigType,
-      @Param("sigValue") String sigValue,
-      @Param("injectId") String injectId,
-      @Param("agentId") String agentId);
-
-  // -- SIGNATURE PROCESSING --
-
-  @Modifying
-  @Query(
-      value =
-          """
-          UPDATE injects_expectations ie
-          SET inject_expectation_signatures = '[]'::jsonb,
-              inject_expectation_signatures_initialized = true
-          FROM injects i
-          WHERE ie.inject_expectation_id = :id
-            AND i.inject_id = ie.inject_id
-            AND i.tenant_id = :#{#tenantContext.currentTenant}
-          """,
-      nativeQuery = true)
-  void clearSignaturesAndMarkInitialized(@Param("id") String id);
-
-  @Modifying
-  @Query(
-      value =
-          """
-          UPDATE injects_expectations ie
-          SET inject_expectation_signatures =
-              COALESCE(ie.inject_expectation_signatures, '[]'::jsonb) || CAST(:signaturesJson AS jsonb),
-              inject_expectation_signatures_initialized = true
-          FROM injects i
-          WHERE ie.inject_expectation_id = :id
-            AND i.inject_id = ie.inject_id
-          """,
-      nativeQuery = true)
-  void appendSignatures(@Param("id") String id, @Param("signaturesJson") String signaturesJson);
-
   // -- INDEXING --
 
   @Query(
@@ -372,17 +322,53 @@ public interface InjectExpectationRepository
           """
     WITH changed_expectations AS (
         SELECT ie.inject_expectation_id FROM injects_expectations ie
-          WHERE ie.inject_expectation_updated_at > :from
+          WHERE ie.agent_id IS NULL AND ie.inject_expectation_updated_at > :from
         UNION
         SELECT ie.inject_expectation_id FROM injects_expectations ie
           JOIN injects i ON i.inject_id = ie.inject_id
-          WHERE i.inject_updated_at > :from
+          WHERE ie.agent_id IS NULL AND i.inject_updated_at > :from
         UNION
         SELECT ie.inject_expectation_id FROM injects_expectations ie
           JOIN injects i ON i.inject_id = ie.inject_id
           JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
-          WHERE ic.injector_contract_updated_at > :from
+          WHERE ie.agent_id IS NULL AND ic.injector_contract_updated_at > :from
+        UNION
+        SELECT parent_ie.inject_expectation_id
+          FROM injects_expectations parent_ie
+          JOIN injects_expectations child_ie ON child_ie.inject_id = parent_ie.inject_id
+          WHERE parent_ie.agent_id IS NULL
+            AND child_ie.agent_id IS NOT NULL
+            AND child_ie.inject_expectation_updated_at > :from
     ),
+    ranked_expectations AS (
+      SELECT ce.inject_expectation_id,
+        GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, COALESCE(ic.injector_contract_updated_at, ie.inject_expectation_updated_at)) AS sort_ts
+      FROM changed_expectations ce
+      JOIN injects_expectations ie ON ie.inject_expectation_id = ce.inject_expectation_id
+      JOIN injects i ON i.inject_id = ie.inject_id
+      LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
+      ORDER BY sort_ts ASC
+      LIMIT :limit
+    ),
+    agent_security_platforms AS (
+      SELECT
+          child_ie.inject_id,
+          COALESCE(
+              array_agg(DISTINCT child_c.collector_security_platform::text)
+                  FILTER ( WHERE child_c.collector_security_platform IS NOT NULL ),
+              ARRAY[]::text[]
+          )
+          || COALESCE(
+              array_agg(DISTINCT child_a.asset_id::text)
+                  FILTER ( WHERE child_a.asset_id IS NOT NULL ),
+              ARRAY[]::text[]
+          ) AS security_platform_ids
+      FROM injects_expectations child_ie
+      LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
+      LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
+      LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
+      WHERE child_ie.agent_id IS NOT NULL
+      GROUP BY child_ie.inject_id),
     inject_expectation_data AS (
       SELECT
       ie.inject_expectation_id,
@@ -409,10 +395,19 @@ public interface InjectExpectationRepository
       array_agg(DISTINCT ap.attack_pattern_id) FILTER ( WHERE ap.attack_pattern_id IS NOT NULL ) AS attack_pattern_ids,
       array_agg(DISTINCT ic_d.domain_id) FILTER (WHERE ic_d.domain_id IS NOT NULL ) AS domain_ids,
       MAX(se.scenario_id) AS scenario_id,
-      array_agg(DISTINCT c.collector_security_platform) FILTER ( WHERE c.collector_security_platform IS NOT NULL ) ||
-      array_agg(DISTINCT a.asset_id) FILTER ( WHERE a.asset_id IS NOT NULL ) AS security_platform_ids
+      COALESCE(
+          array_agg(DISTINCT c.collector_security_platform::text)
+              FILTER ( WHERE c.collector_security_platform IS NOT NULL ),
+          ARRAY[]::text[]
+      )
+      || COALESCE(
+          array_agg(DISTINCT a.asset_id::text)
+              FILTER ( WHERE a.asset_id IS NOT NULL ),
+          ARRAY[]::text[]
+      )
+      || COALESCE(asp.security_platform_ids, ARRAY[]::text[]) AS security_platform_ids
     FROM injects_expectations ie
-    JOIN changed_expectations ce ON ie.inject_expectation_id = ce.inject_expectation_id
+    JOIN ranked_expectations re ON ie.inject_expectation_id = re.inject_expectation_id
     LEFT JOIN exercises ex ON ex.exercise_id = ie.exercise_id
     LEFT JOIN injects i ON i.inject_id = ie.inject_id
     LEFT JOIN injects_statuses ins ON ins.status_inject = i.inject_id
@@ -420,7 +415,6 @@ public interface InjectExpectationRepository
     LEFT JOIN injectors_contracts_attack_patterns ic_ap ON ic_ap.injector_contract_id = ic.injector_contract_id
     LEFT JOIN attack_patterns ap ON ap.attack_pattern_id = ic_ap.attack_pattern_id
     LEFT JOIN injectors_contracts_domains ic_d ON ic_d.injector_contract_id = ic.injector_contract_id
-    LEFT JOIN users u ON u.user_id = ie.user_id
     LEFT JOIN teams t ON t.team_id = ie.team_id
     LEFT JOIN assets asset ON asset.asset_id = ie.asset_id
     LEFT JOIN asset_groups ag ON ag.asset_group_id = ie.asset_group_id
@@ -428,16 +422,17 @@ public interface InjectExpectationRepository
     LEFT JOIN LATERAL jsonb_array_elements(ie.inject_expectation_results::jsonb) AS r(elem) ON true
     LEFT JOIN collectors c ON r.elem->>'sourceId' = c.collector_id::text
     LEFT JOIN assets a ON r.elem->>'sourceId' = a.asset_id::text
+    LEFT JOIN agent_security_platforms asp ON asp.inject_id = ie.inject_id
     GROUP BY
       ie.inject_expectation_id,
       ic.injector_contract_id,
       i.inject_title,
-        i.tenant_id
+      i.tenant_id,
+      asp.security_platform_ids
     )
     SELECT * FROM inject_expectation_data ied
     WHERE ied.agent_id IS NULL
     ORDER BY ied.inject_expectation_updated_at ASC
-    LIMIT :limit
     """,
       nativeQuery = true)
   List<RawInjectExpectationIndexing> findForIndexing(

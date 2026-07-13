@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -21,7 +22,10 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,6 +49,7 @@ public class CrowdstrikeExecutorServiceTest {
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
+  @Mock private OpenAEVConfig openAEVConfig;
 
   @InjectMocks private CrowdStrikeExecutorService crowdStrikeExecutorService;
 
@@ -59,7 +64,7 @@ public class CrowdstrikeExecutorServiceTest {
     crowdstrikeExecutor = new Executor();
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
-    crowdstrikeExecutor.setTenant(new Tenant(TENANT_ID));
+    crowdstrikeExecutor.setTenantId(TENANT_ID);
   }
 
   @Test
@@ -120,21 +125,21 @@ public class CrowdstrikeExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     // Run method to test
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
-    ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
-    verify(client)
-        .executeAction(agentIds.capture(), scriptName.capture(), commandEncoded.capture());
-    assertEquals(1, agentIds.getValue().size());
+    verify(client).executeAction(agentId.capture(), scriptName.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
     assertEquals("MyScript", scriptName.getValue());
     assertEquals(
-        "cwB3AGkAdABjAGgAIAAoACQAZQBuAHYAOgBQAFIATwBDAEUAUwBTAE8AUgBfAEEAUgBDAEgASQBUAEUAQwBUAFUAUgBFACkAIAB7ACAAIgBBAE0ARAA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAHgAOAA2AF8ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAIgBBAFIATQA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAGEAcgBtADYANAAiADsAIABCAHIAZQBhAGsAfQAgACIAeAA4ADYAIgAgAHsAIABzAHcAaQB0AGMAaAAgACgAJABlAG4AdgA6AFAAUgBPAEMARQBTAFMATwBSAF8AQQBSAEMASABJAFQARQBXADYANAAzADIAKQAgAHsAIAAiAEEATQBEADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAeAA4ADYAXwA2ADQAIgA7ACAAQgByAGUAYQBrAH0AIAAiAEEAUgBNADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAYQByAG0ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAfQAgAH0AIAB9ADsAJABhAGcAZQBuAHQASQBEAD0AWwBTAHkAcwB0AGUAbQAuAEIAaQB0AEMAbwBuAHYAZQByAHQAZQByAF0AOgA6AFQAbwBTAHQAcgBpAG4AZwAoACgAKABHAGUAdAAtAEkAdABlAG0AUAByAG8AcABlAHIAdAB5ACAAJwBIAEsATABNADoAXABTAFkAUwBUAEUATQBcAEMAdQByAHIAZQBuAHQAQwBvAG4AdAByAG8AbABTAGUAdABcAFMAZQByAHYAaQBjAGUAcwBcAEMAUwBBAGcAZQBuAHQAXABTAGkAbQAnACkALgBBAEcAKQApAC4AVABvAEwAbwB3AGUAcgAoACkAIAAtAHIAZQBwAGwAYQBjAGUAIAAnAC0AJwAsACcAJwA7ACQAYQByAGMAaABpAHQAZQBjAHQAdQByAGUAYAA=",
+        "cwB3AGkAdABjAGgAIAAoACQAZQBuAHYAOgBQAFIATwBDAEUAUwBTAE8AUgBfAEEAUgBDAEgASQBUAEUAQwBUAFUAUgBFACkAIAB7ACAAIgBBAE0ARAA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAHgAOAA2AF8ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAIgBBAFIATQA2ADQAIgAgAHsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQAgAD0AIAAiAGEAcgBtADYANAAiADsAIABCAHIAZQBhAGsAfQAgACIAeAA4ADYAIgAgAHsAIABzAHcAaQB0AGMAaAAgACgAJABlAG4AdgA6AFAAUgBPAEMARQBTAFMATwBSAF8AQQBSAEMASABJAFQARQBXADYANAAzADIAKQAgAHsAIAAiAEEATQBEADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAeAA4ADYAXwA2ADQAIgA7ACAAQgByAGUAYQBrAH0AIAAiAEEAUgBNADYANAAiACAAewAkAGEAcgBjAGgAaQB0AGUAYwB0AHUAcgBlACAAPQAgACIAYQByAG0ANgA0ACIAOwAgAEIAcgBlAGEAawB9ACAAfQAgAH0AIAB9ADsAJABhAHIAYwBoAGkAdABlAGMAdAB1AHIAZQBgAA==",
         commandEncoded.getValue());
   }
 
@@ -165,6 +170,7 @@ public class CrowdstrikeExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
 
     // Act
     crowdStrikeExecutorContextService.launchBatchExecutorSubprocess(

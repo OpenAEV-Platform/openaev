@@ -8,7 +8,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
@@ -386,6 +385,7 @@ public class EndpointService implements AuditLoggedService {
    * @param existingAgents in the database
    * @return OpenAEV agents
    */
+  @Transactional
   public List<Agent> syncAgentsEndpoints(
       List<AgentRegisterInput> inputs, List<Agent> existingAgents, @NotNull String tenantId) {
     log.info(
@@ -416,7 +416,7 @@ public class EndpointService implements AuditLoggedService {
         setUpdatedEndpointAttributes(endpointToSave, inputToSave);
         // Ensure the endpoint tenant is always consistent with the executor's tenant.
         // Guards against stale cross-tenant data created before TenantContext was set correctly.
-        endpointToSave.setTenant(inputToSave.getExecutor().getTenant());
+        endpointToSave.setTenant(new Tenant(inputToSave.getExecutor().getTenantId()));
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
         endpointsToSave.add(endpointToSave);
@@ -814,7 +814,7 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
-    endpoint.setTenant(input.getExecutor().getTenant());
+    endpoint.setTenant(new Tenant(input.getExecutor().getTenantId()));
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
@@ -825,18 +825,12 @@ public class EndpointService implements AuditLoggedService {
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
-    // External reference needs to be the id for Crowdstrike and SentinelOne for the batch "execute
-    // scripts"
-    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
-        || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
-      agent.setId(input.getExternalReference());
-    }
     agent.setPrivilege(input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard);
     agent.setDeploymentMode(
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
-    agent.setTenant(input.getExecutor().getTenant());
+    agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 
   private AgentRegisterInput toAgentEndpoint(

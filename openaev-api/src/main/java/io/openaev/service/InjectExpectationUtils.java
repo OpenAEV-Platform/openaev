@@ -2,15 +2,14 @@ package io.openaev.service;
 
 import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.ExpectationPropertiesConfig;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.*;
+import io.openaev.expectation.*;
 import io.openaev.utils.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
@@ -58,7 +57,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
     return expectationConverter(
         baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
   }
@@ -68,7 +67,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
     if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
       tableTop.setTeam(team);
     }
@@ -82,7 +81,7 @@ public class InjectExpectationUtils {
       @NotNull final ExecutableInject executableInject,
       Expectation expectation,
       ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation);
+    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
     if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
       tableTop.setTeam(team);
       tableTop.setUser(user);
@@ -109,28 +108,40 @@ public class InjectExpectationUtils {
     switch (expectation) {
       case ChannelExpectation e when expectation.type() == ARTICLE ->
           ((ArticleInjectExpectation) baseInjectExpectation).setArticle(e.getArticle());
-      case ChallengeExpectation e when expectation.type() == CHALLENGE ->
+      case io.openaev.expectation.ChallengeExpectation e when expectation.type() == CHALLENGE ->
           ((ChallengeInjectExpectation) baseInjectExpectation).setChallenge(e.getChallenge());
       case DetectionExpectation e when expectation.type() == DETECTION -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-        baseInjectExpectation.setSignatures(e.getInjectExpectationSignatures());
+        baseInjectExpectation
+            .getSignatures()
+            .addAll(
+                convertToInjectExpectationSignatures(
+                    e.getExpectationSignatures(), baseInjectExpectation));
       }
       case PreventionExpectation e when expectation.type() == PREVENTION -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-        baseInjectExpectation.setSignatures(e.getInjectExpectationSignatures());
+        baseInjectExpectation
+            .getSignatures()
+            .addAll(
+                convertToInjectExpectationSignatures(
+                    e.getExpectationSignatures(), baseInjectExpectation));
       }
       case VulnerabilityExpectation e when expectation.type() == VULNERABILITY -> {
         TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
         tech.setAgent(e.getAgent());
         tech.setAsset(e.getAsset());
         tech.setAssetGroup(e.getAssetGroup());
-        baseInjectExpectation.setSignatures(e.getInjectExpectationSignatures());
+        baseInjectExpectation
+            .getSignatures()
+            .addAll(
+                convertToInjectExpectationSignatures(
+                    e.getExpectationSignatures(), baseInjectExpectation));
       }
       case ManualExpectation e when expectation.type() == MANUAL ->
           baseInjectExpectation.setDescription(e.getDescription());
@@ -140,8 +151,8 @@ public class InjectExpectationUtils {
   }
 
   private static BaseInjectExpectation newExpectationByType(
-      @NotNull final Expectation expectation) {
-    return switch (expectation.type()) {
+      @NotNull final BaseInjectExpectation.EXPECTATION_TYPE type) {
+    return switch (type) {
       case ARTICLE -> new ArticleInjectExpectation();
       case CHALLENGE -> new ChallengeInjectExpectation();
       case MANUAL -> new ManualInjectExpectation();
@@ -152,6 +163,45 @@ public class InjectExpectationUtils {
   }
 
   // -- RULES OF ENGAGEMENT --
+  public static double computeScore(@NotNull Double expectedScore, final boolean success) {
+    return success ? expectedScore : FAILED_SCORE_VALUE;
+  }
+
+  public static Double computeChildrenScore(
+      boolean isGroupExpectation,
+      @NotNull Double expectedScore,
+      @NotNull final List<? extends BaseInjectExpectation> childrenExpectations) {
+    final boolean noExpectationScore = noExpectationScore(childrenExpectations);
+    final boolean allSuccess =
+        allExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean anySuccess =
+        anyExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
+    final boolean allError =
+        allExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+    final boolean anyError =
+        anyExpectationsMatch(childrenExpectations, score -> score < expectedScore);
+
+    if (noExpectationScore) {
+      return null;
+    }
+
+    Double score = null;
+
+    if (isGroupExpectation) {
+      if (anySuccess) {
+        score = InjectExpectationUtils.computeScore(expectedScore, true);
+      } else if (allError) {
+        score = InjectExpectationUtils.computeScore(expectedScore, false);
+      }
+    } else {
+      if (allSuccess) {
+        score = InjectExpectationUtils.computeScore(expectedScore, true);
+      } else if (anyError) {
+        score = InjectExpectationUtils.computeScore(expectedScore, false);
+      }
+    }
+    return score;
+  }
 
   public static void computeScores(
       @NotNull final List<? extends BaseInjectExpectation> childrenExpectations,

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -40,6 +41,7 @@ public class InjectExecutionService {
   @Resource protected ObjectMapper mapper;
 
   @Transactional
+  @WorkflowUpdateEvent(injectId = "#injectId")
   public void handleInjectExecutionCallback(
       String injectId, String agentId, InjectExecutionInput input) {
     Inject inject = null;

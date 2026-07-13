@@ -101,8 +101,7 @@ public class CalderaExecutorService implements Runnable {
   private void registerAgentEndpoint(AgentRegisterInput input) {
     // Check if agent exists (only 1 agent can be found for Caldera)
     List<Agent> existingAgents =
-        agentService.findByExternalReference(
-            input.getExternalReference(), executor.getTenant().getId());
+        agentService.findByExternalReference(input.getExternalReference(), executor.getTenantId());
     if (!existingAgents.isEmpty()) {
       Agent existingAgent = existingAgents.getFirst();
       if (input.isActive()) {
@@ -115,7 +114,7 @@ public class CalderaExecutorService implements Runnable {
       // Check if endpoint exists
       List<Endpoint> existingEndpoints =
           endpointService.findEndpointByHostnameAndAtLeastOneIp(
-              input.getHostname(), input.getIps(), executor.getTenant().getId());
+              input.getHostname(), input.getIps(), executor.getTenantId());
       if (existingEndpoints.size() == 1) {
         updateExistingEndpointAndManageAgent(existingEndpoints.getFirst(), input);
       } else {
@@ -167,7 +166,7 @@ public class CalderaExecutorService implements Runnable {
     agent.setDeploymentMode(input.isService() ? DEPLOYMENT_MODE.service : DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
-    agent.setTenant(executor.getTenant());
+    agent.setTenant(new Tenant(executor.getTenantId()));
   }
 
   private void updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -203,7 +202,7 @@ public class CalderaExecutorService implements Runnable {
     endpoint.setArch(input.getArch());
     endpoint.setHostname(input.getHostname());
     endpoint.setIps(input.getIps());
-    endpoint.setTenant(executor.getTenant());
+    endpoint.setTenant(new Tenant(executor.getTenantId()));
     endpointService.createEndpoint(endpoint);
     Agent agent = new Agent();
     setUpdatedAgentAttributes(agent, input, endpoint);
