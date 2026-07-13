@@ -8,7 +8,6 @@ import static io.openaev.utils.StringUtils.generateRandomColor;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DomainRepository;
@@ -71,10 +70,17 @@ public class DomainService implements DependenciesManager {
     return domainRepository.findAllById(domainIds);
   }
 
+  /**
+   * Upserts a domain from an API input. The tenant is passed explicitly by the caller (Controller
+   * or Service that already resolved it) rather than read ambiently from TenantContext here — this
+   * keeps DomainService free of tenant-resolution concerns, consistent with the rest of this class.
+   *
+   * @param input the domain name/color to upsert
+   * @param tenantId the tenant this domain belongs to
+   */
   @Transactional
-  public Domain upsert(final DomainBaseInput input) {
-    return this.upsert(
-        input.getName(), input.getColor(), new Tenant(TenantContext.getCurrentTenant()));
+  public Domain upsert(final DomainBaseInput input, final String tenantId) {
+    return this.upsert(input.getName(), input.getColor(), new Tenant(tenantId));
   }
 
   @Transactional
