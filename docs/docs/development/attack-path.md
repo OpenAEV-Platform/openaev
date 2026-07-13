@@ -1,9 +1,9 @@
-# Attack path POC
+# Attack path
 
 !!! warning "Proof of concept, feature-flagged"
 
     The attack-path execution store is a proof of concept (issue 6647). It is off by default and gated
-    behind the `ATTACK_PATH_POC` preview feature, so its tab and endpoints do not exist unless the flag
+    behind the `ATTACK_PATH` preview feature, so its tab and endpoints do not exist unless the flag
     is on. The design rationale and the options weighed are in
     `adr/ADR-002-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
     hands-on companion for developers building on the POC.
@@ -222,8 +222,8 @@ expand/relations reads, and the simulation picker.
 
 ## 7. The API
 
-All endpoints live under `/api/poc/attack-path` (and the tenant-prefixed
-`/api/tenants/{tenantId}/poc/attack-path`, which the front uses). They exist only when the flag is on.
+All endpoints live under `/api/attack-path` (and the tenant-prefixed
+`/api/tenants/{tenantId}/attack-path`, which the front uses). They exist only when the flag is on.
 
 | Method & path | Returns |
 | --- | --- |
@@ -240,11 +240,11 @@ All endpoints live under `/api/poc/attack-path` (and the tenant-prefixed
 
 ### Enable the feature
 
-Add `ATTACK_PATH_POC` to the enabled preview features (or `*` for all), for example in your dev
+Add `ATTACK_PATH` to the enabled preview features (or `*` for all), for example in your dev
 configuration (`application-dev.properties`):
 
 ```properties
-openaev.enabled-dev-features=ATTACK_PATH_POC
+openaev.enabled-dev-features=ATTACK_PATH
 ```
 
 Start the backend and the front (`cd openaev-front && yarn start`, the dev server runs on port 3001 and
@@ -255,7 +255,7 @@ proxies `/api` to the backend on 8080). The tab appears on every simulation page
 The `attackpath_*` tables are tenant-active, so a simulation's rows are only visible under **your own
 tenant**. The seed endpoint therefore takes a `tenantId`: pass yours (the single-tenant default is
 `2cffad3a-0001-4078-b0e2-ef74274022c3`, also the `{tenantId}` segment in the URLs the front calls) so the
-seeded simulations show up in your tab. `POST /api/poc/attack-path/seed` is admin-only — authenticate
+seeded simulations show up in your tab. `POST /api/attack-path/seed` is admin-only — authenticate
 with the admin token (`openaev.admin.token`) or your logged-in session.
 
 | preset   | shape                                                   | ~rows   | seed time |
@@ -274,12 +274,12 @@ TENANT=2cffad3a-0001-4078-b0e2-ef74274022c3
 TOKEN=<your openaev.admin.token>
 
 # the full spread: 20 simulations from ~100 to ~450 endpoints (one 100k-execution outlier)
-curl -X POST http://localhost:8080/api/poc/attack-path/seed \
+curl -X POST http://localhost:8080/api/attack-path/seed \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "{\"preset\":\"medium\",\"seed\":7,\"tenantId\":\"$TENANT\"}"
 
 # a light ~100-endpoint simulation, smooth for testing navigation
-curl -X POST http://localhost:8080/api/poc/attack-path/seed \
+curl -X POST http://localhost:8080/api/attack-path/seed \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "{\"preset\":\"nav\",\"seed\":3,\"tenantId\":\"$TENANT\"}"
 ```
@@ -318,7 +318,7 @@ the execution count), largest first. Pick one, then:
 mvn -pl openaev-api test -Dtest="AttackPath*,TenantNonOrmAccessArchTest"
 
 # front (from openaev-front): unit tests, typecheck, lint
-yarn vitest run src/__tests__/actions/attack-path-poc src/__tests__/admin/components/simulations/simulation/attack_path_poc
+yarn vitest run src/__tests__/actions/attack-path src/__tests__/admin/components/simulations/simulation/attack_path
 yarn check-ts && yarn lint
 ```
 
@@ -412,6 +412,6 @@ Jump → DC"). The graph shows all executions, not a chosen path.
 - Backend: `io.openaev.api.attackpath` (the controller), `io.openaev.service.attackpath` (rebuild,
   collapsed, ids, seed), `io.openaev.database.model.attackpath` + `…repository.attackpath` (entities,
   projections, queries), `io.openaev.migration.V6_2026071…` (the Flyway tables).
-- Front: `openaev-front/src/admin/components/simulations/simulation/attack_path_poc/` (the flow, nodes,
-  edges, helpers) and `src/actions/attack-path-poc/`.
+- Front: `openaev-front/src/admin/components/simulations/simulation/attack_path/` (the flow, nodes,
+  edges, helpers) and `src/actions/attack-path/`.
 - Benchmark: `AttackPathBenchmark` (env-gated). Design rationale: `adr/ADR-002-…md`.

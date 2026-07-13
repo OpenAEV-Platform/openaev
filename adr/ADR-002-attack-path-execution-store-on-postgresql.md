@@ -10,7 +10,7 @@
 > read and impossible to index well. We decided to store it instead in three small, normalized
 > PostgreSQL tables, so the graph rebuilds from two flat, indexed reads with no recursion. A proof of
 > concept measured this at scale; the numbers and the trade-offs are below. A hands-on guide for building
-> on it is in `docs/docs/development/attack-path-poc.md`.
+> on it is in `docs/docs/development/attack-path.md`.
 
 ## 1. Context
 
@@ -41,7 +41,7 @@ In order of importance for this decision:
 Leave the data in `step_data` and add expression or GIN indexes to query it.
 
 **Pros**: no schema change, no migration, minimal code.
-**Cons**: every read still parses the whole document; updates still rewrite the whole blob; partial reads (reading only the short columns and never the heavy terminal output) are impossible; aggregation stays awkward. This keeps exactly the weaknesses we set out to remove.
+**Cons**: every read still parses the whole document; updates still rewrite the whole blob; partial reads (reading only the short columns and never the heavy terminal output) are impossible; aggregation stays awkward. This keeps exactly the weaknesses we set out to remove. Restructuring `step_data` itself (adding structured fields inside it, rather than indexing it) hits the same wall: it stays one JSONB document per step, so a write still rewrites the whole document and a read still parses it, it couples the attack-path store to the chaining engine's `step_data` schema (so it cannot be added or dropped independently), and it still gives no real join between an execution and its findings.
 
 ### Option B: Normalized PostgreSQL tables as the source of truth
 
