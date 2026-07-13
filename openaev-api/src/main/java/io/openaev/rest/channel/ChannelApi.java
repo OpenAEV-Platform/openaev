@@ -179,7 +179,10 @@ public class ChannelApi extends RestBehavior {
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
-    return channelService.validateArticles(exerciseId, channelId, user);
+    // TenantContext resolved here (API layer) and passed explicitly to the service, per review
+    // feedback on keeping tenant resolution out of the Service layer.
+    return channelService.validateArticles(
+        exerciseId, channelId, user, TenantContext.getCurrentTenant());
   }
 
   // -- EXERCISES --

@@ -1,6 +1,5 @@
 package io.openaev.rest;
 
-import static io.openaev.rest.channel.ChannelApi.CHANNEL_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -221,9 +220,13 @@ class ChannelApiTest extends IntegrationTest {
       entityManager.clear();
 
       // Act — read from tenant Y
+      // NOTE: build the path the same way as the other isolation tests below
+      // ("/api/tenants/{tenantId}/channels/{id}"). Using CHANNEL_URI here would double the
+      // "/api" prefix (CHANNEL_URI == "/api/channels") and 404 for the wrong reason, hiding
+      // whether tenant isolation is actually enforced.
       int responseStatus =
           mvc.perform(
-                  get("/api/tenants/" + tenantY.getId() + CHANNEL_URI + "/" + channelId)
+                  get("/api/tenants/" + tenantY.getId() + "/channels/" + channelId)
                       .accept(MediaType.APPLICATION_JSON))
               .andReturn()
               .getResponse()

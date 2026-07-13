@@ -49,10 +49,7 @@ public class ChannelService {
 
   // -- DELETE --
 
-  /**
-   * Deletes a channel. The Hibernate tenant filter ensures only channels of the current tenant are
-   * visible, so existsById is tenant-safe.
-   */
+  // existsById() is tenant-filtered by Hibernate, so deleteById() below is safe.
   public void deleteChannel(@NotBlank final String channelId) {
     if (!channelRepository.existsById(channelId)) {
       throw new ElementNotFoundException("Channel not found with id: " + channelId);
@@ -60,13 +57,17 @@ public class ChannelService {
     channelRepository.deleteById(channelId);
   }
 
-  public ChannelReader validateArticles(String exerciseId, String channelId, User user) {
+  /**
+   * @param tenantId resolved by the caller (API layer), not read from TenantContext here.
+   */
+  public ChannelReader validateArticles(
+      String exerciseId, String channelId, User user, @NotBlank final String tenantId) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 
-    Optional<Exercise> exerciseOpt = exerciseRepository.findById(exerciseId);
+    Optional<Exercise> exerciseOpt = exerciseRepository.findByIdAndTenantId(exerciseId, tenantId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
