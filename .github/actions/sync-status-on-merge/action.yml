@@ -26,14 +26,12 @@ runs:
         OWNER: ${{ github.repository_owner }}
         REPO_NAME: ${{ github.event.repository.name }}
         PR_NUMBER_INPUT: ${{ inputs.pr-number }}
+        PR_JSON: ${{ toJson(github.event.pull_request) }}
       run: |
         set -euo pipefail
 
         if [ -n "$PR_NUMBER_INPUT" ]; then
           PR_JSON=$(gh pr view "$PR_NUMBER_INPUT" --repo "$OWNER/$REPO_NAME" --json title,body)
-        else
-		env:
-          PR_JSON='${{ toJson(github.event.pull_request) }}'
         fi
 
         TITLE=$(echo "$PR_JSON" | jq -r '.title // ""')
