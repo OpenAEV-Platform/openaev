@@ -464,11 +464,14 @@ class V1_DataImporterTest extends IntegrationTest {
         """
             .formatted(oldContractId));
     Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
 
     // -- Act --
     String resolvedStepData =
         ReflectionTestUtils.invokeMethod(
-            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>());
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
     // -- Assert --
@@ -496,11 +499,14 @@ class V1_DataImporterTest extends IntegrationTest {
     ObjectNode stepNode = objectMapper.createObjectNode();
     stepNode.put("step_data", "{\"inject_injector_contract\":\"%s\"}".formatted(oldContractId));
     Map<String, String> resolvedContracts = Map.of(oldContractId, newContractId);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
 
     // -- Act --
     String resolvedStepData =
         ReflectionTestUtils.invokeMethod(
-            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>());
+            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
     // -- Assert --
@@ -535,18 +541,27 @@ class V1_DataImporterTest extends IntegrationTest {
         }
         """
             .formatted(contractId));
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-test");
+    Workflow workflow = Workflow.builder().simulation(simulation).build();
 
     // -- Act --
     String resolvedStepData =
         ReflectionTestUtils.invokeMethod(
-            importer, "resolveStepData", stepNode, new HashMap<String, String>(), new HashMap<>());
+            importer,
+            "resolveStepData",
+            stepNode,
+            new HashMap<String, String>(),
+            new HashMap<>(),
+            workflow);
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
     // -- Assert --
     assertFalse(resolvedJson.has("inject_id"));
     assertFalse(resolvedJson.has("inject_status"));
     assertFalse(resolvedJson.has("inject_depends_on"));
-    assertFalse(resolvedJson.has("inject_exercise"));
+    assertTrue(resolvedJson.has("inject_exercise"));
+    assertEquals("sim-test", resolvedJson.get("inject_exercise").asText());
     assertFalse(resolvedJson.has("inject_scenario"));
     assertFalse(resolvedJson.has("inject_assets"));
     assertFalse(resolvedJson.has("inject_asset_groups"));

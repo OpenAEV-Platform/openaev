@@ -1944,7 +1944,7 @@ public class V1_DataImporter implements Importer {
       String originalStepId = stepNode.has("step_id") ? stepNode.get("step_id").asText() : null;
 
       // Resolve injector contract in step_data if present
-      String stepData = resolveStepData(stepNode, resolvedContracts, baseIds);
+      String stepData = resolveStepData(stepNode, resolvedContracts, baseIds, workflow);
 
       Step step =
           Step.builder()
@@ -2087,7 +2087,7 @@ public class V1_DataImporter implements Importer {
               .stepFrom(stepFrom)
               .build();
 
-      if (step != null) {
+      if (step != null && isRoot) {
         chainingConditionService.linkToStep(condition, step, isRoot);
       }
       condition = chainingConditionService.saveCondition(condition);
@@ -2107,15 +2107,16 @@ public class V1_DataImporter implements Importer {
    * injector_contract_id.
    */
   private String resolveStepData(
-      JsonNode stepNode, Map<String, String> resolvedContracts, Map<String, Base> baseIds) {
+      JsonNode stepNode,
+      Map<String, String> resolvedContracts,
+      Map<String, Base> baseIds,
+      Workflow workflow) {
     if (!stepNode.has("step_data") || stepNode.get("step_data").isNull()) {
       return null;
     }
 
     JsonNode stepDataNode = stepNode.get("step_data");
 
-    // step_data is a String field with @Type(JsonType.class) — Jackson serializes it as a JSON
-    // string, so in the export it arrives as a TextNode containing the raw JSON.
     String stepDataRaw;
     JsonNode dataJson;
     try {
@@ -2134,17 +2135,17 @@ public class V1_DataImporter implements Importer {
     // Extract injector contract info from step_data
     JsonNode injectContractNode = dataJson.get("inject_injector_contract");
     if (injectContractNode == null || injectContractNode.isNull()) {
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
     String injectorContractId = extractInjectorContractId(injectContractNode);
     if (!hasText(injectorContractId)) {
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
     // Contract already exists in DB — no resolution needed
     if (injectorContractRepository.existsByContractId(injectorContractId)) {
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
     // Already resolved by a previous step or by importInjects — reuse
@@ -2153,14 +2154,14 @@ public class V1_DataImporter implements Importer {
       if (!updateContractIdInStepData(dataJson, alreadyResolved)) {
         return stepDataRaw;
       }
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
     if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
       log.warn(
           "Step data references missing injector contract {} in textual form with no payload to recreate",
           injectorContractId);
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
     // Contract is missing — resolve using the same logic as importInjects
@@ -2169,7 +2170,7 @@ public class V1_DataImporter implements Importer {
       log.warn(
           "Step data references missing injector contract {} with no payload to recreate",
           injectorContractId);
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
     String newContractId = resolveInjectorContract(injectContractObject, baseIds);
@@ -2180,10 +2181,10 @@ public class V1_DataImporter implements Importer {
       if (!updateContractIdInStepData(dataJson, newContractId)) {
         return stepDataRaw;
       }
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
     }
 
-    return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw);
+    return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
   }
 
   private boolean updateContractIdInStepData(JsonNode dataJson, String newContractId) {
@@ -2204,7 +2205,8 @@ public class V1_DataImporter implements Importer {
     }
   }
 
-  private String sanitizeStepDataForWorkflowImport(JsonNode dataJson, String fallback) {
+  private String sanitizeStepDataForWorkflowImport(
+      JsonNode dataJson, String fallback, Workflow workflow) {
     try {
       if (!(dataJson instanceof ObjectNode dataObject)) {
         return fallback;
@@ -2214,6 +2216,11 @@ public class V1_DataImporter implements Importer {
       dataObject.remove("inject_depends_on");
       dataObject.remove("inject_exercise");
       dataObject.remove("inject_scenario");
+      if (workflow.getSimulation() != null) {
+        dataObject.put("inject_exercise", workflow.getSimulation().getId());
+      } else if (workflow.getScenario() != null) {
+        dataObject.put("inject_scenario", workflow.getScenario().getId());
+      }
       dataObject.remove("inject_assets");
       dataObject.remove("inject_asset_groups");
       return mapper.writeValueAsString(dataObject);

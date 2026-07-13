@@ -17,7 +17,35 @@
   "scenario_users": [],
   "scenario_organizations": [],
   "scenario_tags": [],
-  "scenario_injects": [],
+  "scenario_injects": [
+    {
+      "inject_id": "cccccccc-0001-0001-0001-000000000099",
+      "inject_title": "chaining step inject",
+      "inject_description": "",
+      "inject_enabled": true,
+      "inject_content": {},
+      "inject_all_teams": false,
+      "inject_depends_on": [],
+      "inject_depends_duration": 0,
+      "inject_injector_contract": {
+        "injector_contract_id": "cccccccc-0001-0001-0001-000000000098",
+        "injector_contract_labels": { "en": "chaining step inject" },
+        "injector_contract_manual": false,
+        "injector_contract_content": "{\"fields\":[]}",
+        "injector_contract_custom": false,
+        "injector_contract_needs_executor": false,
+        "injector_contract_platforms": ["Linux"],
+        "injector_contract_attack_patterns": [],
+        "injector_contract_atomic_testing": false,
+        "injector_contract_import_available": false,
+        "injector_contract_arch": "ALL_ARCHITECTURES",
+        "injector_contract_injector_type": "openaev_implant"
+      },
+      "inject_tags": [],
+      "inject_teams": [],
+      "inject_documents": []
+    }
+  ],
   "scenario_workflow": {
     "workflow_version": 2,
     "workflow_rate_limit_enabled": true,
