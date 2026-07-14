@@ -117,6 +117,34 @@ class AttackPathFindingsListTest extends IntegrationTest {
     assertThat(page.items()).isEmpty();
   }
 
+  @Test
+  @DisplayName("pagination is stable: pages are ordered by endpoint and do not overlap")
+  void paginationIsStableAndOrdered() {
+    // host-a and host-b in addition to seed()'s host-x credential: three credentials across
+    // endpoints.
+    String execA = execution("nmap", "host-a");
+    String execB = execution("nmap", "host-b");
+    linkedFinding("host-a", "credentials", "aaa:1", execA);
+    linkedFinding("host-b", "credentials", "bbb:2", execB);
+    entityManager.flush();
+
+    AttackPathFindingPageDTO p0 =
+        graphService.listFindings(SIM, "credentials", PageRequest.of(0, 1));
+    AttackPathFindingPageDTO p1 =
+        graphService.listFindings(SIM, "credentials", PageRequest.of(1, 1));
+
+    assertThat(p0.total()).as("count is across all pages").isEqualTo(3);
+    assertThat(p0.items())
+        .singleElement()
+        .extracting(AttackPathFindingItemDTO::endpointKey)
+        .isEqualTo("host-a");
+    assertThat(p1.items())
+        .as("the next page is the next endpoint, no overlap")
+        .singleElement()
+        .extracting(AttackPathFindingItemDTO::endpointKey)
+        .isEqualTo("host-b");
+  }
+
   private String execution(String injector, String endpoint) {
     AttackPathExecution e = new AttackPathExecution();
     e.setTenant(tenant);

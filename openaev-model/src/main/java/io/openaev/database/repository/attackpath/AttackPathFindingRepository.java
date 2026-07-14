@@ -80,7 +80,9 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    * restricted to findings a producing execution links to (the same {@code EXISTS} invariant as the
    * graph reads, so a drawer never lists a finding the graph omits). The explicit {@code
    * countQuery} keeps the paged total consistent with that invariant; the tenant filter is added by
-   * the statement inspector.
+   * the statement inspector. A stable {@code ORDER BY (endpointKey, value, id)} makes paging
+   * deterministic, so scrolling the drawer never repeats or skips a row ({@code id} is the unique
+   * tiebreaker).
    */
   @Query(
       value =
@@ -88,7 +90,8 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
               + "f.id, f.type, f.value, f.endpointKey) "
               + "FROM AttackPathFinding f "
               + "WHERE f.simulationId = :simulationId AND f.type IN :types "
-              + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id)",
+              + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id) "
+              + "ORDER BY f.endpointKey, f.value, f.id",
       countQuery =
           "SELECT count(f) FROM AttackPathFinding f "
               + "WHERE f.simulationId = :simulationId AND f.type IN :types "
@@ -106,7 +109,8 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
           + "ef.findingId, ef.executionId) "
-          + "FROM AttackPathExecutionFinding ef WHERE ef.findingId IN :findingIds")
+          + "FROM AttackPathExecutionFinding ef WHERE ef.findingId IN :findingIds "
+          + "ORDER BY ef.executionId")
   List<AttackPathFindingExecutionRow> findExecutionLinks(
       @Param("findingIds") Collection<String> findingIds);
 }
