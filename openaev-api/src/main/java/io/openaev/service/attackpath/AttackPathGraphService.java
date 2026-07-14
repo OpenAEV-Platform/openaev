@@ -72,6 +72,7 @@ public class AttackPathGraphService {
   private static final String RED = "RED";
 
   private static final String CATEGORY_CREDENTIALS = "credentials";
+  private static final String CREDENTIAL_MASK = "••••";
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
@@ -184,12 +185,20 @@ public class AttackPathGraphService {
     };
   }
 
-  /** Masks a credential value, keeping only its first two characters. */
+  /**
+   * Masks a credential for the drawer: for a {@code username:password} pair, keep the username and
+   * mask only the secret; otherwise mask the whole value. The mask is fixed-length so it never
+   * reveals the secret's length, and the clear secret never leaves the server.
+   */
   private static String maskCredential(String value) {
-    if (value == null || value.length() <= 2) {
-      return "**";
+    if (value == null || value.isEmpty()) {
+      return value;
     }
-    return value.substring(0, 2) + "*".repeat(value.length() - 2);
+    int separator = value.indexOf(':');
+    if (separator >= 0) {
+      return value.substring(0, separator + 1) + CREDENTIAL_MASK;
+    }
+    return CREDENTIAL_MASK;
   }
 
   @Transactional(readOnly = true)

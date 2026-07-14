@@ -62,6 +62,9 @@ public class AttackPathSeedService {
   private static final Instant BASE_TIME = Instant.parse("2026-01-01T00:00:00Z");
 
   private static final String[] FINDING_TYPES = {"credentials", "username", "cve", "port"};
+  private static final String[] CREDENTIAL_USERS = {
+    "administrator", "svc-sql", "jdoe", "root", "backup-svc", "web-app"
+  };
   private static final String[] PLATFORMS = {"Windows", "Linux", "MacOS"};
   private static final String[] PRIVILEGES = {"user", "admin", "system"};
   private static final String[] INJECTORS = {
@@ -311,8 +314,19 @@ public class AttackPathSeedService {
       return pool.get(random.nextInt(pool.size()));
     }
     String type = FINDING_TYPES[random.nextInt(FINDING_TYPES.length)];
-    FindingKind kind =
-        new FindingKind(type, type + "-" + simulationId + "-" + endpoint.key() + "-" + index);
+    // Credentials look like a realistic username:secret pair so the drawer's server-side masking
+    // (keep the username, hide the secret) is meaningful; the secret keeps the value unique.
+    String value =
+        "credentials".equals(type)
+            ? CREDENTIAL_USERS[Math.floorMod(index, CREDENTIAL_USERS.length)]
+                + ":pwd-"
+                + simulationId
+                + "-"
+                + endpoint.key()
+                + "-"
+                + index
+            : type + "-" + simulationId + "-" + endpoint.key() + "-" + index;
+    FindingKind kind = new FindingKind(type, value);
     pool.add(kind);
     return kind;
   }
