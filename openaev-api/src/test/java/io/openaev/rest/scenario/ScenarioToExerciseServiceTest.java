@@ -11,6 +11,8 @@ import static io.openaev.utils.fixtures.TagFixture.getTagNoId;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
@@ -19,6 +21,7 @@ import io.openaev.database.repository.*;
 import io.openaev.service.LoadService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -58,6 +61,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
   @Autowired private SettingRepository settingRepository;
   @Autowired private CustomDashboardRepository customDashboardRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private ActionMetricCollector actionMetricCollector;
 
   @DisplayName("Scenario to Exercise test")
   @Test
@@ -226,6 +230,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
                   return s;
                 }));
     // -- EXECUTE --
+    clearInvocations(actionMetricCollector);
     Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, null, false);
     String exerciseId = exercise.getId();
     entityManager.flush();
@@ -235,6 +240,8 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(exerciseSaved);
     assertEquals(name, exerciseSaved.getName());
+    // Telemetry
+    verify(actionMetricCollector).addSimulationCreatedCount();
     // User & Teams
     assertEquals(2, (long) exerciseSaved.getTeams().size());
     assertTrue(
