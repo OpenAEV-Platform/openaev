@@ -5,6 +5,8 @@ import io.openaev.database.model.attackpath.projection.AttackPathEndpointFinding
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
 import io.openaev.database.model.attackpath.projection.AttackPathExecutionRow;
+import io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow;
+import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathSimSummaryRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
@@ -16,6 +18,8 @@ import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
+import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
+import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,11 +27,14 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +70,8 @@ public class AttackPathGraphService {
   private static final String GREEN = "GREEN";
   private static final String ORANGE = "ORANGE";
   private static final String RED = "RED";
+
+  private static final String CATEGORY_CREDENTIALS = "credentials";
 
   private final AttackPathExecutionRepository executionRepository;
   private final AttackPathFindingRepository findingRepository;
@@ -103,6 +112,84 @@ public class AttackPathGraphService {
   @Transactional(readOnly = true)
   public List<AttackPathSimSummaryRow> listSimulations() {
     return executionRepository.findSimulationSummaries();
+  }
+
+  /**
+   * A page of a widget category's findings for the drawer (issue 5048, US5). Reads the page of
+   * findings of the category's types (restricted to those a producing execution links to, the same
+   * invariant as the graph reads), then attaches each finding's producing-execution ids and its
+   * endpoint's map node id for cross-focus, and masks the value for the credentials category (a
+   * credential value never leaves the server in the clear). An unknown category yields an empty
+   * page.
+   */
+  @Transactional(readOnly = true)
+  public AttackPathFindingPageDTO listFindings(
+      String simulationId, String category, Pageable pageable) {
+    Set<String> types = categoryTypes(category);
+    if (types.isEmpty()) {
+      return new AttackPathFindingPageDTO(List.of(), 0);
+    }
+    Page<AttackPathFindingListRow> page =
+        findingRepository.findPageByTypes(simulationId, types, pageable);
+    List<AttackPathFindingListRow> rows = page.getContent();
+    Map<String, List<String>> executionIdsByFinding = executionIdsByFinding(rows);
+    boolean maskValue = CATEGORY_CREDENTIALS.equalsIgnoreCase(category);
+    List<AttackPathFindingItemDTO> items =
+        rows.stream()
+            .map(
+                r ->
+                    new AttackPathFindingItemDTO(
+                        r.type(),
+                        maskValue ? maskCredential(r.value()) : r.value(),
+                        r.endpointKey(),
+                        AttackPathIds.endpointNode(r.endpointKey()),
+                        executionIdsByFinding.getOrDefault(r.id(), List.of())))
+            .toList();
+    return new AttackPathFindingPageDTO(items, page.getTotalElements());
+  }
+
+  /**
+   * The producing-execution ids per finding for a page of rows, from a single link read. The
+   * finding ids come from a tenant-scoped page, so the read is already bounded to the tenant.
+   */
+  private Map<String, List<String>> executionIdsByFinding(List<AttackPathFindingListRow> rows) {
+    if (rows.isEmpty()) {
+      return Map.of();
+    }
+    List<String> findingIds = rows.stream().map(AttackPathFindingListRow::id).toList();
+    Map<String, List<String>> byFinding = new LinkedHashMap<>();
+    for (AttackPathFindingExecutionRow link : findingRepository.findExecutionLinks(findingIds)) {
+      byFinding.computeIfAbsent(link.findingId(), k -> new ArrayList<>()).add(link.executionId());
+    }
+    return byFinding;
+  }
+
+  /**
+   * The finding types each product widget aggregates (spec 5048 US5 section 2:
+   * Files/Credentials/Users/CVEs; Endpoints is a separate endpoint-group read, not a finding type).
+   * {@code port} is a graph finding type but not a product widget, so it has no category here;
+   * {@code file} has no seed finding type yet (an open question), so the files drawer is empty
+   * until ingestion produces one. An unknown category yields no types (an empty page).
+   */
+  private static Set<String> categoryTypes(String category) {
+    if (category == null) {
+      return Set.of();
+    }
+    return switch (category.toLowerCase(Locale.ROOT)) {
+      case CATEGORY_CREDENTIALS -> Set.of("credentials");
+      case "users" -> Set.of("username", "admin_username");
+      case "cves" -> Set.of("cve");
+      case "files" -> Set.of("file");
+      default -> Set.of();
+    };
+  }
+
+  /** Masks a credential value, keeping only its first two characters. */
+  private static String maskCredential(String value) {
+    if (value == null || value.length() <= 2) {
+      return "**";
+    }
+    return value.substring(0, 2) + "*".repeat(value.length() - 2);
   }
 
   @Transactional(readOnly = true)

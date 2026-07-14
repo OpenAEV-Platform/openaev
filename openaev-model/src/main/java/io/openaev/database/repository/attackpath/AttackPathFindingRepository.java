@@ -3,9 +3,14 @@ package io.openaev.database.repository.attackpath;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointTypeCountRow;
+import io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow;
+import io.openaev.database.model.attackpath.projection.AttackPathFindingListRow;
 import io.openaev.database.model.attackpath.projection.AttackPathFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathTypeCountRow;
+import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -69,4 +74,39 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
           + "GROUP BY f.endpointKey, f.type")
   List<AttackPathEndpointTypeCountRow> findEndpointTypeCounts(
       @Param("simulationId") String simulationId);
+
+  /**
+   * Widget drawer (issue 5048, US5): a page of a simulation's findings of the given types,
+   * restricted to findings a producing execution links to (the same {@code EXISTS} invariant as the
+   * graph reads, so a drawer never lists a finding the graph omits). The explicit {@code
+   * countQuery} keeps the paged total consistent with that invariant; the tenant filter is added by
+   * the statement inspector.
+   */
+  @Query(
+      value =
+          "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingListRow("
+              + "f.id, f.type, f.value, f.endpointKey) "
+              + "FROM AttackPathFinding f "
+              + "WHERE f.simulationId = :simulationId AND f.type IN :types "
+              + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id)",
+      countQuery =
+          "SELECT count(f) FROM AttackPathFinding f "
+              + "WHERE f.simulationId = :simulationId AND f.type IN :types "
+              + "AND EXISTS (SELECT ef FROM AttackPathExecutionFinding ef WHERE ef.findingId = f.id)")
+  Page<AttackPathFindingListRow> findPageByTypes(
+      @Param("simulationId") String simulationId,
+      @Param("types") Collection<String> types,
+      Pageable pageable);
+
+  /**
+   * Widget drawer (issue 5048, US5): the (finding, producing execution) links for a page of
+   * findings, so each drawer row can carry its execution ids for cross-focus. The finding ids come
+   * from a tenant-scoped finding page, so this link read is already bounded to the tenant.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
+          + "ef.findingId, ef.executionId) "
+          + "FROM AttackPathExecutionFinding ef WHERE ef.findingId IN :findingIds")
+  List<AttackPathFindingExecutionRow> findExecutionLinks(
+      @Param("findingIds") Collection<String> findingIds);
 }
