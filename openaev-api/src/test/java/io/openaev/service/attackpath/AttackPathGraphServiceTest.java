@@ -150,6 +150,9 @@ class AttackPathGraphServiceTest extends IntegrationTest {
             .orElseThrow();
     assertThat(feedNode.getFindingsNodeIds())
         .containsExactly(AttackPathIds.findingNode("credentials", "admin:secret"));
+    assertThat(feedNode.getRef())
+        .as("the feed node carries the raw execution id for the drawer cross-focus")
+        .isEqualTo(exec1Id);
   }
 
   @Test

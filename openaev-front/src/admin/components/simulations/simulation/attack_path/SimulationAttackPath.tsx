@@ -2,16 +2,16 @@ import { Close, Refresh } from '@mui/icons-material';
 import { Alert, Autocomplete, Box, Button, Chip, Drawer, IconButton, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchFindingsByCategory } from '../../../../../actions/attack-path/attack-path-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
 import { buildAttackPathFlow } from './attack-path-flow-helpers';
-import AttackPathFlow from './AttackPathFlow';
+import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 
 type Mode = 'auto' | 'full' | 'collapsed';
 
@@ -92,6 +92,12 @@ const SimulationAttackPath = () => {
   const [findingsPage, setFindingsPage] = useState<AttackPathFindingPageDTO | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(false);
 
+  // Cross-focus (US5): clicking a finding item centers its endpoint (focusRequest) and highlights
+  // the producing executions in the feed (by their raw ids).
+  const [focusRequest, setFocusRequest] = useState<AttackPathFocusRequest | null>(null);
+  const [highlightedExecutionIds, setHighlightedExecutionIds] = useState<Set<string>>(new Set());
+  const feedRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
   const load = useCallback(() => {
     if (!simulationId) {
       return;
@@ -103,8 +109,10 @@ const SimulationAttackPath = () => {
     setExpandedRefs(new Set());
     setSelectedNodeId(null);
     setExecutions([]);
-    // Close the findings drawer so it never shows the previous simulation's findings.
+    // Close the findings drawer and clear any cross-focus so nothing carries over between simulations.
     setDrawerCategory(null);
+    setHighlightedExecutionIds(new Set());
+    setFocusRequest(null);
     fetchAttackPathGraph(simulationId, mode === 'auto' ? undefined : mode)
       .then(r => setDto(r.data))
       .catch(() => {
@@ -130,6 +138,8 @@ const SimulationAttackPath = () => {
     setSelectedNodeId(nodeId);
     setSelectedLabel(label ?? '');
     setExecutions([]);
+    // A plain node click focuses no specific execution; a finding-item click sets these after.
+    setHighlightedExecutionIds(new Set());
     if (!ref) {
       return;
     }
@@ -177,6 +187,43 @@ const SimulationAttackPath = () => {
       }))
       .finally(() => setFindingsLoading(false));
   }, [simulationId]);
+
+  // Cross-focus (US5 acceptance A3): clicking a finding item closes the drawer, focuses its endpoint
+  // on the map (center + select, which highlights the edges into it), loads that endpoint's feed, and
+  // highlights the producing executions in it.
+  const onFindingItemClick = useCallback(
+    (item: AttackPathFindingItemDTO) => {
+      if (!item.endpointNodeId || !item.endpointKey) {
+        return;
+      }
+      setDrawerCategory(null);
+      // Use the endpoint's friendly label (hostname) for the panel title, like a direct node click,
+      // not the raw key.
+      const node = (dto?.attackPathNodes ?? []).find(n => n.id === item.endpointNodeId);
+      const label = node?.hostname || node?.label || item.endpointKey;
+      onEndpointClick(item.endpointNodeId, item.endpointKey, label);
+      setHighlightedExecutionIds(new Set(item.executionIds ?? []));
+      setFocusRequest(prev => ({
+        nodeId: item.endpointNodeId as string,
+        nonce: (prev?.nonce ?? 0) + 1,
+      }));
+    },
+    [onEndpointClick, dto?.attackPathNodes],
+  );
+
+  // Scroll the feed to the first producing execution once the highlight or the loaded feed changes.
+  useEffect(() => {
+    if (highlightedExecutionIds.size === 0) {
+      return;
+    }
+    const firstId = executions.find(e => e.ref && highlightedExecutionIds.has(e.ref))?.id;
+    if (firstId) {
+      feedRowRefs.current.get(firstId)?.scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth',
+      });
+    }
+  }, [highlightedExecutionIds, executions]);
 
   // Merge the base graph with whatever endpoints have been expanded, then lay it out; finally mark
   // the selected endpoint and the edges touching it so the click highlights its path.
@@ -367,7 +414,7 @@ const SimulationAttackPath = () => {
           )}
           {!loading && !error && nodes.length > 0 && (
             <ReactFlowProvider>
-              <AttackPathFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} />
+              <AttackPathFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} focusRequest={focusRequest} />
             </ReactFlowProvider>
           )}
         </Paper>
@@ -385,32 +432,50 @@ const SimulationAttackPath = () => {
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               {`${t('Executions')} (${executions.length})`}
             </Typography>
-            {executions.slice(0, EXEC_DISPLAY_CAP).map(e => (
-              <Box
-                key={e.id}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  py: 0.5,
-                  borderBottom: `1px solid ${theme.palette.divider}`,
-                }}
-              >
-                <span style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: attackPathStatusColor(theme, e.status),
-                }}
-                />
-                <div style={{ minWidth: 0 }}>
-                  <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
-                  </Typography>
-                </div>
-              </Box>
-            ))}
+            {executions.slice(0, EXEC_DISPLAY_CAP).map((e) => {
+              const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
+              return (
+                <Box
+                  key={e.id}
+                  ref={(el: HTMLDivElement | null) => {
+                    if (!e.id) {
+                      return;
+                    }
+                    if (el) {
+                      feedRowRefs.current.set(e.id, el);
+                    } else {
+                      feedRowRefs.current.delete(e.id);
+                    }
+                  }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    py: 0.5,
+                    px: 0.5,
+                    borderRadius: 1,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    backgroundColor: highlighted ? 'action.selected' : undefined,
+                    // A left accent so the finding's producing execution stands out in the feed.
+                    borderLeft: highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
+                  }}
+                >
+                  <span style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: attackPathStatusColor(theme, e.status),
+                  }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap>
+                      {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
+                    </Typography>
+                  </div>
+                </Box>
+              );
+            })}
             {executions.length > EXEC_DISPLAY_CAP && (
               <Typography
                 variant="caption"
@@ -462,9 +527,27 @@ const SimulationAttackPath = () => {
           {!findingsLoading && (findingsPage?.items ?? []).map((item, index) => (
             <Box
               key={`${item.endpointKey}-${item.value}-${index}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => onFindingItemClick(item)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onFindingItemClick(item);
+                }
+              }}
               sx={{
-                py: 0.75,
-                borderBottom: `1px solid ${theme.palette.divider}`,
+                'py': 0.75,
+                'px': 0.5,
+                'borderRadius': 1,
+                'borderBottom': `1px solid ${theme.palette.divider}`,
+                'cursor': 'pointer',
+                '&:hover': { backgroundColor: 'action.hover' },
+                '&:focus-visible': {
+                  backgroundColor: 'action.hover',
+                  outline: `2px solid ${theme.palette.primary.main}`,
+                  outlineOffset: -2,
+                },
               }}
             >
               <Typography variant="body2" noWrap title={item.value}>{item.value}</Typography>

@@ -552,6 +552,9 @@ public class AttackPathGraphService {
     AttackPathNodeDTO node = new AttackPathNodeDTO();
     node.setId(AttackPathIds.executionNode(e.id(), e.targetKey(), e.agentId()));
     node.setType(TYPE_EXECUTION);
+    // The raw execution id, so a findings drawer item can match and highlight its producing
+    // executions in the feed (US5 cross-focus); the map node id above is not the raw id.
+    node.setRef(e.id());
     node.setLabel(e.payloadName());
     node.setStatus(severity(e.preventionStatus(), e.detectionStatus()));
     node.setPayloadName(e.payloadName());

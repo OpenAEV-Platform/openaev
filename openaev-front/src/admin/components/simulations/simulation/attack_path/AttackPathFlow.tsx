@@ -9,6 +9,7 @@ import {
   ReactFlow,
   useEdgesState,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react';
 import { useEffect } from 'react';
 
@@ -21,16 +22,24 @@ const proOptions = {
   hideAttribution: true,
 };
 
+// A request to center the map on a node; the nonce lets the same node be re-focused on a repeat click.
+export interface AttackPathFocusRequest {
+  nodeId: string;
+  nonce: number;
+}
+
 interface AttackPathFlowProps {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
+  focusRequest?: AttackPathFocusRequest | null;
 }
 
 // Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports endpoint
 // clicks up to the page, which loads that endpoint's detail on demand (T12).
-const AttackPathFlow = ({ nodes, edges, onEndpointClick }: AttackPathFlowProps) => {
+const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackPathFlowProps) => {
   const theme = useTheme();
+  const reactFlow = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(nodes);
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState<Edge>(edges);
 
@@ -41,6 +50,18 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick }: AttackPathFlowProps) 
   useEffect(() => {
     setFlowEdges(edges);
   }, [edges, setFlowEdges]);
+
+  // Center and zoom onto the requested node (US5 cross-focus): clicking a finding item brings its
+  // endpoint into view. fitView on a single node centers it; the nonce re-fires on a repeat click.
+  useEffect(() => {
+    if (focusRequest?.nodeId) {
+      reactFlow.fitView({
+        nodes: [{ id: focusRequest.nodeId }],
+        duration: 600,
+        maxZoom: 1.5,
+      });
+    }
+  }, [focusRequest, reactFlow]);
 
   return (
     <ReactFlow
