@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
 
 import AssetPlatformFragment from '../../../../../../../../components/common/list/fragments/AssetPlatformFragment';
 import AttackPatternFragment from '../../../../../../../../components/common/list/fragments/AttackPatternFragment';
@@ -28,8 +28,36 @@ export type ColumnRenderer = (value: string | string[] | boolean | boolean[], op
 }) => React.ReactElement;
 export type RendererMap = Record<string, ColumnRenderer>;
 
+// Stable-ish palette for finding types so each type reads as a distinct chip.
+const FINDING_TYPE_COLORS: Record<string, string> = {
+  CVE: '#f44336',
+  PortsScan: '#0fbcff',
+  IPAddress: '#00bcd4',
+  Hostname: '#9575cd',
+  Text: '#78909c',
+};
+
 const commonColumnsRenderers: RendererMap = {
   ['base_tags_side']: tags => <ItemTags variant="list" tags={tags ?? []} />,
+  ['finding_type']: (value) => {
+    const label = (value as string) ?? '';
+    const color = FINDING_TYPE_COLORS[label] ?? '#607d8b';
+    return (
+      <Chip
+        label={label}
+        size="small"
+        variant="outlined"
+        sx={{
+          height: 20,
+          fontSize: 11,
+          fontWeight: 600,
+          color,
+          borderColor: `${color}66`,
+          backgroundColor: `${color}14`,
+        }}
+      />
+    );
+  },
   ['base_attack_patterns_side']: (attackPatternIds, opts) =>
     <AttackPatternFragment attackPatterns={opts.attackPatterns} attackPatternIds={(attackPatternIds as string[]) ?? []} />,
   ['base_created_at']: value => <DateFragment value={value as string} />,

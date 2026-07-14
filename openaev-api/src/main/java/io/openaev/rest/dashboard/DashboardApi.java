@@ -7,6 +7,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
+import io.openaev.rest.dashboard.form.AdHocWidgetInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;
@@ -110,5 +111,41 @@ public class DashboardApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<EsSearch> search(@PathVariable final String search) {
     return this.dashboardService.search(search);
+  }
+
+  // -- AD-HOC (non-persisted) WIDGET QUERIES --
+  // Used by the built-in platform default home dashboard: the caller provides
+  // the full widget configuration instead of referencing a stored widget.
+  // Same access level as the tenant home-dashboard widget endpoints; the data
+  // itself is scoped by the current user grants inside the engine.
+
+  @PostMapping("/adhoc/series")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  public List<EsSeries> adHocSeries(@Valid @RequestBody AdHocWidgetInput input) {
+    return this.dashboardService.adHocSeries(input.getWidgetConfiguration(), input.getParameters());
+  }
+
+  @PostMapping("/adhoc/count")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  public EsCountInterval adHocCount(@Valid @RequestBody AdHocWidgetInput input) {
+    return this.dashboardService.adHocCount(input.getWidgetConfiguration(), input.getParameters());
+  }
+
+  @PostMapping("/adhoc/average")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  public EsAvgs adHocAverage(@Valid @RequestBody AdHocWidgetInput input) {
+    return this.dashboardService.adHocAverage(
+        input.getWidgetConfiguration(), input.getParameters());
+  }
+
+  @PostMapping("/adhoc/entities")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  public EsEntities adHocEntities(@Valid @RequestBody AdHocWidgetInput input) {
+    return this.dashboardService.adHocEntities(
+        input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
   }
 }

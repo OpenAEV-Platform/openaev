@@ -33,9 +33,16 @@ import navigationHandlers from './elements/ListNavigationHandler';
 // estimate so the two stay aligned.
 const ROW_HEIGHT = 50;
 
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: ROW_HEIGHT },
+const useStyles = makeStyles()(theme => ({
+  item: {
+    'height': ROW_HEIGHT,
+    'borderRadius': theme.shape.borderRadius,
+    'transition': 'background 0.15s, box-shadow 0.15s',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      boxShadow: `inset 2px 0 0 0 ${theme.palette.primary.main}`,
+    },
+  },
 }));
 
 // Empty secondary action component to avoid recreation
@@ -192,29 +199,6 @@ const ListWidget = ({
       flexDirection: 'column',
     }}
     >
-      {elements.length > 0
-        && (
-          <TablePagination
-            component="div"
-            rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-            count={totalElements}
-            page={currentPageNumber}
-            onPageChange={handleChangePage}
-            rowsPerPage={elementsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        )}
-
-      <MuiList disablePadding>
-        <MuiListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<EmptySecondaryAction />}
-        >
-          <ListItemIcon />
-        </MuiListItem>
-      </MuiList>
-
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (
         <div style={{
@@ -274,6 +258,24 @@ const ListWidget = ({
             })}
           </MuiList>
         </div>
+      )}
+
+      {elements.length > 0 && totalElements > elementsPerPage && (
+        <TablePagination
+          component="div"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={totalElements}
+          page={currentPageNumber}
+          onPageChange={handleChangePage}
+          rowsPerPage={elementsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            'flexShrink': 0,
+            'borderTop': theme => `1px solid ${theme.palette.divider}`,
+            'minHeight': 0,
+            '& .MuiTablePagination-toolbar': { minHeight: 40 },
+          }}
+        />
       )}
     </Box>
   );

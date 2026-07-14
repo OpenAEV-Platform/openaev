@@ -92,6 +92,14 @@ public class User implements Base {
     return ofNullable(this.theme).orElse(THEME_DEFAULT);
   }
 
+  @Setter
+  @Column(name = "user_home_dashboard")
+  @JsonProperty("user_home_dashboard")
+  @Schema(
+      description =
+          "Preferred home dashboard of the user; overrides the tenant home dashboard setting")
+  private String homeDashboard;
+
   @Getter(NONE)
   @Setter(NONE)
   @Column(name = "user_email")

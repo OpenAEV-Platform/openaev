@@ -9393,6 +9393,8 @@ export interface UpdateProfileInput {
   user_email: string;
   /** @minLength 1 */
   user_firstname: string;
+  /** Preferred home dashboard of the user; overrides the tenant home dashboard setting */
+  user_home_dashboard?: string;
   /** @minLength 1 */
   user_lang: string;
   /** @minLength 1 */
@@ -9521,6 +9523,8 @@ export interface User {
   /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
+  /** Preferred home dashboard of the user; overrides the tenant home dashboard setting */
+  user_home_dashboard?: string;
   /**
    * User ID
    * @minLength 1
@@ -9868,7 +9872,11 @@ export interface Widget {
     | "list"
     | "attack-path"
     | "number"
-    | "average";
+    | "average"
+    | "exposure-score"
+    | "posture-radar"
+    | "command-center"
+    | "resilience-gauge";
   /** @format date-time */
   widget_updated_at: string;
 }
@@ -9914,7 +9922,11 @@ export interface WidgetInput {
     | "list"
     | "attack-path"
     | "number"
-    | "average";
+    | "average"
+    | "exposure-score"
+    | "posture-radar"
+    | "command-center"
+    | "resilience-gauge";
 }
 
 export interface WidgetLayout {
