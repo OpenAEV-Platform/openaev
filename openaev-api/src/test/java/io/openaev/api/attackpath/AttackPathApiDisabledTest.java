@@ -26,4 +26,13 @@ class AttackPathApiDisabledTest extends IntegrationTest {
     mvc.perform(get(AttackPathApi.ATTACK_PATH_URI + "/simulations/any/graph"))
         .andExpect(status().isNotFound());
   }
+
+  @Test
+  @DisplayName("The findings endpoint returns 404 when the attack-path preview feature is off")
+  void findings_endpoint_is_404_when_feature_off() throws Exception {
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/any/findings")
+                .param("category", "credentials"))
+        .andExpect(status().isNotFound());
+  }
 }

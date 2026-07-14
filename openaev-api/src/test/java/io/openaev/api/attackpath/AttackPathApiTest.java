@@ -1,6 +1,8 @@
 package io.openaev.api.attackpath;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -167,6 +169,52 @@ class AttackPathApiTest extends IntegrationTest {
         .andExpect(jsonPath("$[0].simulationId").value("SIM-LIST"))
         .andExpect(jsonPath("$[0].endpointCount").value(1))
         .andExpect(jsonPath("$[0].executionCount").value(1));
+  }
+
+  @Test
+  @DisplayName("GET /simulations/{id}/findings?category=credentials returns a masked, paged list")
+  void findings_endpoint_returns_masked_page() throws Exception {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-findings-api"));
+    String sim = "SIM-FINDINGS-API";
+
+    AttackPathExecution execution = new AttackPathExecution();
+    execution.setTenant(tenant);
+    execution.setSimulationId(sim);
+    execution.setSourceKind("INJECTOR");
+    execution.setSourceInjector("nmap");
+    execution.setTargetKind("ASSET");
+    execution.setTargetAssetId("dc-01");
+    execution.setTargetKey("dc-01");
+    execution.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
+    execution.setPreventionStatus("Prevented");
+    execution = executionRepository.save(execution);
+
+    AttackPathFinding finding = new AttackPathFinding();
+    finding.setTenant(tenant);
+    finding.setSimulationId(sim);
+    finding.setType("credentials");
+    finding.setValue("admin:secret");
+    finding.setEndpointId("dc-01");
+    finding.setEndpointKey("dc-01");
+    finding = findingRepository.save(finding);
+
+    AttackPathExecutionFinding link = new AttackPathExecutionFinding();
+    link.setExecutionId(execution.getId());
+    link.setFindingId(finding.getId());
+    entityManager.persist(link);
+    entityManager.flush();
+
+    mvc.perform(
+            get(AttackPathApi.ATTACK_PATH_URI + "/simulations/" + sim + "/findings")
+                .param("category", "credentials")
+                .param("page", "0")
+                .param("size", "10"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total").value(1))
+        .andExpect(jsonPath("$.items[0].type").value("credentials"))
+        .andExpect(jsonPath("$.items[0].value", not(containsString("secret"))))
+        .andExpect(jsonPath("$.items[0].endpointKey").value("dc-01"))
+        .andExpect(jsonPath("$.items[0].executionIds").isNotEmpty());
   }
 
   @Test

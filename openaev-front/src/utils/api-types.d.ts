@@ -723,6 +723,20 @@ export interface AttackPathExpandDTO {
   findings?: AttackPathNodeDTO[];
 }
 
+export interface AttackPathFindingItemDTO {
+  endpointKey?: string;
+  endpointNodeId?: string;
+  executionIds?: string[];
+  type?: string;
+  value?: string;
+}
+
+export interface AttackPathFindingPageDTO {
+  items?: AttackPathFindingItemDTO[];
+  /** @format int64 */
+  total?: number;
+}
+
 export interface AttackPathNodeDTO {
   agentName?: string;
   agents?: string[];

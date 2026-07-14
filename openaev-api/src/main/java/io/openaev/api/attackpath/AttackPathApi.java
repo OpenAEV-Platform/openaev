@@ -14,10 +14,12 @@ import io.openaev.service.attackpath.AttackPathSeedService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
+import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +49,9 @@ import org.springframework.web.server.ResponseStatusException;
 public class AttackPathApi extends RestBehavior {
 
   public static final String ATTACK_PATH_URI = "/api/attack-path";
+
+  /** Upper bound on the findings page size, so a client cannot request an unbounded read. */
+  private static final int MAX_FINDINGS_PAGE_SIZE = 200;
 
   private final AttackPathGraphService graphService;
   private final AttackPathSeedService seedService;
@@ -112,6 +117,28 @@ public class AttackPathApi extends RestBehavior {
       TxCtx ctx, @PathVariable String simulationId, @RequestParam String ref) {
     requireAttackPathFeature();
     return graphService.endpointRelations(simulationId, ref);
+  }
+
+  /**
+   * A page of a widget category's findings for the drawer (issue 5048, US5). {@code category} is
+   * one of {@code credentials|users|files|cves}; an unknown category returns an empty page. The
+   * page is size-capped ({@value #MAX_FINDINGS_PAGE_SIZE}) so a client cannot request an unbounded
+   * read. Each item carries the endpoint's map node id and its producing execution ids for the
+   * front's cross-focus. Tenant-scoped through the {@link TxCtx} like every other read.
+   */
+  @GetMapping("/simulations/{simulationId}/findings")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public AttackPathFindingPageDTO findings(
+      TxCtx ctx,
+      @PathVariable String simulationId,
+      @RequestParam String category,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "50") int size) {
+    requireAttackPathFeature();
+    int safePage = Math.max(page, 0);
+    int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
+    return graphService.listFindings(simulationId, category, PageRequest.of(safePage, safeSize));
   }
 
   /**

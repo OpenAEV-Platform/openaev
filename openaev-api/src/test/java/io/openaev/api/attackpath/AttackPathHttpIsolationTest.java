@@ -52,6 +52,8 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   private static final String RELATIONS =
       "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/endpoint/relations";
   private static final String LIST = "/api/tenants/{tenantId}/attack-path/simulations";
+  private static final String FINDINGS =
+      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/findings";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -143,6 +145,24 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.executions").isEmpty())
         .andExpect(jsonPath("$.edges").isEmpty());
+  }
+
+  @Test
+  @DisplayName("under the owner tenant's path: the findings list returns the category's findings")
+  void findingsUnderOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(FINDINGS, tenantA, SIM).param("category", "credentials"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total").value(1))
+        .andExpect(jsonPath("$.items").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName("under another tenant's path: the findings list is empty (no leak)")
+  void findingsUnderOtherTenantIsHidden() throws Exception {
+    mvc.perform(get(FINDINGS, tenantB, SIM).param("category", "credentials"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.total").value(0))
+        .andExpect(jsonPath("$.items").isEmpty());
   }
 
   @Test
