@@ -16,6 +16,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -285,6 +286,7 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_INSTANCE.defaultValue()));
+    platformSettings.setDefaultTenantId(Tenant.DEFAULT_TENANT_UUID);
     platformSettings.setPlatformName(
         ofNullable(dbSettings.get(PLATFORM_NAME.key()))
             .map(Setting::getValue)

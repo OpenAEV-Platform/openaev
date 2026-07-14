@@ -24,6 +24,10 @@ public class PlatformSettings extends PublicPlatformSettings {
   @Schema(description = "id of the platform")
   private String platformId;
 
+  @JsonProperty("default_tenant_id")
+  @Schema(description = "UUID of the default tenant")
+  private String defaultTenantId;
+
   @NotBlank
   @JsonProperty("platform_name")
   @Schema(description = "Name of the platform")
