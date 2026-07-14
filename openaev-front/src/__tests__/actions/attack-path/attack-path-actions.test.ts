@@ -41,4 +41,16 @@ describe('attack path POC actions', () => {
     await fetchAttackPathSimulations();
     expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations');
   });
+
+  it('fetchFindingsByCategory builds the paginated findings query with defaults', async () => {
+    const { fetchFindingsByCategory } = await importActions();
+    await fetchFindingsByCategory('SIM-1', 'credentials');
+    expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/findings?category=credentials&page=0&size=50');
+  });
+
+  it('fetchFindingsByCategory forwards the page and size and encodes the category', async () => {
+    const { fetchFindingsByCategory } = await importActions();
+    await fetchFindingsByCategory('SIM-1', 'cves', 2, 25);
+    expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/findings?category=cves&page=2&size=25');
+  });
 });

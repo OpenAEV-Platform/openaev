@@ -1,14 +1,14 @@
-import { Refresh } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Chip, IconButton, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Close, Refresh } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, Button, Chip, Drawer, IconButton, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations } from '../../../../../actions/attack-path/attack-path-actions';
+import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchFindingsByCategory } from '../../../../../actions/attack-path/attack-path-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
 import { buildAttackPathFlow } from './attack-path-flow-helpers';
 import AttackPathFlow from './AttackPathFlow';
@@ -86,6 +86,12 @@ const SimulationAttackPath = () => {
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
 
+  // Findings drawer (US5): a widget opens a right drawer listing that category's findings.
+  const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
+  const [drawerLabel, setDrawerLabel] = useState<string>('');
+  const [findingsPage, setFindingsPage] = useState<AttackPathFindingPageDTO | null>(null);
+  const [findingsLoading, setFindingsLoading] = useState(false);
+
   const load = useCallback(() => {
     if (!simulationId) {
       return;
@@ -97,6 +103,8 @@ const SimulationAttackPath = () => {
     setExpandedRefs(new Set());
     setSelectedNodeId(null);
     setExecutions([]);
+    // Close the findings drawer so it never shows the previous simulation's findings.
+    setDrawerCategory(null);
     fetchAttackPathGraph(simulationId, mode === 'auto' ? undefined : mode)
       .then(r => setDto(r.data))
       .catch(() => {
@@ -154,6 +162,21 @@ const SimulationAttackPath = () => {
       .then(r => setExecutions(r.data.executions ?? []))
       .catch(() => setExecutions([]));
   }, [simulationId, dto?.mode, expandedRefs]);
+
+  // Open the findings drawer for a widget category and load its first page.
+  const openFindingsDrawer = useCallback((category: string, label: string) => {
+    setDrawerCategory(category);
+    setDrawerLabel(label);
+    setFindingsPage(null);
+    setFindingsLoading(true);
+    fetchFindingsByCategory(simulationId, category)
+      .then(r => setFindingsPage(r.data))
+      .catch(() => setFindingsPage({
+        items: [],
+        total: 0,
+      }))
+      .finally(() => setFindingsLoading(false));
+  }, [simulationId]);
 
   // Merge the base graph with whatever endpoints have been expanded, then lay it out; finally mark
   // the selected endpoint and the edges touching it so the click highlights its path.
@@ -274,13 +297,43 @@ const SimulationAttackPath = () => {
             gap: theme.spacing(1),
             marginLeft: 'auto',
             flexWrap: 'wrap',
+            alignItems: 'center',
           }}
           >
+            {/* Endpoints is a count only for now; its per-endpoint drawer is a follow-up. */}
             <Chip label={`${t('Endpoints')} ${counters.endpoints ?? 0}`} size="small" />
-            <Chip label={`${t('Credentials')} ${counters.credentials ?? 0}`} size="small" />
-            <Chip label={`${t('Users')} ${counters.users ?? 0}`} size="small" />
-            <Chip label={`${t('CVEs')} ${counters.cves ?? 0}`} size="small" />
-            <Chip label={`${t('Ports')} ${counters.ports ?? 0}`} size="small" />
+            {/* Files has no finding type in the seed yet, so its count is 0 until ingestion (US5 open question). */}
+            {[
+              {
+                category: 'files',
+                label: t('Files'),
+                count: 0,
+              },
+              {
+                category: 'credentials',
+                label: t('Credentials'),
+                count: counters.credentials ?? 0,
+              },
+              {
+                category: 'users',
+                label: t('Users'),
+                count: counters.users ?? 0,
+              },
+              {
+                category: 'cves',
+                label: t('CVEs'),
+                count: counters.cves ?? 0,
+              },
+            ].map(w => (
+              <Button
+                key={w.category}
+                size="small"
+                variant="outlined"
+                onClick={() => openFindingsDrawer(w.category, w.label)}
+              >
+                {`${w.label} ${w.count}`}
+              </Button>
+            ))}
             {dto?.mode && <Chip label={dto.mode} size="small" color="primary" variant="outlined" />}
           </div>
         )}
@@ -373,6 +426,68 @@ const SimulationAttackPath = () => {
           </Paper>
         )}
       </div>
+
+      <Drawer
+        anchor="right"
+        open={drawerCategory !== null}
+        onClose={() => setDrawerCategory(null)}
+      >
+        <Box
+          role="presentation"
+          sx={{
+            width: 360,
+            p: 2,
+          }}
+        >
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1,
+          }}
+          >
+            <Typography variant="h6">{`${drawerLabel} (${findingsPage?.total ?? 0})`}</Typography>
+            <IconButton size="small" aria-label={t('Close')} onClick={() => setDrawerCategory(null)}>
+              <Close />
+            </IconButton>
+          </Box>
+          {findingsLoading && (
+            <Box sx={{ minHeight: 120 }}>
+              <Loader variant="inElement" size="sm" />
+            </Box>
+          )}
+          {!findingsLoading && (findingsPage?.items?.length ?? 0) === 0 && (
+            <Alert severity="info">{t('No findings')}</Alert>
+          )}
+          {!findingsLoading && (findingsPage?.items ?? []).map((item, index) => (
+            <Box
+              key={`${item.endpointKey}-${item.value}-${index}`}
+              sx={{
+                py: 0.75,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              <Typography variant="body2" noWrap title={item.value}>{item.value}</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
+                {item.endpointKey}
+              </Typography>
+            </Box>
+          ))}
+          {!findingsLoading && findingsPage
+            && (findingsPage.items?.length ?? 0) < (findingsPage.total ?? 0) && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: 'block',
+                pt: 1,
+              }}
+            >
+              {`+${(findingsPage.total ?? 0) - (findingsPage.items?.length ?? 0)} ${t('more')}`}
+            </Typography>
+          )}
+        </Box>
+      </Drawer>
     </div>
   );
 };

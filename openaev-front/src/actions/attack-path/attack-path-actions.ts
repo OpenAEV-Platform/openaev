@@ -1,5 +1,5 @@
 import { simpleCall } from '../../utils/Action';
-import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExpandDTO, AttackPathSimSummaryRow } from '../../utils/api-types';
+import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow } from '../../utils/api-types';
 
 // Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
@@ -33,3 +33,13 @@ export const fetchEndpointRelations = (
   ref: string,
 ): Promise<{ data: AttackPathEndpointRelationsDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/endpoint/relations?ref=${encodeURIComponent(ref)}`);
+
+// A page of a widget category's findings for the drawer (issue 5048, US5).
+// category is one of credentials | users | files | cves; the value is masked server-side for credentials.
+export const fetchFindingsByCategory = (
+  simulationId: string,
+  category: string,
+  page = 0,
+  size = 50,
+): Promise<{ data: AttackPathFindingPageDTO }> =>
+  simpleCall(`${simulationUri(simulationId)}/findings?category=${encodeURIComponent(category)}&page=${page}&size=${size}`);

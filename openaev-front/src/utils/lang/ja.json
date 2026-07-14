@@ -1585,6 +1585,7 @@
   "No expectations for this action.": "このアクションについては、特に期待はしていません。",
   "No explanation": "説明なし",
   "No file selected.": "ファイルが選択されていません。",
+  "No findings": "No findings",
   "No inject in this scenario": "このシナリオではインジェクトはありません",
   "No injector contracts found": "インジェクター契約なし",
   "No injects to send in this platform.": "このプラットフォームで送信するインジェクトはありません。",
