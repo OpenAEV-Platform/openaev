@@ -157,14 +157,32 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetConfig, datas }
   return (
     <SamplePreview active={isSample}>
       <div style={{
+        position: 'relative',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        overflow: 'hidden',
       }}
       >
+        {/* domain glyph pinned to the card's top-right, on the title row */}
+        <Box sx={{
+          position: 'absolute',
+          top: -32,
+          right: 0,
+          zIndex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 22,
+          height: 22,
+          borderRadius: 1,
+          color: accent,
+          background: alpha(accent, 0.14),
+        }}
+        >
+          {domainIcon}
+        </Box>
         <Box sx={{
           position: 'relative',
           flex: 1,
@@ -239,22 +257,6 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetConfig, datas }
               {t('Resilience')}
             </text>
           </svg>
-          <Box sx={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 24,
-            height: 24,
-            borderRadius: 1,
-            color: accent,
-            background: alpha(accent, 0.14),
-          }}
-          >
-            {domainIcon}
-          </Box>
         </Box>
         <div style={{
           display: 'flex',

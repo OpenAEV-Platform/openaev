@@ -1,4 +1,4 @@
-import { ButtonBase, List, ListItem, Tooltip, Typography } from '@mui/material';
+import { ButtonBase, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useMemo } from 'react';
 
@@ -8,7 +8,6 @@ import { useHelper } from '../../../../../../../store';
 import type { Domain } from '../../../../../../../utils/api-types';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
 import { capitalize } from '../../../../../../../utils/String';
-import ExpectationPercentResultByType from '../../../../../common/domains/ExpectationPercentResultByType';
 import expectationIconByType from '../../../../../common/ExpectationIconByType';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import {
@@ -16,6 +15,8 @@ import {
   colorByAverageForExpectation,
   DEFAULT_EMPTY_EXPECTATIONS,
   type EsDomainsAvgDataExtended,
+  type EsExpectationByDomainTypeAndStatus,
+  formatPercentage,
   getIconByDomain,
 } from './SecurityDomainsWidgetUtils';
 
@@ -219,34 +220,124 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
         <div
           style={{
             flex: '0 0 auto',
+            width: 300,
             display: 'flex',
-            alignItems: 'center',
-            padding: theme.spacing(0.5, 1.5),
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: theme.spacing(1.25),
+            padding: theme.spacing(1.25, 1.5),
             borderRadius: 4,
-            border: `1px solid ${theme.palette.divider}`,
-            backgroundColor: alpha(theme.palette.background.accent ?? theme.palette.background.paper, 0.3),
+            border: `1px solid ${alpha(bandColor, 0.35)}`,
+            backgroundColor: alpha(theme.palette.background.accent ?? theme.palette.background.paper, 0.5),
+            boxShadow: `inset 2px 0 0 ${bandColor}`,
           }}
         >
           {hasData ? (
-            <List disablePadding>
-              {esDomainDatas.data.map(({ label, color, data }) => (
-                <ListItem key={`${domainName}-${label}`} disablePadding disableGutters>
-                  <ExpectationPercentResultByType
-                    datasByDomainsAndType={data}
-                    expectationType={label}
-                    color={color}
-                    onExpectationResultClick={status => onPercentClick(label, status)}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            esDomainDatas.data.map(({ label, color, data }) => {
+              const rowTitle = t(capitalize(label));
+              const rows = data as EsExpectationByDomainTypeAndStatus[];
+              return (
+                <div
+                  key={`${domainName}-${label}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: theme.spacing(0.5),
+                    minWidth: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: theme.spacing(0.75),
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        color,
+                      }}
+                    >
+                      {expectationIconByType(label, { fontSize: 15 })}
+                    </span>
+                    <Typography
+                      sx={{
+                        flex: 1,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {rowTitle}
+                    </Typography>
+                    {rows.map(d => (
+                      <Tooltip key={`${label}-${d.key}`} title={`${d.label} - ${t('click to investigate')}`}>
+                        <ButtonBase
+                          onClick={() => onPercentClick(label, d.key)}
+                          sx={{
+                            // fixed width keeps the score tiles vertically aligned across rows
+                            'width': 42,
+                            'justifyContent': 'center',
+                            'height': 20,
+                            'borderRadius': 0.75,
+                            'fontSize': 11,
+                            'fontWeight': 700,
+                            'fontFamily': '"Geologica", sans-serif',
+                            'color': d.color,
+                            'backgroundColor': alpha(d.color ?? theme.palette.text.disabled, 0.12),
+                            'transition': 'background-color 0.15s ease',
+                            '&:hover': { backgroundColor: alpha(d.color ?? theme.palette.text.disabled, 0.28) },
+                          }}
+                        >
+                          {formatPercentage(d.percentage ?? 0)}
+                        </ButtonBase>
+                      </Tooltip>
+                    ))}
+                  </div>
+                  {/* segmented status bar: success / failed / pending shares */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 2,
+                      height: 4,
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {rows.filter(d => (d.percentage ?? 0) > 0).map(d => (
+                      <div
+                        key={`${label}-bar-${d.key}`}
+                        style={{
+                          width: `${d.percentage}%`,
+                          backgroundColor: d.color,
+                          borderRadius: 2,
+                        }}
+                      />
+                    ))}
+                    {rows.every(d => (d.percentage ?? 0) === 0) && (
+                      <div
+                        style={{
+                          width: '100%',
+                          backgroundColor: alpha(theme.palette.text.primary, 0.08),
+                          borderRadius: 2,
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })
           ) : (
             <Typography
               variant="body2"
               sx={{
-                maxWidth: theme.spacing(25),
+                maxWidth: theme.spacing(30),
                 textAlign: 'center',
                 alignSelf: 'center',
+                color: 'text.secondary',
               }}
             >
               {t('No data collected on this domain at this time. Run a scenario to start analyzing your position on this domain.')}
