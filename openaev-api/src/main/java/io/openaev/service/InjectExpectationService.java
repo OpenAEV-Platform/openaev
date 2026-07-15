@@ -1000,7 +1000,10 @@ public class InjectExpectationService {
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-            case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+            // AI targets are assets (AiTarget extends Asset), so their expectations are
+            // resolved through the asset lookup.
+            case ASSETS, AI_TARGETS ->
+                injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
             default ->
                 throw new RuntimeException(
                     "Target type "
@@ -1032,7 +1035,9 @@ public class InjectExpectationService {
         case TEAMS -> injectExpectationRepository.findAllByInjectAndTeam(injectId, targetId);
         case PLAYERS -> injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-        case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+        // AI targets are assets (AiTarget extends Asset), resolved through the asset lookup.
+        case ASSETS, AI_TARGETS ->
+            injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
         case ASSETS_GROUPS ->
             injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
         default ->

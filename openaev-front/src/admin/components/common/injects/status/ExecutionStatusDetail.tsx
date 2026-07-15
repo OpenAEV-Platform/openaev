@@ -29,7 +29,8 @@ const ExecutionStatusDetail = ({ injectId, target }: Props) => {
 
   const isTeam = target?.targetType === 'TEAMS';
   const isPlayer = target?.targetType === 'PLAYERS';
-  const isAsset = target?.targetType === 'ASSETS';
+  // AI targets are assets (AiTarget extends Asset); their traces are asset-scoped.
+  const isAsset = target?.targetType === 'ASSETS' || target?.targetType === 'AI_TARGETS';
   const isAgent = target?.targetType === 'AGENT';
 
   const fetchTraces = async () => {

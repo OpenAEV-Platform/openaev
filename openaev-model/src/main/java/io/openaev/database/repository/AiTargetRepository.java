@@ -19,4 +19,8 @@ public interface AiTargetRepository
           + "' AND "
           + "(:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
   List<AiTarget> findAllByName(String name);
+
+  /** AI target assets that statically belong to any of the given asset groups. */
+  @Query("SELECT DISTINCT a FROM AiTarget a JOIN a.assetGroups g WHERE g.id IN :assetGroupIds")
+  List<AiTarget> findAllByAssetGroupIds(List<String> assetGroupIds);
 }

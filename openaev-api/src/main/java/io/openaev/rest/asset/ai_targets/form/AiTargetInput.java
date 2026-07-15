@@ -38,7 +38,7 @@ public class AiTargetInput extends AssetInput {
   @JsonProperty("ai_target_configuration")
   private Map<String, Object> configuration = new HashMap<>();
 
-  @JsonProperty("ai_target_api_key_variable")
+  @JsonProperty("ai_target_token")
   @Schema(types = {"string", "null"})
-  private String apiKeyVariable;
+  private String token;
 }

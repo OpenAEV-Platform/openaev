@@ -62,6 +62,8 @@ const AtomicTesting = () => {
   const [hasEndpointsChecked, setHasEndpointsChecked] = useState(false);
   const [hasAgents, setHasAgents] = useState(false);
   const [hasAgentsChecked, setHasAgentsChecked] = useState(false);
+  const [hasAiTargets, setHasAiTargets] = useState(false);
+  const [hasAiTargetsChecked, setHasAiTargetsChecked] = useState(false);
   const [reloadContentCount, setReloadContentCount] = useState(0);
   const [hasTeams, setHasTeams] = useState(false);
   const [hasTeamsChecked, setHasTeamsChecked] = useState(false);
@@ -122,6 +124,14 @@ const AtomicTesting = () => {
         entityPrefix: 'agent_target',
       });
     }
+    if (hasAiTargets) {
+      tabs.push({
+        key: index++,
+        label: t('AI targets'),
+        type: 'AI_TARGETS',
+        entityPrefix: 'ai_target_target',
+      });
+    }
 
     // tabs visibility may have changed so we reevaluate this structure;
     // figure out which tab to display; if the previously displayed tab
@@ -142,7 +152,7 @@ const AtomicTesting = () => {
     }
 
     return tabs;
-  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers]);
+  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets]);
 
   const activeTabKey: number = useMemo(() => {
     return activeTab?.key || 0;
@@ -212,6 +222,16 @@ const AtomicTesting = () => {
         setHasAgentsChecked(true);
       });
 
+    searchTargets(injectId, 'AI_TARGETS', searchPaginationInput1Result)
+      .then((response) => {
+        if (response.data.content.length > 0) {
+          setHasAiTargets(true);
+        } else { setHasAiTargets(false); }
+      })
+      .finally(() => {
+        setHasAiTargetsChecked(true);
+      });
+
     setReloadContentCount(reloadContentCount + 1);
   }, [injectResultOverviewOutput]);
 
@@ -259,7 +279,7 @@ const AtomicTesting = () => {
         </Typography>
         <div className="clearfix" />
         <Paper classes={{ root: classes.paper }} variant="outlined">
-          {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && (
+          {hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && (
             <>
               <Tabs
                 value={activeTabKey}

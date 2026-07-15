@@ -1026,7 +1026,9 @@ public class InjectService {
       final String injectId, final String targetId, final TargetType targetType) {
     return switch (targetType) {
       case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
-      case ASSETS -> this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
+      // AI targets are assets (AiTarget extends Asset), so their traces are asset-scoped.
+      case ASSETS, AI_TARGETS ->
+          this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
       case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
       case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
       default -> throw new BadRequestException("Target type " + targetType + " is not supported");

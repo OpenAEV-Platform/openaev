@@ -27,6 +27,7 @@ const PROVIDERS = [
   'CUSTOM_HTTP',
   'MCP_SERVER',
   'AGENT_HTTP',
+  'XTM_ONE',
 ] as const;
 
 const MODALITIES = ['TEXT', 'VISION', 'AUDIO', 'MULTIMODAL'] as const;
@@ -42,7 +43,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
     ai_target_endpoint: '',
     ai_target_model: '',
     ai_target_system_prompt: '',
-    ai_target_api_key_variable: '',
+    ai_target_token: '',
     asset_description: '',
     asset_tags: [],
     asset_external_reference: undefined,
@@ -65,7 +66,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         ai_target_endpoint: z.string().optional().nullable(),
         ai_target_model: z.string().optional().nullable(),
         ai_target_system_prompt: z.string().optional().nullable(),
-        ai_target_api_key_variable: z.string().optional().nullable(),
+        ai_target_token: z.string().optional().nullable(),
         ai_target_configuration: z.record(z.string(), z.unknown()).optional(),
         asset_description: z.string().optional(),
         asset_tags: z.string().array().optional(),
@@ -165,15 +166,15 @@ const AiTargetForm: FunctionComponent<Props> = ({
       <TextField
         variant="standard"
         fullWidth
-        label={t('API key variable')}
-        placeholder="OPENAI_API_KEY"
+        type="password"
+        label={t('API token (optional)')}
         style={{ marginTop: 20 }}
-        error={!!errors.ai_target_api_key_variable}
+        error={!!errors.ai_target_token}
         helperText={
-          errors.ai_target_api_key_variable?.message
-          ?? t('Name of the injector config / environment variable holding the credential. The secret value is never stored by the platform.')
+          errors.ai_target_token?.message
+          ?? t('Credential used to reach the target. Leave empty for targets that require no authentication.')
         }
-        {...register('ai_target_api_key_variable')}
+        {...register('ai_target_token')}
       />
       <TextField
         variant="standard"

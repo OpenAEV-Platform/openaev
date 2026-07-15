@@ -1,4 +1,4 @@
-import { Groups3Outlined, PersonOutlined } from '@mui/icons-material';
+import { Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
 import { ListItemButton, ListItemIcon, ListItemText, Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -26,6 +26,7 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
       ASSETS: <PlatformIcon platform={target?.target_subtype ?? 'Unknown'} width={20} marginRight={theme.spacing(2)} />,
       TEAMS: <Groups3Outlined />,
       PLAYERS: <PersonOutlined fontSize="small" />,
+      AI_TARGETS: <SmartToyOutlined fontSize="small" />,
       AGENT: (
         <img
           src={buildTenantApiPath(`/api/images/executors/icons/${target.target_subtype}`)}

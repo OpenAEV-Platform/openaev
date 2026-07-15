@@ -25,8 +25,9 @@ import org.hibernate.annotations.Type;
  * Ollama runtime, a custom HTTP endpoint, an MCP server, or an agent HTTP entrypoint).
  *
  * <p>It mirrors {@link Endpoint} in the asset model but represents an attack target rather than a
- * managed host. Secrets are never stored here: {@link #apiKeyVariable} only names the configuration
- * key (environment variable) that the executing injector resolves the credential from.
+ * managed host. The optional {@link #token} carries the credential used to reach the target; it is
+ * set on the target itself (manually or by a collector) and may be empty for targets that require
+ * no authentication (e.g. a local model deployment).
  */
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -56,6 +57,8 @@ public class AiTarget extends Asset {
     MCP_SERVER,
     @JsonProperty("AGENT_HTTP")
     AGENT_HTTP,
+    @JsonProperty("XTM_ONE")
+    XTM_ONE,
   }
 
   public enum AI_TARGET_MODALITY {
@@ -99,7 +102,7 @@ public class AiTarget extends Asset {
 
   /**
    * Free-form, provider-specific configuration (extra generation parameters, custom headers, tool /
-   * MCP definitions, agent routing, ...). Never put secrets here - use {@link #apiKeyVariable}.
+   * MCP definitions, agent routing, ...). Never put the credential here - use {@link #token}.
    */
   @Type(JsonType.class)
   @Column(name = "ai_target_configuration", columnDefinition = "jsonb")
@@ -107,13 +110,13 @@ public class AiTarget extends Asset {
   private Map<String, Object> configuration = new HashMap<>();
 
   /**
-   * Name of the injector configuration key / environment variable that holds the credential used to
-   * call this target. The secret value itself is resolved by the injector at execution time and is
-   * never persisted by the platform.
+   * Optional credential used to reach this target, provisioned on the target itself (set manually
+   * when creating the target, or by a collector). May be empty for targets that require no
+   * authentication. The executing injector uses this token directly.
    */
-  @Column(name = "ai_target_api_key_variable")
-  @JsonProperty("ai_target_api_key_variable")
-  private String apiKeyVariable;
+  @Column(name = "ai_target_token")
+  @JsonProperty("ai_target_token")
+  private String token;
 
   /** An AI Target always belongs to the AI_TARGET asset category. */
   @PrePersist

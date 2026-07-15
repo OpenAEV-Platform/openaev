@@ -137,6 +137,46 @@ export interface AgentTarget {
     | "SUCCESS";
 }
 
+export interface AiTargetTarget {
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+}
+
 export interface AggregatedFindingOutput {
   /**
    * Asset groups linked to endpoints
@@ -287,7 +327,6 @@ export interface AiResult {
 }
 
 export interface AiTarget {
-  ai_target_api_key_variable?: string;
   ai_target_configuration?: Record<string, any>;
   ai_target_endpoint?: string;
   ai_target_modality: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
@@ -302,8 +341,10 @@ export interface AiTarget {
     | "OLLAMA"
     | "CUSTOM_HTTP"
     | "MCP_SERVER"
-    | "AGENT_HTTP";
+    | "AGENT_HTTP"
+    | "XTM_ONE";
   ai_target_system_prompt?: string;
+  ai_target_token?: string;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
@@ -426,7 +467,6 @@ export interface AiTarget {
 }
 
 export interface AiTargetInput {
-  ai_target_api_key_variable?: string | null;
   ai_target_configuration?: Record<string, any>;
   ai_target_endpoint?: string | null;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
@@ -441,8 +481,10 @@ export interface AiTargetInput {
     | "OLLAMA"
     | "CUSTOM_HTTP"
     | "MCP_SERVER"
-    | "AGENT_HTTP";
+    | "AGENT_HTTP"
+    | "XTM_ONE";
   ai_target_system_prompt?: string | null;
+  ai_target_token?: string | null;
   asset_description?: string;
   asset_external_reference?: string;
   /** @minLength 1 */
@@ -5043,6 +5085,7 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"TEAMS", TeamTarget>
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
+    | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
   );
 
 export interface InjectTeamsInput {
@@ -8778,6 +8821,7 @@ export interface TargetSimple {
     | "AGENTS"
     | "ASSETS"
     | "ASSETS_GROUPS"
+    | "AI_TARGETS"
     | "PLAYERS"
     | "TEAMS"
     | "ENDPOINTS";
