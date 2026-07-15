@@ -2313,8 +2313,9 @@ public class V1_DataImporter implements Importer {
     if (!hasText(rawValue)) {
       return null;
     }
+    String normalizedValue = rawValue.trim();
     for (ConditionKeyType value : ConditionKeyType.values()) {
-      if (value.name().equalsIgnoreCase(rawValue)) {
+      if (value.name().equalsIgnoreCase(normalizedValue)) {
         return value;
       }
     }
@@ -2326,8 +2327,10 @@ public class V1_DataImporter implements Importer {
     if (!hasText(rawValue)) {
       return null;
     }
+    String normalizedValue = rawValue.trim();
     for (ArgumentType value : ArgumentType.values()) {
-      if (value.label.equalsIgnoreCase(rawValue) || value.name().equalsIgnoreCase(rawValue)) {
+      if (value.label.equalsIgnoreCase(normalizedValue)
+          || value.name().equalsIgnoreCase(normalizedValue)) {
         return value;
       }
     }
@@ -2339,8 +2342,9 @@ public class V1_DataImporter implements Importer {
     if (!hasText(rawValue)) {
       return null;
     }
+    String normalizedValue = rawValue.trim();
     for (ConditionKeySubtype value : ConditionKeySubtype.values()) {
-      if (value.name().equalsIgnoreCase(rawValue)) {
+      if (value.name().equalsIgnoreCase(normalizedValue)) {
         return value;
       }
     }
