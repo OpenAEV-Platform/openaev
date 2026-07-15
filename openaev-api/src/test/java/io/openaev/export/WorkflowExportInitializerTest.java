@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Domain;
@@ -33,7 +32,7 @@ class WorkflowExportInitializerTest {
   void given_workflowExportData_should_preservePropertiesAndEnrichContractMetadata()
       throws Exception {
     // -- Arrange --
-    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    ObjectMapper objectMapper = new ObjectMapper();
     WorkflowExportInitializer workflowExportInitializer = new WorkflowExportInitializer();
     InjectorContractRepository injectorContractRepository = mock(InjectorContractRepository.class);
     ReflectionTestUtils.setField(

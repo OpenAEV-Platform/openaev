@@ -1907,7 +1907,7 @@ public class V1_DataImporter implements Importer {
                   .type(
                       varNode.has("scope_variable_type")
                               && !varNode.get("scope_variable_type").isNull()
-                          ? parseArgumentType(varNode.get("scope_variable_type").asText())
+                          ? ArgumentType.fromLabel(varNode.get("scope_variable_type").asText())
                           : null)
                   .value(
                       varNode.has("scope_variable_value")
@@ -2083,12 +2083,15 @@ public class V1_DataImporter implements Importer {
                 .keyType(
                     condNode.has("condition_key_type")
                             && !condNode.get("condition_key_type").isNull()
-                        ? parseConditionKeyType(condNode.get("condition_key_type").asText())
+                        ? mapper.convertValue(
+                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
                         : null)
                 .keySubtype(
                     condNode.has("condition_key_subtype")
                             && !condNode.get("condition_key_subtype").isNull()
-                        ? parseConditionKeySubtype(condNode.get("condition_key_subtype").asText())
+                        ? mapper.convertValue(
+                            condNode.get("condition_key_subtype").asText(),
+                            ConditionKeySubtype.class)
                         : null)
                 .type(conditionType)
                 .mappingType(
@@ -2307,49 +2310,6 @@ public class V1_DataImporter implements Importer {
     }
     JsonNode contractIdNode = injectContractNode.get("injector_contract_id");
     return contractIdNode != null && !contractIdNode.isNull() ? contractIdNode.asText() : null;
-  }
-
-  private static ConditionKeyType parseConditionKeyType(String rawValue) {
-    if (!hasText(rawValue)) {
-      return null;
-    }
-    String normalizedValue = rawValue.trim();
-    for (ConditionKeyType value : ConditionKeyType.values()) {
-      if (value.name().equalsIgnoreCase(normalizedValue)) {
-        return value;
-      }
-    }
-    log.warn("Ignoring unknown condition_key_type during workflow import: {}", rawValue);
-    return null;
-  }
-
-  private static ArgumentType parseArgumentType(String rawValue) {
-    if (!hasText(rawValue)) {
-      return null;
-    }
-    String normalizedValue = rawValue.trim();
-    for (ArgumentType value : ArgumentType.values()) {
-      if (value.label.equalsIgnoreCase(normalizedValue)
-          || value.name().equalsIgnoreCase(normalizedValue)) {
-        return value;
-      }
-    }
-    log.warn("Ignoring unknown scope_variable_type during workflow import: {}", rawValue);
-    return null;
-  }
-
-  private static ConditionKeySubtype parseConditionKeySubtype(String rawValue) {
-    if (!hasText(rawValue)) {
-      return null;
-    }
-    String normalizedValue = rawValue.trim();
-    for (ConditionKeySubtype value : ConditionKeySubtype.values()) {
-      if (value.name().equalsIgnoreCase(normalizedValue)) {
-        return value;
-      }
-    }
-    log.warn("Ignoring unknown condition_key_subtype during workflow import: {}", rawValue);
-    return null;
   }
 
   private static class BaseHolder implements Base {
