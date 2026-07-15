@@ -219,11 +219,18 @@ public class AttackPathSeedService {
     long findingCount = 0;
     List<FindingKind> pool = new ArrayList<>();
     List<List<String>> findingIdsByEndpoint = new ArrayList<>();
+    // One credential value per endpoint (if any), embedded later in that endpoint's commands so the
+    // Terminal drawer shows the server masking a real, discovered secret.
+    List<String> sampleCredentialByEndpoint = new ArrayList<>();
     for (Endpoint endpoint : endpoints) {
       List<String> ids = new ArrayList<>();
+      String sampleCredential = null;
       int findingsHere = 1 + random.nextInt(2 * params.findingsPerEndpoint());
       for (int k = 0; k < findingsHere; k++) {
         FindingKind kind = findingKind(random, pool, simulationId, endpoint, k, params);
+        if (sampleCredential == null && "credentials".equals(kind.type())) {
+          sampleCredential = kind.value();
+        }
         String id = UUID.randomUUID().toString();
         findings.add(
             id,
@@ -238,6 +245,7 @@ public class AttackPathSeedService {
         findingCount++;
       }
       findingIdsByEndpoint.add(ids);
+      sampleCredentialByEndpoint.add(sampleCredential);
     }
     findings.flush();
 
@@ -265,7 +273,8 @@ public class AttackPathSeedService {
               simulationId,
               endpoints.get(endpointIndex),
               injector,
-              params));
+              params,
+              sampleCredentialByEndpoint.get(endpointIndex)));
       executionCount++;
     }
     executions.flush();
@@ -274,7 +283,7 @@ public class AttackPathSeedService {
     // produced by at least one execution on its endpoint (the graph invariant: a finding is in the
     // graph iff an execution produced it, so full and collapsed report identical counters and no
     // finding is orphaned); about a quarter also get a second producer, so fan-in (one finding seen
-    // by several executions) and the US6 execution->finding cross-reference are exercised.
+    // by several executions) and the execution->finding cross-reference are exercised.
     List<List<String>> executionIdsByEndpoint = new ArrayList<>();
     for (int e = 0; e < endpoints.size(); e++) {
       executionIdsByEndpoint.add(new ArrayList<>());
@@ -375,7 +384,8 @@ public class AttackPathSeedService {
       String simulationId,
       Endpoint endpoint,
       Injector injector,
-      AttackPathSeedParams params) {
+      AttackPathSeedParams params,
+      String sampleCredential) {
     return new Object[] {
       executionId,
       tenantId,
@@ -402,18 +412,30 @@ public class AttackPathSeedService {
       random.nextBoolean()
           ? ExpectationType.DETECTION.successLabel
           : ExpectationType.DETECTION.failureLabel,
-      command(injector, endpoint),
-      terminalOutput(random)
+      command(injector, endpoint, sampleCredential),
+      terminalOutput(random, injector, sampleCredential)
     };
   }
 
-  private static String command(Injector injector, Endpoint endpoint) {
-    return injector.name()
-        + " --target "
-        + endpoint.key()
-        + " --payload "
-        + injector.name()
-        + "-payload --timeout 30 --format json --verbose";
+  private static String command(Injector injector, Endpoint endpoint, String sampleCredential) {
+    String base =
+        injector.name()
+            + " --target "
+            + endpoint.key()
+            + " --payload "
+            + injector.name()
+            + "-payload --timeout 30 --format json --verbose";
+    // A credential-capable injector (not the nmap scanner) uses a discovered credential inline,
+    // which
+    // the read masks: the drawer shows "-p ••••", proving credentials never leave the server in
+    // clear.
+    if (sampleCredential == null || "nmap".equals(injector.name())) {
+      return base;
+    }
+    int separator = sampleCredential.indexOf(':');
+    String user = separator >= 0 ? sampleCredential.substring(0, separator) : sampleCredential;
+    String secret = separator >= 0 ? sampleCredential.substring(separator + 1) : "";
+    return base + " -u " + user + " -p " + secret;
   }
 
   /**
@@ -421,11 +443,16 @@ public class AttackPathSeedService {
    * enough to be TOASTed off-row. This is what makes the short-column Read A meaningful — it never
    * selects this column, so it stays cheap even though the row is wide on disk in production.
    */
-  private static String terminalOutput(Random random) {
+  private static String terminalOutput(Random random, Injector injector, String sampleCredential) {
     int lines = random.nextDouble() < 0.3 ? 20 + random.nextInt(50) : 2 + random.nextInt(7);
     StringBuilder output = new StringBuilder(lines * 96);
     for (int i = 0; i < lines; i++) {
       output.append("[step ").append(i).append("]").append(TERMINAL_LINE).append('\n');
+    }
+    // Echo the recovered credential for a credential-capable injector, so the Terminal drawer shows
+    // the secret masked in the output as well as the command.
+    if (sampleCredential != null && !"nmap".equals(injector.name())) {
+      output.append("[+] recovered credential ").append(sampleCredential).append('\n');
     }
     return output.toString();
   }

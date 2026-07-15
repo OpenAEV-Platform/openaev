@@ -13,6 +13,7 @@ import io.openaev.service.attackpath.AttackPathGraphService;
 import io.openaev.service.attackpath.AttackPathSeedService;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
+import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
@@ -120,11 +121,11 @@ public class AttackPathApi extends RestBehavior {
   }
 
   /**
-   * A page of a widget category's findings for the drawer (issue 5048, US5). {@code category} is
-   * one of {@code credentials|users|files|cves}; an unknown category returns an empty page. The
-   * page is size-capped ({@value #MAX_FINDINGS_PAGE_SIZE}) so a client cannot request an unbounded
-   * read. Each item carries the endpoint's map node id and its producing execution ids for the
-   * front's cross-focus. Tenant-scoped through the {@link TxCtx} like every other read.
+   * A page of a widget category's findings for the drawer (issue 5048). {@code category} is one of
+   * {@code credentials|users|files|cves}; an unknown category returns an empty page. The page is
+   * size-capped ({@value #MAX_FINDINGS_PAGE_SIZE}) so a client cannot request an unbounded read.
+   * Each item carries the endpoint's map node id and its producing execution ids for the front's
+   * cross-focus. Tenant-scoped through the {@link TxCtx} like every other read.
    */
   @GetMapping("/simulations/{simulationId}/findings")
   @Transactional(readOnly = true)
@@ -139,6 +140,25 @@ public class AttackPathApi extends RestBehavior {
     int safePage = Math.max(page, 0);
     int safeSize = Math.min(Math.max(size, 1), MAX_FINDINGS_PAGE_SIZE);
     return graphService.listFindings(simulationId, category, PageRequest.of(safePage, safeSize));
+  }
+
+  /**
+   * One execution's Result &amp; Terminal detail for the drawer (issue 5048), from the frozen
+   * snapshot. 404 when the execution is not in the caller's simulation (unknown id or another
+   * tenant's, since the read is tenant-scoped through the {@link TxCtx}). Credentials are masked
+   * server-side in the command, the output, and the findings.
+   */
+  @GetMapping("/simulations/{simulationId}/executions/{executionId}")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public AttackPathExecutionDetailDTO executionDetail(
+      TxCtx ctx, @PathVariable String simulationId, @PathVariable String executionId) {
+    requireAttackPathFeature();
+    AttackPathExecutionDetailDTO detail = graphService.executionDetail(simulationId, executionId);
+    if (detail == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+    }
+    return detail;
   }
 
   /**

@@ -82,7 +82,7 @@ public class AttackPathGraphService {
 
   /**
    * Above this many executions a simulation is served collapsed by default. Tied to the front
-   * render ceiling (T12), not the backend latency: a full graph of more nodes than this is not
+   * render ceiling, not the backend latency: a full graph of more nodes than this is not
    * renderable.
    */
   @Value("${openaev.attackpath.collapse-threshold:20000}")
@@ -119,12 +119,11 @@ public class AttackPathGraphService {
   }
 
   /**
-   * A page of a widget category's findings for the drawer (issue 5048, US5). Reads the page of
-   * findings of the category's types (restricted to those a producing execution links to, the same
-   * invariant as the graph reads), then attaches each finding's producing-execution ids and its
-   * endpoint's map node id for cross-focus, and masks the value for the credentials category (a
-   * credential value never leaves the server in the clear). An unknown category yields an empty
-   * page.
+   * A page of a widget category's findings for the drawer (issue 5048). Reads the page of findings
+   * of the category's types (restricted to those a producing execution links to, the same invariant
+   * as the graph reads), then attaches each finding's producing-execution ids and its endpoint's
+   * map node id for cross-focus, and masks the value for the credentials category (a credential
+   * value never leaves the server in the clear). An unknown category yields an empty page.
    */
   @Transactional(readOnly = true)
   public AttackPathFindingPageDTO listFindings(
@@ -153,7 +152,7 @@ public class AttackPathGraphService {
   }
 
   /**
-   * One execution's Result &amp; Terminal detail for the drawer (issue 5048, US3), from the frozen
+   * One execution's Result &amp; Terminal detail for the drawer (issue 5048), from the frozen
    * snapshot (never the live inject). Reads the execution row (the only read that loads the heavy
    * {@code command}/{@code terminal_output}) and its produced findings, then masks the credential
    * secrets it surfaced in the command, the output, and the finding values. Returns {@code null}
@@ -166,19 +165,26 @@ public class AttackPathGraphService {
     if (e == null) {
       return null;
     }
-    Set<String> secrets = new HashSet<>();
+    // Result tab: the findings this execution produced (credential values masked).
     List<AttackPathExecutionFindingItemDTO> findings = new ArrayList<>();
     for (AttackPathEndpointFindingRow f : findingRepository.findByExecutionId(executionId)) {
       boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
-      if (credential) {
+      findings.add(
+          new AttackPathExecutionFindingItemDTO(
+              f.type(), credential ? maskCredential(f.value()) : f.value()));
+    }
+    // Mask, in the free-text command and output, the secrets of every credential discovered on this
+    // endpoint: an execution's command references its endpoint's credentials, not only the ones it
+    // links to, so endpoint-scoped masking never leaves a known secret in the clear.
+    Set<String> secrets = new HashSet<>();
+    for (AttackPathEndpointFindingRow f :
+        findingRepository.findByEndpoint(simulationId, e.getTargetKey())) {
+      if (CATEGORY_CREDENTIALS.equals(f.type())) {
         String secret = credentialSecret(f.value());
         if (secret != null && !secret.isEmpty()) {
           secrets.add(secret);
         }
       }
-      findings.add(
-          new AttackPathExecutionFindingItemDTO(
-              f.type(), credential ? maskCredential(f.value()) : f.value()));
     }
     return new AttackPathExecutionDetailDTO(
         e.getPayloadName(),
@@ -237,7 +243,7 @@ public class AttackPathGraphService {
   }
 
   /**
-   * The finding types each product widget aggregates (spec 5048 US5 section 2:
+   * The finding types each product widget aggregates (spec 5048 section 2:
    * Files/Credentials/Users/CVEs; Endpoints is a separate endpoint-group read, not a finding type).
    * {@code port} is a graph finding type but not a product widget, so it has no category here;
    * {@code file} has no seed finding type yet (an open question), so the files drawer is empty
@@ -354,7 +360,7 @@ public class AttackPathGraphService {
     }
 
     // Single pass over findings: finding-type nodes, finding nodes (deduped by type+value), finding
-    // edges, the execution -> finding-node cross-reference (US6), and the counters. No extra query,
+    // edges, the execution -> finding-node cross-reference, and the counters. No extra query,
     // no second walk of the findings.
     List<AttackPathNodeDTO> staticFindings = new ArrayList<>();
     Set<String> seenFindingNodes = new HashSet<>();
@@ -624,7 +630,7 @@ public class AttackPathGraphService {
     node.setId(AttackPathIds.executionNode(e.id(), e.targetKey(), e.agentId()));
     node.setType(TYPE_EXECUTION);
     // The raw execution id, so a findings drawer item can match and highlight its producing
-    // executions in the feed (US5 cross-focus); the map node id above is not the raw id.
+    // executions in the feed (cross-focus); the map node id above is not the raw id.
     node.setRef(e.id());
     node.setLabel(e.payloadName());
     node.setStatus(severity(e.preventionStatus(), e.detectionStatus()));

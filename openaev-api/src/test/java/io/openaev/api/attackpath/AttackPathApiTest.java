@@ -218,6 +218,70 @@ class AttackPathApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "GET /simulations/{id}/executions/{executionId} returns the masked Result & Terminal detail")
+  void execution_detail_endpoint_returns_masked_detail() throws Exception {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-detail-api"));
+    String sim = "SIM-DETAIL-API";
+
+    AttackPathExecution execution = new AttackPathExecution();
+    execution.setTenant(tenant);
+    execution.setSimulationId(sim);
+    execution.setSourceKind("INJECTOR");
+    execution.setSourceInjector("hydra");
+    execution.setTargetKind("ASSET");
+    execution.setTargetAssetId("dc-01");
+    execution.setTargetKey("dc-01");
+    execution.setTargetHostname("CORP-DC-01");
+    execution.setPayloadName("hydra-payload");
+    execution.setAgentName("agent-1");
+    execution.setAgentPrivilege("user");
+    execution.setExecutedAt(Instant.parse("2026-06-18T08:00:00Z"));
+    execution.setPreventionStatus("Not Prevented");
+    execution.setCommand("hydra -l admin -p secret123 ssh://10.0.0.1");
+    execution.setTerminalOutput("password: secret123");
+    execution = executionRepository.save(execution);
+
+    AttackPathFinding finding = new AttackPathFinding();
+    finding.setTenant(tenant);
+    finding.setSimulationId(sim);
+    finding.setType("credentials");
+    finding.setValue("admin:secret123");
+    finding.setEndpointKey("dc-01");
+    finding = findingRepository.save(finding);
+
+    AttackPathExecutionFinding link = new AttackPathExecutionFinding();
+    link.setExecutionId(execution.getId());
+    link.setFindingId(finding.getId());
+    entityManager.persist(link);
+    entityManager.flush();
+
+    mvc.perform(
+            get(
+                AttackPathApi.ATTACK_PATH_URI
+                    + "/simulations/"
+                    + sim
+                    + "/executions/"
+                    + execution.getId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.payloadName").value("hydra-payload"))
+        .andExpect(jsonPath("$.agentName").value("agent-1"))
+        .andExpect(jsonPath("$.preventionStatus").value("Not Prevented"))
+        .andExpect(jsonPath("$.command", not(containsString("secret123"))))
+        .andExpect(jsonPath("$.terminalOutput", not(containsString("secret123"))))
+        .andExpect(jsonPath("$.findings[0].type").value("credentials"))
+        .andExpect(jsonPath("$.findings[0].value", not(containsString("secret123"))));
+
+    mvc.perform(
+            get(
+                AttackPathApi.ATTACK_PATH_URI
+                    + "/simulations/"
+                    + sim
+                    + "/executions/does-not-exist"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
   @DisplayName("POST /seed is allowed for an admin and returns the row counts")
   void seed_endpoint_returns_counts_for_admin() throws Exception {
     mvc.perform(post(AttackPathApi.ATTACK_PATH_URI + "/seed").with(csrf()))

@@ -35,4 +35,12 @@ class AttackPathApiDisabledTest extends IntegrationTest {
                 .param("category", "credentials"))
         .andExpect(status().isNotFound());
   }
+
+  @Test
+  @DisplayName(
+      "The execution detail endpoint returns 404 when the attack-path preview feature is off")
+  void execution_detail_endpoint_is_404_when_feature_off() throws Exception {
+    mvc.perform(get(AttackPathApi.ATTACK_PATH_URI + "/simulations/any/executions/any"))
+        .andExpect(status().isNotFound());
+  }
 }

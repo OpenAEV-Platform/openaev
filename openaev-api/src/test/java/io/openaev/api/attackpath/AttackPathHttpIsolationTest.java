@@ -54,6 +54,8 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   private static final String LIST = "/api/tenants/{tenantId}/attack-path/simulations";
   private static final String FINDINGS =
       "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/findings";
+  private static final String EXECUTION =
+      "/api/tenants/{tenantId}/attack-path/simulations/{simulationId}/executions/{executionId}";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -163,6 +165,20 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.total").value(0))
         .andExpect(jsonPath("$.items").isEmpty());
+  }
+
+  @Test
+  @DisplayName("under the owner tenant's path: the execution detail is visible")
+  void executionDetailUnderOwnerTenantIsVisible() throws Exception {
+    mvc.perform(get(EXECUTION, tenantA, SIM, executionId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.endpointKey").value(ENDPOINT_KEY));
+  }
+
+  @Test
+  @DisplayName("under another tenant's path: the execution detail is not found (no leak)")
+  void executionDetailUnderOtherTenantIsHidden() throws Exception {
+    mvc.perform(get(EXECUTION, tenantB, SIM, executionId)).andExpect(status().isNotFound());
   }
 
   @Test
