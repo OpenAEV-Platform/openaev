@@ -11,6 +11,8 @@ vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (va
 
 vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: mockIsFeatureEnabled }));
 
+vi.mock('../../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: { default_tenant_id: '2cffad3a-0001-4078-b0e2-ef74274022c3' } }) }));
+
 vi.mock('../../../../../utils/permissions/NoAccess', () => ({ default: () => <div data-testid="no-access" /> }));
 
 vi.mock('../../../../../utils/permissions/permissionsContext', async () => {
