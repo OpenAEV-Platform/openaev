@@ -11,6 +11,8 @@ import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.schema.PropertySchema;
+import io.openaev.schema.SchemaUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -191,13 +193,29 @@ public class AssetGroupService {
    * targets and contributes none.
    */
   private List<Asset> resolveDynamicAiTargets(@NotNull final Filters.FilterGroup dynamicFilter) {
-    try {
-      Specification<AiTarget> specification = computeFilterGroupJpa(dynamicFilter);
-      return this.aiTargetRepository.findAll(specification).stream()
-          .map(Asset.class::cast)
-          .toList();
-    } catch (RuntimeException e) {
+    // The specification is lazy: an unresolvable key would only throw inside the
+    // repository call, marking the surrounding transaction rollback-only before any
+    // catch runs (this kills startup when the starter pack seeds endpoint-scoped
+    // dynamic groups on a fresh database). Validate the filter keys eagerly instead.
+    if (!isFilterResolvableForAiTargets(dynamicFilter)) {
       return List.of();
+    }
+    Specification<AiTarget> specification = computeFilterGroupJpa(dynamicFilter);
+    return this.aiTargetRepository.findAll(specification).stream().map(Asset.class::cast).toList();
+  }
+
+  /** True when every filter key of the group is a filterable {@link AiTarget} property. */
+  private boolean isFilterResolvableForAiTargets(final Filters.FilterGroup dynamicFilter) {
+    try {
+      List<String> filterableKeys =
+          SchemaUtils.getFilterableProperties(SchemaUtils.schemaWithSubtypes(AiTarget.class))
+              .stream()
+              .map(PropertySchema::getJsonName)
+              .toList();
+      return Optional.ofNullable(dynamicFilter.getFilters()).orElse(List.of()).stream()
+          .allMatch(filter -> filterableKeys.contains(filter.getKey()));
+    } catch (ClassNotFoundException e) {
+      return false;
     }
   }
 
