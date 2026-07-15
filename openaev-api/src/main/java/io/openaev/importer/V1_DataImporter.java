@@ -2029,91 +2029,110 @@ public class V1_DataImporter implements Importer {
       Map<String, Step> stepIdMap) {
     Map<String, Condition> conditionIdMap = new LinkedHashMap<>();
 
-    // Sort: roots first so parents are always created before their children
-    List<JsonNode> conditionNodes = new ArrayList<>();
-    conditionsNode.forEach(conditionNodes::add);
-    conditionNodes.sort(
-        (a, b) -> {
-          boolean aHasParent =
-              a.has("condition_parent_id") && !a.get("condition_parent_id").isNull();
-          boolean bHasParent =
-              b.has("condition_parent_id") && !b.get("condition_parent_id").isNull();
-          return Boolean.compare(aHasParent, bHasParent);
-        });
+    // Build conditions in parent-first order even when import arrays are unsorted.
+    List<JsonNode> pendingNodes = new ArrayList<>();
+    conditionsNode.forEach(pendingNodes::add);
 
-    for (JsonNode condNode : conditionNodes) {
-      String originalCondId =
-          condNode.has("condition_id") ? condNode.get("condition_id").asText() : null;
-      String parentId =
-          condNode.has("condition_parent_id") && !condNode.get("condition_parent_id").isNull()
-              ? condNode.get("condition_parent_id").asText()
-              : null;
-      String stepFromId =
-          condNode.has("condition_step_from_id") && !condNode.get("condition_step_from_id").isNull()
-              ? condNode.get("condition_step_from_id").asText()
-              : null;
-      boolean isRoot =
-          condNode.has("condition_is_root") && condNode.get("condition_is_root").asBoolean();
+    boolean progressed;
+    do {
+      progressed = false;
+      Iterator<JsonNode> iterator = pendingNodes.iterator();
+      while (iterator.hasNext()) {
+        JsonNode condNode = iterator.next();
 
-      Step stepFrom = stepFromId != null ? stepIdMap.get(stepFromId) : null;
-      Condition parentCondition = parentId != null ? conditionIdMap.get(parentId) : null;
-      ConditionType conditionType =
-          condNode.has("condition_type") && !condNode.get("condition_type").isNull()
-              ? ConditionType.valueOf(condNode.get("condition_type").asText())
-              : null;
+        String originalCondId =
+            condNode.has("condition_id") ? condNode.get("condition_id").asText() : null;
+        String parentId =
+            condNode.has("condition_parent_id") && !condNode.get("condition_parent_id").isNull()
+                ? condNode.get("condition_parent_id").asText()
+                : null;
+        String stepFromId =
+            condNode.has("condition_step_from_id")
+                    && !condNode.get("condition_step_from_id").isNull()
+                ? condNode.get("condition_step_from_id").asText()
+                : null;
+        boolean isRoot =
+            condNode.has("condition_is_root") && condNode.get("condition_is_root").asBoolean();
 
-      // Standalone conditions are workflow events and must never be MAPPER conditions.
-      if (step == null && ConditionType.MAPPER.equals(conditionType)) {
-        continue;
+        Step stepFrom = stepFromId != null ? stepIdMap.get(stepFromId) : null;
+        Condition parentCondition = parentId != null ? conditionIdMap.get(parentId) : null;
+        ConditionType conditionType =
+            condNode.has("condition_type") && !condNode.get("condition_type").isNull()
+                ? ConditionType.valueOf(condNode.get("condition_type").asText())
+                : null;
+
+        // Standalone conditions are workflow events and must never be MAPPER conditions.
+        if (step == null && ConditionType.MAPPER.equals(conditionType)) {
+          iterator.remove();
+          progressed = true;
+          continue;
+        }
+
+        // Wait until the parent condition has been created before importing this child.
+        if (parentId != null && parentCondition == null) {
+          continue;
+        }
+
+        Condition condition =
+            Condition.builder()
+                .workflowId(workflow.getId())
+                .key(
+                    condNode.has("condition_key") && !condNode.get("condition_key").isNull()
+                        ? condNode.get("condition_key").asText()
+                        : null)
+                .keyType(
+                    condNode.has("condition_key_type")
+                            && !condNode.get("condition_key_type").isNull()
+                        ? mapper.convertValue(
+                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
+                        : null)
+                .keySubtype(
+                    condNode.has("condition_key_subtype")
+                            && !condNode.get("condition_key_subtype").isNull()
+                        ? mapper.convertValue(
+                            condNode.get("condition_key_subtype").asText(),
+                            ConditionKeySubtype.class)
+                        : null)
+                .type(conditionType)
+                .mappingType(
+                    condNode.has("condition_mapping_type")
+                            && !condNode.get("condition_mapping_type").isNull()
+                        ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
+                        : null)
+                .value(
+                    condNode.has("condition_value") && !condNode.get("condition_value").isNull()
+                        ? condNode.get("condition_value").asText()
+                        : null)
+                .name(
+                    condNode.has("condition_name") && !condNode.get("condition_name").isNull()
+                        ? condNode.get("condition_name").asText()
+                        : null)
+                .description(
+                    condNode.has("condition_description")
+                            && !condNode.get("condition_description").isNull()
+                        ? condNode.get("condition_description").asText()
+                        : null)
+                .conditionParent(parentCondition)
+                .stepFrom(stepFrom)
+                .build();
+
+        if (step != null && isRoot) {
+          chainingConditionService.linkToStep(condition, step, isRoot);
+        }
+        condition = chainingConditionService.saveCondition(condition);
+
+        if (originalCondId != null) {
+          conditionIdMap.put(originalCondId, condition);
+        }
+        iterator.remove();
+        progressed = true;
       }
+    } while (progressed && !pendingNodes.isEmpty());
 
-      Condition condition =
-          Condition.builder()
-              .workflowId(workflow.getId())
-              .key(
-                  condNode.has("condition_key") && !condNode.get("condition_key").isNull()
-                      ? condNode.get("condition_key").asText()
-                      : null)
-              .keyType(
-                  condNode.has("condition_key_type") && !condNode.get("condition_key_type").isNull()
-                      ? mapper.convertValue(
-                          condNode.get("condition_key_type").asText(), ConditionKeyType.class)
-                      : null)
-              .keySubtype(
-                  condNode.has("condition_key_subtype")
-                          && !condNode.get("condition_key_subtype").isNull()
-                      ? mapper.convertValue(
-                          condNode.get("condition_key_subtype").asText(), ConditionKeySubtype.class)
-                      : null)
-              .type(conditionType)
-              .mappingType(
-                  condNode.has("condition_mapping_type")
-                          && !condNode.get("condition_mapping_type").isNull()
-                      ? MappingType.valueOf(condNode.get("condition_mapping_type").asText())
-                      : null)
-              .value(
-                  condNode.has("condition_value") && !condNode.get("condition_value").isNull()
-                      ? condNode.get("condition_value").asText()
-                      : null)
-              .name(
-                  condNode.has("condition_name") && !condNode.get("condition_name").isNull()
-                      ? condNode.get("condition_name").asText()
-                      : null)
-              .description(
-                  condNode.has("condition_description")
-                          && !condNode.get("condition_description").isNull()
-                      ? condNode.get("condition_description").asText()
-                      : null)
-              .conditionParent(parentCondition)
-              .stepFrom(stepFrom)
-              .build();
-
-      if (step != null && isRoot) {
-        chainingConditionService.linkToStep(condition, step, isRoot);
-      }
-      condition = chainingConditionService.saveCondition(condition);
-
-      if (originalCondId != null) conditionIdMap.put(originalCondId, condition);
+    if (!pendingNodes.isEmpty()) {
+      log.warn(
+          "Skipped {} condition(s) during import because parent condition was unresolved",
+          pendingNodes.size());
     }
   }
 
@@ -2156,17 +2175,18 @@ public class V1_DataImporter implements Importer {
     // Extract injector contract info from step_data
     JsonNode injectContractNode = dataJson.get("inject_injector_contract");
     if (injectContractNode == null || injectContractNode.isNull()) {
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
     String injectorContractId = extractInjectorContractId(injectContractNode);
     if (!hasText(injectorContractId)) {
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
-    // Contract already exists in DB — no resolution needed
-    if (injectorContractRepository.existsByContractId(injectorContractId)) {
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+    // Contract already exists in DB, no resolution needed
+    if (injectorContractRepository.existsByContractId(injectorContractId)
+        && !shouldResolveContractFromStepData(injectContractNode, injectorContractId)) {
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
     // Already resolved by a previous step or by importInjects — reuse
@@ -2175,23 +2195,23 @@ public class V1_DataImporter implements Importer {
       if (!updateContractIdInStepData(dataJson, alreadyResolved)) {
         return stepDataRaw;
       }
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
     if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
       log.warn(
           "Step data references missing injector contract {} in textual form with no payload to recreate",
           injectorContractId);
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
-    // Contract is missing — resolve using the same logic as importInjects
+    // Contract is missing then resolve using the same logic as importInjects
     JsonNode payloadNode = injectContractObject.get("injector_contract_payload");
     if (payloadNode == null || payloadNode.isNull() || payloadNode.isEmpty()) {
       log.warn(
           "Step data references missing injector contract {} with no payload to recreate",
           injectorContractId);
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
     String newContractId = resolveInjectorContract(injectContractObject, baseIds);
@@ -2202,10 +2222,38 @@ public class V1_DataImporter implements Importer {
       if (!updateContractIdInStepData(dataJson, newContractId)) {
         return stepDataRaw;
       }
-      return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, workflow);
     }
 
-    return sanitizeStepDataForWorkflowImport(dataJson, stepDataRaw, workflow);
+    return sanitizateStepData(dataJson, stepDataRaw, workflow);
+  }
+
+  private boolean shouldResolveContractFromStepData(
+      JsonNode injectContractNode, String injectorContractId) {
+    if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
+      return false;
+    }
+
+    JsonNode payloadNode = injectContractObject.get("injector_contract_payload");
+    if (payloadNode == null || payloadNode.isNull() || !payloadNode.has("payload_output_parsers")) {
+      return false;
+    }
+    JsonNode outputParsersNode = payloadNode.get("payload_output_parsers");
+    if (outputParsersNode == null || !outputParsersNode.isArray() || outputParsersNode.isEmpty()) {
+      return false;
+    }
+
+    Optional<InjectorContract> existingContractOpt =
+        injectorContractRepository.findById(injectorContractId);
+    if (existingContractOpt.isEmpty()) {
+      return true;
+    }
+
+    InjectorContract existingContract = existingContractOpt.get();
+    Payload existingPayload = existingContract.getPayload();
+    return existingPayload == null
+        || existingPayload.getOutputParsers() == null
+        || existingPayload.getOutputParsers().isEmpty();
   }
 
   private boolean updateContractIdInStepData(JsonNode dataJson, String newContractId) {
@@ -2226,29 +2274,31 @@ public class V1_DataImporter implements Importer {
     }
   }
 
-  private String sanitizeStepDataForWorkflowImport(
-      JsonNode dataJson, String fallback, Workflow workflow) {
+  private String serializeStepData(JsonNode dataJson, String fallback) {
     try {
-      if (!(dataJson instanceof ObjectNode dataObject)) {
-        return fallback;
-      }
-      dataObject.remove("inject_id");
-      dataObject.remove("inject_status");
-      dataObject.remove("inject_depends_on");
-      dataObject.remove("inject_exercise");
-      dataObject.remove("inject_scenario");
-      if (workflow.getSimulation() != null) {
-        dataObject.put("inject_exercise", workflow.getSimulation().getId());
-      } else if (workflow.getScenario() != null) {
-        dataObject.put("inject_scenario", workflow.getScenario().getId());
-      }
-      dataObject.remove("inject_assets");
-      dataObject.remove("inject_asset_groups");
-      return mapper.writeValueAsString(dataObject);
+      return mapper.writeValueAsString(dataJson);
     } catch (Exception e) {
-      log.warn("Failed to sanitize workflow step_data for import", e);
+      log.warn("Failed to serialize workflow step_data after contract resolution", e);
       return fallback;
     }
+  }
+
+  private String sanitizateStepData(JsonNode dataJson, String fallback, Workflow workflow) {
+    if (!(dataJson instanceof ObjectNode dataObject) || workflow == null) {
+      return fallback;
+    }
+    dataObject.remove("inject_assets");
+    dataObject.remove("inject_asset_groups");
+    dataObject.remove("inject_exercise");
+    dataObject.remove("inject_scenario");
+    if (workflow.getSimulation() != null) {
+      dataObject.put("inject_exercise", workflow.getSimulation().getId());
+      dataObject.putNull("inject_scenario");
+    } else if (workflow.getScenario() != null) {
+      dataObject.put("inject_scenario", workflow.getScenario().getId());
+      dataObject.putNull("inject_exercise");
+    }
+    return serializeStepData(dataObject, fallback);
   }
 
   private static String extractInjectorContractId(JsonNode injectContractNode) {

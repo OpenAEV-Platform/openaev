@@ -142,22 +142,61 @@ public class WorkflowExportInitializer {
 
       String injectorContractId =
           extractInjectorContractId(stepDataObject.get(INJECT_INJECTOR_CONTRACT));
-      if (!StringUtils.hasText(injectorContractId)) {
-        return;
+      if (StringUtils.hasText(injectorContractId)) {
+        InjectorContract injectorContract =
+            injectorContractRepository.findById(injectorContractId).orElse(null);
+        if (injectorContract != null) {
+          initializeInjectorContractForExport(injectorContract);
+          ObjectNode enrichedContractNode = objectMapper.valueToTree(injectorContract);
+          JsonNode existingContractNode = stepDataObject.get(INJECT_INJECTOR_CONTRACT);
+          if (existingContractNode instanceof ObjectNode existingContractObject) {
+            preserveAbsentFieldsRecursively(enrichedContractNode, existingContractObject);
+          }
+          stepDataObject.set(INJECT_INJECTOR_CONTRACT, enrichedContractNode);
+        }
       }
-
-      InjectorContract injectorContract =
-          injectorContractRepository.findById(injectorContractId).orElse(null);
-      if (injectorContract == null) {
-        return;
-      }
-
-      initializeInjectorContractForExport(injectorContract);
-      stepDataObject.set(INJECT_INJECTOR_CONTRACT, objectMapper.valueToTree(injectorContract));
+      normalizeStepDataFieldsForExport(stepDataObject, objectMapper);
       setStepData(stepObject, stepDataObject, isTextual, objectMapper);
     } catch (Exception e) {
       log.warn("Unable to enrich workflow step_data for export", e);
     }
+  }
+
+  private static void preserveAbsentFieldsRecursively(ObjectNode target, ObjectNode source) {
+    source
+        .fields()
+        .forEachRemaining(
+            field -> {
+              String key = field.getKey();
+              JsonNode sourceValue = field.getValue();
+              JsonNode targetValue = target.get(key);
+              if (targetValue == null) {
+                target.set(key, sourceValue);
+                return;
+              }
+              if (targetValue.isObject() && sourceValue.isObject()) {
+                preserveAbsentFieldsRecursively((ObjectNode) targetValue, (ObjectNode) sourceValue);
+              }
+            });
+  }
+
+  private static void normalizeStepDataFieldsForExport(
+      ObjectNode stepDataObject, ObjectMapper objectMapper) {
+    if (!stepDataObject.has("inject_id")) {
+      stepDataObject.putNull("inject_id");
+    }
+    if (!stepDataObject.has("inject_status")) {
+      stepDataObject.putNull("inject_status");
+    }
+    if (!stepDataObject.has("inject_depends_on")) {
+      stepDataObject.set("inject_depends_on", objectMapper.createArrayNode());
+    }
+    stepDataObject.remove("inject_assets");
+    stepDataObject.remove("inject_asset_groups");
+    stepDataObject.remove("inject_exercise");
+    stepDataObject.remove("inject_scenario");
+    stepDataObject.putNull("inject_exercise");
+    stepDataObject.putNull("inject_scenario");
   }
 
   private static void setStepData(

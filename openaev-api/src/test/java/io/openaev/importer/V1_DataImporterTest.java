@@ -519,8 +519,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
-  void
-      given_stepDataWithRuntimeReferences_when_resolvingStepData_should_sanitizeStaleInjectFields() {
+  void given_stepDataWithRuntimeReferences_when_resolvingStepData_should_preserveRuntimeFields() {
     // -- Arrange --
     String contractId = UUID.randomUUID().toString();
     ObjectMapper objectMapper = new ObjectMapper();
@@ -545,7 +544,6 @@ class V1_DataImporterTest extends IntegrationTest {
     Exercise simulation = new Exercise();
     simulation.setId("sim-test");
     Workflow workflow = Workflow.builder().simulation(simulation).build();
-
     // -- Act --
     String resolvedStepData =
         ReflectionTestUtils.invokeMethod(
@@ -558,12 +556,11 @@ class V1_DataImporterTest extends IntegrationTest {
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
     // -- Assert --
-    assertFalse(resolvedJson.has("inject_id"));
-    assertFalse(resolvedJson.has("inject_status"));
-    assertFalse(resolvedJson.has("inject_depends_on"));
-    assertTrue(resolvedJson.has("inject_exercise"));
+    assertEquals("old-inject-id", resolvedJson.get("inject_id").asText());
+    assertEquals("old-status-id", resolvedJson.get("inject_status").asText());
+    assertEquals("old-parent-id", resolvedJson.get("inject_depends_on").get(0).asText());
     assertEquals("sim-test", resolvedJson.get("inject_exercise").asText());
-    assertFalse(resolvedJson.has("inject_scenario"));
+    assertTrue(resolvedJson.get("inject_scenario").isNull());
     assertFalse(resolvedJson.has("inject_assets"));
     assertFalse(resolvedJson.has("inject_asset_groups"));
     assertEquals(
@@ -634,6 +631,102 @@ class V1_DataImporterTest extends IntegrationTest {
 
     assertEquals(1, standaloneRoots.size());
     assertEquals(ConditionType.EQ, standaloneRoots.getFirst().getType());
+  }
+
+  @Test
+  @Transactional
+  void given_workflowStepConditionsOutOfOrder_when_importing_should_preserveParentChildLinks()
+      throws Exception {
+    // -- Arrange --
+    ObjectMapper objectMapper = new ObjectMapper();
+    JsonNode workflowImport =
+        objectMapper.readTree(
+            Files.readAllBytes(
+                Paths.get("src/test/resources/importer-v1/import-scenario-with-workflow.json")));
+    ObjectNode workflowNode = (ObjectNode) workflowImport.get("scenario_workflow");
+    ArrayNode workflowSteps = (ArrayNode) workflowNode.get("workflow_steps");
+
+    int expectedChildConditions = 0;
+    for (JsonNode stepNode : workflowSteps) {
+      JsonNode stepConditionsNode = stepNode.get("step_conditions");
+      if (!(stepConditionsNode instanceof ArrayNode stepConditions) || stepConditions.isEmpty()) {
+        continue;
+      }
+
+      ArrayNode reversed = objectMapper.createArrayNode();
+      for (int i = stepConditions.size() - 1; i >= 0; i--) {
+        JsonNode conditionNode = stepConditions.get(i);
+        reversed.add(conditionNode);
+        if (conditionNode.has("condition_parent_id")
+            && !conditionNode.get("condition_parent_id").isNull()) {
+          expectedChildConditions++;
+        }
+      }
+      ((ObjectNode) stepNode).set("step_conditions", reversed);
+    }
+
+    assertTrue(
+        expectedChildConditions > 0, "Test fixture must include at least one child condition");
+
+    // -- Act --
+    this.importer.importData(
+        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    Scenario scenario =
+        scenarioRepository.findAll().stream()
+            .filter(s -> expectedName.equals(s.getName()))
+            .findFirst()
+            .orElseThrow();
+    Workflow workflow =
+        workflowRepository
+            .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+            .getFirst();
+
+    long importedChildConditions =
+        conditionRepository.findAll().stream()
+            .filter(condition -> workflow.getId().equals(condition.getWorkflowId()))
+            .filter(condition -> condition.getConditionParent() != null)
+            .count();
+
+    assertEquals(expectedChildConditions, importedChildConditions);
+  }
+
+  @Test
+  @Transactional
+  void
+      given_existingContractWithoutOutputParsers_andStepDataWithOutputParsers_when_resolvingWorkflowStepData_should_forceContractResolution()
+          throws Exception {
+    // -- Arrange --
+    String existingContractId = UUID.randomUUID().toString();
+    InjectorContract existingContract = new InjectorContract();
+    existingContract.setId(existingContractId);
+    existingContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    existingContract.setContent("{}");
+    existingContract.setLabels(Map.of("en", "existing"));
+    existingContract.setCustom(false);
+    existingContract.setManual(false);
+    existingContract.setNeedsExecutor(false);
+    existingContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
+    injectorContractRepository.save(existingContract);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode injectContractNode = objectMapper.createObjectNode();
+    injectContractNode.put("injector_contract_id", existingContractId);
+    ObjectNode payloadNode = objectMapper.createObjectNode();
+    ArrayNode outputParsers = objectMapper.createArrayNode();
+    outputParsers.add(objectMapper.createObjectNode());
+    payloadNode.set("payload_output_parsers", outputParsers);
+    injectContractNode.set("injector_contract_payload", payloadNode);
+
+    // -- Act --
+    Boolean shouldResolve =
+        ReflectionTestUtils.invokeMethod(
+            importer, "shouldResolveContractFromStepData", injectContractNode, existingContractId);
+
+    // -- Assert --
+    assertEquals(Boolean.TRUE, shouldResolve);
   }
 
   // -- UTILS --

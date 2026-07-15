@@ -1,6 +1,7 @@
 package io.openaev.export;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -83,23 +84,66 @@ class WorkflowExportInitializerTest {
             ScopeRuleSource.MANUAL.name(),
             "10.0.0.0/24",
             ScopeRuleValueType.IP_SUBNET.name()));
+    scopeRules.add(
+        scopeRule(
+            objectMapper,
+            ScopeRuleSelectedMode.ALLOWLIST.name(),
+            ScopeRuleSource.ASSET.name(),
+            "asset-id-1",
+            ScopeRuleValueType.ASSET_ID.name()));
+    scopeRules.add(
+        scopeRule(
+            objectMapper,
+            ScopeRuleSelectedMode.DENYLIST.name(),
+            ScopeRuleSource.ASSET_GROUP.name(),
+            "asset-group-id-1",
+            ScopeRuleValueType.ASSET_GROUP_ID.name()));
     workflowNode.set("workflow_scope_rules", scopeRules);
 
     ArrayNode steps = objectMapper.createArrayNode();
     ObjectNode textualStep = objectMapper.createObjectNode();
     textualStep.put("step_action_class", "INJECT");
     textualStep.put(
-        "step_data", "{\"inject_injector_contract\":{\"injector_contract_id\":\"contract-id\"}}");
+        "step_data",
+        """
+        {
+          "inject_exercise": "old-exercise-id",
+          "inject_scenario": "old-scenario-id",
+          "inject_injector_contract": {
+            "injector_contract_id": "contract-id",
+            "listened": true,
+            "injector_contract_payload": {
+              "listened": true
+            }
+          }
+        }
+        """);
     steps.add(textualStep);
 
     ObjectNode objectStep = objectMapper.createObjectNode();
     objectStep.put("step_action_class", "INJECT");
     ObjectNode objectStepData = objectMapper.createObjectNode();
+    objectStepData.put("inject_exercise", "old-exercise-id");
+    objectStepData.put("inject_scenario", "old-scenario-id");
     ObjectNode objectStepContract = objectMapper.createObjectNode();
     objectStepContract.put("injector_contract_id", "contract-id");
+    objectStepContract.put("listened", true);
+    ObjectNode objectStepPayload = objectMapper.createObjectNode();
+    objectStepPayload.put("listened", true);
+    objectStepContract.set("injector_contract_payload", objectStepPayload);
     objectStepData.set("inject_injector_contract", objectStepContract);
     objectStep.set("step_data", objectStepData);
     steps.add(objectStep);
+
+    ObjectNode stepWithoutContract = objectMapper.createObjectNode();
+    stepWithoutContract.put("step_action_class", "INJECT");
+    ObjectNode stepWithoutContractData = objectMapper.createObjectNode();
+    stepWithoutContractData.put("inject_exercise", "old-exercise-id");
+    stepWithoutContractData.put("inject_scenario", "old-scenario-id");
+    stepWithoutContractData.putArray("inject_assets").add("asset-1");
+    stepWithoutContractData.putArray("inject_asset_groups").add("asset-group-1");
+    stepWithoutContract.set("step_data", stepWithoutContractData);
+    steps.add(stepWithoutContract);
     workflowNode.set("workflow_steps", steps);
 
     exportNode.set("exercise_workflow", workflowNode);
@@ -152,9 +196,37 @@ class WorkflowExportInitializerTest {
                 exportedWorkflow.get("workflow_steps").get(0).get("step_data").asText());
     ObjectNode objectStepDataAfter =
         (ObjectNode) exportedWorkflow.get("workflow_steps").get(1).get("step_data");
+    ObjectNode stepDataWithoutContract =
+        (ObjectNode) exportedWorkflow.get("workflow_steps").get(2).get("step_data");
 
-    assertContractMetadata((ObjectNode) textualStepData.get("inject_injector_contract"));
-    assertContractMetadata((ObjectNode) objectStepDataAfter.get("inject_injector_contract"));
+    ObjectNode textualContract = (ObjectNode) textualStepData.get("inject_injector_contract");
+    ObjectNode objectContract = (ObjectNode) objectStepDataAfter.get("inject_injector_contract");
+    assertContractMetadata(textualContract);
+    assertContractMetadata(objectContract);
+    assertEquals(true, textualContract.get("listened").asBoolean());
+    assertEquals(true, objectContract.get("listened").asBoolean());
+    assertEquals(
+        true, textualContract.get("injector_contract_payload").get("listened").asBoolean());
+    assertEquals(true, objectContract.get("injector_contract_payload").get("listened").asBoolean());
+    assertStepDataDefaults(textualStepData);
+    assertStepDataDefaults(objectStepDataAfter);
+    assertStepDataDefaults(stepDataWithoutContract);
+  }
+
+  private static void assertStepDataDefaults(ObjectNode stepData) {
+    assertTrue(stepData.has("inject_id"));
+    assertTrue(stepData.get("inject_id").isNull());
+    assertTrue(stepData.has("inject_status"));
+    assertTrue(stepData.get("inject_status").isNull());
+    assertTrue(stepData.has("inject_depends_on"));
+    assertTrue(stepData.get("inject_depends_on").isArray());
+    assertEquals(0, stepData.get("inject_depends_on").size());
+    assertFalse(stepData.has("inject_assets"));
+    assertFalse(stepData.has("inject_asset_groups"));
+    assertTrue(stepData.has("inject_exercise"));
+    assertTrue(stepData.get("inject_exercise").isNull());
+    assertTrue(stepData.has("inject_scenario"));
+    assertTrue(stepData.get("inject_scenario").isNull());
   }
 
   private static void assertContractMetadata(ObjectNode contractNode) {
