@@ -17,6 +17,10 @@ inputs:
   browser:
     description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
     required: true
+  artifact-suffix:
+    description: "Suffix appended to artifact names to make them unique per matrix leg (e.g. matrix.browser or matrix.arch). Forwarded from the calling workflow because strategy.job-index is not available in composite actions."
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -249,5 +253,5 @@ runs:
       if: ${{ !cancelled() && inputs.browser == 'chrome' }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-coverage-${{ inputs.browser }}-${{ github.job }}-${{ strategy.job-index }}
+        name: playwright-coverage-${{ inputs.browser }}-${{ github.job }}-${{ inputs.artifact-suffix }}
         path: openaev-front/test-results/coverage/
