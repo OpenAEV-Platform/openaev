@@ -10,6 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import type {
   ConditionCreateInput,
   InjectInput,
+  PayloadSimple,
   ScopeAssetOutput,
   ThreatArsenalAction,
 } from '../../../../../utils/api-types';
@@ -85,6 +86,7 @@ const ChainingFlowConfiguration = ({
       action_labels: { en: meta.inject_title },
       action_attack_patterns_ids: meta.inject_attack_patterns_ids ?? [],
       action_injector_type: meta.inject_injector,
+      action_payload: meta.inject_payload_type ? { payload_type: meta.inject_payload_type } as PayloadSimple : undefined,
     } as unknown as ThreatArsenalAction;
 
     const initialData: ActionDetailData = {

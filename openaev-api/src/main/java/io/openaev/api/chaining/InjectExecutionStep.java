@@ -165,6 +165,9 @@ public class InjectExecutionStep implements ActionStep {
     return Optional.of(readyStep);
   }
 
+  /** Resolved scope data for a single step execution — computed once and reused. */
+  private record ScopeTargets(List<Asset> assets, List<AssetGroup> assetGroups, List<String> ips) {}
+
   /**
    * Runs a READY step by executing the corresponding to inject.
    *
@@ -663,7 +666,7 @@ public class InjectExecutionStep implements ActionStep {
    * @return the deserialized {@link Inject} object with its injector set if found; {@code null} if
    *     the injector contract is missing or if an exception occurs during deserialization
    */
-  private Inject getInjectFromDataStep(Step step) throws ChainingException {
+  private Inject getInjectFromDataStep(Step step, ScopeTargets scope) throws ChainingException {
     ObjectMapper om =
         new ObjectMapper()
             .findAndRegisterModules()
@@ -747,9 +750,14 @@ public class InjectExecutionStep implements ActionStep {
       ObjectNode updatedContent =
           updateContentWithInputs(step, resolveBaseInjectContent(inject, injectorContract));
 
-      List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
-      if (scopedAssets != null && !scopedAssets.isEmpty()) {
-        inject.setAssets(scopedAssets);
+      if (!scope.assets().isEmpty() || !scope.assetGroups().isEmpty()) {
+        inject.setAssets(scope.assets());
+        inject.setAssetGroups(scope.assetGroups());
+        // Payloads are dispatched to agents via inject.assets — content fields (targets_assets,
+        // target_selector) are not used for routing. Only set them for external injectors.
+        if (injectorContract.getPayload() == null) {
+          applyScopeTargetsToContent(updatedContent, scope.assets());
+        }
       }
 
       // Add expectations
@@ -762,6 +770,63 @@ public class InjectExecutionStep implements ActionStep {
     } catch (JsonProcessingException e) {
       throw new ChainingException("Step (READY) : Error processing JSON to Inject ", e);
     }
+  }
+
+  /**
+   * Updates the inject content JSON with scope-resolved asset targets.
+   *
+   * <p>Sets {@code targets_assets} (asset IDs) for asset-aware injectors, {@code target_selector}
+   * to {@code "assets"}, and {@code targets} with the comma-separated IPs extracted from scoped
+   * {@link Endpoint} assets so that IP-based injectors (nmap, nuclei) also receive valid targets.
+   */
+  private void applyScopeTargetsToContent(ObjectNode content, List<Asset> scopedAssets) {
+    if (scopedAssets.isEmpty()) {
+      return;
+    }
+    List<String> assetIds = scopedAssets.stream().map(Asset::getId).toList();
+    content.set("targets_assets", mapper.valueToTree(assetIds));
+    content.put("target_selector", "assets");
+
+    List<String> ips = new ArrayList<>();
+    for (Asset asset : scopedAssets) {
+      if (asset instanceof Endpoint endpoint) {
+        if (endpoint.getIps() != null && endpoint.getIps().length > 0) {
+          ips.addAll(Arrays.asList(endpoint.getIps()));
+        }
+        if (endpoint.getSeenIp() != null && !endpoint.getSeenIp().isEmpty()) {
+          ips.add(endpoint.getSeenIp());
+        }
+      }
+    }
+    List<String> distinctIps =
+        ips.stream().filter(ip -> ip != null && !ip.isEmpty()).distinct().toList();
+    if (!distinctIps.isEmpty()) {
+      content.put("targets", String.join(",", distinctIps));
+    }
+  }
+
+  /**
+   * Clones {@code source} into a new inject with {@code target_selector = "manual"} and the
+   * provided IPs in {@code targets}.
+   */
+  private Inject buildManualTargetInject(Inject source, List<String> manualIps) {
+    Inject manualInject = new Inject();
+    manualInject.setTitle(source.getTitle());
+    manualInject.setInjectorContract(source.getInjectorContract().orElse(null));
+    manualInject.setInjector(source.getInjector());
+    manualInject.setExercise(source.getExercise());
+    manualInject.setScenario(source.getScenario());
+    manualInject.setDependsDuration(
+        source.getDependsDuration() != null ? source.getDependsDuration() : 0L);
+
+    ObjectNode manualContent =
+        source.getContent() != null ? source.getContent().deepCopy() : mapper.createObjectNode();
+    manualContent.put("target_selector", "manual");
+    manualContent.put("targets", String.join(",", manualIps));
+    manualContent.remove("targets_assets");
+    manualInject.setContent(manualContent);
+
+    return manualInject;
   }
 
   /**
