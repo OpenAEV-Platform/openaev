@@ -138,7 +138,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("An execution feed node carries the ids of the findings it produced (US6 cross-ref)")
+  @DisplayName("An execution feed node carries the ids of the findings it produced")
   void fills_execution_to_finding_cross_reference() {
     AttackPathDTO dto = service.buildGraph(SIM);
     // exec1 (injector, no agent) produced the credentials finding on dc-01.

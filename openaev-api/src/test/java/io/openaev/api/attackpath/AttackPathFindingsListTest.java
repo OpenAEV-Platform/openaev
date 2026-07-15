@@ -24,7 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The finding-widget drawer read (issue 5048, US5). Listing a widget category's findings for a
+ * The finding-widget drawer read (issue 5048). Listing a widget category's findings for a
  * simulation returns one item per (value, endpoint) with the producing execution ids (for the
  * cross-focus) and the resolved endpoint node id; it excludes orphan findings (the CF1 invariant),
  * filters by the category's finding types, and masks credential values server-side.

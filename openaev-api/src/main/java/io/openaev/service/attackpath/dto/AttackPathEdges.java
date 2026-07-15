@@ -9,8 +9,8 @@ import lombok.Setter;
 /**
  * An edge of the attack-path graph (issue 6647), named after the design's {@code AttackPathEdges}.
  * Executions sharing {@code (source, target)} collapse into one edge carrying {@code count} and the
- * producing {@code executionIds}, so a finding still resolves to its action (US6) even when the
- * execution is rendered only as an edge.
+ * producing {@code executionIds}, so a finding still resolves to its action even when the execution
+ * is rendered only as an edge.
  */
 @Getter
 @Setter

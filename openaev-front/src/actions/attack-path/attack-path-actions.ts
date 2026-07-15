@@ -34,7 +34,7 @@ export const fetchEndpointRelations = (
 ): Promise<{ data: AttackPathEndpointRelationsDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/endpoint/relations?ref=${encodeURIComponent(ref)}`);
 
-// A page of a widget category's findings for the drawer (issue 5048, US5).
+// A page of a widget category's findings for the drawer (issue 5048).
 // category is one of credentials | users | files | cves; the value is masked server-side for credentials.
 export const fetchFindingsByCategory = (
   simulationId: string,

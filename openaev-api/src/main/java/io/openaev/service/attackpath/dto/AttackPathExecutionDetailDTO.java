@@ -3,7 +3,7 @@ package io.openaev.service.attackpath.dto;
 import java.util.List;
 
 /**
- * One execution's full detail for the Result &amp; Terminal drawer (issue 5048, US3), read from the
+ * One execution's full detail for the Result &amp; Terminal drawer (issue 5048), read from the
  * frozen snapshot (never the live inject). Three groups: the header (payload/agent/privilege), the
  * result (target, prevention/detection status, findings), and the terminal (command, output).
  * Credentials are masked server-side in the command, the output, and the finding values.

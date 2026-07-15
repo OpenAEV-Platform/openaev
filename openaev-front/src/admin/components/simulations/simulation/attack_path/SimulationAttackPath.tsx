@@ -86,13 +86,13 @@ const SimulationAttackPath = () => {
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
 
-  // Findings drawer (US5): a widget opens a right drawer listing that category's findings.
+  // Findings drawer: a widget opens a right drawer listing that category's findings.
   const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
   const [drawerLabel, setDrawerLabel] = useState<string>('');
   const [findingsPage, setFindingsPage] = useState<AttackPathFindingPageDTO | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(false);
 
-  // Cross-focus (US5): clicking a finding item centers its endpoint (focusRequest) and highlights
+  // Cross-focus: clicking a finding item centers its endpoint (focusRequest) and highlights
   // the producing executions in the feed (by their raw ids).
   const [focusRequest, setFocusRequest] = useState<AttackPathFocusRequest | null>(null);
   const [highlightedExecutionIds, setHighlightedExecutionIds] = useState<Set<string>>(new Set());
@@ -188,7 +188,7 @@ const SimulationAttackPath = () => {
       .finally(() => setFindingsLoading(false));
   }, [simulationId]);
 
-  // Cross-focus (US5 acceptance A3): clicking a finding item closes the drawer, focuses its endpoint
+  // Cross-focus: clicking a finding item closes the drawer, focuses its endpoint
   // on the map (center + select, which highlights the edges into it), loads that endpoint's feed, and
   // highlights the producing executions in it.
   const onFindingItemClick = useCallback(
@@ -349,7 +349,7 @@ const SimulationAttackPath = () => {
           >
             {/* Endpoints is a count only for now; its per-endpoint drawer is a follow-up. */}
             <Chip label={`${t('Endpoints')} ${counters.endpoints ?? 0}`} size="small" />
-            {/* Files has no finding type in the seed yet, so its count is 0 until ingestion (US5 open question). */}
+            {/* Files has no finding type in the seed yet, so its count is 0 until ingestion (open question). */}
             {[
               {
                 category: 'files',

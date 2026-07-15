@@ -23,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Verifies the attack-path entities persist and the two JPQL projection reads (Read A, Read B)
  * return the expected flat projections filtered by simulation. Both repository reads are pure JPQL
  * (no native SQL); Read A omits the heavy columns and Read B keeps the finding→producing-execution
- * trace (US6). Tenant isolation through the statement inspector is proven separately (see the T7
- * isolation test, which activates the tables in a dedicated context).
+ * trace. Tenant isolation through the statement inspector is proven separately (see the isolation
+ * test, which activates the tables in a dedicated context).
  */
 @Transactional
 class AttackPathRepositoryTest extends IntegrationTest {
@@ -77,7 +77,7 @@ class AttackPathRepositoryTest extends IntegrationTest {
     assertThat(executionRow.targetHostname()).isEqualTo("CORP-DC-01");
     assertThat(executionRow.preventionStatus()).isEqualTo("Prevented");
 
-    // Read B: finding joined to its producing execution (US6 trace preserved)
+    // Read B: finding joined to its producing execution (trace preserved)
     List<AttackPathFindingRow> findingRows = findingRepository.findGraphRows("S1");
     assertThat(findingRows).hasSize(1);
     AttackPathFindingRow findingRow = findingRows.get(0);

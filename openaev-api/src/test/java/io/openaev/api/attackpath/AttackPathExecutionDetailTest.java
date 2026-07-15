@@ -21,7 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The execution Result & Terminal detail read (issue 5048, US3). Reading one execution returns its
+ * The execution Result & Terminal detail read (issue 5048). Reading one execution returns its
  * header (payload/agent/privilege), its result (target, prevention/detection status, findings), and
  * its terminal (command, output) from the frozen snapshot, with the linked credential secret masked
  * in the command, the output, and the finding value.

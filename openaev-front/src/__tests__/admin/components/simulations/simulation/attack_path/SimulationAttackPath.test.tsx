@@ -124,7 +124,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     const item = await screen.findByText('admin:••••');
     fireEvent.click(item);
 
-    // Cross-focus (US5 A3): the endpoint's feed is loaded and the map receives a focus request on it.
+    // Cross-focus: the endpoint's feed is loaded and the map receives a focus request on it.
     await waitFor(() => {
       expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x');
       expect(mocks.flowProps.current?.focusRequest?.nodeId).toBe(ENDPOINT_NODE);

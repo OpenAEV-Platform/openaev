@@ -13,8 +13,8 @@ import lombok.Setter;
 /**
  * Many-to-many link keeping which execution produced which finding (issue 6647). Not tenant-aware:
  * a pure join table, filtered through the tenant-scoped {@code attackpath_finding} it is joined to,
- * as with OpenAEV's other join tables. It preserves the exact finding→action trace (US6) even when
- * the render dedups the finding node.
+ * as with OpenAEV's other join tables. It preserves the exact finding→action trace even when the
+ * render dedups the finding node.
  */
 @Getter
 @Setter

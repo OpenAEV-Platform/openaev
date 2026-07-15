@@ -76,13 +76,12 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
       @Param("simulationId") String simulationId);
 
   /**
-   * Widget drawer (issue 5048, US5): a page of a simulation's findings of the given types,
-   * restricted to findings a producing execution links to (the same {@code EXISTS} invariant as the
-   * graph reads, so a drawer never lists a finding the graph omits). The explicit {@code
-   * countQuery} keeps the paged total consistent with that invariant; the tenant filter is added by
-   * the statement inspector. A stable {@code ORDER BY (endpointKey, value, id)} makes paging
-   * deterministic, so scrolling the drawer never repeats or skips a row ({@code id} is the unique
-   * tiebreaker).
+   * Widget drawer (issue 5048): a page of a simulation's findings of the given types, restricted to
+   * findings a producing execution links to (the same {@code EXISTS} invariant as the graph reads,
+   * so a drawer never lists a finding the graph omits). The explicit {@code countQuery} keeps the
+   * paged total consistent with that invariant; the tenant filter is added by the statement
+   * inspector. A stable {@code ORDER BY (endpointKey, value, id)} makes paging deterministic, so
+   * scrolling the drawer never repeats or skips a row ({@code id} is the unique tiebreaker).
    */
   @Query(
       value =
@@ -102,9 +101,9 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
       Pageable pageable);
 
   /**
-   * Widget drawer (issue 5048, US5): the (finding, producing execution) links for a page of
-   * findings, so each drawer row can carry its execution ids for cross-focus. The finding ids come
-   * from a tenant-scoped finding page, so this link read is already bounded to the tenant.
+   * Widget drawer (issue 5048): the (finding, producing execution) links for a page of findings, so
+   * each drawer row can carry its execution ids for cross-focus. The finding ids come from a
+   * tenant-scoped finding page, so this link read is already bounded to the tenant.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathFindingExecutionRow("
@@ -115,7 +114,7 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
       @Param("findingIds") Collection<String> findingIds);
 
   /**
-   * Result tab (issue 5048, US3): the findings one execution produced (its (type, value)), via the
+   * Result tab (issue 5048): the findings one execution produced (its (type, value)), via the
    * execution-finding link. The link is the producing relation, so no {@code EXISTS} is needed.
    * Used to list an execution's findings and to mask its credential secrets in the terminal.
    */

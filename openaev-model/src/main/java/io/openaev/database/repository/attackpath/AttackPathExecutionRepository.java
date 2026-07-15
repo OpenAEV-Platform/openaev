@@ -14,7 +14,7 @@ import org.springframework.data.repository.query.Param;
 public interface AttackPathExecutionRepository extends CrudRepository<AttackPathExecution, String> {
 
   /**
-   * Result &amp; Terminal drawer (issue 5048, US3): one execution's full row by id, scoped to its
+   * Result &amp; Terminal drawer (issue 5048): one execution's full row by id, scoped to its
    * simulation. This is the only read that loads the heavy {@code command}/{@code terminal_output}
    * columns; the graph reads never touch them. The tenant filter is added by the statement
    * inspector.
