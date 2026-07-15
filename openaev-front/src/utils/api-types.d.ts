@@ -23,6 +23,40 @@ export interface AdHocWidgetInput {
     | StructuralHistogramWidget;
 }
 
+export interface AdHocWidgetToEntitiesInput {
+  /** Key-value pairs for filtering entities, where the key is the field name and the value is the filter criterion */
+  filter_values_map?: Record<string, string[]>;
+  /** Pagination for the widget */
+  pagination?: Pagination;
+  /** Additional parameters for the widget */
+  parameters?: Record<string, string>;
+  /**
+   * The index of the series to filter by, if applicable, otherwise 0
+   * @format int32
+   */
+  series_index?: number;
+  widget_config:
+    | AverageConfiguration
+    | DateHistogramWidget
+    | FlatConfiguration
+    | ListConfiguration
+    | StructuralHistogramWidget;
+  widget_type:
+    | "vertical-barchart"
+    | "horizontal-barchart"
+    | "security-coverage"
+    | "line"
+    | "donut"
+    | "list"
+    | "attack-path"
+    | "number"
+    | "average"
+    | "exposure-score"
+    | "posture-radar"
+    | "command-center"
+    | "resilience-gauge";
+}
+
 export interface Agent {
   agent_active?: boolean;
   agent_asset: string;
@@ -98,46 +132,6 @@ export interface AgentOutput {
 }
 
 export interface AgentTarget {
-  target_detection_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-  target_execution_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-  target_human_response_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-  /** @minLength 1 */
-  target_id: string;
-  target_name?: string;
-  target_prevention_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-  target_subtype?: string;
-  /** @uniqueItems true */
-  target_tags?: string[];
-  target_type?: string;
-  target_vulnerability_status?:
-    | "FAILED"
-    | "PENDING"
-    | "PARTIAL"
-    | "UNKNOWN"
-    | "SUCCESS";
-}
-
-export interface AiTargetTarget {
   target_detection_status?:
     | "FAILED"
     | "PENDING"
@@ -490,6 +484,46 @@ export interface AiTargetInput {
   /** @minLength 1 */
   asset_name: string;
   asset_tags?: string[];
+}
+
+export interface AiTargetTarget {
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
 }
 
 export interface ArgumentTypeOutput {
