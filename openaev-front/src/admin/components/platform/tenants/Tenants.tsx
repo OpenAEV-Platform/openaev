@@ -11,9 +11,9 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type TenantOutput } from '../../../../utils/api-types';
+import useAuth from '../../../../utils/hooks/useAuth';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { DEFAULT_TENANT_UUID } from '../../../../utils/url-helper';
 import SecurityMenu from '../../settings/SecurityMenu';
 import DefaultTenantDangerZone from './DefaultTenantDangerZone';
 import useTenants from './hooks/useTenants';
@@ -31,6 +31,7 @@ import {
 const Tenants = () => {
   // Standard hooks
   const { t } = useFormatter();
+  const { settings } = useAuth();
   const {
     tenants,
     setTenantList,
@@ -96,7 +97,7 @@ const Tenants = () => {
                 <PaginatedList<TenantOutput>
                   Icon={HomeWorkOutlined}
                   secondaryAction={tenant => (
-                    tenant.tenant_id === DEFAULT_TENANT_UUID
+                    tenant.tenant_id === settings.default_tenant_id
                       ? (
                           <DefaultTenantDangerZone>
                             <TenantPopover

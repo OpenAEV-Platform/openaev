@@ -1,11 +1,19 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockCan } = vi.hoisted(() => ({ mockCan: vi.fn() }));
+const { mockCan, mockDefaultTenantId } = vi.hoisted(() => ({
+  mockCan: vi.fn(),
+  mockDefaultTenantId: { current: '2cffad3a-0001-4078-b0e2-ef74274022c3' },
+}));
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
 
-vi.mock('../../../../../utils/hooks/useAuth', () => ({ default: () => ({ reloadUserTenants: vi.fn() }) }));
+vi.mock('../../../../../utils/hooks/useAuth', () => ({
+  default: () => ({
+    reloadUserTenants: vi.fn(),
+    settings: { default_tenant_id: mockDefaultTenantId.current },
+  }),
+}));
 
 vi.mock('../../../../../utils/permissions/permissionsContext', async () => {
   const React = await import('react');
@@ -44,7 +52,7 @@ import type { TenantOutput } from '../../../../../utils/api-types';
 import { DEFAULT_TENANT_UUID } from '../../../../../utils/url-helper';
 
 const defaultTenant: TenantOutput = {
-  tenant_id: DEFAULT_TENANT_UUID,
+  tenant_id: mockDefaultTenantId.current,
   tenant_name: 'Default Tenant',
 };
 
@@ -56,6 +64,7 @@ const regularTenant: TenantOutput = {
 describe('TenantPopover', () => {
   beforeEach(() => {
     mockCan.mockReturnValue(true);
+    mockDefaultTenantId.current = DEFAULT_TENANT_UUID;
   });
 
   afterEach(() => {
@@ -138,5 +147,25 @@ describe('TenantPopover', () => {
       // Assert — empty string != DEFAULT_TENANT_UUID, so Delete is shown
       expect(screen.getByTestId('popover-entry-delete')).toBeDefined();
     });
+  });
+
+  it('uses settings default_tenant_id instead of the hardcoded constant', () => {
+    // Arrange
+    mockDefaultTenantId.current = '11111111-2222-3333-4444-555555555555';
+    const tenantWithHardcodedId: TenantOutput = {
+      tenant_id: DEFAULT_TENANT_UUID,
+      tenant_name: 'Tenant with hardcoded id',
+    };
+
+    // Act
+    render(
+      <TenantPopover
+        tenant={tenantWithHardcodedId}
+        actions={['Update', 'Delete']}
+      />,
+    );
+
+    // Assert
+    expect(screen.getByTestId('popover-entry-delete')).toBeDefined();
   });
 });

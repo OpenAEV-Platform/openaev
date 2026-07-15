@@ -2,15 +2,19 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockIsFeatureEnabled, mockCan, mockTenants } = vi.hoisted(() => ({
+import type { TenantOutput } from '../../../../../utils/api-types';
+
+const { mockIsFeatureEnabled, mockCan, mockTenants, mockDefaultTenantId } = vi.hoisted(() => ({
   mockIsFeatureEnabled: vi.fn(),
   mockCan: vi.fn(),
-  mockTenants: { current: [] as unknown[] },
+  mockTenants: { current: [] as TenantOutput[] },
+  mockDefaultTenantId: { current: '2cffad3a-0001-4078-b0e2-ef74274022c3' },
 }));
 
 vi.mock('../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (value: string) => value }) }));
 
 vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: mockIsFeatureEnabled }));
+vi.mock('../../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: { default_tenant_id: mockDefaultTenantId.current } }) }));
 
 vi.mock('../../../../../utils/permissions/NoAccess', () => ({ default: () => <div data-testid="no-access" /> }));
 
@@ -37,8 +41,8 @@ vi.mock('../../../../../components/Breadcrumbs', () => ({ default: ({ elements }
 
 vi.mock('../../../../../components/common/list/PaginatedList', () => ({
   default: ({ secondaryAction, items }: {
-    secondaryAction?: (item: unknown) => ReactNode;
-    items?: unknown[];
+    secondaryAction?: (item: TenantOutput) => ReactNode;
+    items?: TenantOutput[];
   }) => (
     <div data-testid="paginated-list">
       {items?.map((item, i) => (
@@ -109,6 +113,7 @@ describe('Tenants', () => {
     mockCan.mockReturnValue(true);
     mockIsFeatureEnabled.mockReturnValue(true);
     mockTenants.current = [];
+    mockDefaultTenantId.current = DEFAULT_TENANT_UUID;
   });
 
   afterEach(() => {
@@ -199,6 +204,27 @@ describe('Tenants', () => {
       render(<Tenants />);
 
       // Assert — exactly one DangerZone (for the default tenant only)
+      expect(screen.getAllByTestId('default-tenant-danger-zone')).toHaveLength(1);
+    });
+
+    it('uses settings default_tenant_id for DangerZone matching, not the hardcoded constant', () => {
+      // Arrange
+      mockDefaultTenantId.current = '11111111-2222-3333-4444-555555555555';
+      mockTenants.current = [
+        {
+          tenant_id: DEFAULT_TENANT_UUID,
+          tenant_name: 'Hardcoded constant tenant',
+        },
+        {
+          tenant_id: mockDefaultTenantId.current,
+          tenant_name: 'Settings default tenant',
+        },
+      ];
+
+      // Act
+      render(<Tenants />);
+
+      // Assert
       expect(screen.getAllByTestId('default-tenant-danger-zone')).toHaveLength(1);
     });
   });
