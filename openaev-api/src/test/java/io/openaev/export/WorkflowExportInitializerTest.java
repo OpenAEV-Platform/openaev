@@ -272,6 +272,7 @@ class WorkflowExportInitializerTest {
   private static Domain domain(String id) {
     Domain domain = new Domain();
     domain.setId(id);
+    domain.setName(id);
     return domain;
   }
 

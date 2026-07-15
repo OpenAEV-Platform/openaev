@@ -1907,7 +1907,7 @@ public class V1_DataImporter implements Importer {
                   .type(
                       varNode.has("scope_variable_type")
                               && !varNode.get("scope_variable_type").isNull()
-                          ? ArgumentType.fromLabel(varNode.get("scope_variable_type").asText())
+                          ? parseArgumentType(varNode.get("scope_variable_type").asText())
                           : null)
                   .value(
                       varNode.has("scope_variable_value")
@@ -2319,6 +2319,19 @@ public class V1_DataImporter implements Importer {
       }
     }
     log.warn("Ignoring unknown condition_key_type during workflow import: {}", rawValue);
+    return null;
+  }
+
+  private static ArgumentType parseArgumentType(String rawValue) {
+    if (!hasText(rawValue)) {
+      return null;
+    }
+    for (ArgumentType value : ArgumentType.values()) {
+      if (value.label.equalsIgnoreCase(rawValue) || value.name().equalsIgnoreCase(rawValue)) {
+        return value;
+      }
+    }
+    log.warn("Ignoring unknown scope_variable_type during workflow import: {}", rawValue);
     return null;
   }
 
