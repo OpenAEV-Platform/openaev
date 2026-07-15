@@ -697,9 +697,6 @@ public class InjectExpectationService {
    * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
    * and expired Returns a bounded batch for incremental processing.
    *
-   * <p>Forces a flush before executing the native query so that any in-memory score updates from
-   * the current transaction are visible to the SQL engine.
-   *
    * @param limit maximum number of expectations to return
    * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */

@@ -1,7 +1,6 @@
 package io.openaev.collectors.expectations_expiration_manager.service;
 
 import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.*;
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.isExpired;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
@@ -56,8 +55,7 @@ public class ExpectationsExpirationManagerService {
     Map<String, InjectExpectationUpdateInput> inputsById = new LinkedHashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
       if (!(expectation instanceof TechnicalInjectExpectation technicalExpectation)
-          || !ExpectationUtils.isAgentExpectation(technicalExpectation)
-          || !isExpired(expectation)) {
+          || !ExpectationUtils.isAgentExpectation(technicalExpectation)) {
         continue;
       }
       InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
@@ -87,20 +85,18 @@ public class ExpectationsExpirationManagerService {
         expectations.stream().filter(exp -> exp.getScore() == null).toList();
     remainingExpectations.forEach(
         expectation -> {
-          if (isExpired(expectation)) {
-            InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-            input.setIsSuccess(false);
-            input.setResult(computeFailedMessage(expectation.getType()));
-            expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
-            if (HUMAN_EXPECTATION.contains(expectation.getType())) {
-              updated.add(
-                  injectExpectationService.computeInjectExpectationForHumanResponse(
-                      expectation, input, collector));
-            } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
-              updated.add(
-                  injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
-                      technicalExpectation, input, collector));
-            }
+          InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
+          input.setIsSuccess(false);
+          input.setResult(computeFailedMessage(expectation.getType()));
+          expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+          if (HUMAN_EXPECTATION.contains(expectation.getType())) {
+            updated.add(
+                injectExpectationService.computeInjectExpectationForHumanResponse(
+                    expectation, input, collector));
+          } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
+            updated.add(
+                injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
+                    technicalExpectation, input, collector));
           }
         });
   }
