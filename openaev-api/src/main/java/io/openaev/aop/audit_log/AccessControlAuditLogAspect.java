@@ -108,6 +108,8 @@ public class AccessControlAuditLogAspect {
 
             logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
           }
+        } catch (AuditLogFailureException e) {
+          throw e;
         } catch (Exception e) {
           log.warn(LOG_ERROR_MSG, e);
         }
@@ -173,8 +175,9 @@ public class AccessControlAuditLogAspect {
 
       auditFuture.whenComplete(logCompletion);
 
-      // When halt-on-failure is enabled, the executor is synchronous (SyncTaskExecutor) so the
-      // future is already resolved. join() rethrows if the audit transport failed.
+      // When halt-on-failure is enabled, block until the async audit completes. If the transport
+      // failed, join() rethrows the CompletionException wrapping AuditLogFailureException.
+      // This propagates through the @Transactional boundary triggering a rollback.
       if (auditLogProperties.isHaltOnFailure()) {
         auditFuture.join();
       }

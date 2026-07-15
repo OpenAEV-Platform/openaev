@@ -84,26 +84,72 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("RBAC denials")
+  @DisplayName("RBAC denials — audit event emitted for unauthorized access")
   class RbacDenialAudit {
 
     @Test
     @WithMockUser
-    void given_missingCapability_should_returnForbidden() throws Exception {
-      // Act & Assert — RBAC denies access, returns 403
+    void given_missingCapability_should_returnForbiddenAndLogUnauthorizedEvent() throws Exception {
+      // Arrange
+      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
+
+      // Act
       mvc.perform(delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID).with(csrf()))
           .andExpect(status().isForbidden());
+
+      // Assert — audit event logged with "unauthorized" scope
+      verify(auditLogger, timeout(2000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              resourceTypeCaptor.capture(),
+              resourceIdCaptor.capture(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+
+      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
+      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
+      assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
     }
 
     @Test
     @WithMockUser
-    void given_missingCapabilityWithAutomatedUserAgent_should_returnForbidden() throws Exception {
-      // Act & Assert — RBAC denies access even with automated agent header
+    void
+        given_missingCapabilityWithAutomatedUserAgent_should_returnForbiddenAndLogUnauthorizedEvent()
+            throws Exception {
+      // Arrange
+      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+
+      // Act
       mvc.perform(
               delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID)
                   .with(csrf())
                   .header("User-Agent", "openaev-agent/x.x.x"))
           .andExpect(status().isForbidden());
+
+      // Assert — audit event logged even for automated agents
+      verify(auditLogger, timeout(2000))
+          .logAccessControlEvent(
+              eventScopeCaptor.capture(),
+              eventStatusCaptor.capture(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              anyString());
+
+      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
+      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
     }
   }
 
@@ -564,11 +610,14 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(Level.class),
               anyString());
       verify(auditShutdownService, timeout(2000)).initiateShutdown();
+
+      // Rollback is guaranteed by Spring @Transactional when AuditLogFailureException propagates.
+      // The test @Transactional context prevents verifying it directly here.
     }
 
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
-    void given_haltOnFailureAndTransportThrows_should_rollbackUpdate() throws Exception {
+    void given_haltOnFailureAndTransportFails_should_rollbackUpdate() throws Exception {
       // Arrange
       doReturn(true).when(auditLogProperties).isHaltOnFailure();
       doReturn(true).when(logService).isEnabled();
@@ -616,6 +665,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(Level.class),
               anyString());
       verify(auditShutdownService, timeout(2000)).initiateShutdown();
+
+      // Rollback is guaranteed by Spring @Transactional when AuditLogFailureException propagates.
+      // The test @Transactional context prevents verifying it directly here.
     }
   }
 }
