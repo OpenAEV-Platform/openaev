@@ -12,6 +12,17 @@
 
 type UtilRequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
+export interface AdHocWidgetInput {
+  pagination?: Pagination;
+  parameters?: Record<string, string>;
+  widget_config:
+    | AverageConfiguration
+    | DateHistogramWidget
+    | FlatConfiguration
+    | ListConfiguration
+    | StructuralHistogramWidget;
+}
+
 export interface Agent {
   agent_active?: boolean;
   agent_asset: string;
@@ -9393,7 +9404,6 @@ export interface UpdateProfileInput {
   user_email: string;
   /** @minLength 1 */
   user_firstname: string;
-  /** Preferred home dashboard of the user; overrides the tenant home dashboard setting */
   user_home_dashboard?: string;
   /** @minLength 1 */
   user_lang: string;

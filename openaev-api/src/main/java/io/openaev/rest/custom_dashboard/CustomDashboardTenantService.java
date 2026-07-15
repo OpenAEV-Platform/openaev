@@ -49,7 +49,9 @@ public class CustomDashboardTenantService {
             .findById(currentUser().getId())
             .map(User::getHomeDashboard)
             .filter(StringUtils::hasText)
-            .flatMap(customDashboardRepository::findById);
+            // tenant-scoped lookup: a preference set in another tenant must not leak here,
+            // it simply falls back to the tenant setting below
+            .flatMap(id -> customDashboardRepository.findByIdAndTenantId(id, tenantId));
     if (userDashboard.isPresent()) {
       return userDashboard;
     }
