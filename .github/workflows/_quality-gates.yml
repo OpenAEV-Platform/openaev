@@ -153,6 +153,7 @@ jobs:
         with:
           playwright-config: ${{ matrix.playwright-config }}
           browser: ${{ matrix.browser }}
+          artifact-suffix: ${{ matrix.browser }}
 
   e2e-infra-tests:
     name: "🧪 E2E Infra (${{ matrix.arch }})"
@@ -192,6 +193,7 @@ jobs:
         with:
           playwright-config: playwright.infra.chromium_config.ts
           browser: chromium
+          artifact-suffix: ${{ matrix.arch }}
 
   api-types-check:
     name: "🔎 API Types Check"
