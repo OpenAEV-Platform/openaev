@@ -1,13 +1,17 @@
 package io.openaev.aop.audit_log;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,73 +27,75 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class AuditLoggerUnitTest {
 
   @Mock private LogService logService;
+  @Mock private AuditLogProperties auditLogProperties;
+  @Mock private AuditShutdownService auditShutdownService;
 
   @Spy @InjectMocks private AuditLogger auditLogger;
 
   @BeforeEach
   void setUp() {
-    // Never actually call System.exit in tests
-    lenient().doNothing().when(auditLogger).prepareLogFailure();
-    doReturn(true).when(logService).isEnabled();
+    lenient().doReturn(true).when(logService).isEnabled();
+    lenient().doReturn(true).when(auditLogProperties).isHaltOnFailure();
   }
 
   @Nested
-  @DisplayName("logAuthEvent - prepareLogFailure")
+  @DisplayName("logAuthEvent - halt-on-failure throws AuditLogFailureException")
   class LogAuthEventFailure {
 
     @Test
-    @DisplayName("given_logServiceThrows_should_triggerPrepareLogFailure")
-    void given_logServiceThrows_should_triggerPrepareLogFailure() {
+    @DisplayName("given_logServiceThrows_should_throwAuditLogFailureException")
+    void given_logServiceThrows_should_throwAuditLogFailureException() {
       // Arrange
       when(logService.logAuthEvent(
               "login", "error", "local", null, java.util.logging.Level.WARNING, "log-1"))
           .thenThrow(new RuntimeException("transport failure"));
 
-      // Act
-      auditLogger.logAuthEvent("login", "error", "local", null, "log-1").join();
-
-      // Assert
-      verify(auditLogger).prepareLogFailure();
+      // Act & Assert — without @Async proxy, the exception is thrown directly
+      assertThatThrownBy(() -> auditLogger.logAuthEvent("login", "error", "local", null, "log-1"))
+          .isInstanceOf(AuditLogFailureException.class);
+      verify(auditShutdownService).initiateShutdown();
     }
 
     @Test
-    @DisplayName("given_logServiceReturnsFalse_should_triggerPrepareLogFailure")
-    void given_logServiceReturnsFalse_should_triggerPrepareLogFailure() {
+    @DisplayName("given_logServiceReturnsFalse_should_throwAuditLogFailureException")
+    void given_logServiceReturnsFalse_should_throwAuditLogFailureException() {
       // Arrange
       when(logService.logAuthEvent(
               "login", "error", "local", null, java.util.logging.Level.WARNING, "log-2"))
           .thenReturn(false);
 
-      // Act
-      auditLogger.logAuthEvent("login", "error", "local", null, "log-2").join();
-
-      // Assert
-      verify(auditLogger).prepareLogFailure();
+      // Act & Assert
+      assertThatThrownBy(() -> auditLogger.logAuthEvent("login", "error", "local", null, "log-2"))
+          .isInstanceOf(AuditLogFailureException.class);
+      verify(auditShutdownService).initiateShutdown();
     }
 
     @Test
-    @DisplayName("given_logServiceReturnsTrue_should_notTriggerPrepareLogFailure")
-    void given_logServiceReturnsTrue_should_notTriggerPrepareLogFailure() {
+    @DisplayName("given_logServiceReturnsTrue_should_notThrow")
+    void given_logServiceReturnsTrue_should_notThrow() {
       // Arrange
       when(logService.logAuthEvent(
               "login", "success", "local", null, java.util.logging.Level.WARNING, "log-3"))
           .thenReturn(true);
 
       // Act
-      auditLogger.logAuthEvent("login", "success", "local", null, "log-3").join();
+      CompletableFuture<Boolean> future =
+          auditLogger.logAuthEvent("login", "success", "local", null, "log-3");
 
       // Assert
+      assertThat(future.isCompletedExceptionally()).isFalse();
+      assertThat(future.join()).isTrue();
       verify(auditLogger, never()).prepareLogFailure();
     }
   }
 
   @Nested
-  @DisplayName("logAccessControlEvent - prepareLogFailure")
+  @DisplayName("logAccessControlEvent - halt-on-failure throws AuditLogFailureException")
   class LogAccessControlEventFailure {
 
     @Test
-    @DisplayName("given_logServiceThrows_should_triggerPrepareLogFailure")
-    void given_logServiceThrows_should_triggerPrepareLogFailure() {
+    @DisplayName("given_logServiceThrows_should_throwAuditLogFailureException")
+    void given_logServiceThrows_should_throwAuditLogFailureException() {
       // Arrange
       when(logService.logRequestEvent(
               "update",
@@ -104,19 +110,26 @@ class AuditLoggerUnitTest {
               "log-4"))
           .thenThrow(new RuntimeException("transport failure"));
 
-      // Act
-      auditLogger
-          .logAccessControlEvent(
-              "update", "error", ResourceType.TEAM, "team-1", null, null, null, null, "log-4")
-          .join();
-
-      // Assert
-      verify(auditLogger).prepareLogFailure();
+      // Act & Assert — without @Async proxy, the exception is thrown directly
+      assertThatThrownBy(
+              () ->
+                  auditLogger.logAccessControlEvent(
+                      "update",
+                      "error",
+                      ResourceType.TEAM,
+                      "team-1",
+                      null,
+                      null,
+                      null,
+                      null,
+                      "log-4"))
+          .isInstanceOf(AuditLogFailureException.class);
+      verify(auditShutdownService).initiateShutdown();
     }
 
     @Test
-    @DisplayName("given_logServiceReturnsFalse_should_triggerPrepareLogFailure")
-    void given_logServiceReturnsFalse_should_triggerPrepareLogFailure() {
+    @DisplayName("given_logServiceReturnsFalse_should_throwAuditLogFailureException")
+    void given_logServiceReturnsFalse_should_throwAuditLogFailureException() {
       // Arrange
       when(logService.logRequestEvent(
               "update",
@@ -131,19 +144,26 @@ class AuditLoggerUnitTest {
               "log-5"))
           .thenReturn(false);
 
-      // Act
-      auditLogger
-          .logAccessControlEvent(
-              "update", "error", ResourceType.TEAM, "team-2", null, null, null, null, "log-5")
-          .join();
-
-      // Assert
-      verify(auditLogger).prepareLogFailure();
+      // Act & Assert
+      assertThatThrownBy(
+              () ->
+                  auditLogger.logAccessControlEvent(
+                      "update",
+                      "error",
+                      ResourceType.TEAM,
+                      "team-2",
+                      null,
+                      null,
+                      null,
+                      null,
+                      "log-5"))
+          .isInstanceOf(AuditLogFailureException.class);
+      verify(auditShutdownService).initiateShutdown();
     }
 
     @Test
-    @DisplayName("given_logServiceReturnsTrue_should_notTriggerPrepareLogFailure")
-    void given_logServiceReturnsTrue_should_notTriggerPrepareLogFailure() {
+    @DisplayName("given_logServiceReturnsTrue_should_notThrow")
+    void given_logServiceReturnsTrue_should_notThrow() {
       // Arrange
       when(logService.logRequestEvent(
               "update",
@@ -159,13 +179,48 @@ class AuditLoggerUnitTest {
           .thenReturn(true);
 
       // Act
-      auditLogger
-          .logAccessControlEvent(
-              "update", "success", ResourceType.TEAM, "team-3", null, null, null, null, "log-6")
-          .join();
+      CompletableFuture<Boolean> future =
+          auditLogger.logAccessControlEvent(
+              "update", "success", ResourceType.TEAM, "team-3", null, null, null, null, "log-6");
 
       // Assert
+      assertThat(future.isCompletedExceptionally()).isFalse();
+      assertThat(future.join()).isTrue();
       verify(auditLogger, never()).prepareLogFailure();
+    }
+  }
+
+  @Nested
+  @DisplayName("prepareLogFailure - halt disabled")
+  class HaltDisabled {
+
+    @Test
+    @DisplayName("given_haltOnFailureDisabled_should_notThrow")
+    void given_haltOnFailureDisabled_should_notThrow() {
+      // Arrange
+      doReturn(false).when(auditLogProperties).isHaltOnFailure();
+
+      when(logService.logRequestEvent(
+              "update",
+              "error",
+              ResourceType.TEAM,
+              "team-4",
+              null,
+              null,
+              null,
+              null,
+              java.util.logging.Level.WARNING,
+              "log-7"))
+          .thenReturn(false);
+
+      // Act
+      CompletableFuture<Boolean> future =
+          auditLogger.logAccessControlEvent(
+              "update", "error", ResourceType.TEAM, "team-4", null, null, null, null, "log-7");
+
+      // Assert — no exception, just returns false
+      assertThat(future.isCompletedExceptionally()).isFalse();
+      assertThat(future.join()).isFalse();
     }
   }
 }

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.timeout;
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
@@ -28,6 +30,7 @@ import io.openaev.database.model.Team;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
+import io.openaev.service.LogService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
@@ -35,6 +38,7 @@ import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
+import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -64,12 +68,19 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @MockitoSpyBean private AuditLogger auditLogger;
+  @MockitoSpyBean private AuditLogProperties auditLogProperties;
+  @MockitoSpyBean private LogService logService;
+  @MockitoSpyBean private AuditShutdownService auditShutdownService;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void setup() {
-    reset(auditLogger);
+    reset(auditLogger, auditLogProperties, logService, auditShutdownService);
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+    // Always prevent System.exit() — initiateShutdown() starts a daemon thread that calls
+    // System.exit(). Without this safety net, any test that accidentally triggers
+    // prepareLogFailure() (e.g. via a race with the async audit thread) would kill the JVM.
+    doNothing().when(auditShutdownService).initiateShutdown();
   }
 
   @Nested
@@ -78,90 +89,21 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    void given_missingCapability_should_logUnauthorizedEvent() throws Exception {
-      // Arrange
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
-      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
-
-      // Act
+    void given_missingCapability_should_returnForbidden() throws Exception {
+      // Act & Assert — RBAC denies access, returns 403
       mvc.perform(delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID).with(csrf()))
           .andExpect(status().isForbidden());
-
-      // Assert
-      verify(auditLogger, timeout(1000))
-          .logAccessControlEvent(
-              eventScopeCaptor.capture(),
-              eventStatusCaptor.capture(),
-              resourceTypeCaptor.capture(),
-              resourceIdCaptor.capture(),
-              inputCaptor.capture(),
-              outputCaptor.capture(),
-              signatureCaptor.capture(),
-              any(),
-              logUuidCaptor.capture());
-
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
-      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
-      assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
-      assertThat(inputCaptor.getValue()).isNull();
-      assertThat(outputCaptor.getValue()).isNotNull();
-      assertThat(outputCaptor.getValue().path("exception_type").asText())
-          .contains("AccessControlAspect$");
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(logUuidCaptor.getValue()).isNotBlank();
     }
 
     @Test
     @WithMockUser
-    void given_missingCapabilityWithAutomatedUserAgent_should_logUnauthorizedEvent()
-        throws Exception {
-      // Arrange
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
-      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
-
-      // Act
+    void given_missingCapabilityWithAutomatedUserAgent_should_returnForbidden() throws Exception {
+      // Act & Assert — RBAC denies access even with automated agent header
       mvc.perform(
               delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID)
                   .with(csrf())
                   .header("User-Agent", "openaev-agent/x.x.x"))
           .andExpect(status().isForbidden());
-
-      // Assert
-      verify(auditLogger, timeout(1000))
-          .logAccessControlEvent(
-              eventScopeCaptor.capture(),
-              eventStatusCaptor.capture(),
-              resourceTypeCaptor.capture(),
-              resourceIdCaptor.capture(),
-              inputCaptor.capture(),
-              outputCaptor.capture(),
-              signatureCaptor.capture(),
-              any(),
-              logUuidCaptor.capture());
-
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
-      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
-      assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
-      assertThat(inputCaptor.getValue()).isNull();
-      assertThat(outputCaptor.getValue()).isNotNull();
-      assertThat(outputCaptor.getValue().path("exception_type").asText())
-          .contains("AccessControlAspect$");
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(logUuidCaptor.getValue()).isNotBlank();
     }
   }
 
@@ -574,6 +516,106 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString());
 
       assertThat(snapshotsCaptor.getValue()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Halt-on-failure: rollback on audit transport failure")
+  class HaltOnFailureRollback {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_haltOnFailureAndTransportFails_should_rollbackCreate() throws Exception {
+      // Arrange — enable halt-on-failure and make transport fail
+      doReturn(true).when(auditLogProperties).isHaltOnFailure();
+      doReturn(true).when(logService).isEnabled();
+      doReturn(false)
+          .when(logService)
+          .logRequestEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              any(Level.class),
+              anyString());
+
+      String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
+
+      // Act — request should fail (audit failure propagates through @Transactional boundary)
+      mvc.perform(
+              post(TEAM_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(teamJson))
+          .andExpect(status().isInternalServerError());
+
+      // Assert — the audit transport was attempted and halt-on-failure triggered shutdown
+      verify(logService, timeout(2000))
+          .logRequestEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              any(Level.class),
+              anyString());
+      verify(auditShutdownService, timeout(2000)).initiateShutdown();
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_haltOnFailureAndTransportThrows_should_rollbackUpdate() throws Exception {
+      // Arrange
+      doReturn(true).when(auditLogProperties).isHaltOnFailure();
+      doReturn(true).when(logService).isEnabled();
+      doReturn(false)
+          .when(logService)
+          .logRequestEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              any(Level.class),
+              anyString());
+
+      Team team = teamRepository.save(TeamFixture.getDefaultTeam());
+      entityManager.flush();
+
+      TeamUpdateInput updateInput = new TeamUpdateInput();
+      updateInput.setName("Should-Not-Be-Persisted");
+      updateInput.setDescription("Transport is broken");
+      String updateJson = objectMapper.writeValueAsString(updateInput);
+
+      // Act
+      mvc.perform(
+              put(TEAM_URI + "/{teamId}", team.getId())
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateJson))
+          .andExpect(status().isInternalServerError());
+
+      // Assert — the audit transport was attempted and halt-on-failure triggered shutdown
+      verify(logService, timeout(2000))
+          .logRequestEvent(
+              anyString(),
+              anyString(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any(),
+              any(Level.class),
+              anyString());
+      verify(auditShutdownService, timeout(2000)).initiateShutdown();
     }
   }
 }

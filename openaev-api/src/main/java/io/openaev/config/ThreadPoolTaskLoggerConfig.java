@@ -5,10 +5,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -17,7 +19,10 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Configuration
+@RequiredArgsConstructor
 public class ThreadPoolTaskLoggerConfig {
+
+  private final AuditLogProperties auditLogProperties;
 
   private ThreadPoolTaskExecutor createBaseExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -35,6 +40,11 @@ public class ThreadPoolTaskLoggerConfig {
 
   @Bean(name = "taskLoggerExecutor")
   public Executor contextAwareExecutor() {
+    // If halt on failure, we switch to a sync task executor instead of an async one
+    if (auditLogProperties.isHaltOnFailure()) {
+      return new SyncTaskExecutor();
+    }
+
     ThreadPoolTaskExecutor executor = createBaseExecutor();
 
     executor.setTaskDecorator(

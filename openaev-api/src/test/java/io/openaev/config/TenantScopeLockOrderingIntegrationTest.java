@@ -55,13 +55,13 @@ class TenantScopeLockOrderingIntegrationTest {
 
   @Test
   @DisplayName(
-      "the transaction advisor really sits at LOWEST_PRECEDENCE - 1 (the order is effective)")
+      "the transaction advisor really sits at LOWEST_PRECEDENCE - 2 (the order is effective)")
   void transactionAdvisorOrderIsApplied() {
     assertEquals(
-        Ordered.LOWEST_PRECEDENCE - 1,
+        Ordered.LOWEST_PRECEDENCE - 2,
         transactionAdvisor.getOrder(),
         "@EnableTransactionManagement(order=...) must actually move the advisor; otherwise the lock"
-            + " -> tx -> scope ordering is illusory and still rests on an undefined tie-break");
+            + " -> tx -> audit -> scope ordering is illusory and still rests on an undefined tie-break");
   }
 
   @Test

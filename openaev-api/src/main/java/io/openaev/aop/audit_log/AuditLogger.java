@@ -13,13 +13,10 @@ import io.openaev.service.LogService;
 import io.openaev.utils.object.ObjectDiffUtils;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -38,11 +35,10 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AuditLogger {
 
-  private final ApplicationContext context;
+  private final AuditShutdownService auditShutdownService;
   private final AuditLogProperties auditLogProperties;
   private final LogService logService;
   private final ObjectMapper objectMapper;
-  private final AtomicBoolean shutdownTriggered = new AtomicBoolean(false);
 
   public boolean isAuditLoggingEnabled() {
     return logService.isEnabled();
@@ -53,29 +49,19 @@ public class AuditLogger {
   }
 
   public void prepareLogFailure() {
-    // Halt the application when Halt-on-failure is enabled and a log failure occurs.
-    try {
-      if (!auditLogProperties.isHaltOnFailure()) {
-        log.info("[AUDIT] Halt-on-failure disabled, application continue running...");
-        return;
-      }
-
-      if (!shutdownTriggered.compareAndSet(false, true)) {
-        log.debug("[AUDIT] Shutdown already triggered by another thread.");
-        return;
-      }
-
-      log.error("[AUDIT] Halt-on-failure triggered - shutting down application.");
-      int exitCode = SpringApplication.exit(context);
-      if (exitCode == 0) {
-        exitCode = 1; // optional fallback policy
-      }
-
-      System.exit(exitCode);
-      log.error("[AUDIT] Spring shutdown initiated with exit code {}.", exitCode);
-    } catch (Exception e) {
-      log.warn("[AUDIT] Failed to execute log failure action: {}", e.getMessage(), e);
+    if (!auditLogProperties.isHaltOnFailure()) {
+      log.info("[AUDIT] Halt-on-failure disabled, application continues running...");
+      return;
     }
+
+    log.error("[AUDIT] Halt-on-failure triggered — rolling back and shutting down.");
+
+    // Schedule application shutdown on a separate thread so the current transaction
+    // can rollback first (the throw below unwinds the call stack before the shutdown runs).
+    auditShutdownService.initiateShutdown();
+
+    throw new AuditLogFailureException(
+        "Audit transport failed with halt-on-failure enabled — transaction rolled back.");
   }
 
   /**

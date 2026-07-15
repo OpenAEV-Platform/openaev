@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
@@ -14,6 +15,7 @@ import io.openaev.utils.log.LogUtils;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,17 +43,24 @@ import org.springframework.web.server.ResponseStatusException;
  * <p>Runs <b>after</b> {@link AccessControlAspect} (which uses {@code @Before}) — the RBAC check
  * has already passed when this aspect's {@code @Around} advice executes.
  *
+ * <p>The aspect order is {@code LOWEST_PRECEDENCE - 1} so it runs <b>inside</b> the transaction
+ * boundary ({@code LOWEST_PRECEDENCE - 2}) and <b>outside</b> the RBAC aspect ({@code
+ * LOWEST_PRECEDENCE}). When halt-on-failure is active and the audit transport fails, the thrown
+ * {@link AuditLogFailureException} propagates through the transaction interceptor, which rolls back
+ * the mutation.
+ *
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
 @Aspect
 @Component
 @ConditionalOnExpression("!'${openaev.audit-logs.transports:}'.isEmpty()")
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.LOWEST_PRECEDENCE - 1)
 @RequiredArgsConstructor
 @Slf4j
 public class AccessControlAuditLogAspect {
 
   private final AuditLogger auditLogger;
+  private final AuditLogProperties auditLogProperties;
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
@@ -113,6 +122,8 @@ public class AccessControlAuditLogAspect {
         JsonNode resultNode = getOutputNode(result);
 
         logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
+      } catch (AuditLogFailureException ex) {
+        throw ex;
       } catch (Exception ex) {
         log.warn(LOG_ERROR_MSG, ex);
       }
@@ -148,8 +159,8 @@ public class AccessControlAuditLogAspect {
             }
           };
 
-      auditLogger
-          .logAccessControlEvent(
+      CompletableFuture<Boolean> auditFuture =
+          auditLogger.logAccessControlEvent(
               eventScope,
               eventStatus,
               resourceType,
@@ -158,8 +169,20 @@ public class AccessControlAuditLogAspect {
               outputNode,
               signatureNode,
               snapshots,
-              logUUID)
-          .whenComplete(logCompletion);
+              logUUID);
+
+      auditFuture.whenComplete(logCompletion);
+
+      // When halt-on-failure is enabled, the executor is synchronous (SyncTaskExecutor) so the
+      // future is already resolved. join() rethrows if the audit transport failed.
+      if (auditLogProperties.isHaltOnFailure()) {
+        auditFuture.join();
+      }
+    } catch (java.util.concurrent.CompletionException ex) {
+      if (ex.getCause() instanceof AuditLogFailureException auditEx) {
+        throw auditEx;
+      }
+      log.warn(LOG_ERROR_MSG, ex);
     } catch (Exception ex) {
       log.warn(LOG_ERROR_MSG, ex);
     }
