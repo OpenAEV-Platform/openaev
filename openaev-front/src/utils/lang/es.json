@@ -2241,6 +2241,7 @@
   "The command was not found on the target. Ensure the tool is installed and available in the system PATH.": "El comando no fue encontrado en el objetivo. Asegúrese de que la herramienta esté instalada y disponible en el PATH del sistema.",
   "The country code and mobile phone number provided is invalid. Please provide a valid number": "El código de país y el número de teléfono móvil proporcionados no son válidos. Por favor, proporcione un número válido",
   "The deployment from this catalog requires an Enterprise Edition license.": "El despliegue desde este catálogo requiere una licencia Enterprise Edition.",
+  "The default tenant cannot be deleted.": "El tenant predeterminado no se puede eliminar.",
   "The document is used in the following sections:": "El documento se utiliza en las siguientes secciones:",
   "The element already exists": "El elemento ya existe",
   "The element has been successfully deleted": "El elemento se ha eliminado correctamente",

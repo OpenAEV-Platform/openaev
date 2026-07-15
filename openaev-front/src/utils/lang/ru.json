@@ -2241,6 +2241,7 @@
   "The command was not found on the target. Ensure the tool is installed and available in the system PATH.": "The command was not found on the target. Ensure the tool is installed and available in the system PATH.",
   "The country code and mobile phone number provided is invalid. Please provide a valid number": "Указанные код страны и номер мобильного телефона недействительны. Пожалуйста, укажите действительный номер",
   "The deployment from this catalog requires an Enterprise Edition license.": "Для развертывания из этого каталога требуется лицензия Enterprise Edition.",
+  "The default tenant cannot be deleted.": "Тенант по умолчанию нельзя удалить.",
   "The document is used in the following sections:": "Документ используется в следующих разделах:",
   "The element already exists": "Элемент уже существует",
   "The element has been successfully deleted": "Элемент был успешно удален",

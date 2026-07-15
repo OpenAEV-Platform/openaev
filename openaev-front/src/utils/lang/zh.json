@@ -2241,6 +2241,7 @@
   "The command was not found on the target. Ensure the tool is installed and available in the system PATH.": "The command was not found on the target. Ensure the tool is installed and available in the system PATH.",
   "The country code and mobile phone number provided is invalid. Please provide a valid number": "所提供的国家代码和手机号码无效。请提供有效号码",
   "The deployment from this catalog requires an Enterprise Edition license.": "从该目录进行部署需要企业版许可证。",
+  "The default tenant cannot be deleted.": "默认租户无法删除。",
   "The document is used in the following sections:": "本文件在以下章节中使用：",
   "The element already exists": "元素已存在.",
   "The element has been successfully deleted": "元素已成功删除",

@@ -2241,6 +2241,7 @@
   "The command was not found on the target. Ensure the tool is installed and available in the system PATH.": "ターゲット上にコマンドが見つかりませんでした。ツールがインストールされ、システムPATHで利用可能であることを確認してください。",
   "The country code and mobile phone number provided is invalid. Please provide a valid number": "入力された国番号と携帯電話番号は無効です。有効な番号を入力してください。",
   "The deployment from this catalog requires an Enterprise Edition license.": "このカタログからのデプロイには Enterprise Edition のライセンスが必要です。",
+  "The default tenant cannot be deleted.": "デフォルトのテナントは削除できません。",
   "The document is used in the following sections:": "ドキュメントは以下のセクションで使用されます：",
   "The element already exists": "その要素はすでに存在する",
   "The element has been successfully deleted": "要素の削除に成功した",

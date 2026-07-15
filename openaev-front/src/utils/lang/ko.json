@@ -2241,6 +2241,7 @@
   "The command was not found on the target. Ensure the tool is installed and available in the system PATH.": "The command was not found on the target. Ensure the tool is installed and available in the system PATH.",
   "The country code and mobile phone number provided is invalid. Please provide a valid number": "입력한 국가 코드와 휴대폰 번호가 유효하지 않습니다. 유효한 번호를 입력하세요",
   "The deployment from this catalog requires an Enterprise Edition license.": "이 카탈로그에서 배포하려면 Enterprise Edition 라이선스가 필요합니다.",
+  "The default tenant cannot be deleted.": "기본 테넌트는 삭제할 수 없습니다.",
   "The document is used in the following sections:": "이 문서는 다음 섹션에서 사용됩니다:",
   "The element already exists": "요소가 이미 존재합니다",
   "The element has been successfully deleted": "요소가 성공적으로 삭제되었습니다",

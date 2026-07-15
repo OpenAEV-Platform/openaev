@@ -100,11 +100,12 @@ const TenantPopover: FunctionComponent<Props> = ({
 
     if (
       actions.includes('Delete')
-      && !isDefaultTenant
     ) {
       result.push({
         label: t('Delete'),
         action: handleOpenDelete,
+        disabled: isDefaultTenant,
+        disabledMessage: t('The default tenant cannot be deleted.'),
         userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANTS),
       });
     }
