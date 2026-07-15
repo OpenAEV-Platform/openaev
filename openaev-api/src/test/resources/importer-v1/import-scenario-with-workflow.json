@@ -65,7 +65,7 @@
     "workflow_scope_variables": [
       {
         "scope_variable_key": "target_ip",
-        "scope_variable_type": "Text",
+        "scope_variable_type": "text",
         "scope_variable_value": "192.168.1.1",
         "scope_variable_description": "Target IP"
       }
