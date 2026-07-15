@@ -231,6 +231,7 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 | `GET /simulations/{id}/graph?mode=` | the `AttackPathDTO` (full or collapsed) |
 | `GET /simulations/{id}/endpoint/findings?ref=` | one endpoint's finding-type and finding nodes |
 | `GET /simulations/{id}/endpoint/relations?ref=` | one endpoint's executions (feed) and grouped edges |
+| `GET /simulations/{id}/findings?category=&page=&size=` | a page of a widget category's findings for the drawer (credentials masked) |
 | `POST /seed` | admin-only; generates synthetic data (see §8) |
 
 `ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
