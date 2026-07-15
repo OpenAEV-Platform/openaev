@@ -17,6 +17,18 @@ inputs:
   browser:
     description: "Browser name (chrome, chromium, webkit, or firefox) — used for artifact naming and browser install."
     required: true
+  artifact-suffix:
+    description: >
+      Optional suffix appended to uploaded artifact names (e.g. a matrix
+      dimension like arch). Needed when a caller job runs this action
+      multiple times with the SAME browser value inside a single matrix
+      (e.g. e2e-infra-tests: x64/arm64 both use browser=chromium) — without
+      a suffix, the parallel legs would upload identically-named artifacts
+      in the same workflow run and actions/upload-artifact would fail with
+      a 409 Conflict. Leave empty when browser alone is already unique per
+      run (default, backward compatible).
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -243,11 +255,14 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-report-${{ inputs.browser }}
+        # artifact-suffix keeps names unique when the same browser value
+        # is used by multiple parallel matrix legs in the same run
+        # (e.g. e2e-infra-tests x64/arm64) — see input description above.
+        name: playwright-report-${{ inputs.browser }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
       if: ${{ !cancelled() && inputs.browser == 'chrome' }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-coverage-${{ inputs.browser }}
+        name: playwright-coverage-${{ inputs.browser }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}
         path: openaev-front/test-results/coverage/
