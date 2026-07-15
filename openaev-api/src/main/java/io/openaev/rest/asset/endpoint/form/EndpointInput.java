@@ -1,5 +1,6 @@
 package io.openaev.rest.asset.endpoint.form;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetCriticality;
@@ -32,13 +33,20 @@ public class EndpointInput extends AssetInput {
   @Schema(types = {"string", "null"})
   private Endpoint.PLATFORM_ARCH arch;
 
+  // The @JsonAlias on the renamed network fields keep already-deployed agents working: the
+  // installed agent fleet registers with the legacy endpoint_* wire names and only self-updates
+  // after a successful registration, so the old names must stay accepted on input.
+
   @JsonProperty("asset_ips")
+  @JsonAlias("endpoint_ips")
   private String[] ips;
 
   @JsonProperty("asset_hostname")
+  @JsonAlias("endpoint_hostname")
   private String hostname;
 
   @JsonProperty("asset_url")
+  @JsonAlias("endpoint_url")
   @Schema(types = {"string", "null"})
   private String url;
 
@@ -46,6 +54,7 @@ public class EndpointInput extends AssetInput {
   private String agentVersion;
 
   @JsonProperty("asset_mac_addresses")
+  @JsonAlias("endpoint_mac_addresses")
   private String[] macAddresses;
 
   @Schema(description = "True if the endpoint is in an End of Life state")
