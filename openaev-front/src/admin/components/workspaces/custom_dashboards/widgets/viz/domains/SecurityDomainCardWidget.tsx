@@ -62,6 +62,12 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
   const bandColor = colorByAverageForExpectation(score, theme);
   const animatedScore = useCountUp(hasScore ? score : 0, 1200);
 
+  // Tile surface: the blue-tinted accent works on the dark theme, but in light
+  // mode it reads as baby blue - use the neutral page background grey instead.
+  const surface = theme.palette.mode === 'dark'
+    ? theme.palette.background.accent ?? theme.palette.background.paper
+    : theme.palette.background.default;
+
   const onPercentClick = (expectationType: string, expectationStatus: string) => {
     const domain = domains.find(d => d.domain_name === domainName);
     if (!domain) {
@@ -104,7 +110,7 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
           'borderRadius': 1,
           'textAlign': 'left',
           'color': 'text.primary',
-          'backgroundColor': alpha(theme.palette.background.accent ?? theme.palette.background.paper, hasData ? 0.5 : 0.25),
+          'backgroundColor': alpha(surface, hasData ? 0.5 : 0.25),
           'border': '1px solid',
           'borderColor': isOpen ? alpha(bandColor, 0.55) : theme.palette.divider,
           'transition': 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
@@ -228,7 +234,7 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
             padding: theme.spacing(1.25, 1.5),
             borderRadius: 4,
             border: `1px solid ${alpha(bandColor, 0.35)}`,
-            backgroundColor: alpha(theme.palette.background.accent ?? theme.palette.background.paper, 0.5),
+            backgroundColor: alpha(surface, 0.5),
             boxShadow: `inset 2px 0 0 ${bandColor}`,
           }}
         >
