@@ -52,7 +52,8 @@ public class ExpectationsExpirationManagerService {
       this.processRemainingExpectations(expectations, collector, updated);
       this.injectExpectationService.updateAll(updated);
 
-      // Non-expired expectations are skipped by processAgentExpectations/processRemainingExpectations,
+      // Non-expired expectations are skipped by
+      // processAgentExpectations/processRemainingExpectations,
       // so they keep score=null and reappear in the next fetch. We advance the offset to skip them.
       long unprocessedCount = expectations.stream().filter(e -> e.getScore() == null).count();
       offset += (int) unprocessedCount;

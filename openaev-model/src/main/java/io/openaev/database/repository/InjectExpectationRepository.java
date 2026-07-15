@@ -155,9 +155,7 @@ public interface InjectExpectationRepository
   List<BaseInjectExpectation> findExpectationsNotFilled(
       @Param("tenantId") String tenantId, @Param("type") String type, @Param("limit") int limit);
 
-  /**
-   * Finds unfilled expectations for the expiration manager.
-   */
+  /** Finds unfilled expectations for the expiration manager. */
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "

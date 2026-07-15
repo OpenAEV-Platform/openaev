@@ -14,6 +14,7 @@ import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
+import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,7 @@ class SignatureOutputProcessorTest {
   private final InjectExpectationRepository injectExpectationRepository =
       mock(InjectExpectationRepository.class);
   private final CollectorService collectorService = mock(CollectorService.class);
+  private final EntityManager entityManager = mock(EntityManager.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
   private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
@@ -39,6 +41,7 @@ class SignatureOutputProcessorTest {
       new InjectExpectationService(
           injectExpectationRepository,
           collectorService,
+          entityManager,
           securityCoverageSendJobService,
           injectExpectationLockService,
           assetGroupService,
