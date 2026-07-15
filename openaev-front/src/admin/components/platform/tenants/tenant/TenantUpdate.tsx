@@ -6,6 +6,8 @@ import { useFormatter } from '../../../../../components/i18n';
 import { type TenantInput, type TenantOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
+import { DEFAULT_TENANT_UUID } from '../../../../../utils/url-helper';
+import DefaultTenantDangerZone from '../DefaultTenantDangerZone';
 import TenantForm from './TenantForm';
 
 interface Props {
@@ -58,12 +60,25 @@ const TenantUpdate: FunctionComponent<Props> = ({
       handleClose={onClose}
       title={t('Update Tenant')}
     >
-      <TenantForm
-        initialValues={initialValues}
-        editing
-        onSubmit={handleSubmit}
-        onCancel={onClose}
-      />
+      {tenant.tenant_id === DEFAULT_TENANT_UUID
+        ? (
+            <DefaultTenantDangerZone>
+              <TenantForm
+                initialValues={initialValues}
+                editing
+                onSubmit={handleSubmit}
+                onCancel={onClose}
+              />
+            </DefaultTenantDangerZone>
+          )
+        : (
+            <TenantForm
+              initialValues={initialValues}
+              editing
+              onSubmit={handleSubmit}
+              onCancel={onClose}
+            />
+          )}
     </Drawer>
   );
 };

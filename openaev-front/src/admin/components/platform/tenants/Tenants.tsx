@@ -13,7 +13,9 @@ import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type TenantOutput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/url-helper';
 import SecurityMenu from '../../settings/SecurityMenu';
+import DefaultTenantDangerZone from './DefaultTenantDangerZone';
 import useTenants from './hooks/useTenants';
 import TenantCreate from './tenant/TenantCreate';
 import TenantPopover from './TenantPopover';
@@ -94,14 +96,28 @@ const Tenants = () => {
                 <PaginatedList<TenantOutput>
                   Icon={HomeWorkOutlined}
                   secondaryAction={tenant => (
-                    <TenantPopover
-                      inList
-                      tenant={tenant}
-                      actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update', 'Delete']}
-                      onUpdate={updateTenant}
-                      onDelete={softDeleteTenant}
-                      onReactivate={reactivateTenant}
-                    />
+                    tenant.tenant_id === DEFAULT_TENANT_UUID
+                      ? (
+                          <DefaultTenantDangerZone>
+                            <TenantPopover
+                              inList
+                              tenant={tenant}
+                              actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update']}
+                              onUpdate={updateTenant}
+                              onReactivate={reactivateTenant}
+                            />
+                          </DefaultTenantDangerZone>
+                        )
+                      : (
+                          <TenantPopover
+                            inList
+                            tenant={tenant}
+                            actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update', 'Delete']}
+                            onUpdate={updateTenant}
+                            onDelete={softDeleteTenant}
+                            onReactivate={reactivateTenant}
+                          />
+                        )
                   )}
                   headers={headers}
                   items={tenants}

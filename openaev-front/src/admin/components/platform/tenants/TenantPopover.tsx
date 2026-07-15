@@ -9,6 +9,7 @@ import type { TenantOutput } from '../../../../utils/api-types';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { DEFAULT_TENANT_UUID } from '../../../../utils/url-helper';
 import TenantUpdate from './tenant/TenantUpdate';
 
 type ActionType = 'Update' | 'Delete' | 'Reactivate';
@@ -83,6 +84,8 @@ const TenantPopover: FunctionComponent<Props> = ({
   }, [tenant.tenant_id, onReactivate, handleCloseReactivate, reloadUserTenants]);
 
   // Button Popover
+  const isDefaultTenant = tenant.tenant_id === DEFAULT_TENANT_UUID;
+
   const entries = useMemo(() => {
     const result = [];
 
@@ -98,6 +101,7 @@ const TenantPopover: FunctionComponent<Props> = ({
 
     if (
       actions.includes('Delete')
+      && !isDefaultTenant
     ) {
       result.push({
         label: t('Delete'),
@@ -117,7 +121,7 @@ const TenantPopover: FunctionComponent<Props> = ({
     }
 
     return result;
-  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate]);
+  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate, isDefaultTenant]);
 
   return (
     <>
