@@ -273,6 +273,7 @@ class WorkflowExportInitializerTest {
     Domain domain = new Domain();
     domain.setId(id);
     domain.setName(id);
+    domain.setColor("#000000");
     return domain;
   }
 
