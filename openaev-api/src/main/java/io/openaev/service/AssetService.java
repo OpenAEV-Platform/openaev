@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,15 @@ public class AssetService {
 
   public List<Asset> assets() {
     return fromIterable(this.assetRepository.findAll());
+  }
+
+  /**
+   * Resolve assets of any type (Endpoint, AiTarget, SecurityPlatform, ...) matching the given
+   * specification. Used for dynamic asset group resolution, which must span every asset category -
+   * not only endpoints - so that e.g. a {@code Category = AI_TARGET} group resolves its AI targets.
+   */
+  public List<Asset> assets(@NotNull final Specification<Asset> specification) {
+    return fromIterable(this.assetRepository.findAll(specification));
   }
 
   public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {

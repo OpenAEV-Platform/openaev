@@ -6,6 +6,7 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -31,6 +32,7 @@ public class AssetGroupService {
   private final AssetGroupRepository assetGroupRepository;
   private final AssetService assetService;
   private final EndpointService endpointService;
+  private final AiTargetRepository aiTargetRepository;
   private final TagRuleService tagRuleService;
   private final AssetGroupMapper assetGroupMapper;
 
@@ -152,12 +154,12 @@ public class AssetGroupService {
           if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
             Specification<Endpoint> specification =
                 computeFilterGroupJpa(assetGroup.getDynamicFilter());
-            List<Asset> assets =
-                this.endpointService.endpoints(specification).stream()
-                    .map(Asset.class::cast)
-                    .distinct()
-                    .toList();
-            assetGroup.setDynamicAssets(assets);
+            List<Asset> assets = new ArrayList<>();
+            this.endpointService.endpoints(specification).stream()
+                .map(Asset.class::cast)
+                .forEach(assets::add);
+            assets.addAll(resolveDynamicAiTargets(assetGroup.getDynamicFilter()));
+            assetGroup.setDynamicAssets(assets.stream().distinct().toList());
           }
         });
     return assetGroups;
@@ -170,13 +172,33 @@ public class AssetGroupService {
     Specification<Endpoint> specification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
     Specification<Endpoint> specification2 =
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints();
-    List<Asset> assets =
-        this.endpointService.endpoints(specification.and(specification2)).stream()
-            .map(Asset.class::cast)
-            .distinct()
-            .toList();
-    assetGroup.setDynamicAssets(assets);
+    List<Asset> assets = new ArrayList<>();
+    this.endpointService.endpoints(specification.and(specification2)).stream()
+        .map(Asset.class::cast)
+        .forEach(assets::add);
+    assets.addAll(resolveDynamicAiTargets(assetGroup.getDynamicFilter()));
+    assetGroup.setDynamicAssets(assets.stream().distinct().toList());
     return assetGroup;
+  }
+
+  /**
+   * Resolve the AI target assets matching a dynamic filter. AI targets ({@link AiTarget}) are a
+   * distinct asset discriminator, so the endpoint-scoped resolution above never returns them; a
+   * dynamic group such as {@code Category = AI_TARGET} would otherwise always be empty. The
+   * endpoint injectability constraint (agent / agentless) does not apply to AI targets. When the
+   * filter references a field that does not exist on {@link AiTarget} (e.g. an endpoint-only {@code
+   * platform} rule) the query cannot resolve, which simply means the group does not target AI
+   * targets and contributes none.
+   */
+  private List<Asset> resolveDynamicAiTargets(@NotNull final FilterGroup dynamicFilter) {
+    try {
+      Specification<AiTarget> specification = computeFilterGroupJpa(dynamicFilter);
+      return this.aiTargetRepository.findAll(specification).stream()
+          .map(Asset.class::cast)
+          .toList();
+    } catch (RuntimeException e) {
+      return List.of();
+    }
   }
 
   public List<FilterUtilsJpa.Option> getOptionsByNameLinkedToFindings(
@@ -212,6 +234,9 @@ public class AssetGroupService {
                 group -> group,
                 group ->
                     this.assetsFromAssetGroup(group.getId()).stream()
+                        // A group may now resolve non-endpoint assets (e.g. AI targets); this
+                        // endpoint-scoped view only keeps the endpoints.
+                        .filter(Endpoint.class::isInstance)
                         .map(Endpoint.class::cast)
                         .toList()));
   }

@@ -957,9 +957,13 @@ public class InjectService {
 
   private void extractAgentsAndAssetsAgentless(
       Set<Agent> agents, Set<Asset> assetsAgentless, Asset asset) {
+    // Only endpoints carry agents. A group may resolve non-endpoint assets (e.g. AI targets);
+    // they are not agent-bearing endpoints and are irrelevant to agent extraction.
+    if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+      return;
+    }
     List<Agent> collectedAgents =
-        Optional.ofNullable(((Endpoint) Hibernate.unproxy(asset)).getAgents())
-            .orElse(Collections.emptyList());
+        Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
     if (collectedAgents.isEmpty()) {
       assetsAgentless.add(asset);
     } else {
@@ -977,9 +981,12 @@ public class InjectService {
 
     Consumer<Asset> extractAgents =
         asset -> {
+          // Only endpoints carry agents; skip non-endpoint assets (e.g. AI targets).
+          if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+            return;
+          }
           List<Agent> collectedAgents =
-              Optional.ofNullable(((Endpoint) Hibernate.unproxy(asset)).getAgents())
-                  .orElse(Collections.emptyList());
+              Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
           for (Agent agent : collectedAgents) {
             if (isPrimaryAgent(agent) && !agentIds.contains(agent.getId())) {
               agents.add(agent);
