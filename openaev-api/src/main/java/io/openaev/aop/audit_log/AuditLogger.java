@@ -2,8 +2,6 @@ package io.openaev.aop.audit_log;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.aop.AccessControl;
-import io.openaev.aop.AccessControlAspect;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.audit.AuditLogContext;
@@ -21,11 +19,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
- * AOP aspect that intercepts {@link AccessControl}-annotated controller methods to produce audit
- * log events for CRUD operations.
- *
- * <p>Runs <b>after</b> {@link AccessControlAspect} (which uses {@code @Before}) — the RBAC check
- * has already passed when this aspect's {@code @Around} advice executes.
+ * Async audit logger invoked by {@link AccessControlAuditLogAspect} to write audit events. When the
+ * transport fails and halt-on-failure is enabled, throws {@link AuditLogFailureException} to
+ * trigger a transaction rollback and schedules an application shutdown via {@link
+ * AuditShutdownService}.
  *
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
