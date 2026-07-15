@@ -1480,7 +1480,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
 "@mui/x-date-pickers@npm:9.5.0":
   version: 9.5.0
   resolution: "@mui/x-date-pickers@npm:9.5.0"
@@ -1488,15 +1487,6 @@ __metadata:
     "@babel/runtime": "npm:^7.29.7"
     "@mui/utils": "npm:9.0.1"
     "@mui/x-internals": "npm:^9.1.0"
-=======
-"@mui/x-date-pickers@npm:8.29.2":
-  version: 8.29.2
-  resolution: "@mui/x-date-pickers@npm:8.29.2"
-  dependencies:
-    "@babel/runtime": "npm:^7.28.4"
-    "@mui/utils": "npm:^7.3.5"
-    "@mui/x-internals": "npm:8.29.2"
->>>>>>> origin/main
     "@types/react-transition-group": "npm:^4.4.12"
     clsx: "npm:^2.1.1"
     prop-types: "npm:^15.8.1"
@@ -1534,7 +1524,6 @@ __metadata:
       optional: true
     moment-jalaali:
       optional: true
-<<<<<<< HEAD
   checksum: 10c0/6450b23eee116ced7f00a152c0a93cbd4dc4a68ef5109f9501dd3e759c7c1c5d15a11405853337b7fca74841a48e4daf7cd45df6843f16f32a2a0cf30c544a40
   languageName: node
   linkType: hard
@@ -1542,15 +1531,6 @@ __metadata:
 "@mui/x-internals@npm:^9.1.0":
   version: 9.1.0
   resolution: "@mui/x-internals@npm:9.1.0"
-=======
-  checksum: 10c0/b424c3dc695fcb24308a88906793a0348b94bb026e641ebc540ae1ef26976d4eacf68b4ab5a3c721f22d71ea9cdddf49885d1a3bb96413b0b694c3693ecb10cd
-  languageName: node
-  linkType: hard
-
-"@mui/x-internals@npm:8.29.2":
-  version: 8.29.2
-  resolution: "@mui/x-internals@npm:8.29.2"
->>>>>>> origin/main
   dependencies:
     "@babel/runtime": "npm:^7.29.2"
     "@mui/utils": "npm:9.0.0"
@@ -1558,11 +1538,7 @@ __metadata:
     use-sync-external-store: "npm:^1.6.0"
   peerDependencies:
     react: ^17.0.0 || ^18.0.0 || ^19.0.0
-<<<<<<< HEAD
   checksum: 10c0/3494fb8794b11e3d10e17310dcfb4affa95e73be00908b6e27f6016f13569bd643bc41b02ac032e7bd2dbbe44c8ba211a348fff4110548d7af6450650814eb3e
-=======
-  checksum: 10c0/2f43fc4305011b3b232e635de28b596ca259fcd641bc4097f686dd6ce4218413bf609d968f7d164f074547d0845eaf9cc4977543fd3ba86cd6fab12fa48c6370
->>>>>>> origin/main
   languageName: node
   linkType: hard
 
@@ -8914,15 +8890,9 @@ __metadata:
     "@microsoft/fetch-event-source": "npm:2.0.1"
     "@mui/icons-material": "npm:9.1.1"
     "@mui/lab": "npm:7.0.0-beta.17"
-<<<<<<< HEAD
     "@mui/material": "npm:9.1.1"
     "@mui/system": "npm:9.1.1"
     "@mui/x-date-pickers": "npm:9.5.0"
-=======
-    "@mui/material": "npm:7.3.11"
-    "@mui/system": "npm:7.3.11"
-    "@mui/x-date-pickers": "npm:8.29.2"
->>>>>>> origin/main
     "@playwright/test": "npm:1.61.1"
     "@redux-devtools/extension": "npm:4.0.0"
     "@stylistic/eslint-plugin": "npm:5.10.0"
