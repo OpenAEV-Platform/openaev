@@ -170,7 +170,7 @@ public class WorkflowExportInitializer {
               String key = field.getKey();
               JsonNode sourceValue = field.getValue();
               JsonNode targetValue = target.get(key);
-              if (targetValue == null) {
+              if (targetValue == null || targetValue.isNull()) {
                 target.set(key, sourceValue);
                 return;
               }
