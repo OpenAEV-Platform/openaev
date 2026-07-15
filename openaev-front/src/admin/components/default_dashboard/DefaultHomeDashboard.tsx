@@ -6,17 +6,17 @@ import { useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { fetchSecurityPlatforms } from '../../../actions/assets/securityPlatform-actions';
-import { adHocAverage, adHocCount, adHocEntities, adHocSeries } from '../../../actions/dashboards/dashboard-action';
+import { adHocAverage, adHocCount, adHocEntities, adHocEntitiesRuntime, adHocSeries } from '../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../components/i18n';
-import { type CustomDashboard, type Widget } from '../../../utils/api-types';
+import { type CustomDashboard, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { CustomDashboardContext, type CustomDashboardContextType } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
+import { type WidgetDataDrawerConf } from '../workspaces/custom_dashboards/widgetDataDrawer/WidgetDataDrawer';
 import { getTimeRangeItems } from '../workspaces/custom_dashboards/widgets/configuration/common/TimeRangeUtils';
 import {
   buildDefaultHomeWidgets,
-  DEFAULT_HOME_WIDGET_ROUTES,
   type DefaultTimeRange,
   PLATFORM_DEFAULT_DASHBOARD_ID,
 } from './defaultHomeWidgets';
@@ -45,9 +45,9 @@ const DefaultHomeDashboard = () => {
 
   const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange), [timeRange]);
 
-  const widgetConfigById = useMemo(() => {
-    const map = new Map<string, Widget['widget_config']>();
-    widgets.forEach(w => map.set(w.widget_id, w.widget_config));
+  const widgetById = useMemo(() => {
+    const map = new Map<string, Widget>();
+    widgets.forEach(w => map.set(w.widget_id, w));
     return map;
   }, [widgets]);
 
@@ -61,13 +61,31 @@ const DefaultHomeDashboard = () => {
     listened: false,
   }), [widgets, t]);
 
-  const configOf = useCallback((widgetId: string) => {
-    const config = widgetConfigById.get(widgetId);
-    if (!config) {
+  const widgetOf = useCallback((widgetId: string) => {
+    const widget = widgetById.get(widgetId);
+    if (!widget) {
       throw new Error(`Unknown default dashboard widget: ${widgetId}`);
     }
-    return config;
-  }, [widgetConfigById]);
+    return widget;
+  }, [widgetById]);
+
+  // Every widget click lands on the full-page results explorer: no drawer,
+  // no dashboard re-render, a real navigable page with the scoped entities.
+  const openWidgetDataDrawer = useCallback((conf: WidgetDataDrawerConf) => {
+    const params = new URLSearchParams();
+    params.set('widget_id', conf.widgetId);
+    params.set('series_index', (conf.series_index ?? '').toString());
+    if (conf.filter_values_map) {
+      Object.entries(conf.filter_values_map).forEach(([key, value]) => {
+        params.set(key, (value ?? []).join(','));
+      });
+    }
+    navigate(`/admin/results?${params.toString()}`);
+  }, [navigate]);
+
+  const closeWidgetDataDrawer = useCallback(() => {
+    navigate('/admin');
+  }, [navigate]);
 
   const contextValue: CustomDashboardContextType = useMemo(() => ({
     customDashboard,
@@ -81,23 +99,21 @@ const DefaultHomeDashboard = () => {
       },
     },
     setCustomDashboardParameters: () => {},
-    fetchSeries: (widgetId: string) => adHocSeries(configOf(widgetId)),
-    fetchCount: (widgetId: string) => adHocCount(configOf(widgetId)),
+    fetchSeries: (widgetId: string) => adHocSeries(widgetOf(widgetId).widget_config),
+    fetchCount: (widgetId: string) => adHocCount(widgetOf(widgetId).widget_config),
     fetchEntities: (widgetId: string, _params: Record<string, string | undefined>, pagination?: Parameters<typeof adHocEntities>[2]) =>
-      adHocEntities(configOf(widgetId), undefined, pagination),
-    fetchAverage: (widgetId: string) => adHocAverage(configOf(widgetId)),
+      adHocEntities(widgetOf(widgetId).widget_config, undefined, pagination),
+    fetchAverage: (widgetId: string) => adHocAverage(widgetOf(widgetId).widget_config),
     fetchAttackPaths: () => Promise.reject(new Error('Not supported on the default dashboard')),
-    fetchEntitiesRuntime: () => Promise.reject(new Error('Not supported on the default dashboard')),
-    // clicking a widget jumps straight to the platform page owning the data
-    openWidgetDataDrawer: (conf) => {
-      const route = DEFAULT_HOME_WIDGET_ROUTES[conf.widgetId];
-      if (route) {
-        navigate(route);
-      }
+    // drill-downs convert the ad-hoc widget into a scoped entity list
+    fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => {
+      const widget = widgetOf(widgetId);
+      return adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input);
     },
-    closeWidgetDataDrawer: () => {},
+    openWidgetDataDrawer,
+    closeWidgetDataDrawer,
     setGridReady: () => {},
-  }), [customDashboard, configOf, navigate, refreshCount]);
+  }), [customDashboard, widgetOf, refreshCount, openWidgetDataDrawer, closeWidgetDataDrawer]);
 
   return (
     <CustomDashboardContext.Provider value={contextValue}>

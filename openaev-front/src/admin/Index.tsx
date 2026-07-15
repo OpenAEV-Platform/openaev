@@ -31,6 +31,7 @@ import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
 
 const Home = lazy(() => import('./components/Home'));
+const DefaultHomeResults = lazy(() => import('./components/default_dashboard/DefaultHomeResults'));
 // Lazy like every other route: keeps the inject detail tree (incl. charts) out of the main admin chunk
 const InjectIndex = lazy(() => import('./components/simulations/simulation/injects/InjectIndex'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));
@@ -120,6 +121,7 @@ const Index = () => {
           <Routes>
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
+            <Route path="results" element={errorWrapper(DefaultHomeResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
             <Route
               path="findings"

@@ -278,6 +278,43 @@ public class DashboardService {
         user, new ListRuntime(config, params, adHocDefinitionParameters(), pagination));
   }
 
+  /**
+   * Converts an ad-hoc (non-persisted) widget into a scoped entity list. Mirrors {@link
+   * #widgetToEntitiesRuntime} but builds a transient widget from the provided type and
+   * configuration instead of loading a stored one, so the built-in default dashboard drill-downs
+   * behave exactly like custom dashboard ones.
+   *
+   * @param widgetType the widget type (drives the security-coverage special case)
+   * @param configuration the full widget configuration
+   * @param input clicked filter values, series index, parameters and pagination
+   * @return output containing both the generated list configuration and retrieved entities
+   */
+  public WidgetToEntitiesOutput adHocEntitiesRuntime(
+      WidgetType widgetType, WidgetConfiguration configuration, WidgetToEntitiesInput input) {
+    Widget transientWidget = new Widget();
+    transientWidget.setType(widgetType);
+    transientWidget.setWidgetConfiguration(configuration);
+
+    ListConfiguration listConfig;
+    if (isSecurityCoverageWidget(transientWidget)) {
+      listConfig =
+          widgetService.convertSecurityCoverageWidgetToListConfiguration(
+              transientWidget, input.getFilterValuesMap());
+    } else {
+      listConfig =
+          widgetService.convertWidgetToListConfiguration(
+              transientWidget, input.getSeriesIndex(), input.getFilterValuesMap());
+    }
+
+    Map<String, String> params = input.getParameters() == null ? Map.of() : input.getParameters();
+    EsEntities datas =
+        engineService.entities(
+            currentUserAuth(),
+            new ListRuntime(
+                listConfig, params, adHocDefinitionParameters(), input.getPagination()));
+    return WidgetToEntitiesOutput.builder().listConfiguration(listConfig).esEntities(datas).build();
+  }
+
   private RawUserAuth currentUserAuth() {
     List<RawUserAuthFlat> usersWithAuthFlat = userRepository.getUserWithAuth(currentUser().getId());
     return rawUserAuthMapper.toRawUserAuth(usersWithAuthFlat);

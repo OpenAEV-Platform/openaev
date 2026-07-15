@@ -36,6 +36,18 @@ export const adHocEntities = (widgetConfig: Widget['widget_config'], parameters?
   });
 };
 
+export const adHocEntitiesRuntime = (
+  widgetType: Widget['widget_type'],
+  widgetConfig: Widget['widget_config'],
+  input: WidgetToEntitiesInput,
+) => {
+  return simplePostCall(`${DASHBOARD_URI}/adhoc/entities-runtime`, {
+    widget_type: widgetType,
+    widget_config: widgetConfig,
+    ...input,
+  });
+};
+
 export const average = (widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`${DASHBOARD_URI}/average/${widgetId}`, parameters);
 };

@@ -10,7 +10,6 @@ import EndpointArchFragment from '../../../../../../../../components/common/list
 import InverseBooleanFragment from '../../../../../../../../components/common/list/fragments/InverseBooleanFragment';
 import VulnerableEndpointActionFragment
   from '../../../../../../../../components/common/list/fragments/VulnerableEndpointActionFragment';
-import { useFormatter } from '../../../../../../../../components/i18n';
 import ItemStatus from '../../../../../../../../components/ItemStatus';
 import ItemTags from '../../../../../../../../components/ItemTags';
 import {
@@ -21,6 +20,7 @@ import {
 import { computeInjectExpectationLabel } from '../../../../../../../../utils/statusUtils';
 import EndpointListItemFragments from '../../../../../../common/endpoints/EndpointListItemFragments';
 import InjectStatus from '../../../../../../common/injects/status/InjectStatus';
+import InjectExpectationSourceFragment from './InjectExpectationSourceFragment';
 
 export type ColumnRenderer = (value: string | string[] | boolean | boolean[], opts: {
   element: EsBase;
@@ -85,30 +85,7 @@ const injectColumnsRenderers: RendererMap = {
 
 };
 
-export const getTargetTypeFromInjectExpectation = (expectation: EsInjectExpectation): {
-  label: string;
-  type: string;
-} => {
-  let label = '';
-  let type = '';
-  if (expectation.base_user_side != null) {
-    label = 'player';
-    type = 'PLAYERS';
-  } else if (expectation.base_team_side != null) {
-    label = 'team';
-    type = 'TEAMS';
-  } else if (expectation.base_asset_side != null) {
-    label = 'endpoint';
-    type = 'ASSETS';
-  } else if (expectation.base_asset_group_side != null) {
-    label = 'asset group';
-    type = 'ASSETS_GROUPS';
-  }
-  return {
-    label,
-    type,
-  };
-};
+export { default as getTargetTypeFromInjectExpectation } from './injectExpectationTarget';
 
 const injectExpectationRenderers: RendererMap = {
   ['inject_expectation_status']: (_, { element }) => {
@@ -119,15 +96,7 @@ const injectExpectationRenderers: RendererMap = {
     ) ?? '';
     return <ItemStatus label={label} variant="inList" status={label} />;
   },
-  ['inject_expectation_source']: (_, { element }) => {
-    const { t } = useFormatter();
-    const target = getTargetTypeFromInjectExpectation(element as EsInjectExpectation);
-    return (
-      <Tooltip title={target.label} placement="bottom-start">
-        <span>{(t(target.label)).toUpperCase()}</span>
-      </Tooltip>
-    );
-  },
+  ['inject_expectation_source']: (_, { element }) => <InjectExpectationSourceFragment element={element} />,
 };
 
 export const defaultRenderer: ColumnRenderer = (value) => {

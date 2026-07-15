@@ -1,15 +1,17 @@
 import { useTheme } from '@mui/material/styles';
 import { type ApexOptions } from 'apexcharts';
-import { type FunctionComponent, memo, useMemo } from 'react';
+import { type FunctionComponent, memo, useCallback, useContext, useMemo } from 'react';
 
 import Chart from '../../../../../../components/Chart';
 import { useFormatter } from '../../../../../../components/i18n';
-import { type EsSeries } from '../../../../../../utils/api-types';
+import { type EsSeries, type StructuralHistogramWidget } from '../../../../../../utils/api-types';
+import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { isSeriesEmpty, sampleRadarSeries } from './sample/sampleData';
 import SamplePreview from './sample/SamplePreview';
 
 interface Props {
   widgetId: string;
+  widgetConfig: StructuralHistogramWidget;
   series: EsSeries[];
 }
 
@@ -18,9 +20,10 @@ interface Props {
  * radar chart (e.g. SUCCESS vs FAILED expectations per security platform),
  * exposing coverage strengths and blind spots at a glance.
  */
-const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, series }) => {
+const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, series }) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
 
   const isSample = isSeriesEmpty(series);
   const displaySeries = isSample ? sampleRadarSeries : series;
@@ -35,6 +38,32 @@ const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, series }) => {
     });
     return all;
   }, [displaySeries]);
+
+  // Bucket keys aligned on `labels` (the key carries the entity id used for filtering)
+  const labelKeys = useMemo(
+    () => labels.map((label) => {
+      for (const s of displaySeries) {
+        const found = (s.data ?? []).find(d => d.label === label);
+        if (found?.key) return found.key;
+      }
+      return label;
+    }),
+    [labels, displaySeries],
+  );
+
+  // Clicking a vertex drills into the entities behind that bucket
+  const onDataPointClick = useCallback((_: Event, config: {
+    seriesIndex: number;
+    dataPointIndex: number;
+  }) => {
+    const key = labelKeys[config.dataPointIndex];
+    if (!key) return;
+    openWidgetDataDrawer({
+      widgetId,
+      filter_values_map: { [widgetConfig.field]: [key] },
+      series_index: config.seriesIndex,
+    });
+  }, [labelKeys, openWidgetDataDrawer, widgetId, widgetConfig.field]);
 
   const chartSeries = useMemo(
     () => displaySeries.map(s => ({
@@ -69,6 +98,11 @@ const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, series }) => {
         enabled: true,
         speed: 900,
       },
+      events: {
+        dataPointSelection(event, _, config?) {
+          onDataPointClick(event, config);
+        },
+      },
     },
     theme: { mode: theme.palette.mode },
     colors: seriesColors,
@@ -79,6 +113,7 @@ const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, series }) => {
     markers: {
       size: 3,
       strokeWidth: 1,
+      hover: { size: 6 },
     },
     legend: {
       show: true,
@@ -112,7 +147,7 @@ const PostureRadarWidget: FunctionComponent<Props> = ({ widgetId, series }) => {
         },
       },
     },
-  }), [theme, labels, seriesColors, t]);
+  }), [theme, labels, seriesColors, t, onDataPointClick]);
 
   return (
     <SamplePreview active={isSample} variant="subtle">

@@ -195,7 +195,13 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
         if (vizData.type !== WidgetVizDataType.SERIES) {
           return 'Not implemented yet';
         }
-        return <PostureRadarWidget widgetId={widget.widget_id} series={vizData.data} />;
+        return (
+          <PostureRadarWidget
+            widgetId={widget.widget_id}
+            widgetConfig={widget.widget_config as StructuralHistogramWidget}
+            series={vizData.data}
+          />
+        );
       default:
         return 'Not implemented yet';
     }

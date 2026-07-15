@@ -17,6 +17,8 @@ interface Props {
   gaps: number;
   validations: number;
   platforms: OrbitPlatform[];
+  /** Drill into the gaps behind the score (opens the data drawer). */
+  onInvestigate?: () => void;
 }
 
 // Distinct accent per security-platform category.
@@ -60,7 +62,7 @@ const SWEEP = 360;
  * a slow orbit of glowing nodes. Modern, glassy and alive. The raw "/ 100"
  * scale is intentionally hidden and surfaced on hover, keeping the face clean.
  */
-const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, platforms }) => {
+const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, platforms, onInvestigate }) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const gradId = useId();
@@ -140,11 +142,14 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
       }}
       >
         <svg
+          className="noDrag"
           viewBox={`0 0 ${size} ${size}`}
+          onClick={onInvestigate}
           style={{
             maxHeight: '100%',
             maxWidth: '100%',
             overflow: 'visible',
+            cursor: onInvestigate ? 'pointer' : 'default',
           }}
         >
           <defs>
@@ -310,17 +315,22 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
       </Box>
 
       <Tooltip title={t('Exposure score {score} / 100 - share of validations your controls failed', { score: Math.round(score) })}>
-        <Box sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.75,
-          paddingInline: 1,
-          height: 22,
-          borderRadius: 999,
-          cursor: 'help',
-          border: `1px solid ${alpha(color, 0.3)}`,
-          background: alpha(color, 0.1),
-        }}
+        <Box
+          className="noDrag"
+          onClick={onInvestigate}
+          sx={{
+            'display': 'inline-flex',
+            'alignItems': 'center',
+            'gap': 0.75,
+            'paddingInline': 1,
+            'height': 22,
+            'borderRadius': 999,
+            'cursor': onInvestigate ? 'pointer' : 'help',
+            'border': `1px solid ${alpha(color, 0.3)}`,
+            'background': alpha(color, 0.1),
+            'transition': 'background-color 0.15s ease',
+            '&:hover': { background: alpha(color, 0.2) },
+          }}
         >
           <Box sx={{
             width: 6,

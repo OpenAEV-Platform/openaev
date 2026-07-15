@@ -140,33 +140,6 @@ const successFailedSeries = (extra: Filter[] = []): Series[] => [
   series('FAILED', ...expectation([filter('inject_expectation_status', ['FAILED']), ...extra])),
 ];
 
-/** Maps a hardcoded widget id to the platform page its data lives in. */
-export const DEFAULT_HOME_WIDGET_ROUTES: Record<string, string> = {
-  'default-command-center': '/admin/simulations',
-  'default-prevention': '/admin/simulations',
-  'default-detection': '/admin/simulations',
-  'default-vulnerability': '/admin/findings',
-  'default-security-domains': '/admin/simulations',
-  'default-posture-radar': '/admin/simulations',
-  'default-kpi-scenarios': '/admin/scenarios',
-  'default-kpi-simulations': '/admin/simulations',
-  'default-kpi-injects': '/admin/atomic_testings',
-  'default-kpi-endpoints': '/admin/assets',
-  'default-kpi-cves': '/admin/findings',
-  'default-kpi-vulnerable-endpoints': '/admin/assets',
-  'default-latest-findings': '/admin/findings',
-  'default-findings-list': '/admin/findings',
-  'default-kpi-total-findings': '/admin/findings',
-  'default-kpi-ports-open': '/admin/findings',
-  'default-undetected-platforms': '/admin/simulations',
-  'default-detection-coverage': '/admin/simulations',
-  'default-weekly-failures': '/admin/simulations',
-  'default-top-detected-ttps': '/admin/simulations',
-  'default-top-undetected-ttps': '/admin/simulations',
-  'default-simulations-by-week': '/admin/simulations',
-  'default-latest-simulations': '/admin/simulations',
-};
-
 export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] => [
   // -- HERO: exposure command center --
   widget(

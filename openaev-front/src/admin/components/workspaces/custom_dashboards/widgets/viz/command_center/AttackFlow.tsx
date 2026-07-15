@@ -226,6 +226,16 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
           <line x1={ADVERSARY_X} y1={CY - 14} x2={ADVERSARY_X} y2={CY - 5} stroke={attackColor} strokeWidth={1.5} />
           <line x1={ADVERSARY_X} y1={CY + 5} x2={ADVERSARY_X} y2={CY + 14} stroke={attackColor} strokeWidth={1.5} />
           <circle cx={ADVERSARY_X} cy={CY} r={2} fill={attackColor} />
+          {/* click-through: every attempted validation */}
+          <rect
+            x={ADVERSARY_X - 34}
+            y={CY - GATE_HALF}
+            width={68}
+            height={GATE_HALF * 2 + 40}
+            fill="transparent"
+            style={{ cursor: 'pointer' }}
+            onClick={() => onInvestigate('all')}
+          />
           <text
             x={ADVERSARY_X}
             y={CY + GATE_HALF + 4}

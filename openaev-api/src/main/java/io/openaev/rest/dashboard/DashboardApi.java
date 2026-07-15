@@ -8,6 +8,7 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.rest.dashboard.form.AdHocWidgetInput;
+import io.openaev.rest.dashboard.form.AdHocWidgetToEntitiesInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;
@@ -147,5 +148,14 @@ public class DashboardApi extends RestBehavior {
   public EsEntities adHocEntities(@Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocEntities(
         input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
+  }
+
+  @PostMapping("/adhoc/entities-runtime")
+  @Transactional
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
+  public WidgetToEntitiesOutput adHocEntitiesRuntime(
+      @Valid @RequestBody AdHocWidgetToEntitiesInput input) {
+    return this.dashboardService.adHocEntitiesRuntime(
+        input.getWidgetType(), input.getWidgetConfiguration(), input);
   }
 }

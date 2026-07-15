@@ -159,11 +159,21 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
   }, [securityPlatforms, theme.palette.mode]);
 
   const onInvestigate = (typeKey: string) => {
+    // breached assets: every failed validation, regardless of type
     if (typeKey === 'breach') {
       openWidgetDataDrawer({
         widgetId,
         filter_values_map: { inject_expectation_type: layers.map(l => l.key.toUpperCase()) },
         series_index: 1,
+      });
+      return;
+    }
+    // adversary: every attempted validation (statuses override the series filter)
+    if (typeKey === 'all') {
+      openWidgetDataDrawer({
+        widgetId,
+        filter_values_map: { inject_expectation_status: ['SUCCESS', 'FAILED', 'PENDING'] },
+        series_index: 0,
       });
       return;
     }
@@ -229,6 +239,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
           gaps={breached}
           validations={totalValidations}
           platforms={orbitPlatforms}
+          onInvestigate={() => onInvestigate('breach')}
         />
 
         {/* CENTER: live, actionable kill-chain */}

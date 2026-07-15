@@ -1,11 +1,12 @@
 import { BugReportOutlined, CrisisAlertOutlined, GppGoodOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, type ReactElement, useMemo } from 'react';
+import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
 import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import useCountUp from '../../../../../../utils/hooks/useCountUp';
+import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
 import SamplePreview from './sample/SamplePreview';
 
@@ -39,9 +40,19 @@ const SAMPLE = [
  * number, a domain glyph, and a compact legend. Strokes over fills - designed
  * to feel like a precision instrument, not a chunky gauge.
  */
-const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetConfig, datas }) => {
+const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+
+  // Drill into the expectations behind the gauge, optionally scoped by status.
+  const investigate = (statuses: string[]) => {
+    openWidgetDataDrawer({
+      widgetId,
+      filter_values_map: { inject_expectation_status: statuses },
+      series_index: 0,
+    });
+  };
 
   const isSample = datas.length === 0 || datas.every(d => (d.y ?? 0) === 0);
   const rows = isSample ? SAMPLE : datas;
@@ -123,11 +134,18 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetConfig, datas }
   }, [counts, total, circumference, gapDeg, theme]);
 
   const dot = (label: string, count: number, c: string) => (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 4,
-    }}
+    <ButtonBase
+      className="noDrag"
+      onClick={() => investigate([label])}
+      sx={{
+        'display': 'flex',
+        'alignItems': 'center',
+        'gap': 0.5,
+        'paddingInline': 0.5,
+        'borderRadius': 0.75,
+        'transition': 'background-color 0.15s ease',
+        '&:hover': { backgroundColor: alpha(c, 0.15) },
+      }}
     >
       <span style={{
         width: 6,
@@ -151,7 +169,7 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetConfig, datas }
       >
         {count}
       </Typography>
-    </div>
+    </ButtonBase>
   );
 
   return (
@@ -194,13 +212,17 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetConfig, datas }
         }}
         >
           <svg
+            className="noDrag"
             viewBox={`0 0 ${size} ${size}`}
+            onClick={() => investigate(['SUCCESS', 'FAILED', 'PENDING'])}
             style={{
               maxHeight: '100%',
               maxWidth: '100%',
               overflow: 'visible',
+              cursor: 'pointer',
             }}
           >
+            <title>{t('click to investigate')}</title>
             <circle
               cx={cx}
               cy={cy}

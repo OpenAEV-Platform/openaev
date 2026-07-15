@@ -190,7 +190,7 @@ public class AssetGroupService {
    * platform} rule) the query cannot resolve, which simply means the group does not target AI
    * targets and contributes none.
    */
-  private List<Asset> resolveDynamicAiTargets(@NotNull final FilterGroup dynamicFilter) {
+  private List<Asset> resolveDynamicAiTargets(@NotNull final Filters.FilterGroup dynamicFilter) {
     try {
       Specification<AiTarget> specification = computeFilterGroupJpa(dynamicFilter);
       return this.aiTargetRepository.findAll(specification).stream()
