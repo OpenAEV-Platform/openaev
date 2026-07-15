@@ -34,18 +34,11 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
         WHERE e.exercise_updated_at > :from
           AND f.finding_type = 'CVE'
           AND a.asset_type = :#{T(io.openaev.database.model.AssetType.Values).ENDPOINT_TYPE}
-    ),
-    ranked_vulnerable_endpoints AS (
-        SELECT cve.asset_id, cve.inject_exercise
-        FROM changed_vulnerable_endpoints cve
-        JOIN exercises e ON e.exercise_id = cve.inject_exercise
-        ORDER BY e.exercise_updated_at ASC
-        LIMIT :limit
     )
     SELECT
-      CONCAT(a.asset_id, '_', rve.inject_exercise) as base_id,
+      CONCAT(a.asset_id, '_', cve.inject_exercise) as base_id,
       a.asset_id as vulnerable_endpoint_id,
-      rve.inject_exercise as vulnerable_endpoint_simulation,
+      cve.inject_exercise as vulnerable_endpoint_simulation,
       MAX(se.scenario_id) as vulnerable_endpoint_scenario,
       a.endpoint_hostname as vulnerable_endpoint_hostname,
       a.endpoint_platform as vulnerable_endpoint_platform,
@@ -64,16 +57,17 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
        FROM agents ag WHERE ag.agent_asset = a.asset_id) as vulnerable_endpoint_agents_last_seen,
       (SELECT array_agg(ag.agent_privilege) FILTER (WHERE ag.agent_id IS NOT NULL)
        FROM agents ag WHERE ag.agent_asset = a.asset_id) as vulnerable_endpoint_agents_privileges
-    FROM ranked_vulnerable_endpoints rve
-    JOIN assets a ON a.asset_id = rve.asset_id
-    JOIN exercises e ON e.exercise_id = rve.inject_exercise
+    FROM changed_vulnerable_endpoints cve
+    JOIN assets a ON a.asset_id = cve.asset_id
+    JOIN exercises e ON e.exercise_id = cve.inject_exercise
     LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
     LEFT JOIN assets_tags at ON a.asset_id = at.asset_id
-    JOIN injects i ON i.inject_exercise = rve.inject_exercise
+    JOIN injects i ON i.inject_exercise = cve.inject_exercise
     JOIN findings f ON f.finding_inject_id = i.inject_id AND f.finding_type = 'CVE'
     JOIN findings_assets fa ON f.finding_id = fa.finding_id AND fa.asset_id = a.asset_id
-    GROUP BY a.asset_id, rve.inject_exercise, e.exercise_updated_at, e.exercise_created_at
+    GROUP BY a.asset_id, cve.inject_exercise, e.exercise_updated_at, e.exercise_created_at
     ORDER BY e.exercise_updated_at ASC
+    LIMIT :limit
     """,
       nativeQuery = true)
   List<RawVulnerableEndpointIndexing> findForIndexing(
