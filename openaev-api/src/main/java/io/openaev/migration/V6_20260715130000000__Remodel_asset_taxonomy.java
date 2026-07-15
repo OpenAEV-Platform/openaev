@@ -43,6 +43,15 @@ public class V6_20260715130000000__Remodel_asset_taxonomy extends BaseJavaMigrat
               + "WHERE asset_type = 'Endpoint' AND asset_category IN ("
               + "'CLOUD_RESOURCE','WEB_APPLICATION','NETWORK_DEVICE','IOT_OT_DEVICE',"
               + "'IDENTITY','SAAS_APPLICATION','GENERIC_ASSET');");
+
+      // -- 3. Backfill the category on legacy endpoints that predate the asset_category column --
+      // These rows carry a NULL category, so the inventory shows an empty "Category" cell. Endpoint
+      // is now agent-capable-host only and the entity's @PrePersist default is HOST, but that only
+      // fires on write; mirror it here for rows that never went through a write since the column was
+      // introduced (idempotent - only touches the remaining NULLs).
+      statement.execute(
+          "UPDATE assets SET asset_category = 'HOST' "
+              + "WHERE asset_type = 'Endpoint' AND asset_category IS NULL;");
     }
   }
 
