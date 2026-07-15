@@ -15,7 +15,6 @@ import useAuth from '../../../../utils/hooks/useAuth';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../../settings/SecurityMenu';
-import DefaultTenantDangerZone from './DefaultTenantDangerZone';
 import useTenants from './hooks/useTenants';
 import TenantCreate from './tenant/TenantCreate';
 import TenantPopover from './TenantPopover';
@@ -47,7 +46,7 @@ const Tenants = () => {
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT, buildSearchPagination({ sorts: TENANT_SORTS }));
-  const headers = useMemo(() => getTenantHeaders(t), [t]);
+  const headers = useMemo(() => getTenantHeaders(t, settings.default_tenant_id), [t, settings.default_tenant_id]);
 
   return (
     <div style={{ display: 'flex' }}>
@@ -96,30 +95,28 @@ const Tenants = () => {
             : (
                 <PaginatedList<TenantOutput>
                   Icon={HomeWorkOutlined}
-                  secondaryAction={tenant => (
-                    tenant.tenant_id === settings.default_tenant_id
-                      ? (
-                          <DefaultTenantDangerZone>
-                            <TenantPopover
-                              inList
-                              tenant={tenant}
-                              actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update']}
-                              onUpdate={updateTenant}
-                              onReactivate={reactivateTenant}
-                            />
-                          </DefaultTenantDangerZone>
-                        )
-                      : (
-                          <TenantPopover
-                            inList
-                            tenant={tenant}
-                            actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update', 'Delete']}
-                            onUpdate={updateTenant}
-                            onDelete={softDeleteTenant}
-                            onReactivate={reactivateTenant}
-                          />
-                        )
-                  )}
+                  secondaryAction={(tenant) => {
+                    const isDefaultTenant = tenant.tenant_id === settings.default_tenant_id;
+                    const getActions = (): ('Update' | 'Delete' | 'Reactivate')[] => {
+                      if (tenant.tenant_deleted_at) {
+                        return ['Reactivate'];
+                      }
+                      if (isDefaultTenant) {
+                        return ['Update'];
+                      }
+                      return ['Update', 'Delete'];
+                    };
+                    return (
+                      <TenantPopover
+                        inList
+                        tenant={tenant}
+                        actions={getActions()}
+                        onUpdate={updateTenant}
+                        onDelete={isDefaultTenant ? undefined : softDeleteTenant}
+                        onReactivate={reactivateTenant}
+                      />
+                    );
+                  }}
                   headers={headers}
                   items={tenants}
                   rowKey="tenant_id"
