@@ -1,4 +1,4 @@
-package io.openaev.rest.asset.form;
+package io.openaev.api.asset.dto;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 

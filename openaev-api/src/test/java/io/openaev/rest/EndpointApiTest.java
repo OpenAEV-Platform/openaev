@@ -113,7 +113,6 @@ class EndpointApiTest extends IntegrationTest {
     assertThatJson(response).node("endpoint_platform").isEqualTo(endpointInput.getPlatform());
     assertThatJson(response).node("endpoint_arch").isEqualTo(endpointInput.getArch());
     assertThatJson(response).node("asset_ips").isEqualTo(endpointInput.getIps());
-    assertThatJson(response).node("asset_ips").isEqualTo(endpointInput.getIps());
     assertThatJson(response).node("asset_tags").isEqualTo(endpointInput.getTags());
     assertThatJson(response).node("asset_agents").isEqualTo(endpointInput.getAgents());
   }

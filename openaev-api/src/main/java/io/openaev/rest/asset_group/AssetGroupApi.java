@@ -7,13 +7,13 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.asset.dto.AssetOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.rest.asset.form.AssetOutput;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.asset_group.form.UpdateAssetsOnAssetGroupInput;
@@ -27,6 +27,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -106,6 +107,12 @@ public class AssetGroupApi extends RestBehavior {
                     textSearch.isEmpty()
                         || StringUtils.containsIgnoreCase(asset.getName(), textSearch))
             .map(asset -> AssetOutput.from(asset, staticIds.contains(asset.getId())))
+            // Deterministic order (name, then id as tie-breaker) so page boundaries are stable
+            // across requests regardless of DB iteration order.
+            .sorted(
+                Comparator.comparing(
+                        AssetOutput::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                    .thenComparing(AssetOutput::getId))
             .toList();
 
     int page = Math.max(0, searchPaginationInput.getPage());
