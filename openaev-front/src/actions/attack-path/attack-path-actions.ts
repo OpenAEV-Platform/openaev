@@ -1,5 +1,5 @@
 import { simpleCall } from '../../utils/Action';
-import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow } from '../../utils/api-types';
+import type { AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow } from '../../utils/api-types';
 
 // Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
@@ -43,3 +43,10 @@ export const fetchFindingsByCategory = (
   size = 50,
 ): Promise<{ data: AttackPathFindingPageDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/findings?category=${encodeURIComponent(category)}&page=${page}&size=${size}`);
+
+// One execution's Result & Terminal detail for the drawer: masked command/output, findings, status.
+export const fetchExecutionDetail = (
+  simulationId: string,
+  executionId: string,
+): Promise<{ data: AttackPathExecutionDetailDTO }> =>
+  simpleCall(`${simulationUri(simulationId)}/executions/${encodeURIComponent(executionId)}`);

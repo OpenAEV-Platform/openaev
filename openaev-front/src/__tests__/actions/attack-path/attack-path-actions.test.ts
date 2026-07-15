@@ -53,4 +53,10 @@ describe('attack path POC actions', () => {
     await fetchFindingsByCategory('SIM-1', 'cves', 2, 25);
     expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/findings?category=cves&page=2&size=25');
   });
+
+  it('fetchExecutionDetail hits the execution detail endpoint and encodes the id', async () => {
+    const { fetchExecutionDetail } = await importActions();
+    await fetchExecutionDetail('SIM-1', 'exec/1');
+    expect(simpleCall).toHaveBeenCalledWith('/api/attack-path/simulations/SIM-1/executions/exec%2F1');
+  });
 });

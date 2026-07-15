@@ -1,10 +1,15 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import type * as ReactRouter from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import SimulationAttackPath from '../../../../../../admin/components/simulations/simulation/attack_path/SimulationAttackPath';
+
+type FlowProps = {
+  focusRequest?: { nodeId: string };
+  onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
+};
 
 // Capture the props AttackPathFlow receives (mocked so ReactFlow is not instantiated), and stub the
 // action layer + i18n + router so the test drives only the drawer and the cross-focus wiring.
@@ -14,7 +19,8 @@ const mocks = vi.hoisted(() => ({
   fetchEndpointFindings: vi.fn(),
   fetchEndpointRelations: vi.fn(),
   fetchFindingsByCategory: vi.fn(),
-  flowProps: { current: null as { focusRequest?: { nodeId: string } } | null },
+  fetchExecutionDetail: vi.fn(),
+  flowProps: { current: null as FlowProps | null },
 }));
 
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
@@ -23,12 +29,13 @@ vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchEndpointFindings: mocks.fetchEndpointFindings,
   fetchEndpointRelations: mocks.fetchEndpointRelations,
   fetchFindingsByCategory: mocks.fetchFindingsByCategory,
+  fetchExecutionDetail: mocks.fetchExecutionDetail,
 }));
 
 vi.mock('../../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
 
 vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/AttackPathFlow', () => ({
-  default: (props: { focusRequest?: { nodeId: string } }) => {
+  default: (props: FlowProps) => {
     mocks.flowProps.current = props;
     return <div data-testid="attack-path-flow" />;
   },
@@ -109,6 +116,25 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
         }],
       },
     });
+    mocks.fetchExecutionDetail.mockResolvedValue({
+      data: {
+        payloadName: 'nmap',
+        agentName: 'agent-x',
+        agentPrivilege: 'user',
+        endpointKey: 'host-x',
+        targetHostname: 'CORP-HOST',
+        targetIp: '10.0.0.5',
+        targetPlatform: 'Linux',
+        preventionStatus: 'FAILED',
+        detectionStatus: 'DETECTED',
+        findings: [{
+          type: 'credentials',
+          value: 'admin:••••',
+        }],
+        command: 'nmap -p 445 host-x -u admin -p ••••',
+        terminalOutput: 'open\nclosed',
+      },
+    });
     return render(<SimulationAttackPath />, { wrapper });
   };
 
@@ -132,5 +158,35 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
 
     // The feed panel is titled with the endpoint's friendly hostname, not the raw key.
     expect(await screen.findByText(/CORP-HOST/)).toBeTruthy();
+  });
+
+  it('opens the result & terminal panel for a clicked execution and focuses its endpoint on the map', async () => {
+    setup();
+
+    // Select the endpoint on the map (mocked flow) to load its execution feed, without a focus request.
+    await screen.findByTestId('attack-path-flow');
+    await act(async () => {
+      mocks.flowProps.current?.onEndpointClick?.(ENDPOINT_NODE, 'host-x', 'CORP-HOST');
+    });
+
+    // Click the endpoint's execution in the feed: its detail is fetched by raw id and the panel opens.
+    const feedRow = await screen.findByText('nmap');
+    fireEvent.click(feedRow);
+    await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
+
+    // Header (agent · privilege) + both tabs render; the Result tab shows the snapshot status.
+    expect(await screen.findByText('agent-x · user')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Result' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Terminal view' })).toBeTruthy();
+    expect(screen.getByText('Prevention: FAILED')).toBeTruthy();
+
+    // The Terminal tab shows the masked command and output via the shared Terminal.
+    fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
+    expect(await screen.findByText('$ nmap -p 445 host-x -u admin -p ••••')).toBeTruthy();
+    expect(screen.getByText('open')).toBeTruthy();
+
+    // Focus on map: the panel action re-centers the execution's endpoint on the map.
+    fireEvent.click(screen.getByRole('button', { name: 'Focus on map' }));
+    await waitFor(() => expect(mocks.flowProps.current?.focusRequest?.nodeId).toBe(ENDPOINT_NODE));
   });
 });

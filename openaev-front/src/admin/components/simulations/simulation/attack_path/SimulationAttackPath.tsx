@@ -5,13 +5,14 @@ import { ReactFlowProvider } from '@xyflow/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchFindingsByCategory } from '../../../../../actions/attack-path/attack-path-actions';
+import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory } from '../../../../../actions/attack-path/attack-path-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathDTO, AttackPathEdges, AttackPathExpandDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
 import { buildAttackPathFlow } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
+import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
 
 type Mode = 'auto' | 'full' | 'collapsed';
 
@@ -98,6 +99,11 @@ const SimulationAttackPath = () => {
   const [highlightedExecutionIds, setHighlightedExecutionIds] = useState<Set<string>>(new Set());
   const feedRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
+  const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<AttackPathExecutionDetailDTO | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   const load = useCallback(() => {
     if (!simulationId) {
       return;
@@ -109,8 +115,9 @@ const SimulationAttackPath = () => {
     setExpandedRefs(new Set());
     setSelectedNodeId(null);
     setExecutions([]);
-    // Close the findings drawer and clear any cross-focus so nothing carries over between simulations.
+    // Close the drawers and clear any cross-focus so nothing carries over between simulations.
     setDrawerCategory(null);
+    setDetailExecutionId(null);
     setHighlightedExecutionIds(new Set());
     setFocusRequest(null);
     fetchAttackPathGraph(simulationId, mode === 'auto' ? undefined : mode)
@@ -224,6 +231,17 @@ const SimulationAttackPath = () => {
       });
     }
   }, [highlightedExecutionIds, executions]);
+
+  // Open the Result & Terminal drawer for a feed entry and load its detail (by raw execution id).
+  const openExecutionDetail = useCallback((executionId: string) => {
+    setDetailExecutionId(executionId);
+    setDetail(null);
+    setDetailLoading(true);
+    fetchExecutionDetail(simulationId, executionId)
+      .then(r => setDetail(r.data))
+      .catch(() => setDetail(null))
+      .finally(() => setDetailLoading(false));
+  }, [simulationId]);
 
   // Merge the base graph with whatever endpoints have been expanded, then lay it out; finally mark
   // the selected endpoint and the edges touching it so the click highlights its path.
@@ -393,32 +411,6 @@ const SimulationAttackPath = () => {
         gap: theme.spacing(1),
       }}
       >
-        <Paper
-          variant="outlined"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            position: 'relative',
-          }}
-        >
-          {loading && <Loader />}
-          {!loading && error && (
-            <Alert severity="error" sx={{ m: 2 }}>
-              {t('Failed to load the attack-path graph. Check the simulation id or reload.')}
-            </Alert>
-          )}
-          {!loading && !error && nodes.length === 0 && (
-            <Alert severity="info" sx={{ m: 2 }}>
-              {t('No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.')}
-            </Alert>
-          )}
-          {!loading && !error && nodes.length > 0 && (
-            <ReactFlowProvider>
-              <AttackPathFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} focusRequest={focusRequest} />
-            </ReactFlowProvider>
-          )}
-        </Paper>
-
         {selectedNodeId && (
           <Paper
             variant="outlined"
@@ -447,17 +439,32 @@ const SimulationAttackPath = () => {
                       feedRowRefs.current.delete(e.id);
                     }
                   }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => e.ref && openExecutionDetail(e.ref)}
+                  onKeyDown={(ev) => {
+                    if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
+                      ev.preventDefault();
+                      openExecutionDetail(e.ref);
+                    }
+                  }}
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    py: 0.5,
-                    px: 0.5,
-                    borderRadius: 1,
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    backgroundColor: highlighted ? 'action.selected' : undefined,
+                    'display': 'flex',
+                    'alignItems': 'center',
+                    'gap': 1,
+                    'py': 0.5,
+                    'px': 0.5,
+                    'borderRadius': 1,
+                    'borderBottom': `1px solid ${theme.palette.divider}`,
+                    'backgroundColor': highlighted ? 'action.selected' : undefined,
                     // A left accent so the finding's producing execution stands out in the feed.
-                    borderLeft: highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
+                    'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
+                    'cursor': 'pointer',
+                    '&:hover': { backgroundColor: 'action.hover' },
+                    '&:focus-visible': {
+                      outline: `2px solid ${theme.palette.primary.main}`,
+                      outlineOffset: -2,
+                    },
                   }}
                 >
                   <span style={{
@@ -490,18 +497,60 @@ const SimulationAttackPath = () => {
             )}
           </Paper>
         )}
+
+        {detailExecutionId && (
+          <ExecutionResultTerminalPanel
+            loading={detailLoading}
+            detail={detail}
+            onClose={() => setDetailExecutionId(null)}
+            onFocusOnMap={selectedNodeId
+              ? () => setFocusRequest(prev => ({
+                  nodeId: selectedNodeId,
+                  nonce: (prev?.nonce ?? 0) + 1,
+                }))
+              : undefined}
+          />
+        )}
+
+        <Paper
+          variant="outlined"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            position: 'relative',
+          }}
+        >
+          {loading && <Loader />}
+          {!loading && error && (
+            <Alert severity="error" sx={{ m: 2 }}>
+              {t('Failed to load the attack-path graph. Check the simulation id or reload.')}
+            </Alert>
+          )}
+          {!loading && !error && nodes.length === 0 && (
+            <Alert severity="info" sx={{ m: 2 }}>
+              {t('No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.')}
+            </Alert>
+          )}
+          {!loading && !error && nodes.length > 0 && (
+            <ReactFlowProvider>
+              <AttackPathFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} focusRequest={focusRequest} />
+            </ReactFlowProvider>
+          )}
+        </Paper>
       </div>
 
       <Drawer
         anchor="right"
         open={drawerCategory !== null}
         onClose={() => setDrawerCategory(null)}
+        elevation={1}
       >
         <Box
           role="presentation"
           sx={{
             width: 360,
-            p: 2,
+            px: 3,
+            py: 2.5,
           }}
         >
           <Box sx={{
@@ -516,6 +565,16 @@ const SimulationAttackPath = () => {
               <Close />
             </IconButton>
           </Box>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: 'block',
+              mb: 1.5,
+            }}
+          >
+            {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
+          </Typography>
           {findingsLoading && (
             <Box sx={{ minHeight: 120 }}>
               <Loader variant="inElement" size="sm" />
