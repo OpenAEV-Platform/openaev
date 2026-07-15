@@ -35,7 +35,6 @@ public class ThreadPoolTaskLoggerConfig {
 
   @Bean(name = "taskLoggerExecutor")
   public Executor contextAwareExecutor() {
-
     ThreadPoolTaskExecutor executor = createBaseExecutor();
 
     executor.setTaskDecorator(

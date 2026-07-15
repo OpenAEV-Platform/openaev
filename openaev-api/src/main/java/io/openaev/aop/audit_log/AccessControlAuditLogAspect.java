@@ -16,6 +16,7 @@ import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -181,7 +182,7 @@ public class AccessControlAuditLogAspect {
       if (auditLogProperties.isHaltOnFailure()) {
         auditFuture.join();
       }
-    } catch (java.util.concurrent.CompletionException ex) {
+    } catch (CompletionException ex) {
       if (ex.getCause() instanceof AuditLogFailureException auditEx) {
         throw auditEx;
       }
