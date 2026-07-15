@@ -94,51 +94,51 @@ class IndexingRegressionTest extends IntegrationTest {
 
   private void pushScenarioToPast(String scenarioId) {
     entityManager
-        .createNativeQuery("UPDATE scenarios SET scenario_updated_at = :ts WHERE scenario_id = :id")
-        .setParameter("ts", PAST)
-        .setParameter("id", scenarioId)
+        .createNativeQuery("UPDATE scenarios SET scenario_updated_at = ?1 WHERE scenario_id = ?2")
+        .setParameter(1, PAST)
+        .setParameter(2, scenarioId)
         .executeUpdate();
   }
 
   private void pushExerciseToPast(String exerciseId) {
     entityManager
-        .createNativeQuery("UPDATE exercises SET exercise_updated_at = :ts WHERE exercise_id = :id")
-        .setParameter("ts", PAST)
-        .setParameter("id", exerciseId)
+        .createNativeQuery("UPDATE exercises SET exercise_updated_at = ?1 WHERE exercise_id = ?2")
+        .setParameter(1, PAST)
+        .setParameter(2, exerciseId)
         .executeUpdate();
   }
 
   private void pushEndpointToPast(String assetId) {
     entityManager
-        .createNativeQuery("UPDATE assets SET asset_updated_at = :ts WHERE asset_id = :id")
-        .setParameter("ts", PAST)
-        .setParameter("id", assetId)
+        .createNativeQuery("UPDATE assets SET asset_updated_at = ?1 WHERE asset_id = ?2")
+        .setParameter(1, PAST)
+        .setParameter(2, assetId)
         .executeUpdate();
   }
 
   private void pushInjectToPast(String injectId) {
     entityManager
-        .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
-        .setParameter("ts", PAST)
-        .setParameter("id", injectId)
+        .createNativeQuery("UPDATE injects SET inject_updated_at = ?1 WHERE inject_id = ?2")
+        .setParameter(1, PAST)
+        .setParameter(2, injectId)
         .executeUpdate();
   }
 
   private void pushExpectationToPast(String expectationId) {
     entityManager
         .createNativeQuery(
-            "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
-                + " WHERE inject_expectation_id = :id")
-        .setParameter("ts", PAST)
-        .setParameter("id", expectationId)
+            "UPDATE injects_expectations SET inject_expectation_updated_at = ?1"
+                + " WHERE inject_expectation_id = ?2")
+        .setParameter(1, PAST)
+        .setParameter(2, expectationId)
         .executeUpdate();
   }
 
   private void touchInject(String injectId) {
     entityManager
-        .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
-        .setParameter("ts", Instant.now())
-        .setParameter("id", injectId)
+        .createNativeQuery("UPDATE injects SET inject_updated_at = ?1 WHERE inject_id = ?2")
+        .setParameter(1, Instant.now())
+        .setParameter(2, injectId)
         .executeUpdate();
   }
 
@@ -234,15 +234,15 @@ class IndexingRegressionTest extends IntegrationTest {
       List<?> injectIds =
           entityManager
               .createNativeQuery(
-                  "SELECT inject_id FROM injects WHERE inject_scenario = :sid ORDER BY inject_id")
-              .setParameter("sid", scenarioWrapper.get().getId())
+                  "SELECT inject_id FROM injects WHERE inject_scenario = ?1 ORDER BY inject_id")
+              .setParameter(1, scenarioWrapper.get().getId())
               .getResultList();
       Instant base = FROM.plusSeconds(1);
       for (int i = 0; i < injectIds.size(); i++) {
         entityManager
-            .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
-            .setParameter("ts", base.plusSeconds(i))
-            .setParameter("id", injectIds.get(i).toString())
+            .createNativeQuery("UPDATE injects SET inject_updated_at = ?1 WHERE inject_id = ?2")
+            .setParameter(1, base.plusSeconds(i))
+            .setParameter(2, injectIds.get(i).toString())
             .executeUpdate();
         expectedIds.add(injectIds.get(i).toString());
       }
@@ -283,7 +283,6 @@ class IndexingRegressionTest extends IntegrationTest {
     @Test
     @DisplayName("Scenario appears when only its linked inject was updated after :from")
     void scenario_reindexed_when_linked_inject_updated() {
-      // Arrange — create a scenario with an inject
       InjectComposer.Composer injectWrapper =
           injectComposer.forInject(InjectFixture.getDefaultInject());
       Scenario scenario =
@@ -294,16 +293,12 @@ class IndexingRegressionTest extends IntegrationTest {
               .get();
       entityManager.flush();
 
-      // Push the scenario's own updated_at into the past
       pushScenarioToPast(scenario.getId());
-      // The inject's updated_at stays at now() — recent
       entityManager.flush();
       entityManager.clear();
 
-      // Act
       List<EsScenario> results = scenarioHandler.fetch(FROM, 5000);
 
-      // Assert — scenario must appear because its inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(scenario.getId()));
     }
 
@@ -325,27 +320,25 @@ class IndexingRegressionTest extends IntegrationTest {
       }
       entityManager.flush();
 
-      // Assign distinct timestamps on scenarios AND their injects so GREATEST is deterministic
       int i = 0;
       for (String id : expectedIds) {
         Instant ts = FROM.plusSeconds(++i);
         entityManager
             .createNativeQuery(
-                "UPDATE scenarios SET scenario_updated_at = :ts WHERE scenario_id = :id")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE scenarios SET scenario_updated_at = ?1 WHERE scenario_id = ?2")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
         entityManager
             .createNativeQuery(
-                "UPDATE injects SET inject_updated_at = :ts WHERE inject_scenario = :id")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE injects SET inject_updated_at = ?1 WHERE inject_scenario = ?2")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
       }
       entityManager.flush();
       entityManager.clear();
 
-      // Simulate cursor loop
       Set<String> collectedIds = new HashSet<>();
       Instant cursor = FROM;
       int iterations = 0;
@@ -376,7 +369,6 @@ class IndexingRegressionTest extends IntegrationTest {
     @Test
     @DisplayName("Exercise appears when only its linked inject was updated after :from")
     void exercise_reindexed_when_linked_inject_updated() {
-      // Arrange — create an exercise with an inject
       InjectComposer.Composer injectWrapper =
           injectComposer.forInject(InjectFixture.getDefaultInject());
       Exercise exercise =
@@ -387,15 +379,12 @@ class IndexingRegressionTest extends IntegrationTest {
               .get();
       entityManager.flush();
 
-      // Push the exercise's own updated_at into the past
       pushExerciseToPast(exercise.getId());
       entityManager.flush();
       entityManager.clear();
 
-      // Act
       List<EsSimulation> results = simulationHandler.fetch(FROM, 5000);
 
-      // Assert — exercise must appear because its inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(exercise.getId()));
     }
 
@@ -417,21 +406,20 @@ class IndexingRegressionTest extends IntegrationTest {
       }
       entityManager.flush();
 
-      // Set distinct timestamps on exercises AND their injects so GREATEST is deterministic
       int i = 0;
       for (String id : expectedIds) {
         Instant ts = FROM.plusSeconds(++i);
         entityManager
             .createNativeQuery(
-                "UPDATE exercises SET exercise_updated_at = :ts WHERE exercise_id = :id")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE exercises SET exercise_updated_at = ?1 WHERE exercise_id = ?2")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
         entityManager
             .createNativeQuery(
-                "UPDATE injects SET inject_updated_at = :ts WHERE inject_exercise = :id")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE injects SET inject_updated_at = ?1 WHERE inject_exercise = ?2")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
       }
       entityManager.flush();
@@ -467,7 +455,6 @@ class IndexingRegressionTest extends IntegrationTest {
     @Test
     @DisplayName("Endpoint appears when only its linked inject was updated after :from")
     void endpoint_reindexed_when_linked_inject_updated() {
-      // Arrange — create an endpoint linked to an inject via a scenario
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       InjectComposer.Composer injectWrapper =
@@ -481,19 +468,14 @@ class IndexingRegressionTest extends IntegrationTest {
       Endpoint endpoint = endpointWrapper.get();
       Inject inject = injectWrapper.get();
 
-      // Push the endpoint's own updated_at into the past
       pushEndpointToPast(endpoint.getId());
-      // Also push the inject so the only "recent" change must come from touching it
       pushInjectToPast(inject.getId());
-      // Now touch the inject so it becomes recent again
       touchInject(inject.getId());
       entityManager.flush();
       entityManager.clear();
 
-      // Act
       List<EsEndpoint> results = endpointHandler.fetch(FROM, 5000);
 
-      // Assert — endpoint must appear because its linked inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(endpoint.getId()));
     }
 
@@ -517,21 +499,20 @@ class IndexingRegressionTest extends IntegrationTest {
       }
       entityManager.flush();
 
-      // Set distinct timestamps on endpoints AND their injects so GREATEST is deterministic
       int i = 0;
       for (String id : expectedIds) {
         Instant ts = FROM.plusSeconds(++i);
         entityManager
-            .createNativeQuery("UPDATE assets SET asset_updated_at = :ts WHERE asset_id = :id")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+            .createNativeQuery("UPDATE assets SET asset_updated_at = ?1 WHERE asset_id = ?2")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
         entityManager
             .createNativeQuery(
-                "UPDATE injects SET inject_updated_at = :ts WHERE inject_id IN"
-                    + " (SELECT inject_id FROM injects_assets WHERE asset_id = :id)")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE injects SET inject_updated_at = ?1 WHERE inject_id IN"
+                    + " (SELECT inject_id FROM injects_assets WHERE asset_id = ?2)")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
       }
       entityManager.flush();
@@ -567,7 +548,6 @@ class IndexingRegressionTest extends IntegrationTest {
     @Test
     @DisplayName("Expectation appears when only its linked inject was updated after :from")
     void expectation_reindexed_when_linked_inject_updated() {
-      // Arrange — create an inject with an expectation inside a scenario
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       BaseInjectExpectation expectation =
@@ -586,18 +566,14 @@ class IndexingRegressionTest extends IntegrationTest {
 
       Inject inject = injectWrapper.get();
 
-      // Push the expectation's own updated_at into the past
       pushExpectationToPast(expectation.getId());
-      // Also push the inject then touch it so the inject is the only recent change
       pushInjectToPast(inject.getId());
       touchInject(inject.getId());
       entityManager.flush();
       entityManager.clear();
 
-      // Act — the handler filters out agent-level expectations, so we pass null/large limit
       List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
 
-      // Assert — expectation must appear because its linked inject is recent
       assertThat(results).anyMatch(es -> es.getBase_id().equals(expectation.getId()));
     }
 
@@ -606,7 +582,6 @@ class IndexingRegressionTest extends IntegrationTest {
         "Agentless expectation keeps security platforms side from agent-level expectation results")
     void
         given_agentless_expectation_should_index_security_platforms_from_agent_expectation_results() {
-      // Arrange
       SecurityPlatformComposer.Composer securityPlatform =
           securityPlatformComposer
               .forSecurityPlatform(SecurityPlatformFixture.createDefault("EDR test", "EDR"))
@@ -662,10 +637,8 @@ class IndexingRegressionTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Act
       List<EsInjectExpectation> results = injectExpectationHandler.fetch(FROM, 5000);
 
-      // Assert
       assertThat(results)
           .filteredOn(es -> es.getBase_id().equals(agentlessExpectation.getId()))
           .singleElement()
@@ -728,23 +701,22 @@ class IndexingRegressionTest extends IntegrationTest {
       }
       entityManager.flush();
 
-      // Set distinct timestamps on expectations AND their injects so GREATEST is deterministic
       int i = 0;
       for (String id : expectedIds) {
         Instant ts = FROM.plusSeconds(++i);
         entityManager
             .createNativeQuery(
-                "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
-                    + " WHERE inject_expectation_id = :id")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE injects_expectations SET inject_expectation_updated_at = ?1"
+                    + " WHERE inject_expectation_id = ?2")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
         entityManager
             .createNativeQuery(
-                "UPDATE injects SET inject_updated_at = :ts WHERE inject_id = "
-                    + "(SELECT inject_id FROM injects_expectations WHERE inject_expectation_id = :id)")
-            .setParameter("ts", ts)
-            .setParameter("id", id)
+                "UPDATE injects SET inject_updated_at = ?1 WHERE inject_id = "
+                    + "(SELECT inject_id FROM injects_expectations WHERE inject_expectation_id = ?2)")
+            .setParameter(1, ts)
+            .setParameter(2, id)
             .executeUpdate();
       }
       entityManager.flush();
@@ -767,6 +739,92 @@ class IndexingRegressionTest extends IntegrationTest {
 
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
+
+    @Test
+    @DisplayName(
+        "Compound cursor: all expectations sharing the same timestamp are returned across"
+            + " batches")
+    void compound_cursor_returns_all_expectations_at_same_timestamp() {
+      // Arrange — 3 expectations in the same inject, all forced to identical updated_at
+      // (simulates bulkComputeTechnicalExpectations saving many rows in a single saveAll())
+      Instant sharedTimestamp = FROM.plus(30, ChronoUnit.MINUTES);
+
+      // Use composer wrappers: .get().getId() is the established pattern that guarantees
+      // the JPA-assigned ID after persist+flush, regardless of @GeneratedValue strategy.
+      InjectExpectationComposer.Composer exp1Composer =
+          injectExpectationComposer
+              .forExpectation(InjectExpectationFixture.createDefaultDetectionInjectExpectation())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()));
+      InjectExpectationComposer.Composer exp2Composer =
+          injectExpectationComposer
+              .forExpectation(InjectExpectationFixture.createDefaultDetectionInjectExpectation())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()));
+      InjectExpectationComposer.Composer exp3Composer =
+          injectExpectationComposer
+              .forExpectation(InjectExpectationFixture.createDefaultDetectionInjectExpectation())
+              .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint()));
+
+      scenarioComposer
+          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+          .withInject(
+              injectComposer
+                  .forInject(InjectFixture.getDefaultInject())
+                  .withExpectation(exp1Composer)
+                  .withExpectation(exp2Composer)
+                  .withExpectation(exp3Composer))
+          .persist();
+      entityManager.flush();
+
+      String id1 = exp1Composer.get().getId();
+      String id2 = exp2Composer.get().getId();
+      String id3 = exp3Composer.get().getId();
+
+      // Force all 3 expectations AND their inject to sharedTimestamp so that
+      // GREATEST(raw_expectation, inject_updated_at, contract_updated_at) = sharedTimestamp.
+      // Without aligning the inject, GREATEST = NOW() (inject was just created), and the
+      // compound cursor fetch(NOW(), lastId, …) finds nothing at that exact timestamp → exp3 skip.
+      for (String expId : List.of(id1, id2, id3)) {
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects_expectations SET inject_expectation_updated_at = ?1"
+                    + " WHERE inject_expectation_id = ?2")
+            .setParameter(1, sharedTimestamp)
+            .setParameter(2, expId)
+            .executeUpdate();
+      }
+      entityManager
+          .createNativeQuery(
+              "UPDATE injects SET inject_updated_at = ?1 WHERE inject_id IN"
+                  + " (SELECT inject_id FROM injects_expectations WHERE inject_expectation_id = ?2)")
+          .setParameter(1, sharedTimestamp)
+          .setParameter(2, id1)
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — batch1: cursor starts 1 ms before sharedTimestamp so only the 3 seeded
+      // expectations are in scope (pre-existing data is at older timestamps).
+      List<EsInjectExpectation> batch1 =
+          injectExpectationHandler.fetch(sharedTimestamp.minusMillis(1), 2);
+      assertThat(batch1)
+          .as("first batch must return exactly 2 of the 3 same-timestamp expectations")
+          .hasSize(2);
+
+      // Act — batch2: compound cursor advances past the last item of batch1.
+      String lastId = batch1.getLast().getBase_id();
+      Instant lastUpdatedAt = batch1.getLast().getBase_updated_at();
+      List<EsInjectExpectation> batch2 = injectExpectationHandler.fetch(lastUpdatedAt, lastId, 2);
+
+      // Assert — all 3 IDs appear across both batches with no duplicates.
+      // Filter to targetIds: batch2 may include other expectations newer than sharedTimestamp.
+      Set<String> targetIds = Set.of(id1, id2, id3);
+      List<String> relevantIds =
+          Stream.concat(batch1.stream(), batch2.stream())
+              .map(EsInjectExpectation::getBase_id)
+              .filter(targetIds::contains)
+              .toList();
+      assertThat(relevantIds).containsExactlyInAnyOrder(id1, id2, id3);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -780,7 +838,6 @@ class IndexingRegressionTest extends IntegrationTest {
     @Test
     @DisplayName("VulnerableEndpoint appears when its exercise was updated after :from")
     void vulnerable_endpoint_reindexed_when_exercise_updated() {
-      // Arrange — endpoint with a CVE finding from an inject in an exercise
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       FindingComposer.Composer findingWrapper =
@@ -798,81 +855,11 @@ class IndexingRegressionTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Act
       List<EsVulnerableEndpoint> results = vulnerableEndpointHandler.fetch(FROM, 5000);
 
-      // Assert — the endpoint+exercise combo must appear
       Endpoint endpoint = endpointWrapper.get();
       String expectedBaseId = endpoint.getId() + "_" + exercise.getId();
       assertThat(results).anyMatch(es -> es.getBase_id().equals(expectedBaseId));
-    }
-
-    @Test
-    @DisplayName(
-        "Compound cursor: all expectations sharing the same timestamp are returned across"
-            + " batches")
-    void compound_cursor_returns_all_expectations_at_same_timestamp() {
-      // Arrange — 3 expectations in the same inject, all forced to identical updated_at
-      // (simulates bulkComputeTechnicalExpectations saving many rows in a single saveAll())
-      Instant sharedTimestamp = FROM.plus(30, ChronoUnit.MINUTES);
-
-      InjectExpectation exp1 = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-      InjectExpectation exp2 = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-      InjectExpectation exp3 = InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-
-      scenarioComposer
-          .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
-          .withInject(
-              injectComposer
-                  .forInject(InjectFixture.getDefaultInject())
-                  .withExpectation(
-                      injectExpectationComposer
-                          .forExpectation(exp1)
-                          .withEndpoint(
-                              endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
-                  .withExpectation(
-                      injectExpectationComposer
-                          .forExpectation(exp2)
-                          .withEndpoint(
-                              endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
-                  .withExpectation(
-                      injectExpectationComposer
-                          .forExpectation(exp3)
-                          .withEndpoint(
-                              endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))))
-          .persist();
-      entityManager.flush();
-
-      // Force all 3 expectations to the exact same timestamp
-      for (InjectExpectation exp : List.of(exp1, exp2, exp3)) {
-        entityManager
-            .createNativeQuery(
-                "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
-                    + " WHERE inject_expectation_id = :id")
-            .setParameter("ts", sharedTimestamp)
-            .setParameter("id", exp.getId())
-            .executeUpdate();
-      }
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act — first batch (limit=2): returns 2 expectations ordered by (updated_at, id)
-      List<EsInjectExpectation> batch1 = injectExpectationHandler.fetch(FROM, 2);
-      assertThat(batch1).hasSize(2);
-
-      // Act — compound cursor: from = updated_at of last item (simulates lastIndexing after full
-      // batch), lastId = id of last item. Must return the 3rd expectation only.
-      String lastId = batch1.getLast().getBase_id();
-      Instant lastUpdatedAt = batch1.getLast().getBase_updated_at();
-      List<EsInjectExpectation> batch2 = injectExpectationHandler.fetch(lastUpdatedAt, lastId, 2);
-
-      // Assert — all 3 expectations are covered across both batches (none skipped)
-      List<String> allReturnedIds =
-          Stream.concat(batch1.stream(), batch2.stream())
-              .map(EsInjectExpectation::getBase_id)
-              .toList();
-      assertThat(allReturnedIds)
-          .containsExactlyInAnyOrder(exp1.getId(), exp2.getId(), exp3.getId());
     }
   }
 }
