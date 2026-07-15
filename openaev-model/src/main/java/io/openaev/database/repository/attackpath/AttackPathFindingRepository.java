@@ -113,4 +113,18 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
           + "ORDER BY ef.executionId")
   List<AttackPathFindingExecutionRow> findExecutionLinks(
       @Param("findingIds") Collection<String> findingIds);
+
+  /**
+   * Result tab (issue 5048, US3): the findings one execution produced (its (type, value)), via the
+   * execution-finding link. The link is the producing relation, so no {@code EXISTS} is needed.
+   * Used to list an execution's findings and to mask its credential secrets in the terminal.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow("
+          + "f.type, f.value) "
+          + "FROM AttackPathFinding f "
+          + "JOIN AttackPathExecutionFinding ef ON ef.findingId = f.id "
+          + "WHERE ef.executionId = :executionId "
+          + "ORDER BY f.type, f.value")
+  List<AttackPathEndpointFindingRow> findByExecutionId(@Param("executionId") String executionId);
 }

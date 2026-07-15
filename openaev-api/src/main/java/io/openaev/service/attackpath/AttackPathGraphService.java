@@ -1,5 +1,6 @@
 package io.openaev.service.attackpath;
 
+import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.projection.AttackPathEdgeGroupRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointFindingRow;
 import io.openaev.database.model.attackpath.projection.AttackPathEndpointGroupRow;
@@ -17,6 +18,8 @@ import io.openaev.service.attackpath.dto.AttackPathCounters;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
+import io.openaev.service.attackpath.dto.AttackPathExecutionDetailDTO;
+import io.openaev.service.attackpath.dto.AttackPathExecutionFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingItemDTO;
 import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
@@ -147,6 +150,74 @@ public class AttackPathGraphService {
                         executionIdsByFinding.getOrDefault(r.id(), List.of())))
             .toList();
     return new AttackPathFindingPageDTO(items, page.getTotalElements());
+  }
+
+  /**
+   * One execution's Result &amp; Terminal detail for the drawer (issue 5048, US3), from the frozen
+   * snapshot (never the live inject). Reads the execution row (the only read that loads the heavy
+   * {@code command}/{@code terminal_output}) and its produced findings, then masks the credential
+   * secrets it surfaced in the command, the output, and the finding values. Returns {@code null}
+   * when the execution is not in the caller's simulation (the controller maps that to 404).
+   */
+  @Transactional(readOnly = true)
+  public AttackPathExecutionDetailDTO executionDetail(String simulationId, String executionId) {
+    AttackPathExecution e =
+        executionRepository.findByIdAndSimulationId(executionId, simulationId).orElse(null);
+    if (e == null) {
+      return null;
+    }
+    Set<String> secrets = new HashSet<>();
+    List<AttackPathExecutionFindingItemDTO> findings = new ArrayList<>();
+    for (AttackPathEndpointFindingRow f : findingRepository.findByExecutionId(executionId)) {
+      boolean credential = CATEGORY_CREDENTIALS.equals(f.type());
+      if (credential) {
+        String secret = credentialSecret(f.value());
+        if (secret != null && !secret.isEmpty()) {
+          secrets.add(secret);
+        }
+      }
+      findings.add(
+          new AttackPathExecutionFindingItemDTO(
+              f.type(), credential ? maskCredential(f.value()) : f.value()));
+    }
+    return new AttackPathExecutionDetailDTO(
+        e.getPayloadName(),
+        e.getAgentName(),
+        e.getAgentPrivilege(),
+        e.getTargetKey(),
+        e.getTargetHostname(),
+        e.getTargetIp(),
+        e.getTargetPlatform(),
+        e.getPreventionStatus(),
+        e.getDetectionStatus(),
+        e.getExecutedAt() == null ? null : e.getExecutedAt().toString(),
+        findings,
+        maskSecrets(e.getCommand(), secrets),
+        maskSecrets(e.getTerminalOutput(), secrets));
+  }
+
+  /** The secret half of a {@code username:password} credential value (never shown in the clear). */
+  private static String credentialSecret(String value) {
+    if (value == null) {
+      return null;
+    }
+    int separator = value.indexOf(':');
+    return separator >= 0 ? value.substring(separator + 1) : null;
+  }
+
+  /** Replaces each known credential secret with the fixed mask wherever it appears in free text. */
+  private static String maskSecrets(String text, Set<String> secrets) {
+    if (text == null || secrets.isEmpty()) {
+      return text;
+    }
+    String masked = text;
+    // Longest secret first, so a secret that is a substring of another does not corrupt the longer
+    // one before it is masked (e.g. "pass" must not break "password").
+    for (String secret :
+        secrets.stream().sorted(Comparator.comparingInt(String::length).reversed()).toList()) {
+      masked = masked.replace(secret, CREDENTIAL_MASK);
+    }
+    return masked;
   }
 
   /**
