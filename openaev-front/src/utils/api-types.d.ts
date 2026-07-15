@@ -7492,6 +7492,8 @@ export interface PlatformSettings {
   default_mailer_name?: string;
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
+  /** UUID of the default tenant */
+  default_tenant_id?: string;
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"

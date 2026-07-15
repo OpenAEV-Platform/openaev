@@ -39,6 +39,7 @@ public class WorkflowService {
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
+  private final SimulationRateLimitService simulationRateLimitService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -889,11 +890,13 @@ public class WorkflowService {
 
     // At least one template generated one or more ready execution steps.
     boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
+    int pendingCount = 0;
 
     for (Step step : stepsTemplate) {
-      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null, pendingCount);
       if (!stepReadys.isEmpty()) {
         hasActiveSteps = true;
+        pendingCount += stepReadys.size();
         stepService.enqueueReadySteps(stepReadys, workflowRun);
       }
     }

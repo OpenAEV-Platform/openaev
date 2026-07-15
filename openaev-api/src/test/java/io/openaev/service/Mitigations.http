@@ -1,0 +1,89 @@
+### Set values before running
+# Important: for Bearer-only CSRF bypass, do not send cookies with these requests.
+# One-time cleanup if you still get 403: delete .idea/httpRequests/http-client.cookies
+@baseUrl = http://localhost:8080
+@token = REPLACE_WITH_ENV_FILEVALUE_OF_OPENAEV_ADMIN_TOKEN
+@tenantId = 2cffad3a-0001-4078-b0e2-ef74274022c3
+@mitigationId = REPLACE_WITH_MITIGATION_ID
+@attackPatternId = 41a937ce-4cf1-4bb5-9b15-ba09556c1563
+
+###
+# @name Debug current user
+# @no-cookie-jar
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{token}}
+Cookie:
+
+###
+# @name Debug current user tenants
+# @no-cookie-jar
+GET {{baseUrl}}/api/me/tenants
+Authorization: Bearer {{token}}
+Cookie:
+
+###
+# @name List mitigations (global route)
+# @no-cookie-jar
+GET {{baseUrl}}/api/mitigations
+Authorization: Bearer {{token}}
+Cookie:
+
+###
+# @name Search mitigations (global route)
+# @no-cookie-jar
+POST {{baseUrl}}/api/mitigations/search
+Authorization: Bearer {{token}}
+Cookie:
+Content-Type: application/json
+
+{
+  "page": 0,
+  "size": 20,
+  "sorts": []
+}
+
+###
+# @name Get mitigation by id (global route)
+# @no-cookie-jar
+GET {{baseUrl}}/api/mitigations/{{mitigationId}}
+Authorization: Bearer {{token}}
+Cookie:
+
+###
+# @name Create mitigation (tenant route)
+# @no-cookie-jar
+POST {{baseUrl}}/api/tenants/{{tenantId}}/mitigations
+Authorization: Bearer {{token}}
+Cookie:
+Content-Type: application/json
+
+{
+  "mitigation_stix_id": "course-of-action--11111111-2222-3333-4444-555555555555",
+  "mitigation_name": "Block malicious PowerShell child process",
+  "mitigation_description": "Detect and block suspicious PowerShell spawned from Office applications.",
+  "mitigation_external_id": "M-HTTP-001",
+  "mitigation_log_sources": ["windows_event_log", "edr_process_events"],
+  "mitigation_threat_hunting_techniques": "Hunt for office parent process spawning powershell.exe with encoded command.",
+  "mitigation_attack_patterns": ["{{attackPatternId}}"]
+}
+
+###
+# @name List mitigations (tenant route)
+# @no-cookie-jar
+GET {{baseUrl}}/api/tenants/{{tenantId}}/mitigations
+Authorization: Bearer {{token}}
+Cookie:
+
+###
+# @name Search mitigations (tenant route)
+# @no-cookie-jar
+POST {{baseUrl}}/api/tenants/{{tenantId}}/mitigations/search
+Authorization: Bearer {{token}}
+Cookie:
+Content-Type: application/json
+
+{
+  "page": 0,
+  "size": 20,
+  "sorts": []
+}
