@@ -247,7 +247,7 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: playwright-report-${{ inputs.browser }}-${{ github.job }}-${{ strategy.job-index }}
+        name: playwright-report-${{ inputs.browser }}-${{ github.job }}-${{ inputs.artifact-suffix }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
       if: ${{ !cancelled() && inputs.browser == 'chrome' }}
