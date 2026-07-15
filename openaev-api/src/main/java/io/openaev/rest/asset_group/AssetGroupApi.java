@@ -28,6 +28,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -93,14 +95,12 @@ public class AssetGroupApi extends RestBehavior {
     // ...). Resolve them uniformly (static + dynamic), then filter/paginate in memory since a group
     // membership is bounded and mixes discriminators the JPA endpoint search cannot span.
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
-    java.util.Set<String> staticIds =
-        assetGroup.getAssets().stream()
-            .map(Asset::getId)
-            .collect(java.util.stream.Collectors.toSet());
+    Set<String> staticIds =
+        assetGroup.getAssets().stream().map(Asset::getId).collect(Collectors.toSet());
 
     String textSearch = StringUtils.trimToEmpty(searchPaginationInput.getTextSearch());
     List<AssetOutput> all =
-        this.assetGroupService.assetsFromAssetGroup(assetGroupId).stream()
+        this.assetGroupService.assetsFromAssetGroup(assetGroup).stream()
             .filter(
                 asset ->
                     textSearch.isEmpty()

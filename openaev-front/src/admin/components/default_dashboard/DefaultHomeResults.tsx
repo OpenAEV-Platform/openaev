@@ -1,7 +1,7 @@
 import { ArrowBackOutlined } from '@mui/icons-material';
 import { Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -40,6 +40,20 @@ const FILTER_KEY_LABELS: Record<string, string> = {
   date: 'Date',
 };
 
+// i18n keys for known enum-ish filter values; unknown values render raw
+// (never through t(), which would log a missing-translation error per render).
+const FILTER_VALUE_LABEL_KEYS: Record<string, string> = {
+  SUCCESS: 'Success',
+  FAILED: 'Failed',
+  PENDING: 'Pending',
+  DETECTION: 'Detection',
+  PREVENTION: 'Prevention',
+  VULNERABILITY: 'Vulnerability',
+  MANUAL: 'Manual',
+  CVE: 'Cve',
+  PORTSSCAN: 'Portsscan',
+};
+
 /**
  * Full-page drill-down for the built-in home dashboard: every click on a
  * score, bar, gate or gauge lands here with the widget id and the clicked
@@ -71,26 +85,31 @@ const DefaultHomeResults = () => {
   const widgetId = searchParams.get('widget_id');
   const seriesIndex = Number(searchParams.get('series_index') ?? 0);
 
+  // Values are carried as one URL param per value (repeatable keys).
   const filterValues = useMemo(() => Object.fromEntries(
-    [...searchParams.entries()]
-      .filter(([key]) => !RESERVED_PARAMS.includes(key))
-      .map(([key, value]) => [key, value.split(',')]),
+    [...new Set(searchParams.keys())]
+      .filter(key => !RESERVED_PARAMS.includes(key))
+      .map(key => [key, searchParams.getAll(key).filter(value => value !== '')]),
   ), [searchParams]);
 
   // Same time range as the home dashboard so the list matches what was clicked.
   const [timeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
   const widget = useMemo(
-    () => buildDefaultHomeWidgets(timeRange).find(w => w.widget_id === widgetId),
-    [timeRange, widgetId],
+    () => buildDefaultHomeWidgets(timeRange, t).find(w => w.widget_id === widgetId),
+    [timeRange, widgetId, t],
   );
 
   const [paginatedEntities, setPaginatedEntities] = useState<EsEntities>();
   const [listConfig, setListConfig] = useState<ListConfiguration | null>();
   const [initialLoading, setInitialLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
+  // Monotonic request id: a slow earlier response must never overwrite a newer one.
+  const requestIdRef = useRef(0);
 
   const fetchResults = useCallback(async (pagination?: Pagination) => {
     if (!widget) return;
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
     await adHocEntitiesRuntime(widget.widget_type, widget.widget_config, {
       filter_values_map: filterValues,
       series_index: seriesIndex,
@@ -100,9 +119,13 @@ const DefaultHomeResults = () => {
         size: 20,
       },
     }).then(({ data }) => {
+      if (requestId !== requestIdRef.current) return;
       setPaginatedEntities(data.es_entities);
       setListConfig(data.list_configuration);
-    }).catch(() => setListConfig(null));
+    }).catch(() => {
+      if (requestId !== requestIdRef.current) return;
+      setListConfig(null);
+    });
   }, [widget, filterValues, seriesIndex]);
 
   useEffect(() => {
@@ -130,10 +153,12 @@ const DefaultHomeResults = () => {
     if (key === 'date') {
       return fldt(value);
     }
-    return t(value.charAt(0) + value.slice(1).toLowerCase());
+    const labelKey = FILTER_VALUE_LABEL_KEYS[value.toUpperCase()];
+    return labelKey ? t(labelKey) : value;
   }, [domains, securityPlatforms, attackPatterns, t, fldt]);
 
-  const widgetTitle = widget?.widget_config.title ? t(widget.widget_config.title) : t('Results');
+  // Titles are already localized at build time (buildDefaultHomeWidgets).
+  const widgetTitle = widget?.widget_config.title ?? t('Results');
   const total = paginatedEntities?.total ?? 0;
 
   if (!widgetId || !widget) {

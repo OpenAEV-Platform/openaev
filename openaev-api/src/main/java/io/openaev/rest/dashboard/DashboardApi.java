@@ -3,12 +3,12 @@ package io.openaev.rest.dashboard;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.dashboard.dto.AdHocWidgetInput;
+import io.openaev.api.dashboard.dto.AdHocWidgetToEntitiesInput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
-import io.openaev.rest.dashboard.form.AdHocWidgetInput;
-import io.openaev.rest.dashboard.form.AdHocWidgetToEntitiesInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.es.EntitiesPaginationInput;
 import io.openaev.utils.es.WidgetToEntitiesInput;

@@ -141,7 +141,7 @@ const InjectContentFieldComponent = ({
             control={control}
             render={({ field: { onChange, value } }) => (
               <AiTargetAutocompleteField
-                label={t(label)}
+                label={label}
                 value={(value as string) || undefined}
                 onChange={v => onChange(v ?? '')}
                 disabled={readOnly}

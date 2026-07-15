@@ -1,4 +1,4 @@
-package io.openaev.rest.dashboard.form;
+package io.openaev.api.dashboard.dto;
 
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 

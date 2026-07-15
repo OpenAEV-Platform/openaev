@@ -43,7 +43,8 @@ const DefaultHomeDashboard = () => {
   const [timeRange, setTimeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
   const [refreshCount, setRefreshCount] = useState(0);
 
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange), [timeRange]);
+  // Titles are localized at build time so the grid headers and the results page agree.
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange, t]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -76,8 +77,10 @@ const DefaultHomeDashboard = () => {
     params.set('widget_id', conf.widgetId);
     params.set('series_index', (conf.series_index ?? '').toString());
     if (conf.filter_values_map) {
-      Object.entries(conf.filter_values_map).forEach(([key, value]) => {
-        params.set(key, (value ?? []).join(','));
+      // One URL param per value: comma-joining would corrupt values containing commas,
+      // and empty arrays must not produce an empty-string filter value.
+      Object.entries(conf.filter_values_map).forEach(([key, values]) => {
+        (values ?? []).forEach(value => params.append(key, value));
       });
     }
     navigate(`/admin/results?${params.toString()}`);

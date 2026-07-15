@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { searchAiTargetAsOption, searchAiTargetByIdAsOption } from '../../../../actions/assets/aiTarget-actions';
 import AutocompleteField from '../../../../components/fields/AutocompleteField';
@@ -20,10 +20,23 @@ interface Props {
  */
 const AiTargetAutocompleteField = ({ label, value, onChange, required = false, disabled = false, error = false }: Props) => {
   const [options, setOptions] = useState<Option[]>([]);
+  // Options resolved by id for the selected value (edit mode); always merged back into the
+  // list so a concurrent page search can never blank the selected option's label.
+  const resolvedSelectedRef = useRef<Option[]>([]);
+  // Monotonic search id: a slow earlier search response must not clobber a newer one.
+  const searchIdRef = useRef(0);
+
+  const mergeWithResolved = (fetched: Option[]) => {
+    const fetchedIds = new Set(fetched.map(o => o.id));
+    return [...resolvedSelectedRef.current.filter(o => !fetchedIds.has(o.id)), ...fetched];
+  };
 
   const searchOptions = async (searchText: string) => {
+    searchIdRef.current += 1;
+    const searchId = searchIdRef.current;
     const res = await searchAiTargetAsOption(searchText);
-    setOptions(res.data as Option[]);
+    if (searchId !== searchIdRef.current) return;
+    setOptions(mergeWithResolved(res.data as Option[]));
   };
 
   useEffect(() => {
@@ -38,10 +51,10 @@ const AiTargetAutocompleteField = ({ label, value, onChange, required = false, d
         if (!active) {
           return;
         }
-        const resolved = res.data as Option[];
+        resolvedSelectedRef.current = res.data as Option[];
         setOptions((prev) => {
           const existingIds = new Set(prev.map(o => o.id));
-          return [...resolved.filter(o => !existingIds.has(o.id)), ...prev];
+          return [...resolvedSelectedRef.current.filter(o => !existingIds.has(o.id)), ...prev];
         });
       });
     }

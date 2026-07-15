@@ -42,7 +42,7 @@ public class AssetService {
   }
 
   /**
-   * Resolve assets of any type (Endpoint, AiTarget, SecurityPlatform, ...) matching the given
+   * Resolve assets of any type (base Asset, Endpoint, SecurityPlatform) matching the given
    * specification. Used for dynamic asset group resolution, which must span every asset category -
    * not only endpoints - so that e.g. a {@code Category = AI_TARGET} group resolves its AI targets.
    */

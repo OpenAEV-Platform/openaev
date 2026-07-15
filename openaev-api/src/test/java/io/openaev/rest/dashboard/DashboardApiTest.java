@@ -142,7 +142,7 @@ class DashboardApiTest extends IntegrationTest {
 
       Widget listWidget = WidgetFixture.createListWidgetWithEntity("endpoint");
       EngineSortField sortField = new EngineSortField();
-      sortField.setFieldName("asset_hostname");
+      sortField.setFieldName("endpoint_hostname");
       sortField.setDirection(SortDirection.ASC);
       ((ListConfiguration) listWidget.getWidgetConfiguration()).setSorts(List.of(sortField));
       Widget widget =

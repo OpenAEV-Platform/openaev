@@ -40,12 +40,12 @@ public class EndpointHandler implements Handler<EsEndpoint> {
               esEndpoint.setEndpoint_name(endpoint.getAsset_name());
               esEndpoint.setEndpoint_description(endpoint.getAsset_description());
               esEndpoint.setEndpoint_external_reference(endpoint.getAsset_external_reference());
-              esEndpoint.setAsset_ips(endpoint.getEndpoint_ips());
-              esEndpoint.setAsset_hostname(endpoint.getEndpoint_hostname());
+              esEndpoint.setEndpoint_ips(endpoint.getEndpoint_ips());
+              esEndpoint.setEndpoint_hostname(endpoint.getEndpoint_hostname());
               esEndpoint.setEndpoint_platform(endpoint.getEndpoint_platform());
               esEndpoint.setEndpoint_arch(endpoint.getEndpoint_arch());
-              esEndpoint.setAsset_mac_addresses(endpoint.getEndpoint_mac_addresses());
-              esEndpoint.setAsset_seen_ip(endpoint.getEndpoint_seen_ip());
+              esEndpoint.setEndpoint_mac_addresses(endpoint.getEndpoint_mac_addresses());
+              esEndpoint.setEndpoint_seen_ip(endpoint.getEndpoint_seen_ip());
               esEndpoint.setEndpoint_is_eol(endpoint.getEndpoint_is_eol());
               // Dependencies (see base_dependencies in EsBase)
               esEndpoint.setBase_tenant_side(endpoint.getTenant_id());

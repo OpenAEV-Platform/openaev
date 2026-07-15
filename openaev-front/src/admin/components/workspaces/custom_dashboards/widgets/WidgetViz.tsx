@@ -38,7 +38,8 @@ interface WidgetTemporalVizProps {
 
 export type SerieData = {
   x?: string;
-  y?: string;
+  // computeSeriesData assigns the numeric ES value; string is kept for legacy consumers.
+  y?: number | string;
   meta?: string;
 };
 
@@ -129,7 +130,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
         if (vizData.type !== WidgetVizDataType.SERIES || !seriesData) {
           return 'Not implemented yet';
         }
-        const data = seriesData[0].data;
+        const data = seriesData[0]?.data ?? [];
         return (
           <DonutChart
             widgetId={widget.widget_id}
@@ -146,7 +147,7 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
           <ResilienceGaugeWidget
             widgetId={widget.widget_id}
             widgetConfig={widget.widget_config as StructuralHistogramWidget}
-            datas={seriesData[0].data as SerieData[]}
+            datas={(seriesData[0]?.data ?? []) as SerieData[]}
           />
         );
       }

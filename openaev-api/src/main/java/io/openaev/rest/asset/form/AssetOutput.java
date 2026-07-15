@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.Hibernate;
 
 /**
  * Generic, category-agnostic view of an {@link Asset}. Unlike {@code EndpointOutput} this covers
@@ -76,6 +77,9 @@ public class AssetOutput {
   private Boolean isStatic;
 
   public static AssetOutput from(Asset asset, boolean isStatic) {
+    // Unproxy before the instanceof: a lazy proxy typed as Asset would hide the Endpoint subtype
+    // and drop the platform from the output.
+    Object unproxied = Hibernate.unproxy(asset);
     return AssetOutput.builder()
         .id(asset.getId())
         .name(asset.getName())
@@ -85,7 +89,7 @@ public class AssetOutput {
         .criticality(asset.getCriticality())
         .tags(asset.getTags().stream().map(tag -> tag.getId()).collect(Collectors.toSet()))
         .hostname(asset.getHostname())
-        .platform(asset instanceof Endpoint endpoint ? endpoint.getPlatform() : null)
+        .platform(unproxied instanceof Endpoint endpoint ? endpoint.getPlatform() : null)
         .aiTargetProvider(asset.getAiTargetProvider())
         .isStatic(isStatic)
         .build();

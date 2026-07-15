@@ -1,7 +1,7 @@
 import { Box, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Binoculars, MovieOpenOutline, Radar, Target } from 'mdi-material-ui';
-import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, type ReactElement, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import { type SecurityPlatformHelper } from '../../../../../../../actions/assets/asset-helper';
@@ -283,7 +283,16 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
             {ctas.map((cta, i) => (
               <Tooltip key={cta.to} title={`${cta.label} - ${cta.caption}`} placement="left">
                 <Box
+                  role="button"
+                  tabIndex={0}
+                  aria-label={cta.label}
                   onClick={() => navigate(cta.to)}
+                  onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(cta.to);
+                    }
+                  }}
                   sx={{
                     'position': 'relative',
                     'display': 'flex',

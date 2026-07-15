@@ -104,7 +104,13 @@ public class AiTargetApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public void deleteAiTarget(@PathVariable @NotBlank final String aiTargetId) {
-    this.aiTargetRepository.deleteById(aiTargetId);
+    // Resolve through the tenant-filtered, category-scoped lookup first: a raw deleteById would
+    // bypass the Hibernate tenant filter (em.find) and could delete any asset type by id.
+    Asset aiTarget =
+        this.aiTargetRepository
+            .findAiTargetById(aiTargetId)
+            .orElseThrow(ElementNotFoundException::new);
+    this.aiTargetRepository.delete(aiTarget);
   }
 
   @GetMapping({AI_TARGET_URI + "/options", TENANT_AI_TARGET_URI + "/options"})

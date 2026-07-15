@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 
@@ -70,6 +70,21 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
   const gateX = (i: number) => GATES_START + ((GATES_END - GATES_START) * (i + 0.5)) / n;
   const beamPath = `M ${ADVERSARY_X + 26} ${CY} L ${ASSETS_X - 26} ${CY}`;
   const pathTo = (endX: number) => `M ${ADVERSARY_X + 26} ${CY} L ${endX} ${CY}`;
+
+  // Keyboard-accessible click-through props for the invisible SVG hit areas.
+  const investigateProps = (label: string, action: () => void) => ({
+    'role': 'button',
+    'tabIndex': 0,
+    'aria-label': label,
+    'style': { cursor: 'pointer' },
+    'onClick': action,
+    'onKeyDown': (event: KeyboardEvent<SVGRectElement>) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        action();
+      }
+    },
+  });
 
   const particlesFor = (value: number, max = 3) => {
     if (value <= 0) return 0;
@@ -198,8 +213,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
                 width={68}
                 height={trackH + 70}
                 fill="transparent"
-                style={{ cursor: 'pointer' }}
-                onClick={() => onInvestigate(layer.key)}
+                {...investigateProps(label, () => onInvestigate(layer.key))}
               />
             </g>
           );
@@ -233,8 +247,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
             width={68}
             height={GATE_HALF * 2 + 40}
             fill="transparent"
-            style={{ cursor: 'pointer' }}
-            onClick={() => onInvestigate('all')}
+            {...investigateProps(t('Adversary'), () => onInvestigate('all'))}
           />
           <text
             x={ADVERSARY_X}
@@ -312,8 +325,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
                 width={68}
                 height={GATE_HALF * 2 + 40}
                 fill="transparent"
-                style={{ cursor: 'pointer' }}
-                onClick={() => onInvestigate('breach')}
+                {...investigateProps(t('Breached'), () => onInvestigate('breach'))}
               />
             </g>
           );

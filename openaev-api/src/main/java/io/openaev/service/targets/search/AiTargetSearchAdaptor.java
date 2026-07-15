@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AiTargetTarget;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectTarget;
@@ -94,7 +95,9 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
     // UnsupportedOperationException when Jackson serialises the pageable in the response.
     int size = Math.max(1, input.getSize());
     Pageable pageable = PageRequest.of(input.getPage(), size);
-    return new PageImpl<>(targets, pageable, targets.size());
+    int from = Math.min((int) pageable.getOffset(), targets.size());
+    int to = Math.min(from + size, targets.size());
+    return new PageImpl<>(targets.subList(from, to), pageable, targets.size());
   }
 
   @Override
@@ -111,6 +114,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
   @Override
   public List<FilterUtilsJpa.Option> getOptionsByIds(List<String> ids) {
     return fromIterable(aiTargetRepository.findAllById(ids)).stream()
+        .filter(asset -> AssetCategory.AI_TARGET.equals(asset.getCategory()))
         .map(aiTarget -> new FilterUtilsJpa.Option(aiTarget.getId(), aiTarget.getName()))
         .toList();
   }

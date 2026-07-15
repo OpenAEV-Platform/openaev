@@ -1,6 +1,6 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useEffect, useId, useMemo, useState } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
@@ -113,6 +113,21 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   const orbit = platforms.slice(0, 8);
   const orbitCount = Math.max(orbit.length, 1);
 
+  // Keyboard-accessible drill-down props shared by the orb and the verdict chip.
+  const investigateA11yProps = onInvestigate
+    ? {
+        'role': 'button',
+        'tabIndex': 0,
+        'aria-label': t('Investigate exposure gaps'),
+        'onKeyDown': (event: KeyboardEvent<Element>) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onInvestigate();
+          }
+        },
+      }
+    : {};
+
   return (
     <Box
       sx={{
@@ -145,6 +160,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           className="noDrag"
           viewBox={`0 0 ${size} ${size}`}
           onClick={onInvestigate}
+          {...investigateA11yProps}
           style={{
             maxHeight: '100%',
             maxWidth: '100%',
@@ -318,6 +334,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         <Box
           className="noDrag"
           onClick={onInvestigate}
+          {...investigateA11yProps}
           sx={{
             'display': 'inline-flex',
             'alignItems': 'center',

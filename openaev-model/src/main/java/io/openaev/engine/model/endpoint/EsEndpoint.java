@@ -31,14 +31,18 @@ public class EsEndpoint extends EsTenantBase {
   private String endpoint_external_reference;
 
   // -- ENDPOINT SPECIFIC --
+  // NOTE: the SQL columns were renamed endpoint_* -> asset_* (asset taxonomy remodel), but the ES
+  // field names deliberately keep the endpoint_ prefix: the physical indexes have a strict mapping
+  // that is only rebuilt on index creation, and saved widgets / filters reference these names. The
+  // findForIndexing projection aliases the renamed columns back to endpoint_*.
 
-  @Queryable(label = "asset ips", filterable = true)
+  @Queryable(label = "endpoint ips", filterable = true)
   @EsQueryable(keyword = true)
-  private Set<String> asset_ips;
+  private Set<String> endpoint_ips;
 
-  @Queryable(label = "asset hostname", filterable = true)
+  @Queryable(label = "endpoint hostname", filterable = true)
   @EsQueryable(keyword = true)
-  private String asset_hostname;
+  private String endpoint_hostname;
 
   @Queryable(
       label = "endpoint platform",
@@ -56,13 +60,13 @@ public class EsEndpoint extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String endpoint_arch;
 
-  @Queryable(label = "asset mac addresses", filterable = true)
+  @Queryable(label = "endpoint mac addresses", filterable = true)
   @EsQueryable(keyword = true)
-  private Set<String> asset_mac_addresses;
+  private Set<String> endpoint_mac_addresses;
 
-  @Queryable(label = "asset seen ip", filterable = true)
+  @Queryable(label = "endpoint seen ip", filterable = true)
   @EsQueryable(keyword = true)
-  private String asset_seen_ip;
+  private String endpoint_seen_ip;
 
   @Queryable(label = "endpoint is end of life", filterable = true)
   @EsQueryable(keyword = true)

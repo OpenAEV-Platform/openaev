@@ -16,6 +16,9 @@ export const PLATFORM_DEFAULT_DASHBOARD_ID = '_platform_default_home';
 
 export type DefaultTimeRange = 'ALL_TIME' | 'LAST_DAY' | 'LAST_WEEK' | 'LAST_MONTH' | 'LAST_QUARTER' | 'LAST_SEMESTER' | 'LAST_YEAR';
 
+/** Translator signature: widget titles are localized at build time (see buildDefaultHomeWidgets). */
+type Translate = (key: string) => string;
+
 const filter = (key: string, values: string[], operator: Filter['operator'] = 'eq'): Filter => ({
   id: generateFilterId(),
   key,
@@ -140,12 +143,12 @@ const successFailedSeries = (extra: Filter[] = []): Series[] => [
   series('FAILED', ...expectation([filter('inject_expectation_status', ['FAILED']), ...extra])),
 ];
 
-export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] => [
+export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translate = key => key): Widget[] => [
   // -- HERO: exposure command center --
   widget(
     'default-command-center',
     'command-center',
-    structural('Exposure command center', 'inject_expectation_type', successFailedSeries(), timeRange),
+    structural(t('Exposure command center'), 'inject_expectation_type', successFailedSeries(), timeRange),
     layout(0, 0, 12, 6),
   ),
 
@@ -153,7 +156,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-prevention',
     'resilience-gauge',
-    structural('Prevention', 'inject_expectation_status', [
+    structural(t('Prevention'), 'inject_expectation_status', [
       series('', ...expectation([filter('inject_expectation_type', ['PREVENTION'])])),
     ], timeRange, 100),
     layout(0, 6, 4, 4),
@@ -161,7 +164,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-detection',
     'resilience-gauge',
-    structural('Detection', 'inject_expectation_status', [
+    structural(t('Detection'), 'inject_expectation_status', [
       series('', ...expectation([filter('inject_expectation_type', ['DETECTION'])])),
     ], timeRange, 100),
     layout(4, 6, 4, 4),
@@ -169,7 +172,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-vulnerability',
     'resilience-gauge',
-    structural('Vulnerability', 'inject_expectation_status', [
+    structural(t('Vulnerability'), 'inject_expectation_status', [
       series('', ...expectation([filter('inject_expectation_type', ['VULNERABILITY'])])),
     ], timeRange, 100),
     layout(8, 6, 4, 4),
@@ -179,7 +182,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-security-domains',
     'average',
-    average('Performance by security domain', timeRange),
+    average(t('Performance by security domain'), timeRange),
     layout(0, 10, 12, 4),
   ),
 
@@ -187,49 +190,49 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-posture-radar',
     'posture-radar',
-    structural('Posture radar', 'base_security_platforms_side', successFailedSeries(), timeRange),
+    structural(t('Posture radar'), 'base_security_platforms_side', successFailedSeries(), timeRange),
     layout(0, 14, 4, 6),
   ),
   widget(
     'default-kpi-scenarios',
     'number',
-    flat('Scenarios', [series('Scenario', filter('base_entity', ['scenario']))], timeRange),
+    flat(t('Scenarios'), [series('Scenario', filter('base_entity', ['scenario']))], timeRange),
     layout(4, 14, 2, 2),
   ),
   widget(
     'default-kpi-simulations',
     'number',
-    flat('Simulations', [series('Simulation', filter('base_entity', ['simulation']))], timeRange),
+    flat(t('Simulations'), [series('Simulation', filter('base_entity', ['simulation']))], timeRange),
     layout(6, 14, 2, 2),
   ),
   widget(
     'default-kpi-injects',
     'number',
-    flat('Injects', [series('Inject', filter('base_entity', ['inject']))], timeRange),
+    flat(t('Injects'), [series('Inject', filter('base_entity', ['inject']))], timeRange),
     layout(4, 16, 2, 2),
   ),
   widget(
     'default-kpi-endpoints',
     'number',
-    flat('Endpoints', [series('Endpoint', filter('base_entity', ['endpoint']))], timeRange),
+    flat(t('Endpoints'), [series('Endpoint', filter('base_entity', ['endpoint']))], timeRange),
     layout(6, 16, 2, 2),
   ),
   widget(
     'default-kpi-cves',
     'number',
-    flat('CVEs found', [series('CVE', filter('base_entity', ['finding']), filter('finding_type', ['CVE']))], timeRange),
+    flat(t('CVEs found'), [series('CVE', filter('base_entity', ['finding']), filter('finding_type', ['CVE']))], timeRange),
     layout(4, 18, 2, 2),
   ),
   widget(
     'default-kpi-vulnerable-endpoints',
     'number',
-    flat('Vulnerable endpoints', [series('Vulnerable endpoint', filter('base_entity', ['vulnerable-endpoint']))], timeRange),
+    flat(t('Vulnerable endpoints'), [series('Vulnerable endpoint', filter('base_entity', ['vulnerable-endpoint']))], timeRange),
     layout(6, 18, 2, 2),
   ),
   widget(
     'default-latest-findings',
     'horizontal-barchart',
-    structural('Findings by type', 'finding_type', [
+    structural(t('Findings by type'), 'finding_type', [
       series('', filter('base_entity', ['finding'])),
     ], timeRange, 100),
     layout(8, 14, 4, 6),
@@ -240,7 +243,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
     'default-findings-list',
     'list',
     list(
-      'Latest findings',
+      t('Latest findings'),
       series('', filter('base_entity', ['finding'])),
       ['finding_value', 'base_created_at', 'finding_type'],
       timeRange,
@@ -250,19 +253,19 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-kpi-total-findings',
     'number',
-    flat('Total findings', [series('Finding', filter('base_entity', ['finding']))], timeRange),
+    flat(t('Total findings'), [series('Finding', filter('base_entity', ['finding']))], timeRange),
     layout(8, 20, 2, 2),
   ),
   widget(
     'default-kpi-ports-open',
     'number',
-    flat('Ports open', [series('Port', filter('base_entity', ['finding']), filter('finding_type', ['PortsScan', 'Port']))], timeRange),
+    flat(t('Ports open'), [series('Port', filter('base_entity', ['finding']), filter('finding_type', ['PortsScan', 'Port']))], timeRange),
     layout(10, 20, 2, 2),
   ),
   widget(
     'default-undetected-platforms',
     'vertical-barchart',
-    structural('Missed by security platform', 'base_security_platforms_side', [
+    structural(t('Missed by security platform'), 'base_security_platforms_side', [
       series('Not Detected', ...expectation([
         filter('inject_expectation_type', ['DETECTION']),
         filter('inject_expectation_status', ['FAILED']),
@@ -279,7 +282,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-detection-coverage',
     'security-coverage',
-    structural('Detection coverage', 'base_attack_patterns_side', [
+    structural(t('Detection coverage'), 'base_attack_patterns_side', [
       series('SUCCESS', ...expectation([
         filter('inject_expectation_status', ['SUCCESS']),
         filter('inject_expectation_type', ['DETECTION']),
@@ -296,7 +299,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-weekly-failures',
     'vertical-barchart',
-    temporal('Missed injects by week', [
+    temporal(t('Missed injects by week'), [
       series('Not Detected', ...expectation([
         filter('inject_expectation_type', ['DETECTION']),
         filter('inject_expectation_status', ['SUCCESS'], 'not_eq'),
@@ -311,7 +314,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-top-detected-ttps',
     'horizontal-barchart',
-    structural('Most detected & prevented TTPs', 'base_attack_patterns_side', [
+    structural(t('Most detected & prevented TTPs'), 'base_attack_patterns_side', [
       series('Detected TTPs', ...expectation([
         filter('inject_expectation_type', ['DETECTION']),
         filter('inject_expectation_status', ['SUCCESS']),
@@ -326,7 +329,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-top-undetected-ttps',
     'horizontal-barchart',
-    structural('Most undetected TTPs', 'base_attack_patterns_side', [
+    structural(t('Most undetected TTPs'), 'base_attack_patterns_side', [
       series('Undetected TTPs', ...expectation([
         filter('inject_expectation_type', ['DETECTION']),
         filter('inject_expectation_status', ['FAILED']),
@@ -341,7 +344,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
   widget(
     'default-simulations-by-week',
     'line',
-    temporal('Simulations by week', [
+    temporal(t('Simulations by week'), [
       series('Simulation', filter('base_entity', ['simulation'])),
     ], timeRange),
     layout(0, 46, 6, 6),
@@ -350,7 +353,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange): Widget[] =
     'default-latest-simulations',
     'list',
     list(
-      'Latest simulations',
+      t('Latest simulations'),
       series('', filter('base_entity', ['simulation'])),
       ['name', 'status', 'base_created_at', 'base_tags_side'],
       timeRange,

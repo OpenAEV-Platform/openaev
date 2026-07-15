@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -127,7 +128,14 @@ public class AssetGroupService {
 
   @Transactional(readOnly = true)
   public List<Asset> assetsFromAssetGroup(@NotBlank final String assetGroupId) {
-    AssetGroup assetGroup = this.assetGroup(assetGroupId);
+    return assetsFromAssetGroup(this.assetGroup(assetGroupId));
+  }
+
+  /**
+   * Same as {@link #assetsFromAssetGroup(String)} but for a group whose dynamic assets are already
+   * resolved - avoids re-running the (potentially expensive) dynamic resolution.
+   */
+  public List<Asset> assetsFromAssetGroup(@NotNull final AssetGroup assetGroup) {
     List<Asset> assets = new ArrayList<>();
     List<String> assetIds = new ArrayList<>();
     Stream.concat(assetGroup.getAssets().stream(), assetGroup.getDynamicAssets().stream())
@@ -202,14 +210,13 @@ public class AssetGroupService {
     if (!isFilterResolvableForBaseAssets(dynamicFilter)) {
       return List.of();
     }
-    try {
-      Specification<Asset> filterSpec = computeFilterGroupJpa(dynamicFilter);
-      Specification<Asset> nonEndpoint =
-          (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE);
-      return this.assetService.assets(filterSpec.and(nonEndpoint));
-    } catch (RuntimeException e) {
-      return List.of();
-    }
+    // No catch here on purpose: a repository failure inside an active transaction has already
+    // marked it rollback-only, so swallowing the exception would only defer the failure to an
+    // opaque UnexpectedRollbackException at commit. The eager key validation above is the guard.
+    Specification<Asset> filterSpec = computeFilterGroupJpa(dynamicFilter);
+    Specification<Asset> nonEndpoint =
+        (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE);
+    return this.assetService.assets(filterSpec.and(nonEndpoint));
   }
 
   /** True when every filter key is a filterable property of the base {@link Asset} type. */
@@ -256,9 +263,14 @@ public class AssetGroupService {
                 group ->
                     this.assetsFromAssetGroup(group.getId()).stream()
                         // A group may now resolve non-endpoint assets (e.g. AI targets); this
-                        // endpoint-scoped view only keeps the endpoints.
-                        .filter(Endpoint.class::isInstance)
-                        .map(Endpoint.class::cast)
+                        // endpoint-scoped view only keeps the endpoints. Unproxy first: a lazy
+                        // proxy typed as Asset would fail the instanceof for a real endpoint.
+                        .map(
+                            asset ->
+                                Hibernate.unproxy(asset) instanceof Endpoint endpoint
+                                    ? endpoint
+                                    : null)
+                        .filter(Objects::nonNull)
                         .toList()));
   }
 

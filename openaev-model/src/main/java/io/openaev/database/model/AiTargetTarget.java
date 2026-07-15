@@ -8,10 +8,10 @@ import java.util.Set;
 import lombok.Data;
 
 /**
- * Inject target backed by an {@link AiTarget} asset (an LLM endpoint / AI agent under adversarial
- * test). Unlike endpoint / agent targets, an AI target is referenced from the inject content (the
- * {@code ai_target} field) rather than through an asset relation, so it is resolved by the {@code
- * AiTargetSearchAdaptor} from the inject content.
+ * Inject target backed by an AI target {@link Asset} ({@code category = AI_TARGET} - an LLM
+ * endpoint / AI agent under adversarial test). Unlike endpoint / agent targets, an AI target is
+ * referenced from the inject content (the {@code ai_target} field) rather than through an asset
+ * relation, so it is resolved by the {@code AiTargetSearchAdaptor} from the inject content.
  */
 @Data
 public class AiTargetTarget extends InjectTarget {

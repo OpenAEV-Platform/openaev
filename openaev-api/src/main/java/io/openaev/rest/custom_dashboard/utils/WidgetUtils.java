@@ -13,7 +13,7 @@ public final class WidgetUtils {
 
   public static List<String> getColumnsFromBaseEntityName(String entityName) {
     return switch (entityName) {
-      case "endpoint" -> List.of("endpoint_name", "asset_ips", "endpoint_platform");
+      case "endpoint" -> List.of("endpoint_name", "endpoint_ips", "endpoint_platform");
       case "vulnerable-endpoint" ->
           List.of(
               "vulnerable_endpoint_hostname",

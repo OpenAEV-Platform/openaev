@@ -43,19 +43,17 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
     return iconMap[target.target_type];
   };
   return (
-    <>
-      <Paper elevation={1} key={target?.target_id}>
-        <ListItemButton onClick={handleItemClick} style={{ marginBottom: theme.spacing() }} selected={selected}>
-          <ListItemIcon>
-            {getIcon(target)}
-          </ListItemIcon>
-          <ListItemText>
-            {target?.target_name}
-          </ListItemText>
-          <NewAtomicTestingResult target={target} />
-        </ListItemButton>
-      </Paper>
-    </>
+    <Paper elevation={1}>
+      <ListItemButton onClick={handleItemClick} style={{ marginBottom: theme.spacing() }} selected={selected}>
+        <ListItemIcon>
+          {getIcon(target)}
+        </ListItemIcon>
+        <ListItemText>
+          {target?.target_name}
+        </ListItemText>
+        <NewAtomicTestingResult target={target} />
+      </ListItemButton>
+    </Paper>
   );
 };
 

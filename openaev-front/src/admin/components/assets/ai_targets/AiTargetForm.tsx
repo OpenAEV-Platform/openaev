@@ -30,7 +30,30 @@ const PROVIDERS = [
   'XTM_ONE',
 ] as const;
 
+// Provider names are proper nouns - displayed as-is, never passed through t().
+const PROVIDER_LABELS: Record<(typeof PROVIDERS)[number], string> = {
+  OPENAI_COMPATIBLE: 'OpenAI-compatible',
+  ANTHROPIC: 'Anthropic',
+  AZURE_OPENAI: 'Azure OpenAI',
+  AWS_BEDROCK: 'AWS Bedrock',
+  GOOGLE_VERTEX: 'Google Vertex',
+  HUGGINGFACE: 'Hugging Face',
+  OLLAMA: 'Ollama',
+  CUSTOM_HTTP: 'Custom HTTP',
+  MCP_SERVER: 'MCP server',
+  AGENT_HTTP: 'Agent HTTP',
+  XTM_ONE: 'XTM One',
+};
+
 const MODALITIES = ['TEXT', 'VISION', 'AUDIO', 'MULTIMODAL'] as const;
+
+// i18n keys (Text / Vision / Audio / Multimodal) for the modality enum values.
+const MODALITY_LABEL_KEYS: Record<(typeof MODALITIES)[number], string> = {
+  TEXT: 'Text',
+  VISION: 'Vision',
+  AUDIO: 'Audio',
+  MULTIMODAL: 'Multimodal',
+};
 
 const AiTargetForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -106,7 +129,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
             required
           >
             {PROVIDERS.map(provider => (
-              <MenuItem key={provider} value={provider}>{t(provider)}</MenuItem>
+              <MenuItem key={provider} value={provider}>{PROVIDER_LABELS[provider]}</MenuItem>
             ))}
           </TextField>
         )}
@@ -127,7 +150,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
             {...register('ai_target_modality')}
           >
             {MODALITIES.map(modality => (
-              <MenuItem key={modality} value={modality}>{t(modality)}</MenuItem>
+              <MenuItem key={modality} value={modality}>{t(MODALITY_LABEL_KEYS[modality])}</MenuItem>
             ))}
           </TextField>
         )}

@@ -1003,7 +1003,7 @@ public class InjectExpectationService {
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-            // AI targets are assets (AiTarget extends Asset), so their expectations are
+            // AI targets are plain assets (asset_category driven), so their expectations are
             // resolved through the asset lookup.
             case ASSETS, AI_TARGETS ->
                 injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
@@ -1038,7 +1038,7 @@ public class InjectExpectationService {
         case TEAMS -> injectExpectationRepository.findAllByInjectAndTeam(injectId, targetId);
         case PLAYERS -> injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-        // AI targets are assets (AiTarget extends Asset), resolved through the asset lookup.
+        // AI targets are plain assets (asset_category driven), resolved through the asset lookup.
         case ASSETS, AI_TARGETS ->
             injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
         case ASSETS_GROUPS ->
