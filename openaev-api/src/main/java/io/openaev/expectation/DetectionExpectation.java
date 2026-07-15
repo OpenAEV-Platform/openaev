@@ -1,9 +1,8 @@
-package io.openaev.model.expectation;
+package io.openaev.expectation;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.DETECTION;
 
 import io.openaev.database.model.*;
-import io.openaev.model.Expectation;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -59,7 +58,7 @@ public class DetectionExpectation implements Expectation {
   private Long expirationTime;
 
   /** Signatures that can satisfy this detection expectation. */
-  private List<InjectExpectationSignature> injectExpectationSignatures;
+  private List<ExpectationSignature> expectationSignatures;
 
   private DetectionExpectation() {}
 
@@ -78,7 +77,7 @@ public class DetectionExpectation implements Expectation {
    * @param asset the asset where the agent resides
    * @param assetGroup optional asset group for grouping
    * @param expirationTime time in seconds until expiration
-   * @param injectExpectationSignatures signatures that satisfy this expectation
+   * @param expectationSignatures signatures that satisfy this expectation
    * @return a configured DetectionExpectation
    */
   public static DetectionExpectation detectionExpectationForAgent(
@@ -89,7 +88,7 @@ public class DetectionExpectation implements Expectation {
       @NotNull final Asset asset,
       final AssetGroup assetGroup,
       final Long expirationTime,
-      List<InjectExpectationSignature> injectExpectationSignatures) {
+      List<ExpectationSignature> expectationSignatures) {
     DetectionExpectation detectionExpectation = new DetectionExpectation();
     detectionExpectation.setScore(Objects.requireNonNullElse(score, 100.0));
     detectionExpectation.setName(name);
@@ -98,7 +97,7 @@ public class DetectionExpectation implements Expectation {
     detectionExpectation.setAsset(asset);
     detectionExpectation.setAssetGroup(assetGroup);
     detectionExpectation.setExpirationTime(expirationTime);
-    detectionExpectation.setInjectExpectationSignatures(injectExpectationSignatures);
+    detectionExpectation.setExpectationSignatures(expectationSignatures);
     return detectionExpectation;
   }
 

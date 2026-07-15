@@ -1,31 +1,30 @@
-package io.openaev.model.expectation;
+package io.openaev.expectation;
 
-import io.openaev.database.model.Article;
 import io.openaev.database.model.BaseInjectExpectation;
-import io.openaev.model.Expectation;
+import io.openaev.database.model.Challenge;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Expectation that requires targets to read an article or channel content.
+ * Expectation that requires targets to complete a challenge.
  *
- * <p>Channel expectations are fulfilled when the target user reads or acknowledges the associated
- * article. This is commonly used to verify that important information has been communicated to
- * participants.
+ * <p>Challenge expectations are fulfilled when the target user successfully completes the
+ * associated challenge. This is commonly used in training scenarios where users must demonstrate
+ * specific skills or knowledge.
  *
- * @see Article
+ * @see Challenge
  * @see Expectation
  */
 @Getter
 @Setter
-public class ChannelExpectation implements Expectation {
+public class ChallengeExpectation implements Expectation {
 
   /** The score value when this expectation is fulfilled (0-100). */
   private Double score;
 
-  /** The article that must be read. */
-  private Article article;
+  /** The challenge that must be completed. */
+  private Challenge challenge;
 
   /** Whether this expectation is part of a group evaluation. */
   private boolean expectationGroup;
@@ -37,21 +36,22 @@ public class ChannelExpectation implements Expectation {
   private Long expirationTime;
 
   /**
-   * Creates a new channel expectation from a form expectation and article.
+   * Creates a new challenge expectation from a form expectation and challenge.
    *
    * @param expectation the form expectation containing configuration
-   * @param article the article that must be read
+   * @param challenge the challenge that must be completed
    */
-  public ChannelExpectation(io.openaev.model.inject.form.Expectation expectation, Article article) {
+  public ChallengeExpectation(
+      io.openaev.model.inject.form.Expectation expectation, Challenge challenge) {
     setScore(Objects.requireNonNullElse(expectation.getScore(), 100.0));
-    setArticle(article);
-    setName(article.getName());
+    setChallenge(challenge);
+    setName(challenge.getName());
     setExpectationGroup(expectation.isExpectationGroup());
     setExpirationTime(expectation.getExpirationTime());
   }
 
   @Override
   public BaseInjectExpectation.EXPECTATION_TYPE type() {
-    return BaseInjectExpectation.EXPECTATION_TYPE.ARTICLE;
+    return BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE;
   }
 }

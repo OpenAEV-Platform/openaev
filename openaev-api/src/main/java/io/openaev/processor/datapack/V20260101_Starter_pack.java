@@ -124,7 +124,8 @@ public class V20260101_Starter_pack extends DataPack {
       this.tagRuleService.updateTagRule(
           openCTITagRule.getId(),
           openCTITagRule.getTag().getName(),
-          new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
+          new ArrayList<>(List.of(allEndpointAssetGroup.getId())),
+          TenantContext.getCurrentTenant());
 
       this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();

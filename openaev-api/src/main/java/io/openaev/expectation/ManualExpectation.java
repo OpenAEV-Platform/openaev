@@ -1,11 +1,10 @@
-package io.openaev.model.expectation;
+package io.openaev.expectation;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
-import io.openaev.model.Expectation;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

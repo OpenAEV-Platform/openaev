@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -315,55 +314,6 @@ public interface InjectExpectationRepository
           "select i from InjectExpectation i where i.inject.id in :injectIds and i.agent is null and i.user is null")
   List<BaseInjectExpectation> findAllForGlobalScoreByInjects(
       @Param("injectIds") Set<String> injectIds);
-
-  @Modifying
-  @Query(
-      value =
-          """
-                UPDATE injects_expectations
-                SET inject_expectation_signatures =
-                    COALESCE(inject_expectation_signatures, '[]'::jsonb) ||
-                    jsonb_build_array(jsonb_build_object('type', :sigType, 'value', :sigValue))
-                WHERE inject_id = :injectId AND agent_id = :agentId
-                """,
-      nativeQuery = true)
-  void insertSignature(
-      @Param("sigType") String sigType,
-      @Param("sigValue") String sigValue,
-      @Param("injectId") String injectId,
-      @Param("agentId") String agentId);
-
-  // -- SIGNATURE PROCESSING --
-
-  @Modifying
-  @Query(
-      value =
-          """
-          UPDATE injects_expectations ie
-          SET inject_expectation_signatures = '[]'::jsonb,
-              inject_expectation_signatures_initialized = true
-          FROM injects i
-          WHERE ie.inject_expectation_id = :id
-            AND i.inject_id = ie.inject_id
-            AND i.tenant_id = :#{#tenantContext.currentTenant}
-          """,
-      nativeQuery = true)
-  void clearSignaturesAndMarkInitialized(@Param("id") String id);
-
-  @Modifying
-  @Query(
-      value =
-          """
-          UPDATE injects_expectations ie
-          SET inject_expectation_signatures =
-              COALESCE(ie.inject_expectation_signatures, '[]'::jsonb) || CAST(:signaturesJson AS jsonb),
-              inject_expectation_signatures_initialized = true
-          FROM injects i
-          WHERE ie.inject_expectation_id = :id
-            AND i.inject_id = ie.inject_id
-          """,
-      nativeQuery = true)
-  void appendSignatures(@Param("id") String id, @Param("signaturesJson") String signaturesJson);
 
   // -- INDEXING --
 

@@ -2,12 +2,14 @@ package io.openaev.service.expectation;
 
 import static io.openaev.service.InjectExpectationUtils.computeChildrenScore;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
+import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.ExpectationUtils.*;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.setUpFromCollectors;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
@@ -97,13 +99,14 @@ public abstract class AbstractTechnicalBehavior implements ExpectationBehavior {
             e -> {
               initializeResults(e);
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
-              e.setSignatures(
+              List<ExpectationSignature> expectationSignatures =
                   computeSignatures(
                       implantType,
                       inject.getId(),
                       e.getAsset(),
                       agentId,
-                      injectService.getValueTargetedAssetMap(inject)));
+                      injectService.getValueTargetedAssetMap(inject));
+              e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
             });
     injectExpectationRepository.saveAll(allExpectations);
   }
