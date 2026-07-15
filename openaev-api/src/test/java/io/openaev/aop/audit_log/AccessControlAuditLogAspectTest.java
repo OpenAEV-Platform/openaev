@@ -37,8 +37,11 @@ import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,6 +54,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -569,10 +573,18 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @DisplayName("Halt-on-failure: rollback on audit transport failure")
   class HaltOnFailureRollback {
 
-    @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
-    void given_haltOnFailureAndTransportFails_should_rollbackCreate() throws Exception {
-      // Arrange — enable halt-on-failure and make transport fail
+    /** Track team IDs created outside the test transaction for manual cleanup. */
+    private final List<String> teamIdsToCleanup = new ArrayList<>();
+
+    @AfterEach
+    void cleanupTeams() {
+      for (String id : teamIdsToCleanup) {
+        teamRepository.deleteById(id);
+      }
+      teamIdsToCleanup.clear();
+    }
+
+    private void stubHaltOnFailure() {
       doReturn(true).when(auditLogProperties).isHaltOnFailure();
       doReturn(true).when(logService).isEnabled();
       doReturn(false)
@@ -588,6 +600,15 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               any(Level.class),
               anyString());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_haltOnFailureAndTransportFails_should_rollbackCreate() throws Exception {
+      // Arrange — enable halt-on-failure and make transport fail
+      stubHaltOnFailure();
+      long teamCountBefore = teamRepository.count();
 
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
@@ -611,32 +632,21 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString());
       verify(auditShutdownService, timeout(2000)).initiateShutdown();
 
-      // Rollback is guaranteed by Spring @Transactional when AuditLogFailureException propagates.
-      // The test @Transactional context prevents verifying it directly here.
+      // Assert — the team creation was rolled back: no new rows in the table
+      assertThat(teamRepository.count()).isEqualTo(teamCountBefore);
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
     void given_haltOnFailureAndTransportFails_should_rollbackUpdate() throws Exception {
-      // Arrange
-      doReturn(true).when(auditLogProperties).isHaltOnFailure();
-      doReturn(true).when(logService).isEnabled();
-      doReturn(false)
-          .when(logService)
-          .logRequestEvent(
-              anyString(),
-              anyString(),
-              any(),
-              anyString(),
-              any(),
-              any(),
-              any(),
-              any(),
-              any(Level.class),
-              anyString());
-
+      // Arrange — create team in a committed transaction so it survives rollback
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
-      entityManager.flush();
+      teamIdsToCleanup.add(team.getId());
+      String originalName = team.getName();
+
+      // Now stub halt-on-failure after the team is persisted
+      stubHaltOnFailure();
 
       TeamUpdateInput updateInput = new TeamUpdateInput();
       updateInput.setName("Should-Not-Be-Persisted");
@@ -666,8 +676,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               anyString());
       verify(auditShutdownService, timeout(2000)).initiateShutdown();
 
-      // Rollback is guaranteed by Spring @Transactional when AuditLogFailureException propagates.
-      // The test @Transactional context prevents verifying it directly here.
+      // Assert — the update was rolled back: team name is unchanged
+      Team reloaded = teamRepository.findById(team.getId()).orElseThrow();
+      assertThat(reloaded.getName()).isEqualTo(originalName);
     }
   }
 }

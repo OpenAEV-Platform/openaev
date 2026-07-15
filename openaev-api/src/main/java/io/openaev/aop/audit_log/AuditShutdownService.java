@@ -1,5 +1,6 @@
 package io.openaev.aop.audit_log;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
@@ -16,11 +17,18 @@ import org.springframework.stereotype.Component;
 public class AuditShutdownService {
 
   private final ApplicationContext context;
+  private final AtomicBoolean shutdownTriggered = new AtomicBoolean(false);
 
   /**
    * Initiates a graceful shutdown on a daemon thread so the current transaction can rollback first.
+   * Idempotent — only the first call spawns the shutdown thread; subsequent calls are no-ops.
    */
   public void initiateShutdown() {
+    if (!shutdownTriggered.compareAndSet(false, true)) {
+      log.debug("[AUDIT] Shutdown already triggered by another thread.");
+      return;
+    }
+
     Thread shutdownThread =
         new Thread(
             () -> {
