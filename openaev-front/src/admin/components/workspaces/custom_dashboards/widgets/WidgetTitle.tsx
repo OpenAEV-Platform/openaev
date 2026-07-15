@@ -140,7 +140,12 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
         gutterBottom={false}
         style={{
           margin: 0,
-          lineHeight: '22px',
+          // line-height 1 + flex centering keeps the uppercase Geologica
+          // glyphs optically centered on the accent bar (the font's large
+          // descender space pushes them down with a full 22px line-height);
+          // the 1px lift compensates the remaining baseline bias.
+          lineHeight: 1,
+          transform: 'translateY(-1px)',
           fontSize: 11,
           fontWeight: 600,
           fontFamily: '"Geologica", sans-serif',
