@@ -2083,15 +2083,12 @@ public class V1_DataImporter implements Importer {
                 .keyType(
                     condNode.has("condition_key_type")
                             && !condNode.get("condition_key_type").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_type").asText(), ConditionKeyType.class)
+                        ? parseConditionKeyType(condNode.get("condition_key_type").asText())
                         : null)
                 .keySubtype(
                     condNode.has("condition_key_subtype")
                             && !condNode.get("condition_key_subtype").isNull()
-                        ? mapper.convertValue(
-                            condNode.get("condition_key_subtype").asText(),
-                            ConditionKeySubtype.class)
+                        ? parseConditionKeySubtype(condNode.get("condition_key_subtype").asText())
                         : null)
                 .type(conditionType)
                 .mappingType(
@@ -2310,6 +2307,32 @@ public class V1_DataImporter implements Importer {
     }
     JsonNode contractIdNode = injectContractNode.get("injector_contract_id");
     return contractIdNode != null && !contractIdNode.isNull() ? contractIdNode.asText() : null;
+  }
+
+  private static ConditionKeyType parseConditionKeyType(String rawValue) {
+    if (!hasText(rawValue)) {
+      return null;
+    }
+    for (ConditionKeyType value : ConditionKeyType.values()) {
+      if (value.name().equalsIgnoreCase(rawValue)) {
+        return value;
+      }
+    }
+    log.warn("Ignoring unknown condition_key_type during workflow import: {}", rawValue);
+    return null;
+  }
+
+  private static ConditionKeySubtype parseConditionKeySubtype(String rawValue) {
+    if (!hasText(rawValue)) {
+      return null;
+    }
+    for (ConditionKeySubtype value : ConditionKeySubtype.values()) {
+      if (value.name().equalsIgnoreCase(rawValue)) {
+        return value;
+      }
+    }
+    log.warn("Ignoring unknown condition_key_subtype during workflow import: {}", rawValue);
+    return null;
   }
 
   private static class BaseHolder implements Base {
