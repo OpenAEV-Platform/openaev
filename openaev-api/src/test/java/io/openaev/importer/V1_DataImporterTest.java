@@ -375,16 +375,22 @@ class V1_DataImporterTest extends IntegrationTest {
     Step step1 = steps.stream().filter(s -> s.getLimitExecution() == 3).findFirst().orElseThrow();
     Step step2 = steps.stream().filter(s -> s.getLimitExecution() == 1).findFirst().orElseThrow();
 
-    // Conditions on step 1: root + child
+    // Conditions on step 1: linked root
     List<Condition> conds1 = conditionRepository.findAllLinkedToStepId(step1.getId());
-    assertEquals(2, conds1.size());
-    Condition root =
-        conds1.stream().filter(c -> c.getConditionParent() == null).findFirst().orElseThrow();
-    Condition child =
-        conds1.stream().filter(c -> c.getConditionParent() != null).findFirst().orElseThrow();
+    assertEquals(1, conds1.size());
+    Condition root = conds1.getFirst();
+    assertNull(root.getConditionParent());
     assertEquals(ConditionType.EQ, root.getType());
     assertEquals("SUCCESS", root.getValue());
-    assertEquals(root.getId(), child.getConditionParent().getId());
+
+    Condition child =
+        conditionRepository.findAll().stream()
+            .filter(condition -> workflow.getId().equals(condition.getWorkflowId()))
+            .filter(condition -> condition.getConditionParent() != null)
+            .filter(condition -> root.getId().equals(condition.getConditionParent().getId()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals("child", child.getName());
 
     // Condition on step 2: references step 1 via stepFrom
     List<Condition> conds2 = conditionRepository.findAllLinkedToStepId(step2.getId());

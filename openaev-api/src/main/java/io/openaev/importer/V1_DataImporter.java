@@ -2113,7 +2113,7 @@ public class V1_DataImporter implements Importer {
                 .stepFrom(stepFrom)
                 .build();
 
-        if (step != null) {
+        if (step != null && isRoot) {
           chainingConditionService.linkToStep(condition, step, isRoot);
         }
         condition = chainingConditionService.saveCondition(condition);
