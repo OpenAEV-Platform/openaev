@@ -239,13 +239,6 @@ runs:
       env:
         APP_URL: http://localhost:8080
         E2E_COVERAGE: "true"
-    # ── Artifact naming ─────────────────────────────────────────────
-    # `github.job` + `strategy.job-index` guarantee uniqueness within
-    # the workflow run regardless of how many matrix dimensions the
-    # calling job has (now or in the future). A suffix like
-    # `runner.arch` would only cover today's single-dimension matrix
-    # in e2e-infra-tests and would silently collide again if a second
-    # dimension were ever added.
     - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
