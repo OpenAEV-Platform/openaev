@@ -1,7 +1,6 @@
 package io.openaev.collectors.expectations_expiration_manager.service;
 
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeFailedMessage;
-import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.computeSuccessMessage;
+import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.*;
 import static io.openaev.collectors.expectations_expiration_manager.utils.ExpectationUtils.isExpired;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
@@ -38,28 +37,16 @@ public class ExpectationsExpirationManagerService {
   public static final String EXPIRED = "Expired";
 
   private static final int BATCH_SIZE = 1000;
-  private static final int MAX_ITERATIONS = 100;
 
   @Transactional(rollbackFor = Exception.class)
   public void computeExpectations() {
     Collector collector = this.collectorService.collector(config.getId());
-    int offset = 0;
     List<BaseInjectExpectation> expectations =
-        this.injectExpectationService.expectationsNotFill(BATCH_SIZE, offset);
-    for (int i = 0; i < MAX_ITERATIONS && !expectations.isEmpty(); i++) {
-      List<BaseInjectExpectation> updated = new ArrayList<>();
-      this.processAgentExpectations(expectations, collector);
-      this.processRemainingExpectations(expectations, collector, updated);
-      this.injectExpectationService.updateAll(updated);
-
-      // Non-expired expectations are skipped by
-      // processAgentExpectations/processRemainingExpectations,
-      // so they keep score=null and reappear in the next fetch. We advance the offset to skip them.
-      long unprocessedCount = expectations.stream().filter(e -> e.getScore() == null).count();
-      offset += (int) unprocessedCount;
-
-      expectations = this.injectExpectationService.expectationsNotFill(BATCH_SIZE, offset);
-    }
+        this.injectExpectationService.expectationsNotFillAndExpired(BATCH_SIZE);
+    List<BaseInjectExpectation> updated = new ArrayList<>();
+    this.processAgentExpectations(expectations, collector);
+    this.processRemainingExpectations(expectations, collector, updated);
+    this.injectExpectationService.updateAll(updated);
   }
 
   // -- PRIVATE --

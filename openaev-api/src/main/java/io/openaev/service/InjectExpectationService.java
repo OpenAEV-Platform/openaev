@@ -47,7 +47,6 @@ import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -81,7 +80,6 @@ public class InjectExpectationService {
 
   private final InjectExpectationRepository injectExpectationRepository;
   private final CollectorService collectorService;
-  private final EntityManager entityManager;
   @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final InjectExpectationLockService injectExpectationLockService;
@@ -696,8 +694,8 @@ public class InjectExpectationService {
   // -- FETCH INJECT EXPECTATIONS --
 
   /**
-   * Retrieves unfilled inject expectations (no score and either no results or bound to an agent).
-   * Returns a bounded batch for incremental processing.
+   * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
+   * and expired Returns a bounded batch for incremental processing.
    *
    * <p>Forces a flush before executing the native query so that any in-memory score updates from
    * the current transaction are visible to the SQL engine.
@@ -705,26 +703,8 @@ public class InjectExpectationService {
    * @param limit maximum number of expectations to return
    * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */
-  public List<BaseInjectExpectation> expectationsNotFill(int limit) {
-    this.entityManager.flush();
-    return this.injectExpectationRepository.findExpectationsNotFilled(limit, 0);
-  }
-
-  /**
-   * Retrieves unfilled inject expectations with an offset, for batched processing. Non-expired
-   * expectations that were not processed (still no score) can be skipped via offset on the next
-   * call.
-   *
-   * <p>Forces a flush before executing the native query so that any in-memory score updates from
-   * the current transaction are visible to the SQL engine.
-   *
-   * @param limit maximum number of expectations to return
-   * @param offset number of rows to skip (non-expired expectations already seen)
-   * @return a list of unfilled inject expectations ordered by creation date (oldest first)
-   */
-  public List<BaseInjectExpectation> expectationsNotFill(int limit, int offset) {
-    this.entityManager.flush();
-    return this.injectExpectationRepository.findExpectationsNotFilled(limit, offset);
+  public List<BaseInjectExpectation> expectationsNotFillAndExpired(int limit) {
+    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(limit);
   }
 
   // -- EXPECTATIONS BY TYPE --
