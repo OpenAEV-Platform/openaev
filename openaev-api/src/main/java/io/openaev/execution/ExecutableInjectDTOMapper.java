@@ -19,6 +19,10 @@ public class ExecutableInjectDTOMapper {
         .injection(executableInject.getInjection())
         .assets(
             executableInject.getAssets().stream()
+                // Only endpoints are conveyed as endpoint targets. A group may resolve
+                // non-endpoint assets (e.g. AI targets); those are handled by their own injector
+                // (which resolves them from the asset group), not through the endpoint asset list.
+                .filter(Endpoint.class::isInstance)
                 .map(asset -> endpointMapper.toEndpointTargetOutput((Endpoint) asset))
                 .collect(Collectors.toSet()))
         .assetGroups(
