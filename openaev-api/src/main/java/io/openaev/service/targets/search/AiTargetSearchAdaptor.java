@@ -4,8 +4,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.database.model.AiTarget;
 import io.openaev.database.model.AiTargetTarget;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectTarget;
@@ -27,10 +27,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 /**
- * Resolves the {@link AiTarget} referenced from an inject content ({@code ai_target} field) as an
- * {@link InjectTarget}, so it appears in the atomic testing "Targets" panel alongside endpoint /
- * agent targets. The AI target is not an asset relation on the inject; it is a content reference,
- * hence a dedicated adaptor rather than a JPA-relation search.
+ * Resolves the AI target ({@link Asset} with {@code category = AI_TARGET}) referenced from an
+ * inject content ({@code ai_target} field) as an {@link InjectTarget}, so it appears in the atomic
+ * testing "Targets" panel alongside endpoint / agent targets. The AI target is not an asset
+ * relation on the inject; it is a content reference, hence a dedicated adaptor rather than a
+ * JPA-relation search.
  */
 @Component
 @RequiredArgsConstructor
@@ -42,7 +43,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
   private final AiTargetRepository aiTargetRepository;
   private final HelperTargetSearchAdaptor helperTargetSearchAdaptor;
 
-  private Optional<AiTarget> contentAiTarget(Inject scopedInject) {
+  private Optional<Asset> contentAiTarget(Inject scopedInject) {
     ObjectNode content = scopedInject.getContent();
     if (content == null) {
       return Optional.empty();
@@ -55,7 +56,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
     if (aiTargetId == null) {
       return Optional.empty();
     }
-    return aiTargetRepository.findById(aiTargetId);
+    return aiTargetRepository.findAiTargetById(aiTargetId);
   }
 
   /**
@@ -63,14 +64,14 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
    * / Manual mode) and every AI target asset that belongs to the inject's asset groups (Asset group
    * mode). Deduplicated by id, insertion order preserved.
    */
-  private List<AiTarget> resolveAiTargets(Inject scopedInject) {
-    Map<String, AiTarget> byId = new LinkedHashMap<>();
+  private List<Asset> resolveAiTargets(Inject scopedInject) {
+    Map<String, Asset> byId = new LinkedHashMap<>();
     contentAiTarget(scopedInject).ifPresent(aiTarget -> byId.put(aiTarget.getId(), aiTarget));
 
     List<String> assetGroupIds =
         scopedInject.getAssetGroups().stream().map(AssetGroup::getId).toList();
     if (!assetGroupIds.isEmpty()) {
-      for (AiTarget aiTarget : aiTargetRepository.findAllByAssetGroupIds(assetGroupIds)) {
+      for (Asset aiTarget : aiTargetRepository.findAllByAssetGroupIds(assetGroupIds)) {
         byId.putIfAbsent(aiTarget.getId(), aiTarget);
       }
     }
@@ -114,7 +115,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
         .toList();
   }
 
-  private InjectTarget convertFromAiTarget(AiTarget aiTarget, Inject inject) {
+  private InjectTarget convertFromAiTarget(Asset aiTarget, Inject inject) {
     return helperTargetSearchAdaptor.buildTargetWithExpectations(
         inject,
         () ->
@@ -122,7 +123,9 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
                 aiTarget.getId(),
                 aiTarget.getName(),
                 aiTarget.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                aiTarget.getProvider() != null ? aiTarget.getProvider().name() : null),
+                aiTarget.getAiTargetProvider() != null
+                    ? aiTarget.getAiTargetProvider().name()
+                    : null),
         true);
   }
 }

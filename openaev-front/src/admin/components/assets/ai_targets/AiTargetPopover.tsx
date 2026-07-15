@@ -5,7 +5,7 @@ import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type AiTarget, type AiTargetInput } from '../../../../utils/api-types';
+import { type AiTargetInput, type Asset as AiTarget } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -54,7 +54,7 @@ const AiTargetPopover: FunctionComponent<Props> = ({
     ai_target_configuration,
     asset_description,
     asset_tags,
-  }))(aiTarget);
+  }))(aiTarget) as AiTargetInput;
 
   // Edition
   const [edition, setEdition] = useState(openEditOnInit);

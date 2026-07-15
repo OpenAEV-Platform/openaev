@@ -39,11 +39,11 @@ public class EndpointOverviewOutput {
   private String description;
 
   @Schema(description = "Hostname")
-  @JsonProperty("endpoint_hostname")
+  @JsonProperty("asset_hostname")
   private String hostname;
 
   @Schema(description = "URL")
-  @JsonProperty("endpoint_url")
+  @JsonProperty("asset_url")
   private String url;
 
   @Schema(description = "Platform")
@@ -55,15 +55,15 @@ public class EndpointOverviewOutput {
   private Endpoint.PLATFORM_ARCH arch;
 
   @Schema(description = "List IPs")
-  @JsonProperty("endpoint_ips")
+  @JsonProperty("asset_ips")
   private Set<String> ips;
 
   @Schema(description = "Seen IP")
-  @JsonProperty("endpoint_seen_ip")
+  @JsonProperty("asset_seen_ip")
   private String seenIp;
 
   @Schema(description = "List of MAC addresses")
-  @JsonProperty("endpoint_mac_addresses")
+  @JsonProperty("asset_mac_addresses")
   private Set<String> macAddresses;
 
   @Schema(description = "List of primary agents")

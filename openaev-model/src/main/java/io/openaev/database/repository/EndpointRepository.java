@@ -22,7 +22,7 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
+          "select e.* from assets e where e.asset_hostname = :hostname and e.asset_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
@@ -31,8 +31,8 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
-              + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
+          "select e.* from assets e where LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
+              + "and exists (select 1 from unnest(e.asset_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
@@ -42,7 +42,7 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
+          "select e.* from assets e where e.asset_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
       @NotNull final @Param("macAddresses") String[] macAddresses,
@@ -156,8 +156,8 @@ public interface EndpointRepository
               + "), "
               + "endpoint_data AS ("
               + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
-              + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
+              + "a.asset_ips as endpoint_ips, a.asset_hostname as endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
+              + "a.asset_mac_addresses as endpoint_mac_addresses, a.asset_seen_ip as endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
               + "GREATEST(a.asset_updated_at, max(i.inject_updated_at), max(e.exercise_updated_at), max(s.scenario_updated_at), max(f.finding_updated_at)) as endpoint_updated_at, "
               + "array_agg(DISTINCT fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
               + "array_agg(DISTINCT at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags, "

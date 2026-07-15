@@ -140,10 +140,10 @@ const Endpoint = () => {
           <Typography variant="h3" gutterBottom>{t('Internet-facing')}</Typography>
           <Typography variant="body2" gutterBottom>{internetFacingLabel}</Typography>
         </div>
-        {endpoint.endpoint_url && (
+        {endpoint.asset_url && (
           <div>
             <Typography variant="h3" gutterBottom>{t('URL')}</Typography>
-            <Typography variant="body2" gutterBottom>{endpoint.endpoint_url}</Typography>
+            <Typography variant="body2" gutterBottom>{endpoint.asset_url}</Typography>
           </div>
         )}
         {endpoint.asset_linked_person && (
@@ -170,11 +170,11 @@ const Endpoint = () => {
         )}
         <div>
           <Typography variant="h3" gutterBottom>{t('Hostname')}</Typography>
-          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.endpoint_hostname)}</Typography>
+          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.asset_hostname)}</Typography>
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Seen IP address')}</Typography>
-          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.endpoint_seen_ip)}</Typography>
+          <Typography variant="body2" gutterBottom>{emptyFilled(endpoint.asset_seen_ip)}</Typography>
         </div>
         <div>
           <Typography variant="h3" gutterBottom>{t('Platform')}</Typography>
@@ -202,7 +202,7 @@ const Endpoint = () => {
           }}
           >
             <Typography variant="body2" gutterBottom>
-              {endpoint.endpoint_ips?.map((ip: string) => (
+              {endpoint.asset_ips?.map((ip: string) => (
                 <ListItem key={ip} disableGutters sx={{ py: 0 }}>
                   <Tooltip title={ip}>
                     <Typography
@@ -231,7 +231,7 @@ const Endpoint = () => {
           }}
           >
             <Typography variant="body2" gutterBottom>
-              {endpoint.endpoint_mac_addresses?.map((mac: string) => (
+              {endpoint.asset_mac_addresses?.map((mac: string) => (
                 <ListItem key={mac} disableGutters sx={{ py: 0 }}>
                   <Tooltip title={mac}>
                     <Typography

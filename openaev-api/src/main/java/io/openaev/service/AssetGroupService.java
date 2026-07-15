@@ -6,7 +6,6 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
@@ -34,7 +33,6 @@ public class AssetGroupService {
   private final AssetGroupRepository assetGroupRepository;
   private final AssetService assetService;
   private final EndpointService endpointService;
-  private final AiTargetRepository aiTargetRepository;
   private final TagRuleService tagRuleService;
   private final AssetGroupMapper assetGroupMapper;
 
@@ -160,7 +158,7 @@ public class AssetGroupService {
             this.endpointService.endpoints(specification).stream()
                 .map(Asset.class::cast)
                 .forEach(assets::add);
-            assets.addAll(resolveDynamicAiTargets(assetGroup.getDynamicFilter()));
+            assets.addAll(resolveDynamicNonEndpointAssets(assetGroup.getDynamicFilter()));
             assetGroup.setDynamicAssets(assets.stream().distinct().toList());
           }
         });
@@ -178,45 +176,50 @@ public class AssetGroupService {
     this.endpointService.endpoints(specification.and(specification2)).stream()
         .map(Asset.class::cast)
         .forEach(assets::add);
-    assets.addAll(resolveDynamicAiTargets(assetGroup.getDynamicFilter()));
+    assets.addAll(resolveDynamicNonEndpointAssets(assetGroup.getDynamicFilter()));
     assetGroup.setDynamicAssets(assets.stream().distinct().toList());
     return assetGroup;
   }
 
   /**
-   * Resolve the AI target assets matching a dynamic filter. AI targets ({@link AiTarget}) are a
-   * distinct asset discriminator, so the endpoint-scoped resolution above never returns them; a
-   * dynamic group such as {@code Category = AI_TARGET} would otherwise always be empty. The
-   * endpoint injectability constraint (agent / agentless) does not apply to AI targets. When the
-   * filter references a field that does not exist on {@link AiTarget} (e.g. an endpoint-only {@code
-   * platform} rule) the query cannot resolve, which simply means the group does not target AI
-   * targets and contributes none.
+   * Resolve the NON-endpoint assets (AI targets, identities, cloud / web / network / generic
+   * assets, ...) matching a dynamic filter. The endpoint-scoped resolution above only returns
+   * {@code Endpoint} rows, so without this a dynamic group such as {@code Category = AI_TARGET}
+   * would always be empty. The endpoint injectability constraint (agent / agentless) does not apply
+   * to non-endpoint assets, and {@code Endpoint} rows are excluded here to avoid duplicating the
+   * endpoint branch. When the filter references a field that does not exist for the queried assets
+   * (e.g. an endpoint-only {@code platform} rule) the query cannot resolve, which simply means the
+   * group targets no non-endpoint assets and contributes none.
    */
-  private List<Asset> resolveDynamicAiTargets(@NotNull final Filters.FilterGroup dynamicFilter) {
-    // The specification is lazy: an unresolvable key would only throw inside the
-    // repository call, marking the surrounding transaction rollback-only before any
-    // catch runs (this kills startup when the starter pack seeds endpoint-scoped
-    // dynamic groups on a fresh database). Validate the filter keys eagerly instead.
-    if (!isFilterResolvableForAiTargets(dynamicFilter)) {
+  private List<Asset> resolveDynamicNonEndpointAssets(
+      @NotNull final Filters.FilterGroup dynamicFilter) {
+    // The specification is lazy: an unresolvable filter key (e.g. an endpoint-only
+    // "platform" rule) only throws inside the repository call, which marks the
+    // surrounding transaction rollback-only BEFORE the catch below runs - killing
+    // startup when the starter pack seeds endpoint-scoped dynamic groups on a fresh
+    // database. Validate the keys eagerly instead: subtype-only keys cannot match
+    // non-endpoint assets anyway, so such groups simply contribute none.
+    if (!isFilterResolvableForBaseAssets(dynamicFilter)) {
       return List.of();
     }
-    Specification<AiTarget> specification = computeFilterGroupJpa(dynamicFilter);
-    return this.aiTargetRepository.findAll(specification).stream().map(Asset.class::cast).toList();
+    try {
+      Specification<Asset> filterSpec = computeFilterGroupJpa(dynamicFilter);
+      Specification<Asset> nonEndpoint =
+          (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE);
+      return this.assetService.assets(filterSpec.and(nonEndpoint));
+    } catch (RuntimeException e) {
+      return List.of();
+    }
   }
 
-  /** True when every filter key of the group is a filterable {@link AiTarget} property. */
-  private boolean isFilterResolvableForAiTargets(final Filters.FilterGroup dynamicFilter) {
-    try {
-      List<String> filterableKeys =
-          SchemaUtils.getFilterableProperties(SchemaUtils.schemaWithSubtypes(AiTarget.class))
-              .stream()
-              .map(PropertySchema::getJsonName)
-              .toList();
-      return Optional.ofNullable(dynamicFilter.getFilters()).orElse(List.of()).stream()
-          .allMatch(filter -> filterableKeys.contains(filter.getKey()));
-    } catch (ClassNotFoundException e) {
-      return false;
-    }
+  /** True when every filter key is a filterable property of the base {@link Asset} type. */
+  private boolean isFilterResolvableForBaseAssets(final Filters.FilterGroup dynamicFilter) {
+    List<String> filterableKeys =
+        SchemaUtils.getFilterableProperties(SchemaUtils.schema(Asset.class)).stream()
+            .map(PropertySchema::getJsonName)
+            .toList();
+    return Optional.ofNullable(dynamicFilter.getFilters()).orElse(List.of()).stream()
+        .allMatch(filter -> filterableKeys.contains(filter.getKey()));
   }
 
   public List<FilterUtilsJpa.Option> getOptionsByNameLinkedToFindings(

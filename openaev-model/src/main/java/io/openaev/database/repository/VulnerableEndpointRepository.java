@@ -47,7 +47,7 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
       a.asset_id as vulnerable_endpoint_id,
       rve.inject_exercise as vulnerable_endpoint_simulation,
       MAX(se.scenario_id) as vulnerable_endpoint_scenario,
-      a.endpoint_hostname as vulnerable_endpoint_hostname,
+      a.asset_hostname as vulnerable_endpoint_hostname,
       a.endpoint_platform as vulnerable_endpoint_platform,
       a.endpoint_is_eol as vulnerable_endpoint_eol,
       a.endpoint_arch as vulnerable_endpoint_architecture,

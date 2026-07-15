@@ -219,9 +219,11 @@ public class InjectExpectationService {
       if (isAssetGroupExpectation(technicalExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
-      // Allow down computation on asset
-      Endpoint endpoint = (Endpoint) Hibernate.unproxy(technicalExpectation.getAsset());
-      List<Agent> agents = getPrimaryAgents(endpoint);
+      // Allow down computation on asset. Non-endpoint assets (AI targets, ...) have no agents and
+      // are treated as agentless.
+      Asset unproxied = (Asset) Hibernate.unproxy(technicalExpectation.getAsset());
+      List<Agent> agents =
+          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalExpectation) && !isAgentless) {
         List<TechnicalInjectExpectation> expectationsForAgents =
@@ -270,9 +272,10 @@ public class InjectExpectationService {
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
-      // Not Endpoint if no agentless
-      Endpoint endpoint = (Endpoint) Hibernate.unproxy(technicalInjectExpectation.getAsset());
-      List<Agent> agents = getPrimaryAgents(endpoint);
+      // Non-endpoint assets (AI targets, ...) have no agents and are treated as agentless.
+      Asset unproxied = (Asset) Hibernate.unproxy(technicalInjectExpectation.getAsset());
+      List<Agent> agents =
+          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalInjectExpectation) && !isAgentless) {
         throw new IllegalArgumentException(

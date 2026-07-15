@@ -32,20 +32,20 @@ public class EndpointInput extends AssetInput {
   @Schema(types = {"string", "null"})
   private Endpoint.PLATFORM_ARCH arch;
 
-  @JsonProperty("endpoint_ips")
+  @JsonProperty("asset_ips")
   private String[] ips;
 
-  @JsonProperty("endpoint_hostname")
+  @JsonProperty("asset_hostname")
   private String hostname;
 
-  @JsonProperty("endpoint_url")
+  @JsonProperty("asset_url")
   @Schema(types = {"string", "null"})
   private String url;
 
   @JsonProperty("endpoint_agent_version")
   private String agentVersion;
 
-  @JsonProperty("endpoint_mac_addresses")
+  @JsonProperty("asset_mac_addresses")
   private String[] macAddresses;
 
   @Schema(description = "True if the endpoint is in an End of Life state")

@@ -32,13 +32,13 @@ public class EsEndpoint extends EsTenantBase {
 
   // -- ENDPOINT SPECIFIC --
 
-  @Queryable(label = "endpoint ips", filterable = true)
+  @Queryable(label = "asset ips", filterable = true)
   @EsQueryable(keyword = true)
-  private Set<String> endpoint_ips;
+  private Set<String> asset_ips;
 
-  @Queryable(label = "endpoint hostname", filterable = true)
+  @Queryable(label = "asset hostname", filterable = true)
   @EsQueryable(keyword = true)
-  private String endpoint_hostname;
+  private String asset_hostname;
 
   @Queryable(
       label = "endpoint platform",
@@ -56,13 +56,13 @@ public class EsEndpoint extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String endpoint_arch;
 
-  @Queryable(label = "endpoint mac addresses", filterable = true)
+  @Queryable(label = "asset mac addresses", filterable = true)
   @EsQueryable(keyword = true)
-  private Set<String> endpoint_mac_addresses;
+  private Set<String> asset_mac_addresses;
 
-  @Queryable(label = "endpoint seen ip", filterable = true)
+  @Queryable(label = "asset seen ip", filterable = true)
   @EsQueryable(keyword = true)
-  private String endpoint_seen_ip;
+  private String asset_seen_ip;
 
   @Queryable(label = "endpoint is end of life", filterable = true)
   @EsQueryable(keyword = true)

@@ -8,12 +8,12 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
-import io.openaev.rest.asset.endpoint.form.EndpointOutput;
+import io.openaev.rest.asset.form.AssetOutput;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.asset_group.form.UpdateAssetsOnAssetGroupInput;
@@ -21,16 +21,13 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.AssetGroupService;
-import io.openaev.service.EndpointService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InputFilterOptions;
-import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -47,8 +44,6 @@ public class AssetGroupApi extends RestBehavior {
 
   public static final String ASSET_GROUP_URI = "/api/asset_groups";
   private static final String TENANT_ASSET_GROUP_URI = TENANT_PREFIX + "/asset_groups";
-  private final EndpointService endpointService;
-  private final EndpointMapper endpointMapper;
 
   private final AssetGroupService assetGroupService;
   private final AssetGroupCriteriaBuilderService assetGroupCriteriaBuilderService;
@@ -90,28 +85,35 @@ public class AssetGroupApi extends RestBehavior {
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
-  public Page<EndpointOutput> endpointsFromAssetGroup(
+  public Page<AssetOutput> assetsFromAssetGroup(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       @PathVariable @NotBlank final String assetGroupId) {
 
-    Page<Endpoint> endpointPage =
-        endpointService.searchManagedEndpointsByAssetGroup(assetGroupId, searchPaginationInput);
-    // Convert the Page of Endpoint to a Page of EndpointOutput
-    List<EndpointOutput> endpointOutputs =
-        endpointPage.getContent().stream()
-            .map(
-                endpoint -> {
-                  Boolean isPresent =
-                      endpoint.getAssetGroups().stream()
-                          .map(AssetGroup::getId)
-                          .anyMatch(id -> Objects.equals(id, assetGroupId));
-                  EndpointOutput endpointOutput = endpointMapper.toEndpointOutput(endpoint);
-                  endpointOutput.setIsStatic(isPresent);
-                  return endpointOutput;
-                })
+    // Group members can be ANY asset type (endpoints, AI targets, identities, cloud/web/network,
+    // ...). Resolve them uniformly (static + dynamic), then filter/paginate in memory since a group
+    // membership is bounded and mixes discriminators the JPA endpoint search cannot span.
+    AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
+    java.util.Set<String> staticIds =
+        assetGroup.getAssets().stream()
+            .map(Asset::getId)
+            .collect(java.util.stream.Collectors.toSet());
+
+    String textSearch = StringUtils.trimToEmpty(searchPaginationInput.getTextSearch());
+    List<AssetOutput> all =
+        this.assetGroupService.assetsFromAssetGroup(assetGroupId).stream()
+            .filter(
+                asset ->
+                    textSearch.isEmpty()
+                        || StringUtils.containsIgnoreCase(asset.getName(), textSearch))
+            .map(asset -> AssetOutput.from(asset, staticIds.contains(asset.getId())))
             .toList();
-    return new PageImpl<>(
-        endpointOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
+
+    int page = Math.max(0, searchPaginationInput.getPage());
+    int size = Math.max(1, searchPaginationInput.getSize());
+    int fromIndex = Math.min(page * size, all.size());
+    int toIndex = Math.min(fromIndex + size, all.size());
+    List<AssetOutput> pageContent = all.subList(fromIndex, toIndex);
+    return new PageImpl<>(pageContent, PageRequest.of(page, size), all.size());
   }
 
   @PostMapping({ASSET_GROUP_URI + "/find", TENANT_ASSET_GROUP_URI + "/find"})
