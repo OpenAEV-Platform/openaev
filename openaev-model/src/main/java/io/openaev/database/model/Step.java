@@ -144,4 +144,26 @@ public class Step implements Base {
   public List<Condition> getConditions() {
     return conditionSteps.stream().map(ConditionStep::getCondition).toList();
   }
+
+  /**
+   * Returns all conditions linked to this step, including their children (flattened tree). Used for
+   * export: collects root conditions from conditionSteps then recursively adds all descendants.
+   *
+   * @return flat list of all conditions (root + children) for this step
+   */
+  @JsonProperty("step_conditions")
+  public List<Condition> getAllConditionsFlat() {
+    List<Condition> all = new ArrayList<>();
+    for (ConditionStep cs : conditionSteps) {
+      collectConditions(cs.getCondition(), all);
+    }
+    return all;
+  }
+
+  private void collectConditions(Condition condition, List<Condition> collector) {
+    collector.add(condition);
+    if (condition.getConditionChildren() != null) {
+      condition.getConditionChildren().forEach(child -> collectConditions(child, collector));
+    }
+  }
 }
