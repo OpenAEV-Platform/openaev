@@ -4,8 +4,7 @@ import { memo } from 'react';
 
 import FindingIcon from '../../../../../../components/FindingIcon';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
-
-export const AP_FINDING_SIZE = 56;
+import { AP_FINDING_SIZE } from './node-sizes';
 
 // A finding-type node (credentials, cve, port, ...) for one endpoint: an icon-only circle. The type is
 // named once, on the edge into it (and on hover via the icon tooltip), so it is not repeated here.

@@ -5,8 +5,7 @@ import { memo } from 'react';
 
 import attackPathStatusColor from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
-
-export const AP_ENDPOINT_SIZE = 96;
+import { AP_ENDPOINT_SIZE } from './node-sizes';
 
 // The endpoint (target) node: a circle whose ring is the prevention/detection colour. An endpoint
 // with no findings is a faint dashed grey circle; one with findings carries a coloured "+N" badge of

@@ -2,7 +2,7 @@ import { type Theme } from '@mui/material/styles';
 
 // The backend colours by worst-case severity combining prevention and detection: GREEN = prevented,
 // ORANGE = detected but not prevented, RED = neither. Map those onto the theme's semantic palette so
-// the graph respects light/dark mode.
+// the graph respects light/dark mode; anything without a status is neutral blue (primary).
 const attackPathStatusColor = (theme: Theme, status?: string): string => {
   switch (status) {
     case 'GREEN':
@@ -12,7 +12,7 @@ const attackPathStatusColor = (theme: Theme, status?: string): string => {
     case 'RED':
       return theme.palette.error.main;
     default:
-      return theme.palette.text.disabled;
+      return theme.palette.primary.main;
   }
 };
 

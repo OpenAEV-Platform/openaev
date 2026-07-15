@@ -3,7 +3,6 @@ import {
   Background,
   Controls,
   type Edge,
-  MarkerType,
   MiniMap,
   type Node,
   ReactFlow,
@@ -32,12 +31,16 @@ interface AttackPathFlowProps {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
+  onClusterClick?: (injectorId: string, kind: 'header' | 'overflow') => void;
+  onFindingClusterClick?: (typeFindings: string, injectorId: string, kind: 'header' | 'overflow') => void;
+  onFindingSelect?: (nodeId: string) => void;
   focusRequest?: AttackPathFocusRequest | null;
 }
 
-// Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports endpoint
-// clicks up to the page, which loads that endpoint's detail on demand.
-const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackPathFlowProps) => {
+// Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports node clicks up
+// to the page (endpoint drill-down, cluster expand, finding-type focus, finding path highlight). A
+// finding-item click in the drawer can also request a cross-focus onto an endpoint node.
+const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindingClusterClick, onFindingSelect, focusRequest }: AttackPathFlowProps) => {
   const theme = useTheme();
   const reactFlow = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(nodes);
@@ -70,9 +73,15 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackP
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onNodeClick={(_, node) => {
+        const data = node.data as AttackPathFlowNodeData;
         if (node.type === AP_FLOW_NODE_TYPE.asset) {
-          const data = node.data as AttackPathFlowNodeData;
           onEndpointClick?.(node.id, data.ref, data.label);
+        } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.injectorId) {
+          onClusterClick?.(data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+        } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.typeFindings && data.injectorId) {
+          onFindingClusterClick?.(data.typeFindings, data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+        } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
+          onFindingSelect?.(node.id);
         }
       }}
       nodeTypes={nodeTypes}
@@ -87,16 +96,10 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, focusRequest }: AttackP
       // ones in the viewport to keep pan/zoom responsive.
       onlyRenderVisibleElements
       style={{ background: 'transparent' }}
-      defaultEdgeOptions={{
-        type: 'apGrouped',
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: theme.palette.grey[500],
-        },
-      }}
+      defaultEdgeOptions={{ type: 'apGrouped' }}
     >
       <Background bgColor={theme.palette.background.default} color={theme.palette.divider} gap={24} />
-      <Controls />
+      <Controls position="top-left" />
       <MiniMap
         position="bottom-right"
         pannable

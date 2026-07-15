@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, buildAttackPathFlow } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, buildAttackPathFlow, buildClusteredAttackPathFlow, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 const dto: AttackPathDTO = {
@@ -115,5 +115,140 @@ describe('buildAttackPathFlow', () => {
     expect(e1?.type).toBe(AP_FLOW_EDGE_TYPE);
     expect(e1?.data?.count).toBe(3);
     expect(edges.find(e => e.id === 'e-dangling')).toBeUndefined();
+  });
+});
+
+describe('applyFindingFilter', () => {
+  const base = buildAttackPathFlow(dto);
+
+  it('returns the input unchanged when no filter is active', () => {
+    const res = applyFindingFilter(base.nodes, base.edges, null);
+    expect(res.nodes).toBe(base.nodes);
+    expect(res.edges).toBe(base.edges);
+  });
+
+  it('lights the injector -> endpoint backbone and dims findings for the endpoints filter', () => {
+    const { nodes } = applyFindingFilter(base.nodes, base.edges, 'endpoints');
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+    expect(byId['inj-nmap'].data.dimmed).toBe(false);
+    expect(byId['ep-dc01'].data.dimmed).toBe(false);
+    expect(byId['ft-creds-dc01'].data.dimmed).toBe(true);
+    expect(byId['fn-creds'].data.dimmed).toBe(true);
+  });
+
+  it('lights the whole upstream path to a matching finding type and dims the rest', () => {
+    const { nodes } = applyFindingFilter(base.nodes, base.edges, ['credentials']);
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+    // credential finding + finding-type, plus the endpoint and injector reaching them, are all lit.
+    expect(byId['fn-creds'].data.dimmed).toBe(false);
+    expect(byId['ft-creds-dc01'].data.dimmed).toBe(false);
+    expect(byId['ep-dc01'].data.dimmed).toBe(false);
+    expect(byId['inj-nmap'].data.dimmed).toBe(false);
+  });
+
+  it('dims every node when no node matches the filter', () => {
+    const { nodes } = applyFindingFilter(base.nodes, base.edges, ['cve']);
+    expect(nodes.every(n => n.data.dimmed === true)).toBe(true);
+  });
+});
+
+describe('maskFindingValue', () => {
+  it('masks secret finding types', () => {
+    expect(maskFindingValue('credentials', 'admin:secret')).toBe('admin : ••••••');
+    expect(maskFindingValue('credentials', 'nosecrethere')).toBe('nosecrethere');
+    expect(maskFindingValue('sid', 'S-1-5-21')).toBe('••••••••');
+    expect(maskFindingValue('password_policy', 'complex')).toBe('••••••••');
+  });
+
+  it('shows non-secret finding values as-is', () => {
+    expect(maskFindingValue('cve', 'CVE-2023-1')).toBe('CVE-2023-1');
+    expect(maskFindingValue('port', '443')).toBe('443');
+    expect(maskFindingValue('username', 'bob')).toBe('bob');
+  });
+
+  it('returns an empty string for an undefined value', () => {
+    expect(maskFindingValue('port', undefined)).toBe('');
+  });
+});
+
+describe('buildClusteredAttackPathFlow', () => {
+  const clusteredDto: AttackPathDTO = {
+    mode: 'collapsed',
+    counters: {
+      endpoints: 2,
+      credentials: 5,
+      users: 0,
+      cves: 1,
+      ports: 0,
+    },
+    attackPathExecutions: [],
+    staticAttackPathFindings: [],
+    attackPathNodes: [
+      {
+        id: 'inj',
+        type: 'INJECTOR',
+        label: 'impacket',
+      },
+      {
+        id: 'ep1',
+        type: 'ASSET',
+        label: 'EP1',
+        findingCounts: {
+          credentials: 3,
+          cve: 1,
+        },
+      },
+      {
+        id: 'ep2',
+        type: 'ASSET',
+        label: 'EP2',
+        findingCounts: { credentials: 2 },
+      },
+    ],
+    attackPathEdges: [
+      {
+        edgeId: 'x1',
+        edgeSourceId: 'inj',
+        edgeTargetId: 'ep1',
+        type: 'EDGE_EXECUTIONS',
+        count: 5,
+      },
+      {
+        edgeId: 'x2',
+        edgeSourceId: 'inj',
+        edgeTargetId: 'ep2',
+        type: 'EDGE_EXECUTIONS',
+        count: 2,
+      },
+    ],
+  };
+
+  it('aggregates one endpoint cluster (+N) and one finding cluster per type with summed counts', () => {
+    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map());
+    const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+
+    expect(byId['inj'].type).toBe(AP_FLOW_NODE_TYPE.injector);
+    // one endpoint cluster carrying the endpoint count
+    expect(byId['cl-ep-inj'].type).toBe(AP_FLOW_NODE_TYPE.endpointCluster);
+    expect(byId['cl-ep-inj'].data.count).toBe(2);
+    // one finding cluster per type, counts summed across the injector's endpoints
+    expect(byId['cl-ft-credentials-inj'].type).toBe(AP_FLOW_NODE_TYPE.findingCluster);
+    expect(byId['cl-ft-credentials-inj'].data.count).toBe(5); // 3 + 2
+    expect(byId['cl-ft-cve-inj'].data.count).toBe(1);
+    // no real endpoint nodes while collapsed
+    expect(byId['ep1']).toBeUndefined();
+    // edges: injector -> endpoint cluster -> each finding cluster
+    expect(edges.find(e => e.id === 'inj-cl-ep-inj')?.data?.count).toBe(2);
+    expect(edges.filter(e => e.source === 'cl-ep-inj')).toHaveLength(2);
+    expect(edges[0].type).toBe(AP_FLOW_EDGE_TYPE);
+  });
+
+  it('replaces the endpoint cluster with the real endpoints when the injector is expanded', () => {
+    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map([['inj', 15]]));
+    const ids = nodes.map(n => n.id);
+    expect(ids).toContain('ep1');
+    expect(ids).toContain('ep2');
+    expect(nodes.find(n => n.id === 'ep1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
+    expect(edges.find(e => e.id === 'cl-ep-inj-ep1')?.target).toBe('ep1');
   });
 });

@@ -1,100 +1,100 @@
-import { Close, Refresh } from '@mui/icons-material';
-import { Alert, Autocomplete, Box, Button, Chip, Drawer, IconButton, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { BugReportOutlined, Close, DnsOutlined, GroupOutlined, InsertDriveFileOutlined, VpnKeyOutlined } from '@mui/icons-material';
+import { Alert, Autocomplete, Box, ButtonBase, Chip, Drawer, IconButton, Paper, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
-import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory } from '../../../../../actions/attack-path/attack-path-actions';
+import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
-import { buildAttackPathFlow } from './attack-path-flow-helpers';
+import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
+import AttackPathLegend from './AttackPathLegend';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
-
-type Mode = 'auto' | 'full' | 'collapsed';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
 const EXEC_DISPLAY_CAP = 100;
 
-// Merge extra nodes into a base set, keeping the first occurrence of each id.
-const mergeNodesById = (base: AttackPathNodeDTO[], extra: AttackPathNodeDTO[]): AttackPathNodeDTO[] => {
-  const map = new Map(base.filter(n => n.id).map(n => [n.id, n]));
-  for (const n of extra) {
-    if (n.id && !map.has(n.id)) {
-      map.set(n.id, n);
-    }
+// Expanding a finding cluster fetches findings from at most this many of the injector's endpoints and
+// de-duplicates them — a bounded, front-only stand-in until a "findings by type" endpoint exists.
+const FINDING_FETCH_ENDPOINTS = 30;
+
+// Synthetic seeded simulations (POST /attack-path/seed) carry no real date/name; keep them hidden
+// from metadata resolution and fall back to their raw id in the picker.
+const isSeedId = (id?: string) => !!id && id.startsWith('ap-seed-');
+
+// Backend prevention/detection status -> a human label (also used for accessibility, so status is
+// never conveyed by colour alone). GREEN = prevented, ORANGE = detected, RED = neither.
+const statusLabelKey = (status?: string): string => {
+  switch (status) {
+    case 'GREEN':
+      return 'Prevented';
+    case 'ORANGE':
+      return 'Detected';
+    case 'RED':
+      return 'Undetected';
+    default:
+      return 'Unknown';
   }
-  return [...map.values()];
 };
 
-// The expand endpoint returns finding-type and finding nodes; their asset/type back-references let us
-// rebuild the edges the collapsed graph did not carry.
-const expandEdges = (expand: AttackPathExpandDTO): AttackPathEdges[] => {
-  const edges: AttackPathEdges[] = [];
-  for (const ft of expand.findingTypes ?? []) {
-    if (ft.assetNodeId && ft.id) {
-      edges.push({
-        edgeId: `${ft.assetNodeId}-${ft.id}`,
-        edgeSourceId: ft.assetNodeId,
-        edgeTargetId: ft.id,
-        type: 'EDGE_ENDPOINT_FINDINGS_TYPE',
-        count: 1,
-      });
-    }
-  }
-  for (const f of expand.findings ?? []) {
-    if (f.findingsTypeNodeId && f.id) {
-      edges.push({
-        edgeId: `${f.findingsTypeNodeId}-${f.id}`,
-        edgeSourceId: f.findingsTypeNodeId,
-        edgeTargetId: f.id,
-        type: 'EDGE_FINDINGS_TYPE_FINDING',
-        count: 1,
-      });
-    }
-  }
-  return edges;
-};
+interface FindingCard {
+  key: AttackPathFindingFilter;
+  label: string;
+  icon: ReactNode;
+  count: number;
+  hint?: string;
+}
 
 /**
- * Attack-path execution-store POC tab (issue 6647), gated by the ATTACK_PATH preview feature.
- * Loads a simulation's graph collapsed by default (bounded node count), and on an endpoint click
- * lazy-loads that endpoint's findings and executions — the collapsed-first, expand-on-demand shape
- * the benchmark showed is what keeps a large simulation renderable.
+ * Attack-path tab (issue 6647), gated by the ATTACK_PATH preview feature. Renders the simulation as a
+ * clustered graph: each injector fans out to an aggregate endpoint dot (+N) and one cluster per
+ * finding type (with counts), all derived from the collapsed graph — no extra reads. An injector can
+ * be expanded into its real endpoints, and the five summary cards open a right drawer (backend
+ * findings list) that cross-focuses the graph and the execution feed. Clicking a feed entry opens the
+ * execution Result & Terminal panel.
  */
 const SimulationAttackPath = () => {
   const { exerciseId } = useParams() as { exerciseId: string };
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, fldt } = useFormatter();
 
-  // Default to this exercise's id; the picker (or free text) lets the POC point at a seeded dataset.
-  const [simulationInput, setSimulationInput] = useState(exerciseId ?? '');
   const [simulationId, setSimulationId] = useState(exerciseId ?? '');
   const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
-  const [mode, setMode] = useState<Mode>('collapsed');
+  const [metaById, setMetaById] = useState<Map<string, ExerciseSimple>>(new Map());
   const [dto, setDto] = useState<AttackPathDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
+  // Card focus: a summary card mapped to its finding types (dim everything off that path).
+  const [activeCard, setActiveCard] = useState<AttackPathFindingFilter | null>(null);
 
-  const [extraNodes, setExtraNodes] = useState<AttackPathNodeDTO[]>([]);
-  const [extraEdges, setExtraEdges] = useState<AttackPathEdges[]>([]);
-  const [expandedRefs, setExpandedRefs] = useState<Set<string>>(new Set());
+  // Per-injector progressive endpoint reveal: injector id -> number of endpoints shown (0 = collapsed).
+  const [endpointBatch, setEndpointBatch] = useState<Map<string, number>>(new Map());
+  // Finding-cluster drill-down: which finding clusters are expanded, their fetched (deduped) findings,
+  // and how many are revealed (batched), keyed by the finding-cluster node id.
+  const [expandedFindingClusters, setExpandedFindingClusters] = useState<Set<string>>(new Set());
+  const [findingsByCluster, setFindingsByCluster] = useState<Map<string, AttackPathNodeDTO[]>>(new Map());
+  const [findingBatch, setFindingBatch] = useState<Map<string, number>>(new Map());
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedLabel, setSelectedLabel] = useState<string>('');
+  // A clicked leaf finding whose full path (injector -> endpoint cluster -> finding cluster -> finding)
+  // is highlighted in blue.
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
 
-  // Findings drawer: a widget opens a right drawer listing that category's findings.
+  // Findings drawer: a summary card opens a right drawer listing that category's findings (issue 5048).
   const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
   const [drawerLabel, setDrawerLabel] = useState<string>('');
   const [findingsPage, setFindingsPage] = useState<AttackPathFindingPageDTO | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(false);
 
-  // Cross-focus: clicking a finding item centers its endpoint (focusRequest) and highlights
-  // the producing executions in the feed (by their raw ids).
+  // Cross-focus: clicking a finding item centers its endpoint (focusRequest) and highlights the
+  // producing executions in the feed (by their raw ids).
   const [focusRequest, setFocusRequest] = useState<AttackPathFocusRequest | null>(null);
   const [highlightedExecutionIds, setHighlightedExecutionIds] = useState<Set<string>>(new Set());
   const feedRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -104,45 +104,104 @@ const SimulationAttackPath = () => {
   const [detail, setDetail] = useState<AttackPathExecutionDetailDTO | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // Monotonic tokens to drop stale async responses when the user switches simulation or endpoint
+  // quickly: only the latest request may write state.
+  const graphSeq = useRef(0);
+  const endpointSeq = useRef(0);
+
+  // Always collapsed-first: the graph auto-loads on simulation change, clustered by injector.
   const load = useCallback(() => {
     if (!simulationId) {
       return;
     }
+    const seq = graphSeq.current + 1;
+    graphSeq.current = seq;
+    // A simulation switch also invalidates any in-flight endpoint read from the previous graph.
+    endpointSeq.current += 1;
     setLoading(true);
     setError(false);
-    setExtraNodes([]);
-    setExtraEdges([]);
-    setExpandedRefs(new Set());
+    setForbidden(false);
+    setEndpointBatch(new Map());
+    setExpandedFindingClusters(new Set());
+    setFindingsByCluster(new Map());
+    setFindingBatch(new Map());
     setSelectedNodeId(null);
+    setSelectedFindingId(null);
     setExecutions([]);
+    setActiveCard(null);
     // Close the drawers and clear any cross-focus so nothing carries over between simulations.
     setDrawerCategory(null);
     setDetailExecutionId(null);
     setHighlightedExecutionIds(new Set());
     setFocusRequest(null);
-    fetchAttackPathGraph(simulationId, mode === 'auto' ? undefined : mode)
-      .then(r => setDto(r.data))
-      .catch(() => {
+    fetchAttackPathGraph(simulationId, 'collapsed')
+      .then((r) => {
+        if (seq === graphSeq.current) {
+          setDto(r.data);
+        }
+      })
+      .catch((err) => {
+        if (seq !== graphSeq.current) {
+          return;
+        }
         // Clear the previous simulation's graph so a failed load shows an error, not stale data.
         setDto(null);
-        setError(true);
+        if (err?.status === 403) {
+          setForbidden(true);
+        } else {
+          setError(true);
+        }
       })
-      .finally(() => setLoading(false));
-  }, [simulationId, mode]);
+      .finally(() => {
+        if (seq === graphSeq.current) {
+          setLoading(false);
+        }
+      });
+  }, [simulationId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // Load the picker options once: the simulations that have attack-path data in this tenant.
+  // Load the picker options once (simulations that have attack-path data in this tenant), then
+  // resolve real simulations' date + name so the picker reads dates instead of raw ids.
   useEffect(() => {
     fetchAttackPathSimulations()
-      .then(r => setSimulations(r.data ?? []))
+      .then((r) => {
+        const rows = r.data ?? [];
+        setSimulations(rows);
+        const ids = Array.from(new Set([
+          ...rows.map(s => s.simulationId).filter((id): id is string => !isSeedId(id) && !!id),
+          ...(!isSeedId(exerciseId) && exerciseId ? [exerciseId] : []),
+        ]));
+        if (ids.length > 0) {
+          fetchSimulationsMetaById(ids)
+            .then(m => setMetaById(new Map((m.data ?? []).map(e => [e.exercise_id, e]))))
+            .catch(() => undefined);
+        }
+      })
       .catch(() => setSimulations([]));
-  }, []);
+  }, [exerciseId]);
 
+  // Readable label for a simulation id: "date · name" for real simulations, raw id for seeds/unknowns.
+  const labelFor = useCallback((simId?: string): string => {
+    if (!simId) {
+      return '';
+    }
+    const meta = metaById.get(simId);
+    if (meta?.exercise_name) {
+      return meta.exercise_start_date
+        ? `${fldt(meta.exercise_start_date)} · ${meta.exercise_name}`
+        : meta.exercise_name;
+    }
+    return simId;
+  }, [metaById, fldt]);
+
+  // Click a real endpoint (only visible once its injector cluster is expanded): load its executions
+  // into the side panel. Stale responses are dropped.
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
     setSelectedNodeId(nodeId);
+    setSelectedFindingId(null);
     setSelectedLabel(label ?? '');
     setExecutions([]);
     // A plain node click focuses no specific execution; a finding-item click sets these after.
@@ -150,37 +209,109 @@ const SimulationAttackPath = () => {
     if (!ref) {
       return;
     }
-    // Findings are already nodes in the full graph; only the collapsed graph lazy-loads them, and
-    // only once per endpoint. The executions feed is per click (it drives the side panel).
-    if (dto?.mode !== 'full' && !expandedRefs.has(ref)) {
-      setExpandedRefs(prev => new Set(prev).add(ref));
-      fetchEndpointFindings(simulationId, ref)
-        .then((r) => {
-          const expand = r.data;
-          setExtraNodes(prev => mergeNodesById(prev, [...(expand.findingTypes ?? []), ...(expand.findings ?? [])]));
-          setExtraEdges((prev) => {
-            const next = new Map(prev.map(e => [e.edgeId, e]));
-            for (const e of expandEdges(expand)) {
-              if (e.edgeId) next.set(e.edgeId, e);
-            }
-            return [...next.values()];
-          });
-        })
-        .catch(() => {
-          // Forget the ref on failure so a later click retries the expand instead of no-op.
-          setExpandedRefs((prev) => {
-            const next = new Set(prev);
-            next.delete(ref);
-            return next;
-          });
-        });
-    }
+    const seq = endpointSeq.current + 1;
+    endpointSeq.current = seq;
     fetchEndpointRelations(simulationId, ref)
-      .then(r => setExecutions(r.data.executions ?? []))
-      .catch(() => setExecutions([]));
-  }, [simulationId, dto?.mode, expandedRefs]);
+      .then((r) => {
+        if (seq === endpointSeq.current) {
+          setExecutions(r.data.executions ?? []);
+        }
+      })
+      .catch(() => {
+        if (seq === endpointSeq.current) {
+          setExecutions([]);
+        }
+      });
+  }, [simulationId]);
 
-  // Open the findings drawer for a widget category and load its first page.
+  // Progressive endpoint reveal: the "+N" header toggles expand/collapse; an "+rest" overflow reveals
+  // the next batch.
+  const onClusterClick = useCallback((injectorId: string, kind: 'header' | 'overflow') => {
+    setEndpointBatch((prev) => {
+      const next = new Map(prev);
+      const current = prev.get(injectorId) ?? 0;
+      if (kind === 'overflow') {
+        next.set(injectorId, current + ENDPOINT_BATCH_SIZE);
+      } else if (current > 0) {
+        next.set(injectorId, 0);
+      } else {
+        next.set(injectorId, ENDPOINT_BATCH_SIZE);
+      }
+      return next;
+    });
+  }, []);
+
+  // injector id -> refs of the endpoints it reached (asset ref or id), for the bounded finding fetch.
+  const injectorEndpointRefs = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!dto) {
+      return map;
+    }
+    const assetById = new Map(
+      (dto.attackPathNodes ?? []).filter(n => n.type === 'ASSET' && n.id).map(n => [n.id as string, n]),
+    );
+    for (const e of dto.attackPathEdges ?? []) {
+      if (e.type === 'EDGE_EXECUTIONS' && e.edgeSourceId && e.edgeTargetId && assetById.has(e.edgeTargetId)) {
+        const ref = assetById.get(e.edgeTargetId)?.ref ?? e.edgeTargetId;
+        const arr = map.get(e.edgeSourceId) ?? [];
+        if (!arr.includes(ref)) {
+          arr.push(ref);
+        }
+        map.set(e.edgeSourceId, arr);
+      }
+    }
+    return map;
+  }, [dto]);
+
+  // Fetch a bounded, de-duplicated set of a finding type's values from the injector's endpoints — a
+  // front-only stand-in until a "findings by type" backend endpoint exists.
+  const fetchClusterFindings = useCallback((clusterId: string, type: string, injectorId: string) => {
+    const refs = (injectorEndpointRefs.get(injectorId) ?? []).slice(0, FINDING_FETCH_ENDPOINTS);
+    Promise.all(
+      refs.map(ref => fetchEndpointFindings(simulationId, ref)
+        .then(r => r.data.findings ?? [])
+        .catch(() => [] as AttackPathNodeDTO[])),
+    ).then((lists) => {
+      const seen = new Set<string>();
+      const deduped: AttackPathNodeDTO[] = [];
+      for (const f of lists.flat()) {
+        if (f.typeFindings !== type) {
+          continue;
+        }
+        const key = f.value ?? f.id ?? '';
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          deduped.push(f);
+        }
+      }
+      setFindingsByCluster(prev => new Map(prev).set(clusterId, deduped));
+    });
+  }, [injectorEndpointRefs, simulationId]);
+
+  // Click a finding cluster: the header expands/collapses it into its individual findings (fetched
+  // once, batched); an overflow reveals the next batch.
+  const onFindingClusterClick = useCallback((typeFindings: string, injectorId: string, kind: 'header' | 'overflow') => {
+    const clusterId = `cl-ft-${typeFindings}-${injectorId}`;
+    if (kind === 'overflow') {
+      setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
+      return;
+    }
+    if (expandedFindingClusters.has(clusterId)) {
+      setExpandedFindingClusters((prev) => {
+        const next = new Set(prev);
+        next.delete(clusterId);
+        return next;
+      });
+      return;
+    }
+    setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
+    setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
+    if (!findingsByCluster.has(clusterId)) {
+      fetchClusterFindings(clusterId, typeFindings, injectorId);
+    }
+  }, [expandedFindingClusters, findingsByCluster, fetchClusterFindings]);
+
+  // Open the findings drawer for a summary category and load its first page (backend, masked server-side).
   const openFindingsDrawer = useCallback((category: string, label: string) => {
     setDrawerCategory(category);
     setDrawerLabel(label);
@@ -195,17 +326,15 @@ const SimulationAttackPath = () => {
       .finally(() => setFindingsLoading(false));
   }, [simulationId]);
 
-  // Cross-focus: clicking a finding item closes the drawer, focuses its endpoint
-  // on the map (center + select, which highlights the edges into it), loads that endpoint's feed, and
-  // highlights the producing executions in it.
+  // Cross-focus: clicking a finding item closes the drawer, focuses its endpoint on the map
+  // (center + select), loads that endpoint's feed, and highlights the producing executions in it.
   const onFindingItemClick = useCallback(
     (item: AttackPathFindingItemDTO) => {
       if (!item.endpointNodeId || !item.endpointKey) {
         return;
       }
       setDrawerCategory(null);
-      // Use the endpoint's friendly label (hostname) for the panel title, like a direct node click,
-      // not the raw key.
+      // Use the endpoint's friendly label (hostname) for the panel title, like a direct node click.
       const node = (dto?.attackPathNodes ?? []).find(n => n.id === item.endpointNodeId);
       const label = node?.hostname || node?.label || item.endpointKey;
       onEndpointClick(item.endpointNodeId, item.endpointKey, label);
@@ -243,39 +372,138 @@ const SimulationAttackPath = () => {
       .finally(() => setDetailLoading(false));
   }, [simulationId]);
 
-  // Merge the base graph with whatever endpoints have been expanded, then lay it out; finally mark
-  // the selected endpoint and the edges touching it so the click highlights its path.
-  const { nodes, edges } = useMemo(() => {
-    if (!dto) {
-      return {
-        nodes: [],
-        edges: [],
-      };
+  // Base clustered flow — recomputed when the graph data, endpoint expansion, or finding drill-down
+  // changes (positions are deterministic, so it stays off the pure selection/focus path).
+  const baseFlow = useMemo(
+    () => (dto
+      ? buildClusteredAttackPathFlow(dto, endpointBatch, {
+          expanded: expandedFindingClusters,
+          findingsByCluster,
+          batch: findingBatch,
+        })
+      : {
+          nodes: [],
+          edges: [],
+        }),
+    [dto, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
+  );
+
+  // Click a leaf finding: highlight its full attack path (injector -> endpoint cluster -> finding
+  // cluster -> finding) in blue.
+  const onFindingSelect = useCallback((nodeId: string) => {
+    setSelectedNodeId(null);
+    setSelectedFindingId(prev => (prev === nodeId ? null : nodeId));
+  }, []);
+
+  // The active card focus, as finding types (or the endpoints backbone).
+  const focus = useMemo((): readonly string[] | 'endpoints' | null => {
+    if (!activeCard) {
+      return null;
     }
-    const merged: AttackPathDTO = {
-      ...dto,
-      attackPathNodes: mergeNodesById(dto.attackPathNodes ?? [], extraNodes),
-      attackPathEdges: [...(dto.attackPathEdges ?? []), ...extraEdges],
-    };
-    const flow = buildAttackPathFlow(merged);
+    return activeCard === 'endpoints' ? 'endpoints' : FILTER_TO_FINDING_TYPES[activeCard];
+  }, [activeCard]);
+
+  // Mark the selected endpoint, the highlighted finding path (blue), then apply the card focus.
+  const { nodes, edges } = useMemo(() => {
+    // Walk up from the clicked finding to its injector so the whole path lights up.
+    const pathSet = new Set<string>();
+    if (selectedFindingId) {
+      pathSet.add(selectedFindingId);
+      for (let pass = 0; pass < 6; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
+    }
     const withSelection = {
-      nodes: flow.nodes.map(n => ({
+      nodes: baseFlow.nodes.map(n => ({
         ...n,
-        selected: n.id === selectedNodeId,
+        selected: n.id === selectedNodeId || pathSet.has(n.id),
       })),
-      edges: flow.edges.map(e => ({
+      edges: baseFlow.edges.map(e => ({
         ...e,
-        selected: e.source === selectedNodeId || e.target === selectedNodeId,
+        selected: e.source === selectedNodeId || e.target === selectedNodeId
+          || (pathSet.has(e.source) && pathSet.has(e.target)),
       })),
     };
-    return withSelection;
-  }, [dto, extraNodes, extraEdges, selectedNodeId]);
+    return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
+  }, [baseFlow, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
 
-  const applySimulation = () => {
-    setSimulationId(simulationInput.trim());
+  // "Captured Files" has no backend counter: derive an approximate share count from the collapsed
+  // endpoints' per-type finding counts (temporary until a native "file" finding type exists).
+  const filesCount = useMemo(() => {
+    let sum = 0;
+    for (const n of dto?.attackPathNodes ?? []) {
+      if (n.type === 'ASSET') {
+        sum += n.findingCounts?.share ?? 0;
+      }
+    }
+    return sum;
+  }, [dto]);
+
+  const cards: FindingCard[] = useMemo(() => [
+    {
+      key: 'endpoints',
+      label: t('Discovered Endpoints'),
+      icon: <DnsOutlined fontSize="small" />,
+      count: counters?.endpoints ?? 0,
+    },
+    {
+      key: 'files',
+      label: t('Captured Files'),
+      icon: <InsertDriveFileOutlined fontSize="small" />,
+      count: filesCount,
+      hint: t('Temporarily mapped to "share" findings'),
+    },
+    {
+      key: 'credentials',
+      label: t('Captured Credentials'),
+      icon: <VpnKeyOutlined fontSize="small" />,
+      count: counters?.credentials ?? 0,
+    },
+    {
+      key: 'users',
+      label: t('Discovered Users'),
+      icon: <GroupOutlined fontSize="small" />,
+      count: counters?.users ?? 0,
+    },
+    {
+      key: 'cves',
+      label: t('Detected CVEs'),
+      icon: <BugReportOutlined fontSize="small" />,
+      count: counters?.cves ?? 0,
+    },
+  ], [t, counters, filesCount]);
+
+  // Click a summary card: focus the graph on that finding type and, for finding categories, open the
+  // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.
+  const onCardClick = (card: FindingCard) => {
+    const next = activeCard === card.key ? null : card.key;
+    setActiveCard(next);
+    if (next && next !== 'endpoints') {
+      openFindingsDrawer(next, card.label);
+    } else {
+      setDrawerCategory(null);
+    }
   };
+
+  const clearFocus = () => {
+    setActiveCard(null);
+    setDrawerCategory(null);
+  };
+
+  // Keep the selected value in the options so MUI does not warn when the current simulation has no
+  // attack-path summary row yet.
+  const selectedRow: AttackPathSimSummaryRow | null = simulationId
+    ? (simulations.find(s => s.simulationId === simulationId) ?? { simulationId })
+    : null;
+  const pickerOptions = selectedRow && !simulations.some(s => s.simulationId === selectedRow.simulationId)
+    ? [selectedRow, ...simulations]
+    : simulations;
 
   return (
     <div style={{
@@ -285,122 +513,114 @@ const SimulationAttackPath = () => {
       gap: theme.spacing(1),
     }}
     >
+      <Autocomplete
+        size="small"
+        options={pickerOptions}
+        value={selectedRow}
+        isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
+        getOptionLabel={o => labelFor(o.simulationId)}
+        onChange={(_, v) => {
+          if (v?.simulationId) {
+            setSimulationId(v.simulationId);
+          }
+        }}
+        renderOption={(props, o) => {
+          const { key, ...rest } = props as { key: string } & Record<string, unknown>;
+          return (
+            <li
+              key={key}
+              {...rest}
+              style={{
+                display: 'flex',
+                gap: 8,
+              }}
+            >
+              <span>{labelFor(o.simulationId)}</span>
+              <span style={{
+                marginLeft: 'auto',
+                opacity: 0.65,
+                fontSize: 12,
+              }}
+              >
+                {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
+              </span>
+            </li>
+          );
+        }}
+        renderInput={params => <TextField {...params} label={t('Simulation')} />}
+        sx={{ maxWidth: 520 }}
+      />
+
       <div style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing(2),
+        alignItems: 'stretch',
+        gap: theme.spacing(1),
         flexWrap: 'wrap',
       }}
       >
-        <Autocomplete
-          freeSolo
-          size="small"
-          options={simulations}
-          value={simulationInput}
-          inputValue={simulationInput}
-          getOptionLabel={o => (typeof o === 'string' ? o : (o.simulationId ?? ''))}
-          filterOptions={(opts, state) => opts.filter(o => (o.simulationId ?? '').toLowerCase().includes(state.inputValue.toLowerCase()))}
-          onInputChange={(_, v) => setSimulationInput(v)}
-          onChange={(_, v) => {
-            const id = typeof v === 'string' ? v : v?.simulationId;
-            if (id) {
-              setSimulationInput(id);
-              setSimulationId(id);
-            }
-          }}
-          renderOption={(props, o) => {
-            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-            return (
-              <li
-                key={key}
-                {...rest}
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                }}
-              >
-                <span>{o.simulationId}</span>
-                <span style={{
-                  marginLeft: 'auto',
-                  opacity: 0.65,
-                  fontSize: 12,
-                }}
-                >
-                  {`${o.endpointCount} ${t('endpoints')} · ${o.executionCount} ${t('exec.')}`}
-                </span>
-              </li>
-            );
-          }}
-          renderInput={params => (
-            <TextField
-              {...params}
-              label={t('Simulation id')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') applySimulation();
+        {cards.filter(c => c.count > 0).map((c) => {
+          const active = activeCard === c.key;
+          const card = (
+            <ButtonBase
+              key={c.key}
+              onClick={() => onCardClick(c)}
+              aria-pressed={active}
+              focusRipple
+              sx={{
+                'flex': '1 1 0',
+                'minWidth': 150,
+                'justifyContent': 'flex-start',
+                'textAlign': 'left',
+                'gap': 1.5,
+                'padding': theme.spacing(1.5),
+                'borderRadius': 1,
+                'border': `1px solid ${active ? theme.palette.primary.main : theme.palette.divider}`,
+                'backgroundColor': active ? theme.palette.action.selected : theme.palette.background.paper,
+                'transition': theme.transitions.create(['border-color', 'background-color']),
+                '&:hover': { borderColor: theme.palette.primary.main },
               }}
-              onBlur={applySimulation}
-            />
-          )}
-          sx={{ minWidth: 440 }}
-        />
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={mode}
-          onChange={(_, v: Mode | null) => v && setMode(v)}
-        >
-          <ToggleButton value="collapsed">{t('Collapsed')}</ToggleButton>
-          <ToggleButton value="full">{t('Full')}</ToggleButton>
-          <ToggleButton value="auto">{t('Auto')}</ToggleButton>
-        </ToggleButtonGroup>
-        <Tooltip title={t('Reload')}>
-          <IconButton size="small" onClick={load}><Refresh /></IconButton>
-        </Tooltip>
-        {counters && (
-          <div style={{
-            display: 'flex',
-            gap: theme.spacing(1),
-            marginLeft: 'auto',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-          >
-            {/* Endpoints is a count only for now; its per-endpoint drawer is a follow-up. */}
-            <Chip label={`${t('Endpoints')} ${counters.endpoints ?? 0}`} size="small" />
-            {/* Files has no finding type in the seed yet, so its count is 0 until ingestion (open question). */}
-            {[
-              {
-                category: 'files',
-                label: t('Files'),
-                count: 0,
-              },
-              {
-                category: 'credentials',
-                label: t('Credentials'),
-                count: counters.credentials ?? 0,
-              },
-              {
-                category: 'users',
-                label: t('Users'),
-                count: counters.users ?? 0,
-              },
-              {
-                category: 'cves',
-                label: t('CVEs'),
-                count: counters.cves ?? 0,
-              },
-            ].map(w => (
-              <Button
-                key={w.category}
-                size="small"
-                variant="outlined"
-                onClick={() => openFindingsDrawer(w.category, w.label)}
+            >
+              <span style={{
+                color: theme.palette.primary.main,
+                display: 'flex',
+              }}
               >
-                {`${w.label} ${w.count}`}
-              </Button>
-            ))}
-            {dto?.mode && <Chip label={dto.mode} size="small" color="primary" variant="outlined" />}
-          </div>
+                {c.icon}
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                  {c.label}
+                </Typography>
+                <Typography variant="h6" sx={{ lineHeight: 1.1 }}>
+                  {c.count}
+                </Typography>
+              </div>
+            </ButtonBase>
+          );
+          return c.hint
+            ? (
+                <Tooltip key={c.key} title={c.hint} arrow>
+                  <span style={{
+                    flex: '1 1 0',
+                    display: 'flex',
+                    minWidth: 150,
+                  }}
+                  >
+                    {card}
+                  </span>
+                </Tooltip>
+              )
+            : card;
+        })}
+        {activeCard && (
+          <Chip
+            label={t('Clear focus')}
+            size="small"
+            variant="outlined"
+            onDelete={clearFocus}
+            onClick={clearFocus}
+            sx={{ alignSelf: 'center' }}
+          />
         )}
       </div>
 
@@ -411,13 +631,53 @@ const SimulationAttackPath = () => {
         gap: theme.spacing(1),
       }}
       >
+        <Paper
+          variant="outlined"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            position: 'relative',
+          }}
+        >
+          {loading && <Loader />}
+          {!loading && forbidden && (
+            <Alert severity="warning" sx={{ m: 2 }}>
+              {t('You do not have access to this simulation\'s attack path.')}
+            </Alert>
+          )}
+          {!loading && !forbidden && error && (
+            <Alert severity="error" sx={{ m: 2 }}>
+              {t('Failed to load the attack-path graph. Check the simulation or reload the page.')}
+            </Alert>
+          )}
+          {!loading && !forbidden && !error && nodes.length === 0 && (
+            <Alert severity="info" sx={{ m: 2 }}>
+              {t('No attack-path data for this simulation. Select a simulation with attack-path data above.')}
+            </Alert>
+          )}
+          {!loading && !forbidden && !error && nodes.length > 0 && (
+            <ReactFlowProvider>
+              <AttackPathFlow
+                nodes={nodes}
+                edges={edges}
+                onEndpointClick={onEndpointClick}
+                onClusterClick={onClusterClick}
+                onFindingClusterClick={onFindingClusterClick}
+                onFindingSelect={onFindingSelect}
+                focusRequest={focusRequest}
+              />
+              <AttackPathLegend />
+            </ReactFlowProvider>
+          )}
+        </Paper>
+
         {selectedNodeId && (
           <Paper
             variant="outlined"
-            style={{
+            sx={{
               width: 340,
               overflow: 'auto',
-              padding: theme.spacing(2),
+              padding: 2,
             }}
           >
             <Typography variant="h6" gutterBottom>{selectedLabel || t('Endpoint')}</Typography>
@@ -425,6 +685,7 @@ const SimulationAttackPath = () => {
               {`${t('Executions')} (${executions.length})`}
             </Typography>
             {executions.slice(0, EXEC_DISPLAY_CAP).map((e) => {
+              const status = t(statusLabelKey(e.status));
               const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
               return (
                 <Box
@@ -467,17 +728,22 @@ const SimulationAttackPath = () => {
                     },
                   }}
                 >
-                  <span style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: attackPathStatusColor(theme, e.status),
-                  }}
+                  <span
+                    role="img"
+                    aria-label={status}
+                    title={status}
+                    style={{
+                      flex: '0 0 auto',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: attackPathStatusColor(theme, e.status),
+                    }}
                   />
                   <div style={{ minWidth: 0 }}>
                     <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
                     <Typography variant="caption" color="text.secondary" noWrap>
-                      {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
+                      {[status, e.agentName, e.privilege].filter(Boolean).join(' · ')}
                     </Typography>
                   </div>
                 </Box>
@@ -511,32 +777,6 @@ const SimulationAttackPath = () => {
               : undefined}
           />
         )}
-
-        <Paper
-          variant="outlined"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            position: 'relative',
-          }}
-        >
-          {loading && <Loader />}
-          {!loading && error && (
-            <Alert severity="error" sx={{ m: 2 }}>
-              {t('Failed to load the attack-path graph. Check the simulation id or reload.')}
-            </Alert>
-          )}
-          {!loading && !error && nodes.length === 0 && (
-            <Alert severity="info" sx={{ m: 2 }}>
-              {t('No attack-path data for this simulation. Seed data (POST /attack-path/seed) or enter a seeded simulation id above.')}
-            </Alert>
-          )}
-          {!loading && !error && nodes.length > 0 && (
-            <ReactFlowProvider>
-              <AttackPathFlow nodes={nodes} edges={edges} onEndpointClick={onEndpointClick} focusRequest={focusRequest} />
-            </ReactFlowProvider>
-          )}
-        </Paper>
       </div>
 
       <Drawer

@@ -4,24 +4,24 @@ import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
 import FindingIcon from '../../../../../../components/FindingIcon';
-import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
-import { AP_FINDING_SIZE } from './FindingTypeNode';
+import { type AttackPathFlowNode, maskFindingValue } from '../attack-path-flow-helpers';
+import { AP_FINDING_SIZE } from './node-sizes';
 
-// A leaf finding node: a circle with the type icon and the discovered value under it (a credential,
-// a CVE id, a port, ...). Mirrors the product mockup's finding node.
+// A leaf finding node: the type icon with the discovered value to its right (only the value, no type
+// name). The target handle sits on the icon so the incoming edge reaches it with no gap.
 const FindingNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
   return (
     <div style={{
-      width: 120,
       display: 'flex',
-      flexDirection: 'column',
       alignItems: 'center',
-      gap: 2,
+      gap: 8,
     }}
     >
       <div
         style={{
+          position: 'relative',
+          flex: '0 0 auto',
           width: AP_FINDING_SIZE,
           height: AP_FINDING_SIZE,
           borderRadius: '50%',
@@ -38,16 +38,9 @@ const FindingNode = ({ data }: NodeProps<AttackPathFlowNode>) => {
       </div>
       <Typography
         variant="caption"
-        sx={{
-          maxWidth: 120,
-          textAlign: 'center',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          fontSize: 10,
-        }}
+        sx={{ whiteSpace: 'nowrap' }}
       >
-        {data.label}
+        {maskFindingValue(data.typeFindings, data.label)}
       </Typography>
     </div>
   );

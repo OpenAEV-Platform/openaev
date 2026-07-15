@@ -1,0 +1,182 @@
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
+import { IconButton, Paper, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { useState } from 'react';
+
+import { useFormatter } from '../../../../../components/i18n';
+
+// Interactive, collapsible legend (bottom-left) explaining the attack-path graph's shapes and colours
+// — mirrors the design's Legend section.
+const AttackPathLegend = () => {
+  const theme = useTheme();
+  const { t } = useFormatter();
+  const [open, setOpen] = useState(true);
+
+  const shapes: {
+    shape: 'diamond' | 'dashedCircle' | 'pill' | 'circle';
+    label: string;
+  }[] = [
+    {
+      shape: 'diamond',
+      label: t('Injector (attack source)'),
+    },
+    {
+      shape: 'dashedCircle',
+      label: t('Endpoint cluster (+N) — click to expand'),
+    },
+    {
+      shape: 'pill',
+      label: t('Finding cluster (type + count)'),
+    },
+    {
+      shape: 'circle',
+      label: t('Finding (value)'),
+    },
+  ];
+
+  const colors: {
+    color: string;
+    label: string;
+  }[] = [
+    {
+      color: theme.palette.success.main,
+      label: t('Prevented (all endpoints)'),
+    },
+    {
+      color: theme.palette.warning.main,
+      label: t('Detected / partial'),
+    },
+    {
+      color: theme.palette.error.main,
+      label: t('Neither prevented nor detected'),
+    },
+    {
+      color: theme.palette.primary.main,
+      label: t('Selected attack path'),
+    },
+  ];
+
+  const renderShape = (shape: 'diamond' | 'dashedCircle' | 'pill' | 'circle') => {
+    const base = {
+      width: 16,
+      height: 16,
+      flex: '0 0 auto',
+      border: `1.5px solid ${theme.palette.text.secondary}`,
+      background: theme.palette.background.default,
+    };
+    if (shape === 'diamond') {
+      return (
+        <span style={{
+          ...base,
+          clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+        }}
+        />
+      );
+    }
+    if (shape === 'dashedCircle') {
+      return (
+        <span style={{
+          ...base,
+          borderRadius: '50%',
+          borderStyle: 'dashed',
+        }}
+        />
+      );
+    }
+    if (shape === 'pill') {
+      return (
+        <span style={{
+          ...base,
+          width: 24,
+          borderRadius: 8,
+        }}
+        />
+      );
+    }
+    return (
+      <span style={{
+        ...base,
+        borderRadius: '50%',
+      }}
+      />
+    );
+  };
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        position: 'absolute',
+        bottom: 12,
+        left: 12,
+        zIndex: 5,
+        width: open ? 260 : 'auto',
+        p: 1,
+      }}
+    >
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+      }}
+      >
+        <Typography variant="subtitle2">{t('Legend')}</Typography>
+        <IconButton size="small" onClick={() => setOpen(o => !o)} aria-label={t('Toggle legend')}>
+          {open ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
+        </IconButton>
+      </div>
+      {open && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          marginTop: 4,
+        }}
+        >
+          {shapes.map(s => (
+            <div
+              key={s.label}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              {renderShape(s.shape)}
+              <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+            </div>
+          ))}
+          <div style={{
+            height: 1,
+            background: theme.palette.divider,
+            margin: '2px 0',
+          }}
+          />
+          {colors.map(c => (
+            <div
+              key={c.label}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span style={{
+                width: 16,
+                height: 3,
+                flex: '0 0 auto',
+                borderRadius: 2,
+                background: c.color,
+              }}
+              />
+              <Typography variant="caption" color="text.secondary">{c.label}</Typography>
+            </div>
+          ))}
+        </div>
+      )}
+    </Paper>
+  );
+};
+
+export default AttackPathLegend;

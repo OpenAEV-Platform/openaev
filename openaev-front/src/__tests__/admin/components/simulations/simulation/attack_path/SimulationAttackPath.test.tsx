@@ -16,6 +16,7 @@ type FlowProps = {
 const mocks = vi.hoisted(() => ({
   fetchAttackPathGraph: vi.fn(),
   fetchAttackPathSimulations: vi.fn(),
+  fetchSimulationsMetaById: vi.fn(),
   fetchEndpointFindings: vi.fn(),
   fetchEndpointRelations: vi.fn(),
   fetchFindingsByCategory: vi.fn(),
@@ -26,13 +27,19 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchAttackPathGraph: mocks.fetchAttackPathGraph,
   fetchAttackPathSimulations: mocks.fetchAttackPathSimulations,
+  fetchSimulationsMetaById: mocks.fetchSimulationsMetaById,
   fetchEndpointFindings: mocks.fetchEndpointFindings,
   fetchEndpointRelations: mocks.fetchEndpointRelations,
   fetchFindingsByCategory: mocks.fetchFindingsByCategory,
   fetchExecutionDetail: mocks.fetchExecutionDetail,
 }));
 
-vi.mock('../../../../../../components/i18n', () => ({ useFormatter: () => ({ t: (s: string) => s }) }));
+vi.mock('../../../../../../components/i18n', () => ({
+  useFormatter: () => ({
+    t: (s: string) => s,
+    fldt: (d: string) => d,
+  }),
+}));
 
 vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/AttackPathFlow', () => ({
   default: (props: FlowProps) => {
@@ -61,13 +68,24 @@ const graphDto = {
     ports: 0,
   },
   attackPathNodes: [{
+    id: 'NODE_INJECTOR|nmap',
+    type: 'INJECTOR',
+    label: 'nmap',
+  }, {
     id: ENDPOINT_NODE,
     type: 'ASSET',
     label: 'CORP-HOST',
     hostname: 'CORP-HOST',
     ref: 'host-x',
+    findingCounts: { credentials: 1 },
   }],
-  attackPathEdges: [],
+  attackPathEdges: [{
+    edgeId: 'edge-nmap-host-x',
+    edgeSourceId: 'NODE_INJECTOR|nmap',
+    edgeTargetId: ENDPOINT_NODE,
+    type: 'EDGE_EXECUTIONS',
+    count: 1,
+  }],
   attackPathExecutions: [],
   staticAttackPathFindings: [],
 };
@@ -86,6 +104,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
   const setup = () => {
     mocks.fetchAttackPathGraph.mockResolvedValue({ data: graphDto });
     mocks.fetchAttackPathSimulations.mockResolvedValue({ data: [] });
+    mocks.fetchSimulationsMetaById.mockResolvedValue({ data: [] });
     mocks.fetchEndpointFindings.mockResolvedValue({
       data: {
         findingTypes: [],

@@ -15,7 +15,6 @@ const GroupedEdge = ({
   targetY,
   sourcePosition,
   targetPosition,
-  markerEnd,
   data,
   selected,
 }: EdgeProps<AttackPathFlowEdge>) => {
@@ -30,25 +29,31 @@ const GroupedEdge = ({
   });
   const count = data?.count ?? 1;
   const label = data?.label;
-  let color = theme.palette.grey[500];
+  const dimmed = data?.dimmed ?? false;
+  // Solid edges, coloured by status (green prevented / orange detected / red neither) and neutral
+  // blue by default; a mixed aggregation resolves to orange upstream (see aggregateStatus).
+  let color = attackPathStatusColor(theme, data?.status);
   if (selected) {
     color = theme.palette.primary.main;
-  } else if (data?.status) {
-    color = attackPathStatusColor(theme, data.status);
+  }
+  let opacity = 0.85;
+  if (selected) {
+    opacity = 1;
+  } else if (dimmed) {
+    opacity = 0.1;
   }
   return (
     <>
       <BaseEdge
         id={id}
         path={edgePath}
-        markerEnd={markerEnd}
         style={{
           stroke: color,
           strokeWidth: selected ? 2.5 : 1.5,
-          opacity: selected ? 1 : 0.75,
+          opacity,
         }}
       />
-      {(count > 1 || label) && (
+      {!dimmed && (count > 1 || label) && (
         <EdgeLabelRenderer>
           <div
             className="nodrag nopan"
