@@ -243,13 +243,6 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        # runner.arch (X64/ARM64) disambiguates matrix legs that pass the
-        # SAME browser value on different runners (e.g. e2e-infra-tests:
-        # x64/arm64 both use browser=chromium). Without it, both legs would
-        # upload an identically-named artifact in the same workflow run and
-        # actions/upload-artifact would fail with a 409 Conflict.
-        # For e2e-tests (chrome vs webkit), browser alone was already
-        # unique — adding runner.arch here is a no-op (always X64).
         name: playwright-report-${{ inputs.browser }}-${{ runner.arch }}
         path: openaev-front/test-results/
     - name: Upload E2E coverage report (${{ inputs.browser }})
