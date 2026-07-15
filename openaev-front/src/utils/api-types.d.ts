@@ -3516,12 +3516,6 @@ export interface EsDomainsAvgData {
 }
 
 export interface EsEndpoint {
-  asset_hostname?: string;
-  /** @uniqueItems true */
-  asset_ips?: string[];
-  /** @uniqueItems true */
-  asset_mac_addresses?: string[];
-  asset_seen_ip?: string;
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
@@ -3543,9 +3537,15 @@ export interface EsEndpoint {
   endpoint_arch?: string;
   endpoint_description?: string;
   endpoint_external_reference?: string;
+  endpoint_hostname?: string;
+  /** @uniqueItems true */
+  endpoint_ips?: string[];
   endpoint_is_eol?: boolean;
+  /** @uniqueItems true */
+  endpoint_mac_addresses?: string[];
   endpoint_name?: string;
   endpoint_platform?: string;
+  endpoint_seen_ip?: string;
 }
 
 export interface EsEntities {
