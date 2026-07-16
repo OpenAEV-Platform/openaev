@@ -30,10 +30,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
-import org.opensearch.client.opensearch.OpenSearchClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -136,37 +134,6 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
     engineService.bulkProcessing(engineContext.getModels().stream());
-    forceOpenSearchRefresh();
-  }
-
-  /**
-   * Forces a search-engine index refresh so that documents indexed by {@code bulkProcessing} become
-   * immediately searchable. Supports both OpenSearch and Elasticsearch engines.
-   */
-  private void forceOpenSearchRefresh() {
-    try {
-      if (engineService instanceof io.openaev.service.OpenSearchService) {
-        OpenSearchClient client =
-            (OpenSearchClient) ReflectionTestUtils.getField(engineService, "openSearchClient");
-        if (client != null) {
-          client.indices().refresh(r -> r.index("_all"));
-        }
-      } else if (engineService instanceof io.openaev.service.ElasticService) {
-        co.elastic.clients.elasticsearch.ElasticsearchClient client =
-            (co.elastic.clients.elasticsearch.ElasticsearchClient)
-                ReflectionTestUtils.getField(engineService, "elasticClient");
-        if (client != null) {
-          client.indices().refresh(r -> r.index("_all"));
-        }
-      }
-    } catch (Exception e) {
-      // Fallback: wait for natural refresh cycle
-      try {
-        Thread.sleep(2_000);
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-      }
-    }
   }
 
   private void awaitEndpointIndexedAssertion(Runnable assertion) {
