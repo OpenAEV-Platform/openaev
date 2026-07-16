@@ -164,7 +164,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     // Widgets appear once the graph counters are loaded; open the credentials drawer.
     const credentialsWidget = await screen.findByRole('button', { name: /Credentials/ });
     fireEvent.click(credentialsWidget);
-    expect(mocks.fetchFindingsByCategory).toHaveBeenCalledWith('sim-1', 'credentials');
+    expect(mocks.fetchFindingsByCategory).toHaveBeenCalledWith('sim-1', 'credentials', 0, 1000);
 
     // The drawer renders the fetched finding (credential value masked by the server).
     const item = await screen.findByText('admin:••••');

@@ -614,6 +614,7 @@ export const buildFindingPathFlow = (
   dto: AttackPathDTO,
   finding: PathFinding,
   contractLabelByInjector?: Record<string, string>,
+  findingExpansion?: FindingExpansion,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -719,71 +720,123 @@ export const buildFindingPathFlow = (
     selected: true,
   });
 
+  // Contextual clusters (the endpoint's other findings) sit to the right of the focused finding. Each
+  // is expandable in place: on expand it fans out its (fetched, batched) individual findings so the
+  // user can keep exploring the focused path without leaving it. Returns the vertical space consumed.
+  const CTX_CLUSTER_X = CLUSTER_FINDING_DETAIL_X + 170;
+  const CTX_CHILD_X = CTX_CLUSTER_X + 210;
+  const CTX_ROW_H = CLUSTER_FINDING_DETAIL_ROW;
+  const emitCtxCluster = (
+    id: string,
+    typeFindings: string,
+    count: number,
+    edgeLabel: string,
+    top: number,
+  ): number => {
+    const isExpanded = findingExpansion?.expanded.has(id) ?? false;
+    const list = isExpanded ? (findingExpansion?.findingsByCluster.get(id) ?? []) : [];
+    const shown = isExpanded
+      ? Math.min(Math.max(findingExpansion?.batch.get(id) ?? 0, 0), list.length)
+      : 0;
+    const children = list.slice(0, shown);
+    const overflow = list.length - children.length;
+    nodes.push({
+      id,
+      type: AP_FLOW_NODE_TYPE.findingCluster,
+      position: {
+        x: CTX_CLUSTER_X,
+        y: top,
+      },
+      data: {
+        typeFindings,
+        count,
+        label: typeFindings,
+        clusterId: id,
+        endpointRef: finding.endpointKey,
+        clusterKind: 'header',
+        expanded: isExpanded,
+      },
+      selected: true,
+    });
+    edges.push({
+      id: `${endpointId}-${id}`,
+      source: endpointId,
+      target: id,
+      type: AP_FLOW_EDGE_TYPE,
+      data: {
+        count,
+        status: undefined,
+        label: edgeLabel,
+      },
+      selected: true,
+    });
+    children.forEach((f, j) => {
+      const fid = f.id ?? `${id}-f${j}`;
+      nodes.push({
+        id: fid,
+        type: AP_FLOW_NODE_TYPE.finding,
+        position: {
+          x: CTX_CHILD_X,
+          y: top + CLUSTER_FINDING_ROW_H + j * CTX_ROW_H,
+        },
+        data: {
+          label: f.value ?? f.label,
+          typeFindings: f.typeFindings,
+        },
+      });
+      edges.push({
+        id: `${id}-${fid}`,
+        source: id,
+        target: fid,
+        type: AP_FLOW_EDGE_TYPE,
+        data: {
+          count: 1,
+          status: undefined,
+        },
+      });
+    });
+    if (overflow > 0) {
+      const moreId = `${id}-more`;
+      nodes.push({
+        id: moreId,
+        type: AP_FLOW_NODE_TYPE.findingCluster,
+        position: {
+          x: CTX_CHILD_X,
+          y: top + CLUSTER_FINDING_ROW_H + children.length * CTX_ROW_H,
+        },
+        data: {
+          typeFindings,
+          count: overflow,
+          label: typeFindings,
+          clusterId: id,
+          endpointRef: finding.endpointKey,
+          clusterKind: 'overflow',
+        },
+      });
+      edges.push({
+        id: `${id}-${moreId}`,
+        source: id,
+        target: moreId,
+        type: AP_FLOW_EDGE_TYPE,
+        data: {
+          count: overflow,
+          label: `+${overflow}`,
+          status: undefined,
+        },
+      });
+    }
+    const childrenH = (children.length + (overflow > 0 ? 1 : 0)) * CTX_ROW_H;
+    return Math.max(rowH, CLUSTER_FINDING_ROW_H + childrenH);
+  };
+
   let clusterY = rightTopY + rowH;
   if (sameTypeOthers > 0) {
     const id = `path-cl-same|${finding.type}|${finding.endpointKey}`;
-    nodes.push({
-      id,
-      type: AP_FLOW_NODE_TYPE.findingCluster,
-      position: {
-        x: CLUSTER_FINDING_DETAIL_X + 170,
-        y: clusterY,
-      },
-      data: {
-        typeFindings: finding.type,
-        count: sameTypeOthers,
-        label: finding.type,
-        clusterId: id,
-        endpointRef: finding.endpointKey,
-        clusterKind: 'overflow',
-      },
-      selected: true,
-    });
-    edges.push({
-      id: `${endpointId}-${id}`,
-      source: endpointId,
-      target: id,
-      type: AP_FLOW_EDGE_TYPE,
-      data: {
-        count: sameTypeOthers,
-        status: undefined,
-        label: `+${sameTypeOthers}`,
-      },
-      selected: true,
-    });
-    clusterY += rowH;
+    clusterY += emitCtxCluster(id, finding.type, sameTypeOthers, `+${sameTypeOthers}`, clusterY);
   }
   if (otherTypesTotal > 0) {
     const id = `path-cl-other|${finding.type}|${finding.endpointKey}`;
-    nodes.push({
-      id,
-      type: AP_FLOW_NODE_TYPE.findingCluster,
-      position: {
-        x: CLUSTER_FINDING_DETAIL_X + 170,
-        y: clusterY,
-      },
-      data: {
-        typeFindings: 'other',
-        count: otherTypesTotal,
-        label: 'other',
-        clusterId: id,
-        endpointRef: finding.endpointKey,
-        clusterKind: 'overflow',
-      },
-      selected: true,
-    });
-    edges.push({
-      id: `${endpointId}-${id}`,
-      source: endpointId,
-      target: id,
-      type: AP_FLOW_EDGE_TYPE,
-      data: {
-        count: otherTypesTotal,
-        status: undefined,
-        label: `${otherTypesTotal}+`,
-      },
-      selected: true,
-    });
+    emitCtxCluster(id, 'other', otherTypesTotal, `${otherTypesTotal}+`, clusterY);
   }
 
   return {

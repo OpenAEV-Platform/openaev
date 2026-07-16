@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
-import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
+import { AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
@@ -18,6 +18,12 @@ import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
 const EXEC_DISPLAY_CAP = 100;
+
+// Findings drawer: rows shown per page (client-side paginated over the loaded category page).
+const DRAWER_PAGE_SIZE = 12;
+// The findings drawer loads the whole category once (bounded), then filters/paginates client-side so
+// the search box and pager cover every item, not just the first backend page.
+const DRAWER_FETCH_SIZE = 1000;
 
 // Expanding a finding cluster fetches findings from at most this many of the injector's endpoints and
 // de-duplicates them — a bounded, front-only stand-in until a "findings by type" endpoint exists.
@@ -127,6 +133,9 @@ const SimulationAttackPath = () => {
   const [drawerLabel, setDrawerLabel] = useState<string>('');
   const [findingsPage, setFindingsPage] = useState<AttackPathFindingPageDTO | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(false);
+  // Drawer client-side search + pagination over the loaded category page.
+  const [drawerSearch, setDrawerSearch] = useState('');
+  const [drawerPage, setDrawerPage] = useState(0);
 
   // Cross-focus: clicking a finding item centers its endpoint (focusRequest) and highlights the
   // producing executions in the feed (by their raw ids).
@@ -369,8 +378,11 @@ const SimulationAttackPath = () => {
   // next batch. The cluster carries its own key; an endpoint ref scopes the fetch to that host.
   const onFindingClusterClick = useCallback(
     (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => {
-      const effectiveKind = clusterId.startsWith('path-cl-') ? 'header' : kind;
-      if (effectiveKind === 'overflow') {
+      // In the focused finding-path view, any expand/collapse re-lays out the sub-graph, so refit it.
+      if (pathFinding) {
+        setFitNonce(n => n + 1);
+      }
+      if (kind === 'overflow') {
         setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
         return;
       }
@@ -427,13 +439,16 @@ const SimulationAttackPath = () => {
     [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding],
   );
 
-  // Open the findings drawer for a summary category and load its first page (backend, masked server-side).
+  // Open the findings drawer for a summary category and load the whole category once (bounded); the
+  // drawer then searches/paginates client-side. Values are masked server-side for credentials.
   const openFindingsDrawer = useCallback((category: string, label: string) => {
     setDrawerCategory(category);
     setDrawerLabel(label);
+    setDrawerSearch('');
+    setDrawerPage(0);
     setFindingsPage(null);
     setFindingsLoading(true);
-    fetchFindingsByCategory(simulationId, category)
+    fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
       .then(r => setFindingsPage(r.data))
       .catch(() => setFindingsPage({
         items: [],
@@ -542,7 +557,11 @@ const SimulationAttackPath = () => {
       }
       // Focused finding-path view takes over the whole graph until it is cleared.
       if (pathFinding) {
-        return buildFindingPathFlow(dto, pathFinding, pathContractLabelByInjector);
+        return buildFindingPathFlow(dto, pathFinding, pathContractLabelByInjector, {
+          expanded: expandedFindingClusters,
+          findingsByCluster,
+          batch: findingBatch,
+        });
       }
       return buildClusteredAttackPathFlow(dto, endpointBatch, {
         expanded: expandedFindingClusters,
@@ -575,10 +594,21 @@ const SimulationAttackPath = () => {
     if (pathFinding) {
       const defaultId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
       const activeId = selectedFindingId ?? defaultId;
+      // When the focused finding itself is the active selection, only the injector(s) that actually
+      // produced it (their executions match the finding's) light up — not every injector that merely
+      // reached the endpoint. Selecting a child finding/cluster lifts the restriction (full walk-up).
+      const producingInjectorIds = new Set(Object.keys(pathContractLabelByInjector));
+      const restrictInjectors = activeId === defaultId && producingInjectorIds.size > 0;
+      const injectorIds = new Set(
+        baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
+      );
       const pathSet = new Set<string>([activeId]);
       for (let pass = 0; pass < 8; pass += 1) {
         for (const e of baseFlow.edges) {
           if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            if (restrictInjectors && injectorIds.has(e.source) && !producingInjectorIds.has(e.source)) {
+              continue;
+            }
             pathSet.add(e.source);
           }
         }
@@ -633,7 +663,7 @@ const SimulationAttackPath = () => {
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, selectedNodeId, selectedFindingId, focus]);
+  }, [baseFlow, pathFinding, pathContractLabelByInjector, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
   const focusedEndpoint = useMemo(
@@ -657,6 +687,29 @@ const SimulationAttackPath = () => {
       values,
     }));
   }, [endpointFindings]);
+
+  // Drawer list: scope to the focused endpoint (in path view) and apply the search, then paginate
+  // client-side. So "Discovered Users (1)" in a focused view lists that one user, not the whole set.
+  const drawerFilteredItems = useMemo(() => {
+    let items = findingsPage?.items ?? [];
+    if (pathFinding) {
+      items = items.filter(it => it.endpointKey === pathFinding.endpointKey);
+    }
+    const q = drawerSearch.trim().toLowerCase();
+    if (q) {
+      items = items.filter(it =>
+        (it.value ?? '').toLowerCase().includes(q)
+        || (it.endpointKey ?? '').toLowerCase().includes(q));
+    }
+    return items;
+  }, [findingsPage, pathFinding, drawerSearch]);
+
+  const drawerPageCount = Math.max(1, Math.ceil(drawerFilteredItems.length / DRAWER_PAGE_SIZE));
+  const drawerSafePage = Math.min(drawerPage, drawerPageCount - 1);
+  const drawerPageItems = useMemo(
+    () => drawerFilteredItems.slice(drawerSafePage * DRAWER_PAGE_SIZE, drawerSafePage * DRAWER_PAGE_SIZE + DRAWER_PAGE_SIZE),
+    [drawerFilteredItems, drawerSafePage],
+  );
 
   // "Captured Files" has no backend counter: derive an approximate share count from the collapsed
   // endpoints' per-type finding counts (temporary until a native "file" finding type exists).
@@ -1103,7 +1156,7 @@ const SimulationAttackPath = () => {
             mb: 1,
           }}
           >
-            <Typography variant="h6">{`${drawerLabel} (${findingsPage?.total ?? 0})`}</Typography>
+            <Typography variant="h6">{`${drawerLabel} (${drawerFilteredItems.length})`}</Typography>
             <IconButton size="small" aria-label={t('Close')} onClick={() => setDrawerCategory(null)}>
               <Close />
             </IconButton>
@@ -1118,15 +1171,26 @@ const SimulationAttackPath = () => {
           >
             {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
           </Typography>
+          <TextField
+            size="small"
+            fullWidth
+            value={drawerSearch}
+            onChange={(e) => {
+              setDrawerSearch(e.target.value);
+              setDrawerPage(0);
+            }}
+            placeholder={t('Search')}
+            sx={{ mb: 1.5 }}
+          />
           {findingsLoading && (
             <Box sx={{ minHeight: 120 }}>
               <Loader variant="inElement" size="sm" />
             </Box>
           )}
-          {!findingsLoading && (findingsPage?.items?.length ?? 0) === 0 && (
+          {!findingsLoading && drawerFilteredItems.length === 0 && (
             <Alert severity="info">{t('No findings')}</Alert>
           )}
-          {!findingsLoading && (findingsPage?.items ?? []).map((item, index) => (
+          {!findingsLoading && drawerPageItems.map((item, index) => (
             <Box
               key={`${item.endpointKey}-${item.value}-${index}`}
               role="button"
@@ -1152,24 +1216,38 @@ const SimulationAttackPath = () => {
                 },
               }}
             >
-              <Typography variant="body2" noWrap title={item.value}>{item.value}</Typography>
+              <Typography variant="body2" title={item.value} sx={{ wordBreak: 'break-all' }}>{item.value}</Typography>
               <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
                 {item.endpointKey}
               </Typography>
             </Box>
           ))}
-          {!findingsLoading && findingsPage
-            && (findingsPage.items?.length ?? 0) < (findingsPage.total ?? 0) && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                display: 'block',
-                pt: 1,
-              }}
+          {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              pt: 1.5,
+            }}
             >
-              {`+${(findingsPage.total ?? 0) - (findingsPage.items?.length ?? 0)} ${t('more')}`}
-            </Typography>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('Previous')}
+                disabled={drawerSafePage <= 0}
+                onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
+              />
+              <Typography variant="caption" color="text.secondary">
+                {`${drawerSafePage + 1} / ${drawerPageCount}`}
+              </Typography>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={t('Next')}
+                disabled={drawerSafePage >= drawerPageCount - 1}
+                onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
+              />
+            </Box>
           )}
         </Box>
       </Drawer>
