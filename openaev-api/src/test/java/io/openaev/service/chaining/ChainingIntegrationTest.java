@@ -17,6 +17,8 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.document.DocumentService;
@@ -82,6 +84,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   @Autowired private TestUserHolder testUserHolder;
   String injectInputJson;
   InjectorContract injectorContractSaved;
+  Asset savedAsset;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -114,6 +117,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);
+    savedAsset = asset;
 
     injectInputJson =
         """
@@ -454,6 +458,21 @@ class ChainingIntegrationTest extends IntegrationTest {
       step.setDataStep(injectInput);
       step.setConditions(List.of());
       stepService.createStepTemplates(workflowTemplate, List.of(step));
+
+      // Add an ASSET scope rule so that scopeService.getValidAssets() returns savedAsset
+      // and hasAssetTargets becomes true, which triggers inject creation in the external-injector
+      // branch.
+      WorkflowScopeRuleInput assetScopeRule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue(savedAsset.getId())
+              .build();
+      workflowService.updateWorkflowConfiguration(
+          workflowTemplate.getId(),
+          WorkflowConfigurationInput.builder().workflowScopeRules(List.of(assetScopeRule)).build());
+      // Override the asset mock so the scope service resolves the rule to savedAsset
+      doReturn(List.of(savedAsset)).when(assetService).assets(any());
       String simulation =
           mvc.perform(
                   post(tenantUri(

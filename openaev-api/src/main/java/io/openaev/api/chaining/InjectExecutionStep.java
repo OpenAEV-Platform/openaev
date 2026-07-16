@@ -263,6 +263,15 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /** Builds and directly executes an inject with the given asset scope. */
+  private void executeInject(Inject inject, List<Asset> assets, List<AssetGroup> assetGroups)
+      throws Exception {
+    ExecutableInject executableInject =
+        new ExecutableInject(
+            true, true, inject, inject.getTeams(), assets, assetGroups, List.of(), true);
+    executor.directExecute(executableInject);
+  }
+
   /**
    * Updates a step after execution.
    *
