@@ -2,8 +2,13 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { IntlProvider } from 'react-intl';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
+  XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
+} from '../../../../../../admin/components/RedirectByPath';
 import XtmHubTab from '../../../../../../admin/components/settings/experience/xtm_hub/XtmHubTab';
 import { type PlatformSettings, type TenantOutput, type User } from '../../../../../../utils/api-types';
 import type * as EnvironmentModule from '../../../../../../utils/Environment';
@@ -13,14 +18,23 @@ import type * as UrlHelperModule from '../../../../../../utils/url-helper';
 
 // -- MODULE MOCKS --
 
-const { mockOpenTab, mockCloseTab, mockFocusTab, mockDispatch, mockNotifySuccess, mockGetCurrentTenantId } = vi.hoisted(() => ({
+const { mockOpenTab, mockCloseTab, mockFocusTab, mockDispatch, mockNotifySuccess, mockGetCurrentTenantId, mockNavigate } = vi.hoisted(() => ({
   mockOpenTab: vi.fn(),
   mockCloseTab: vi.fn(),
   mockFocusTab: vi.fn(),
   mockDispatch: vi.fn(),
   mockNotifySuccess: vi.fn(),
   mockGetCurrentTenantId: vi.fn(() => 'tenant-abc'),
+  mockNavigate: vi.fn(),
 }));
+
+vi.mock('react-router', async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...(original as Record<string, unknown>),
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock('../../../../../../utils/hooks/useExternalTab', () => ({
   default: vi.fn(() => ({
@@ -128,7 +142,7 @@ const DEFAULT_SETTINGS: Partial<PlatformSettings> = {
   platform_license: { license_is_validated: true } as PlatformSettings['platform_license'],
 };
 
-const UNREGISTER_BUTTON_TEXT = 'Unregister from XTM Hub';
+const UNREGISTER_BUTTON_TEXT = 'Disconnect from XTM Hub';
 
 // -- FACTORIZED HELPERS --
 
@@ -136,9 +150,15 @@ interface RenderOptions {
   registrationStatus?: 'REGISTERED' | null;
   settingsOverrides?: Partial<PlatformSettings>;
   currentUserTenant?: TenantOutput | null;
+  route?: string;
 }
 
-const renderXtmHubTab = ({ registrationStatus = null, settingsOverrides = {}, currentUserTenant = TENANT }: RenderOptions = {}) => {
+const renderXtmHubTab = ({
+  registrationStatus = null,
+  settingsOverrides = {},
+  currentUserTenant = TENANT,
+  route = '/admin/settings/experience',
+}: RenderOptions = {}) => {
   vi.mocked(useHelper).mockReturnValue(
     registrationStatus
       ? {
@@ -164,7 +184,9 @@ const renderXtmHubTab = ({ registrationStatus = null, settingsOverrides = {}, cu
   const wrapper = ({ children }: { children: ReactNode }) => (
     <ThemeProvider theme={theme}>
       <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-        <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
+        <MemoryRouter initialEntries={[route]}>
+          <UserContext.Provider value={userContext}>{children}</UserContext.Provider>
+        </MemoryRouter>
       </IntlProvider>
     </ThemeProvider>
   );
@@ -217,13 +239,13 @@ describe('XtmHubTab', () => {
   // ── 1. Rendering ──────────────────────────────────────────────────────────
 
   describe('Rendering', () => {
-    it('renders a GradientButton "Register in XTM Hub" when not registered', () => {
+    it('renders a GradientButton "Connect to XTM Hub" when not registered', () => {
       renderXtmHubTab({ registrationStatus: null });
       expect(screen.getByTestId('gradient-button')).toBeDefined();
-      expect(screen.getByText('Register in XTM Hub')).toBeDefined();
+      expect(screen.getByText('Connect to XTM Hub')).toBeDefined();
     });
 
-    it('renders an outlined error Button "Unregister from XTM Hub" when registered', () => {
+    it('renders an outlined error Button "Disconnect from XTM Hub" when registered', () => {
       renderXtmHubTab({ registrationStatus: 'REGISTERED' });
       expect(screen.queryByTestId('gradient-button')).toBeNull();
       expect(screen.getByText(UNREGISTER_BUTTON_TEXT)).toBeDefined();
@@ -277,7 +299,7 @@ describe('XtmHubTab', () => {
       openProcessToWaitingHub();
       fireEvent.click(screen.getByLabelText('close'));
       expect(screen.getByTestId('confirmation-dialog')).toBeDefined();
-      expect(screen.getByText('Close registration process?')).toBeDefined();
+      expect(screen.getByText('Close connection process?')).toBeDefined();
     });
 
     it('fully closes when confirming the confirmation dialog', () => {
@@ -315,7 +337,7 @@ describe('XtmHubTab', () => {
       }));
 
       await waitFor(() => expect(registerPlatform).toHaveBeenCalledWith('tok-123'));
-      await waitFor(() => expect(mockNotifySuccess).toHaveBeenCalledWith(expect.stringContaining('successfully registered')));
+      await waitFor(() => expect(mockNotifySuccess).toHaveBeenCalledWith(expect.stringContaining('successfully connected')));
     });
 
     it('transitions to ERROR step when registerPlatform fails', async () => {
@@ -345,7 +367,7 @@ describe('XtmHubTab', () => {
       onMessage(new MessageEvent('message', { data: { action: 'unregister' } }));
 
       await waitFor(() => expect(unregisterPlatform).toHaveBeenCalledWith('reg-1'));
-      await waitFor(() => expect(mockNotifySuccess).toHaveBeenCalledWith(expect.stringContaining('successfully unregistered')));
+      await waitFor(() => expect(mockNotifySuccess).toHaveBeenCalledWith(expect.stringContaining('successfully disconnected')));
     });
 
     it('transitions to ERROR step when unregisterPlatform fails', async () => {
@@ -368,7 +390,7 @@ describe('XtmHubTab', () => {
 
       onMessage(new MessageEvent('message', { data: { action: 'cancel' } }));
 
-      await waitFor(() => expect(screen.getByText('You have canceled the registration process')).toBeDefined());
+      await waitFor(() => expect(screen.getByText('You have canceled the connection process')).toBeDefined());
     });
 
     it('transitions to ERROR step on unknown action', async () => {
@@ -388,6 +410,15 @@ describe('XtmHubTab', () => {
       it('passes the exact registration URL', () => {
         renderXtmHubTab({ registrationStatus: null });
         expect(getExternalTabArgs().url).toBe(`https://hub.example.com/redirect/register-openaev?${buildRegistrationParams()}`);
+      });
+
+      it('uses auto registration product name as platform_title when present in URL', () => {
+        renderXtmHubTab({
+          registrationStatus: null,
+          route: `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true&${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV`,
+        });
+        fireEvent.click(screen.getByText('Continue'));
+        expect(new URL(vi.mocked(useExternalTab).mock.calls.at(-1)![0].url).searchParams.get('platform_title')).toBe('OpenAEV');
       });
 
       it('platform_url is the full origin + tenant path when a tenant is set', () => {
@@ -453,6 +484,48 @@ describe('XtmHubTab', () => {
         renderXtmHubTab({ registrationStatus: 'REGISTERED' });
         expect(getExternalTabArgs().tabName).toBe('xtmhub-unregistration');
       });
+    });
+  });
+
+  describe('Auto registration prompt', () => {
+    it('opens authorization prompt when auto-register query param is present', () => {
+      renderXtmHubTab({
+        registrationStatus: null,
+        route: `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true`,
+      });
+      expect(screen.getByText('Authorize connection')).toBeDefined();
+      expect(screen.getByText('Allow OpenAEV to connect with XTM Hub')).toBeDefined();
+    });
+
+    it('clears auto-register query params and does not open prompt when already registered', async () => {
+      renderXtmHubTab({
+        registrationStatus: 'REGISTERED',
+        route: `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true&${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV`,
+      });
+
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
+        {
+          pathname: '/admin/settings/experience',
+          search: '',
+        },
+        { replace: true },
+      ));
+      expect(screen.queryByText('Authorize connection')).toBeNull();
+    });
+
+    it('clears auto-register query params in demo mode', async () => {
+      vi.mocked(isDemoInstance).mockReturnValue(true);
+      const autoRegisterRoute = `/admin/settings/experience?${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true&${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV`;
+      const { container } = renderXtmHubTab({ route: autoRegisterRoute });
+
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
+        {
+          pathname: '/admin/settings/experience',
+          search: '',
+        },
+        { replace: true },
+      ));
+      expect(container.firstChild).toBeNull();
     });
   });
 });
