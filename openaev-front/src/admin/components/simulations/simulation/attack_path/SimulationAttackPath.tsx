@@ -79,6 +79,31 @@ const toContractLabel = (execution: AttackPathNodeDTO): string | undefined => {
   return raw;
 };
 
+// A finding type -> the drawer category that lists it (with per-finding executionIds). Lets a finding
+// clicked directly in the graph resolve its producing actions the same way a drawer item does.
+const CATEGORY_OF_TYPE: Record<string, string> = {
+  credentials: 'credentials',
+  username: 'users',
+  admin_username: 'users',
+  cve: 'cves',
+  share: 'files',
+};
+
+// Match a drawer finding value to a graph finding value. Credentials are masked server-side in the
+// drawer ("user:••••") but raw in the graph ("user:pass"), so compare only the username before the
+// separator; other types compare exactly.
+const findingValuesMatch = (type: string, a: string, b: string): boolean => {
+  if (a === b) {
+    return true;
+  }
+  if (type === 'credentials') {
+    const ua = a.split(/[:\s]/)[0];
+    const ub = b.split(/[:\s]/)[0];
+    return !!ua && ua === ub;
+  }
+  return false;
+};
+
 interface FindingCard {
   key: AttackPathFindingFilter;
   label: string;
@@ -588,12 +613,56 @@ const SimulationAttackPath = () => {
     [dto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
   );
 
-  // Click a leaf finding: highlight its full attack path (injector -> endpoint cluster -> finding
-  // cluster -> finding) in blue.
-  const onFindingSelect = useCallback((nodeId: string) => {
+  // Re-focus onto a finding clicked directly in the graph, exactly like selecting it from the drawer:
+  // highlight only the actions (injector branches) that produced it. Its producing executions come
+  // from the finding's category page (per-finding executionIds), matched on the focused endpoint.
+  const refocusGraphFinding = useCallback((type: string, value: string) => {
+    if (!pathFinding || !type || !value) {
+      return;
+    }
+    if (type === pathFinding.type && value === pathFinding.value) {
+      return;
+    }
+    const { endpointKey, endpointNodeId } = pathFinding;
+    const apply = (execIds: string[]) => {
+      setSelectedFindingId(null);
+      setSelectedNodeId(null);
+      setPathFinding({
+        endpointNodeId,
+        endpointKey,
+        type,
+        value,
+      });
+      setHighlightedExecutionIds(new Set(execIds));
+      setFitNonce(n => n + 1);
+    };
+    const matchIn = (items: AttackPathFindingItemDTO[]) =>
+      items.find(it => it.endpointKey === endpointKey && (it.type ?? '') === type && findingValuesMatch(type, it.value ?? '', value));
+    const loaded = matchIn(findingsPage?.items ?? []);
+    if (loaded) {
+      apply(loaded.executionIds ?? []);
+      return;
+    }
+    const category = CATEGORY_OF_TYPE[type];
+    if (!category) {
+      apply([]);
+      return;
+    }
+    fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
+      .then(r => apply(matchIn(r.data.items ?? [])?.executionIds ?? []))
+      .catch(() => apply([]));
+  }, [pathFinding, findingsPage, simulationId]);
+
+  // Click a leaf finding: in the focused view re-focus onto it (same as a drawer selection); in the
+  // clustered view highlight its full attack path (injector -> endpoint cluster -> finding) in blue.
+  const onFindingSelect = useCallback((nodeId: string, type?: string, value?: string) => {
+    if (pathFinding) {
+      refocusGraphFinding(type ?? '', value ?? '');
+      return;
+    }
     setSelectedNodeId(null);
     setSelectedFindingId(prev => (prev === nodeId ? null : nodeId));
-  }, []);
+  }, [pathFinding, refocusGraphFinding]);
 
   // The active card focus, as finding types (or the endpoints backbone).
   const focus = useMemo((): readonly string[] | 'endpoints' | null => {
