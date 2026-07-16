@@ -531,8 +531,7 @@ public class InjectExecutionStep implements ActionStep {
       StringBuilder command = new StringBuilder();
       statusPayload.getPayloadCommandBlocks().forEach(
           payloadCommandBlock -> {
-              command.append(payloadCommandBlock.getExecutor())
-                  .append(payloadCommandBlock.getContent());
+              command.append(payloadCommandBlock.getContent());
             }
           );
       return command.toString();
