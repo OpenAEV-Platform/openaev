@@ -2310,6 +2310,7 @@ public class V1_DataImporter implements Importer {
     if (!(dataJson instanceof ObjectNode dataObject) || workflow == null) {
       return fallback;
     }
+    normalizeInjectorContractReference(dataObject);
     dataObject.remove("inject_assets");
     dataObject.remove("inject_asset_groups");
     dataObject.remove("inject_exercise");
@@ -2322,6 +2323,22 @@ public class V1_DataImporter implements Importer {
       dataObject.putNull("inject_exercise");
     }
     return serializeStepData(dataObject, fallback);
+  }
+
+  /**
+   * Strips any embedded contract metadata from step_data, keeping only the contract ID reference.
+   * Prevents stale domain/tag IDs from a foreign platform from being stored in step_data, which
+   * would cause Jackson entity-resolution failures when the step executes.
+   */
+  private void normalizeInjectorContractReference(ObjectNode dataObject) {
+    JsonNode injectContractNode = dataObject.get("inject_injector_contract");
+    String injectorContractId = extractInjectorContractId(injectContractNode);
+    if (!hasText(injectorContractId)) {
+      return;
+    }
+    ObjectNode normalizedContract = mapper.createObjectNode();
+    normalizedContract.put("injector_contract_id", injectorContractId);
+    dataObject.set("inject_injector_contract", normalizedContract);
   }
 
   private static String extractInjectorContractId(JsonNode injectContractNode) {
