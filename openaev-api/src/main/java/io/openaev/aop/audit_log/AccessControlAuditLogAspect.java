@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
-import io.openaev.config.AuditLogProperties;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
@@ -16,7 +15,6 @@ import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,7 +61,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class AccessControlAuditLogAspect {
 
   private final AuditLogger auditLogger;
-  private final AuditLogProperties auditLogProperties;
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
@@ -177,18 +174,8 @@ public class AccessControlAuditLogAspect {
               logUUID);
 
       auditFuture.whenComplete(logCompletion);
-
-      // When halt-on-failure is enabled, block until the async audit completes. If the transport
-      // failed, join() rethrows the CompletionException wrapping AuditLogFailureException.
-      // This propagates through the @Transactional boundary triggering a rollback.
-      if (auditLogProperties.isHaltOnFailure()) {
-        auditFuture.join();
-      }
-    } catch (CompletionException ex) {
-      if (ex.getCause() instanceof AuditLogFailureException auditEx) {
-        throw auditEx;
-      }
-      log.warn(LOG_ERROR_MSG, ex);
+    } catch (AuditLogFailureException ex) {
+      throw ex;
     } catch (Exception ex) {
       log.warn(LOG_ERROR_MSG, ex);
     }

@@ -1,25 +1,25 @@
 package io.openaev.aop.audit_log;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,17 +29,24 @@ class AuditLoggerUnitTest {
   @Mock private LogService logService;
   @Mock private AuditLogProperties auditLogProperties;
   @Mock private AuditShutdownService auditShutdownService;
+  @Mock private ObjectMapper objectMapper;
 
-  @Spy @InjectMocks private AuditLogger auditLogger;
+  /** Synchronous executor so tests run deterministically on the calling thread. */
+  private final Executor syncExecutor = Runnable::run;
+
+  private AuditLogger auditLogger;
 
   @BeforeEach
   void setUp() {
+    auditLogger =
+        new AuditLogger(
+            auditShutdownService, auditLogProperties, logService, objectMapper, syncExecutor);
     lenient().doReturn(true).when(logService).isEnabled();
     lenient().doReturn(true).when(auditLogProperties).isHaltOnFailure();
   }
 
   @Nested
-  @DisplayName("logAuthEvent - halt-on-failure throws AuditLogFailureException")
+  @DisplayName("logAuthEvent — halt-on-failure throws AuditLogFailureException")
   class LogAuthEventFailure {
 
     @Test
@@ -50,7 +57,7 @@ class AuditLoggerUnitTest {
               "login", "error", "local", null, java.util.logging.Level.WARNING, "log-1"))
           .thenThrow(new RuntimeException("transport failure"));
 
-      // Act & Assert — without @Async proxy, the exception is thrown directly
+      // Act & Assert
       assertThatThrownBy(() -> auditLogger.logAuthEvent("login", "error", "local", null, "log-1"))
           .isInstanceOf(AuditLogFailureException.class);
       verify(auditShutdownService).initiateShutdown();
@@ -78,19 +85,14 @@ class AuditLoggerUnitTest {
               "login", "success", "local", null, java.util.logging.Level.WARNING, "log-3"))
           .thenReturn(true);
 
-      // Act
-      CompletableFuture<Boolean> future =
-          auditLogger.logAuthEvent("login", "success", "local", null, "log-3");
-
-      // Assert
-      assertThat(future.isCompletedExceptionally()).isFalse();
-      assertThat(future.join()).isTrue();
-      verify(auditLogger, never()).prepareLogFailure();
+      // Act & Assert — logAuthEvent is now void, just verify no exception
+      assertThatCode(() -> auditLogger.logAuthEvent("login", "success", "local", null, "log-3"))
+          .doesNotThrowAnyException();
     }
   }
 
   @Nested
-  @DisplayName("logAccessControlEvent - halt-on-failure throws AuditLogFailureException")
+  @DisplayName("logAccessControlEvent — halt-on-failure throws AuditLogFailureException")
   class LogAccessControlEventFailure {
 
     @Test
@@ -110,7 +112,7 @@ class AuditLoggerUnitTest {
               "log-4"))
           .thenThrow(new RuntimeException("transport failure"));
 
-      // Act & Assert — without @Async proxy, the exception is thrown directly
+      // Act & Assert
       assertThatThrownBy(
               () ->
                   auditLogger.logAccessControlEvent(
@@ -186,12 +188,11 @@ class AuditLoggerUnitTest {
       // Assert
       assertThat(future.isCompletedExceptionally()).isFalse();
       assertThat(future.join()).isTrue();
-      verify(auditLogger, never()).prepareLogFailure();
     }
   }
 
   @Nested
-  @DisplayName("prepareLogFailure - halt disabled")
+  @DisplayName("prepareLogFailure — halt disabled")
   class HaltDisabled {
 
     @Test

@@ -9,20 +9,30 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import io.openaev.utils.object.ObjectDiffUtils;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Async audit logger invoked by {@link AccessControlAuditLogAspect} to write audit events. When the
- * transport fails and halt-on-failure is enabled, throws {@link AuditLogFailureException} to
- * trigger a transaction rollback and schedules an application shutdown via {@link
- * AuditShutdownService}.
+ * Audit logger that submits audit events asynchronously to the {@code taskLoggerExecutor} thread
+ * pool. When halt-on-failure is enabled, the calling thread blocks until the audit completes; if
+ * the transport failed, {@link AuditLogFailureException} is thrown on the caller's thread so it can
+ * propagate through the transaction boundary and trigger a rollback.
+ *
+ * <p>Callers never need to handle halt-on-failure themselves — just call {@code logAuthEvent} or
+ * {@code logAccessControlEvent} and the blocking/propagation is handled internally.
  *
  * <p>Phase 1: delegates to {@link LogService} for console-only output.
  */
@@ -36,6 +46,7 @@ public class AuditLogger {
   private final AuditLogProperties auditLogProperties;
   private final LogService logService;
   private final ObjectMapper objectMapper;
+  private final @Qualifier("taskLoggerExecutor") Executor taskLoggerExecutor;
 
   public boolean isAuditLoggingEnabled() {
     return logService.isEnabled();
@@ -45,6 +56,13 @@ public class AuditLogger {
     return !shouldSkip(action);
   }
 
+  // -- PREPARE LOG FAILURE --
+
+  /**
+   * Called when an audit transport fails. When halt-on-failure is disabled, logs a warning and
+   * returns. When enabled, schedules application shutdown and throws {@link
+   * AuditLogFailureException}.
+   */
   public void prepareLogFailure() {
     if (!auditLogProperties.isHaltOnFailure()) {
       log.info("[AUDIT] Halt-on-failure disabled, application continues running...");
@@ -61,12 +79,13 @@ public class AuditLogger {
         "Audit transport failed with halt-on-failure enabled — transaction rolled back.");
   }
 
+  // -- AUTH EVENTS --
+
   /**
-   * Log Authentication events Wraps the audit service call in try/catch — non-blocking by default,
-   * but may terminate the process when stop-the-world audit failure handling is enabled.
+   * Logs an authentication event with request context data captured from a non-servlet thread (e.g.
+   * logout handler). Delegates to {@link #logAuthEvent} after restoring the context.
    */
-  @Async("taskLoggerExecutor")
-  public CompletableFuture<Boolean> logAuthEventWithRequestContext(
+  public void logAuthEventWithRequestContext(
       ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd,
       String eventScope,
       String eventStatus,
@@ -74,47 +93,65 @@ public class AuditLogger {
       String reason,
       String logUUID) {
 
-    if (rcd != null) {
-      ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(rcd);
-    }
+    if (!isAuditLoggingEnabled()) return;
 
-    return logAuthEvent(eventScope, eventStatus, provider, reason, logUUID);
+    CompletableFuture<Boolean> future =
+        CompletableFuture.supplyAsync(
+            () -> {
+              if (rcd != null) {
+                ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.setRequestContextData(rcd);
+              }
+              return doLogAuthEvent(eventScope, eventStatus, provider, reason, logUUID);
+            },
+            taskLoggerExecutor);
+
+    awaitIfHaltOnFailure(future);
   }
 
   /**
-   * Log Authentication events Wraps the audit service call in try/catch — non-blocking by default,
-   * but may terminate the process when stop-the-world audit failure handling is enabled.
+   * Logs an authentication event (login success/failure, logout). The audit is submitted
+   * asynchronously. When halt-on-failure is enabled, blocks and rethrows {@link
+   * AuditLogFailureException} on the caller's thread.
    */
-  @Async("taskLoggerExecutor")
-  public CompletableFuture<Boolean> logAuthEvent(
+  public void logAuthEvent(
       String eventScope, String eventStatus, String provider, String reason, String logUUID) {
-    if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 
+    if (!isAuditLoggingEnabled()) return;
+
+    CompletableFuture<Boolean> future =
+        CompletableFuture.supplyAsync(
+            () -> doLogAuthEvent(eventScope, eventStatus, provider, reason, logUUID),
+            taskLoggerExecutor);
+
+    awaitIfHaltOnFailure(future);
+  }
+
+  /** Internal: performs the auth audit log on the executor thread. */
+  private boolean doLogAuthEvent(
+      String eventScope, String eventStatus, String provider, String reason, String logUUID) {
     boolean status = false;
-
     try {
       status =
           logService.logAuthEvent(
               eventScope, eventStatus, provider, reason, Level.WARNING, logUUID);
     } catch (Exception e) {
-      log.warn("[AUDIT] Audit auth logging failed (non-blocking): {}", e.getMessage(), e);
+      log.warn("[AUDIT] Audit auth logging failed: {}", e.getMessage(), e);
     }
 
     if (!status) {
       log.warn("[AUDIT] Failed to log auth event for {}.{}", provider, eventScope);
-
       prepareLogFailure();
     }
-
-    return CompletableFuture.completedFuture(status);
+    return status;
   }
 
+  // -- ACCESS CONTROL EVENTS --
+
   /**
-   * Log Mutation events. Computes field-level diffs from raw snapshots asynchronously. Wraps the
-   * audit service call in try/catch — non-blocking by default, but may terminate the process when
-   * stop-the-world audit failure handling is enabled.
+   * Logs an access control (mutation) event. Computes field-level diffs from raw snapshots
+   * asynchronously. When halt-on-failure is enabled, blocks and rethrows {@link
+   * AuditLogFailureException} on the caller's thread.
    */
-  @Async("taskLoggerExecutor")
   public CompletableFuture<Boolean> logAccessControlEvent(
       String eventScope,
       String eventStatus,
@@ -125,13 +162,42 @@ public class AuditLogger {
       JsonNode signatureNode,
       Map<String, AuditLogContext.EntitySnapshot> snapshots,
       String logUUID) {
+
     if (!isAuditLoggingEnabled()) return CompletableFuture.completedFuture(true);
 
-    boolean status = false;
+    CompletableFuture<Boolean> future =
+        CompletableFuture.supplyAsync(
+            () ->
+                doLogAccessControlEvent(
+                    eventScope,
+                    eventStatus,
+                    resourceType,
+                    resourceId,
+                    input,
+                    output,
+                    signatureNode,
+                    snapshots,
+                    logUUID),
+            taskLoggerExecutor);
 
+    awaitIfHaltOnFailure(future);
+    return future;
+  }
+
+  /** Internal: performs the access control audit log on the executor thread. */
+  private boolean doLogAccessControlEvent(
+      String eventScope,
+      String eventStatus,
+      ResourceType resourceType,
+      String resourceId,
+      JsonNode input,
+      JsonNode output,
+      JsonNode signatureNode,
+      Map<String, AuditLogContext.EntitySnapshot> snapshots,
+      String logUUID) {
+    boolean status = false;
     try {
       JsonNode entityDiffsNode = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
-
       status =
           logService.logRequestEvent(
               eventScope,
@@ -144,19 +210,18 @@ public class AuditLogger {
               entityDiffsNode,
               Level.WARNING,
               logUUID);
-
     } catch (Exception e) {
-      log.warn("[AUDIT] Audit logging failed (non-blocking): {}", e.getMessage(), e);
+      log.warn("[AUDIT] Audit logging failed: {}", e.getMessage(), e);
     }
 
     if (!status) {
       log.warn("[AUDIT] Failed to log access control event for {}.{}", resourceType, eventScope);
-
       prepareLogFailure();
     }
-
-    return CompletableFuture.completedFuture(status);
+    return status;
   }
+
+  // -- OPTIONS --
 
   private boolean shouldSkip(Action action) {
     return switch (action) {
@@ -166,5 +231,44 @@ public class AuditLogger {
       case READ, SEARCH -> true;
       default -> true; // SKIP_RBAC, PROCESS
     };
+  }
+
+  /**
+   * When halt-on-failure is enabled, blocks on the audit future. If the transport failed,
+   * invalidates the current HTTP session (so no user is left authenticated after app restart) and
+   * rethrows {@link AuditLogFailureException} on the caller's thread.
+   */
+  private void awaitIfHaltOnFailure(CompletableFuture<Boolean> auditFuture) {
+    if (!auditLogProperties.isHaltOnFailure()) {
+      return;
+    }
+    try {
+      auditFuture.join();
+    } catch (CompletionException ex) {
+      if (ex.getCause() instanceof AuditLogFailureException auditEx) {
+        invalidateCurrentSession();
+        throw auditEx;
+      }
+      log.warn("[AUDIT] Unexpected error during halt-on-failure join", ex);
+    }
+  }
+
+  /**
+   * Invalidates the current HTTP session and clears the {@link SecurityContextHolder} so no user is
+   * left authenticated when audit logging fails with halt-on-failure enabled. Uses {@link
+   * RequestContextHolder} to resolve the current request — safe because {@code
+   * awaitIfHaltOnFailure} always runs on the caller's (servlet) thread.
+   */
+  private void invalidateCurrentSession() {
+    SecurityContextHolder.clearContext();
+    ServletRequestAttributes attrs =
+        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    if (attrs != null) {
+      HttpServletRequest request = attrs.getRequest();
+      HttpSession session = request.getSession(false);
+      if (session != null) {
+        session.invalidate();
+      }
+    }
   }
 }
