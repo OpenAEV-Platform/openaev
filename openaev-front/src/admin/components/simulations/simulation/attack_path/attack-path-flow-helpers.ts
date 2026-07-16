@@ -610,6 +610,28 @@ export interface PathFinding {
  * that produced it — the injector(s) that reached its endpoint, the endpoint, and the finding — all
  * highlighted. Everything else is dropped so the whole path fits in one overview.
  */
+// Human-readable plural noun for a finding type, used to give contextual cluster edges a label with
+// meaning (e.g. "6 credentials" instead of a bare "6+"). Mixed clusters fall back to "findings".
+export const findingCategoryNoun = (typeFindings?: string): string => {
+  switch (typeFindings) {
+    case 'credentials':
+      return 'credentials';
+    case 'username':
+    case 'admin_username':
+      return 'users';
+    case 'cve':
+      return 'CVEs';
+    case 'share':
+      return 'files';
+    case 'password_policy':
+      return 'password policies';
+    case 'sid':
+      return 'SIDs';
+    default:
+      return 'findings';
+  }
+};
+
 export const buildFindingPathFlow = (
   dto: AttackPathDTO,
   finding: PathFinding,
@@ -832,11 +854,17 @@ export const buildFindingPathFlow = (
   let clusterY = rightTopY + rowH;
   if (sameTypeOthers > 0) {
     const id = `path-cl-same|${finding.type}|${finding.endpointKey}`;
-    clusterY += emitCtxCluster(id, finding.type, sameTypeOthers, `+${sameTypeOthers}`, clusterY);
+    clusterY += emitCtxCluster(
+      id,
+      finding.type,
+      sameTypeOthers,
+      `${sameTypeOthers} ${findingCategoryNoun(finding.type)}`,
+      clusterY,
+    );
   }
   if (otherTypesTotal > 0) {
     const id = `path-cl-other|${finding.type}|${finding.endpointKey}`;
-    emitCtxCluster(id, 'other', otherTypesTotal, `${otherTypesTotal}+`, clusterY);
+    emitCtxCluster(id, 'other', otherTypesTotal, `${otherTypesTotal} findings`, clusterY);
   }
 
   return {

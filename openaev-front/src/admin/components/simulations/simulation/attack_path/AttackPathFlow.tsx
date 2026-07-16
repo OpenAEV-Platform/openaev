@@ -34,6 +34,7 @@ interface AttackPathFlowProps {
   onClusterClick?: (injectorId: string, kind: 'header' | 'overflow') => void;
   onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => void;
   onFindingSelect?: (nodeId: string, type?: string, value?: string) => void;
+  onInjectorSelect?: (injectorId: string) => void;
   focusRequest?: AttackPathFocusRequest | null;
   // A bump to fit the whole graph in view (used when switching to the focused finding-path view).
   fitRequest?: number;
@@ -51,6 +52,7 @@ const AttackPathFlow = ({
   onClusterClick,
   onFindingClusterClick,
   onFindingSelect,
+  onInjectorSelect,
   focusRequest,
   fitRequest,
   showMiniMap = true,
@@ -107,6 +109,8 @@ const AttackPathFlow = ({
           onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
         } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
           onFindingSelect?.(node.id, data.typeFindings, data.label);
+        } else if (node.type === AP_FLOW_NODE_TYPE.injector) {
+          onInjectorSelect?.(node.id);
         }
       }}
       nodeTypes={nodeTypes}

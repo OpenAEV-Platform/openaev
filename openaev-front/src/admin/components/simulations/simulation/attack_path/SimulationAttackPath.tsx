@@ -148,6 +148,9 @@ const SimulationAttackPath = () => {
   // A clicked leaf finding whose full path (injector -> endpoint cluster -> finding cluster -> finding)
   // is highlighted in blue.
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  // In the focused finding-path view, an injector clicked to reverse-highlight its downstream path
+  // (injector -> endpoint -> the findings it produced). Mutually exclusive with a finding highlight.
+  const [selectedInjectorId, setSelectedInjectorId] = useState<string | null>(null);
   // Finding picked in the focused graph, driving the right-side finding details panel (its info +
   // producing actions that open Result & Terminal). Null = no finding panel.
   const [findingDetail, setFindingDetail] = useState<{
@@ -217,6 +220,7 @@ const SimulationAttackPath = () => {
     setFindingBatch(new Map());
     setSelectedNodeId(null);
     setSelectedFindingId(null);
+    setSelectedInjectorId(null);
     setExecutions([]);
     setEndpointRelationEdges([]);
     setEndpointFindings([]);
@@ -295,6 +299,7 @@ const SimulationAttackPath = () => {
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
     setSelectedNodeId(nodeId);
     setSelectedFindingId(null);
+    setSelectedInjectorId(null);
     setFindingDetail(null);
     setSelectedLabel(label ?? '');
     setDetailExecutionId(null);
@@ -516,6 +521,7 @@ const SimulationAttackPath = () => {
       setDrawerCategory(null);
       setActiveCard(null);
       setSelectedFindingId(null);
+      setSelectedInjectorId(null);
       setFocusRequest(null);
       setPathFinding({
         endpointNodeId: item.endpointNodeId,
@@ -662,6 +668,8 @@ const SimulationAttackPath = () => {
     setLegendCollapseNonce(n => n + 1);
     // The main focused finding has no in-place child highlight; any other finding highlights itself.
     setSelectedFindingId(nodeId === mainId ? null : nodeId);
+    // A finding highlight and an injector reverse-highlight are mutually exclusive.
+    setSelectedInjectorId(null);
     // Scope the execution feed (and the producing-injector highlight) to THIS finding's producing
     // executions, exactly like picking it in the drawer — resolved from its category page.
     const { endpointKey } = pathFinding;
@@ -683,6 +691,30 @@ const SimulationAttackPath = () => {
       .catch(() => applyExec([]));
   }, [pathFinding, findingsPage, simulationId]);
 
+  // Reverse of a finding click, only meaningful in the focused finding-path view: clicking an
+  // injector highlights its DOWNSTREAM path (injector -> endpoint -> the findings it produced) and
+  // scopes the execution feed to that injector's executions on the focused endpoint. Stays in the
+  // same focused view — no re-focus, no finding panel.
+  const highlightGraphInjector = useCallback((injectorId: string) => {
+    if (!pathFinding) {
+      return;
+    }
+    setFindingDetail(null);
+    setSelectedNodeId(null);
+    setSelectedFindingId(null);
+    // A new selection invalidates any open Result & Terminal panel.
+    setDetailExecutionId(null);
+    setDetail(null);
+    setLegendCollapseNonce(n => n + 1);
+    setSelectedInjectorId(injectorId);
+    // Scope the feed (and the producing-injector highlight) to this injector's executions on the
+    // focused endpoint — the mirror of scoping to a finding's producing executions.
+    const ids = endpointRelationEdges
+      .filter(e => e.edgeSourceId === injectorId)
+      .flatMap(e => e.executionIds ?? []);
+    setHighlightedExecutionIds(new Set(ids));
+  }, [pathFinding, endpointRelationEdges]);
+
   // Click a leaf finding: in the focused view highlight it in place (same actions as a drawer
   // selection); in the clustered view highlight its full attack path (injector -> cluster -> finding).
   const onFindingSelect = useCallback((nodeId: string, type?: string, value?: string) => {
@@ -693,6 +725,13 @@ const SimulationAttackPath = () => {
     setSelectedNodeId(null);
     setSelectedFindingId(prev => (prev === nodeId ? null : nodeId));
   }, [pathFinding, highlightGraphFinding]);
+
+  // Click an injector node: only reverse-highlights inside the focused finding-path view.
+  const onInjectorSelect = useCallback((injectorId: string) => {
+    if (pathFinding) {
+      highlightGraphInjector(injectorId);
+    }
+  }, [pathFinding, highlightGraphInjector]);
 
   // The active card focus, as finding types (or the endpoints backbone).
   const focus = useMemo((): readonly string[] | 'endpoints' | null => {
@@ -707,25 +746,39 @@ const SimulationAttackPath = () => {
     // Focused finding-path view: keep the focused scope, and let clicks on findings/clusters
     // highlight the exact sub-path (injector -> endpoint -> selection).
     if (pathFinding) {
-      const defaultId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
-      const activeId = selectedFindingId ?? defaultId;
-      // Only the injector(s) that actually produced the highlighted finding (their executions match
-      // it) light up — not every injector that merely reached the endpoint. This applies both to the
-      // main focused finding and to a leaf finding highlighted in place. Selecting a cluster header
-      // lifts the restriction (full walk-up over every injector that reached the endpoint).
-      const clusterSelected = selectedFindingId?.startsWith('path-cl-') ?? false;
-      const restrictInjectors = !clusterSelected && producingInjectorIds.size > 0;
       const injectorIds = new Set(
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
-      const pathSet = new Set<string>([activeId]);
-      for (let pass = 0; pass < 8; pass += 1) {
-        for (const e of baseFlow.edges) {
-          if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
-            if (restrictInjectors && injectorIds.has(e.source) && !producingInjectorIds.has(e.source)) {
-              continue;
+      const pathSet = new Set<string>();
+      if (selectedInjectorId && injectorIds.has(selectedInjectorId)) {
+        // Reverse focus: walk DOWNSTREAM from the clicked injector (injector -> endpoint -> the
+        // findings it reached), the mirror of the finding walk-up below.
+        pathSet.add(selectedInjectorId);
+        for (let pass = 0; pass < 8; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.source && e.target && pathSet.has(e.source) && !pathSet.has(e.target)) {
+              pathSet.add(e.target);
             }
-            pathSet.add(e.source);
+          }
+        }
+      } else {
+        const defaultId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
+        const activeId = selectedFindingId ?? defaultId;
+        // Only the injector(s) that actually produced the highlighted finding (their executions match
+        // it) light up — not every injector that merely reached the endpoint. This applies both to the
+        // main focused finding and to a leaf finding highlighted in place. Selecting a cluster header
+        // lifts the restriction (full walk-up over every injector that reached the endpoint).
+        const clusterSelected = selectedFindingId?.startsWith('path-cl-') ?? false;
+        const restrictInjectors = !clusterSelected && producingInjectorIds.size > 0;
+        pathSet.add(activeId);
+        for (let pass = 0; pass < 8; pass += 1) {
+          for (const e of baseFlow.edges) {
+            if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+              if (restrictInjectors && injectorIds.has(e.source) && !producingInjectorIds.has(e.source)) {
+                continue;
+              }
+              pathSet.add(e.source);
+            }
           }
         }
       }
@@ -779,7 +832,7 @@ const SimulationAttackPath = () => {
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, focus]);
+  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, selectedInjectorId, focus]);
 
   const counters = dto?.counters;
   const focusedEndpoint = useMemo(
@@ -952,6 +1005,8 @@ const SimulationAttackPath = () => {
   const clearPathFocus = () => {
     setPathFinding(null);
     setSelectedNodeId(null);
+    setSelectedFindingId(null);
+    setSelectedInjectorId(null);
     setHighlightedExecutionIds(new Set());
     setFitNonce(n => n + 1);
   };
@@ -1021,7 +1076,6 @@ const SimulationAttackPath = () => {
           }}
         />
         <div style={{
-          marginLeft: 'auto',
           display: 'flex',
           gap: theme.spacing(1),
           alignItems: 'center',
@@ -1152,6 +1206,7 @@ const SimulationAttackPath = () => {
                 onClusterClick={onClusterClick}
                 onFindingClusterClick={onFindingClusterClick}
                 onFindingSelect={onFindingSelect}
+                onInjectorSelect={onInjectorSelect}
                 focusRequest={focusRequest}
                 fitRequest={fitNonce}
                 showMiniMap={!pathFinding && nodes.length > 40}
