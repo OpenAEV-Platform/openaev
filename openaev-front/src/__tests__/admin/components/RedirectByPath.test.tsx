@@ -1,0 +1,103 @@
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { cleanup, render, screen } from '@testing-library/react';
+import { type ReactNode } from 'react';
+import { IntlProvider } from 'react-intl';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import RedirectByPath, {
+  XTM_HUB_AUTO_REGISTER_QUERY_PARAM,
+  XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM,
+  XTM_HUB_PRODUCT_NAME_QUERY_PARAM,
+} from '../../../admin/components/RedirectByPath';
+import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+
+const theme = createTheme();
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
+};
+
+const renderWithRouter = ({
+  route,
+  canManageTenantSettings,
+  children,
+}: {
+  route: string;
+  canManageTenantSettings: boolean;
+  children: ReactNode;
+}) => {
+  const ability = {
+    can: (action: string, subject: string) => (
+      canManageTenantSettings
+      && action === ACTIONS.MANAGE
+      && subject === SUBJECTS.TENANT_SETTINGS
+    ),
+  };
+
+  return render(
+    <ThemeProvider theme={theme}>
+      <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
+        <AbilityContext.Provider value={ability as never}>
+          <MemoryRouter initialEntries={[route]}>
+            {children}
+          </MemoryRouter>
+        </AbilityContext.Provider>
+      </IntlProvider>
+    </ThemeProvider>,
+  );
+};
+
+describe('RedirectByPath', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('preserves query params and adds auto-register for mapped redirects', async () => {
+    renderWithRouter({
+      route: '/admin/redirect/connect-xtm-hub?foo=bar',
+      canManageTenantSettings: true,
+      children: (
+        <Routes>
+          <Route path="/admin/redirect/*" element={<RedirectByPath />} />
+          <Route path="/admin/settings/experience" element={<LocationProbe />} />
+        </Routes>
+      ),
+    });
+
+    const locationNode = await screen.findByTestId('location');
+    expect(locationNode.textContent).toBe(`/admin/settings/experience?foo=bar&${XTM_HUB_AUTO_REGISTER_QUERY_PARAM}=true`);
+  });
+
+  it('redirects unauthorized users to admin home with permission marker', async () => {
+    renderWithRouter({
+      route: '/admin/redirect/connect-xtm-hub?productName=OpenAEV',
+      canManageTenantSettings: false,
+      children: (
+        <Routes>
+          <Route path="/admin/redirect/*" element={<RedirectByPath />} />
+          <Route path="/admin" element={<LocationProbe />} />
+        </Routes>
+      ),
+    });
+
+    const locationNode = await screen.findByTestId('location');
+    expect(locationNode.textContent).toBe(`/admin?${XTM_HUB_PRODUCT_NAME_QUERY_PARAM}=OpenAEV&${XTM_HUB_PERMISSION_REQUIRED_QUERY_PARAM}=true`);
+  });
+
+  it('renders not found for unknown mapping key', () => {
+    renderWithRouter({
+      route: '/admin/redirect/unknown',
+      canManageTenantSettings: true,
+      children: (
+        <Routes>
+          <Route path="/admin/redirect/*" element={<RedirectByPath />} />
+        </Routes>
+      ),
+    });
+
+    expect(screen.getByText('This page is not found on this OpenAEV application.')).toBeDefined();
+  });
+});
