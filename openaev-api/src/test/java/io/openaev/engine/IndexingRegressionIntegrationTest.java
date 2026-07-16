@@ -134,12 +134,18 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
     engineService.bulkProcessing(engineContext.getModels().stream());
+    // Wait for OpenSearch refresh cycle (default 1s) so indexed documents become searchable.
+    try {
+      Thread.sleep(1_500);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   private void awaitEndpointIndexedAssertion(Runnable assertion) {
     await()
-        .atMost(Duration.ofSeconds(10))
-        .pollInterval(Duration.ofMillis(200))
+        .atMost(Duration.ofSeconds(15))
+        .pollInterval(Duration.ofMillis(500))
         .untilAsserted(assertion::run);
   }
 
