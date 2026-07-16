@@ -166,8 +166,8 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(credentialsWidget);
     expect(mocks.fetchFindingsByCategory).toHaveBeenCalledWith('sim-1', 'credentials', 0, 1000);
 
-    // The drawer renders the fetched finding (credential value masked by the server).
-    const item = await screen.findByText('admin:••••');
+    // The drawer renders the fetched finding; the client re-masks defensively (server also masks).
+    const item = await screen.findByText('admin : ••••••');
     fireEvent.click(item);
 
     // Clicking the finding refocuses the map on its attack path (fit requested) and loads the

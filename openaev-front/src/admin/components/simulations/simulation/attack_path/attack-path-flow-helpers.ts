@@ -860,7 +860,10 @@ export const maskFindingValue = (typeFindings?: string, value?: string): string 
   }
   if (typeFindings === 'credentials') {
     const sep = value.search(/[:\s]/);
-    return sep > 0 ? `${value.slice(0, sep)} : ••••••` : value;
+    // Only reveal the username half when there is a real "username<sep>secret" split; a value with
+    // no separator (or one starting with it) is treated as a bare secret and fully masked, so we
+    // never render a captured secret in the clear.
+    return sep > 0 ? `${value.slice(0, sep)} : ••••••` : '••••••••';
   }
   if (SENSITIVE_FINDING_TYPES.has(typeFindings ?? '')) {
     return '••••••••';

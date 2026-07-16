@@ -155,7 +155,8 @@ describe('applyFindingFilter', () => {
 describe('maskFindingValue', () => {
   it('masks secret finding types', () => {
     expect(maskFindingValue('credentials', 'admin:secret')).toBe('admin : ••••••');
-    expect(maskFindingValue('credentials', 'nosecrethere')).toBe('nosecrethere');
+    expect(maskFindingValue('credentials', 'nosecrethere')).toBe('••••••••');
+    expect(maskFindingValue('credentials', ':secretonly')).toBe('••••••••');
     expect(maskFindingValue('sid', 'S-1-5-21')).toBe('••••••••');
     expect(maskFindingValue('password_policy', 'complex')).toBe('••••••••');
   });

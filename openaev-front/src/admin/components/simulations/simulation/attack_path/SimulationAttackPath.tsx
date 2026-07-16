@@ -1385,7 +1385,7 @@ const SimulationAttackPath = () => {
                   },
                 }}
               >
-                <Typography variant="body2" title={item.value} sx={{ wordBreak: 'break-all' }}>{item.value}</Typography>
+                <Typography variant="body2" title={maskFindingValue(item.type, item.value)} sx={{ wordBreak: 'break-all' }}>{maskFindingValue(item.type, item.value)}</Typography>
                 <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
                   {item.endpointKey}
                 </Typography>

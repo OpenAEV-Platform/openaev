@@ -10,6 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import ItemStatus from '../../../../../components/ItemStatus';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
+import { maskFindingValue } from './attack-path-flow-helpers';
 
 interface Props {
   loading: boolean;
@@ -215,18 +216,21 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
                 {(detail.findings?.length ?? 0) === 0 && (
                   <Alert severity="info" sx={{ mt: 1 }}>{t('No findings')}</Alert>
                 )}
-                {(detail.findings ?? []).map((finding, index) => (
-                  <Box
-                    key={`${finding.type}-${finding.value}-${index}`}
-                    sx={{
-                      py: 0.5,
-                      borderBottom: `1px solid ${theme.palette.divider}`,
-                    }}
-                  >
-                    <Typography variant="body2" noWrap title={finding.value}>{finding.value}</Typography>
-                    <Typography variant="caption" color="text.secondary">{finding.type}</Typography>
-                  </Box>
-                ))}
+                {(detail.findings ?? []).map((finding, index) => {
+                  const masked = maskFindingValue(finding.type, finding.value);
+                  return (
+                    <Box
+                      key={`${finding.type}-${finding.value}-${index}`}
+                      sx={{
+                        py: 0.5,
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                      }}
+                    >
+                      <Typography variant="body2" noWrap title={masked}>{masked}</Typography>
+                      <Typography variant="caption" color="text.secondary">{finding.type}</Typography>
+                    </Box>
+                  );
+                })}
               </>
             )}
 
