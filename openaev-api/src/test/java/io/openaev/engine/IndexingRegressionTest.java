@@ -269,6 +269,65 @@ class IndexingRegressionTest extends IntegrationTest {
       // Assert — every inject was indexed exactly once
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
+
+    @Test
+    @DisplayName(
+        "Cursor advances when dependency triggers parent inclusion (stuck cursor regression)")
+    void cursor_advances_when_dependency_triggers_parent() {
+      // If a dependency row is updated, the parent inject is included in changed_injects.
+      // Without the WHERE GREATEST(...) > :from fix, parent's own GREATEST could be <= cursor.
+      // This test ensures the cursor always advances even in this scenario.
+
+      int total = 4;
+      int batchSize = 2;
+      ScenarioComposer.Composer scenarioWrapper =
+          scenarioComposer.forScenario(ScenarioFixture.createDefaultIncidentResponseScenario());
+      Set<String> injectIds = new HashSet<>();
+      for (int i = 0; i < total; i++) {
+        InjectComposer.Composer inj = injectComposer.forInject(InjectFixture.getDefaultInject());
+        scenarioWrapper.withInject(inj);
+      }
+      scenarioWrapper.persist();
+      entityManager.flush();
+
+      // Assign distinct timestamps AFTER :from so they are indexable and cursor advances
+      List<?> ids =
+          entityManager
+              .createNativeQuery(
+                  "SELECT inject_id FROM injects WHERE inject_scenario = :sid ORDER BY inject_id")
+              .setParameter("sid", scenarioWrapper.get().getId())
+              .getResultList();
+      Instant base = FROM.plusSeconds(1);
+      for (int i = 0; i < ids.size(); i++) {
+        String id = ids.get(i).toString();
+        entityManager
+            .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
+            .setParameter("ts", base.plusSeconds(i))
+            .setParameter("id", id)
+            .executeUpdate();
+        injectIds.add(id);
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Simulate cursor loop and verify advancement
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 3) {
+        List<EsInject> batch = injectHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsInject es : batch) {
+          collectedIds.add(es.getBase_id());
+        }
+        Instant newCursor = batch.getLast().getBase_updated_at();
+        assertThat(newCursor).as("Cursor must advance (iteration %d)", iterations).isAfter(cursor);
+        cursor = newCursor;
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsAll(injectIds);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -765,6 +824,102 @@ class IndexingRegressionTest extends IntegrationTest {
       }
 
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
+    }
+
+    @Test
+    @DisplayName(
+        "Cursor advances when child agent-expectation triggers parent inclusion (stuck cursor regression)")
+    void cursor_advances_when_child_expectation_triggers_parent() {
+      // Reproduces the stuck cursor bug: child (agent-level) expectations updated after :from
+      // pull in parent (agentless) expectations whose own GREATEST(timestamps) <= :from.
+      // Without the WHERE GREATEST(...) > :from fix, the cursor would never advance.
+
+      int total = 3;
+      int batchSize = 2;
+      Set<String> expectedIds = new HashSet<>();
+
+      for (int j = 0; j < total; j++) {
+        EndpointComposer.Composer ep =
+            endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
+        ep.persist();
+
+        Agent agent = AgentFixture.createDefaultAgentService();
+        agent.setAsset(ep.get());
+        entityManager.persist(agent);
+        entityManager.flush();
+        Agent persistedAgent = entityManager.getReference(Agent.class, agent.getId());
+
+        // Agentless (parent) expectation
+        DetectionInjectExpectation parentExp =
+            InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+        InjectExpectationComposer.Composer parentWrapper =
+            injectExpectationComposer.forExpectation(parentExp).withEndpoint(ep);
+
+        // Agent-level (child) expectation — the trigger
+        DetectionInjectExpectation childExp =
+            InjectExpectationFixture.createDefaultDetectionInjectExpectation();
+        childExp.setAgent(persistedAgent);
+        InjectExpectationComposer.Composer childWrapper =
+            injectExpectationComposer.forExpectation(childExp).withEndpoint(ep);
+
+        InjectComposer.Composer inj =
+            injectComposer
+                .forInject(InjectFixture.getDefaultInject())
+                .withExpectation(parentWrapper)
+                .withExpectation(childWrapper);
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+            .withInject(inj)
+            .persist();
+        expectedIds.add(parentExp.getId());
+      }
+      entityManager.flush();
+
+      // Push ALL parent expectations and their injects into the past
+      for (String id : expectedIds) {
+        pushExpectationToPast(id);
+        entityManager
+            .createNativeQuery(
+                "UPDATE injects SET inject_updated_at = :ts WHERE inject_id = "
+                    + "(SELECT inject_id FROM injects_expectations WHERE inject_expectation_id = :id)")
+            .setParameter("ts", PAST)
+            .setParameter("id", id)
+            .executeUpdate();
+      }
+      // Touch child expectations so they are the only recent change
+      entityManager
+          .createNativeQuery(
+              "UPDATE injects_expectations SET inject_expectation_updated_at = :ts"
+                  + " WHERE agent_id IS NOT NULL")
+          .setParameter("ts", Instant.now())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act — simulate the cursor loop
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      int maxIterations = total + 5;
+      while (iterations < maxIterations) {
+        List<EsInjectExpectation> batch = injectExpectationHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsInjectExpectation es : batch) {
+          collectedIds.add(es.getBase_id());
+        }
+        Instant newCursor = batch.getLast().getBase_updated_at();
+        // Key assertion: cursor MUST advance on every batch
+        assertThat(newCursor)
+            .as(
+                "Cursor must advance (iteration %d, from=%s, new=%s)",
+                iterations, cursor, newCursor)
+            .isAfter(cursor);
+        cursor = newCursor;
+        iterations++;
+      }
+
+      // All parent expectations must be collected
+      assertThat(collectedIds).containsAll(expectedIds);
     }
   }
 
