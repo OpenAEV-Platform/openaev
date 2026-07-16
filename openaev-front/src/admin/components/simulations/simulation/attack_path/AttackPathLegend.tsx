@@ -1,16 +1,32 @@
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 
+interface Props {
+  // Bumped by the parent whenever a side panel/drawer opens, so the legend folds away to avoid
+  // overlapping it. The user can always reopen it manually afterwards.
+  collapseSignal?: number;
+}
+
 // Interactive, collapsible legend (bottom-left) explaining the attack-path graph's shapes and colours
 // — mirrors the design's Legend section.
-const AttackPathLegend = () => {
+const AttackPathLegend = ({ collapseSignal }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const [open, setOpen] = useState(true);
+
+  // Fold the legend when a panel opens (ignoring the initial mount), without locking it: reopening is
+  // still up to the user.
+  const lastSignal = useRef(collapseSignal);
+  useEffect(() => {
+    if (collapseSignal !== lastSignal.current) {
+      lastSignal.current = collapseSignal;
+      setOpen(false);
+    }
+  }, [collapseSignal]);
 
   const shapes: {
     shape: 'diamond' | 'dashedCircle' | 'pill' | 'circle';

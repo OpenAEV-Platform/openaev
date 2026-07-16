@@ -179,6 +179,8 @@ const SimulationAttackPath = () => {
   // endpoint -> finding path that produced the finding picked in the drawer. fitNonce bumps to frame it.
   const [pathFinding, setPathFinding] = useState<PathFinding | null>(null);
   const [fitNonce, setFitNonce] = useState(0);
+  // Bumped whenever a side panel/drawer opens so the graph legend folds away (reopenable by the user).
+  const [legendCollapseNonce, setLegendCollapseNonce] = useState(0);
 
   // The finding details panel only lives inside the focused view; close it whenever the focus ends.
   useEffect(() => {
@@ -295,6 +297,9 @@ const SimulationAttackPath = () => {
     setSelectedFindingId(null);
     setFindingDetail(null);
     setSelectedLabel(label ?? '');
+    setDetailExecutionId(null);
+    setDetail(null);
+    setLegendCollapseNonce(n => n + 1);
     setExecutions([]);
     setEndpointRelationEdges([]);
     setEndpointFindings([]);
@@ -490,6 +495,7 @@ const SimulationAttackPath = () => {
     setDrawerPage(0);
     setFindingsPage(null);
     setFindingsLoading(true);
+    setLegendCollapseNonce(n => n + 1);
     fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
       .then(r => setFindingsPage(r.data))
       .catch(() => setFindingsPage({
@@ -599,6 +605,7 @@ const SimulationAttackPath = () => {
     setDetailExecutionId(executionId);
     setDetail(null);
     setDetailLoading(true);
+    setLegendCollapseNonce(n => n + 1);
     fetchExecutionDetail(simulationId, executionId)
       .then(r => setDetail(r.data))
       .catch(() => setDetail(null))
@@ -648,6 +655,11 @@ const SimulationAttackPath = () => {
       value,
     });
     setSelectedNodeId(null);
+    // A new finding invalidates the previous execution's Result & Terminal panel — close it so only
+    // the new finding's panel remains until the user opens one of its own producing actions.
+    setDetailExecutionId(null);
+    setDetail(null);
+    setLegendCollapseNonce(n => n + 1);
     // The main focused finding has no in-place child highlight; any other finding highlights itself.
     setSelectedFindingId(nodeId === mainId ? null : nodeId);
     // Scope the execution feed (and the producing-injector highlight) to THIS finding's producing
@@ -1119,7 +1131,7 @@ const SimulationAttackPath = () => {
                 fitRequest={fitNonce}
                 showMiniMap={!pathFinding && nodes.length > 40}
               />
-              <AttackPathLegend />
+              <AttackPathLegend collapseSignal={legendCollapseNonce} />
             </ReactFlowProvider>
           )}
         </Paper>
