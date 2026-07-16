@@ -195,11 +195,14 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(feedRow);
     await waitFor(() => expect(mocks.fetchExecutionDetail).toHaveBeenCalledWith('sim-1', 'exec-1'));
 
-    // Header (agent · privilege) + both tabs render; the Result tab shows the snapshot status.
+    // Header (agent · privilege) + both tabs render; the Result tab shows the prevented/detected-by
+    // security platforms (detection succeeded in the mock, so CrowdStrike & Splunk appear).
     expect(await screen.findByText('agent-x · user')).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Result' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Terminal view' })).toBeTruthy();
-    expect(screen.getByText('Prevention: FAILED')).toBeTruthy();
+    expect(screen.getByText('Prevented by')).toBeTruthy();
+    expect(screen.getByText('Detected by')).toBeTruthy();
+    expect(screen.getByText('CrowdStrike')).toBeTruthy();
 
     // The Terminal tab shows the masked command and output via the shared Terminal.
     fireEvent.click(screen.getByRole('tab', { name: 'Terminal view' }));
