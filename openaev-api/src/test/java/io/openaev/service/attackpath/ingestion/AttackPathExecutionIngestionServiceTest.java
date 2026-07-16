@@ -59,8 +59,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             "tmpl-1",
             "exec-1",
             Instant.parse("2026-07-16T08:00:00Z"),
-            "crackmapexec",
-            "cme --target victim");
+            "crackmapexec");
 
     ResolvedExecutionEdge edge =
         new ResolvedExecutionEdge(
@@ -98,7 +97,6 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getAgentPrivilege()).isEqualTo("admin");
     assertThat(row.getExecutedAt()).isEqualTo(Instant.parse("2026-07-16T08:00:00Z"));
     assertThat(row.getPayloadName()).isEqualTo("crackmapexec");
-    assertThat(row.getCommand()).isEqualTo("cme --target victim");
   }
 
   @Test
@@ -115,8 +113,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             "tmpl-1",
             "exec-idem",
             Instant.parse("2026-07-16T08:00:00Z"),
-            "crackmapexec",
-            "cme --target victim");
+            "crackmapexec");
     ResolvedExecutionEdge edge =
         new ResolvedExecutionEdge(
             "AGENT_ASSET",
@@ -203,7 +200,6 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getTargetKey()).isEqualTo("ep-1");
     assertThat(row.getTargetHostname()).isEqualTo("corp-dc");
     assertThat(row.getPayloadName()).isEqualTo("crackmapexec");
-    assertThat(row.getCommand()).isEqualTo("cme --local-auth");
   }
 
   @Test

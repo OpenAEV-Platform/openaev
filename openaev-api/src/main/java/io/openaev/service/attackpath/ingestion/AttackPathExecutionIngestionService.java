@@ -40,8 +40,7 @@ public class AttackPathExecutionIngestionService {
       String stepTemplateId,
       String injectExecId,
       Instant executedAt,
-      String payloadName,
-      String command) {}
+      String payloadName) {}
 
   @Transactional
   public void createRows(ExecutionContext ctx, List<ResolvedExecutionEdge> edges) {
@@ -61,7 +60,6 @@ public class AttackPathExecutionIngestionService {
     row.setStepTemplateId(ctx.stepTemplateId());
     row.setExecutedAt(ctx.executedAt());
     row.setPayloadName(ctx.payloadName());
-    row.setCommand(ctx.command());
     row.setSourceKind(edge.sourceKind());
     row.setSourceInjector(edge.sourceInjector());
     row.setSourceAssetId(edge.sourceAssetId());
@@ -85,8 +83,7 @@ public class AttackPathExecutionIngestionService {
    *
    * <p>Scope and assumptions (agent-based; injector path is TBD): the sources are the inject's
    * direct asset endpoints and their installed agents (asset-group expansion is a follow-up); the
-   * agent label is the endpoint hostname; the command is stored only when faithful ({@code Command}
-   * content) and left empty otherwise, never reconstructed. Documented, not final.
+   * agent label is the endpoint hostname. Documented, not final.
    */
   @Transactional
   public void onRun(Step step, Inject inject, InjectorContract contract) {
@@ -106,8 +103,7 @@ public class AttackPathExecutionIngestionService {
         null, // stepTemplateId — wired from the step template later
         inject.getId(),
         Instant.now(),
-        payload != null ? payload.getName() : null,
-        command(payload));
+        payload != null ? payload.getName() : null);
   }
 
   private ResolutionInput resolutionInput(Inject inject, InjectorContract contract) {
@@ -174,11 +170,5 @@ public class AttackPathExecutionIngestionService {
     }
     return PayloadKind
         .OTHER; // FileDrop/Executable → OTHER (same target rule as FILE in the resolver)
-  }
-
-  private static String command(Payload payload) {
-    // Store only the faithful command (the Command payload's content); other payload types are left
-    // empty rather than reconstructed, so a copy-pasted command always reproduces the real run.
-    return payload instanceof Command c ? c.getContent() : null;
   }
 }
