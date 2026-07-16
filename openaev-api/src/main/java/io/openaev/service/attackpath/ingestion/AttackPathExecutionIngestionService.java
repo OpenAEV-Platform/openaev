@@ -100,7 +100,7 @@ public class AttackPathExecutionIngestionService {
     return new ExecutionContext(
         inject.getExercise() != null ? inject.getExercise().getId() : null,
         step.getId(),
-        null, // stepTemplateId — wired from the step template later
+        step.getStepTemplate() != null ? step.getStepTemplate().getId() : null,
         inject.getId(),
         Instant.now(),
         payload != null ? payload.getName() : null);

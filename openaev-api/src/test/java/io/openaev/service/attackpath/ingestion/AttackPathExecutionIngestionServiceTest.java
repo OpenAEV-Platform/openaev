@@ -180,8 +180,11 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     inject.setInjector(injector);
     inject.setAssets(List.of(endpoint));
 
+    Step template = new Step();
+    template.setId("tmpl-1");
     Step step = new Step();
     step.setId("step-1");
+    step.setStepTemplate(template);
 
     ingestionService.onRun(step, inject, contract);
 
@@ -200,6 +203,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getTargetKey()).isEqualTo("ep-1");
     assertThat(row.getTargetHostname()).isEqualTo("corp-dc");
     assertThat(row.getPayloadName()).isEqualTo("crackmapexec");
+    assertThat(row.getStepTemplateId()).isEqualTo("tmpl-1");
   }
 
   @Test
