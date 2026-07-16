@@ -523,18 +523,20 @@ public class InjectExecutionStep implements ActionStep {
     return setField(dataStep, "inject_id", injectId);
   }
 
-  private String getCommand(Inject inject){
-      if(inject.getStatus().isEmpty()) return "";
+  private String getCommand(Inject inject) {
+    if (inject.getStatus().isEmpty()) return "";
 
-      InjectStatus status = inject.getStatus().get();
-      StatusPayload statusPayload = status.getPayloadOutput();
-      StringBuilder command = new StringBuilder();
-      statusPayload.getPayloadCommandBlocks().forEach(
-          payloadCommandBlock -> {
+    InjectStatus status = inject.getStatus().get();
+    StatusPayload statusPayload = status.getPayloadOutput();
+    StringBuilder command = new StringBuilder();
+    statusPayload
+        .getPayloadCommandBlocks()
+        .forEach(
+            payloadCommandBlock -> {
               command.append(payloadCommandBlock.getContent());
-            }
-          );
-      return command.toString();
+              command.append("\n");
+            });
+    return command.toString();
   }
 
   private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
@@ -544,11 +546,12 @@ public class InjectExecutionStep implements ActionStep {
     InjectStatus status = inject.getStatus().get();
     List<ExecutionTrace> executionTraces = status.getTraces();
 
-    if(inject.getInjector() == null) {
+    if (inject.getInjector() == null) {
       executionTraces.forEach(
           executionTrace -> {
             // TODO BUILD INDEX
-            String agentId = executionTrace.getAgent().getId()+ executionTrace.getAgent().getAsset().getId();
+            String agentId =
+                executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
             tracesByEndpointSource
                 .computeIfAbsent(agentId, k -> new StringBuilder())
                 .append(executionTrace.getStatus().name())
