@@ -46,9 +46,11 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
   const theme = useTheme();
   const { t } = useFormatter();
 
-  const verdictColor = (verdict?: ExpectationVerdict): string => {
+  // Colour a verdict per its expectation type: a successful prevention is green, a successful
+  // detection is orange, a failed verdict is red, and an unknown one is muted.
+  const verdictColor = (key: keyof FindingExpectations, verdict?: ExpectationVerdict): string => {
     if (verdict === 'success') {
-      return theme.palette.success.main;
+      return key === 'detection' ? theme.palette.warning.main : theme.palette.success.main;
     }
     if (verdict === 'failed') {
       return theme.palette.error.main;
@@ -95,7 +97,7 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
                     title={label}
                     style={{ display: 'inline-flex' }}
                   >
-                    {expectationIconByType(key, { color: verdictColor(verdict) })}
+                    {expectationIconByType(key, { color: verdictColor(key, verdict) })}
                   </span>
                 );
               })}

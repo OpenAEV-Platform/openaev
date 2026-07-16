@@ -1,4 +1,4 @@
-import { CenterFocusStrong, Close } from '@mui/icons-material';
+import { CenterFocusStrong, Close, ShieldOutlined } from '@mui/icons-material';
 import { IconButton, Paper, Popover, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import { CROWDSTRIKE, SPLUNK } from '../../../../../constants/Entities';
 import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
-import CollectorIcon from '../../../common/collectors/CollectorIcon';
+import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 
 interface Props {
@@ -37,6 +37,31 @@ interface SecurityPlatform {
 // An expectation verdict is a success when the platform prevented or detected the action.
 const statusSucceeded = (status?: string | null): boolean =>
   ['prevented', 'detected', 'success'].includes((status ?? '').toLowerCase());
+
+// The platform's catalog logo (collectors brick) with a graceful fallback: on dev, a platform that
+// isn't installed 404s its image, so we swap in a generic shield icon instead of a broken image.
+const PlatformLogo = ({ type, label }: {
+  type: string;
+  label: string;
+}) => {
+  const [failed, setFailed] = useState(false);
+  const size = {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+  };
+  if (failed) {
+    return <ShieldOutlined style={size} />;
+  }
+  return (
+    <img
+      src={buildTenantApiPath(`/api/collectors/${type}/image`)}
+      alt={label}
+      onError={() => setFailed(true)}
+      style={size}
+    />
+  );
+};
 
 // One security platform that acted on the execution, with its linked alerts revealed in a popover on
 // click. The icon is the platform's catalog logo (collectors brick), same source as everywhere else.
@@ -70,14 +95,7 @@ const SecurityPlatformItem = ({ platform, alerts }: {
           border: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <CollectorIcon
-          type={platform.type}
-          style={{
-            width: 20,
-            height: 20,
-            borderRadius: 4,
-          }}
-        />
+        <PlatformLogo type={platform.type} label={platform.label} />
         <Typography variant="body2">{platform.label}</Typography>
       </div>
       <Popover
@@ -197,34 +215,42 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
     heading: string,
     emptyLabel: string,
     platforms: SecurityPlatform[],
-  ) => (
-    <div>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 6,
-      }}
-      >
-        {expectationIconByType(expectationType, { color: theme.palette.text.secondary })}
-        <Typography variant="subtitle2">{heading}</Typography>
+  ) => {
+    // Colour the verdict: prevention succeeds green, detection succeeds orange, neither is red.
+    const succeeded = platforms.length > 0;
+    let iconColor = theme.palette.error.main;
+    if (succeeded) {
+      iconColor = expectationType === 'prevention' ? theme.palette.success.main : theme.palette.warning.main;
+    }
+    return (
+      <div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 6,
+        }}
+        >
+          {expectationIconByType(expectationType, { color: iconColor })}
+          <Typography variant="subtitle2">{heading}</Typography>
+        </div>
+        {platforms.length === 0
+          ? <Typography variant="caption" style={{ color: theme.palette.error.main }}>{emptyLabel}</Typography>
+          : (
+              <div style={{
+                display: 'flex',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+              >
+                {platforms.map(p => (
+                  <SecurityPlatformItem key={p.type} platform={p} alerts={buildAlerts(p.label)} />
+                ))}
+              </div>
+            )}
       </div>
-      {platforms.length === 0
-        ? <Typography variant="caption" color="text.secondary">{emptyLabel}</Typography>
-        : (
-            <div style={{
-              display: 'flex',
-              gap: 8,
-              flexWrap: 'wrap',
-            }}
-            >
-              {platforms.map(p => (
-                <SecurityPlatformItem key={p.type} platform={p} alerts={buildAlerts(p.label)} />
-              ))}
-            </div>
-          )}
-    </div>
-  );
+    );
+  };
 
   return (
     <Paper
@@ -324,8 +350,8 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
                     {[detail.targetIp, detail.targetPlatform].filter(Boolean).join(' · ')}
                   </Typography>
                 </div>
-                {renderExpectationRow('prevention', t('Prevented by'), t('Not prevented'), preventedBy)}
-                {renderExpectationRow('detection', t('Detected by'), t('Not detected'), detectedBy)}
+                {renderExpectationRow('prevention', t('Prevented by'), t('Not Prevented'), preventedBy)}
+                {renderExpectationRow('detection', t('Detected by'), t('Not Detected'), detectedBy)}
               </div>
             )}
 
