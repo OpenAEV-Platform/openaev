@@ -601,6 +601,8 @@ export interface PathFinding {
   type: string;
   // Value as returned by the backend (credential secrets already masked server-side).
   value: string;
+  // Human-readable injector contract(s) used on injector -> endpoint edges in the focused path view.
+  contractLabel?: string;
 }
 
 /**
@@ -611,6 +613,7 @@ export interface PathFinding {
 export const buildFindingPathFlow = (
   dto: AttackPathDTO,
   finding: PathFinding,
+  contractLabel?: string,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -630,18 +633,29 @@ export const buildFindingPathFlow = (
   }
   const injectors = dtoNodes.filter(n => n.type === 'INJECTOR' && n.id && injectorIds.has(n.id as string));
 
-  const rowH = CLUSTER_EP_ROW_H;
-  const blockH = Math.max(rowH, injectors.length * rowH);
+  const endpointCounts = endpoint?.findingCounts ?? {};
+  const selectedTypeCount = endpointCounts[finding.type] ?? 0;
+  const sameTypeOthers = Math.max(selectedTypeCount - 1, 0);
+  const otherTypesTotal = Object.entries(endpointCounts)
+    .filter(([k]) => k !== finding.type)
+    .reduce((sum, [, v]) => sum + (v ?? 0), 0);
+
+  const rowH = CLUSTER_FINDING_ROW_H;
+  const rightRows = 1 + (sameTypeOthers > 0 ? 1 : 0) + (otherTypesTotal > 0 ? 1 : 0);
+  const rightH = Math.max(rowH, rightRows * rowH);
+  const leftH = Math.max(CLUSTER_EP_ROW_H, injectors.length * CLUSTER_EP_ROW_H);
+  const blockH = Math.max(leftH, rightH);
   const centerY = PADDING + blockH / 2;
+  const rightTopY = centerY - rightH / 2;
 
   injectors.forEach((inj, i) => {
-    const y = PADDING + i * rowH;
+    const y = PADDING + i * CLUSTER_EP_ROW_H;
     nodes.push({
       id: inj.id as string,
       type: AP_FLOW_NODE_TYPE.injector,
       position: {
         x: PADDING,
-        y: y + rowH / 2 - CLUSTER_INJECTOR_HALF_H,
+        y: y + CLUSTER_EP_ROW_H / 2 - CLUSTER_INJECTOR_HALF_H,
       },
       data: nodeData(inj),
       selected: true,
@@ -653,8 +667,9 @@ export const buildFindingPathFlow = (
       type: AP_FLOW_EDGE_TYPE,
       data: {
         count: 1,
-        status: endpoint?.status,
-        label: inj.label,
+        // Focused path is intentionally highlighted in blue.
+        status: undefined,
+        label: contractLabel || finding.contractLabel || inj.label,
       },
       selected: true,
     });
@@ -682,7 +697,7 @@ export const buildFindingPathFlow = (
     type: AP_FLOW_NODE_TYPE.finding,
     position: {
       x: CLUSTER_FINDING_DETAIL_X,
-      y: centerY - 20,
+      y: rightTopY,
     },
     data: {
       label: finding.value,
@@ -697,11 +712,75 @@ export const buildFindingPathFlow = (
     type: AP_FLOW_EDGE_TYPE,
     data: {
       count: 1,
-      status: endpoint?.status,
+      // Focused path is intentionally highlighted in blue.
+      status: undefined,
       label: `${finding.type} found`,
     },
     selected: true,
   });
+
+  let clusterY = rightTopY + rowH;
+  if (sameTypeOthers > 0) {
+    const id = `path-finding-more-same|${finding.type}`;
+    nodes.push({
+      id,
+      type: AP_FLOW_NODE_TYPE.findingCluster,
+      position: {
+        x: CLUSTER_FINDING_X,
+        y: clusterY,
+      },
+      data: {
+        typeFindings: finding.type,
+        count: sameTypeOthers,
+        label: finding.type,
+        clusterKind: 'overflow',
+      },
+      selected: true,
+    });
+    edges.push({
+      id: `${endpointId}-${id}`,
+      source: endpointId,
+      target: id,
+      type: AP_FLOW_EDGE_TYPE,
+      data: {
+        count: sameTypeOthers,
+        status: undefined,
+        label: `+${sameTypeOthers}`,
+      },
+      selected: true,
+    });
+    clusterY += rowH;
+  }
+  if (otherTypesTotal > 0) {
+    const id = 'path-finding-more-other';
+    nodes.push({
+      id,
+      type: AP_FLOW_NODE_TYPE.findingCluster,
+      position: {
+        x: CLUSTER_FINDING_X,
+        y: clusterY,
+      },
+      data: {
+        typeFindings: 'other',
+        count: otherTypesTotal,
+        label: 'other',
+        clusterKind: 'overflow',
+      },
+      selected: true,
+    });
+    edges.push({
+      id: `${endpointId}-${id}`,
+      source: endpointId,
+      target: id,
+      type: AP_FLOW_EDGE_TYPE,
+      data: {
+        count: otherTypesTotal,
+        status: undefined,
+        label: `${otherTypesTotal}+`,
+      },
+      selected: true,
+    });
+  }
 
   return {
     nodes,

@@ -406,6 +406,7 @@ const SimulationAttackPath = () => {
       setDrawerCategory(null);
       setActiveCard(null);
       setSelectedFindingId(null);
+      setFocusRequest(null);
       setPathFinding({
         endpointNodeId: item.endpointNodeId,
         endpointKey: item.endpointKey,
@@ -421,6 +422,26 @@ const SimulationAttackPath = () => {
     },
     [onEndpointClick, dto?.attackPathNodes],
   );
+
+  // Contract labels of the producing execution(s) for the focused finding path, used on
+  // injector->endpoint edges instead of injector names (e.g. "Netexec SMB Scan").
+  const pathContractLabel = useMemo(() => {
+    if (!pathFinding || highlightedExecutionIds.size === 0) {
+      return undefined;
+    }
+    const labels = Array.from(new Set(
+      executions
+        .filter(e => e.ref && highlightedExecutionIds.has(e.ref))
+        .map(e => e.payloadName || e.label)
+        .filter((s): s is string => !!s),
+    ));
+    if (labels.length === 0) {
+      return undefined;
+    }
+    return labels.length <= 2
+      ? labels.join(' · ')
+      : `${labels.slice(0, 2).join(' · ')} +${labels.length - 2}`;
+  }, [pathFinding, highlightedExecutionIds, executions]);
 
   // Scroll the feed to the first producing execution once the highlight or the loaded feed changes.
   useEffect(() => {
@@ -459,7 +480,7 @@ const SimulationAttackPath = () => {
       }
       // Focused finding-path view takes over the whole graph until it is cleared.
       if (pathFinding) {
-        return buildFindingPathFlow(dto, pathFinding);
+        return buildFindingPathFlow(dto, pathFinding, pathContractLabel);
       }
       return buildClusteredAttackPathFlow(dto, endpointBatch, {
         expanded: expandedFindingClusters,
@@ -467,7 +488,7 @@ const SimulationAttackPath = () => {
         batch: findingBatch,
       });
     },
-    [dto, pathFinding, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
+    [dto, pathFinding, pathContractLabel, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
   );
 
   // Click a leaf finding: highlight its full attack path (injector -> endpoint cluster -> finding
@@ -521,6 +542,12 @@ const SimulationAttackPath = () => {
   }, [baseFlow, pathFinding, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
+  const focusedEndpoint = useMemo(
+    () => (pathFinding
+      ? (dto?.attackPathNodes ?? []).find(n => n.id === pathFinding.endpointNodeId)
+      : undefined),
+    [dto?.attackPathNodes, pathFinding],
+  );
 
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
   const endpointFindingGroups = useMemo(() => {
@@ -549,43 +576,62 @@ const SimulationAttackPath = () => {
     return sum;
   }, [dto]);
 
+  const focusedFilesCount = focusedEndpoint?.findingCounts?.share ?? 0;
+  const effectiveCounters = pathFinding
+    ? {
+        endpoints: 1,
+        credentials: focusedEndpoint?.findingCounts?.credentials ?? 0,
+        users: (focusedEndpoint?.findingCounts?.username ?? 0) + (focusedEndpoint?.findingCounts?.admin_username ?? 0),
+        cves: focusedEndpoint?.findingCounts?.cve ?? 0,
+      }
+    : {
+        endpoints: counters?.endpoints ?? 0,
+        credentials: counters?.credentials ?? 0,
+        users: counters?.users ?? 0,
+        cves: counters?.cves ?? 0,
+      };
+
   const cards: FindingCard[] = useMemo(() => [
     {
       key: 'endpoints',
       label: t('Discovered Endpoints'),
       icon: <DnsOutlined fontSize="small" />,
-      count: counters?.endpoints ?? 0,
+      count: effectiveCounters.endpoints,
     },
     {
       key: 'files',
       label: t('Captured Files'),
       icon: <InsertDriveFileOutlined fontSize="small" />,
-      count: filesCount,
+      count: pathFinding ? focusedFilesCount : filesCount,
       hint: t('Temporarily mapped to "share" findings'),
     },
     {
       key: 'credentials',
       label: t('Captured Credentials'),
       icon: <VpnKeyOutlined fontSize="small" />,
-      count: counters?.credentials ?? 0,
+      count: effectiveCounters.credentials,
     },
     {
       key: 'users',
       label: t('Discovered Users'),
       icon: <GroupOutlined fontSize="small" />,
-      count: counters?.users ?? 0,
+      count: effectiveCounters.users,
     },
     {
       key: 'cves',
       label: t('Detected CVEs'),
       icon: <BugReportOutlined fontSize="small" />,
-      count: counters?.cves ?? 0,
+      count: effectiveCounters.cves,
     },
-  ], [t, counters, filesCount]);
+  ], [t, effectiveCounters, pathFinding, focusedFilesCount, filesCount]);
 
   // Click a summary card: focus the graph on that finding type and, for finding categories, open the
   // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.
   const onCardClick = (card: FindingCard) => {
+    if (pathFinding) {
+      setPathFinding(null);
+      setFitNonce(n => n + 1);
+    }
     const next = activeCard === card.key ? null : card.key;
     setActiveCard(next);
     if (next && next !== 'endpoints') {
