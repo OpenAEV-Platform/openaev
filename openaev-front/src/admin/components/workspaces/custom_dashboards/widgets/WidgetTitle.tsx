@@ -140,12 +140,13 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
         gutterBottom={false}
         style={{
           margin: 0,
-          // line-height 1 + flex centering keeps the uppercase Geologica
-          // glyphs optically centered on the accent bar (the font's large
-          // descender space pushes them down with a full 22px line-height);
-          // the 1px lift compensates the remaining baseline bias.
+          // Flex centering aligns the text LINE BOX to the accent bar, but
+          // uppercase Geologica renders high inside that box: the font reserves
+          // a large descender/leading area below the baseline, so the visible
+          // caps sit above the line-box center and read as "too high". Nudge the
+          // glyphs DOWN by 1px to optically center them on the bar.
           lineHeight: 1,
-          transform: 'translateY(-1px)',
+          transform: 'translateY(1px)',
           fontSize: 11,
           fontWeight: 600,
           fontFamily: '"Geologica", sans-serif',

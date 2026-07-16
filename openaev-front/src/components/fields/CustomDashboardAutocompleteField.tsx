@@ -54,10 +54,16 @@ const CustomDashboardAutocompleteField = ({ label, value, onChange, required = f
     searchDashboardOptions('');
   }, []);
 
+  // The "Platform default" option maps to an empty id (''). A caller may hold the
+  // "unset" state as null/undefined (e.g. the profile's user_home_dashboard) rather
+  // than '', which would leave the field blank instead of showing "Platform default".
+  // Normalize empty-ish values to '' so the default option is selected/displayed.
+  const resolvedValue = withPlatformDefault ? (value ?? '') : value;
+
   return (
     <AutocompleteField
       label={label}
-      value={value}
+      value={resolvedValue}
       required={required}
       options={options}
       onChange={v => onChange(v ?? '')}

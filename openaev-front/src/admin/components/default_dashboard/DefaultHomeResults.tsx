@@ -94,9 +94,14 @@ const DefaultHomeResults = () => {
 
   // Same time range as the home dashboard so the list matches what was clicked.
   const [timeRange] = useLocalStorage<DefaultTimeRange>('default-home-dashboard-time-range', 'LAST_QUARTER');
+  // `t` from useFormatter() is a NEW function on every render, so it must NOT be
+  // a dependency here: it would give `widget` (and thus `fetchResults` and the
+  // load effect) a fresh identity every render, re-running the fetch on every
+  // render and looping the ad-hoc endpoint (permanent loader + request storm).
+  // Widget titles are static labels, so binding to timeRange + widgetId is enough.
   const widget = useMemo(
     () => buildDefaultHomeWidgets(timeRange, t).find(w => w.widget_id === widgetId),
-    [timeRange, widgetId, t],
+    [timeRange, widgetId],
   );
 
   const [paginatedEntities, setPaginatedEntities] = useState<EsEntities>();
