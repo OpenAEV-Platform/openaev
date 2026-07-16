@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.AuditLogProperties;
+import io.openaev.config.ShutdownService;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +29,7 @@ class AuditLoggerUnitTest {
 
   @Mock private LogService logService;
   @Mock private AuditLogProperties auditLogProperties;
-  @Mock private AuditShutdownService auditShutdownService;
+  @Mock private ShutdownService shutdownService;
   @Mock private ObjectMapper objectMapper;
 
   /** Synchronous executor so tests run deterministically on the calling thread. */
@@ -40,7 +41,7 @@ class AuditLoggerUnitTest {
   void setUp() {
     auditLogger =
         new AuditLogger(
-            auditShutdownService, auditLogProperties, logService, objectMapper, syncExecutor);
+            shutdownService, auditLogProperties, logService, objectMapper, syncExecutor);
     lenient().doReturn(true).when(logService).isEnabled();
     lenient().doReturn(true).when(auditLogProperties).isHaltOnFailure();
   }
@@ -60,7 +61,7 @@ class AuditLoggerUnitTest {
       // Act & Assert
       assertThatThrownBy(() -> auditLogger.logAuthEvent("login", "error", "local", null, "log-1"))
           .isInstanceOf(AuditLogFailureException.class);
-      verify(auditShutdownService).initiateShutdown();
+      verify(shutdownService).initiateShutdown();
     }
 
     @Test
@@ -74,7 +75,7 @@ class AuditLoggerUnitTest {
       // Act & Assert
       assertThatThrownBy(() -> auditLogger.logAuthEvent("login", "error", "local", null, "log-2"))
           .isInstanceOf(AuditLogFailureException.class);
-      verify(auditShutdownService).initiateShutdown();
+      verify(shutdownService).initiateShutdown();
     }
 
     @Test
@@ -126,7 +127,7 @@ class AuditLoggerUnitTest {
                       null,
                       "log-4"))
           .isInstanceOf(AuditLogFailureException.class);
-      verify(auditShutdownService).initiateShutdown();
+      verify(shutdownService).initiateShutdown();
     }
 
     @Test
@@ -160,7 +161,7 @@ class AuditLoggerUnitTest {
                       null,
                       "log-5"))
           .isInstanceOf(AuditLogFailureException.class);
-      verify(auditShutdownService).initiateShutdown();
+      verify(shutdownService).initiateShutdown();
     }
 
     @Test

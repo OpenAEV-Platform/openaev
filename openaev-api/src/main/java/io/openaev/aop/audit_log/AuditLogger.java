@@ -3,14 +3,14 @@ package io.openaev.aop.audit_log;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.AuditLogProperties;
+import io.openaev.config.SessionManager;
+import io.openaev.config.ShutdownService;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.LogService;
 import io.openaev.utils.object.ObjectDiffUtils;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -20,10 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Audit logger that submits audit events asynchronously to the {@code taskLoggerExecutor} thread
@@ -42,7 +39,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Slf4j
 public class AuditLogger {
 
-  private final AuditShutdownService auditShutdownService;
+  private final ShutdownService shutdownService;
   private final AuditLogProperties auditLogProperties;
   private final LogService logService;
   private final ObjectMapper objectMapper;
@@ -73,7 +70,7 @@ public class AuditLogger {
 
     // Schedule application shutdown on a separate thread so the current transaction
     // can rollback first (the throw below unwinds the call stack before the shutdown runs).
-    auditShutdownService.initiateShutdown();
+    shutdownService.initiateShutdown();
 
     throw new AuditLogFailureException(
         "Audit transport failed with halt-on-failure enabled — transaction rolled back.");
@@ -246,29 +243,10 @@ public class AuditLogger {
       auditFuture.join();
     } catch (CompletionException ex) {
       if (ex.getCause() instanceof AuditLogFailureException auditEx) {
-        invalidateCurrentSession();
+        SessionManager.invalidateCurrentSession();
         throw auditEx;
       }
       log.warn("[AUDIT] Unexpected error during halt-on-failure join", ex);
-    }
-  }
-
-  /**
-   * Invalidates the current HTTP session and clears the {@link SecurityContextHolder} so no user is
-   * left authenticated when audit logging fails with halt-on-failure enabled. Uses {@link
-   * RequestContextHolder} to resolve the current request — safe because {@code
-   * awaitIfHaltOnFailure} always runs on the caller's (servlet) thread.
-   */
-  private void invalidateCurrentSession() {
-    SecurityContextHolder.clearContext();
-    ServletRequestAttributes attrs =
-        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-    if (attrs != null) {
-      HttpServletRequest request = attrs.getRequest();
-      HttpSession session = request.getSession(false);
-      if (session != null) {
-        session.invalidate();
-      }
     }
   }
 }

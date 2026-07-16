@@ -1,4 +1,4 @@
-package io.openaev.aop.audit_log;
+package io.openaev.config;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
@@ -8,13 +8,16 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 /**
- * Encapsulates the application shutdown triggered by audit halt-on-failure. Extracted as a separate
- * bean so that tests can mock it without calling {@link System#exit(int)}.
+ * Initiates a graceful JVM shutdown on a daemon thread. Extracted as a standalone bean so that (1)
+ * the current call stack can unwind (e.g. transaction rollback) before the shutdown runs, and (2)
+ * tests can mock it without calling {@link System#exit(int)}.
+ *
+ * <p>Idempotent — only the first call spawns the shutdown thread; subsequent calls are no-ops.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class AuditShutdownService {
+public class ShutdownService {
 
   private final ApplicationContext context;
   private final AtomicBoolean shutdownTriggered = new AtomicBoolean(false);
@@ -25,7 +28,7 @@ public class AuditShutdownService {
    */
   public void initiateShutdown() {
     if (!shutdownTriggered.compareAndSet(false, true)) {
-      log.debug("[AUDIT] Shutdown already triggered by another thread.");
+      log.debug("Shutdown already triggered by another thread.");
       return;
     }
 
@@ -35,8 +38,9 @@ public class AuditShutdownService {
               int exitCode = SpringApplication.exit(context);
               System.exit(exitCode != 0 ? exitCode : 1);
             },
-            "audit-halt-shutdown");
+            "graceful-shutdown");
     shutdownThread.setDaemon(true);
     shutdownThread.start();
   }
 }
+

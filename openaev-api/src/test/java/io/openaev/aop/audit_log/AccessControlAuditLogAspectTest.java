@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.config.AuditLogProperties;
+import io.openaev.config.ShutdownService;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
@@ -71,17 +72,17 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @MockitoSpyBean private AuditLogger auditLogger;
   @MockitoSpyBean private AuditLogProperties auditLogProperties;
   @MockitoSpyBean private LogService logService;
-  @MockitoSpyBean private AuditShutdownService auditShutdownService;
+  @MockitoSpyBean private ShutdownService shutdownService;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void setup() {
-    reset(auditLogger, auditLogProperties, logService, auditShutdownService);
+    reset(auditLogger, auditLogProperties, logService, shutdownService);
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
     // Always prevent System.exit() — initiateShutdown() starts a daemon thread that calls
     // System.exit(). Without this safety net, any test that accidentally triggers
     // prepareLogFailure() (e.g. via a race with the async audit thread) would kill the JVM.
-    doNothing().when(auditShutdownService).initiateShutdown();
+    doNothing().when(shutdownService).initiateShutdown();
   }
 
   @Nested
@@ -617,7 +618,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               any(Level.class),
               anyString());
-      verify(auditShutdownService, timeout(2000)).initiateShutdown();
+      verify(shutdownService, timeout(2000)).initiateShutdown();
 
       // Assert — the team creation was rolled back: no new rows in the table
       assertThat(teamRepository.count()).isEqualTo(teamCountBefore);
