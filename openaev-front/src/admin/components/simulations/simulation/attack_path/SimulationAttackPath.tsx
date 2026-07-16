@@ -14,6 +14,7 @@ import { AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, bu
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
+import FindingDetailPanel, { type ProducingAction } from './FindingDetailPanel';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
@@ -150,6 +151,12 @@ const SimulationAttackPath = () => {
   // Producing executions of the finding currently highlighted in place inside the focused view
   // (a child finding clicked in the graph). Null = highlight the main focused finding instead.
   const [selectedFindingExecIds, setSelectedFindingExecIds] = useState<Set<string> | null>(null);
+  // Finding picked in the focused graph, driving the right-side finding details panel (its info +
+  // producing actions that open Result & Terminal). Null = no finding panel.
+  const [findingDetail, setFindingDetail] = useState<{
+    type: string;
+    value: string;
+  } | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
   const [endpointRelationEdges, setEndpointRelationEdges] = useState<AttackPathEdges[]>([]);
   // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
@@ -184,6 +191,13 @@ const SimulationAttackPath = () => {
       setSelectedFindingExecIds(null);
     }
   }, [selectedFindingId]);
+
+  // The finding details panel only lives inside the focused view; close it whenever the focus ends.
+  useEffect(() => {
+    if (!pathFinding) {
+      setFindingDetail(null);
+    }
+  }, [pathFinding]);
 
   // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
   const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
@@ -291,6 +305,7 @@ const SimulationAttackPath = () => {
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
     setSelectedNodeId(nodeId);
     setSelectedFindingId(null);
+    setFindingDetail(null);
     setSelectedLabel(label ?? '');
     setExecutions([]);
     setEndpointRelationEdges([]);
@@ -639,8 +654,13 @@ const SimulationAttackPath = () => {
       return;
     }
     const mainId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
-    // Clicking the main focused finding, or re-clicking the active child, clears the sub-selection.
-    if (nodeId === mainId || nodeId === selectedFindingId) {
+    // Surface the finding details panel for the clicked finding (its own value, not the focus root).
+    setFindingDetail({
+      type,
+      value,
+    });
+    // Clicking the main focused finding reverts to its own (main) producing path.
+    if (nodeId === mainId) {
       setSelectedFindingId(null);
       setSelectedFindingExecIds(null);
       return;
@@ -663,7 +683,7 @@ const SimulationAttackPath = () => {
     fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
       .then(r => setSelectedFindingExecIds(new Set(matchIn(r.data.items ?? [])?.executionIds ?? [])))
       .catch(() => setSelectedFindingExecIds(new Set()));
-  }, [pathFinding, selectedFindingId, findingsPage, simulationId]);
+  }, [pathFinding, findingsPage, simulationId]);
 
   // Click a leaf finding: in the focused view highlight it in place (same actions as a drawer
   // selection); in the clustered view highlight its full attack path (injector -> cluster -> finding).
@@ -770,6 +790,25 @@ const SimulationAttackPath = () => {
       : undefined),
     [dto?.attackPathNodes, pathFinding],
   );
+
+  // The action(s) that produced the finding shown in the details panel, mapped to a display row that
+  // opens the Result & Terminal view. Uses the active finding's executions (a child sub-selection
+  // overrides the main focused finding), resolved against the focused endpoint's execution feed.
+  const producingActions = useMemo((): ProducingAction[] => {
+    if (!findingDetail) {
+      return [];
+    }
+    const execIds = selectedFindingExecIds ?? highlightedExecutionIds;
+    return executions
+      .filter(e => !!e.ref && execIds.has(e.ref))
+      .map(e => ({
+        ref: e.ref as string,
+        contract: toContractLabel(e) ?? e.payloadName ?? e.label ?? t('Action'),
+        statusColor: attackPathStatusColor(theme, e.status),
+        statusLabel: t(statusLabelKey(e.status)),
+        subtitle: [e.agentName, e.privilege].filter(Boolean).join(' · '),
+      }));
+  }, [findingDetail, selectedFindingExecIds, highlightedExecutionIds, executions, theme, t]);
 
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
   const endpointFindingGroups = useMemo(() => {
@@ -1100,7 +1139,20 @@ const SimulationAttackPath = () => {
           )}
         </Paper>
 
-        {selectedNodeId && (
+        {findingDetail && (
+          <FindingDetailPanel
+            value={maskFindingValue(findingDetail.type, findingDetail.value)}
+            type={findingDetail.type}
+            endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
+            endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
+            actions={producingActions}
+            activeRef={detailExecutionId}
+            onSelect={openExecutionDetail}
+            onClose={() => setFindingDetail(null)}
+          />
+        )}
+
+        {!findingDetail && selectedNodeId && (
           <Paper
             variant="outlined"
             sx={{
