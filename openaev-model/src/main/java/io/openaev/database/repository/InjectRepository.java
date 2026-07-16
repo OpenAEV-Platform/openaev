@@ -105,8 +105,7 @@ public interface InjectRepository
         JOIN injects f ON f.inject_id = ci.inject_id
         LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
                                         AND ic.tenant_id = f.tenant_id
-        WHERE GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) > :from
-        ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC
+        ORDER BY GREATEST(f.inject_updated_at, COALESCE(ic.injector_contract_updated_at, f.inject_updated_at)) ASC
         LIMIT :limit
     )
     SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise,
