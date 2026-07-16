@@ -3,6 +3,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { memo } from 'react';
 
+import { useFormatter } from '../../../../../../components/i18n';
 import attackPathStatusColor from '../attack-path-colors';
 import { type AttackPathFlowNode } from '../attack-path-flow-helpers';
 import { AP_ENDPOINT_CLUSTER_SIZE } from './node-sizes';
@@ -13,14 +14,15 @@ import { AP_ENDPOINT_CLUSTER_SIZE } from './node-sizes';
 // prevented, orange partial, red none). Clicking is handled by the page.
 const EndpointClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) => {
   const theme = useTheme();
+  const { t } = useFormatter();
   const isOverflow = data.clusterKind === 'overflow';
   const expanded = data.expanded ?? false;
   const color = selected ? theme.palette.primary.main : attackPathStatusColor(theme, data.status);
-  let sub = 'ENDPOINTS';
+  let sub = t('Endpoints');
   if (isOverflow) {
-    sub = 'MORE';
+    sub = t('More');
   } else if (expanded) {
-    sub = 'COLLAPSE';
+    sub = t('Collapse');
   }
   return (
     <div
@@ -48,6 +50,7 @@ const EndpointClusterNode = ({ data, selected }: NodeProps<AttackPathFlowNode>) 
         sx={{
           fontSize: 9,
           letterSpacing: 1,
+          textTransform: 'uppercase',
         }}
       >
         {sub}
