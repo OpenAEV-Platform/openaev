@@ -147,6 +147,9 @@ const SimulationAttackPath = () => {
   // A clicked leaf finding whose full path (injector -> endpoint cluster -> finding cluster -> finding)
   // is highlighted in blue.
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  // Producing executions of the finding currently highlighted in place inside the focused view
+  // (a child finding clicked in the graph). Null = highlight the main focused finding instead.
+  const [selectedFindingExecIds, setSelectedFindingExecIds] = useState<Set<string> | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
   const [endpointRelationEdges, setEndpointRelationEdges] = useState<AttackPathEdges[]>([]);
   // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
@@ -172,6 +175,15 @@ const SimulationAttackPath = () => {
   // endpoint -> finding path that produced the finding picked in the drawer. fitNonce bumps to frame it.
   const [pathFinding, setPathFinding] = useState<PathFinding | null>(null);
   const [fitNonce, setFitNonce] = useState(0);
+
+  // Dropping the child sub-selection (leaving the focus, clicking an endpoint, expanding a cluster,
+  // etc.) also clears the in-place highlight's producing executions so the main focused finding
+  // regains control of the injector restriction.
+  useEffect(() => {
+    if (!selectedFindingId) {
+      setSelectedFindingExecIds(null);
+    }
+  }, [selectedFindingId]);
 
   // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
   const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
@@ -423,6 +435,7 @@ const SimulationAttackPath = () => {
       setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
       setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
       setSelectedFindingId(clusterId);
+      setSelectedFindingExecIds(null);
       if (!findingsByCluster.has(clusterId)) {
         if (endpointRef) {
           fetchEndpointFindings(simulationId, endpointRef)
@@ -545,21 +558,24 @@ const SimulationAttackPath = () => {
     return result;
   }, [pathFinding, highlightedExecutionIds, executions, endpointRelationEdges]);
 
-  // The injector(s) that actually produced the focused finding: an injector whose relation edge has
-  // at least one of the finding's producing executions. Decoupled from the label map above (which
-  // also needs the execution to be in the loaded feed), so it stays correct for every category.
+  // The injector(s) that actually produced the highlighted finding: an injector whose relation edge
+  // has at least one of the finding's producing executions. When a child finding is highlighted in
+  // place its own executions take precedence over the main focused finding's. Decoupled from the
+  // label map above (which also needs the execution in the loaded feed), so it stays correct for
+  // every category.
   const producingInjectorIds = useMemo(() => {
     const set = new Set<string>();
-    if (!pathFinding || highlightedExecutionIds.size === 0) {
+    const execIds = selectedFindingExecIds ?? highlightedExecutionIds;
+    if (!pathFinding || execIds.size === 0) {
       return set;
     }
     for (const e of endpointRelationEdges) {
-      if (e.edgeSourceId && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
+      if (e.edgeSourceId && (e.executionIds ?? []).some(id => execIds.has(id))) {
         set.add(e.edgeSourceId);
       }
     }
     return set;
-  }, [pathFinding, highlightedExecutionIds, endpointRelationEdges]);
+  }, [pathFinding, selectedFindingExecIds, highlightedExecutionIds, endpointRelationEdges]);
 
   // Scroll the feed to the first producing execution once the highlight or the loaded feed changes.
   useEffect(() => {
@@ -613,56 +629,52 @@ const SimulationAttackPath = () => {
     [dto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
   );
 
-  // Re-focus onto a finding clicked directly in the graph, exactly like selecting it from the drawer:
-  // highlight only the actions (injector branches) that produced it. Its producing executions come
-  // from the finding's category page (per-finding executionIds), matched on the focused endpoint.
-  const refocusGraphFinding = useCallback((type: string, value: string) => {
-    if (!pathFinding || !type || !value) {
+  // Highlight, in place, a finding clicked directly in the focused graph: keep it where it is and
+  // just light up the attack path (its producing injector branch -> endpoint -> the finding) in blue,
+  // exactly like selecting it from the drawer but without moving/re-focusing it. Its producing
+  // executions come from the finding's category page (per-finding executionIds), matched on the
+  // focused endpoint, and drive the injector restriction via producingInjectorIds.
+  const highlightGraphFinding = useCallback((nodeId: string, type: string, value: string) => {
+    if (!pathFinding) {
       return;
     }
-    if (type === pathFinding.type && value === pathFinding.value) {
-      return;
-    }
-    const { endpointKey, endpointNodeId } = pathFinding;
-    const apply = (execIds: string[]) => {
+    const mainId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
+    // Clicking the main focused finding, or re-clicking the active child, clears the sub-selection.
+    if (nodeId === mainId || nodeId === selectedFindingId) {
       setSelectedFindingId(null);
-      setSelectedNodeId(null);
-      setPathFinding({
-        endpointNodeId,
-        endpointKey,
-        type,
-        value,
-      });
-      setHighlightedExecutionIds(new Set(execIds));
-      setFitNonce(n => n + 1);
-    };
+      setSelectedFindingExecIds(null);
+      return;
+    }
+    setSelectedNodeId(null);
+    setSelectedFindingId(nodeId);
+    const { endpointKey } = pathFinding;
     const matchIn = (items: AttackPathFindingItemDTO[]) =>
       items.find(it => it.endpointKey === endpointKey && (it.type ?? '') === type && findingValuesMatch(type, it.value ?? '', value));
     const loaded = matchIn(findingsPage?.items ?? []);
     if (loaded) {
-      apply(loaded.executionIds ?? []);
+      setSelectedFindingExecIds(new Set(loaded.executionIds ?? []));
       return;
     }
     const category = CATEGORY_OF_TYPE[type];
     if (!category) {
-      apply([]);
+      setSelectedFindingExecIds(new Set());
       return;
     }
     fetchFindingsByCategory(simulationId, category, 0, DRAWER_FETCH_SIZE)
-      .then(r => apply(matchIn(r.data.items ?? [])?.executionIds ?? []))
-      .catch(() => apply([]));
-  }, [pathFinding, findingsPage, simulationId]);
+      .then(r => setSelectedFindingExecIds(new Set(matchIn(r.data.items ?? [])?.executionIds ?? [])))
+      .catch(() => setSelectedFindingExecIds(new Set()));
+  }, [pathFinding, selectedFindingId, findingsPage, simulationId]);
 
-  // Click a leaf finding: in the focused view re-focus onto it (same as a drawer selection); in the
-  // clustered view highlight its full attack path (injector -> endpoint cluster -> finding) in blue.
+  // Click a leaf finding: in the focused view highlight it in place (same actions as a drawer
+  // selection); in the clustered view highlight its full attack path (injector -> cluster -> finding).
   const onFindingSelect = useCallback((nodeId: string, type?: string, value?: string) => {
     if (pathFinding) {
-      refocusGraphFinding(type ?? '', value ?? '');
+      highlightGraphFinding(nodeId, type ?? '', value ?? '');
       return;
     }
     setSelectedNodeId(null);
     setSelectedFindingId(prev => (prev === nodeId ? null : nodeId));
-  }, [pathFinding, refocusGraphFinding]);
+  }, [pathFinding, highlightGraphFinding]);
 
   // The active card focus, as finding types (or the endpoints backbone).
   const focus = useMemo((): readonly string[] | 'endpoints' | null => {
@@ -679,10 +691,12 @@ const SimulationAttackPath = () => {
     if (pathFinding) {
       const defaultId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
       const activeId = selectedFindingId ?? defaultId;
-      // When the focused finding itself is the active selection, only the injector(s) that actually
-      // produced it (their executions match the finding's) light up — not every injector that merely
-      // reached the endpoint. Selecting a child finding/cluster lifts the restriction (full walk-up).
-      const restrictInjectors = activeId === defaultId && producingInjectorIds.size > 0;
+      // Only the injector(s) that actually produced the highlighted finding (their executions match
+      // it) light up — not every injector that merely reached the endpoint. This applies both to the
+      // main focused finding and to a child finding highlighted in place. Selecting a cluster header
+      // lifts the restriction (full walk-up over every injector that reached the endpoint).
+      const restrictInjectors = (selectedFindingExecIds !== null || activeId === defaultId)
+        && producingInjectorIds.size > 0;
       const injectorIds = new Set(
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
       );
@@ -747,7 +761,7 @@ const SimulationAttackPath = () => {
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, focus]);
+  }, [baseFlow, pathFinding, producingInjectorIds, selectedFindingExecIds, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
   const focusedEndpoint = useMemo(
