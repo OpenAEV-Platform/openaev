@@ -14,7 +14,7 @@ import { AP_FLOW_NODE_TYPE, applyFindingFilter, type AttackPathFindingFilter, bu
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
-import FindingDetailPanel, { type ProducingAction } from './FindingDetailPanel';
+import FindingDetailPanel, { type FindingExpectations, type ProducingAction } from './FindingDetailPanel';
 
 // A hot endpoint can have many executions; the read is bounded to the one endpoint, but the side
 // panel still renders a list, so cap it (the backend /relations read would be paginated in prod).
@@ -807,6 +807,20 @@ const SimulationAttackPath = () => {
       }));
   }, [findingDetail, highlightedExecutionIds, executions, theme, t]);
 
+  // Prevention / detection / vulnerability verdicts shown at the top of the finding panel.
+  // TODO(#6647): replace this placeholder with the real per-finding expectation verdicts once the
+  // backend exposes them; for now a CVE finding is flagged vulnerable and the rest is a placeholder.
+  const findingExpectations = useMemo((): FindingExpectations | undefined => {
+    if (!findingDetail) {
+      return undefined;
+    }
+    return {
+      prevention: 'success',
+      detection: 'success',
+      vulnerability: findingDetail.type === 'cve' ? 'failed' : 'unknown',
+    };
+  }, [findingDetail]);
+
   // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
   const endpointFindingGroups = useMemo(() => {
     const byType = new Map<string, string[]>();
@@ -835,6 +849,17 @@ const SimulationAttackPath = () => {
         (it.value ?? '').toLowerCase().includes(q)
         || (it.endpointKey ?? '').toLowerCase().includes(q));
     }
+    // Drop exact duplicates (same finding value on the same endpoint) so a value is never listed
+    // twice (e.g. an endpoint IP returned more than once by the backend).
+    const seen = new Set<string>();
+    items = items.filter((it) => {
+      const key = `${it.type ?? ''}|${it.value ?? ''}|${it.endpointKey ?? ''}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
     return items;
   }, [findingsPage, pathFinding, drawerSearch]);
 
@@ -1142,6 +1167,7 @@ const SimulationAttackPath = () => {
             type={findingDetail.type}
             endpointLabel={focusedEndpoint?.hostname || focusedEndpoint?.label || pathFinding?.endpointKey || t('Endpoint')}
             endpointSub={[focusedEndpoint?.ip, focusedEndpoint?.platform].filter(Boolean).join(' · ')}
+            expectations={findingExpectations}
             actions={producingActions}
             activeRef={detailExecutionId}
             onSelect={openExecutionDetail}
