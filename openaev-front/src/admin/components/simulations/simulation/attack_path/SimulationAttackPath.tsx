@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
-import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE } from './attack-path-flow-helpers';
+import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
@@ -86,6 +86,9 @@ const SimulationAttackPath = () => {
   // is highlighted in blue.
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
+  // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
+  const [endpointFindings, setEndpointFindings] = useState<AttackPathNodeDTO[]>([]);
+  const [endpointFindingsLoading, setEndpointFindingsLoading] = useState(false);
 
   // Findings drawer: a summary card opens a right drawer listing that category's findings (issue 5048).
   const [drawerCategory, setDrawerCategory] = useState<string | null>(null);
@@ -128,6 +131,7 @@ const SimulationAttackPath = () => {
     setSelectedNodeId(null);
     setSelectedFindingId(null);
     setExecutions([]);
+    setEndpointFindings([]);
     setActiveCard(null);
     // Close the drawers and clear any cross-focus so nothing carries over between simulations.
     setDrawerCategory(null);
@@ -197,13 +201,14 @@ const SimulationAttackPath = () => {
     return simId;
   }, [metaById, fldt]);
 
-  // Click a real endpoint (only visible once its injector cluster is expanded): load its executions
-  // into the side panel. Stale responses are dropped.
+  // Click a real endpoint (only visible once its injector cluster is expanded): load its own findings
+  // (grouped in the side panel) and its executions. Stale responses are dropped.
   const onEndpointClick = useCallback((nodeId: string, ref?: string, label?: string) => {
     setSelectedNodeId(nodeId);
     setSelectedFindingId(null);
     setSelectedLabel(label ?? '');
     setExecutions([]);
+    setEndpointFindings([]);
     // A plain node click focuses no specific execution; a finding-item click sets these after.
     setHighlightedExecutionIds(new Set());
     if (!ref) {
@@ -211,6 +216,35 @@ const SimulationAttackPath = () => {
     }
     const seq = endpointSeq.current + 1;
     endpointSeq.current = seq;
+    setEndpointFindingsLoading(true);
+    fetchEndpointFindings(simulationId, ref)
+      .then((r) => {
+        if (seq !== endpointSeq.current) {
+          return;
+        }
+        // De-duplicate the endpoint's findings by (type, value) so a value found by several
+        // executions is listed once.
+        const seen = new Set<string>();
+        const deduped: AttackPathNodeDTO[] = [];
+        for (const f of r.data.findings ?? []) {
+          const key = `${f.typeFindings ?? ''}|${f.value ?? f.label ?? ''}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            deduped.push(f);
+          }
+        }
+        setEndpointFindings(deduped);
+      })
+      .catch(() => {
+        if (seq === endpointSeq.current) {
+          setEndpointFindings([]);
+        }
+      })
+      .finally(() => {
+        if (seq === endpointSeq.current) {
+          setEndpointFindingsLoading(false);
+        }
+      });
     fetchEndpointRelations(simulationId, ref)
       .then((r) => {
         if (seq === endpointSeq.current) {
@@ -432,6 +466,21 @@ const SimulationAttackPath = () => {
   }, [baseFlow, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
+
+  // The clicked endpoint's findings grouped by type for the side panel; secrets (credentials) masked.
+  const endpointFindingGroups = useMemo(() => {
+    const byType = new Map<string, string[]>();
+    for (const f of endpointFindings) {
+      const type = f.typeFindings ?? 'unknown';
+      const arr = byType.get(type) ?? [];
+      arr.push(maskFindingValue(f.typeFindings, f.value ?? f.label ?? ''));
+      byType.set(type, arr);
+    }
+    return [...byType.entries()].map(([type, values]) => ({
+      type,
+      values,
+    }));
+  }, [endpointFindings]);
 
   // "Captured Files" has no backend counter: derive an approximate share count from the collapsed
   // endpoints' per-type finding counts (temporary until a native "file" finding type exists).
@@ -681,7 +730,50 @@ const SimulationAttackPath = () => {
             }}
           >
             <Typography variant="h6" gutterBottom>{selectedLabel || t('Endpoint')}</Typography>
+
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              {t('Findings')}
+            </Typography>
+            {endpointFindingsLoading && (
+              <Box sx={{ minHeight: 60 }}>
+                <Loader variant="inElement" size="sm" />
+              </Box>
+            )}
+            {!endpointFindingsLoading && endpointFindingGroups.length === 0 && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: 'block',
+                  mb: 1,
+                }}
+              >
+                {t('No findings on this endpoint')}
+              </Typography>
+            )}
+            {!endpointFindingsLoading && endpointFindingGroups.map(g => (
+              <Box key={g.type} sx={{ mb: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: 'block',
+                    fontWeight: 600,
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  {`${g.type} (${g.values.length})`}
+                </Typography>
+                {g.values.map((v, i) => (
+                  <Typography key={`${g.type}-${i}`} variant="body2" noWrap title={v}>
+                    {v}
+                  </Typography>
+                ))}
+              </Box>
+            ))}
+
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 1 }}>
               {`${t('Executions')} (${executions.length})`}
             </Typography>
             {executions.slice(0, EXEC_DISPLAY_CAP).map((e) => {
