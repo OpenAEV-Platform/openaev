@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
  * automatically maintained as expectations get scored.
  */
 @Component
-public class V6_20260713120000000__Add_index_injects_expectations_unfilled
+public class V6_20260716120000000__Add_index_injects_expectations_unfilled
     extends BaseJavaMigration {
 
   @Override
