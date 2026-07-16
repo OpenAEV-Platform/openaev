@@ -95,7 +95,7 @@ const Index = () => {
     dispatch(fetchTags());
     dispatch(fetchDomains());
   }, [currentUserTenant?.tenant_id]);
-  const { bannerHeight } = computeBannerSettings(settings);
+  const { bannerHeight, bannerHeightNumber } = computeBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
     if (goToGettingStarted) {
@@ -109,6 +109,12 @@ const Index = () => {
       sx={{
         display: 'flex',
         minWidth: 1400,
+        // Lock the shell to the viewport (minus any system banners) so <main> matches the
+        // viewport height instead of the sidebar's content height. Without this the app is only
+        // as tall as the left menu, which leaves full-height pages (e.g. the dashboard results
+        // page) either short with a gap or overflowing into a body scrollbar depending on the
+        // viewport. minHeight (not height) still lets genuinely long pages grow and body-scroll.
+        minHeight: `calc(100dvh - ${2 * bannerHeightNumber}px)`,
         marginTop: bannerHeight,
         marginBottom: bannerHeight,
       }}
