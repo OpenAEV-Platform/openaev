@@ -8,7 +8,7 @@ import { useParams } from 'react-router';
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
-import type { AttackPathDTO, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
+import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
 import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
@@ -40,6 +40,37 @@ const statusLabelKey = (status?: string): string => {
     default:
       return 'Unknown';
   }
+};
+
+// Friendly contract labels for known seed step templates (fallbacks for POC datasets where the
+// backend payloadName is synthetic like "nmap-payload").
+const STEP_TEMPLATE_CONTRACT_LABEL: Record<string, string> = {
+  'step-tpl-nmap': 'NMAP TCP Scan',
+  'step-tpl-nuclei': 'Nuclei CVE Scan',
+  'step-tpl-crackmapexec': 'Netexec SMB Scan',
+  'step-tpl-impacket': 'Netexec SMB Scan',
+};
+
+const toContractLabel = (execution: AttackPathNodeDTO): string | undefined => {
+  if (execution.stepTemplateId && STEP_TEMPLATE_CONTRACT_LABEL[execution.stepTemplateId]) {
+    return STEP_TEMPLATE_CONTRACT_LABEL[execution.stepTemplateId];
+  }
+  const raw = execution.payloadName || execution.label;
+  if (!raw) {
+    return undefined;
+  }
+  // Generic fallback for synthetic "*-payload" names.
+  if (raw.endsWith('-payload')) {
+    const base = raw.slice(0, -8).replace(/[_-]+/g, ' ').trim();
+    if (!base) {
+      return raw;
+    }
+    return base
+      .split(' ')
+      .map(w => (w.length <= 4 ? w.toUpperCase() : `${w[0].toUpperCase()}${w.slice(1)}`))
+      .join(' ');
+  }
+  return raw;
 };
 
 interface FindingCard {
@@ -86,6 +117,7 @@ const SimulationAttackPath = () => {
   // is highlighted in blue.
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
+  const [endpointRelationEdges, setEndpointRelationEdges] = useState<AttackPathEdges[]>([]);
   // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
   const [endpointFindings, setEndpointFindings] = useState<AttackPathNodeDTO[]>([]);
   const [endpointFindingsLoading, setEndpointFindingsLoading] = useState(false);
@@ -136,6 +168,7 @@ const SimulationAttackPath = () => {
     setSelectedNodeId(null);
     setSelectedFindingId(null);
     setExecutions([]);
+    setEndpointRelationEdges([]);
     setEndpointFindings([]);
     setActiveCard(null);
     // Close the drawers and clear any cross-focus so nothing carries over between simulations.
@@ -214,6 +247,7 @@ const SimulationAttackPath = () => {
     setSelectedFindingId(null);
     setSelectedLabel(label ?? '');
     setExecutions([]);
+    setEndpointRelationEdges([]);
     setEndpointFindings([]);
     // A plain node click focuses no specific execution; a finding-item click sets these after.
     setHighlightedExecutionIds(new Set());
@@ -255,11 +289,13 @@ const SimulationAttackPath = () => {
       .then((r) => {
         if (seq === endpointSeq.current) {
           setExecutions(r.data.executions ?? []);
+          setEndpointRelationEdges(r.data.edges ?? []);
         }
       })
       .catch(() => {
         if (seq === endpointSeq.current) {
           setExecutions([]);
+          setEndpointRelationEdges([]);
         }
       });
   }, [simulationId]);
@@ -328,34 +364,13 @@ const SimulationAttackPath = () => {
     });
   }, [injectorEndpointRefs, simulationId]);
 
-  // Fetch one endpoint's findings of a type (deduplicated) — for a per-endpoint finding cluster when
-  // the injector's endpoints are expanded.
-  const fetchEndpointClusterFindings = useCallback((clusterId: string, type: string, ref: string) => {
-    fetchEndpointFindings(simulationId, ref)
-      .then((r) => {
-        const seen = new Set<string>();
-        const deduped: AttackPathNodeDTO[] = [];
-        for (const f of r.data.findings ?? []) {
-          if (f.typeFindings !== type) {
-            continue;
-          }
-          const key = f.value ?? f.id ?? '';
-          if (key && !seen.has(key)) {
-            seen.add(key);
-            deduped.push(f);
-          }
-        }
-        setFindingsByCluster(prev => new Map(prev).set(clusterId, deduped));
-      })
-      .catch(() => undefined);
-  }, [simulationId]);
-
   // Click a finding cluster (per injector when collapsed, per endpoint when expanded): the header
   // expands/collapses it into its individual findings (fetched once, batched); an overflow reveals the
   // next batch. The cluster carries its own key; an endpoint ref scopes the fetch to that host.
   const onFindingClusterClick = useCallback(
     (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => {
-      if (kind === 'overflow') {
+      const effectiveKind = clusterId.startsWith('path-cl-') ? 'header' : kind;
+      if (effectiveKind === 'overflow') {
         setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
         return;
       }
@@ -365,19 +380,51 @@ const SimulationAttackPath = () => {
           next.delete(clusterId);
           return next;
         });
+        setSelectedFindingId(null);
         return;
       }
       setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
       setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
+      setSelectedFindingId(clusterId);
       if (!findingsByCluster.has(clusterId)) {
         if (endpointRef) {
-          fetchEndpointClusterFindings(clusterId, typeFindings ?? '', endpointRef);
+          fetchEndpointFindings(simulationId, endpointRef)
+            .then((r) => {
+              const seen = new Set<string>();
+              const deduped: AttackPathNodeDTO[] = [];
+              const parts = clusterId.split('|');
+              const isPathSame = parts[0] === 'path-cl-same';
+              const isPathOther = parts[0] === 'path-cl-other';
+              const excludedType = parts.length > 1 ? parts[1] : '';
+              for (const f of r.data.findings ?? []) {
+                const type = f.typeFindings ?? '';
+                if (isPathSame) {
+                  // In focused view, "same-type others" excludes the selected finding itself.
+                  if (type !== excludedType || (pathFinding && (f.value ?? '') === pathFinding.value)) {
+                    continue;
+                  }
+                } else if (isPathOther) {
+                  if (type === excludedType) {
+                    continue;
+                  }
+                } else if (type !== (typeFindings ?? '')) {
+                  continue;
+                }
+                const key = `${f.typeFindings ?? ''}|${f.value ?? f.id ?? ''}`;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  deduped.push(f);
+                }
+              }
+              setFindingsByCluster(prev => new Map(prev).set(clusterId, deduped));
+            })
+            .catch(() => undefined);
         } else if (injectorId) {
           fetchClusterFindings(clusterId, typeFindings ?? '', injectorId);
         }
       }
     },
-    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, fetchEndpointClusterFindings],
+    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, simulationId, pathFinding],
   );
 
   // Open the findings drawer for a summary category and load its first page (backend, masked server-side).
@@ -423,25 +470,40 @@ const SimulationAttackPath = () => {
     [onEndpointClick, dto?.attackPathNodes],
   );
 
-  // Contract labels of the producing execution(s) for the focused finding path, used on
-  // injector->endpoint edges instead of injector names (e.g. "Netexec SMB Scan").
-  const pathContractLabel = useMemo(() => {
+  // Producing contract labels per injector for the focused finding path, so each injector->endpoint
+  // branch is labelled with its own contract(s), not a global merged string.
+  const pathContractLabelByInjector = useMemo(() => {
     if (!pathFinding || highlightedExecutionIds.size === 0) {
-      return undefined;
+      return {} as Record<string, string>;
     }
-    const labels = Array.from(new Set(
+    const execLabelById = new Map(
       executions
-        .filter(e => e.ref && highlightedExecutionIds.has(e.ref))
-        .map(e => e.payloadName || e.label)
-        .filter((s): s is string => !!s),
-    ));
-    if (labels.length === 0) {
-      return undefined;
+        .filter(e => !!e.ref)
+        .map(e => [e.ref as string, toContractLabel(e)] as const),
+    );
+    const byInjector = new Map<string, string[]>();
+    for (const e of endpointRelationEdges) {
+      if (!e.edgeSourceId || (e.executionIds?.length ?? 0) === 0) {
+        continue;
+      }
+      const labels = (e.executionIds ?? [])
+        .filter(id => highlightedExecutionIds.has(id))
+        .map(id => execLabelById.get(id))
+        .filter((s): s is string => !!s);
+      if (labels.length > 0) {
+        const arr = byInjector.get(e.edgeSourceId) ?? [];
+        byInjector.set(e.edgeSourceId, [...arr, ...labels]);
+      }
     }
-    return labels.length <= 2
-      ? labels.join(' · ')
-      : `${labels.slice(0, 2).join(' · ')} +${labels.length - 2}`;
-  }, [pathFinding, highlightedExecutionIds, executions]);
+    const result: Record<string, string> = {};
+    for (const [injectorId, labels] of byInjector.entries()) {
+      const uniq = Array.from(new Set(labels));
+      result[injectorId] = uniq.length <= 2
+        ? uniq.join(' · ')
+        : `${uniq.slice(0, 2).join(' · ')} +${uniq.length - 2}`;
+    }
+    return result;
+  }, [pathFinding, highlightedExecutionIds, executions, endpointRelationEdges]);
 
   // Scroll the feed to the first producing execution once the highlight or the loaded feed changes.
   useEffect(() => {
@@ -480,7 +542,7 @@ const SimulationAttackPath = () => {
       }
       // Focused finding-path view takes over the whole graph until it is cleared.
       if (pathFinding) {
-        return buildFindingPathFlow(dto, pathFinding, pathContractLabel);
+        return buildFindingPathFlow(dto, pathFinding, pathContractLabelByInjector);
       }
       return buildClusteredAttackPathFlow(dto, endpointBatch, {
         expanded: expandedFindingClusters,
@@ -488,7 +550,7 @@ const SimulationAttackPath = () => {
         batch: findingBatch,
       });
     },
-    [dto, pathFinding, pathContractLabel, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
+    [dto, pathFinding, pathContractLabelByInjector, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
   );
 
   // Click a leaf finding: highlight its full attack path (injector -> endpoint cluster -> finding
@@ -508,11 +570,43 @@ const SimulationAttackPath = () => {
 
   // Mark the selected endpoint, the highlighted finding path (blue), then apply the card focus.
   const { nodes, edges } = useMemo(() => {
-    // The focused finding-path view is already fully highlighted by its builder; render it as-is.
+    // Focused finding-path view: keep the focused scope, and let clicks on findings/clusters
+    // highlight the exact sub-path (injector -> endpoint -> selection).
     if (pathFinding) {
+      const defaultId = `path-finding|${pathFinding.type}|${pathFinding.value}`;
+      const activeId = selectedFindingId ?? defaultId;
+      const pathSet = new Set<string>([activeId]);
+      for (let pass = 0; pass < 8; pass += 1) {
+        for (const e of baseFlow.edges) {
+          if (e.target && e.source && pathSet.has(e.target) && !pathSet.has(e.source)) {
+            pathSet.add(e.source);
+          }
+        }
+      }
       return {
-        nodes: baseFlow.nodes,
-        edges: baseFlow.edges,
+        nodes: baseFlow.nodes.map((n) => {
+          const selected = pathSet.has(n.id);
+          return {
+            ...n,
+            selected,
+            data: {
+              ...(n.data ?? {}),
+              dimmed: !selected,
+            },
+          };
+        }),
+        edges: baseFlow.edges.map((e) => {
+          const selected = pathSet.has(e.source) && pathSet.has(e.target);
+          return {
+            ...e,
+            selected,
+            data: {
+              ...(e.data ?? {}),
+              count: e.data?.count ?? 1,
+              dimmed: !selected,
+            },
+          };
+        }),
       };
     }
     // Walk up from the clicked finding to its injector so the whole path lights up.
@@ -628,10 +722,6 @@ const SimulationAttackPath = () => {
   // Click a summary card: focus the graph on that finding type and, for finding categories, open the
   // right drawer listing the (deduplicated, masked) items. Clicking again clears the focus/drawer.
   const onCardClick = (card: FindingCard) => {
-    if (pathFinding) {
-      setPathFinding(null);
-      setFitNonce(n => n + 1);
-    }
     const next = activeCard === card.key ? null : card.key;
     setActiveCard(next);
     if (next && next !== 'endpoints') {

@@ -613,7 +613,7 @@ export interface PathFinding {
 export const buildFindingPathFlow = (
   dto: AttackPathDTO,
   finding: PathFinding,
-  contractLabel?: string,
+  contractLabelByInjector?: Record<string, string>,
 ): {
   nodes: AttackPathFlowNode[];
   edges: AttackPathFlowEdge[];
@@ -669,7 +669,7 @@ export const buildFindingPathFlow = (
         count: 1,
         // Focused path is intentionally highlighted in blue.
         status: undefined,
-        label: contractLabel || finding.contractLabel || inj.label,
+        label: contractLabelByInjector?.[inj.id as string] || finding.contractLabel || inj.label,
       },
       selected: true,
     });
@@ -721,18 +721,20 @@ export const buildFindingPathFlow = (
 
   let clusterY = rightTopY + rowH;
   if (sameTypeOthers > 0) {
-    const id = `path-finding-more-same|${finding.type}`;
+    const id = `path-cl-same|${finding.type}|${finding.endpointKey}`;
     nodes.push({
       id,
       type: AP_FLOW_NODE_TYPE.findingCluster,
       position: {
-        x: CLUSTER_FINDING_X,
+        x: CLUSTER_FINDING_DETAIL_X + 170,
         y: clusterY,
       },
       data: {
         typeFindings: finding.type,
         count: sameTypeOthers,
         label: finding.type,
+        clusterId: id,
+        endpointRef: finding.endpointKey,
         clusterKind: 'overflow',
       },
       selected: true,
@@ -752,18 +754,20 @@ export const buildFindingPathFlow = (
     clusterY += rowH;
   }
   if (otherTypesTotal > 0) {
-    const id = 'path-finding-more-other';
+    const id = `path-cl-other|${finding.type}|${finding.endpointKey}`;
     nodes.push({
       id,
       type: AP_FLOW_NODE_TYPE.findingCluster,
       position: {
-        x: CLUSTER_FINDING_X,
+        x: CLUSTER_FINDING_DETAIL_X + 170,
         y: clusterY,
       },
       data: {
         typeFindings: 'other',
         count: otherTypesTotal,
         label: 'other',
+        clusterId: id,
+        endpointRef: finding.endpointKey,
         clusterKind: 'overflow',
       },
       selected: true,
