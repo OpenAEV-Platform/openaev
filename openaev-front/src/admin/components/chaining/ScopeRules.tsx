@@ -190,11 +190,11 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
     switch (rule.workflow_scope_rule_source) {
       case 'ASSET': {
         const endpoint = endpointsMap[value];
-        return endpoint?.asset_name ?? value;
+        return endpoint?.asset_name ?? t('Loading...');
       }
       case 'ASSET_GROUP': {
         const group = assetGroupsMap[value];
-        return group?.asset_group_name ?? value;
+        return group?.asset_group_name ?? t('Loading...');
       }
       default:
         return value;
