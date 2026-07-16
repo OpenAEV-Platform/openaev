@@ -149,6 +149,62 @@ const PLATFORM_ENTITIES = [
   'capabilities',
 ] as const;
 
+// Some chaining screens read workflow configuration from the synthetic
+// `workflowconfigurations` entity keyed by workflow id. SSE updates for workflows
+// are emitted as `workflows`, so mirror those fields to keep the configuration
+// view live without a manual page reload.
+type WorkflowLike = {
+  workflow_rate_limit_enabled?: boolean;
+  workflow_max_attempts?: number;
+  workflow_max_temporal_rate_seconds?: number;
+  workflow_timeout_enabled?: boolean;
+  workflow_timeout_seconds?: number;
+  workflow_safe_mode_enabled?: boolean;
+  workflow_scope_rules?: unknown[];
+  workflow_scope_variables?: unknown[];
+};
+
+type ReferentialPayload = {
+  entities?: {
+    workflows?: Record<string, WorkflowLike>;
+    workflowconfigurations?: Record<string, unknown>;
+  };
+  [key: string]: unknown;
+};
+
+const withWorkflowConfigurations = (payload: ReferentialPayload) => {
+  const workflowEntities = payload?.entities?.workflows;
+  if (!workflowEntities) {
+    return payload;
+  }
+
+  const workflowConfigurations = Object.fromEntries(
+    Object.entries(workflowEntities).map(([workflowId, workflow]) => [
+      workflowId,
+      {
+        workflow_configuration_rate_limit_enabled: workflow.workflow_rate_limit_enabled,
+        workflow_configuration_max_attempts: workflow.workflow_max_attempts,
+        workflow_configuration_max_temporal_rate_seconds:
+          workflow.workflow_max_temporal_rate_seconds,
+        workflow_configuration_timeout_enabled: workflow.workflow_timeout_enabled,
+        workflow_configuration_timeout_seconds: workflow.workflow_timeout_seconds,
+        workflow_configuration_safe_mode_enabled: workflow.workflow_safe_mode_enabled,
+        workflow_scope_rules: workflow.workflow_scope_rules ?? [],
+        workflow_scope_variables: workflow.workflow_scope_variables ?? [],
+      },
+    ]),
+  );
+
+  return R.assocPath(
+    ['entities', 'workflowconfigurations'],
+    {
+      ...workflowConfigurations,
+      ...(payload.entities.workflowconfigurations ?? {}),
+    },
+    payload,
+  );
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const referential = (state: any = Map({}), action: any = {}) => {
   switch (action.type) {
@@ -162,8 +218,12 @@ const referential = (state: any = Map({}), action: any = {}) => {
           firstValue['setting_value'],
         );
       } else {
-        const merged = mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', action.payload)));
-        return applyLruEviction(merged, action);
+        const payload = withWorkflowConfigurations(action.payload);
+        const merged = mergeDeepOverwriteLists(state, fromJS(R.dissoc('result', payload)));
+        return applyLruEviction(merged, {
+          ...action,
+          payload,
+        });
       }
     }
     case Constants.DATA_DELETE_SUCCESS: {
