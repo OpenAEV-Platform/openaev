@@ -7,6 +7,7 @@ import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
 import { useFormatter } from '../../../../../components/i18n';
+import ItemStatus from '../../../../../components/ItemStatus';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
 
@@ -20,6 +21,8 @@ interface Props {
 
 const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
+const PREVENTION_TAB = 'prevention';
+const DETECTION_TAB = 'detection';
 
 // The Result & Terminal panel for one execution (issue 5048): an in-flow panel between the execution feed
 // and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer, fed by
@@ -64,6 +67,32 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
       content: line,
     });
   });
+
+  // Prevention/Detection tabs (issue 6647): the attack-path snapshot only exposes the aggregate
+  // expectation status per execution — the per-security-platform breakdown (source, time, alerts)
+  // is a backend dependency. We reuse the shared `ItemStatus` pill (same one the security-platforms
+  // table uses) so the status reads natively, and flag that the detailed table is coming.
+  const renderExpectationTab = (status: string | null | undefined) => {
+    if (!status) {
+      return <Alert severity="info">{t('No expectation for this execution')}</Alert>;
+    }
+    return (
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+      }}
+      >
+        <Typography variant="subtitle2">{t('Security platforms')}</Typography>
+        <div>
+          <ItemStatus label={status} status={status} />
+        </div>
+        <Typography variant="caption" color="text.secondary">
+          {t('The per-security-platform breakdown will be available soon.')}
+        </Typography>
+      </Box>
+    );
+  };
 
   return (
     <Paper
@@ -137,6 +166,14 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
                 key: TERMINAL_TAB,
                 label: t('Terminal view'),
               },
+              {
+                key: PREVENTION_TAB,
+                label: t('Prevention'),
+              },
+              {
+                key: DETECTION_TAB,
+                label: t('Detection'),
+              },
             ]}
             currentTab={currentTab}
             onChange={handleChangeTab}
@@ -150,7 +187,7 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
               // The Result tab owns its scroll (the findings list can be long); the Terminal tab is
               // sized to fill this box and scrolls internally, so the outer box must not add a second
               // scrollbar.
-              overflow: currentTab === RESULT_TAB ? 'auto' : 'hidden',
+              overflow: currentTab === TERMINAL_TAB ? 'hidden' : 'auto',
               pt: 2,
             }}
           >
@@ -196,6 +233,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
             {currentTab === TERMINAL_TAB && (
               <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />
             )}
+
+            {currentTab === PREVENTION_TAB && renderExpectationTab(detail.preventionStatus)}
+
+            {currentTab === DETECTION_TAB && renderExpectationTab(detail.detectionStatus)}
           </Box>
         </Box>
       )}
