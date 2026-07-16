@@ -66,6 +66,9 @@ public class AttackPathExecutionIngestionService {
     row.setSourceKind(edge.sourceKind());
     row.setSourceInjector(edge.sourceInjector());
     row.setSourceAssetId(edge.sourceAssetId());
+    row.setSourceHostname(edge.sourceHostname());
+    row.setSourceIp(edge.sourceIp());
+    row.setSourcePlatform(edge.sourcePlatform());
     row.setAgentId(edge.agentId());
     row.setAgentName(edge.agentName());
     row.setAgentPrivilege(edge.agentPrivilege());

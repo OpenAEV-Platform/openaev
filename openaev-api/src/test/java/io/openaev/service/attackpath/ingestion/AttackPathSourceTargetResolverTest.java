@@ -55,6 +55,7 @@ class AttackPathSourceTargetResolverTest {
               assertThat(e.sourceKind()).isEqualTo("INJECTOR");
               assertThat(e.sourceInjector()).isEqualTo("Nmap");
               assertThat(e.sourceAssetId()).isNull();
+              assertThat(e.sourceHostname()).isNull();
               assertThat(e.targetKind()).isEqualTo("ASSET");
               assertThat(e.agentName()).isNull();
             });
@@ -121,6 +122,9 @@ class AttackPathSourceTargetResolverTest {
     ResolvedExecutionEdge e = edges.get(0);
     assertThat(e.sourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(e.sourceAssetId()).isEqualTo("agent-asset-1");
+    assertThat(e.sourceHostname()).isEqualTo("corp-dc");
+    assertThat(e.sourceIp()).isEqualTo("10.0.0.5");
+    assertThat(e.sourcePlatform()).isEqualTo("Windows");
     assertThat(e.sourceInjector()).isNull();
     assertThat(e.targetKind()).isEqualTo("DISCOVERED");
     assertThat(e.targetRawValue()).isEqualTo("internal.corp");

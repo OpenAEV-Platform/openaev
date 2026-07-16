@@ -39,6 +39,9 @@ public class AttackPathSourceTargetResolver {
                   SOURCE_AGENT_ASSET,
                   null,
                   agent.assetId(),
+                  agent.hostname(),
+                  agent.ip(),
+                  agent.platform(),
                   t,
                   agent.agentId(),
                   agent.agentName(),
@@ -48,7 +51,18 @@ public class AttackPathSourceTargetResolver {
     } else {
       // Injector-based: source = the injector.
       for (ResolvedTarget t : targets) {
-        edges.add(edge(SOURCE_INJECTOR, input.injectorName(), null, t, null, null, null));
+        edges.add(
+            edge(
+                SOURCE_INJECTOR,
+                input.injectorName(),
+                null,
+                null,
+                null,
+                null,
+                t,
+                null,
+                null,
+                null));
       }
     }
     return edges;
@@ -95,6 +109,9 @@ public class AttackPathSourceTargetResolver {
       String sourceKind,
       String sourceInjector,
       String sourceAssetId,
+      String sourceHostname,
+      String sourceIp,
+      String sourcePlatform,
       ResolvedTarget t,
       String agentId,
       String agentName,
@@ -103,6 +120,9 @@ public class AttackPathSourceTargetResolver {
         sourceKind,
         sourceInjector,
         sourceAssetId,
+        sourceHostname,
+        sourceIp,
+        sourcePlatform,
         t.kind(),
         t.assetId(),
         t.rawValue(),

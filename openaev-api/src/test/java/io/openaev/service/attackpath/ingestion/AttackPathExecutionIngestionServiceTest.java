@@ -66,6 +66,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             "AGENT_ASSET",
             null,
             "src-asset-1",
+            "src-host",
+            "10.0.0.1",
+            "Windows",
             "ASSET",
             "victim-1",
             null,
@@ -88,6 +91,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getStepId()).isEqualTo("step-1");
     assertThat(row.getSourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(row.getSourceAssetId()).isEqualTo("src-asset-1");
+    assertThat(row.getSourceHostname()).isEqualTo("src-host");
+    assertThat(row.getSourceIp()).isEqualTo("10.0.0.1");
+    assertThat(row.getSourcePlatform()).isEqualTo("Windows");
     assertThat(row.getTargetKind()).isEqualTo("ASSET");
     assertThat(row.getTargetAssetId()).isEqualTo("victim-1");
     assertThat(row.getTargetKey()).isEqualTo("victim-1");
@@ -120,6 +126,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             "AGENT_ASSET",
             null,
             "src-asset-1",
+            "src-host",
+            "10.0.0.1",
+            "Windows",
             "ASSET",
             "victim-1",
             null,
@@ -197,6 +206,9 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     assertThat(row.getSimulationId()).isEqualTo("SIM-ONRUN");
     assertThat(row.getSourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(row.getSourceAssetId()).isEqualTo("ep-1");
+    assertThat(row.getSourceHostname()).isEqualTo("corp-dc");
+    assertThat(row.getSourceIp()).isEqualTo("10.0.0.5");
+    assertThat(row.getSourcePlatform()).isEqualTo("Windows");
     assertThat(row.getAgentId()).isEqualTo("agt-1");
     assertThat(row.getAgentName()).isEqualTo("corp-dc");
     assertThat(row.getAgentPrivilege()).isEqualTo("admin");

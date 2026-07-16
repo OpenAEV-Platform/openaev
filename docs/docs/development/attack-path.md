@@ -57,6 +57,9 @@ erDiagram
         varchar inject_id "ref injects, no FK; #204 per-output lookup key"
         text source_kind "INJECTOR or AGENT_ASSET"
         varchar source_injector
+        varchar source_hostname "agent-based source endpoint, frozen"
+        varchar source_ip
+        varchar source_platform
         varchar target_asset_id "ref assets, no FK"
         text target_key "asset id or raw value"
         varchar target_hostname

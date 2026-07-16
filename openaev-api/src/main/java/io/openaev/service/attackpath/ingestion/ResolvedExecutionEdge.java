@@ -10,6 +10,9 @@ public record ResolvedExecutionEdge(
     String sourceKind, // "INJECTOR" or "ASSET" (an agent's endpoint)
     String sourceInjector, // the injector name, when the source is an injector
     String sourceAssetId, // the agent endpoint's asset id, when the source is an asset
+    String sourceHostname, // the source endpoint's frozen hostname (agent-based only)
+    String sourceIp, // the source endpoint's frozen ip (agent-based only)
+    String sourcePlatform, // the source endpoint's frozen platform (agent-based only)
     String targetKind, // "ASSET" or "DISCOVERED"
     String targetAssetId,
     String targetRawValue,
