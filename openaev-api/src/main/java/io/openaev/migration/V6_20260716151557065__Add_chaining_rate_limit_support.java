@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260630151557065__Add_chaining_rate_limit_support extends BaseJavaMigration {
+public class V6_20260716151557065__Add_chaining_rate_limit_support extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
