@@ -11,7 +11,7 @@ import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
+import { searchAssets } from '../../../../actions/assets/endpoint-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
@@ -27,7 +27,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
+import { AI_TARGET_BASE_URL, ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -35,8 +35,8 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
+import AssetPopover from './AssetPopover';
 import EndpointCreation from './EndpointCreation';
-import EndpointPopover from './EndpointPopover';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
 
 const useStyles = makeStyles()(() => ({
@@ -66,14 +66,14 @@ const Endpoints = () => {
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
 
+  // Base Asset facets only: the unified inventory queries the base assets table, so endpoint-only
+  // fields (platform / arch) cannot be resolved as filters here (single-table inheritance).
   const availableFilterNames = [
     'asset_category',
     'asset_subcategory',
     'asset_criticality',
     'asset_cloud_provider',
     'asset_internet_facing',
-    'endpoint_platform',
-    'endpoint_arch',
     'asset_tags',
   ];
 
@@ -96,7 +96,7 @@ const Endpoints = () => {
 
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchEndpoints(input).finally(() => setLoading(false));
+    return searchAssets(input).finally(() => setLoading(false));
   };
 
   // Headers
@@ -213,47 +213,68 @@ const Endpoints = () => {
           loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : endpoints.map((endpoint: EndpointOutput) => {
+                // Only endpoints have a detail page and endpoint-scoped edit/delete. AI targets
+                // (and other base assets) are listed here but managed from their own screen, so
+                // the endpoint detail link + endpoint popover are shown for endpoints only.
+                const isEndpoint = endpoint.asset_type === 'Endpoint';
+                let rowLink: string | undefined;
+                if (isEndpoint) {
+                  rowLink = `${ENDPOINT_BASE_URL}/${endpoint.asset_id}`;
+                } else if (endpoint.asset_category === 'AI_TARGET') {
+                  rowLink = AI_TARGET_BASE_URL;
+                }
+                const rowContent = (
+                  <>
+                    <ListItemIcon>
+                      <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={(
+                        <div style={bodyItemsStyles.bodyItems}>
+                          {headers.map(header => (
+                            <div
+                              key={header.field}
+                              style={{
+                                ...bodyItemsStyles.bodyItem,
+                                ...inlineStyles[header.field],
+                              }}
+                            >
+                              {header.value(endpoint)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </>
+                );
                 return (
                   <ListItem
                     key={endpoint.asset_id}
                     divider
-                    secondaryAction={(
-                      <EndpointPopover
-                        inline
-                        endpoint={{ ...endpoint }}
-                        agentless={endpoint.asset_agents?.length === 0}
-                        onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
-                        onDelete={result => setEndpoints(endpoints.filter(e => (e.asset_id !== result)))}
-                      />
-                    )}
+                    secondaryAction={isEndpoint
+                      ? (
+                          <AssetPopover
+                            inline
+                            endpoint={{ ...endpoint }}
+                            agentless={endpoint.asset_agents?.length === 0}
+                            onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
+                            onDelete={result => setEndpoints(endpoints.filter(e => (e.asset_id !== result)))}
+                          />
+                        )
+                      : undefined}
                     disablePadding
                   >
-                    <ListItemButton
-                      component={Link}
-                      to={`${ENDPOINT_BASE_URL}/${endpoint.asset_id}`}
-                      classes={{ root: classes.item }}
-                    >
-                      <ListItemIcon>
-                        <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={(
-                          <div style={bodyItemsStyles.bodyItems}>
-                            {headers.map(header => (
-                              <div
-                                key={header.field}
-                                style={{
-                                  ...bodyItemsStyles.bodyItem,
-                                  ...inlineStyles[header.field],
-                                }}
-                              >
-                                {header.value(endpoint)}
-                              </div>
-                            ))}
-                          </div>
+                    {rowLink
+                      ? (
+                          <ListItemButton component={Link} to={rowLink} classes={{ root: classes.item }}>
+                            {rowContent}
+                          </ListItemButton>
+                        )
+                      : (
+                          <ListItemButton classes={{ root: classes.item }} style={{ cursor: 'default' }} disableRipple>
+                            {rowContent}
+                          </ListItemButton>
                         )}
-                      />
-                    </ListItemButton>
                   </ListItem>
                 );
               })

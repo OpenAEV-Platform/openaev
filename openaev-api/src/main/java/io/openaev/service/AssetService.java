@@ -1,12 +1,15 @@
 package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetType;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.constraints.NotBlank;
@@ -14,6 +17,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +53,25 @@ public class AssetService {
    */
   public List<Asset> assets(@NotNull final Specification<Asset> specification) {
     return fromIterable(this.assetRepository.findAll(specification));
+  }
+
+  /**
+   * Paginated search over EVERY asset type (base Asset, Endpoint, SecurityPlatform, AI targets)
+   * for the unified asset inventory. Queries the base {@code assets} table so all categories are
+   * returned; filters/sorts must therefore reference base {@link Asset} attributes (endpoint-only
+   * fields such as platform / arch live on the subclass and cannot be resolved on the base root).
+   */
+  public Page<Asset> searchAssets(@NotNull final SearchPaginationInput searchPaginationInput) {
+    // Security platforms are a distinct concept with their own inventory, so they are excluded
+    // here; the unified asset inventory lists endpoints, AI targets and every other asset category.
+    Specification<Asset> notSecurityPlatform =
+        (root, query, cb) ->
+            cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE);
+    return buildPaginationJPA(
+        (Specification<Asset> specification, Pageable pageable) ->
+            this.assetRepository.findAll(notSecurityPlatform.and(specification), pageable),
+        searchPaginationInput,
+        Asset.class);
   }
 
   public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {

@@ -7,6 +7,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ResourceType;
@@ -19,6 +20,7 @@ import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
@@ -47,8 +49,11 @@ public class EndpointApi extends RestBehavior {
 
   public static final String ENDPOINT_URI = "/api/endpoints";
   private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
+  public static final String ASSET_URI = "/api/assets";
+  private static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
 
   private final EndpointService endpointService;
+  private final AssetService assetService;
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
@@ -160,6 +165,24 @@ public class EndpointApi extends RestBehavior {
         endpointPage.getContent().stream().map(endpointMapper::toEndpointOutput).toList();
     return new PageImpl<>(
         endpointOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
+  }
+
+  /**
+   * Unified asset inventory: paginated search over EVERY asset type (endpoints, AI targets,
+   * identities, cloud / web / network / generic assets). Endpoints keep their agents/platform in
+   * the output; other asset types list with those fields empty. Filters/sorts must reference base
+   * {@link Asset} attributes (endpoint-only facets such as platform/arch cannot resolve here).
+   */
+  @LogExecutionTime
+  @PostMapping({ASSET_URI + "/search", TENANT_ASSET_URI + "/search"})
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  public Page<EndpointOutput> assets(
+      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+    Page<Asset> assetPage = assetService.searchAssets(searchPaginationInput);
+    List<EndpointOutput> assetOutputs =
+        assetPage.getContent().stream().map(endpointMapper::toAssetOutput).toList();
+    return new PageImpl<>(assetOutputs, assetPage.getPageable(), assetPage.getTotalElements());
   }
 
   @LogExecutionTime

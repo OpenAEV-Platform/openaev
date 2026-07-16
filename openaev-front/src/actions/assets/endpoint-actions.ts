@@ -34,6 +34,13 @@ export const searchEndpoints = (searchPaginationInput: SearchPaginationInput) =>
   return simplePostCall(uri, data);
 };
 
+// Unified asset inventory: returns EVERY asset type (endpoints, AI targets, identities, cloud /
+// web / network / generic). Endpoints keep their agents/platform; other types list with those
+// empty. Filters/sorts must reference base asset fields (no endpoint-only platform/arch facets).
+export const searchAssets = (searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall('/api/assets/search', searchPaginationInput);
+};
+
 export const findEndpoints = (endpointIds: string[]) => {
   const data = endpointIds;
   const uri = `${ENDPOINT_URI}/find`;

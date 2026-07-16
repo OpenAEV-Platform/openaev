@@ -7,7 +7,7 @@ import { type UserHelper } from '../../../../../actions/helper';
 import { useHelper } from '../../../../../store';
 import { type EndpointOverviewOutput as EndpointType } from '../../../../../utils/api-types';
 import { truncate } from '../../../../../utils/String';
-import EndpointPopover from '../EndpointPopover';
+import AssetPopover from '../AssetPopover';
 
 const useStyles = makeStyles()(() => ({
   title: { float: 'left' },
@@ -38,7 +38,7 @@ const EndpointHeader = () => {
         </Typography>
       </Tooltip>
       <div className={classes.actions}>
-        <EndpointPopover
+        <AssetPopover
           endpoint={{
             ...endpoint,
             type: 'static',

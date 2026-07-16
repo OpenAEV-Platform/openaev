@@ -5,27 +5,30 @@ import { deleteEndpoint } from '../../../../actions/assets/endpoint-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
-import { type EndpointOutput, type EndpointOverviewOutput } from '../../../../utils/api-types';
+import { type AssetOutput, type EndpointOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointUpdate from './EndpointUpdate';
 
-export interface EndpointPopoverProps {
+export interface AssetPopoverProps {
   inline?: boolean;
-  endpoint: EndpointOutput & EndpointOverviewOutput;
+  // A popover row is a generic asset: the endpoint list is reused for asset groups, which can hold
+  // any asset type (endpoints, AI targets, identities, ...). Only the common asset fields are read
+  // here; endpoint-only actions (update / delete) are gated by the optional onUpdate / onDelete.
+  endpoint: AssetOutput & Partial<EndpointOverviewOutput>;
   assetGroupId?: string;
   assetGroupEndpointIds?: string[];
   removeFromContextLabel?: string | null;
   onRemoveFromContext?: (assetId: string) => void;
-  onRemoveEndpointFromAssetGroup?: (asset: EndpointOutput) => void;
+  onRemoveEndpointFromAssetGroup?: (asset: AssetOutput) => void;
   onUpdate?: (result: EndpointOverviewOutput) => void;
   onDelete?: (result: string) => void;
   disabled?: boolean;
   agentless?: boolean;
 }
 
-const EndpointPopover: FunctionComponent<EndpointPopoverProps> = ({
+const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
   inline,
   endpoint,
   assetGroupId,
@@ -134,4 +137,4 @@ const EndpointPopover: FunctionComponent<EndpointPopoverProps> = ({
   );
 };
 
-export default EndpointPopover;
+export default AssetPopover;

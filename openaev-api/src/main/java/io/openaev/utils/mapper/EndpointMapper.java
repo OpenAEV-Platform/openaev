@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -60,6 +61,32 @@ public class EndpointMapper {
         .cloudNativeType(endpoint.getCloudNativeType())
         .cloudRegion(endpoint.getCloudRegion())
         .linkedPerson(endpoint.getLinkedPerson())
+        .build();
+  }
+
+  /**
+   * Converts ANY asset to the inventory output DTO. Endpoints keep their full representation
+   * (agents, platform, arch); every other asset type (AI targets, identities, cloud / web /
+   * network / generic assets) is mapped from the shared {@link Asset} fields with no agents and no
+   * platform/arch, so the unified asset inventory can list all categories side by side.
+   */
+  public EndpointOutput toAssetOutput(Asset asset) {
+    // Unproxy before the instanceof so a lazily-loaded Asset proxy still reveals the Endpoint
+    // subtype (otherwise endpoints would lose their agents/platform in the unified list).
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
+      return toEndpointOutput(endpoint);
+    }
+    return EndpointOutput.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .type(asset.getType())
+        .externalReference(asset.getExternalReference())
+        .agents(emptySet())
+        .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(asset.getCategory())
+        .subcategory(asset.getSubcategory())
+        .criticality(asset.getCriticality())
+        .internetFacing(asset.getInternetFacing())
         .build();
   }
 
