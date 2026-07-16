@@ -370,8 +370,11 @@ public class SecurityCoverageService {
 
     DomainObject sdo = (DomainObject) stixParser.parseObject(coverage.getContent());
     sdo.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
-    sdo.setProperty(CommonProperties.TENANT_ID.toString(), new StixString(tenant.getId()));
-    sdo.setProperty(CommonProperties.TENANT_NAME.toString(), new StixString(tenant.getName()));
+    if (previewFeatureService.isFeatureEnabled(
+        PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+      sdo.setProperty(CommonProperties.TENANT_ID.toString(), new StixString(tenant.getId()));
+      sdo.setProperty(CommonProperties.TENANT_NAME.toString(), new StixString(tenant.getName()));
+    }
 
     Bundle bundle =
         new Bundle(new Identifier("bundle", UUID.randomUUID().toString()), List.of(sdo));
@@ -499,10 +502,14 @@ public class SecurityCoverageService {
     }
 
     coverage.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
-    coverage.setProperty(
-        CommonProperties.TENANT_ID.toString(), new StixString(simulation.getTenant().getId()));
-    coverage.setProperty(
-        CommonProperties.TENANT_NAME.toString(), new StixString(simulation.getTenant().getName()));
+    if (previewFeatureService.isFeatureEnabled(
+        PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+      coverage.setProperty(
+          CommonProperties.TENANT_ID.toString(), new StixString(simulation.getTenant().getId()));
+      coverage.setProperty(
+          CommonProperties.TENANT_NAME.toString(),
+          new StixString(simulation.getTenant().getName()));
+    }
     coverage.setProperty(ExtendedProperties.COVERAGE.toString(), getOverallCoverage(simulation));
     objects.add(coverage);
 
@@ -592,9 +599,11 @@ public class SecurityCoverageService {
                       RelationshipObject.Properties.TARGET_REF.toString(),
                       platformIdentity.getId(),
                       ExtendedProperties.COVERED.toString(),
-                      new io.openaev.stix.types.Boolean(covered),
-                      CommonProperties.EXTERNAL_URI.toString(),
-                      new StixString(externalLink))));
+                      new io.openaev.stix.types.Boolean(covered))));
+      if (previewFeatureService.isFeatureEnabled(
+          PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+        sro.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+      }
       sroStartTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
       sroStopTime.ifPresent(
@@ -636,10 +645,11 @@ public class SecurityCoverageService {
                       RelationshipObject.Properties.TARGET_REF.toString(),
                       new Identifier(stixRef.getStixRef()),
                       ExtendedProperties.COVERED.toString(),
-                      new io.openaev.stix.types.Boolean(covered),
-                      CommonProperties.EXTERNAL_URI.toString(),
-                      new StixString(externalLink))));
-
+                      new io.openaev.stix.types.Boolean(covered))));
+      if (previewFeatureService.isFeatureEnabled(
+          PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE)) {
+        sro.setProperty(CommonProperties.EXTERNAL_URI.toString(), new StixString(externalLink));
+      }
       sroStartTime.ifPresent(
           instant -> sro.setProperty(RelationshipObject.Properties.START_TIME.toString(), instant));
       sroStopTime.ifPresent(
