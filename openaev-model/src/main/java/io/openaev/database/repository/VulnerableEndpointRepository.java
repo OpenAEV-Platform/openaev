@@ -13,8 +13,8 @@ import org.springframework.stereotype.Repository;
 public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, String> {
 
   @Query(
-          value =
-                  """
+      value =
+          """
             WITH changed_vulnerable_endpoints AS (
                 SELECT DISTINCT a.asset_id, i.inject_exercise
                 FROM findings f
@@ -75,7 +75,7 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
             GROUP BY a.asset_id, rve.inject_exercise, e.exercise_updated_at, e.exercise_created_at
             ORDER BY e.exercise_updated_at ASC
             """,
-          nativeQuery = true)
+      nativeQuery = true)
   List<RawVulnerableEndpointIndexing> findForIndexing(
-          @Param("from") Instant from, @Param("limit") int limit);
+      @Param("from") Instant from, @Param("limit") int limit);
 }
