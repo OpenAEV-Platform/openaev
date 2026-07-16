@@ -127,8 +127,8 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   }
 
   /**
-   * Flushes pending JPA changes, clears the 1st-level cache, runs the job, and forces an OpenSearch
-   * refresh so indexed documents become immediately searchable.
+   * Flushes pending JPA changes, clears the 1st-level cache, runs the job, and waits for ES async
+   * indexing to complete.
    */
   private void executeJobAndWait() {
     entityManager.flush();
