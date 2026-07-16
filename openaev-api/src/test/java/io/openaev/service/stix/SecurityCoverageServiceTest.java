@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
@@ -52,6 +54,7 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Autowired private ObjectMapper mapper;
   @Autowired private ResultUtils resultUtils;
+  @Autowired private OpenAEVConfig openAEVConfig;
   private Parser stixParser;
 
   @BeforeEach
@@ -229,6 +232,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           .whenIgnoringPaths(
               CommonProperties.MODIFIED.toString(),
               CommonProperties.EXTERNAL_URI.toString(),
+              CommonProperties.TENANT_ID.toString(),
+              CommonProperties.TENANT_NAME.toString(),
               CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
           .isEqualTo(expectedAssessment.toStix(mapper));
     }
@@ -314,6 +319,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     platformSdo.getId(),
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
+                    CommonProperties.EXTERNAL_URI.toString(),
+                    new StixString(
+                        openAEVConfig.getBaseUrl()
+                            + "/"
+                            + TenantContext.getCurrentTenant()
+                            + "/admin/simulations/"
+                            + exerciseWrapper.get().getScenario().getId()),
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
@@ -363,6 +375,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     new Identifier(stixRef.getStixRef()),
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
+                    CommonProperties.EXTERNAL_URI.toString(),
+                    new StixString(
+                        openAEVConfig.getBaseUrl()
+                            + "/"
+                            + TenantContext.getCurrentTenant()
+                            + "/admin/scenarios/"
+                            + exerciseWrapper.get().getScenario().getId()),
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
@@ -437,6 +456,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                       new Identifier(stixRef.getStixRef()),
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(true),
+                      CommonProperties.EXTERNAL_URI.toString(),
+                      new StixString(
+                          openAEVConfig.getBaseUrl()
+                              + "/"
+                              + TenantContext.getCurrentTenant()
+                              + "/admin/scenarios/"
+                              + exerciseWrapper.get().getScenario().getId()),
                       ExtendedProperties.COVERAGE.toString(),
                       toList(List.of(new Complex<>(new CoverageResult("VULNERABILITY", 100))))));
           assertThatJson(actualSro.toStix(mapper))
@@ -675,6 +701,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .whenIgnoringPaths(
             CommonProperties.MODIFIED.toString(),
             CommonProperties.EXTERNAL_URI.toString(),
+            CommonProperties.TENANT_ID.toString(),
+            CommonProperties.TENANT_NAME.toString(),
             CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
@@ -710,6 +738,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
+                  CommonProperties.EXTERNAL_URI.toString(),
+                  new StixString(
+                      openAEVConfig.getBaseUrl()
+                          + "/"
+                          + TenantContext.getCurrentTenant()
+                          + "/admin/scenarios/"
+                          + scenarioWrapper.get().getId()),
                   ExtendedProperties.COVERAGE.toString(),
                   toList(
                       List.of(
@@ -762,6 +797,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
+                  CommonProperties.EXTERNAL_URI.toString(),
+                  new StixString(
+                      openAEVConfig.getBaseUrl()
+                          + "/"
+                          + TenantContext.getCurrentTenant()
+                          + "/admin/scenarios/"
+                          + scenarioWrapper.get().getId()),
                   ExtendedProperties.COVERAGE.toString(),
                   toList(
                       List.of(

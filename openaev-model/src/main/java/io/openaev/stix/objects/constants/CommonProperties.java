@@ -11,6 +11,8 @@ public enum CommonProperties {
   MODIFIED("modified"),
   AUTO_ENRICHMENT_DISABLE("auto_enrichment_disable"),
   EXTERNAL_URI("external_uri"),
+  TENANT_ID("tenant_id"),
+  TENANT_NAME("tenant_name"),
   URI("uri"),
   REVOKED("revoked"),
   LABELS("labels"),
