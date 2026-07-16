@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
 import attackPathStatusColor from './attack-path-colors';
-import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue } from './attack-path-flow-helpers';
+import { applyFindingFilter, type AttackPathFindingFilter, buildClusteredAttackPathFlow, buildFindingPathFlow, ENDPOINT_BATCH_SIZE, FILTER_TO_FINDING_TYPES, FINDING_BATCH_SIZE, maskFindingValue, type PathFinding } from './attack-path-flow-helpers';
 import AttackPathFlow, { type AttackPathFocusRequest } from './AttackPathFlow';
 import AttackPathLegend from './AttackPathLegend';
 import ExecutionResultTerminalPanel from './ExecutionResultTerminalPanel';
@@ -102,6 +102,11 @@ const SimulationAttackPath = () => {
   const [highlightedExecutionIds, setHighlightedExecutionIds] = useState<Set<string>>(new Set());
   const feedRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Focused "attack path to this finding" view: when set, the graph shows only the injector(s) ->
+  // endpoint -> finding path that produced the finding picked in the drawer. fitNonce bumps to frame it.
+  const [pathFinding, setPathFinding] = useState<PathFinding | null>(null);
+  const [fitNonce, setFitNonce] = useState(0);
+
   // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
   const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AttackPathExecutionDetailDTO | null>(null);
@@ -138,6 +143,7 @@ const SimulationAttackPath = () => {
     setDetailExecutionId(null);
     setHighlightedExecutionIds(new Set());
     setFocusRequest(null);
+    setPathFinding(null);
     fetchAttackPathGraph(simulationId, 'collapsed')
       .then((r) => {
         if (seq === graphSeq.current) {
@@ -322,28 +328,57 @@ const SimulationAttackPath = () => {
     });
   }, [injectorEndpointRefs, simulationId]);
 
-  // Click a finding cluster: the header expands/collapses it into its individual findings (fetched
-  // once, batched); an overflow reveals the next batch.
-  const onFindingClusterClick = useCallback((typeFindings: string, injectorId: string, kind: 'header' | 'overflow') => {
-    const clusterId = `cl-ft-${typeFindings}-${injectorId}`;
-    if (kind === 'overflow') {
-      setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
-      return;
-    }
-    if (expandedFindingClusters.has(clusterId)) {
-      setExpandedFindingClusters((prev) => {
-        const next = new Set(prev);
-        next.delete(clusterId);
-        return next;
-      });
-      return;
-    }
-    setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
-    setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
-    if (!findingsByCluster.has(clusterId)) {
-      fetchClusterFindings(clusterId, typeFindings, injectorId);
-    }
-  }, [expandedFindingClusters, findingsByCluster, fetchClusterFindings]);
+  // Fetch one endpoint's findings of a type (deduplicated) — for a per-endpoint finding cluster when
+  // the injector's endpoints are expanded.
+  const fetchEndpointClusterFindings = useCallback((clusterId: string, type: string, ref: string) => {
+    fetchEndpointFindings(simulationId, ref)
+      .then((r) => {
+        const seen = new Set<string>();
+        const deduped: AttackPathNodeDTO[] = [];
+        for (const f of r.data.findings ?? []) {
+          if (f.typeFindings !== type) {
+            continue;
+          }
+          const key = f.value ?? f.id ?? '';
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            deduped.push(f);
+          }
+        }
+        setFindingsByCluster(prev => new Map(prev).set(clusterId, deduped));
+      })
+      .catch(() => undefined);
+  }, [simulationId]);
+
+  // Click a finding cluster (per injector when collapsed, per endpoint when expanded): the header
+  // expands/collapses it into its individual findings (fetched once, batched); an overflow reveals the
+  // next batch. The cluster carries its own key; an endpoint ref scopes the fetch to that host.
+  const onFindingClusterClick = useCallback(
+    (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => {
+      if (kind === 'overflow') {
+        setFindingBatch(prev => new Map(prev).set(clusterId, (prev.get(clusterId) ?? 0) + FINDING_BATCH_SIZE));
+        return;
+      }
+      if (expandedFindingClusters.has(clusterId)) {
+        setExpandedFindingClusters((prev) => {
+          const next = new Set(prev);
+          next.delete(clusterId);
+          return next;
+        });
+        return;
+      }
+      setExpandedFindingClusters(prev => new Set(prev).add(clusterId));
+      setFindingBatch(prev => new Map(prev).set(clusterId, FINDING_BATCH_SIZE));
+      if (!findingsByCluster.has(clusterId)) {
+        if (endpointRef) {
+          fetchEndpointClusterFindings(clusterId, typeFindings ?? '', endpointRef);
+        } else if (injectorId) {
+          fetchClusterFindings(clusterId, typeFindings ?? '', injectorId);
+        }
+      }
+    },
+    [expandedFindingClusters, findingsByCluster, fetchClusterFindings, fetchEndpointClusterFindings],
+  );
 
   // Open the findings drawer for a summary category and load its first page (backend, masked server-side).
   const openFindingsDrawer = useCallback((category: string, label: string) => {
@@ -360,23 +395,29 @@ const SimulationAttackPath = () => {
       .finally(() => setFindingsLoading(false));
   }, [simulationId]);
 
-  // Cross-focus: clicking a finding item closes the drawer, focuses its endpoint on the map
-  // (center + select), loads that endpoint's feed, and highlights the producing executions in it.
+  // Click a finding item in the drawer: close the drawer and refocus the map on ONLY the attack path
+  // that produced it (injector(s) -> endpoint -> finding), fitted to an overview. The endpoint's feed
+  // still loads for detail, with the producing executions highlighted.
   const onFindingItemClick = useCallback(
     (item: AttackPathFindingItemDTO) => {
       if (!item.endpointNodeId || !item.endpointKey) {
         return;
       }
       setDrawerCategory(null);
+      setActiveCard(null);
+      setSelectedFindingId(null);
+      setPathFinding({
+        endpointNodeId: item.endpointNodeId,
+        endpointKey: item.endpointKey,
+        type: item.type ?? '',
+        value: item.value ?? '',
+      });
+      setFitNonce(n => n + 1);
       // Use the endpoint's friendly label (hostname) for the panel title, like a direct node click.
       const node = (dto?.attackPathNodes ?? []).find(n => n.id === item.endpointNodeId);
       const label = node?.hostname || node?.label || item.endpointKey;
       onEndpointClick(item.endpointNodeId, item.endpointKey, label);
       setHighlightedExecutionIds(new Set(item.executionIds ?? []));
-      setFocusRequest(prev => ({
-        nodeId: item.endpointNodeId as string,
-        nonce: (prev?.nonce ?? 0) + 1,
-      }));
     },
     [onEndpointClick, dto?.attackPathNodes],
   );
@@ -409,17 +450,24 @@ const SimulationAttackPath = () => {
   // Base clustered flow — recomputed when the graph data, endpoint expansion, or finding drill-down
   // changes (positions are deterministic, so it stays off the pure selection/focus path).
   const baseFlow = useMemo(
-    () => (dto
-      ? buildClusteredAttackPathFlow(dto, endpointBatch, {
-          expanded: expandedFindingClusters,
-          findingsByCluster,
-          batch: findingBatch,
-        })
-      : {
+    () => {
+      if (!dto) {
+        return {
           nodes: [],
           edges: [],
-        }),
-    [dto, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
+        };
+      }
+      // Focused finding-path view takes over the whole graph until it is cleared.
+      if (pathFinding) {
+        return buildFindingPathFlow(dto, pathFinding);
+      }
+      return buildClusteredAttackPathFlow(dto, endpointBatch, {
+        expanded: expandedFindingClusters,
+        findingsByCluster,
+        batch: findingBatch,
+      });
+    },
+    [dto, pathFinding, endpointBatch, expandedFindingClusters, findingsByCluster, findingBatch],
   );
 
   // Click a leaf finding: highlight its full attack path (injector -> endpoint cluster -> finding
@@ -439,6 +487,13 @@ const SimulationAttackPath = () => {
 
   // Mark the selected endpoint, the highlighted finding path (blue), then apply the card focus.
   const { nodes, edges } = useMemo(() => {
+    // The focused finding-path view is already fully highlighted by its builder; render it as-is.
+    if (pathFinding) {
+      return {
+        nodes: baseFlow.nodes,
+        edges: baseFlow.edges,
+      };
+    }
     // Walk up from the clicked finding to its injector so the whole path lights up.
     const pathSet = new Set<string>();
     if (selectedFindingId) {
@@ -463,7 +518,7 @@ const SimulationAttackPath = () => {
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, selectedNodeId, selectedFindingId, focus]);
+  }, [baseFlow, pathFinding, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
 
@@ -543,6 +598,14 @@ const SimulationAttackPath = () => {
   const clearFocus = () => {
     setActiveCard(null);
     setDrawerCategory(null);
+  };
+
+  // Leave the focused finding-path view and restore the full clustered graph (fitted).
+  const clearPathFocus = () => {
+    setPathFinding(null);
+    setSelectedNodeId(null);
+    setHighlightedExecutionIds(new Set());
+    setFitNonce(n => n + 1);
   };
 
   // Keep the selected value in the options so MUI does not warn when the current simulation has no
@@ -671,6 +734,17 @@ const SimulationAttackPath = () => {
             sx={{ alignSelf: 'center' }}
           />
         )}
+        {pathFinding && (
+          <Chip
+            label={t('Back to full graph')}
+            size="small"
+            color="primary"
+            variant="outlined"
+            onDelete={clearPathFocus}
+            onClick={clearPathFocus}
+            sx={{ alignSelf: 'center' }}
+          />
+        )}
       </div>
 
       <div style={{
@@ -714,6 +788,7 @@ const SimulationAttackPath = () => {
                 onFindingClusterClick={onFindingClusterClick}
                 onFindingSelect={onFindingSelect}
                 focusRequest={focusRequest}
+                fitRequest={fitNonce}
               />
               <AttackPathLegend />
             </ReactFlowProvider>

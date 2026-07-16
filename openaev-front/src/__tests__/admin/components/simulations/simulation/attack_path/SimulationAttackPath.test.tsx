@@ -8,6 +8,7 @@ import SimulationAttackPath from '../../../../../../admin/components/simulations
 
 type FlowProps = {
   focusRequest?: { nodeId: string };
+  fitRequest?: number;
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
 };
 
@@ -157,7 +158,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     return render(<SimulationAttackPath />, { wrapper });
   };
 
-  it('opens a category drawer, lists the fetched findings, and focuses the endpoint on item click', async () => {
+  it('opens a category drawer, lists the findings, and shows the finding attack path on item click', async () => {
     setup();
 
     // Widgets appear once the graph counters are loaded; open the credentials drawer.
@@ -169,10 +170,11 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     const item = await screen.findByText('admin:••••');
     fireEvent.click(item);
 
-    // Cross-focus: the endpoint's feed is loaded and the map receives a focus request on it.
+    // Clicking the finding refocuses the map on its attack path (fit requested) and loads the
+    // endpoint's feed for detail.
     await waitFor(() => {
       expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x');
-      expect(mocks.flowProps.current?.focusRequest?.nodeId).toBe(ENDPOINT_NODE);
+      expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     });
 
     // The feed panel is titled with the endpoint's friendly hostname, not the raw key.

@@ -32,15 +32,17 @@ interface AttackPathFlowProps {
   edges: AttackPathFlowEdge[];
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onClusterClick?: (injectorId: string, kind: 'header' | 'overflow') => void;
-  onFindingClusterClick?: (typeFindings: string, injectorId: string, kind: 'header' | 'overflow') => void;
+  onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow') => void;
   onFindingSelect?: (nodeId: string) => void;
   focusRequest?: AttackPathFocusRequest | null;
+  // A bump to fit the whole graph in view (used when switching to the focused finding-path view).
+  fitRequest?: number;
 }
 
 // Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports node clicks up
 // to the page (endpoint drill-down, cluster expand, finding-type focus, finding path highlight). A
 // finding-item click in the drawer can also request a cross-focus onto an endpoint node.
-const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindingClusterClick, onFindingSelect, focusRequest }: AttackPathFlowProps) => {
+const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindingClusterClick, onFindingSelect, focusRequest, fitRequest }: AttackPathFlowProps) => {
   const theme = useTheme();
   const reactFlow = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(nodes);
@@ -66,6 +68,17 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindi
     }
   }, [focusRequest, reactFlow]);
 
+  // Fit the whole graph in view: used when switching to (or clearing) the focused finding-path view,
+  // so the small path — or the restored full graph — is framed. The nonce re-fires on repeat.
+  useEffect(() => {
+    if (fitRequest) {
+      // Let the new nodes mount before measuring, then frame them all.
+      const id = window.setTimeout(() => reactFlow.fitView({ duration: 600 }), 60);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+  }, [fitRequest, reactFlow]);
+
   return (
     <ReactFlow
       nodes={flowNodes}
@@ -78,8 +91,8 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindi
           onEndpointClick?.(node.id, data.ref, data.label);
         } else if (node.type === AP_FLOW_NODE_TYPE.endpointCluster && data.injectorId) {
           onClusterClick?.(data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
-        } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.typeFindings && data.injectorId) {
-          onFindingClusterClick?.(data.typeFindings, data.injectorId, data.clusterKind === 'overflow' ? 'overflow' : 'header');
+        } else if (node.type === AP_FLOW_NODE_TYPE.findingCluster && data.clusterId) {
+          onFindingClusterClick?.(data.clusterId, data.typeFindings, data.injectorId, data.endpointRef, data.clusterKind === 'overflow' ? 'overflow' : 'header');
         } else if (node.type === AP_FLOW_NODE_TYPE.finding) {
           onFindingSelect?.(node.id);
         }
