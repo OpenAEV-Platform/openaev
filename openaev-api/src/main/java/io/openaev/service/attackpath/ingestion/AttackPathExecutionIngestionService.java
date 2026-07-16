@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Attack-path ingestion — Phase A (issue 5048, #203). At RUN, create one EXECUTION row per resolved
  * edge from the run's source/target resolution, on the store columns the read already consumes. The
  * tenant is set by {@code TenantBaseListener} from the current tenant context. #204/#202 update
- * these rows later (Phase B), found by the same deterministic id.
+ * these rows later (Phase B), found by the queryable {@code (inject_id, agent_id)} written here.
  */
 @Service
 @RequiredArgsConstructor
@@ -56,6 +56,9 @@ public class AttackPathExecutionIngestionService {
     // Deterministic natural key so #204/#202 (Phase B) and retries converge on this same row.
     row.setId(AttackPathIds.executionNode(ctx.injectExecId(), edge.targetKey(), edge.agentId()));
     row.setSimulationId(ctx.simulationId());
+    // Queryable lookup key so #204's per-output update finds the run's rows by (inject id, agent
+    // id).
+    row.setInjectId(ctx.injectExecId());
     row.setStepId(ctx.stepId());
     row.setStepTemplateId(ctx.stepTemplateId());
     row.setExecutedAt(ctx.executedAt());

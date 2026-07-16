@@ -54,6 +54,7 @@ erDiagram
         varchar id PK
         varchar tenant_id FK
         varchar simulation_id "ref exercises, no FK"
+        varchar inject_id "ref injects, no FK; #204 per-output lookup key"
         text source_kind "INJECTOR or AGENT_ASSET"
         varchar source_injector
         varchar target_asset_id "ref assets, no FK"

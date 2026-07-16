@@ -84,6 +84,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
 
     assertThat(row.getTenant().getId()).isEqualTo(tenant.getId());
     assertThat(row.getSimulationId()).isEqualTo("SIM-INGEST");
+    assertThat(row.getInjectId()).isEqualTo("exec-1");
     assertThat(row.getStepId()).isEqualTo("step-1");
     assertThat(row.getSourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(row.getSourceAssetId()).isEqualTo("src-asset-1");

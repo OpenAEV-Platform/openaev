@@ -44,6 +44,9 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_simulation_id", nullable = false)
   private String simulationId;
 
+  @Column(name = "attackpath_execution_inject_id")
+  private String injectId;
+
   @Column(name = "attackpath_execution_step_id")
   private String stepId;
 
