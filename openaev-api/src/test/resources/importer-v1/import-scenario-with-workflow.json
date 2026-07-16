@@ -80,7 +80,7 @@
           {
             "condition_id": "cond-0001",
             "condition_key": "status",
-            "condition_key_type": "status",
+            "condition_key_type": "text",
             "condition_type": "EQ",
             "condition_value": "SUCCESS",
             "condition_name": "root",
@@ -107,7 +107,7 @@
           {
             "condition_id": "cond-0003",
             "condition_key": "status",
-            "condition_key_type": "status",
+            "condition_key_type": "text",
             "condition_type": "EQ",
             "condition_value": "READY",
             "condition_name": "dep",
