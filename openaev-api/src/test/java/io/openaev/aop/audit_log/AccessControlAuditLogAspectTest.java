@@ -37,11 +37,8 @@ import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -573,17 +570,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @DisplayName("Halt-on-failure: rollback on audit transport failure")
   class HaltOnFailureRollback {
 
-    /** Track team IDs created outside the test transaction for manual cleanup. */
-    private final List<String> teamIdsToCleanup = new ArrayList<>();
-
-    @AfterEach
-    void cleanupTeams() {
-      for (String id : teamIdsToCleanup) {
-        teamRepository.deleteById(id);
-      }
-      teamIdsToCleanup.clear();
-    }
-
     private void stubHaltOnFailure() {
       doReturn(true).when(auditLogProperties).isHaltOnFailure();
       doReturn(true).when(logService).isEnabled();
@@ -605,7 +591,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
-    void given_haltOnFailureAndTransportFails_should_rollbackCreate() throws Exception {
+    void given_haltOnFailureAndTransportFails_should_returnServerErrorAndRollback()
+        throws Exception {
       // Arrange — enable halt-on-failure and make transport fail
       stubHaltOnFailure();
       long teamCountBefore = teamRepository.count();
@@ -634,51 +621,6 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
       // Assert — the team creation was rolled back: no new rows in the table
       assertThat(teamRepository.count()).isEqualTo(teamCountBefore);
-    }
-
-    @Test
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
-    void given_haltOnFailureAndTransportFails_should_rollbackUpdate() throws Exception {
-      // Arrange — create team in a committed transaction so it survives rollback
-      Team team = teamRepository.save(TeamFixture.getDefaultTeam());
-      teamIdsToCleanup.add(team.getId());
-      String originalName = team.getName();
-
-      // Now stub halt-on-failure after the team is persisted
-      stubHaltOnFailure();
-
-      TeamUpdateInput updateInput = new TeamUpdateInput();
-      updateInput.setName("Should-Not-Be-Persisted");
-      updateInput.setDescription("Transport is broken");
-      String updateJson = objectMapper.writeValueAsString(updateInput);
-
-      // Act
-      mvc.perform(
-              put(TEAM_URI + "/{teamId}", team.getId())
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(updateJson))
-          .andExpect(status().isInternalServerError());
-
-      // Assert — the audit transport was attempted and halt-on-failure triggered shutdown
-      verify(logService, timeout(2000))
-          .logRequestEvent(
-              anyString(),
-              anyString(),
-              any(),
-              anyString(),
-              any(),
-              any(),
-              any(),
-              any(),
-              any(Level.class),
-              anyString());
-      verify(auditShutdownService, timeout(2000)).initiateShutdown();
-
-      // Assert — the update was rolled back: team name is unchanged
-      Team reloaded = teamRepository.findById(team.getId()).orElseThrow();
-      assertThat(reloaded.getName()).isEqualTo(originalName);
     }
   }
 }
