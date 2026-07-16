@@ -316,7 +316,7 @@ const TopBar: FunctionComponent = () => {
                             </Badge>
                           </a>
                         ) : (
-                          <Link className={classes.xtmItem} to="/admin/settings/experience" onClick={handleCloseXtm}>
+                          <Link className={classes.xtmItem} to="/admin/redirect/connect-xtm-hub" onClick={handleCloseXtm}>
                             <Badge variant="dot" color="warning">
                               {xtmhubBadgeImg}
                             </Badge>
