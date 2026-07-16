@@ -114,10 +114,10 @@ class ExecutorHelperTest {
   }
 
   @Test
-  @DisplayName("Should keep existing location placeholder behavior")
-  void shouldKeepExistingLocationPlaceholderBehavior() {
+  @DisplayName("Should replace an unquoted location placeholder")
+  void given_unquotedLocation_should_replacePlaceholder() {
     // prepare
-    String command = "pwd=\"#{location}\"";
+    String command = "cd #{location}";
 
     // act
     String result =
@@ -125,7 +125,7 @@ class ExecutorHelperTest {
             PLATFORM_TYPE.Linux, command, INJECT_ID, AGENT_ID, TENANT_ID, TOKEN);
 
     // assert
-    assertThat(result).isEqualTo("pwd=" + ExecutorHelper.UNIX_LOCATION_PATH);
+    assertThat(result).isEqualTo("cd " + ExecutorHelper.UNIX_LOCATION_PATH);
   }
 
   @Test
@@ -188,6 +188,35 @@ class ExecutorHelperTest {
 
     // Assert
     assertThat(result).isEqualTo("curl -H \"Authorization: " + TOKEN + "\" " + MAX_SIZE);
+  }
+
+  @Test
+  @DisplayName("Should replace token and payload location placeholders for MacOS platform")
+  void shouldReplaceTokenForMacOS() {
+    // prepare
+    String command = "curl -H \"Authorization: #{token}\" #{payload_location}";
+
+    // Act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.MacOS,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
+
+    // assert
+    assertThat(result)
+        .isEqualTo(
+            "curl -H \"Authorization: "
+                + TOKEN
+                + "\" "
+                + ExecutorHelper.UNIX_PAYLOAD_LOCATION_PATH);
   }
 
   @Test
