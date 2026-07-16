@@ -30,8 +30,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
+import org.opensearch.client.opensearch.OpenSearchClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -127,25 +129,50 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   }
 
   /**
-   * Flushes pending JPA changes, clears the 1st-level cache, runs the job, and waits for ES async
-   * indexing to complete.
+   * Flushes pending JPA changes, clears the 1st-level cache, runs the job, and forces an OpenSearch
+   * refresh so indexed documents become immediately searchable.
    */
   private void executeJobAndWait() {
     entityManager.flush();
     entityManager.clear();
     engineService.bulkProcessing(engineContext.getModels().stream());
-    // Wait for OpenSearch refresh cycle (default 1s) so indexed documents become searchable.
+    forceOpenSearchRefresh();
+  }
+
+  /**
+   * Forces a search-engine index refresh so that documents indexed by {@code bulkProcessing} become
+   * immediately searchable. Supports both OpenSearch and Elasticsearch engines.
+   */
+  private void forceOpenSearchRefresh() {
     try {
-      Thread.sleep(1_500);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+      if (engineService instanceof io.openaev.service.OpenSearchService) {
+        OpenSearchClient client =
+            (OpenSearchClient) ReflectionTestUtils.getField(engineService, "openSearchClient");
+        if (client != null) {
+          client.indices().refresh(r -> r.index("_all"));
+        }
+      } else if (engineService instanceof io.openaev.service.ElasticService) {
+        co.elastic.clients.elasticsearch.ElasticsearchClient client =
+            (co.elastic.clients.elasticsearch.ElasticsearchClient)
+                ReflectionTestUtils.getField(engineService, "elasticClient");
+        if (client != null) {
+          client.indices().refresh(r -> r.index("_all"));
+        }
+      }
+    } catch (Exception e) {
+      // Fallback: wait for natural refresh cycle
+      try {
+        Thread.sleep(2_000);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
   private void awaitEndpointIndexedAssertion(Runnable assertion) {
     await()
-        .atMost(Duration.ofSeconds(15))
-        .pollInterval(Duration.ofMillis(500))
+        .atMost(Duration.ofSeconds(10))
+        .pollInterval(Duration.ofMillis(200))
         .untilAsserted(assertion::run);
   }
 
