@@ -109,8 +109,11 @@ public class TenantScopedTransaction {
    * single transaction, which dies at commit). Failures are collected and rethrown as one
    * aggregate, never swallowed. The work receives its tenant's scope, ready for write attribution.
    *
-   * <p>Jobs cannot write this loop themselves: enumerating tenants goes through the primitive (the
-   * resolver is package-private). This is the intended idiom for a per-tenant background job.
+   * <p>This is the intended idiom for the common SEQUENTIAL per-tenant job. The package-private
+   * resolver keeps the {@code allTenants()} resolution machinery internal; a job with a legitimate
+   * parallel fan-out keeps its own executor and opens one top-level transaction per task with
+   * {@code execute(TxCtx.forTenant(id), work)} instead (concurrent scoped transactions are isolated
+   * from each other, reads and writes, proven by test).
    *
    * <p>The active-tenant list is read ONCE, at loop start (a snapshot): a tenant created while the
    * loop runs is picked up on the next job fire, not mid-loop. This differs on purpose from {@code

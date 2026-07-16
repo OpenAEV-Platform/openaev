@@ -5,9 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.ImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -176,6 +183,66 @@ class TenantScopedTransactionIntegrationTest extends IntegrationTest {
               0L, fromOtherThread, "another thread carries no scope: the table must go dark");
           return null;
         });
+  }
+
+  @Test
+  @DisplayName("two concurrent scoped transactions stay isolated, for reads and writes")
+  void concurrentScopedTransactionsStayIsolated() throws Exception {
+    // The parallel per-tenant job shape (a dedicated executor, simultaneous tasks): the barrier
+    // holds BOTH transactions open at the same time, so the two scopes provably coexist. Each
+    // task must see exactly its own tenant's row, by name, and its rename must land on its own
+    // row only (ground truth read back through raw JDBC after both commits).
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    CyclicBarrier bothTransactionsOpen = new CyclicBarrier(2);
+    try {
+      CompletableFuture<List<String>> seenByA =
+          CompletableFuture.supplyAsync(
+              () -> renameInScope(tenantA, "renamed-by-a", bothTransactionsOpen), executor);
+      CompletableFuture<List<String>> seenByB =
+          CompletableFuture.supplyAsync(
+              () -> renameInScope(tenantB, "renamed-by-b", bothTransactionsOpen), executor);
+      assertEquals(List.of("mapper-a"), seenByA.get(30, TimeUnit.SECONDS));
+      assertEquals(List.of("mapper-b"), seenByB.get(30, TimeUnit.SECONDS));
+    } finally {
+      executor.shutdownNow();
+    }
+
+    assertEquals(
+        "renamed-by-a",
+        jdbc.queryForObject(
+            "SELECT mapper_name FROM import_mappers WHERE tenant_id = ?", String.class, tenantA),
+        "tenant A's concurrent write landed on tenant A's row only");
+    assertEquals(
+        "renamed-by-b",
+        jdbc.queryForObject(
+            "SELECT mapper_name FROM import_mappers WHERE tenant_id = ?", String.class, tenantB),
+        "tenant B's concurrent write landed on tenant B's row only");
+  }
+
+  private List<String> renameInScope(String tenantId, String newName, CyclicBarrier barrier) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> {
+          awaitOther(barrier);
+          List<String> namesSeen = new ArrayList<>();
+          for (ImportMapper mapper : importMapperRepository.findAll()) {
+            namesSeen.add(mapper.getName());
+            mapper.setName(newName);
+            importMapperRepository.save(mapper);
+          }
+          return namesSeen;
+        });
+  }
+
+  private static void awaitOther(CyclicBarrier barrier) {
+    try {
+      barrier.await(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("interrupted while waiting for the other transaction", e);
+    } catch (Exception e) {
+      throw new IllegalStateException("both scoped transactions were expected to be open", e);
+    }
   }
 
   @Test

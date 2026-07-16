@@ -30,8 +30,9 @@ startup task that writes it), read the background transaction primitive too:
 The HTTP path carries its scope through `@Transactional` + `TxCtx` + the aspect;
 the background path must NOT use `@Transactional` (its self-invocation trap
 silently skips both the transaction and the scope) and opens transactions through
-the primitive instead. Phase 5b converts those writers; it is the prerequisite for
-activating any table a background job writes.
+the primitive instead. Phase 5b (this runbook's background-writer conversion
+phase, defined below between Phase 5 and the go-live) converts those writers;
+it is the prerequisite for activating any table a background job writes.
 
 ## Inputs
 
@@ -518,6 +519,7 @@ scope choice or its blocker reason.
 |------------|-------|------|
 | does the same unit of work for every tenant, INSERTING or updating per-tenant rows | per tenant, one transaction each | `tenantTx.forEachTenant(ctx -> …)` |
 | already works on one known tenant | that tenant | `tenantTx.execute(TxCtx.forTenant(id), work)` |
+| already runs its tenants IN PARALLEL on its own executor (model: `ManagerIntegrationsSyncJob`) | per tenant, one transaction per task | keep the executor; each task calls `tenantTx.execute(TxCtx.forTenant(id), work)` |
 | does a single bulk read, or a bulk delete/update by predicate, spanning all tenants | all active tenants, resolved | `tenantTx.execute(TxCtx.allTenants(), work)` |
 
 A **row insert** cannot be attributed under `allTenants()`: a new row belongs to
@@ -627,8 +629,16 @@ over them:**
 - The per-tenant loop is serial and single-threaded, one transaction per tenant.
   For a job over thousands of tenants, watch total runtime against the job's
   window (`@DisallowConcurrentExecution` means an overrun skips the next fire).
-  No batching or parallelism is provided; if runtime is a concern, raise it
-  rather than working around the primitive.
+  The loop itself provides no batching or parallelism, but parallel per-tenant
+  work is NOT a workaround: a job with its own executor opens one transaction
+  per task (see the scope table above), and concurrent scoped transactions are
+  proven isolated by test, for reads and writes. Size such an executor against
+  the connection pool: each concurrent task holds one pooled connection for its
+  whole transaction, and an oversized fan-out starves the HTTP path. And await
+  every task before the job method returns: a fire-and-forget job defeats
+  `@DisallowConcurrentExecution`, so the next fire could open a second
+  transaction on the SAME tenant. If the SEQUENTIAL loop's runtime becomes the
+  concern, raise it rather than hand-rolling a second loop idiom.
 - Partial failure is visible only in logs. `forEachTenant` runs every tenant and
   throws one aggregate at the end, so the job is marked failed even when most
   tenants succeeded. Operators see "failed"; the per-tenant `log.warn` and the

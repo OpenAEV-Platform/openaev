@@ -44,8 +44,9 @@ class TenantScopeIntentionResolver {
 
   /**
    * The currently active tenant ids, read from the unscoped registry. Backs both the {@code
-   * allTenants()} resolution and the primitive's per-tenant loop. Package-private on purpose: jobs
-   * cannot enumerate tenants themselves, they go through the primitive.
+   * allTenants()} resolution and the primitive's per-tenant loop. Package-private to keep the
+   * resolution machinery internal; enumeration itself stays public through the tenant registry,
+   * which parallel per-tenant jobs legitimately use for their own fan-out.
    */
   List<String> activeTenantIds() {
     List<String> activeTenantIds = tenantRepository.findAllIdsByDeletedAtIsNull();

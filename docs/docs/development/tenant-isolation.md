@@ -237,6 +237,7 @@ Choosing the right method:
 |---|---|
 | one unit of work, one known tenant scope | `execute(ctx, work)` |
 | the same unit of work for every active tenant | `forEachTenant(work)` (see below) |
+| per-tenant work in parallel, on the job's own executor | one `execute(TxCtx.forTenant(id), work)` per task; concurrent scoped transactions are isolated from each other, and the job must await every task before returning |
 | isolate a failure, or narrow the scope, inside a running transaction | `executeNew(ctx, work)` |
 
 Where does the tenant id come from in a job? Usually from the data the job processes (an entity
