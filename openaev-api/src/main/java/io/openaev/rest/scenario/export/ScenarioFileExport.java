@@ -60,4 +60,7 @@ public class ScenarioFileExport {
 
   @JsonProperty(SCENARIO_VARIABLES)
   private List<Variable> variables;
+
+  @JsonProperty("scenario_workflow")
+  private Workflow workflow;
 }

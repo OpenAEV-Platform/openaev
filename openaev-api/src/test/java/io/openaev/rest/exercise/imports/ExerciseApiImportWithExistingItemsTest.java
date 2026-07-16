@@ -170,7 +170,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
 
   private byte[] doExport(ExerciseComposer.Composer composer) throws Exception {
     Exercise exercise = composer.persist().get();
-    return exportService.exportExerciseToZip(exercise, FULL_EXPORT_OPTIONS);
+    return exportService.exportExerciseToZip(exercise, FULL_EXPORT_OPTIONS, true);
   }
 
   @DisplayName(
