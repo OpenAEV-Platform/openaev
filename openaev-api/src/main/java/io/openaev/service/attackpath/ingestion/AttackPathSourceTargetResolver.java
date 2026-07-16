@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class AttackPathSourceTargetResolver {
 
   static final String SOURCE_INJECTOR = "INJECTOR";
-  static final String SOURCE_ASSET = "ASSET";
+  static final String SOURCE_AGENT_ASSET = "AGENT_ASSET";
   static final String TARGET_ASSET = "ASSET";
   static final String TARGET_DISCOVERED = "DISCOVERED";
   static final String SELECTOR_MANUAL = "manual";
@@ -36,10 +36,11 @@ public class AttackPathSourceTargetResolver {
         for (ResolvedTarget t : targets) {
           edges.add(
               edge(
-                  SOURCE_ASSET,
+                  SOURCE_AGENT_ASSET,
                   null,
                   agent.assetId(),
                   t,
+                  agent.agentId(),
                   agent.agentName(),
                   agent.agentPrivilege()));
         }
@@ -47,7 +48,7 @@ public class AttackPathSourceTargetResolver {
     } else {
       // Injector-based: source = the injector.
       for (ResolvedTarget t : targets) {
-        edges.add(edge(SOURCE_INJECTOR, input.injectorName(), null, t, null, null));
+        edges.add(edge(SOURCE_INJECTOR, input.injectorName(), null, t, null, null, null));
       }
     }
     return edges;
@@ -95,6 +96,7 @@ public class AttackPathSourceTargetResolver {
       String sourceInjector,
       String sourceAssetId,
       ResolvedTarget t,
+      String agentId,
       String agentName,
       String agentPrivilege) {
     return new ResolvedExecutionEdge(
@@ -108,6 +110,7 @@ public class AttackPathSourceTargetResolver {
         t.hostname(),
         t.ip(),
         t.platform(),
+        agentId,
         agentName,
         agentPrivilege);
   }

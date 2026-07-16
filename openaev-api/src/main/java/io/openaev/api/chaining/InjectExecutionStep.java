@@ -28,8 +28,10 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
@@ -80,6 +82,8 @@ public class InjectExecutionStep implements ActionStep {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
+  private final PreviewFeatureService previewFeatureService;
+  private final AttackPathExecutionIngestionService attackPathIngestion;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -186,6 +190,8 @@ public class InjectExecutionStep implements ActionStep {
                             + readyStep.getId()));
     prepareGetStatusPayloadFromInject(injectorContract);
 
+    recordAttackPathExecution(readyStep, inject, injectorContract);
+
     try {
       String data = setInjectId(inject.getId(), readyStep.getData());
       readyStep.setData(data);
@@ -210,6 +216,22 @@ public class InjectExecutionStep implements ActionStep {
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+    }
+  }
+
+  /**
+   * Records the attack-path execution rows at RUN (issue 5048, #203). Flag-gated by {@code
+   * ATTACK_PATH} and guarded: a failure here is logged and never fails the inject execution.
+   */
+  private void recordAttackPathExecution(
+      Step readyStep, Inject inject, InjectorContract injectorContract) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.ATTACK_PATH)) {
+      return;
+    }
+    try {
+      attackPathIngestion.onRun(readyStep, inject, injectorContract);
+    } catch (Exception e) {
+      log.warn("Attack-path ingestion skipped for inject {} (non-fatal)", inject.getId(), e);
     }
   }
 

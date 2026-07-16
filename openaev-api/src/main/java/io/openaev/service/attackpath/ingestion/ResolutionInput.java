@@ -32,6 +32,7 @@ public record ResolutionInput(
       String hostname,
       String ip,
       String platform,
+      String agentId,
       String agentName,
       String agentPrivilege) {}
 

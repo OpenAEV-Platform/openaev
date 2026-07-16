@@ -14,12 +14,18 @@ class AttackPathSourceTargetResolverTest {
   private final AttackPathSourceTargetResolver resolver = new AttackPathSourceTargetResolver();
 
   private static Endpoint asset(String id, String host, String ip, String platform) {
-    return new Endpoint(id, host, ip, platform, null, null);
+    return new Endpoint(id, host, ip, platform, null, null, null);
   }
 
   private static Endpoint agent(
-      String assetId, String host, String ip, String platform, String name, String priv) {
-    return new Endpoint(assetId, host, ip, platform, name, priv);
+      String assetId,
+      String host,
+      String ip,
+      String platform,
+      String agentId,
+      String name,
+      String priv) {
+    return new Endpoint(assetId, host, ip, platform, agentId, name, priv);
   }
 
   @Test
@@ -93,7 +99,15 @@ class AttackPathSourceTargetResolverTest {
         new ResolutionInput(
             true,
             null,
-            List.of(agent("agent-asset-1", "corp-dc", "10.0.0.5", "Windows", "agent-1", "admin")),
+            List.of(
+                agent(
+                    "agent-asset-1",
+                    "corp-dc",
+                    "10.0.0.5",
+                    "Windows",
+                    "agt-1",
+                    "agent-1",
+                    "admin")),
             PayloadKind.DNS_RESOLUTION,
             "internal.corp",
             List.of(),
@@ -105,7 +119,7 @@ class AttackPathSourceTargetResolverTest {
 
     assertThat(edges).hasSize(1);
     ResolvedExecutionEdge e = edges.get(0);
-    assertThat(e.sourceKind()).isEqualTo("ASSET");
+    assertThat(e.sourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(e.sourceAssetId()).isEqualTo("agent-asset-1");
     assertThat(e.sourceInjector()).isNull();
     assertThat(e.targetKind()).isEqualTo("DISCOVERED");
@@ -122,7 +136,15 @@ class AttackPathSourceTargetResolverTest {
         new ResolutionInput(
             true,
             null,
-            List.of(agent("agent-asset-1", "corp-dc", "10.0.0.5", "Windows", "agent-1", "admin")),
+            List.of(
+                agent(
+                    "agent-asset-1",
+                    "corp-dc",
+                    "10.0.0.5",
+                    "Windows",
+                    "agt-1",
+                    "agent-1",
+                    "admin")),
             PayloadKind.COMMAND,
             null,
             List.of("--target victim"),
@@ -134,7 +156,7 @@ class AttackPathSourceTargetResolverTest {
 
     assertThat(edges).hasSize(1);
     ResolvedExecutionEdge e = edges.get(0);
-    assertThat(e.sourceKind()).isEqualTo("ASSET");
+    assertThat(e.sourceKind()).isEqualTo("AGENT_ASSET");
     assertThat(e.sourceAssetId()).isEqualTo("agent-asset-1");
     assertThat(e.targetKind()).isEqualTo("ASSET");
     assertThat(e.targetAssetId()).isEqualTo("victim-1");
@@ -150,7 +172,9 @@ class AttackPathSourceTargetResolverTest {
         new ResolutionInput(
             true,
             null,
-            List.of(agent("agent-asset-1", "corp-dc", "10.0.0.5", "Windows", "agent-1", "user")),
+            List.of(
+                agent(
+                    "agent-asset-1", "corp-dc", "10.0.0.5", "Windows", "agt-1", "agent-1", "user")),
             PayloadKind.FILE,
             null,
             List.of(),
@@ -166,7 +190,7 @@ class AttackPathSourceTargetResolverTest {
     assertThat(edges)
         .allSatisfy(
             e -> {
-              assertThat(e.sourceKind()).isEqualTo("ASSET");
+              assertThat(e.sourceKind()).isEqualTo("AGENT_ASSET");
               assertThat(e.sourceAssetId()).isEqualTo("agent-asset-1");
               assertThat(e.targetKind()).isEqualTo("ASSET");
               assertThat(e.agentName()).isEqualTo("agent-1");

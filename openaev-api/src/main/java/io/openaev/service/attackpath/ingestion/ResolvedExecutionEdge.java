@@ -17,5 +17,6 @@ public record ResolvedExecutionEdge(
     String targetHostname,
     String targetIp,
     String targetPlatform,
+    String agentId,
     String agentName,
     String agentPrivilege) {}
