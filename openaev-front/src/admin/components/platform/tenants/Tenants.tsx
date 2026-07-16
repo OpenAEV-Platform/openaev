@@ -94,14 +94,14 @@ const Tenants = () => {
                 <PaginatedList<TenantOutput>
                   Icon={HomeWorkOutlined}
                   secondaryAction={tenant => (
-                      <TenantPopover
-                        inList
-                        tenant={tenant}
+                    <TenantPopover
+                      inList
+                      tenant={tenant}
                       actions={tenant.tenant_deleted_at ? ['Reactivate'] : ['Update', 'Delete']}
-                        onUpdate={updateTenant}
+                      onUpdate={updateTenant}
                       onDelete={softDeleteTenant}
-                        onReactivate={reactivateTenant}
-                      />
+                      onReactivate={reactivateTenant}
+                    />
                   )}
                   headers={headers}
                   items={tenants}
