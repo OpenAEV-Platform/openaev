@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * (e.g. {@code M1013}) without conflict, which is required for proper multi-tenant isolation.
  */
 @Component
-public class V6_20260709000000000__MitigationsUniqueConstraintAddTenantId
+public class V6_20260716000000000__MitigationsUniqueConstraintAddTenantId
     extends BaseJavaMigration {
 
   @Override
