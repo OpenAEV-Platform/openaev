@@ -2197,18 +2197,18 @@ public class V1_DataImporter implements Importer {
     // Extract injector contract info from step_data
     JsonNode injectContractNode = dataJson.get("inject_injector_contract");
     if (injectContractNode == null || injectContractNode.isNull()) {
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
     String injectorContractId = extractInjectorContractId(injectContractNode);
     if (!hasText(injectorContractId)) {
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
     // Contract already exists in DB, no resolution needed
     if (injectorContractRepository.existsByContractId(injectorContractId)
         && !shouldResolveContractFromStepData(injectContractNode, injectorContractId)) {
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
     // Already resolved by a previous step or by importInjects — reuse
@@ -2217,14 +2217,14 @@ public class V1_DataImporter implements Importer {
       if (!updateContractIdInStepData(dataJson, alreadyResolved)) {
         return stepDataRaw;
       }
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
     if (!(injectContractNode instanceof ObjectNode injectContractObject)) {
       log.warn(
           "Step data references missing injector contract {} in textual form with no payload to recreate",
           injectorContractId);
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
     // Contract is missing then resolve using the same logic as importInjects
@@ -2233,7 +2233,7 @@ public class V1_DataImporter implements Importer {
       log.warn(
           "Step data references missing injector contract {} with no payload to recreate",
           injectorContractId);
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
     InjectorContract resolvedStepContract = resolveInjectorContract(injectContractObject, baseIds);
@@ -2245,10 +2245,10 @@ public class V1_DataImporter implements Importer {
       if (!updateContractIdInStepData(dataJson, newContractId)) {
         return stepDataRaw;
       }
-      return sanitizateStepData(dataJson, stepDataRaw, workflow);
+      return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
     }
 
-    return sanitizateStepData(dataJson, stepDataRaw, workflow);
+    return sanitizateStepData(dataJson, stepDataRaw, baseIds, workflow);
   }
 
   private boolean shouldResolveContractFromStepData(
@@ -2306,11 +2306,12 @@ public class V1_DataImporter implements Importer {
     }
   }
 
-  private String sanitizateStepData(JsonNode dataJson, String fallback, Workflow workflow) {
+  private String sanitizateStepData(
+      JsonNode dataJson, String fallback, Map<String, Base> baseIds, Workflow workflow) {
     if (!(dataJson instanceof ObjectNode dataObject) || workflow == null) {
       return fallback;
     }
-    normalizeInjectorContractReference(dataObject);
+    normalizeInjectorContractReference(dataObject, baseIds);
     dataObject.remove("inject_assets");
     dataObject.remove("inject_asset_groups");
     dataObject.remove("inject_exercise");
@@ -2326,18 +2327,53 @@ public class V1_DataImporter implements Importer {
   }
 
   /**
-   * Strips any embedded contract metadata from step_data, keeping only the contract ID reference.
-   * Prevents stale domain/tag IDs from a foreign platform from being stored in step_data, which
-   * would cause Jackson entity-resolution failures when the step executes.
+   * Normalizes the {@code inject_injector_contract} node in step_data by resolving embedded domain
+   * and tag references to their local platform IDs, then stripping all other embedded contract
+   * metadata (payload, etc.) that would cause stale-reference failures at execution time.
+   *
+   * <p>Reuses {@link #importDomains} and {@link #importTags} — the same resolution logic used
+   * during normal inject import — so behaviour is consistent.
    */
-  private void normalizeInjectorContractReference(ObjectNode dataObject) {
+  private void normalizeInjectorContractReference(
+      ObjectNode dataObject, Map<String, Base> baseIds) {
     JsonNode injectContractNode = dataObject.get("inject_injector_contract");
     String injectorContractId = extractInjectorContractId(injectContractNode);
     if (!hasText(injectorContractId)) {
       return;
     }
+
     ObjectNode normalizedContract = mapper.createObjectNode();
     normalizedContract.put("injector_contract_id", injectorContractId);
+
+    if (injectContractNode instanceof ObjectNode embeddedContract) {
+      // Reuse importDomains: resolves by ID then by name, caches in baseIds
+      List<Domain> resolvedDomains = importDomains(embeddedContract, "injector_contract_", baseIds);
+      if (!resolvedDomains.isEmpty()) {
+        ArrayNode domainsArray = mapper.createArrayNode();
+        resolvedDomains.forEach(d -> domainsArray.addObject().put("domain_id", d.getId()));
+        normalizedContract.set("injector_contract_domains", domainsArray);
+      }
+
+      // Reuse importTags: resolves by name, caches in baseIds under the source ID
+      importTags(embeddedContract, "injector_contract_", baseIds);
+      // Build the resolved tags array from the now-populated baseIds
+      ArrayNode tagsArray = mapper.createArrayNode();
+      resolveJsonElements(embeddedContract, "injector_contract_tags")
+          .forEach(
+              tagEntry -> {
+                String sourceId =
+                    tagEntry.isTextual()
+                        ? tagEntry.asText()
+                        : ofNullable(tagEntry.get("tag_id")).map(JsonNode::textValue).orElse(null);
+                if (hasText(sourceId) && baseIds.get(sourceId) instanceof Tag t) {
+                  tagsArray.addObject().put("tag_id", t.getId());
+                }
+              });
+      if (tagsArray.size() > 0) {
+        normalizedContract.set("injector_contract_tags", tagsArray);
+      }
+    }
+
     dataObject.set("inject_injector_contract", normalizedContract);
   }
 
