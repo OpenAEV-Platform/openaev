@@ -178,7 +178,11 @@ const DefaultHomeResults = () => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
+      // The admin <main> is a fixed-height, overflow:hidden block that renders a 64px AppBar
+      // toolbar spacer ABOVE the page, so height:100% (the full main content box) overflows by
+      // that spacer height and main clips the Paper's bottom border. Subtract the spacer so the
+      // flex:1 Paper fits exactly and its border stays visible.
+      height: `calc(100% - ${theme.spacing(8)})`,
     }}
     >
       <Breadcrumbs
