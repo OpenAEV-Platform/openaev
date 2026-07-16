@@ -64,6 +64,11 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
   }, [isSelected, switchUserTenant, t]);
 
   const displayName = currentUserTenant?.tenant_name ?? t('No tenant');
+  const shouldDisplayTenantSwitcher = (userTenants?.length ?? 0) > 1;
+
+  if (!shouldDisplayTenantSwitcher) {
+    return null;
+  }
 
   return (
     <>
