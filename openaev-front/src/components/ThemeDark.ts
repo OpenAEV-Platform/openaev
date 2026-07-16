@@ -10,15 +10,15 @@ import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 // fds-migration/TOKEN-MAPPING.md § B/C — recalibrated on FDS tokens (see report for old→new rationale).
 const EE_COLOR = FDS.colors.dark['--color-filigran-tonic-primary'];
 
-export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--color-elevation-background-layer-0'];
+export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-0'];
 // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — body/html gradient end-stop (was entirely unwired: no
 // gradient existed on OpenAEV's body/html before this, ISO'd on OpenCTI's proven two-stop pattern).
-const THEME_DARK_DEFAULT_BODY_END_GRADIENT = FDS.colors.dark['--color-elevation-background-layer-0-gradient'];
+const THEME_DARK_DEFAULT_BODY_END_GRADIENT = FDS.colors.dark['--bg-elevation-default-layer-0-gradient'];
 const THEME_DARK_DEFAULT_PRIMARY = FDS.colors.dark['--color-filigran-brand-primary'];
 const THEME_DARK_DEFAULT_SECONDARY = FDS.colors.dark['--color-filigran-tonic-primary'];
-const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--color-elevation-background-layer-3'];
-const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--color-elevation-background-layer-1'];
-const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--color-elevation-surface-heading-layer-0'];
+const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
+const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
+const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
 
 // Same derivation as OpenCTI's ThemeDark.ts: a custom (DB-overridden) background still gets a live
 // gradient end-stop via lighten(), since no field lets an admin author that end-stop directly today.
@@ -113,7 +113,7 @@ const ThemeDark = (
       paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
       // fds-migration/TOKEN-MAPPING.md § D — was declared in Theme.ts but never assigned (resolved to
       // undefined at runtime); DragAndDropImportDialog.tsx already consumes it.
-      secondary: FDS.colors.dark['--color-elevation-surface-highlight'],
+      secondary: FDS.colors.dark['--bg-elevation-highlight-layer-0'],
     },
     widgets: {
       securityDomains: {

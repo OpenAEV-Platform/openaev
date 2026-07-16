@@ -11,14 +11,16 @@ import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 // (tonic-primary), not on OpenAEV's own prior literal. See report for full rationale.
 const EE_COLOR = FDS.colors.light['--color-filigran-tonic-primary'];
 
-export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--color-elevation-background-layer-0'];
+export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-0'];
 // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — body/html gradient end-stop (was entirely unwired: no
 // gradient existed on OpenAEV's body/html before this, ISO'd on OpenCTI's proven two-stop pattern).
-const THEME_LIGHT_DEFAULT_BODY_END_GRADIENT = FDS.colors.light['--color-elevation-background-layer-0-gradient'];
-const THEME_LIGHT_DEFAULT_PRIMARY = FDS.colors.light['--color-darkblue-600'];
+const THEME_LIGHT_DEFAULT_BODY_END_GRADIENT = FDS.colors.light['--bg-elevation-default-layer-0-gradient'];
+// fds-migration/TOKEN-MIGRATION-GUIDE.md (lib #32) — raw palette-ramp tokens (--darkblue-*) are
+// mode-invariant and now live under FDS.scalars, not FDS.colors.{dark,light} (post-#32 bridge reshape).
+const THEME_LIGHT_DEFAULT_PRIMARY = FDS.scalars['--darkblue-600'];
 const THEME_LIGHT_DEFAULT_SECONDARY = FDS.colors.light['--color-filigran-tonic-primary'];
-const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--color-elevation-background-layer-3'];
-const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--color-elevation-background-layer-1'];
+const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--bg-elevation-default-layer-3'];
+const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer-1'];
 // NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item" flag (Sandy hasn't signed
 // off on this specific, visibly-notable white -> #f2f2f3 shift yet).
 const THEME_LIGHT_DEFAULT_NAV = '#ffffff';
@@ -131,7 +133,7 @@ const ThemeLight = (
       paperInCard: '#f7f7f7',
       // fds-migration/TOKEN-MAPPING.md § D — was declared in Theme.ts but never assigned (resolved to
       // undefined at runtime); DragAndDropImportDialog.tsx already consumes it.
-      secondary: FDS.colors.light['--color-elevation-surface-highlight'],
+      secondary: FDS.colors.light['--bg-elevation-highlight-layer-0'],
     },
   },
   typography: {
