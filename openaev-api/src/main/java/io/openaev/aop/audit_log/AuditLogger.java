@@ -79,8 +79,9 @@ public class AuditLogger {
   // -- AUTH EVENTS --
 
   /**
-   * Logs an authentication event with request context data captured from a non-servlet thread (e.g.
-   * logout handler). Delegates to {@link #logAuthEvent} after restoring the context.
+   * Logs an authentication event with request context data captured from outside the normal servlet
+   * flow (e.g. logout handler). Restores the captured context on the executor thread before
+   * performing the audit. Halt-on-failure semantics are identical to {@link #logAuthEvent}.
    */
   public void logAuthEventWithRequestContext(
       ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData rcd,
@@ -231,9 +232,10 @@ public class AuditLogger {
   }
 
   /**
-   * When halt-on-failure is enabled, blocks on the audit future. If the transport failed,
-   * invalidates the current HTTP session (so no user is left authenticated after app restart) and
-   * rethrows {@link AuditLogFailureException} on the caller's thread.
+   * When halt-on-failure is enabled, blocks on the audit future. If the audit task failed for any
+   * reason, invalidates the current HTTP session and throws {@link AuditLogFailureException} so the
+   * surrounding transaction rolls back. This guarantees the "no commit without successful audit"
+   * invariant even if the failure is unexpected (e.g. a runtime exception escaping the async task).
    */
   private void awaitIfHaltOnFailure(CompletableFuture<Boolean> auditFuture) {
     if (!auditLogProperties.isHaltOnFailure()) {
@@ -242,11 +244,15 @@ public class AuditLogger {
     try {
       auditFuture.join();
     } catch (CompletionException ex) {
+      SessionManager.invalidateCurrentSession();
       if (ex.getCause() instanceof AuditLogFailureException auditEx) {
-        SessionManager.invalidateCurrentSession();
         throw auditEx;
       }
-      log.warn("[AUDIT] Unexpected error during halt-on-failure join", ex);
+      // Unexpected failure — still must rollback to honour halt-on-failure guarantee
+      log.error("[AUDIT] Unexpected error during halt-on-failure audit — forcing rollback", ex);
+      throw new AuditLogFailureException(
+          "Audit task failed unexpectedly with halt-on-failure enabled — transaction rolled back.",
+          ex.getCause());
     }
   }
 }

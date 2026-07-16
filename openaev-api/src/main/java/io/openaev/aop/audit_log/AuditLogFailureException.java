@@ -10,4 +10,8 @@ public class AuditLogFailureException extends RuntimeException {
   public AuditLogFailureException(String message) {
     super(message);
   }
+
+  public AuditLogFailureException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

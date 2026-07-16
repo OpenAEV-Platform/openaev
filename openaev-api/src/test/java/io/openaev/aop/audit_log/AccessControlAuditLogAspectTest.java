@@ -129,6 +129,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Arrange
       ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
       ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
+      ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
 
       // Act
       mvc.perform(
@@ -142,8 +144,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
           .logAccessControlEvent(
               eventScopeCaptor.capture(),
               eventStatusCaptor.capture(),
-              any(),
-              anyString(),
+              resourceTypeCaptor.capture(),
+              resourceIdCaptor.capture(),
               any(),
               any(),
               any(),
@@ -152,6 +154,8 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
       assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
       assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
+      assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
+      assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
     }
   }
 
