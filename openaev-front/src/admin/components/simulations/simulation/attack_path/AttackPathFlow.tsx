@@ -37,12 +37,24 @@ interface AttackPathFlowProps {
   focusRequest?: AttackPathFocusRequest | null;
   // A bump to fit the whole graph in view (used when switching to the focused finding-path view).
   fitRequest?: number;
+  // Show the minimap (only worth it on large graphs; hidden in the focused finding-path view).
+  showMiniMap?: boolean;
 }
 
 // Thin ReactFlow wrapper: it renders the nodes/edges the helper produced and reports node clicks up
 // to the page (endpoint drill-down, cluster expand, finding-type focus, finding path highlight). A
 // finding-item click in the drawer can also request a cross-focus onto an endpoint node.
-const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindingClusterClick, onFindingSelect, focusRequest, fitRequest }: AttackPathFlowProps) => {
+const AttackPathFlow = ({
+  nodes,
+  edges,
+  onEndpointClick,
+  onClusterClick,
+  onFindingClusterClick,
+  onFindingSelect,
+  focusRequest,
+  fitRequest,
+  showMiniMap = true,
+}: AttackPathFlowProps) => {
   const theme = useTheme();
   const reactFlow = useReactFlow();
   const [flowNodes, setFlowNodes, onNodesChange] = useNodesState<Node>(nodes);
@@ -113,17 +125,21 @@ const AttackPathFlow = ({ nodes, edges, onEndpointClick, onClusterClick, onFindi
     >
       <Background bgColor={theme.palette.background.default} color={theme.palette.divider} gap={24} />
       <Controls position="top-left" />
-      <MiniMap
-        position="bottom-right"
-        pannable
-        zoomable
-        style={{
-          background: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-        }}
-        maskColor={`${theme.palette.background.default}80`}
-        nodeColor={theme.palette.primary.main}
-      />
+      {showMiniMap && (
+        <MiniMap
+          position="bottom-right"
+          pannable
+          zoomable
+          style={{
+            width: 130,
+            height: 90,
+            background: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+          maskColor={`${theme.palette.background.default}80`}
+          nodeColor={theme.palette.primary.main}
+        />
+      )}
     </ReactFlow>
   );
 };

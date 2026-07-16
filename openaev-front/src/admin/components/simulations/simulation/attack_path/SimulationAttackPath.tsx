@@ -520,6 +520,22 @@ const SimulationAttackPath = () => {
     return result;
   }, [pathFinding, highlightedExecutionIds, executions, endpointRelationEdges]);
 
+  // The injector(s) that actually produced the focused finding: an injector whose relation edge has
+  // at least one of the finding's producing executions. Decoupled from the label map above (which
+  // also needs the execution to be in the loaded feed), so it stays correct for every category.
+  const producingInjectorIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!pathFinding || highlightedExecutionIds.size === 0) {
+      return set;
+    }
+    for (const e of endpointRelationEdges) {
+      if (e.edgeSourceId && (e.executionIds ?? []).some(id => highlightedExecutionIds.has(id))) {
+        set.add(e.edgeSourceId);
+      }
+    }
+    return set;
+  }, [pathFinding, highlightedExecutionIds, endpointRelationEdges]);
+
   // Scroll the feed to the first producing execution once the highlight or the loaded feed changes.
   useEffect(() => {
     if (highlightedExecutionIds.size === 0) {
@@ -597,7 +613,6 @@ const SimulationAttackPath = () => {
       // When the focused finding itself is the active selection, only the injector(s) that actually
       // produced it (their executions match the finding's) light up — not every injector that merely
       // reached the endpoint. Selecting a child finding/cluster lifts the restriction (full walk-up).
-      const producingInjectorIds = new Set(Object.keys(pathContractLabelByInjector));
       const restrictInjectors = activeId === defaultId && producingInjectorIds.size > 0;
       const injectorIds = new Set(
         baseFlow.nodes.filter(n => n.type === AP_FLOW_NODE_TYPE.injector).map(n => n.id),
@@ -663,7 +678,7 @@ const SimulationAttackPath = () => {
       })),
     };
     return applyFindingFilter(withSelection.nodes, withSelection.edges, focus);
-  }, [baseFlow, pathFinding, pathContractLabelByInjector, selectedNodeId, selectedFindingId, focus]);
+  }, [baseFlow, pathFinding, producingInjectorIds, selectedNodeId, selectedFindingId, focus]);
 
   const counters = dto?.counters;
   const focusedEndpoint = useMemo(
@@ -814,43 +829,81 @@ const SimulationAttackPath = () => {
       gap: theme.spacing(1),
     }}
     >
-      <Autocomplete
-        size="small"
-        options={pickerOptions}
-        value={selectedRow}
-        isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
-        getOptionLabel={o => labelFor(o.simulationId)}
-        onChange={(_, v) => {
-          if (v?.simulationId) {
-            setSimulationId(v.simulationId);
-          }
-        }}
-        renderOption={(props, o) => {
-          const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-          return (
-            <li
-              key={key}
-              {...rest}
-              style={{
-                display: 'flex',
-                gap: 8,
-              }}
-            >
-              <span>{labelFor(o.simulationId)}</span>
-              <span style={{
-                marginLeft: 'auto',
-                opacity: 0.65,
-                fontSize: 12,
-              }}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing(1),
+        flexWrap: 'wrap',
+      }}
+      >
+        <Autocomplete
+          size="small"
+          options={pickerOptions}
+          value={selectedRow}
+          isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
+          getOptionLabel={o => labelFor(o.simulationId)}
+          onChange={(_, v) => {
+            if (v?.simulationId) {
+              setSimulationId(v.simulationId);
+            }
+          }}
+          renderOption={(props, o) => {
+            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
+            return (
+              <li
+                key={key}
+                {...rest}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                }}
               >
-                {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
-              </span>
-            </li>
-          );
+                <span>{labelFor(o.simulationId)}</span>
+                <span style={{
+                  marginLeft: 'auto',
+                  opacity: 0.65,
+                  fontSize: 12,
+                }}
+                >
+                  {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
+                </span>
+              </li>
+            );
+          }}
+          renderInput={params => <TextField {...params} label={t('Simulation')} />}
+          sx={{
+            maxWidth: 520,
+            flex: '1 1 320px',
+          }}
+        />
+        <div style={{
+          marginLeft: 'auto',
+          display: 'flex',
+          gap: theme.spacing(1),
+          alignItems: 'center',
         }}
-        renderInput={params => <TextField {...params} label={t('Simulation')} />}
-        sx={{ maxWidth: 520 }}
-      />
+        >
+          {activeCard && (
+            <Chip
+              label={t('Clear focus')}
+              size="small"
+              variant="outlined"
+              onDelete={clearFocus}
+              onClick={clearFocus}
+            />
+          )}
+          {pathFinding && (
+            <Chip
+              label={t('Back to full graph')}
+              size="small"
+              color="primary"
+              variant="outlined"
+              onDelete={clearPathFocus}
+              onClick={clearPathFocus}
+            />
+          )}
+        </div>
+      </div>
 
       <div style={{
         display: 'flex',
@@ -913,27 +966,6 @@ const SimulationAttackPath = () => {
               )
             : card;
         })}
-        {activeCard && (
-          <Chip
-            label={t('Clear focus')}
-            size="small"
-            variant="outlined"
-            onDelete={clearFocus}
-            onClick={clearFocus}
-            sx={{ alignSelf: 'center' }}
-          />
-        )}
-        {pathFinding && (
-          <Chip
-            label={t('Back to full graph')}
-            size="small"
-            color="primary"
-            variant="outlined"
-            onDelete={clearPathFocus}
-            onClick={clearPathFocus}
-            sx={{ alignSelf: 'center' }}
-          />
-        )}
       </div>
 
       <div style={{
@@ -978,6 +1010,7 @@ const SimulationAttackPath = () => {
                 onFindingSelect={onFindingSelect}
                 focusRequest={focusRequest}
                 fitRequest={fitNonce}
+                showMiniMap={!pathFinding && nodes.length > 40}
               />
               <AttackPathLegend />
             </ReactFlowProvider>
@@ -1143,112 +1176,117 @@ const SimulationAttackPath = () => {
       >
         <Box
           role="presentation"
-          sx={{
-            width: 360,
-            px: 3,
-            py: 2.5,
-          }}
+          sx={{ width: 360 }}
         >
+          {/* Clear the fixed app header, like the app's other contextual drawers/menus. */}
+          <Box sx={theme.mixins.toolbar} />
           <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mb: 1,
+            px: 3,
+            pt: 1.5,
+            pb: 2.5,
           }}
           >
-            <Typography variant="h6">{`${drawerLabel} (${drawerFilteredItems.length})`}</Typography>
-            <IconButton size="small" aria-label={t('Close')} onClick={() => setDrawerCategory(null)}>
-              <Close />
-            </IconButton>
-          </Box>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              display: 'block',
-              mb: 1.5,
-            }}
-          >
-            {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
-          </Typography>
-          <TextField
-            size="small"
-            fullWidth
-            value={drawerSearch}
-            onChange={(e) => {
-              setDrawerSearch(e.target.value);
-              setDrawerPage(0);
-            }}
-            placeholder={t('Search')}
-            sx={{ mb: 1.5 }}
-          />
-          {findingsLoading && (
-            <Box sx={{ minHeight: 120 }}>
-              <Loader variant="inElement" size="sm" />
-            </Box>
-          )}
-          {!findingsLoading && drawerFilteredItems.length === 0 && (
-            <Alert severity="info">{t('No findings')}</Alert>
-          )}
-          {!findingsLoading && drawerPageItems.map((item, index) => (
-            <Box
-              key={`${item.endpointKey}-${item.value}-${index}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => onFindingItemClick(item)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onFindingItemClick(item);
-                }
-              }}
-              sx={{
-                'py': 0.75,
-                'px': 0.5,
-                'borderRadius': 1,
-                'borderBottom': `1px solid ${theme.palette.divider}`,
-                'cursor': 'pointer',
-                '&:hover': { backgroundColor: 'action.hover' },
-                '&:focus-visible': {
-                  backgroundColor: 'action.hover',
-                  outline: `2px solid ${theme.palette.primary.main}`,
-                  outlineOffset: -2,
-                },
-              }}
-            >
-              <Typography variant="body2" title={item.value} sx={{ wordBreak: 'break-all' }}>{item.value}</Typography>
-              <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
-                {item.endpointKey}
-              </Typography>
-            </Box>
-          ))}
-          {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
             <Box sx={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              pt: 1.5,
+              mb: 1,
             }}
             >
-              <Chip
-                size="small"
-                variant="outlined"
-                label={t('Previous')}
-                disabled={drawerSafePage <= 0}
-                onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
-              />
-              <Typography variant="caption" color="text.secondary">
-                {`${drawerSafePage + 1} / ${drawerPageCount}`}
-              </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={t('Next')}
-                disabled={drawerSafePage >= drawerPageCount - 1}
-                onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
-              />
+              <Typography variant="h6">{`${drawerLabel} (${drawerFilteredItems.length})`}</Typography>
+              <IconButton size="small" aria-label={t('Close')} onClick={() => setDrawerCategory(null)}>
+                <Close />
+              </IconButton>
             </Box>
-          )}
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: 'block',
+                mb: 1.5,
+              }}
+            >
+              {t('Click any item to highlight it on the attack map and focus the producing action in the feed.')}
+            </Typography>
+            <TextField
+              size="small"
+              fullWidth
+              value={drawerSearch}
+              onChange={(e) => {
+                setDrawerSearch(e.target.value);
+                setDrawerPage(0);
+              }}
+              placeholder={t('Search')}
+              sx={{ mb: 1.5 }}
+            />
+            {findingsLoading && (
+              <Box sx={{ minHeight: 120 }}>
+                <Loader variant="inElement" size="sm" />
+              </Box>
+            )}
+            {!findingsLoading && drawerFilteredItems.length === 0 && (
+              <Alert severity="info">{t('No findings')}</Alert>
+            )}
+            {!findingsLoading && drawerPageItems.map((item, index) => (
+              <Box
+                key={`${item.endpointKey}-${item.value}-${index}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => onFindingItemClick(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onFindingItemClick(item);
+                  }
+                }}
+                sx={{
+                  'py': 0.75,
+                  'px': 0.5,
+                  'borderRadius': 1,
+                  'borderBottom': `1px solid ${theme.palette.divider}`,
+                  'cursor': 'pointer',
+                  '&:hover': { backgroundColor: 'action.hover' },
+                  '&:focus-visible': {
+                    backgroundColor: 'action.hover',
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outlineOffset: -2,
+                  },
+                }}
+              >
+                <Typography variant="body2" title={item.value} sx={{ wordBreak: 'break-all' }}>{item.value}</Typography>
+                <Typography variant="caption" color="text.secondary" noWrap title={item.endpointKey}>
+                  {item.endpointKey}
+                </Typography>
+              </Box>
+            ))}
+            {!findingsLoading && drawerFilteredItems.length > DRAWER_PAGE_SIZE && (
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pt: 1.5,
+              }}
+              >
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={t('Previous')}
+                  disabled={drawerSafePage <= 0}
+                  onClick={() => setDrawerPage(p => Math.max(0, p - 1))}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {`${drawerSafePage + 1} / ${drawerPageCount}`}
+                </Typography>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={t('Next')}
+                  disabled={drawerSafePage >= drawerPageCount - 1}
+                  onClick={() => setDrawerPage(p => Math.min(drawerPageCount - 1, p + 1))}
+                />
+              </Box>
+            )}
+          </Box>
         </Box>
       </Drawer>
     </div>
