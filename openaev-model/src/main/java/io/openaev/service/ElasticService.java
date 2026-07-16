@@ -389,6 +389,13 @@ public class ElasticService implements EngineService {
                       } else {
                         // Update the status for the next round
                         Instant newCursor = results.getLast().getBase_updated_at();
+                        if (newCursor == null) {
+                          log.error(
+                              "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                              model.getName(),
+                              fetchInstant);
+                          return null;
+                        }
                         if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
                           log.error(
                               "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
