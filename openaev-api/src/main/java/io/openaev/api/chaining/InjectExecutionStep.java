@@ -528,6 +528,9 @@ public class InjectExecutionStep implements ActionStep {
 
     InjectStatus status = inject.getStatus().get();
     StatusPayload statusPayload = status.getPayloadOutput();
+    if (statusPayload == null || statusPayload.getPayloadCommandBlocks() == null) {
+      return "";
+    }
     StringBuilder command = new StringBuilder();
     statusPayload
         .getPayloadCommandBlocks()
