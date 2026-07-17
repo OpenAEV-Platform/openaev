@@ -1,6 +1,7 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useState } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, type MouseEvent, useEffect, useId, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
@@ -88,6 +89,43 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   }, [score, t, theme]);
   const { color } = band;
 
+  const [explainOpen, setExplainOpen] = useState(false);
+  const stopped = Math.max(validations - gaps, 0);
+  const resilience = validations > 0 ? Math.round((stopped / validations) * 100) : 0;
+
+  // Severity bands (kept in sync with `band` above) surfaced in the explanation dialog.
+  const bands = useMemo(() => [
+    {
+      range: '0 - 24',
+      label: t('Low exposure'),
+      color: theme.palette.success.main,
+      desc: t('Your controls stopped almost every validated attack.'),
+    },
+    {
+      range: '25 - 49',
+      label: t('Moderate exposure'),
+      color: theme.palette.warning.main,
+      desc: t('A meaningful share of attacks got through - worth reviewing.'),
+    },
+    {
+      range: '50 - 74',
+      label: t('High exposure'),
+      color: '#ff7043',
+      desc: t('More than half of the validated attacks were not stopped.'),
+    },
+    {
+      range: '75 - 100',
+      label: t('Critical exposure'),
+      color: theme.palette.error.main,
+      desc: t('Most validated attacks breached your controls.'),
+    },
+  ], [t, theme]);
+
+  const openExplain = (event: MouseEvent<Element>) => {
+    event.stopPropagation();
+    setExplainOpen(true);
+  };
+
   const animated = useCountUp(score, 1400);
   const [progress, setProgress] = useState(0);
   useEffect(() => {
@@ -146,6 +184,23 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         },
       }}
     >
+      <Tooltip title={t('How is this score computed?')}>
+        <IconButton
+          className="noDrag"
+          size="small"
+          onClick={openExplain}
+          aria-label={t('How is this score computed?')}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            color: 'text.secondary',
+            zIndex: 1,
+          }}
+        >
+          <InfoOutlined fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <Box sx={{
         position: 'relative',
         flex: 1,
@@ -379,6 +434,121 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           </Typography>
         </Box>
       </Tooltip>
+
+      <Dialog
+        open={explainOpen}
+        onClose={() => setExplainOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 1 } }}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+        >
+          <InfoOutlined color="primary" />
+          {t('Adversarial exposure score')}
+        </DialogTitle>
+        <DialogContent>
+          {/* Hero: the current score, its band and the plain-language verdict */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            padding: 2,
+            borderRadius: 1,
+            marginBottom: 2,
+            border: `1px solid ${alpha(color, 0.3)}`,
+            background: alpha(color, 0.08),
+          }}
+          >
+            <Typography sx={{
+              fontFamily: '"Geologica", sans-serif',
+              fontSize: 44,
+              fontWeight: 500,
+              lineHeight: 1,
+              color,
+            }}
+            >
+              {Math.round(score)}
+            </Typography>
+            <Box>
+              <Typography sx={{
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color,
+              }}
+              >
+                {band.label}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {validations === 0
+                  ? t('No validations have run yet.')
+                  : t('{gaps} of {validations} validations breached your controls.', {
+                      gaps,
+                      validations,
+                    })}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Typography variant="h4" gutterBottom>{t('What it measures')}</Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            {t('The adversarial exposure score is the share of security validations your controls failed to stop. It runs from 0 to 100 and, unlike a resilience score, a HIGHER number is WORSE - it means you are more exposed.')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            {t('score = breached validations / total validations x 100')}
+          </Typography>
+          {validations > 0 && (
+            <Typography variant="body2" color="text.secondary" paragraph>
+              {t('Right now {stopped} of {validations} validations were stopped ({resilience}% resilience) and {gaps} breached, giving an exposure of {score}/100.', {
+                stopped,
+                validations,
+                resilience,
+                gaps,
+                score: Math.round(score),
+              })}
+            </Typography>
+          )}
+
+          <Typography variant="h4" gutterBottom sx={{ marginTop: 2 }}>{t('Severity bands')}</Typography>
+          {bands.map(b => (
+            <Box
+              key={b.range}
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 1.5,
+                paddingBlock: 0.75,
+              }}
+            >
+              <Box sx={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                marginTop: 0.5,
+                flexShrink: 0,
+                background: b.color,
+                boxShadow: `0 0 6px ${alpha(b.color, 0.7)}`,
+              }}
+              />
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {`${b.range} - ${b.label}`}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">{b.desc}</Typography>
+              </Box>
+            </Box>
+          ))}
+
+          <Typography variant="body2" color="text.secondary" sx={{ marginTop: 2 }}>
+            {t('The ring is a green-to-red gradient: the more it fills, the more of your validations went unstopped. Click the orb to investigate the breached validations behind the score.')}
+          </Typography>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
