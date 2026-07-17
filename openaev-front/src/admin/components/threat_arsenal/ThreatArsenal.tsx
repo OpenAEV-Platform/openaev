@@ -9,7 +9,6 @@ import {
   Stack, ToggleButtonGroup,
   Tooltip,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -29,7 +28,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import PlatformIcon from '../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { useHelper } from '../../../store';
 import {
   type SearchPaginationInput,
@@ -82,7 +81,6 @@ const inlineStyles: Record<string, CSSProperties> = {
 
 const ThreatArsenal = () => {
   const { t, tPick, nsdt } = useFormatter();
-  const theme = useTheme();
   const { classes } = useStyles();
 
   const [selectedThreatArsenalAction, setSelectedThreatArsenalAction] = useState<ThreatArsenalAction | null>(null);
@@ -143,18 +141,7 @@ const ThreatArsenal = () => {
       label: 'Platforms',
       isSortable: false,
       value: (action: ThreatArsenalAction) => (
-        <>
-          {(action.action_platforms ?? []).map(
-            (platform: string) => (
-              <PlatformIcon
-                key={platform}
-                width={20}
-                platform={platform}
-                marginRight={theme.spacing(2)}
-              />
-            ),
-          )}
-        </>
+        <PlatformIconGroup platforms={action.action_platforms} />
       ),
     },
     {

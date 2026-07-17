@@ -7,7 +7,9 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
@@ -20,6 +22,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -32,14 +35,63 @@ import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * An {@code Asset} is any element of the customer attack surface a simulation can target. Its
+ * {@link #category} - not its concrete entity type - defines its attack surface (which techniques /
+ * injectors apply) and its security domain.
+ *
+ * <p>This concrete base holds every non-agentic target category (cloud, web application, network
+ * device, IoT/OT, SaaS, identity, generic) as well as AI targets ({@code category = AI_TARGET}).
+ * The only behavioral specialization is {@link Endpoint} (agent-capable hosts). {@link
+ * SecurityPlatform} is a separate concept - a detection / prevention source rather than a target.
+ */
 @Data
 @Entity
 @Table(name = "assets")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "asset_type", discriminatorType = STRING)
+@DiscriminatorValue(AssetType.Values.ASSET_TYPE)
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Asset implements TenantBase {
+
+  /** Provider of an AI target ({@code category = AI_TARGET}). */
+  public enum AI_TARGET_PROVIDER {
+    @JsonProperty("OPENAI_COMPATIBLE")
+    OPENAI_COMPATIBLE,
+    @JsonProperty("ANTHROPIC")
+    ANTHROPIC,
+    @JsonProperty("AZURE_OPENAI")
+    AZURE_OPENAI,
+    @JsonProperty("AWS_BEDROCK")
+    AWS_BEDROCK,
+    @JsonProperty("GOOGLE_VERTEX")
+    GOOGLE_VERTEX,
+    @JsonProperty("HUGGINGFACE")
+    HUGGINGFACE,
+    @JsonProperty("OLLAMA")
+    OLLAMA,
+    @JsonProperty("CUSTOM_HTTP")
+    CUSTOM_HTTP,
+    @JsonProperty("MCP_SERVER")
+    MCP_SERVER,
+    @JsonProperty("AGENT_HTTP")
+    AGENT_HTTP,
+    @JsonProperty("XTM_ONE")
+    XTM_ONE,
+  }
+
+  /** Modality of an AI target ({@code category = AI_TARGET}). */
+  public enum AI_TARGET_MODALITY {
+    @JsonProperty("TEXT")
+    TEXT,
+    @JsonProperty("VISION")
+    VISION,
+    @JsonProperty("AUDIO")
+    AUDIO,
+    @JsonProperty("MULTIMODAL")
+    MULTIMODAL,
+  }
 
   @Id
   @Column(name = "asset_id")
@@ -129,6 +181,92 @@ public class Asset implements TenantBase {
   public void setLinkedPerson(String linkedPerson) {
     this.linkedPerson = (linkedPerson == null || linkedPerson.isBlank()) ? null : linkedPerson;
   }
+
+  // -- NETWORK REACHABILITY (network-reachable categories) --
+  // Moved up from Endpoint (columns + wire renamed endpoint_* -> asset_*): these are relevant to
+  // more than agent hosts (web / cloud / network categories), so they live on the Asset base.
+
+  @Queryable(filterable = true)
+  @Ipv4OrIpv6Constraint
+  @Type(StringArrayType.class)
+  @Column(name = "asset_ips", columnDefinition = "text[]")
+  @JsonProperty("asset_ips")
+  private String[] ips;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_seen_ip")
+  @JsonProperty("asset_seen_ip")
+  private String seenIp;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_hostname")
+  @JsonProperty("asset_hostname")
+  private String hostname;
+
+  /** URL of the target for URL-based categories (web applications, cloud endpoints, ...). */
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "asset_url")
+  @JsonProperty("asset_url")
+  private String url;
+
+  @Type(StringArrayType.class)
+  @Column(name = "asset_mac_addresses")
+  @JsonProperty("asset_mac_addresses")
+  private String[] macAddresses;
+
+  public void setHostname(String hostname) {
+    // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale
+    // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
+    this.hostname = (hostname == null) ? null : hostname.toLowerCase(Locale.ROOT);
+  }
+
+  // -- AI TARGET (category = AI_TARGET) --
+  // Nullable, category-scoped connection attributes for AI targets. Validated by category at the
+  // API layer rather than by a class-level @NotNull, since AI is a category of Asset, not a type.
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "ai_target_provider")
+  @JsonProperty("ai_target_provider")
+  @Enumerated(EnumType.STRING)
+  private AI_TARGET_PROVIDER aiTargetProvider;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "ai_target_endpoint")
+  @JsonProperty("ai_target_endpoint")
+  private String aiTargetEndpoint;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "ai_target_model")
+  @JsonProperty("ai_target_model")
+  private String aiTargetModel;
+
+  @Queryable(filterable = true, sortable = true)
+  @Column(name = "ai_target_modality")
+  @JsonProperty("ai_target_modality")
+  @Enumerated(EnumType.STRING)
+  private AI_TARGET_MODALITY aiTargetModality;
+
+  @Column(name = "ai_target_system_prompt")
+  @JsonProperty("ai_target_system_prompt")
+  private String aiTargetSystemPrompt;
+
+  /**
+   * Free-form, provider-specific configuration for an AI target (extra generation parameters,
+   * custom headers, tool / MCP definitions, agent routing, ...). Never put the credential here -
+   * use {@link #aiTargetToken}.
+   */
+  @Type(JsonType.class)
+  @Column(name = "ai_target_configuration", columnDefinition = "jsonb")
+  @JsonProperty("ai_target_configuration")
+  private Map<String, Object> aiTargetConfiguration = new HashMap<>();
+
+  /**
+   * Optional credential used to reach an AI target, provisioned on the asset itself (set manually
+   * or by a collector). May be empty for targets that require no authentication.
+   */
+  @Column(name = "ai_target_token")
+  @JsonProperty("ai_target_token")
+  private String aiTargetToken;
 
   /**
    * Free-form, category-specific attributes (cloud account id / resource id / ARN, vendor, model,

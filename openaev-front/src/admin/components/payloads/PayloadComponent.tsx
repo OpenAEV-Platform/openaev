@@ -1,6 +1,5 @@
 import { AttachmentOutlined } from '@mui/icons-material';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, Fragment, type FunctionComponent, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -10,7 +9,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
 import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
-import PlatformIcon from '../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { useHelper } from '../../../store';
 import {
   type AttackPattern,
@@ -81,7 +80,6 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
   // Standard hooks
   const { classes } = useStyles();
   const { t } = useFormatter();
-  const theme = useTheme();
   const isChainingEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const { attackPatternsMap }: { attackPatternsMap: ReturnType<AttackPatternHelper['getAttackPatternsMap']> } = useHelper((helper: AttackPatternHelper) => ({ attackPatternsMap: helper.getAttackPatternsMap() }));
@@ -133,11 +131,7 @@ const PayloadComponent: FunctionComponent<Props> = ({ selectedPayload, documents
           >
             {t('Platforms')}
           </Typography>
-          {(selectedPayload?.payload_platforms ?? []).length === 0 ? (
-            <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
-          ) : selectedPayload?.payload_platforms?.map(
-            platform => <PlatformIcon key={platform} platform={platform} tooltip width={25} marginRight={theme.spacing(2)} />,
-          )}
+          <PlatformIconGroup platforms={selectedPayload?.payload_platforms} width={25} />
         </div>
 
         <div>

@@ -31,6 +31,10 @@ public class EsEndpoint extends EsTenantBase {
   private String endpoint_external_reference;
 
   // -- ENDPOINT SPECIFIC --
+  // NOTE: the SQL columns were renamed endpoint_* -> asset_* (asset taxonomy remodel), but the ES
+  // field names deliberately keep the endpoint_ prefix: the physical indexes have a strict mapping
+  // that is only rebuilt on index creation, and saved widgets / filters reference these names. The
+  // findForIndexing projection aliases the renamed columns back to endpoint_*.
 
   @Queryable(label = "endpoint ips", filterable = true)
   @EsQueryable(keyword = true)

@@ -11,7 +11,7 @@ import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
+import { searchAssets } from '../../../../actions/assets/endpoint-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
@@ -25,9 +25,10 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
+import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
+import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -35,8 +36,8 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
+import AssetPopover from './AssetPopover';
 import EndpointCreation from './EndpointCreation';
-import EndpointPopover from './EndpointPopover';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
 
 const useStyles = makeStyles()(() => ({
@@ -66,14 +67,14 @@ const Endpoints = () => {
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
 
+  // Base Asset facets only: the unified inventory queries the base assets table, so endpoint-only
+  // fields (platform / arch) cannot be resolved as filters here (single-table inheritance).
   const availableFilterNames = [
     'asset_category',
     'asset_subcategory',
     'asset_criticality',
     'asset_cloud_provider',
     'asset_internet_facing',
-    'endpoint_platform',
-    'endpoint_arch',
     'asset_tags',
   ];
 
@@ -96,7 +97,7 @@ const Endpoints = () => {
 
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchEndpoints(input).finally(() => setLoading(false));
+    return searchAssets(input).finally(() => setLoading(false));
   };
 
   // Headers
@@ -157,7 +158,7 @@ const Endpoints = () => {
       field: 'asset_criticality',
       label: 'Criticality',
       isSortable: true,
-      value: (endpoint: EndpointOutput) => (endpoint.asset_criticality ? t(humanizeEnum(endpoint.asset_criticality)) : '-'),
+      value: (endpoint: EndpointOutput) => <ItemCriticality criticality={endpoint.asset_criticality} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TAGS,
@@ -213,12 +214,14 @@ const Endpoints = () => {
           loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : endpoints.map((endpoint: EndpointOutput) => {
+                // Every asset type now has a generic detail page, and the popover renders on every
+                // row so the secondary-action column stays consistent and the columns stay aligned.
                 return (
                   <ListItem
                     key={endpoint.asset_id}
                     divider
                     secondaryAction={(
-                      <EndpointPopover
+                      <AssetPopover
                         inline
                         endpoint={{ ...endpoint }}
                         agentless={endpoint.asset_agents?.length === 0}
@@ -228,11 +231,7 @@ const Endpoints = () => {
                     )}
                     disablePadding
                   >
-                    <ListItemButton
-                      component={Link}
-                      to={`${ENDPOINT_BASE_URL}/${endpoint.asset_id}`}
-                      classes={{ root: classes.item }}
-                    >
+                    <ListItemButton component={Link} to={`${ASSET_BASE_URL}/${endpoint.asset_id}`} classes={{ root: classes.item }}>
                       <ListItemIcon>
                         <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
                       </ListItemIcon>

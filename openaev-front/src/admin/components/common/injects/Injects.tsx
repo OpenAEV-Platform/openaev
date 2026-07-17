@@ -1,6 +1,5 @@
 import { HelpOutlineOutlined } from '@mui/icons-material';
 import { Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -21,7 +20,7 @@ import ItemDomains from '../../../../components/ItemDomains';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import PlatformIcon from '../../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import {
   type Article,
   type Inject,
@@ -110,7 +109,6 @@ const Injects: FunctionComponent<Props> = ({
   // Standard hooks
   const { classes } = useStyles();
   const { t, tPick } = useFormatter();
-  const theme = useTheme();
   const injectContext = useContext(InjectContext);
   const { injects, setInjects } = injectContext;
   const viewModeContext = useContext(ViewModeContext);
@@ -178,20 +176,9 @@ const Injects: FunctionComponent<Props> = ({
       label: 'Platform(s)',
       isSortable: false,
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
-        <>
-          {
-            inject.inject_injector_contract?.injector_contract_platforms?.map(
-              platform => (
-                <PlatformIcon
-                  key={platform}
-                  width={20}
-                  platform={platform}
-                  marginRight={theme.spacing(2)}
-                />
-              ),
-            )
-          }
-        </>
+        <PlatformIconGroup
+          platforms={inject.inject_injector_contract?.injector_contract_platforms}
+        />
       ),
     },
     {

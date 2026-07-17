@@ -20,9 +20,14 @@ import org.springframework.stereotype.Repository;
 public interface EndpointRepository
     extends CrudRepository<Endpoint, String>, JpaSpecificationExecutor<Endpoint> {
 
+  // The asset_hostname / asset_ips / asset_mac_addresses columns now live on the Asset base and
+  // can be populated for non-endpoint assets (web, cloud, network categories), so every native
+  // query hydrating Endpoint entities must filter on the discriminator explicitly.
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
+          "select e.* from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_hostname = :hostname and e.asset_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
@@ -31,8 +36,10 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
-              + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
+          "select e.* from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
+              + "and exists (select 1 from unnest(e.asset_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
@@ -42,7 +49,9 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
+          "select e.* from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
       @NotNull final @Param("macAddresses") String[] macAddresses,
@@ -50,7 +59,9 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
+          "select e.* from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
       @NotNull final @Param("externalReference") String externalReference,
@@ -64,6 +75,8 @@ public interface EndpointRepository
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
+          // injects_assets may now reference non-endpoint assets (e.g. AI targets)
+          + " AND TYPE(a) = Endpoint"
           + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
   List<Endpoint> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
 
@@ -72,7 +85,9 @@ public interface EndpointRepository
           "SELECT DISTINCT e.* "
               + "FROM assets e "
               + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id "
-              + "WHERE e.tenant_id = :#{#tenantContext.currentTenant}",
+              + "WHERE e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' AND e.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios();
 
@@ -190,8 +205,8 @@ public interface EndpointRepository
               + "GROUP BY ia.asset_id"
               + ") "
               + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
-              + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
+              + "a.asset_ips as endpoint_ips, a.asset_hostname as endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
+              + "a.asset_mac_addresses as endpoint_mac_addresses, a.asset_seen_ip as endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
               + "ra.asset_sort as endpoint_updated_at, "
               + "fa.asset_findings, ta.asset_tags, xa.endpoint_exercises, xa.endpoint_scenarios "
               + "FROM assets a "

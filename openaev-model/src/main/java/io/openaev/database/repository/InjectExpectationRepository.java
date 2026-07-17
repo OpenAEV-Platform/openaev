@@ -125,6 +125,9 @@ public interface InjectExpectationRepository
   // Agentless detection/prevention expectations (e.g. AI adversarial injects whose target is an AI
   // model/agent rather than an endpoint with an installed agent). Used by AI defense collectors
   // (LLM firewall / guardrail) which correlate via the per-inject AI request marker.
+  // Only LEAF asset expectations are returned (asset_id IS NOT NULL): asset-group parents
+  // (asset_id NULL, asset_group_id set) are never fulfilled directly - their score is recomputed by
+  // propagation from the asset leaves - and updating them directly would dereference a null asset.
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
@@ -132,6 +135,7 @@ public interface InjectExpectationRepository
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NULL "
+              + "AND e.asset_id IS NOT NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",

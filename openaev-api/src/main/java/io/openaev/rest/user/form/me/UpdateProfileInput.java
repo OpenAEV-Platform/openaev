@@ -39,4 +39,7 @@ public class UpdateProfileInput {
 
   @JsonProperty("user_country")
   private String country;
+
+  @JsonProperty("user_home_dashboard")
+  private String homeDashboard;
 }

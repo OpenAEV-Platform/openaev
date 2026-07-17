@@ -67,13 +67,13 @@ const buildSchema = (def: AssetCategoryDef, t: (s: string) => string) => {
       def.fields.platform === 'required' ? requiredString : z.string().optional().nullable(),
     endpoint_arch:
       def.fields.arch === 'required' ? requiredString : z.string().optional().nullable(),
-    endpoint_hostname: z.string().optional().nullable(),
-    endpoint_url: def.fields.url === 'required' ? requiredString : z.string().optional().nullable(),
-    endpoint_ips:
+    asset_hostname: z.string().optional().nullable(),
+    asset_url: def.fields.url === 'required' ? requiredString : z.string().optional().nullable(),
+    asset_ips:
       def.fields.ips === 'required'
         ? ipItem.array().min(1, { message: t('Should not be empty') })
         : ipItem.array().optional(),
-    endpoint_mac_addresses: z
+    asset_mac_addresses: z
       .string()
       .regex(regexMacAddress, t('Invalid MAC addresses'))
       .array()
@@ -132,7 +132,7 @@ const AssetForm: FunctionComponent<Props> = ({
   const theme = useTheme();
   const def = getCategoryDef(category);
 
-  const normalizedMacs = initialValues.endpoint_mac_addresses?.map(mac => formatMacAddress(mac));
+  const normalizedMacs = initialValues.asset_mac_addresses?.map(mac => formatMacAddress(mac));
 
   let defaultPlatform: EndpointInput['endpoint_platform'];
   if (def.value === 'HOST') {
@@ -145,9 +145,9 @@ const AssetForm: FunctionComponent<Props> = ({
     asset_name: '',
     asset_description: '',
     asset_tags: [],
-    endpoint_hostname: def.fields.hostname !== 'hidden' ? '' : undefined,
-    endpoint_url: def.fields.url !== 'hidden' ? '' : undefined,
-    endpoint_ips: def.fields.ips !== 'hidden' ? [] : undefined,
+    asset_hostname: def.fields.hostname !== 'hidden' ? '' : undefined,
+    asset_url: def.fields.url !== 'hidden' ? '' : undefined,
+    asset_ips: def.fields.ips !== 'hidden' ? [] : undefined,
     endpoint_is_eol: false,
     asset_criticality: 'UNKNOWN',
     asset_internet_facing: def.value === 'WEB_APPLICATION' ? true : undefined,
@@ -158,7 +158,7 @@ const AssetForm: FunctionComponent<Props> = ({
     asset_linked_person: null,
     asset_metadata: undefined,
     ...initialValues,
-    endpoint_mac_addresses: def.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
+    asset_mac_addresses: def.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
     asset_category: def.value,
   };
 
@@ -173,7 +173,7 @@ const AssetForm: FunctionComponent<Props> = ({
     formState: { isSubmitting, isDirty },
   } = methods;
 
-  const watchedHostname = methods.watch('endpoint_hostname');
+  const watchedHostname = methods.watch('asset_hostname');
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
@@ -249,11 +249,11 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         {showHostname && (
-          <TextFieldController variant="standard" name="endpoint_hostname" label={t('Hostname')} />
+          <TextFieldController variant="standard" name="asset_hostname" label={t('Hostname')} />
         )}
 
         {def.fields.url !== 'hidden' && (
-          <TextFieldController variant="standard" name="endpoint_url" label={t('URL')} required={def.fields.url === 'required'} />
+          <TextFieldController variant="standard" name="asset_url" label={t('URL')} required={def.fields.url === 'required'} />
         )}
 
         {def.fields.cloud && (
@@ -286,13 +286,13 @@ const AssetForm: FunctionComponent<Props> = ({
 
         {def.fields.ips !== 'hidden' && (
           <AddressesFieldComponent
-            name="endpoint_ips"
+            name="asset_ips"
             helperText="Please provide one IP address per line."
             label={t('IP Addresses')}
             required={def.fields.ips === 'required'}
             onResolve={def.fields.hostname !== 'hidden'
               ? async () => {
-                const result = await resolveHostnameToIps(methods.getValues('endpoint_hostname') ?? '');
+                const result = await resolveHostnameToIps(methods.getValues('asset_hostname') ?? '');
                 return (result?.data ?? []) as string[];
               }
               : undefined}
@@ -301,7 +301,7 @@ const AssetForm: FunctionComponent<Props> = ({
           />
         )}
         {def.fields.macAddresses !== 'hidden' && (
-          <AddressesFieldComponent name="endpoint_mac_addresses" helperText="Please provide one MAC address per line." label={t('MAC Addresses')} />
+          <AddressesFieldComponent name="asset_mac_addresses" helperText="Please provide one MAC address per line." label={t('MAC Addresses')} />
         )}
 
         {def.fields.metadataFields.map(field => (

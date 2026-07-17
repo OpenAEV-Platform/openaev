@@ -3,6 +3,7 @@ package io.openaev.rest.inject.service;
 import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -321,7 +322,7 @@ class InjectServiceTest {
     List<Asset> aList = List.of(a1, a2);
 
     when(teamRepository.findAllById(any())).thenReturn(tList);
-    when(assetService.assets(any())).thenReturn(aList);
+    when(assetService.assets(anyList())).thenReturn(aList);
 
     // Expected results
     Inject i1updated = new Inject();

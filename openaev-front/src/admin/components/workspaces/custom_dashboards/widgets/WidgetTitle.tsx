@@ -122,20 +122,41 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
         alignItems: 'center',
         marginBottom: 10,
         height: 22,
+        gap: 8,
       }}
     >
+      <span
+        style={{
+          width: 3,
+          alignSelf: 'stretch',
+          borderRadius: 2,
+          flexShrink: 0,
+          background: `linear-gradient(180deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          boxShadow: `0 0 6px ${theme.palette.primary.main}66`,
+        }}
+      />
       <Typography
         variant="h4"
         gutterBottom={false}
         style={{
           margin: 0,
-          fontSize: 12,
-          fontWeight: 500,
+          // Flex centering aligns the text LINE BOX to the accent bar, but
+          // uppercase Geologica renders high inside that box: the font reserves
+          // a large descender/leading area below the baseline, so the visible
+          // caps sit above the line-box center and read as "too high". Nudge the
+          // glyphs DOWN by 1px to optically center them on the bar.
+          lineHeight: 1,
+          transform: 'translateY(1px)',
+          fontSize: 11,
+          fontWeight: 600,
+          fontFamily: '"Geologica", sans-serif',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           flex: 1,
+          opacity: 0.85,
         }}
       >
         {widgetTitle}
