@@ -1,6 +1,6 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
 import { type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
@@ -39,6 +39,12 @@ export const searchEndpoints = (searchPaginationInput: SearchPaginationInput) =>
 // empty. Filters/sorts must reference base asset fields (no endpoint-only platform/arch facets).
 export const searchAssets = (searchPaginationInput: SearchPaginationInput) => {
   return simplePostCall('/api/assets/search', searchPaginationInput);
+};
+
+// Generic delete for the unified inventory: removes any asset type (endpoint, AI target, or any
+// other category) by id. Security platforms are rejected server-side (managed in their own area).
+export const deleteAsset = (assetId: string) => {
+  return simpleDelCall(`/api/assets/${assetId}`);
 };
 
 export const findEndpoints = (endpointIds: string[]) => {

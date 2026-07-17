@@ -230,6 +230,20 @@ public class EndpointApi extends RestBehavior {
     this.endpointService.deleteEndpoint(endpointId);
   }
 
+  /**
+   * Generic asset deletion for the unified inventory: deletes any asset type (endpoint, AI target
+   * or any other category) by id. Security platforms are rejected (managed in their own area).
+   */
+  @DeleteMapping({ASSET_URI + "/{assetId}", TENANT_ASSET_URI + "/{assetId}"})
+  @AccessControl(
+      resourceId = "#assetId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.ASSET)
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteAsset(@PathVariable @NotBlank final String assetId) {
+    this.assetService.deleteAsset(assetId);
+  }
+
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
   // DNS resolution is network I/O and touches no DB. The endpoint @Transactional rule still
   // requires the annotation, so NOT_SUPPORTED keeps it while suspending any DB transaction.

@@ -40,6 +40,12 @@ export const searchAiTargets = (searchPaginationInput: SearchPaginationInput) =>
   return simplePostCall(uri, data);
 };
 
+// Single AI target with its full connection config (provider / endpoint / model / token), used to
+// prefill the edit form from the unified inventory where the row only carries the shared fields.
+export const fetchAiTargetById = (assetId: string) => {
+  return simpleCall(`${AI_TARGET_URI}/${assetId}`);
+};
+
 export const searchAiTargetAsOption = (searchText: string = '') => {
   const params = { searchText };
   return simpleCall(`${AI_TARGET_URI}/options`, { params });

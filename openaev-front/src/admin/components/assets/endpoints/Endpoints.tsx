@@ -27,7 +27,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { AI_TARGET_BASE_URL, ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
+import { ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -213,16 +213,10 @@ const Endpoints = () => {
           loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : endpoints.map((endpoint: EndpointOutput) => {
-                // Only endpoints have a detail page and endpoint-scoped edit/delete. AI targets
-                // (and other base assets) are listed here but managed from their own screen, so
-                // the endpoint detail link + endpoint popover are shown for endpoints only.
+                // Only endpoints have a dedicated detail page; every other asset type is managed
+                // inline through the generic popover. The popover renders on EVERY row so the
+                // secondary-action column stays consistent and the list columns stay aligned.
                 const isEndpoint = endpoint.asset_type === 'Endpoint';
-                let rowLink: string | undefined;
-                if (isEndpoint) {
-                  rowLink = `${ENDPOINT_BASE_URL}/${endpoint.asset_id}`;
-                } else if (endpoint.asset_category === 'AI_TARGET') {
-                  rowLink = AI_TARGET_BASE_URL;
-                }
                 const rowContent = (
                   <>
                     <ListItemIcon>
@@ -251,22 +245,20 @@ const Endpoints = () => {
                   <ListItem
                     key={endpoint.asset_id}
                     divider
-                    secondaryAction={isEndpoint
-                      ? (
-                          <AssetPopover
-                            inline
-                            endpoint={{ ...endpoint }}
-                            agentless={endpoint.asset_agents?.length === 0}
-                            onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
-                            onDelete={result => setEndpoints(endpoints.filter(e => (e.asset_id !== result)))}
-                          />
-                        )
-                      : undefined}
+                    secondaryAction={(
+                      <AssetPopover
+                        inline
+                        endpoint={{ ...endpoint }}
+                        agentless={endpoint.asset_agents?.length === 0}
+                        onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
+                        onDelete={result => setEndpoints(endpoints.filter(e => (e.asset_id !== result)))}
+                      />
+                    )}
                     disablePadding
                   >
-                    {rowLink
+                    {isEndpoint
                       ? (
-                          <ListItemButton component={Link} to={rowLink} classes={{ root: classes.item }}>
+                          <ListItemButton component={Link} to={`${ENDPOINT_BASE_URL}/${endpoint.asset_id}`} classes={{ root: classes.item }}>
                             {rowContent}
                           </ListItemButton>
                         )

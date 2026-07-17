@@ -74,6 +74,20 @@ public class AssetService {
         Asset.class);
   }
 
+  /**
+   * Delete any asset by id (endpoint, AI target, or any other category). Used by the unified asset
+   * inventory so a single call handles every asset type. Security platforms are managed from their
+   * dedicated area and never surface in the inventory, so they are rejected here.
+   */
+  public void deleteAsset(@NotBlank final String assetId) {
+    Asset asset = asset(assetId);
+    if (AssetType.Values.SECURITY_PLATFORM_TYPE.equals(asset.getType())) {
+      throw new UnsupportedOperationException(
+          "Security platforms must be deleted from their dedicated area");
+    }
+    this.assetRepository.delete(asset);
+  }
+
   public List<SecurityPlatform> securityPlatformsByIds(@NotNull final Set<String> ids) {
     return securityPlatformRepository.findAllByIds(ids);
   }

@@ -14,7 +14,6 @@ import {
   RowingOutlined,
   SchoolOutlined,
   SmartButtonOutlined,
-  SmartToyOutlined,
   TerminalOutlined,
   Widgets,
 } from '@mui/icons-material';
@@ -98,12 +97,6 @@ const LeftBar = () => {
           path: `/admin/assets/inventory`,
           icon: () => (<DnsOutlined />),
           label: 'Assets',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
-        },
-        {
-          path: `/admin/assets/ai_targets`,
-          icon: () => (<SmartToyOutlined />),
-          label: 'AI targets',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
         {
