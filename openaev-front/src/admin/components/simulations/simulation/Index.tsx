@@ -251,6 +251,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!exercise) return;
+    if (!pristine) return;
     setLoading(true);
     if (!exercise.exercise_scenario) {
       setPristine(false);

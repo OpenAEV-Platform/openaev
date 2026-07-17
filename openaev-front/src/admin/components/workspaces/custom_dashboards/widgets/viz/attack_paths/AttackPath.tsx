@@ -7,7 +7,7 @@ import {
 import * as qs from 'qs';
 import {
   type MouseEvent as ReactMouseEvent,
-  useEffect, useState,
+  useEffect, useMemo, useState,
 } from 'react';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -24,6 +24,9 @@ import { sortKillChainPhase } from '../../../../../../../utils/kill_chain_phases
 import ColoredPercentageRate from '../components/ColoredPercentageRate';
 import AttackPatternNode from './AttackPatternNode';
 import DraggableEdge from './DraggableEdge';
+
+const nodeTypes = { attackPattern: AttackPatternNode };
+const edgeTypes = { draggableEdge: DraggableEdge };
 
 interface Props {
   data: EsAttackPath[];
@@ -63,13 +66,11 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
   const XGap = 200; // Horizontal gap between nodes
   const YGap = 150; // Vertical gap between nodes
 
-  const nodeTypes = { attackPattern: AttackPatternNode };
   enum NodeType {
     DEFAULT = 'default',
     ATTACK_PATTERN = 'attackPattern',
   }
 
-  const edgeTypes = { draggableEdge: DraggableEdge };
   const proOptions = {
     account: 'paid-pro',
     hideAttribution: true,
@@ -189,7 +190,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
       });
   };
 
-  const resolvededDataByKillChainPhase = resolveDataByKillChainPhase(data);
+  const resolvededDataByKillChainPhase = useMemo(() => resolveDataByKillChainPhase(data), [data]);
   const initializeNodesAndEdges = () => {
     const newAttackPathsEdges: Edge[] = [];
     let newSimulationDatesEdge: Edge = {} as Edge;

@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useCallback, useContext, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 
 import { updateExercise } from '../../../../../actions/Exercise';
@@ -32,14 +32,18 @@ const SimulationAnalysis = () => {
     return helper.getExercise(exerciseId);
   });
 
-  const handleSelectNewDashboard = (dashboardId: string) => {
-    dispatch(updateExercise(exercise.exercise_id, {
-      ...exercise,
+  const exerciseRef = useRef(exercise);
+  exerciseRef.current = exercise;
+
+  const handleSelectNewDashboard = useCallback((dashboardId: string) => {
+    const current = exerciseRef.current;
+    dispatch(updateExercise(current.exercise_id, {
+      ...current,
       exercise_custom_dashboard: dashboardId,
     }));
-  };
+  }, [dispatch]);
 
-  const paramsBuilder = (dashboardParameters: CustomDashboard['custom_dashboard_parameters']) => {
+  const paramsBuilder = useCallback((dashboardParameters: CustomDashboard['custom_dashboard_parameters']) => {
     const params: Record<string, ParameterOption> = {};
     dashboardParameters?.forEach((p) => {
       let value = '';
@@ -64,9 +68,9 @@ const SimulationAnalysis = () => {
       };
     });
     return params;
-  };
+  }, [exerciseId, exercise?.exercise_scenario]);
 
-  const configuration = {
+  const configuration = useMemo(() => ({
     customDashboardId: exercise?.exercise_custom_dashboard,
     paramLocalStorageKey: 'custom-dashboard-simulation-' + exerciseId,
     paramsBuilder,
@@ -80,7 +84,7 @@ const SimulationAnalysis = () => {
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesBySimulation(exerciseId, widgetId, params, pagination),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
-  };
+  }), [exercise?.exercise_custom_dashboard, exerciseId, paramsBuilder, ability]);
 
   return (
     <CustomDashboardWrapper
