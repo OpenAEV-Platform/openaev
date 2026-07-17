@@ -549,7 +549,9 @@ public class InjectExecutionStep implements ActionStep {
     if (inject.getInjector() == null) {
       executionTraces.forEach(
           executionTrace -> {
-            // TODO BUILD INDEX
+            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
+              return;
+            }
             String agentId =
                 executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
             tracesByEndpointSource

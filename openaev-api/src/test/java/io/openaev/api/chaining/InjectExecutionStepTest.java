@@ -908,4 +908,42 @@ public class InjectExecutionStepTest extends IntegrationTest {
         "EXECUTED first\nERROR second\n", tracesByEndpointSource.get("agent-1asset-1").toString());
     assertEquals("INFO third\n", tracesByEndpointSource.get("agent-2asset-2").toString());
   }
+
+  @Test
+  void given_injectWithoutInjector_whenTraceHasNoAgent_thenSkipAgentlessTrace() {
+    // Arrange
+    Inject inject = new Inject();
+
+    Asset asset = new Asset();
+    asset.setId("asset-1");
+    Agent agent = new Agent();
+    agent.setId("agent-1");
+    agent.setAsset(asset);
+
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setAgent(null);
+    globalTrace.setStatus(ExecutionTraceStatus.WARNING);
+    globalTrace.setMessage("global warning");
+
+    ExecutionTrace endpointTrace = new ExecutionTrace();
+    endpointTrace.setAgent(agent);
+    endpointTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    endpointTrace.setMessage("endpoint ok");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(globalTrace);
+    status.addTrace(endpointTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    assertTrue(tracesByEndpointSource.containsKey("agent-1asset-1"));
+    assertEquals("EXECUTED endpoint ok\n", tracesByEndpointSource.get("agent-1asset-1").toString());
+  }
 }
