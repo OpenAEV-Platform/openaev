@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AiTargetTarget;
 import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectTarget;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AiTargetRepository;
+import io.openaev.service.AssetGroupService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.LinkedHashMap;
@@ -39,6 +41,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
   private static final String AI_TARGET_CONTENT_KEY = "ai_target";
 
   private final AiTargetRepository aiTargetRepository;
+  private final AssetGroupService assetGroupService;
   private final HelperTargetSearchAdaptor helperTargetSearchAdaptor;
 
   private Optional<Asset> contentAiTarget(Inject scopedInject) {
@@ -66,11 +69,15 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
     Map<String, Asset> byId = new LinkedHashMap<>();
     contentAiTarget(scopedInject).ifPresent(aiTarget -> byId.put(aiTarget.getId(), aiTarget));
 
-    List<String> assetGroupIds =
-        scopedInject.getAssetGroups().stream().map(AssetGroup::getId).toList();
-    if (!assetGroupIds.isEmpty()) {
-      for (Asset aiTarget : aiTargetRepository.findAllByAssetGroupIds(assetGroupIds)) {
-        byId.putIfAbsent(aiTarget.getId(), aiTarget);
+    // Resolve every asset group member (static AND dynamic) and keep the AI targets. Going through
+    // AssetGroupService (rather than the static-only findAllByAssetGroupIds join) is what makes
+    // filter-based groups such as "Category = AI_TARGET" expand to their members here, mirroring how
+    // the endpoint target tab resolves dynamic groups.
+    for (AssetGroup assetGroup : scopedInject.getAssetGroups()) {
+      for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
+        if (AssetCategory.AI_TARGET.equals(asset.getCategory())) {
+          byId.putIfAbsent(asset.getId(), asset);
+        }
       }
     }
     return List.copyOf(byId.values());

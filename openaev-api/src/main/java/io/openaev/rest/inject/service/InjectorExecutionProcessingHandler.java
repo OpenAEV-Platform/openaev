@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
@@ -67,6 +68,12 @@ public class InjectorExecutionProcessingHandler extends AbstractExecutionProcess
 
     List<ContractOutputContext> contractOutputContexts =
         injectorContractContentUtils.getAllContractOutputs(injectorContract).stream()
+            // Only finding-compatible outputs generate findings. Without this filter a purely
+            // informational output (e.g. the ai-redteam "response", isFindingCompatible=false) would
+            // be turned into a finding, and its save can breach a column constraint and poison the
+            // whole callback transaction (rolling back the status trace -> inject stuck PENDING).
+            // Mirrors the agent path, which already filters on isFinding.
+            .filter(InjectorContractContentOutputElement::isFindingCompatible)
             .map(ContractOutputContext::from)
             .toList();
     dispatchToProcessors(executionContext, contractOutputContexts, structuredOutput);
