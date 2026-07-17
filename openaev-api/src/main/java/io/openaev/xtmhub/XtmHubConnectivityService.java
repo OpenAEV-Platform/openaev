@@ -25,7 +25,7 @@ public class XtmHubConnectivityService {
   boolean checkIsReachable() {
     HttpURLConnection connection = null;
     try {
-      URI uri = new URI(XtmHubConfig.getApiUrl() + "/health");
+      URI uri = new URI(XtmHubConfig.getApiUrl());
       connection = (HttpURLConnection) uri.toURL().openConnection();
       connection.setRequestMethod("HEAD");
       connection.setConnectTimeout(5000);

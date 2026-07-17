@@ -300,27 +300,6 @@ const XtmHubTab: React.FC = () => {
   if (isRegistered) {
     return (
       <>
-        <Dialog
-          open={isAutoRegistrationPromptOpen}
-          onClose={handleCancelAutoRegistration}
-          aria-labelledby="xtm-hub-auto-registration-title"
-          aria-describedby="xtm-hub-auto-registration-description"
-        >
-          <DialogTitle id="xtm-hub-auto-registration-title">{t('Authorize connection')}</DialogTitle>
-          <DialogContent>
-            <DialogContentText id="xtm-hub-auto-registration-description">
-              {t('Allow OpenAEV to connect with XTM Hub')}
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button variant="outlined" onClick={handleCancelAutoRegistration} color="primary">
-              {t('Cancel')}
-            </Button>
-            <Button onClick={handleConfirmAutoRegistration} color="primary" autoFocus>
-              {t('Continue')}
-            </Button>
-          </DialogActions>
-        </Dialog>
         <Button
           variant="outlined"
           size="small"
