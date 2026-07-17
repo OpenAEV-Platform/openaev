@@ -1306,6 +1306,7 @@
   "INVALID_USAGE": "Utilisation invalide",
   "inventory": "inventaire",
   "Inventory": "Inventory",
+  "Investigate breached validations": "Examiner les validations contournees",
   "Investigate exposure gaps": "Examiner les failles d'exposition",
   "Iot_ot_device": "IoT / OT device",
   "Iot_sensor": "IOT Sensor",

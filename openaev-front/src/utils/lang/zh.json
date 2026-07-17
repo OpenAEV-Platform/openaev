@@ -1306,6 +1306,7 @@
   "INVALID_USAGE": "无效使用",
   "inventory": "清单",
   "Inventory": "Inventory",
+  "Investigate breached validations": "调查被突破的验证",
   "Investigate exposure gaps": "调查暴露缺口",
   "Iot_ot_device": "IoT / OT device",
   "Iot_sensor": "IOT Sensor",

@@ -1306,6 +1306,7 @@
   "INVALID_USAGE": "Неверное использование",
   "inventory": "инвентаризация",
   "Inventory": "Inventory",
+  "Investigate breached validations": "Исследовать пройденные проверки",
   "Investigate exposure gaps": "Исследовать пробелы экспозиции",
   "Iot_ot_device": "IoT / OT device",
   "Iot_sensor": "IOT Sensor",

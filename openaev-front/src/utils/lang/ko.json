@@ -1306,6 +1306,7 @@
   "INVALID_USAGE": "잘못된 사용법",
   "inventory": "인벤토리",
   "Inventory": "Inventory",
+  "Investigate breached validations": "침해된 검증 조사",
   "Investigate exposure gaps": "노출 격차 조사",
   "Iot_ot_device": "IoT / OT device",
   "Iot_sensor": "IOT Sensor",

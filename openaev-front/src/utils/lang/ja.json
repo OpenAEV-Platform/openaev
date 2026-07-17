@@ -1306,6 +1306,7 @@
   "INVALID_USAGE": "無効な使用方法",
   "inventory": "目録",
   "Inventory": "Inventory",
+  "Investigate breached validations": "突破された検証を調査",
   "Investigate exposure gaps": "エクスポージャーのギャップを調査",
   "Iot_ot_device": "IoT / OT device",
   "Iot_sensor": "IOT Sensor",
