@@ -123,6 +123,9 @@ type Props = {
   totalElements: number;
   onPaginationChange: (paginationInput: Pagination) => void;
   contentLoading?: boolean;
+  // Render the pagination bar above the list (aligns with the app's list pages) instead of below
+  // (default, used by embedded dashboard widget tiles).
+  paginationAbove?: boolean;
 };
 
 const ListWidget = ({
@@ -133,6 +136,7 @@ const ListWidget = ({
   totalElements,
   onPaginationChange,
   contentLoading = false,
+  paginationAbove = false,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -192,6 +196,26 @@ const ListWidget = ({
     return <div>{t('No columns configured for this list.')}</div>;
   }
 
+  const pagination = elements.length > 0 && totalElements > elementsPerPage
+    ? (
+        <TablePagination
+          component="div"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={totalElements}
+          page={currentPageNumber}
+          onPageChange={handleChangePage}
+          rowsPerPage={elementsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            'flexShrink': 0,
+            [paginationAbove ? 'borderBottom' : 'borderTop']: theme => `1px solid ${theme.palette.divider}`,
+            'minHeight': 0,
+            '& .MuiTablePagination-toolbar': { minHeight: 40 },
+          }}
+        />
+      )
+    : null;
+
   return (
     <Box style={{
       height: '100%',
@@ -199,6 +223,7 @@ const ListWidget = ({
       flexDirection: 'column',
     }}
     >
+      {paginationAbove && pagination}
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (
         <div style={{
@@ -260,23 +285,7 @@ const ListWidget = ({
         </div>
       )}
 
-      {elements.length > 0 && totalElements > elementsPerPage && (
-        <TablePagination
-          component="div"
-          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-          count={totalElements}
-          page={currentPageNumber}
-          onPageChange={handleChangePage}
-          rowsPerPage={elementsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          sx={{
-            'flexShrink': 0,
-            'borderTop': theme => `1px solid ${theme.palette.divider}`,
-            'minHeight': 0,
-            '& .MuiTablePagination-toolbar': { minHeight: 40 },
-          }}
-        />
-      )}
+      {!paginationAbove && pagination}
     </Box>
   );
 };

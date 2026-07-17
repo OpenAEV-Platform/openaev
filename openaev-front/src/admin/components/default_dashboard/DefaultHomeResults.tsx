@@ -1,4 +1,4 @@
-import { ArrowBackOutlined } from '@mui/icons-material';
+import { ArrowBackOutlined, FilterListOutlined } from '@mui/icons-material';
 import { Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -165,6 +165,7 @@ const DefaultHomeResults = () => {
   // Titles are already localized at build time (buildDefaultHomeWidgets).
   const widgetTitle = widget?.widget_config.title ?? t('Results');
   const total = paginatedEntities?.total ?? 0;
+  const hasFilters = Object.keys(filterValues).length > 0;
 
   if (!widgetId || !widget) {
     return (
@@ -203,7 +204,7 @@ const DefaultHomeResults = () => {
           display: 'flex',
           alignItems: 'center',
           gap: theme.spacing(1.5),
-          marginBottom: theme.spacing(2),
+          marginBottom: hasFilters ? theme.spacing(1.5) : theme.spacing(2),
         }}
       >
         <Tooltip title={t('Home')}>
@@ -214,15 +215,6 @@ const DefaultHomeResults = () => {
         <Typography variant="h1" sx={{ margin: 0 }}>
           {widgetTitle}
         </Typography>
-        {Object.entries(filterValues).map(([key, values]) => (
-          <Chip
-            key={key}
-            size="small"
-            variant="outlined"
-            color="primary"
-            label={`${t(FILTER_KEY_LABELS[key] ?? key)}: ${values.map(v => resolveValue(key, v)).join(', ')}`}
-          />
-        ))}
         <div style={{ flex: 1 }} />
         {!initialLoading && (
           <Typography variant="body2" color="textSecondary">
@@ -230,6 +222,38 @@ const DefaultHomeResults = () => {
           </Typography>
         )}
       </div>
+      {hasFilters && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: theme.spacing(1),
+            marginBottom: theme.spacing(2),
+            color: theme.palette.text.secondary,
+          }}
+        >
+          <FilterListOutlined fontSize="small" />
+          {Object.entries(filterValues).map(([key, values]) => (
+            <Chip
+              key={key}
+              size="small"
+              variant="outlined"
+              label={(
+                <>
+                  <span style={{ color: theme.palette.text.secondary }}>
+                    {`${t(FILTER_KEY_LABELS[key] ?? key)}: `}
+                  </span>
+                  <span style={{ color: theme.palette.text.primary }}>
+                    {values.map(v => resolveValue(key, v)).join(', ')}
+                  </span>
+                </>
+              )}
+              sx={{ borderRadius: 1 }}
+            />
+          ))}
+        </div>
+      )}
       <Paper
         variant="outlined"
         sx={{
@@ -254,6 +278,7 @@ const DefaultHomeResults = () => {
             totalElements={paginatedEntities.total}
             onPaginationChange={onPaginationChange}
             contentLoading={contentLoading}
+            paginationAbove
           />
         )}
       </Paper>
