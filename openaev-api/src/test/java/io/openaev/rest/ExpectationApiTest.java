@@ -119,6 +119,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());
+    collector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     collector.setName("collector-name");
     collector.setType(collectorType1.getName());
     collector.setCollectorType(collectorType1);
@@ -127,6 +128,7 @@ class ExpectationApiTest extends IntegrationTest {
 
     Collector collector2 = new Collector();
     collector2.setId(UUID.randomUUID().toString());
+    collector2.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     collector2.setName("collector-2-name");
     collector2.setType(collectorType2.getName());
     collector2.setCollectorType(collectorType2);

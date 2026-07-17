@@ -18,6 +18,10 @@ public interface CollectorRepository
 
   Optional<Collector> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /** Finds a collector by its ID only. Tenant scoping is handled by the v2 SQL inspector. */
+  @Query("SELECT c FROM Collector c WHERE c.id = :id")
+  Optional<Collector> findByCollectorId(@Param("id") @NotNull String id);
+
   @Query(
       """
               SELECT DISTINCT c FROM Collector c
