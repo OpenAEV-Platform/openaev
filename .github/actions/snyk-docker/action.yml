@@ -20,6 +20,10 @@ inputs:
     description: Minimum severity to report (low, medium, high, critical)
     required: false
     default: "high"
+  fail-on-error:
+    description: "Whether to fail the step when vulnerabilities are found (true = fail, false = warn only)"
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -121,7 +125,7 @@ runs:
       shell: bash
 
     - name: Mark scan as failed when vulnerabilities are found
-      if: ${{ always() }}
+      if: ${{ always() && inputs.fail-on-error == 'true' }}
       run: |
         if [ "${{ steps.snyk-standard.outputs.result }}" = "failure" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" = "failure" ]; then
           echo "❌ Snyk detected vulnerabilities at or above threshold."
@@ -129,4 +133,3 @@ runs:
         fi
         echo "✅ No vulnerabilities at or above threshold were detected."
       shell: bash
-

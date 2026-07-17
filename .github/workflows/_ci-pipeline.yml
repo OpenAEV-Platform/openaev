@@ -425,6 +425,7 @@ jobs:
       - uses: ./.github/actions/snyk-docker
         with:
           snyk-token: ${{ secrets.SNYK_TOKEN }}
+          fail-on-error: ${{ inputs.snyk-fail-on-error }}
 
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
