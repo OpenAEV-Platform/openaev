@@ -23,6 +23,8 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPatch;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.springframework.stereotype.Service;
@@ -265,13 +267,23 @@ public class CalderaExecutorClient {
 
   // -- PRIVATE --
 
+  private String handleResponse(ClassicHttpResponse response, String target)
+      throws IOException, ParseException {
+    if (response.getCode() == 401) {
+      log.error("Caldera authentication failed: API key is invalid or expired (HTTP 401).");
+      throw new ClientProtocolException(
+          "Caldera authentication failed on: " + target + " (HTTP 401)");
+    }
+    return EntityUtils.toString(response.getEntity());
+  }
+
   private String get(@NotBlank final String uri) throws IOException {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpGet httpGet = new HttpGet(this.config.getRestApiV2Url() + uri);
       // Headers
       httpGet.addHeader(KEY_HEADER, this.config.getApiKey());
 
-      return httpClient.execute(httpGet, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(httpGet, response -> handleResponse(response, uri));
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + uri, e);
     }
@@ -287,7 +299,7 @@ public class CalderaExecutorClient {
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPost.setEntity(entity);
 
-      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(httpPost, response -> handleResponse(response, url));
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + url, e);
     }
@@ -302,7 +314,7 @@ public class CalderaExecutorClient {
       // Body
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPatch.setEntity(entity);
-      httpClient.execute(httpPatch);
+      httpClient.execute(httpPatch, response -> handleResponse(response, url));
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + url, e);
     }
@@ -313,7 +325,7 @@ public class CalderaExecutorClient {
       HttpDelete httpdelete = new HttpDelete(url);
       // Headers
       httpdelete.addHeader(KEY_HEADER, this.config.getApiKey());
-      httpClient.execute(httpdelete);
+      httpClient.execute(httpdelete, response -> handleResponse(response, url));
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + url, e);
     }

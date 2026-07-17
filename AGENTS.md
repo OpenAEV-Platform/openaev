@@ -95,6 +95,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 - Specialists are **independent** — each focuses on its domain only
 - For critical PRs: Code Reviewer explicitly lists which specialists should run
 - The Test Specialist does NOT review existing code — it only creates/improves tests
+- **Scope before code**: for cross-layer tasks (entity + migration + service + controller + frontend), present a scope summary listing every file to create or modify, then wait for maintainer confirmation before generating code
 - Human reviewers handle architecture decisions, naming, and business logic
 
 ## Shared Severity Rubric

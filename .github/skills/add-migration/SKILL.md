@@ -13,6 +13,11 @@ description: >-
 - Whether the table is tenant-scoped or platform-level
 - The next migration version number
 
+**Before writing the migration**, confirm with the user:
+- The exact DDL statements to execute
+- Whether the change is additive (new table/column) or destructive (drop/rename)
+- How tenant-scoped data will be handled (FK to `tenants`, `NOT NULL` vs nullable `tenant_id`)
+
 ## Procedure
 
 ### Step 1 — Find the next version number
