@@ -1,7 +1,6 @@
-import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type KeyboardEvent, memo, type MouseEvent, useEffect, useId, useMemo, useState } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
@@ -147,11 +146,6 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
     },
   ], [t, theme]);
 
-  const openExplain = (event: MouseEvent<Element>) => {
-    event.stopPropagation();
-    setExplainOpen(true);
-  };
-
   const animated = useCountUp(score, 1400);
   const [progress, setProgress] = useState(0);
   useEffect(() => {
@@ -216,23 +210,6 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         },
       }}
     >
-      <Tooltip title={t('How is this score computed?')}>
-        <IconButton
-          className="noDrag"
-          size="small"
-          onClick={openExplain}
-          aria-label={t('How is this score computed?')}
-          sx={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            color: 'text.secondary',
-            zIndex: 1,
-          }}
-        >
-          <InfoOutlined fontSize="small" />
-        </IconButton>
-      </Tooltip>
       <Box sx={{
         position: 'relative',
         flex: 1,
