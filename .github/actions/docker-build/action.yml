@@ -135,6 +135,7 @@ runs:
       run: |
         ARTIFACT="${{ steps.names.outputs.artifact_name }}"
         JAR_PATH="${{ inputs.jar-path }}"
+        VALIDATION_FAILED=0
 
         # Load the single-platform image into the local daemon for validation
         gunzip -k "${ARTIFACT}.tar.gz"
@@ -174,6 +175,7 @@ runs:
           docker run --rm --entrypoint ls "$IMAGE" -la "$JAR_DIR" 2>/dev/null \
             | sed 's/^/    /' || echo "    (could not list $JAR_DIR)"
           echo "jar_in_image=false" >> "$GITHUB_OUTPUT"
+          VALIDATION_FAILED=1
         else
           echo "openaev-api.jar found inside Docker image"
           echo "  $JAR_IN_IMAGE"
@@ -186,6 +188,7 @@ runs:
         if [ -z "$JAVA_VERSION" ]; then
           echo "Java runtime not found inside Docker image"
           echo "java_version=NOT_FOUND" >> "$GITHUB_OUTPUT"
+          VALIDATION_FAILED=1
         else
           echo "  Java: $JAVA_VERSION"
           echo "java_version=$JAVA_VERSION" >> "$GITHUB_OUTPUT"
@@ -195,6 +198,11 @@ runs:
         LAYER_COUNT=$(docker image inspect "$IMAGE" --format='{{len .RootFS.Layers}}')
         echo "  Layers: $LAYER_COUNT"
         echo "layer_count=$LAYER_COUNT" >> "$GITHUB_OUTPUT"
+
+        if [ "$VALIDATION_FAILED" -ne 0 ]; then
+          echo "Docker image validation failed"
+          exit 1
+        fi
       shell: bash
 
     - name: Upload Docker image artifact

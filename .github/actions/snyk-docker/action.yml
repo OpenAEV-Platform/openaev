@@ -1,8 +1,9 @@
 name: Snyk Container Scan
 description: >
   Download Docker image artifacts (standard + UBI9 amd64 builds), load them
-  into the local daemon, run Snyk vulnerability scanning, upload reports,
-  and fail if high or critical vulnerabilities are found.
+  into the local daemon, run Snyk vulnerability scanning, and upload reports.
+  Core CI uses advisory mode; Nightly CI enables enforcement and fails on any
+  high/critical finding or scan execution error.
 
 inputs:
   snyk-token:
@@ -21,7 +22,7 @@ inputs:
     required: false
     default: "high"
   fail-on-error:
-    description: "Whether to fail the step when vulnerabilities are found (true = fail, false = warn only)"
+    description: "Enforce the scan result: true fails on findings/errors (Nightly); false reports only (Core CI)"
     required: false
     default: "true"
 
@@ -58,9 +59,17 @@ runs:
 
     - name: Install Snyk CLI
       run: |
-        curl -sL https://static.snyk.io/cli/latest/snyk-linux -o /usr/local/bin/snyk
-        chmod +x /usr/local/bin/snyk
-        snyk --version
+        SNYK_VERSION="1.1306.1"
+        SNYK_SHA256="3b25e6067e3d2f63a25213b44ca8f0eccc43133c76b9eb188155f80aa451f506"
+        SNYK_BIN="${RUNNER_TEMP}/snyk"
+
+        curl -fsSL --retry 3 \
+          "https://static.snyk.io/cli/v${SNYK_VERSION}/snyk-linux" \
+          -o "$SNYK_BIN"
+        echo "${SNYK_SHA256}  ${SNYK_BIN}" | sha256sum -c -
+        chmod +x "$SNYK_BIN"
+        "$SNYK_BIN" --version
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       shell: bash
 
     - name: Run Snyk on standard image
@@ -70,7 +79,6 @@ runs:
       run: |
         if snyk container test openaev:ci \
           --severity-threshold=${{ inputs.severity-threshold }} \
-          --fail-on=upgradable \
           --json-file-output=snyk-standard.json; then
           echo "result=success" >> "$GITHUB_OUTPUT"
         else
@@ -93,7 +101,6 @@ runs:
       run: |
         if snyk container test openaev-ubi9:ci \
           --severity-threshold=${{ inputs.severity-threshold }} \
-          --fail-on=upgradable \
           --json-file-output=snyk-ubi9.json; then
           echo "result=success" >> "$GITHUB_OUTPUT"
         else
@@ -117,18 +124,19 @@ runs:
         echo "══════════════════════════════════════════"
         echo "  Standard image: ${{ steps.snyk-standard.outputs.result }}"
         echo "  UBI9 image:     ${{ steps.snyk-ubi9.outputs.result }}"
-        if [ "${{ steps.snyk-standard.outputs.result }}" = "failure" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" = "failure" ]; then
+        if [ "${{ steps.snyk-standard.outputs.result }}" != "success" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" != "success" ]; then
           echo ""
-          echo "  ⚠️  Vulnerabilities found — see snyk-report-* artifacts for details."
+          echo "  ⚠️  Findings at the configured threshold or a scan error occurred."
+          echo "     See snyk-report-* artifacts for details."
         fi
         echo "══════════════════════════════════════════"
       shell: bash
 
-    - name: Mark scan as failed when vulnerabilities are found
+    - name: Enforce scan result when requested
       if: ${{ always() && inputs.fail-on-error == 'true' }}
       run: |
-        if [ "${{ steps.snyk-standard.outputs.result }}" = "failure" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" = "failure" ]; then
-          echo "❌ Snyk detected vulnerabilities at or above threshold."
+        if [ "${{ steps.snyk-standard.outputs.result }}" != "success" ] || [ "${{ steps.snyk-ubi9.outputs.result }}" != "success" ]; then
+          echo "❌ Snyk reported findings at or above threshold, or a scan execution error."
           exit 1
         fi
         echo "✅ No vulnerabilities at or above threshold were detected."

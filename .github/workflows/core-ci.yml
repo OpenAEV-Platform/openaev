@@ -1,6 +1,7 @@
 name: "[Core] CI"
 
 # Continuous Integration pipeline.
+# Snyk findings are reported but intentionally never block Core CI.
 # ⚠️ Branch-protection status check: "pipeline / ✅ Pipeline Gate"
 
 on:
@@ -41,4 +42,5 @@ jobs:
           {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":"-infra"},
           {"browser":"chromium","project":"infra-chromium","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-infra"}
         ]
+      snyk-fail-on-error: false
     secrets: inherit

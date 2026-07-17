@@ -61,7 +61,7 @@ graph TD
     E2E --> COV
     ATC --> COV
 
-    %% ─── Pipeline Gate (depends on ALL jobs) ───
+    %% ─── Pipeline Gate (depends on all required jobs; Snyk is policy-driven) ───
     MG --> GATE
     BC --> GATE
     FB --> GATE
@@ -75,7 +75,6 @@ graph TD
     BPM --> GATE
     DB --> GATE
     DM --> GATE
-    SD --> GATE
     COV --> GATE
 
     %% Styling
@@ -141,7 +140,7 @@ graph TD
 |-----|-----------|---------|
 | **Docker Build** (×4) | Prepare Bundled Assets | Builds `standard/amd64`, `standard/arm64`, `ubi9/amd64`, `ubi9/arm64` images |
 | **Docker Merge** (×2) | Docker Build | Combines amd64+arm64 into multi-arch manifest |
-| **Snyk Container Scan** | Docker Build | CVE scan on the built image |
+| **Snyk Container Scan** | Docker Build | CVE scan on amd64 images; advisory in Core CI and enforcing in Nightly CI |
 
 ### Tests
 
@@ -162,7 +161,12 @@ graph TD
 | Job | Depends On | Purpose |
 |-----|-----------|---------|
 | **Coverage Merge & Upload** | API Tests, Frontend Quality, E2E Tests, API Types Check | Merges JaCoCo + Vitest + Playwright coverage → Codecov |
-| **Pipeline Gate** ⚠️ | **ALL jobs** (Migrations Guard, Backend Compile, Frontend Build, Prepare Bundled Assets, Spotless Check, Frontend Quality, API Tests, E2E Tests, API Types Check, Backend Package, Backend Package musl, Docker Build, Docker Merge, Snyk Docker, Coverage) | **Branch protection status check** — gates PR merge |
+| **Pipeline Gate** ⚠️ | All required jobs except Snyk (Migrations Guard, Backend Compile, Frontend Build, Prepare Bundled Assets, Spotless Check, Frontend Quality, API Tests, E2E Tests, API Types Check, Backend Package, Backend Package musl, Docker Build, Docker Merge, Coverage) | **Branch protection status check** — gates PR merge |
+
+### Snyk enforcement policy
+
+- **Core CI:** scan findings and scanner errors are reported through logs and artifacts but never fail the required Pipeline Gate.
+- **Nightly CI:** high/critical findings and scanner execution errors fail the nightly workflow.
 
 ---
 

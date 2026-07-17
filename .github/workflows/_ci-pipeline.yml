@@ -18,7 +18,7 @@ on:
         type: string
         required: true
       snyk-fail-on-error:
-        description: "Whether Snyk vulnerabilities should fail the pipeline (true for nightly, false for core CI)"
+        description: "Enforce Snyk findings/errors (true for Nightly; false keeps Core CI advisory)"
         type: boolean
         required: false
         default: false
@@ -413,6 +413,9 @@ jobs:
         with:
           artifact-name: ${{ matrix.artifact-name }}
 
+  # Intentionally advisory in Core CI and enforcing in Nightly CI. This job is
+  # outside the required Pipeline Gate so vulnerability findings never block
+  # Core CI; with snyk-fail-on-error=true, its failure still fails Nightly CI.
   snyk-docker:
     name: "🔒 Snyk Container Scan"
     needs: [docker-build]
@@ -431,6 +434,7 @@ jobs:
   # Pipeline gate
   #
   # ⚠️  REQUIRED status check for branch protection.
+  #     Snyk is intentionally excluded: advisory in Core, blocking in Nightly.
   #     The full check name is "<caller-job> / ✅ Pipeline Gate".
   #     If the caller job key changes, update the branch-protection rule.
   # ════════════════════════════════════════════════════════════════════

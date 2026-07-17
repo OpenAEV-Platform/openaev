@@ -1,7 +1,9 @@
 name: "[Core] Nightly CI"
 
 # Nightly: same pipeline, larger matrix.
-# Adds OpenSearch, Firefox, Edge, ubuntu-22.04 variants.
+# Adds OpenSearch coverage for Chrome/WebKit/Chromium, Firefox and Edge on
+# Elasticsearch, and expanded infrastructure-test coverage.
+# Unlike Core CI, Snyk findings at the configured threshold fail this workflow.
 
 on:
   schedule:
@@ -28,7 +30,7 @@ jobs:
           {"shard":"3","shard_name":"rest-2-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"io/openaev/rest/**/*Test.java","excludes":"io/openaev/rest/*Test.java\nio/openaev/rest/asset_group/**/*Test.java\nio/openaev/rest/attack_pattern/**/*Test.java\nio/openaev/rest/custom_dashboard/**/*Test.java\nio/openaev/rest/dashboard/**/*Test.java\nio/openaev/rest/exercise/**/*Test.java"},
           {"shard":"4","shard_name":"remaining-os","search_engine":"opensearch","engine_selector":"opensearch","artifact_suffix":"-opensearch","includes":"catchall","excludes":""}
         ]
-      # ── E2E Tests: core browsers + Firefox + Edge + OpenSearch + ubuntu-22 + infra ──
+      # ── E2E: OpenSearch (Chrome/WebKit/Chromium) + ES Firefox/Edge + expanded infra ──
       e2e-matrix: >
         [
           {"browser":"chrome","project":"chrome","docker_image":"openaev-image-amd64","variant":"std-amd64","runner":"ubuntu-latest","search_engine":"elasticsearch","artifact_suffix":""},

@@ -1,12 +1,13 @@
 name: "[Core] Deploy Feature Branch Build"
 
 # Unprivileged build workflow dispatched by deploy-feature-branch.yml.
-# SECURITY: This workflow has contents:read ONLY — no secrets, no write token.
+# SECURITY: This workflow has read-only contents/actions access — no secrets
+# and no write-capable token.
 # It checks out and builds untrusted PR code in a safe sandbox.
 #
-# The Docker image is built from source via a multi-stage Dockerfile — no
-# pre-compiled artifacts are needed.  On success, the OCI archive is uploaded
-# as an artifact for downstream promotion and deployment.
+# The application is built from source via a multi-stage Dockerfile. Agent,
+# implant, and catalog assets are prepared once and included in both platform
+# images. On success, the OCI archive is uploaded for downstream promotion.
 
 on:
   workflow_dispatch:
@@ -28,12 +29,38 @@ on:
         required: true
         type: string
 
+concurrency:
+  # The dispatcher finishes immediately, so concurrency must cover the actual
+  # build workflow. A newer /deploy request for the same PR supersedes the old one.
+  group: feature-deploy-build-${{ inputs.pr_number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read # strictly read-only — no secrets, no write token
+  actions: read
 
 jobs:
+  prepare-build:
+    name: "📦 Prepare feature build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.head_sha }}
+          fetch-depth: 0
+      - name: Compute immutable Docker tag
+        id: image-tag
+        env:
+          HEAD_SHA: ${{ inputs.head_sha }}
+        run: echo "value=openaev:feat-${HEAD_SHA:0:12}" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/prepare-bundled-assets
+
   docker-build:
     name: "🐳 Docker Build (${{ matrix.arch }})"
+    needs: prepare-build
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -52,8 +79,9 @@ jobs:
           ref: ${{ inputs.head_sha }}
       - uses: ./.github/actions/docker-build
         with:
-          tags: openaev:feat-${{ inputs.head_ref }}
+          tags: ${{ needs.prepare-build.outputs.image-tag }}
           platform: ${{ matrix.platform }}
+          download-release-assets: "true"
 
   docker-merge:
     name: "🐳 Merge Platforms"
