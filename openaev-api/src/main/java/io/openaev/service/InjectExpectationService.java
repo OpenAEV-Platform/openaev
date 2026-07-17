@@ -59,9 +59,6 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -697,23 +694,14 @@ public class InjectExpectationService {
   // -- FETCH INJECT EXPECTATIONS --
 
   /**
-   * Retrieves a page of inject expectations that have not been filled (no score and no results or
-   * has an agent).
+   * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
+   * and expired Returns a bounded batch for incremental processing.
    *
-   * @return a page of unfilled inject expectations ordered by creation date
+   * @param limit maximum number of expectations to return
+   * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */
-  public Page<BaseInjectExpectation> expectationsNotFill() {
-    return this.injectExpectationRepository.findAll(
-        (root, query, criteriaBuilder) ->
-            criteriaBuilder.and(
-                criteriaBuilder.isNull(root.get("score")),
-                criteriaBuilder.or(
-                    criteriaBuilder.equal(
-                        criteriaBuilder.function(
-                            "json_array_length", Integer.class, root.get("results")),
-                        0),
-                    criteriaBuilder.isNotNull(root.get("agent")))),
-        PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
+  public List<BaseInjectExpectation> expectationsNotFillAndExpired(int limit) {
+    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(limit);
   }
 
   // -- EXPECTATIONS BY TYPE --

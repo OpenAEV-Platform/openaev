@@ -369,21 +369,49 @@ public class ElasticService implements EngineService {
                       BulkResponse result = elasticClient.bulk(bulkRequest);
                       // Log errors, if any
                       if (result.errors()) {
+                        long errorCount =
+                            result.items().stream().filter(item -> item.error() != null).count();
+                        log.error(
+                            "Bulk indexing failed for model {} ({}/{} items with errors, cursor not advanced, from={})",
+                            model.getName(),
+                            errorCount,
+                            result.items().size(),
+                            fetchInstant);
                         for (BulkResponseItem item : result.items()) {
                           if (item.error() != null) {
-                            log.error(item.error().reason());
+                            log.error(
+                                "Bulk item error for model {} id={}: {}",
+                                model.getName(),
+                                item.id(),
+                                item.error().reason());
                           }
                         }
                       } else {
                         // Update the status for the next round
+                        Instant newCursor = results.getLast().getBase_updated_at();
+                        if (newCursor == null) {
+                          log.error(
+                              "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                              model.getName(),
+                              fetchInstant);
+                          return null;
+                        }
+                        if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                          log.error(
+                              "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
+                                  + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
+                              model.getName(),
+                              fetchInstant,
+                              newCursor);
+                        }
                         if (indexingStatus.isPresent()) {
                           IndexingStatus status = indexingStatus.get();
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
+                          status.setLastIndexing(newCursor);
                           return status;
                         } else {
                           IndexingStatus status = new IndexingStatus();
                           status.setType(model.getName());
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
+                          status.setLastIndexing(newCursor);
                           return status;
                         }
                       }

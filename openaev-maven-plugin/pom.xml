@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.260716.0</version>
+    <version>2.260716.1</version>
   </parent>
   <artifactId>openaev-maven-plugin</artifactId>
   <packaging>maven-plugin</packaging>
