@@ -364,6 +364,25 @@ public interface InjectRepository
 
   // -- TEAM --
 
+  /**
+   * Bumps all injects of an exercise so the incremental search-engine indexer refreshes their
+   * denormalized team linkage (inject_teams, all-teams derivation, expectation team sides).
+   */
+  @Modifying
+  @Query(
+      value = "UPDATE injects SET inject_updated_at = now() WHERE inject_exercise = :exerciseId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAtByExerciseId(@Param("exerciseId") String exerciseId);
+
+  /** Same as {@link #touchUpdatedAtByExerciseId(String)} for scenario injects. */
+  @Modifying
+  @Query(
+      value = "UPDATE injects SET inject_updated_at = now() WHERE inject_scenario = :scenarioId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAtByScenarioId(@Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =

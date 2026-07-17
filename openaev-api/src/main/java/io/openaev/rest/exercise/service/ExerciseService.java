@@ -1044,6 +1044,10 @@ public class ExerciseService {
     this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
+    // The join-table deletes above are native queries that bypass JPA timestamps: bump the
+    // exercise and its injects so the incremental indexer refreshes the denormalized team sides.
+    this.exerciseRepository.touchUpdatedAt(exerciseId);
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -1063,6 +1067,10 @@ public class ExerciseService {
       this.injectRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
       this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
     }
+    // Team changes alter the denormalized inject_teams of the exercise's injects (including
+    // all-teams injects, derived from exercises_teams): bump the injects so the incremental
+    // indexer refreshes them (the native join-table mutations bypass JPA timestamps).
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));

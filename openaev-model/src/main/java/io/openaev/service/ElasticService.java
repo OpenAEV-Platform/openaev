@@ -371,12 +371,7 @@ public class ElasticService implements EngineService {
                       if (result.errors()) {
                         long errorCount =
                             result.items().stream().filter(item -> item.error() != null).count();
-                        log.error(
-                            "Bulk indexing failed for model {} ({}/{} items with errors, cursor not advanced, from={})",
-                            model.getName(),
-                            errorCount,
-                            result.items().size(),
-                            fetchInstant);
+                        boolean allPoison = true;
                         for (BulkResponseItem item : result.items()) {
                           if (item.error() != null) {
                             log.error(
@@ -384,36 +379,58 @@ public class ElasticService implements EngineService {
                                 model.getName(),
                                 item.id(),
                                 item.error().reason());
+                            allPoison =
+                                allPoison && EsIndexingUtils.isPoisonError(item.error().type());
                           }
                         }
-                      } else {
-                        // Update the status for the next round
-                        Instant newCursor = results.getLast().getBase_updated_at();
-                        if (newCursor == null) {
+                        // Deterministic document-level failures (mapping/parsing) would fail
+                        // identically forever: retrying blocks the whole model's indexing
+                        // (head-of-line). Skip them by advancing the cursor; they will be retried
+                        // naturally the next time their row is updated. Transient failures keep
+                        // the cursor so the batch is retried.
+                        if (!allPoison) {
                           log.error(
-                              "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                              "Bulk indexing failed for model {} ({}/{} items with transient errors, cursor not advanced, from={})",
                               model.getName(),
+                              errorCount,
+                              result.items().size(),
                               fetchInstant);
                           return null;
                         }
-                        if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
-                          log.error(
-                              "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
-                                  + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
-                              model.getName(),
-                              fetchInstant,
-                              newCursor);
-                        }
-                        if (indexingStatus.isPresent()) {
-                          IndexingStatus status = indexingStatus.get();
-                          status.setLastIndexing(newCursor);
-                          return status;
-                        } else {
-                          IndexingStatus status = new IndexingStatus();
-                          status.setType(model.getName());
-                          status.setLastIndexing(newCursor);
-                          return status;
-                        }
+                        log.error(
+                            "Bulk indexing skipped {} poison document(s) for model {} (deterministic mapping/parsing errors, cursor advanced, from={})",
+                            errorCount,
+                            model.getName(),
+                            fetchInstant);
+                      }
+                      // Update the status for the next round
+                      Instant newCursor =
+                          EsIndexingUtils.computeNewCursor(
+                              results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                      if (newCursor == null) {
+                        log.error(
+                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                            model.getName(),
+                            fetchInstant);
+                        return null;
+                      }
+                      if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                        log.error(
+                            "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
+                                + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
+                            model.getName(),
+                            fetchInstant,
+                            newCursor);
+                      }
+                      if (indexingStatus.isPresent()) {
+                        IndexingStatus status = indexingStatus.get();
+                        status.setLastIndexing(newCursor);
+                        return status;
+                      } else {
+                        IndexingStatus status = new IndexingStatus();
+                        status.setType(model.getName());
+                        status.setLastIndexing(newCursor);
+                        return status;
                       }
                     } catch (IOException e) {
                       log.error(
