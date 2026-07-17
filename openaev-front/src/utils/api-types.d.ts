@@ -3556,6 +3556,7 @@ export interface EsEndpoint {
   /** @format date-time */
   base_updated_at?: string;
   endpoint_arch?: string;
+  endpoint_category?: string;
   endpoint_description?: string;
   endpoint_external_reference?: string;
   endpoint_hostname?: string;
@@ -3598,6 +3599,7 @@ export interface EsFinding {
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
+  /** @uniqueItems true */
   base_endpoint_side?: string[];
   base_entity?: string;
   base_id?: string;
