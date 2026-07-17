@@ -575,13 +575,23 @@ public class OpenSearchService implements EngineService {
   }
 
   @Override
-  public void deleteByTenant(String tenantId) {
-    if (tenantId == null || tenantId.isBlank()) {
+  public void deleteByTenants(List<String> tenantIds) {
+    List<FieldValue> values =
+        tenantIds == null
+            ? List.of()
+            : tenantIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(FieldValue::of)
+                .toList();
+    if (values.isEmpty()) {
       return;
     }
     try {
       Query query =
-          TermQuery.of(t -> t.field("base_tenant_side.keyword").value(FieldValue.of(tenantId)))
+          TermsQuery.of(
+                  t ->
+                      t.field("base_tenant_side.keyword")
+                          .terms(TermsQueryField.of(tq -> tq.value(values))))
               .toQuery();
       openSearchClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
@@ -591,7 +601,7 @@ public class OpenSearchService implements EngineService {
               .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
-      log.error(String.format("deleteByTenant exception: %s", e.getMessage()), e);
+      log.error("deleteByTenants failed for tenants {}: {}", tenantIds, e.getMessage(), e);
     }
   }
 

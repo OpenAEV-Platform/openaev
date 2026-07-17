@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ClassUtils;
 
 @Slf4j
@@ -216,8 +218,21 @@ public class TenantService {
     if (!purgedIds.isEmpty()) {
       tenantRepository.deleteAllByIdsNative(purgedIds);
       // Tenant data is removed via native SQL (no JPA lifecycle events): clean the search engine
-      // explicitly so the purged tenant's documents don't survive as permanent index garbage.
-      purgedIds.forEach(engineService::deleteByTenant);
+      // explicitly so the purged tenants' documents don't survive as permanent index garbage.
+      // Deferred to after commit: if the surrounding transaction rolls back, the SQL data is
+      // restored and the index must not have been wiped. Single batched delete-by-query.
+      List<String> idsToClean = List.copyOf(purgedIds);
+      if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                engineService.deleteByTenants(idsToClean);
+              }
+            });
+      } else {
+        engineService.deleteByTenants(idsToClean);
+      }
     }
     return purgedIds.size();
   }
