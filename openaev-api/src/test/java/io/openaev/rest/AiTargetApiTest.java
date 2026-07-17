@@ -115,7 +115,7 @@ class AiTargetApiTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(aiTargetRepository.findById(id)).isEmpty();
+    assertThat(aiTargetRepository.findAiTargetById(id)).isEmpty();
   }
 
   @DisplayName("Search AI targets returns the created target")

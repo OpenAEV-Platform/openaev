@@ -56,8 +56,8 @@ public class AssetService {
   }
 
   /**
-   * Paginated search over EVERY asset type (base Asset, Endpoint, SecurityPlatform, AI targets)
-   * for the unified asset inventory. Queries the base {@code assets} table so all categories are
+   * Paginated search over EVERY asset type (base Asset, Endpoint, SecurityPlatform, AI targets) for
+   * the unified asset inventory. Queries the base {@code assets} table so all categories are
    * returned; filters/sorts must therefore reference base {@link Asset} attributes (endpoint-only
    * fields such as platform / arch live on the subclass and cannot be resolved on the base root).
    */
@@ -65,8 +65,7 @@ public class AssetService {
     // Security platforms are a distinct concept with their own inventory, so they are excluded
     // here; the unified asset inventory lists endpoints, AI targets and every other asset category.
     Specification<Asset> notSecurityPlatform =
-        (root, query, cb) ->
-            cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE);
+        (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE);
     return buildPaginationJPA(
         (Specification<Asset> specification, Pageable pageable) ->
             this.assetRepository.findAll(notSecurityPlatform.and(specification), pageable),

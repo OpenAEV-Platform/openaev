@@ -1,12 +1,9 @@
 package io.openaev.service.targets.search;
 
-import static io.openaev.helper.StreamHelper.fromIterable;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.AiTargetTarget;
 import io.openaev.database.model.Asset;
-import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectTarget;
@@ -113,8 +110,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
 
   @Override
   public List<FilterUtilsJpa.Option> getOptionsByIds(List<String> ids) {
-    return fromIterable(aiTargetRepository.findAllById(ids)).stream()
-        .filter(asset -> AssetCategory.AI_TARGET.equals(asset.getCategory()))
+    return aiTargetRepository.findAiTargetsByIds(ids).stream()
         .map(aiTarget -> new FilterUtilsJpa.Option(aiTarget.getId(), aiTarget.getName()))
         .toList();
   }

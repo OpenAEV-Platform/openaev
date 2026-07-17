@@ -66,8 +66,8 @@ public class EndpointMapper {
 
   /**
    * Converts ANY asset to the inventory output DTO. Endpoints keep their full representation
-   * (agents, platform, arch); every other asset type (AI targets, identities, cloud / web /
-   * network / generic assets) is mapped from the shared {@link Asset} fields with no agents and no
+   * (agents, platform, arch); every other asset type (AI targets, identities, cloud / web / network
+   * / generic assets) is mapped from the shared {@link Asset} fields with no agents and no
    * platform/arch, so the unified asset inventory can list all categories side by side.
    */
   public EndpointOutput toAssetOutput(Asset asset) {

@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -13,10 +12,26 @@ import org.springframework.stereotype.Repository;
  * AI targets are no longer a distinct entity type - they are {@link Asset} rows discriminated by
  * category - so every query here is filtered on {@code asset_category = 'AI_TARGET'} to keep the
  * {@code /api/ai_targets} facade behaving as a dedicated AI target surface.
+ *
+ * <p>Deliberately extends the marker {@link org.springframework.data.repository.Repository} rather
+ * than {@code CrudRepository}: inherited generic methods ({@code findAll()}, {@code findById()},
+ * ...) are NOT category-scoped and would let call sites silently fetch non-AI assets through this
+ * facade. Only the explicitly declared, category-scoped methods (plus the write operations used
+ * after a scoped lookup) are exposed. {@link JpaSpecificationExecutor} remains for paginated
+ * search, where callers must compose their specification with the AI target category restriction.
  */
 @Repository
 public interface AiTargetRepository
-    extends CrudRepository<Asset, String>, JpaSpecificationExecutor<Asset> {
+    extends org.springframework.data.repository.Repository<Asset, String>,
+        JpaSpecificationExecutor<Asset> {
+
+  // -- Write operations (used after a category-scoped lookup / preparation) --
+
+  Asset save(Asset asset);
+
+  void delete(Asset asset);
+
+  // -- Category-scoped queries --
 
   @Query(
       "SELECT DISTINCT a FROM Asset a WHERE a.category = io.openaev.database.model.AssetCategory.AI_TARGET")
@@ -32,6 +47,12 @@ public interface AiTargetRepository
       "SELECT a FROM Asset a "
           + "WHERE a.id = :id AND a.category = io.openaev.database.model.AssetCategory.AI_TARGET")
   Optional<Asset> findAiTargetById(String id);
+
+  /** AI target assets among the given ids (non-AI assets are filtered out by the query). */
+  @Query(
+      "SELECT a FROM Asset a "
+          + "WHERE a.id IN :ids AND a.category = io.openaev.database.model.AssetCategory.AI_TARGET")
+  List<Asset> findAiTargetsByIds(List<String> ids);
 
   /** AI target assets that statically belong to any of the given asset groups. */
   @Query(

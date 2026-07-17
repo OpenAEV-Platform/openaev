@@ -137,15 +137,14 @@ public class AssetGroupService {
    */
   public List<Asset> assetsFromAssetGroup(@NotNull final AssetGroup assetGroup) {
     List<Asset> assets = new ArrayList<>();
-    List<String> assetIds = new ArrayList<>();
+    // Dedup on getId() (not on the instance) because Hibernate proxies and unproxied
+    // entities of the same row would otherwise both pass an identity-based check.
+    Set<String> assetIds = new HashSet<>();
     Stream.concat(assetGroup.getAssets().stream(), assetGroup.getDynamicAssets().stream())
         .forEach(
             asset -> {
-              // We have to call getId() because some assets are returned null because of Hibernate
-              // unproxy
-              if (!assetIds.contains(asset.getId())) {
+              if (assetIds.add(asset.getId())) {
                 assets.add(asset);
-                assetIds.add(asset.getId());
               }
             });
     return assets;
@@ -221,10 +220,10 @@ public class AssetGroupService {
 
   /** True when every filter key is a filterable property of the base {@link Asset} type. */
   private boolean isFilterResolvableForBaseAssets(final Filters.FilterGroup dynamicFilter) {
-    List<String> filterableKeys =
+    Set<String> filterableKeys =
         SchemaUtils.getFilterableProperties(SchemaUtils.schema(Asset.class)).stream()
             .map(PropertySchema::getJsonName)
-            .toList();
+            .collect(Collectors.toSet());
     return Optional.ofNullable(dynamicFilter.getFilters()).orElse(List.of()).stream()
         .allMatch(filter -> filterableKeys.contains(filter.getKey()));
   }

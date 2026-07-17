@@ -1,7 +1,6 @@
 package io.openaev.rest.asset.ai_targets;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
@@ -127,8 +126,7 @@ public class AiTargetApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
-    return fromIterable(this.aiTargetRepository.findAllById(ids)).stream()
-        .filter(i -> AssetCategory.AI_TARGET.equals(i.getCategory()))
+    return this.aiTargetRepository.findAiTargetsByIds(ids).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }
