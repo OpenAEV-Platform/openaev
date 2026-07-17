@@ -203,7 +203,10 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
     // already run against an empty graph), so without this the flow opens zoomed on nothing and the
     // later steps sit off-screen. rAF lets ReactFlow measure the new nodes first.
     requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.15, includeHiddenNodes: false });
+      flowRef.current?.fitView({
+        padding: 0.15,
+        includeHiddenNodes: false,
+      });
     });
   }, [targetResultsByType, injectStatusName, lastExecutionStartDate, lastExecutionEndDate]);
 
