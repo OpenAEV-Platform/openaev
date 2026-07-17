@@ -40,6 +40,7 @@ public class InjectStatus extends BaseInjectStatus {
       cascade = CascadeType.ALL,
       orphanRemoval = true,
       fetch = FetchType.EAGER)
+  @OrderBy("time ASC, id ASC")
   @Fetch(FetchMode.SUBSELECT)
   @JsonProperty("status_traces")
   private List<ExecutionTrace> traces = new ArrayList<>();

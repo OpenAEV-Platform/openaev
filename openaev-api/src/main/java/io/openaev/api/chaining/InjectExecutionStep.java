@@ -559,6 +559,8 @@ public class InjectExecutionStep implements ActionStep {
                 executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
             tracesByEndpointSource
                 .computeIfAbsent(agentId, k -> new StringBuilder())
+                .append(executionTrace.getTime())
+                .append(" ")
                 .append(executionTrace.getStatus().name())
                 .append(" ")
                 .append(executionTrace.getMessage())
@@ -571,6 +573,8 @@ public class InjectExecutionStep implements ActionStep {
           executionTrace -> {
             tracesByEndpointSource
                 .computeIfAbsent(injectorId, k -> new StringBuilder())
+                .append(executionTrace.getTime())
+                .append(" ")
                 .append(executionTrace.getStatus().name())
                 .append(" ")
                 .append(executionTrace.getMessage())
