@@ -260,28 +260,18 @@ const AssetDetail = () => {
               {asset.asset_name}
             </Typography>
           </Tooltip>
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            marginTop: 0.5,
-            flexWrap: 'wrap',
-          }}
-          >
-            <Chip
-              size="small"
-              variant="outlined"
-              icon={<AssetCategoryIcon category={asset.asset_category} fontSize="small" />}
-              label={asset.asset_category ? t(humanizeEnum(asset.asset_category)) : t('Asset')}
-              sx={{ borderRadius: 1 }}
-            />
-            {asset.asset_criticality && (
-              <Chip size="small" variant="outlined" label={`${t('Criticality')}: ${t(humanizeEnum(asset.asset_criticality))}`} sx={{ borderRadius: 1 }} />
-            )}
-            {hasAgents && (
+          {hasAgents && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              marginTop: 0.5,
+              flexWrap: 'wrap',
+            }}
+            >
               <Chip size="small" variant="outlined" label={`${asset.asset_agents.length} ${t('agent(s)')}`} sx={{ borderRadius: 1 }} />
-            )}
-          </Box>
+            </Box>
+          )}
         </Box>
         <AssetPopover
           endpoint={asset as AssetPopoverProps['endpoint']}
