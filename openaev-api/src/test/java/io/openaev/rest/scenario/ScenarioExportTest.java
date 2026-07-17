@@ -11,6 +11,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Workflow;
 import io.openaev.export.Mixins;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.*;
@@ -39,6 +40,7 @@ public class ScenarioExportTest extends IntegrationTest {
   @Autowired private DomainComposer domainComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private DocumentComposer documentComposer;
+  @Autowired private WorkflowComposer workflowComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -165,6 +167,41 @@ public class ScenarioExportTest extends IntegrationTest {
           .node("scenario_tags")
           .isArray()
           .isEqualTo(tagsJson);
+    }
+  }
+
+  @Nested
+  @DisplayName("Scenario chaining export")
+  class ScenarioChainingExport {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_chainingScenario_should_not_export_scenarioInjects")
+    void given_chainingScenario_should_not_export_scenarioInjects() throws Exception {
+      // Arrange
+      ScenarioComposer.Composer scenarioComposerRef =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(injectComposer.forInject(InjectFixture.getDefaultInject()));
+      Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+      workflowComposer.forWorkflow(workflowTemplate).withScenario(scenarioComposerRef).persist();
+      Scenario scenario = scenarioComposerRef.get();
+      manager.flush();
+      manager.clear();
+
+      // Act
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+
+      // Assert
+      assertThatJson(actualJson).node("scenario_injects").isArray().isEqualTo("[]");
     }
   }
 }

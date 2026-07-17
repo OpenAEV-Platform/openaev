@@ -87,6 +87,7 @@ public interface InjectRepository
         UNION
         SELECT i2.inject_id FROM injects i2
           JOIN injectors_contracts c2 ON c2.injector_contract_id = i2.inject_injector_contract
+                                     AND c2.tenant_id = i2.tenant_id
           WHERE c2.injector_contract_updated_at > :from
         UNION
         SELECT d2.inject_parent_id FROM injects_dependencies d2
@@ -95,6 +96,7 @@ public interface InjectRepository
         SELECT d2.inject_parent_id FROM injects_dependencies d2
           JOIN injects child2 ON child2.inject_id = d2.inject_children_id
           JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract
+                                     AND c2.tenant_id = child2.tenant_id
           WHERE c2.injector_contract_updated_at > :from
     ),
     ranked_injects AS (
@@ -102,7 +104,8 @@ public interface InjectRepository
         FROM changed_injects ci
         JOIN injects f ON f.inject_id = ci.inject_id
         LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
-        ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC
+                                        AND ic.tenant_id = f.tenant_id
+        ORDER BY GREATEST(f.inject_updated_at, COALESCE(ic.injector_contract_updated_at, f.inject_updated_at)) ASC
         LIMIT :limit
     )
     SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise,
@@ -126,6 +129,7 @@ public interface InjectRepository
        FROM injects_dependencies idp
        JOIN injects child ON child.inject_id = idp.inject_children_id
        JOIN injectors_contracts ic_c ON ic_c.injector_contract_id = child.inject_injector_contract
+                                    AND ic_c.tenant_id = child.tenant_id
        JOIN injectors_contracts_attack_patterns icap_c ON icap_c.injector_contract_id = ic_c.injector_contract_id
        WHERE idp.inject_parent_id = f.inject_id) as attack_patterns_children,
       ins.status_name as inject_status_name,
@@ -146,6 +150,7 @@ public interface InjectRepository
     JOIN ranked_injects ri ON ri.inject_id = f.inject_id
     LEFT JOIN injects_statuses ins ON ins.status_inject = f.inject_id
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
+                                    AND ic.tenant_id = f.tenant_id
     ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC
     """,
       nativeQuery = true)

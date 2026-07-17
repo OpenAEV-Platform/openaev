@@ -13,6 +13,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.notification.model.NotificationEvent;
@@ -210,9 +211,21 @@ public class InjectsExecutionJob implements Job {
     if (ofNullable(executableInject.getExerciseId()).isPresent()) {
       checkErrorMessagesPreExecution(executableInject.getExerciseId(), inject);
     }
-    if (!healthCheckUtils.runContentChecks(inject).isEmpty()) {
+    List<HealthCheck> contentChecks = healthCheckUtils.runContentChecks(inject);
+    if (!contentChecks.isEmpty()) {
+      String details =
+          contentChecks.stream()
+              .map(check -> check.getType().getValue() + ":" + check.getDetail().name())
+              .distinct()
+              .collect(Collectors.joining(", "));
       throw new UnsupportedOperationException(
-          "The inject is not ready to be executed (missing mandatory fields)");
+          "The inject is not ready to be executed (injectId="
+              + inject.getId()
+              + ", title="
+              + inject.getTitle()
+              + ", missing mandatory fields: "
+              + details
+              + ")");
     }
     log.info("Executing inject {}", inject.getInject().getTitle());
     this.executor.execute(executableInject);

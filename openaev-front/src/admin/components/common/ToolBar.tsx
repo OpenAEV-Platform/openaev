@@ -134,7 +134,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     });
   }
 
-  handleSubmitExport(withPlayers: boolean, withTeams: boolean, withVariableValues: boolean) {
+  handleSubmitExport(withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, _withScopeDefinition: boolean) {
     this.handleCloseExport();
     this.props.handleClearSelectedElements();
     this.props.handleExport?.(withPlayers, withTeams, withVariableValues);
