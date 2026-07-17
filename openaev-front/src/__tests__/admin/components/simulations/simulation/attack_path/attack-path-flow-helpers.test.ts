@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, buildAttackPathFlow, buildClusteredAttackPathFlow, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
+import { AP_ALL_ENDPOINTS, AP_FLOW_EDGE_TYPE, AP_FLOW_NODE_TYPE, applyFindingFilter, buildAttackPathFlow, buildClusteredAttackPathFlow, maskFindingValue } from '../../../../../../admin/components/simulations/simulation/attack_path/attack-path-flow-helpers';
 import type { AttackPathDTO } from '../../../../../../utils/api-types';
 
 const dto: AttackPathDTO = {
@@ -224,32 +224,33 @@ describe('buildClusteredAttackPathFlow', () => {
     ],
   };
 
-  it('aggregates one endpoint cluster (+N) and one finding cluster per type with summed counts', () => {
+  it('dedups endpoints into one shared hub with a global finding cluster per type', () => {
     const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map());
     const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
 
     expect(byId['inj'].type).toBe(AP_FLOW_NODE_TYPE.injector);
-    // one endpoint cluster carrying the endpoint count
-    expect(byId['cl-ep-inj'].type).toBe(AP_FLOW_NODE_TYPE.endpointCluster);
-    expect(byId['cl-ep-inj'].data.count).toBe(2);
-    // one finding cluster per type, counts summed across the injector's endpoints
-    expect(byId['cl-ft-credentials-inj'].type).toBe(AP_FLOW_NODE_TYPE.findingCluster);
-    expect(byId['cl-ft-credentials-inj'].data.count).toBe(5); // 3 + 2
-    expect(byId['cl-ft-cve-inj'].data.count).toBe(1);
+    // ONE shared endpoint hub (deduped across injectors) carrying the distinct endpoint count
+    expect(byId['cl-ep-all'].type).toBe(AP_FLOW_NODE_TYPE.endpointCluster);
+    expect(byId['cl-ep-all'].data.count).toBe(2);
+    expect(byId['cl-ep-all'].data.injectorId).toBe(AP_ALL_ENDPOINTS);
+    // one GLOBAL finding cluster per type (keyed by type only), counts summed across all endpoints
+    expect(byId['cl-ft-credentials'].type).toBe(AP_FLOW_NODE_TYPE.findingCluster);
+    expect(byId['cl-ft-credentials'].data.count).toBe(5); // 3 + 2
+    expect(byId['cl-ft-cve'].data.count).toBe(1);
     // no real endpoint nodes while collapsed
     expect(byId['ep1']).toBeUndefined();
-    // edges: injector -> endpoint cluster -> each finding cluster
-    expect(edges.find(e => e.id === 'inj-cl-ep-inj')?.data?.count).toBe(2);
-    expect(edges.filter(e => e.source === 'cl-ep-inj')).toHaveLength(2);
+    // edges: injector -> shared hub (labelled with the injector's reached-endpoint count) -> findings
+    expect(edges.find(e => e.id === 'inj-cl-ep-all')?.data?.count).toBe(2);
+    expect(edges.filter(e => e.source === 'cl-ep-all')).toHaveLength(2);
     expect(edges[0].type).toBe(AP_FLOW_EDGE_TYPE);
   });
 
-  it('replaces the endpoint cluster with the real endpoints when the injector is expanded', () => {
-    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map([['inj', 15]]));
+  it('replaces the shared hub with the deduped real endpoints when expanded', () => {
+    const { nodes, edges } = buildClusteredAttackPathFlow(clusteredDto, new Map([[AP_ALL_ENDPOINTS, 15]]));
     const ids = nodes.map(n => n.id);
     expect(ids).toContain('ep1');
     expect(ids).toContain('ep2');
     expect(nodes.find(n => n.id === 'ep1')?.type).toBe(AP_FLOW_NODE_TYPE.asset);
-    expect(edges.find(e => e.id === 'cl-ep-inj-ep1')?.target).toBe('ep1');
+    expect(edges.find(e => e.id === 'cl-ep-all-ep1')?.target).toBe('ep1');
   });
 });

@@ -54,6 +54,12 @@ export interface AttackPathFlowNodeData {
   ip?: string;
   platform?: string;
   agents?: string[];
+  // For a finding node: the id of the endpoint (ASSET) node it was discovered on, so a direct click
+  // on the finding can open its details panel by focusing that endpoint's path.
+  assetNodeId?: string;
+  // For an endpoint (ASSET) node: its 1-based rank among the top chokepoints (most findings), used to
+  // badge the most-exposed endpoints. Absent when the endpoint is not a top chokepoint.
+  chokepointRank?: number;
   dimmed?: boolean;
   // Aggregate cluster nodes: the endpoint count (endpoint cluster) or finding count (finding cluster).
   count?: number;
@@ -191,9 +197,17 @@ const CLUSTER_EP_ROW_H = 124;
 const CLUSTER_FINDING_ROW_H = 100;
 const CLUSTER_FINDING_GAP = 52;
 const CLUSTER_FINDING_DETAIL_ROW = 70;
-const CLUSTER_BLOCK_GAP = 56;
 const CLUSTER_INJECTOR_HALF_H = 34;
 const CLUSTER_EP_HALF_H = 42;
+// Vertical spacing between the stacked injectors on the left band of the deduped view.
+const CLUSTER_INJECTOR_ROW_H = 120;
+
+// Deduped clustered view: endpoints are shared across injectors (an action reaches many endpoints and
+// an endpoint is reached by many actions), so there is ONE shared endpoint hub instead of one per
+// injector. This is its stable id and the key used for its expand/collapse batch and its global
+// finding fetch (see AP_ALL_ENDPOINTS consumers in SimulationAttackPath).
+export const AP_ALL_ENDPOINTS = '__all_endpoints__';
+export const AP_SHARED_EP_CLUSTER_ID = 'cl-ep-all';
 
 // Progressive drill-down: an expanded endpoint cluster reveals endpoints in batches of this size,
 // keeping a "+N" overflow cluster for the rest (itself expandable), so a huge injector stays legible.
@@ -308,6 +322,9 @@ const pushFindingColumn = (
   topY: number,
   injId: string,
   endpointRef: string | undefined,
+  // The endpoint (ASSET) node id this column hangs off, when known (per-endpoint column). Used as a
+  // fallback origin for findings whose own assetNodeId is absent.
+  endpointNodeId: string | undefined,
 ): void => {
   items.forEach((e) => {
     nodes.push({
@@ -351,6 +368,7 @@ const pushFindingColumn = (
         data: {
           label: f.value ?? f.label,
           typeFindings: e.type,
+          assetNodeId: f.assetNodeId ?? endpointNodeId,
         },
       });
       edges.push({
@@ -400,7 +418,9 @@ const pushFindingColumn = (
 
 export const buildClusteredAttackPathFlow = (
   dto: AttackPathDTO,
-  endpointBatchByInjector: Map<string, number>,
+  // Endpoint expand/collapse batch. In the deduped view there is a single shared hub, so this maps
+  // the AP_ALL_ENDPOINTS key to how many endpoints are revealed (0 / absent = collapsed).
+  endpointBatch: Map<string, number>,
   findingExpansion?: FindingExpansion,
 ): {
   nodes: AttackPathFlowNode[];
@@ -413,179 +433,207 @@ export const buildClusteredAttackPathFlow = (
   );
   const execEdges = (dto.attackPathEdges ?? []).filter(e => e.type === 'EDGE_EXECUTIONS');
 
-  // injector -> distinct reached endpoints.
-  const reachedByInjector = new Map<string, string[]>();
+  // Deduped topology: which injectors reached each distinct endpoint (an endpoint is reached by many
+  // actions), in first-seen order, and each injector's reached-endpoint count (an action reaches many
+  // endpoints). Endpoints are SHARED across injectors — never repeated once per injector.
+  const injectorsByEndpoint = new Map<string, string[]>();
+  const reachedOrder: string[] = [];
+  const reachedCountByInjector = new Map<string, number>();
   for (const e of execEdges) {
-    if (e.edgeSourceId && e.edgeTargetId && assetById.has(e.edgeTargetId)) {
-      const arr = reachedByInjector.get(e.edgeSourceId) ?? [];
-      if (!arr.includes(e.edgeTargetId)) {
-        arr.push(e.edgeTargetId);
-      }
-      reachedByInjector.set(e.edgeSourceId, arr);
+    const src = e.edgeSourceId;
+    const tgt = e.edgeTargetId;
+    if (!src || !tgt || !assetById.has(tgt)) {
+      continue;
+    }
+    const injs = injectorsByEndpoint.get(tgt) ?? [];
+    if (!injs.includes(src)) {
+      injs.push(src);
+      reachedCountByInjector.set(src, (reachedCountByInjector.get(src) ?? 0) + 1);
+    }
+    injectorsByEndpoint.set(tgt, injs);
+    if (!reachedOrder.includes(tgt)) {
+      reachedOrder.push(tgt);
     }
   }
+
+  // Reveal the most-exposed endpoints first (most findings = highest chokepoint score), so expanding
+  // the shared hub surfaces the chokepoints (and their badges) up front rather than burying them.
+  const endpointFindingTotal = (assetId: string): number =>
+    Object.values(assetById.get(assetId)?.findingCounts ?? {}).reduce((s, v) => s + (v ?? 0), 0);
+  reachedOrder.sort((a, b) => endpointFindingTotal(b) - endpointFindingTotal(a));
 
   const nodes: AttackPathFlowNode[] = [];
   const edges: AttackPathFlowEdge[] = [];
 
-  let cursorY = PADDING;
-  injectors.forEach((inj) => {
-    const injId = inj.id as string;
-    const reached = reachedByInjector.get(injId) ?? [];
-    const total = reached.length;
-    const shown = Math.min(Math.max(endpointBatchByInjector.get(injId) ?? 0, 0), total);
-    const expanded = shown > 0;
+  const total = reachedOrder.length;
+  const shown = Math.min(Math.max(endpointBatch.get(AP_ALL_ENDPOINTS) ?? 0, 0), total);
+  const expanded = shown > 0;
 
-    // Aggregate finding-type counts across this injector's endpoints.
-    const typeSum = new Map<string, number>();
-    for (const assetId of reached) {
-      const fc = assetById.get(assetId)?.findingCounts;
-      if (fc) {
-        for (const [k, v] of Object.entries(fc)) {
-          typeSum.set(k, (typeSum.get(k) ?? 0) + (v ?? 0));
-        }
-      }
+  const reachedAssets = reachedOrder.map(id => assetById.get(id));
+  const overallStatus = aggregateStatus(reachedAssets.map(a => a?.status));
+
+  // Global finding-type aggregate, deduped across the distinct endpoints (each endpoint counted once).
+  const typeSum = new Map<string, number>();
+  for (const asset of reachedAssets) {
+    for (const [k, v] of Object.entries(asset?.findingCounts ?? {})) {
+      typeSum.set(k, (typeSum.get(k) ?? 0) + (v ?? 0));
     }
-    const types = [...typeSum.entries()].filter(([, v]) => v > 0);
-    const reachedAssets = reached.map(id => assetById.get(id));
-    const injectorStatus = aggregateStatus(reachedAssets.map(a => a?.status));
+  }
+  const types = [...typeSum.entries()].filter(([, v]) => v > 0);
 
-    // Collapsed view: one aggregate finding column per injector (hidden while endpoints are expanded).
-    const agg = layoutFindingColumn(
-      types,
-      type => aggregateStatus(reachedAssets.filter(a => (a?.findingCounts?.[type] ?? 0) > 0).map(a => a?.status)),
-      type => `cl-ft-${type}-${injId}`,
-      findingExpansion,
-    );
-    const findingColHeight = expanded ? 0 : agg.height;
+  // Left band: all injectors stacked. The shared endpoint hub and the finding column are centred
+  // against whichever side (injectors vs endpoints/findings) is taller.
+  const injectorsH = Math.max(CLUSTER_EP_ROW_H, injectors.length * CLUSTER_INJECTOR_ROW_H);
 
-    // Expanded view: each revealed endpoint fans out to its OWN finding column, so its block is as
-    // tall as its findings (or a single row, whichever is taller); a "+rest" overflow follows below.
-    const shownAssetIds = reached.slice(0, shown);
-    const endpointLayouts = expanded
-      ? shownAssetIds.map((assetId) => {
-          const asset = assetById.get(assetId);
-          const epTypes = (Object.entries(asset?.findingCounts ?? {}).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
-          const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion);
-          return {
-            assetId,
-            asset,
-            epCol,
-            blockH: Math.max(CLUSTER_EP_ROW_H, epCol.height),
-          };
-        })
-      : [];
-    const endpointColHeight = expanded
-      ? endpointLayouts.reduce((s, e) => s + e.blockH, 0) + (total > shown ? CLUSTER_EP_ROW_H : 0)
-      : 0;
-    const blockH = Math.max(CLUSTER_ROW_UNIT, findingColHeight, endpointColHeight);
-    const centerY = cursorY + blockH / 2;
+  // Collapsed: one GLOBAL finding column hanging off the shared hub (finding clusters keyed by type
+  // only, no injector — they aggregate every reached endpoint).
+  const agg = layoutFindingColumn(
+    types,
+    type => aggregateStatus(reachedAssets.filter(a => (a?.findingCounts?.[type] ?? 0) > 0).map(a => a?.status)),
+    type => `cl-ft-${type}`,
+    findingExpansion,
+  );
 
+  // Expanded: each revealed (deduped) endpoint fans out to its OWN finding column.
+  const shownAssetIds = reachedOrder.slice(0, shown);
+  const endpointLayouts = expanded
+    ? shownAssetIds.map((assetId) => {
+        const asset = assetById.get(assetId);
+        const epTypes = (Object.entries(asset?.findingCounts ?? {}).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
+        const epCol = layoutFindingColumn(epTypes, () => asset?.status, type => `cl-ft-${type}-${assetId}`, findingExpansion);
+        return {
+          assetId,
+          asset,
+          epCol,
+          blockH: Math.max(CLUSTER_EP_ROW_H, epCol.height),
+        };
+      })
+    : [];
+  const endpointColHeight = expanded
+    ? endpointLayouts.reduce((s, e) => s + e.blockH, 0) + (total > shown ? CLUSTER_EP_ROW_H : 0)
+    : 0;
+
+  const blockH = Math.max(CLUSTER_ROW_UNIT, injectorsH, expanded ? endpointColHeight : agg.height);
+  const centerY = PADDING + blockH / 2;
+
+  // Injectors, stacked and vertically centred against the whole block.
+  const injTop = centerY - injectorsH / 2;
+  injectors.forEach((inj, i) => {
     nodes.push({
-      id: injId,
+      id: inj.id as string,
       type: AP_FLOW_NODE_TYPE.injector,
       position: {
         x: PADDING,
-        y: centerY - CLUSTER_INJECTOR_HALF_H,
+        y: injTop + i * CLUSTER_INJECTOR_ROW_H + CLUSTER_INJECTOR_ROW_H / 2 - CLUSTER_INJECTOR_HALF_H,
       },
       data: nodeData(inj),
     });
+  });
 
-    const clusterId = `cl-ep-${injId}`;
-    nodes.push({
-      id: clusterId,
-      type: AP_FLOW_NODE_TYPE.endpointCluster,
-      position: {
-        x: CLUSTER_EP_X,
-        y: centerY - CLUSTER_EP_HALF_H,
-      },
-      data: {
-        count: total,
-        injectorId: injId,
-        clusterKind: 'header',
-        expanded,
-        status: injectorStatus,
-      },
-    });
+  // The single SHARED endpoint hub (dedup): every injector points at it and it carries the total
+  // distinct endpoint count. Its expand/collapse batch is keyed by AP_ALL_ENDPOINTS. The converging
+  // injector edges make it a natural chokepoint anchor.
+  const clusterId = AP_SHARED_EP_CLUSTER_ID;
+  nodes.push({
+    id: clusterId,
+    type: AP_FLOW_NODE_TYPE.endpointCluster,
+    position: {
+      x: CLUSTER_EP_X,
+      y: centerY - CLUSTER_EP_HALF_H,
+    },
+    data: {
+      count: total,
+      injectorId: AP_ALL_ENDPOINTS,
+      clusterKind: 'header',
+      expanded,
+      status: overallStatus,
+    },
+  });
+  injectors.forEach((inj) => {
+    const injId = inj.id as string;
+    const reachedCount = reachedCountByInjector.get(injId) ?? 0;
+    const injStatus = aggregateStatus(
+      reachedOrder
+        .filter(ep => (injectorsByEndpoint.get(ep) ?? []).includes(injId))
+        .map(ep => assetById.get(ep)?.status),
+    );
     edges.push({
       id: `${injId}-${clusterId}`,
       source: injId,
       target: clusterId,
       type: AP_FLOW_EDGE_TYPE,
       data: {
-        count: total,
-        label: `+${total}`,
-        status: injectorStatus,
+        count: reachedCount,
+        label: `+${reachedCount}`,
+        status: injStatus,
       },
     });
-
-    // Revealed endpoints, each with its own finding column; a "+rest" overflow follows. When
-    // collapsed, the injector's aggregate finding column is drawn instead.
-    if (expanded) {
-      let epY = cursorY + (blockH - endpointColHeight) / 2;
-      endpointLayouts.forEach(({ assetId, asset, epCol, blockH: epBlockH }) => {
-        if (!asset) {
-          epY += epBlockH;
-          return;
-        }
-        const epCenter = epY + epBlockH / 2;
-        nodes.push({
-          id: assetId,
-          type: AP_FLOW_NODE_TYPE.asset,
-          position: {
-            x: CLUSTER_EP_DETAIL_X,
-            y: epCenter - CLUSTER_EP_HALF_H,
-          },
-          data: nodeData(asset),
-        });
-        edges.push({
-          id: `${clusterId}-${assetId}`,
-          source: clusterId,
-          target: assetId,
-          type: AP_FLOW_EDGE_TYPE,
-          data: {
-            count: 1,
-            status: asset.status,
-          },
-        });
-        // The endpoint's own finding column, vertically centred against its block.
-        pushFindingColumn(nodes, edges, epCol.items, assetId, epY + (epBlockH - epCol.height) / 2, injId, asset.ref ?? assetId);
-        epY += epBlockH;
-      });
-      if (total > shown) {
-        const overflowId = `cl-ep-more-${injId}`;
-        nodes.push({
-          id: overflowId,
-          type: AP_FLOW_NODE_TYPE.endpointCluster,
-          position: {
-            x: CLUSTER_EP_DETAIL_X,
-            y: epY + CLUSTER_EP_ROW_H / 2 - CLUSTER_EP_HALF_H,
-          },
-          data: {
-            count: total - shown,
-            injectorId: injId,
-            clusterKind: 'overflow',
-            status: injectorStatus,
-          },
-        });
-        edges.push({
-          id: `${clusterId}-${overflowId}`,
-          source: clusterId,
-          target: overflowId,
-          type: AP_FLOW_EDGE_TYPE,
-          data: {
-            count: total - shown,
-            label: `+${total - shown}`,
-            status: injectorStatus,
-          },
-        });
-      }
-    } else {
-      pushFindingColumn(nodes, edges, agg.items, clusterId, cursorY + (blockH - agg.height) / 2, injId, undefined);
-    }
-
-    cursorY += blockH + CLUSTER_BLOCK_GAP;
   });
+
+  // Revealed endpoints (deduped), each with its own finding column; a "+rest" overflow follows. When
+  // collapsed, the global aggregate finding column hangs off the shared hub instead.
+  if (expanded) {
+    let epY = centerY - endpointColHeight / 2;
+    endpointLayouts.forEach(({ assetId, asset, epCol, blockH: epBlockH }) => {
+      if (!asset) {
+        epY += epBlockH;
+        return;
+      }
+      const epCenter = epY + epBlockH / 2;
+      nodes.push({
+        id: assetId,
+        type: AP_FLOW_NODE_TYPE.asset,
+        position: {
+          x: CLUSTER_EP_DETAIL_X,
+          y: epCenter - CLUSTER_EP_HALF_H,
+        },
+        data: nodeData(asset),
+      });
+      edges.push({
+        id: `${clusterId}-${assetId}`,
+        source: clusterId,
+        target: assetId,
+        type: AP_FLOW_EDGE_TYPE,
+        data: {
+          count: 1,
+          status: asset.status,
+        },
+      });
+      // The endpoint's own finding column, vertically centred against its block.
+      pushFindingColumn(nodes, edges, epCol.items, assetId, epY + (epBlockH - epCol.height) / 2, AP_ALL_ENDPOINTS, asset.ref ?? assetId, assetId);
+      epY += epBlockH;
+    });
+    if (total > shown) {
+      const overflowId = 'cl-ep-more-all';
+      nodes.push({
+        id: overflowId,
+        type: AP_FLOW_NODE_TYPE.endpointCluster,
+        position: {
+          x: CLUSTER_EP_DETAIL_X,
+          y: epY + CLUSTER_EP_ROW_H / 2 - CLUSTER_EP_HALF_H,
+        },
+        data: {
+          count: total - shown,
+          injectorId: AP_ALL_ENDPOINTS,
+          clusterKind: 'overflow',
+          status: overallStatus,
+        },
+      });
+      edges.push({
+        id: `${clusterId}-${overflowId}`,
+        source: clusterId,
+        target: overflowId,
+        type: AP_FLOW_EDGE_TYPE,
+        data: {
+          count: total - shown,
+          label: `+${total - shown}`,
+          status: overallStatus,
+        },
+      });
+    }
+  } else {
+    pushFindingColumn(nodes, edges, agg.items, clusterId, centerY - agg.height / 2, AP_ALL_ENDPOINTS, undefined, undefined);
+  }
 
   return {
     nodes,
@@ -657,6 +705,10 @@ export const buildFindingPathFlow = (
   const injectors = dtoNodes.filter(n => n.type === 'INJECTOR' && n.id && injectorIds.has(n.id as string));
 
   const endpointCounts = endpoint?.findingCounts ?? {};
+  // Endpoint focus (no specific finding, e.g. from a chokepoint click): show the whole endpoint —
+  // injector(s) -> endpoint -> one cluster per finding type on it — instead of a single finding path.
+  const endpointFocus = !finding.type;
+  const focusTypes = (Object.entries(endpointCounts).filter(([, v]) => (v ?? 0) > 0)) as Array<[string, number]>;
   const selectedTypeCount = endpointCounts[finding.type] ?? 0;
   const sameTypeOthers = Math.max(selectedTypeCount - 1, 0);
   const otherTypesTotal = Object.entries(endpointCounts)
@@ -664,7 +716,9 @@ export const buildFindingPathFlow = (
     .reduce((sum, [, v]) => sum + (v ?? 0), 0);
 
   const rowH = CLUSTER_FINDING_ROW_H;
-  const rightRows = 1 + (sameTypeOthers > 0 ? 1 : 0) + (otherTypesTotal > 0 ? 1 : 0);
+  const rightRows = endpointFocus
+    ? Math.max(1, focusTypes.length)
+    : 1 + (sameTypeOthers > 0 ? 1 : 0) + (otherTypesTotal > 0 ? 1 : 0);
   const rightH = Math.max(rowH, rightRows * rowH);
   const leftH = Math.max(CLUSTER_EP_ROW_H, injectors.length * CLUSTER_EP_ROW_H);
   const blockH = Math.max(leftH, rightH);
@@ -714,33 +768,35 @@ export const buildFindingPathFlow = (
     selected: true,
   });
 
-  const findingId = `path-finding|${finding.type}|${finding.value}`;
-  nodes.push({
-    id: findingId,
-    type: AP_FLOW_NODE_TYPE.finding,
-    position: {
-      x: CLUSTER_FINDING_DETAIL_X,
-      y: rightTopY,
-    },
-    data: {
-      label: finding.value,
-      typeFindings: finding.type,
-    },
-    selected: true,
-  });
-  edges.push({
-    id: `${endpointId}-${findingId}`,
-    source: endpointId,
-    target: findingId,
-    type: AP_FLOW_EDGE_TYPE,
-    data: {
-      count: 1,
-      // Focused path is intentionally highlighted in blue.
-      status: undefined,
-      label: `${finding.type} found`,
-    },
-    selected: true,
-  });
+  if (!endpointFocus) {
+    const findingId = `path-finding|${finding.type}|${finding.value}`;
+    nodes.push({
+      id: findingId,
+      type: AP_FLOW_NODE_TYPE.finding,
+      position: {
+        x: CLUSTER_FINDING_DETAIL_X,
+        y: rightTopY,
+      },
+      data: {
+        label: finding.value,
+        typeFindings: finding.type,
+      },
+      selected: true,
+    });
+    edges.push({
+      id: `${endpointId}-${findingId}`,
+      source: endpointId,
+      target: findingId,
+      type: AP_FLOW_EDGE_TYPE,
+      data: {
+        count: 1,
+        // Focused path is intentionally highlighted in blue.
+        status: undefined,
+        label: `${finding.type} found`,
+      },
+      selected: true,
+    });
+  }
 
   // Contextual clusters (the endpoint's other findings) sit to the right of the focused finding. Each
   // is expandable in place: on expand it fans out its (fetched, batched) individual findings so the
@@ -754,6 +810,8 @@ export const buildFindingPathFlow = (
     count: number,
     edgeLabel: string,
     top: number,
+    clusterX: number = CTX_CLUSTER_X,
+    childX: number = CTX_CHILD_X,
   ): number => {
     const isExpanded = findingExpansion?.expanded.has(id) ?? false;
     const list = isExpanded ? (findingExpansion?.findingsByCluster.get(id) ?? []) : [];
@@ -766,7 +824,7 @@ export const buildFindingPathFlow = (
       id,
       type: AP_FLOW_NODE_TYPE.findingCluster,
       position: {
-        x: CTX_CLUSTER_X,
+        x: clusterX,
         y: top,
       },
       data: {
@@ -798,7 +856,7 @@ export const buildFindingPathFlow = (
         id: fid,
         type: AP_FLOW_NODE_TYPE.finding,
         position: {
-          x: CTX_CHILD_X,
+          x: childX,
           y: top + CLUSTER_FINDING_ROW_H + j * CTX_ROW_H,
         },
         data: {
@@ -823,7 +881,7 @@ export const buildFindingPathFlow = (
         id: moreId,
         type: AP_FLOW_NODE_TYPE.findingCluster,
         position: {
-          x: CTX_CHILD_X,
+          x: childX,
           y: top + CLUSTER_FINDING_ROW_H + children.length * CTX_ROW_H,
         },
         data: {
@@ -851,20 +909,38 @@ export const buildFindingPathFlow = (
     return Math.max(rowH, CLUSTER_FINDING_ROW_H + childrenH);
   };
 
-  let clusterY = rightTopY + rowH;
-  if (sameTypeOthers > 0) {
-    const id = `path-cl-same|${finding.type}|${finding.endpointKey}`;
-    clusterY += emitCtxCluster(
-      id,
-      finding.type,
-      sameTypeOthers,
-      `${sameTypeOthers} ${findingCategoryNoun(finding.type)}`,
-      clusterY,
-    );
-  }
-  if (otherTypesTotal > 0) {
-    const id = `path-cl-other|${finding.type}|${finding.endpointKey}`;
-    emitCtxCluster(id, 'other', otherTypesTotal, `${otherTypesTotal} findings`, clusterY);
+  if (endpointFocus) {
+    // Endpoint focus: one cluster per finding type on the endpoint, hanging straight off it (in the
+    // normal finding-cluster columns), each expandable in place.
+    let clusterY = rightTopY;
+    focusTypes.forEach(([type, count]) => {
+      const id = `path-cl-type|${type}|${finding.endpointKey}`;
+      clusterY += emitCtxCluster(
+        id,
+        type,
+        count,
+        `${count} ${findingCategoryNoun(type)}`,
+        clusterY,
+        CLUSTER_FINDING_X,
+        CLUSTER_FINDING_DETAIL_X,
+      );
+    });
+  } else {
+    let clusterY = rightTopY + rowH;
+    if (sameTypeOthers > 0) {
+      const id = `path-cl-same|${finding.type}|${finding.endpointKey}`;
+      clusterY += emitCtxCluster(
+        id,
+        finding.type,
+        sameTypeOthers,
+        `${sameTypeOthers} ${findingCategoryNoun(finding.type)}`,
+        clusterY,
+      );
+    }
+    if (otherTypesTotal > 0) {
+      const id = `path-cl-other|${finding.type}|${finding.endpointKey}`;
+      emitCtxCluster(id, 'other', otherTypesTotal, `${otherTypesTotal} findings`, clusterY);
+    }
   }
 
   return {
