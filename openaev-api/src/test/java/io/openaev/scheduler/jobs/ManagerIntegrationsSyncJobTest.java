@@ -4,17 +4,22 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.service.tenants.TenantService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,8 +35,24 @@ class ManagerIntegrationsSyncJobTest {
 
   @Mock private ManagerFactory managerFactory;
   @Mock private TenantService tenantService;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private Manager tenantAManager;
   @Mock private Manager tenantBManager;
+
+  @BeforeEach
+  @SuppressWarnings("unchecked")
+  void setUp() throws Exception {
+    // Make tenantTx.execute() just run the supplier directly (no real transaction).
+    // Lenient: the shouldLogSlowTenantExecution tests do not invoke execute().
+    org.mockito.Mockito.lenient()
+        .doAnswer(
+            invocation -> {
+              Supplier<?> supplier = invocation.getArgument(1);
+              return supplier.get();
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Supplier.class));
+  }
 
   @Nested
   @DisplayName("execute")
@@ -44,7 +65,7 @@ class ManagerIntegrationsSyncJobTest {
       when(managerFactory.getManager("tenant-a")).thenReturn(tenantAManager);
       when(managerFactory.getManager("tenant-b")).thenReturn(tenantBManager);
       ManagerIntegrationsSyncJob job =
-          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, DIRECT_EXECUTOR);
 
       // Act
       job.execute(null);
@@ -61,7 +82,7 @@ class ManagerIntegrationsSyncJobTest {
       when(managerFactory.getManager("tenant-a")).thenReturn(tenantAManager);
       QueueingExecutor queueingExecutor = new QueueingExecutor();
       ManagerIntegrationsSyncJob job =
-          new ManagerIntegrationsSyncJob(managerFactory, tenantService, queueingExecutor);
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, queueingExecutor);
 
       // Act
       job.execute(null);
@@ -78,7 +99,7 @@ class ManagerIntegrationsSyncJobTest {
       when(tenantService.findActiveTenantIds()).thenReturn(List.of("tenant-a"));
       when(managerFactory.getManager("tenant-a")).thenReturn(tenantAManager);
       ManagerIntegrationsSyncJob job =
-          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, DIRECT_EXECUTOR);
 
       // Act
       job.execute(null);
@@ -95,7 +116,7 @@ class ManagerIntegrationsSyncJobTest {
       when(managerFactory.getManager("tenant-a")).thenReturn(tenantAManager);
       doThrow(new RuntimeException("boom")).when(tenantAManager).monitorIntegrations();
       ManagerIntegrationsSyncJob job =
-          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, DIRECT_EXECUTOR);
 
       // Act / Assert
       assertDoesNotThrow(() -> job.execute(null));
@@ -112,7 +133,7 @@ class ManagerIntegrationsSyncJobTest {
     void given_firstSyncForTenant_should_notLogSlowCall() {
       // Arrange
       ManagerIntegrationsSyncJob job =
-          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, DIRECT_EXECUTOR);
 
       // Act
       boolean shouldLog = job.shouldLogSlowTenantExecution("tenant-a");
@@ -125,7 +146,7 @@ class ManagerIntegrationsSyncJobTest {
     void given_secondSyncForTenant_should_logSlowCall() {
       // Arrange
       ManagerIntegrationsSyncJob job =
-          new ManagerIntegrationsSyncJob(managerFactory, tenantService, DIRECT_EXECUTOR);
+          new ManagerIntegrationsSyncJob(managerFactory, tenantService, tenantTx, DIRECT_EXECUTOR);
 
       // Act
       boolean firstCall = job.shouldLogSlowTenantExecution("tenant-a");

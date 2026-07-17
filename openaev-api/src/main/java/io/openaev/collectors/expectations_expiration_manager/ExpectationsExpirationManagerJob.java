@@ -3,10 +3,10 @@ package io.openaev.collectors.expectations_expiration_manager;
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
 import io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService;
 import io.openaev.context.TenantContext;
-import io.openaev.database.repository.TenantRepository;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.integration.BuiltinTenantRegistrable;
 import io.openaev.rest.collector.service.CollectorService;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,18 +19,18 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
   private final ExpectationsExpirationManagerService fakeDetectorService;
   private final CollectorService collectorService;
   private final ExpectationsExpirationManagerConfig config;
-  private final TenantRepository tenantRepository;
+  private final TenantScopedTransaction tenantTx;
 
   @Autowired
   public ExpectationsExpirationManagerJob(
       CollectorService collectorService,
       ExpectationsExpirationManagerConfig config,
       ExpectationsExpirationManagerService fakeDetectorService,
-      TenantRepository tenantRepository) {
+      TenantScopedTransaction tenantTx) {
     this.collectorService = collectorService;
     this.config = config;
     this.fakeDetectorService = fakeDetectorService;
-    this.tenantRepository = tenantRepository;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -48,17 +48,18 @@ public class ExpectationsExpirationManagerJob implements Runnable, BuiltinTenant
 
   @Override
   public void run() {
-    List<String> tenantIds = tenantRepository.findAllIdsByDeletedAtIsNull();
-    for (String tenantId : tenantIds) {
-      try {
-        TenantContext.setCurrentTenant(tenantId);
-        // Detection & Prevention
-        this.fakeDetectorService.computeExpectations();
-      } catch (Exception e) {
-        log.error("Error running expectations expiration manager for tenant {}", tenantId, e);
-      } finally {
-        TenantContext.clearCurrentTenant();
-      }
-    }
+    tenantTx.forEachTenant(
+        scope -> {
+          // Bridge: set TenantContext so that the v1 Hibernate @Filter (enabled by
+          // HibernateFilterTransactionAspect) keeps working for tables not yet on v2.
+          // Once all tables touched by this job are activated on v2, remove this line.
+          TenantContext.setCurrentTenant(((TxCtx.Restricted) scope).tenantIds().getFirst());
+          try {
+            // Detection & Prevention expectation expiration
+            this.fakeDetectorService.computeExpectations();
+          } finally {
+            TenantContext.clearCurrentTenant();
+          }
+        });
   }
 }
