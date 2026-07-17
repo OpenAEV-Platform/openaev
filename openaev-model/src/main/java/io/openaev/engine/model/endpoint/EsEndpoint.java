@@ -3,6 +3,7 @@ package io.openaev.engine.model.endpoint;
 import io.openaev.annotation.EsQueryable;
 import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Filters;
 import io.openaev.engine.model.tenant.EsTenantBase;
@@ -29,6 +30,13 @@ public class EsEndpoint extends EsTenantBase {
   @Queryable(label = "endpoint external reference")
   @EsQueryable(keyword = true)
   private String endpoint_external_reference;
+
+  @Queryable(
+      label = "endpoint category",
+      filterable = true,
+      refEnumClazz = AssetCategory.class)
+  @EsQueryable(keyword = true)
+  private String endpoint_category;
 
   // -- ENDPOINT SPECIFIC --
   // NOTE: the SQL columns were renamed endpoint_* -> asset_* (asset taxonomy remodel), but the ES

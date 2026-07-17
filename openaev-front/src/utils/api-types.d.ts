@@ -3598,7 +3598,7 @@ export interface EsFinding {
   /** @format date-time */
   base_created_at?: string;
   base_dependencies?: string[];
-  base_endpoint_side?: string;
+  base_endpoint_side?: string[];
   base_entity?: string;
   base_id?: string;
   base_inject_side?: string;
