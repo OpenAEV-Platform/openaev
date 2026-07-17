@@ -1,10 +1,12 @@
-import { useFormatter } from '../../../i18n';
-
 type Props = { arch?: string };
 
+// Architecture is only meaningful for OS-bound assets; absent / unknown values render a neutral dash
+// rather than a misleading "Unknown".
 const EndpointArchFragment = (props: Props) => {
-  const { t } = useFormatter();
-  return props.arch ?? t('Unknown');
+  if (!props.arch || props.arch === 'Unknown') {
+    return '-';
+  }
+  return props.arch;
 };
 
 export default EndpointArchFragment;

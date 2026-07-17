@@ -16,6 +16,7 @@ import { buildSearchPagination } from '../../../../components/common/queryable/Q
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
+import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemTags from '../../../../components/ItemTags';
 import ItemTargets from '../../../../components/ItemTargets';
 import Loader from '../../../../components/Loader';
@@ -321,7 +322,7 @@ const AssetDetail = () => {
             </Box>
           </Field>
           <Field label={t('Criticality')}>
-            <Typography variant="body2">{asset.asset_criticality ? t(humanizeEnum(asset.asset_criticality)) : '-'}</Typography>
+            <ItemCriticality criticality={asset.asset_criticality} />
           </Field>
           <Field label={t('Internet-facing')}>
             <Typography variant="body2">{internetFacingLabel}</Typography>

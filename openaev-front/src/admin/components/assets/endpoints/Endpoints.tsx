@@ -25,6 +25,7 @@ import SortHeadersComponentV2 from '../../../../components/common/queryable/sort
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
+import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
@@ -157,7 +158,7 @@ const Endpoints = () => {
       field: 'asset_criticality',
       label: 'Criticality',
       isSortable: true,
-      value: (endpoint: EndpointOutput) => (endpoint.asset_criticality ? t(humanizeEnum(endpoint.asset_criticality)) : '-'),
+      value: (endpoint: EndpointOutput) => <ItemCriticality criticality={endpoint.asset_criticality} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TAGS,
