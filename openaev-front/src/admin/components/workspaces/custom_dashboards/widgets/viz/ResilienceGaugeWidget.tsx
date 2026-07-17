@@ -214,7 +214,7 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
           <svg
             className="noDrag"
             viewBox={`0 0 ${size} ${size}`}
-            onClick={() => investigate(['SUCCESS', 'FAILED', 'PENDING'])}
+            onClick={() => investigate(['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'])}
             style={{
               maxHeight: '100%',
               maxWidth: '100%',

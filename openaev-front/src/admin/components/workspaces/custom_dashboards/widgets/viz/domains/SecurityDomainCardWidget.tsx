@@ -18,6 +18,7 @@ import {
   type EsExpectationByDomainTypeAndStatus,
   formatPercentage,
   getIconByDomain,
+  isStatus,
 } from './SecurityDomainsWidgetUtils';
 
 interface Props {
@@ -43,19 +44,25 @@ const SecurityDomainCardWidget: FunctionComponent<Props> = ({
 
   const hasData = esDomainDatas.data.length > 0;
 
-  // Overall success rate for the domain: sum of successful expectations over total expectations.
+  // Overall success rate for the domain: successful expectations over RESOLVED (success + failed)
+  // expectations, matching statuses case-insensitively - same math as the resilience gauges so the
+  // domain band can never contradict them. Pending/unknown docs are excluded from the denominator.
   const score = useMemo(() => {
     const totals = esDomainDatas.data.reduce(
       (acc, serie) => ({
-        success: acc.success + (serie.data.find(d => d.key === 'success')?.value ?? 0),
-        total: acc.total + (serie.value ?? 0),
+        success: acc.success + serie.data
+          .filter(d => isStatus(d.key, 'SUCCESS'))
+          .reduce((sum, d) => sum + (d.value ?? 0), 0),
+        resolved: acc.resolved + serie.data
+          .filter(d => isStatus(d.key, 'SUCCESS') || isStatus(d.key, 'FAILED'))
+          .reduce((sum, d) => sum + (d.value ?? 0), 0),
       }),
       {
         success: 0,
-        total: 0,
+        resolved: 0,
       },
     );
-    return calcPercentage(totals.success, totals.total);
+    return calcPercentage(totals.success, totals.resolved);
   }, [esDomainDatas.data]);
 
   const hasScore = score >= 0;
