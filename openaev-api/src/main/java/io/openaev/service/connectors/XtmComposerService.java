@@ -180,8 +180,8 @@ public class XtmComposerService {
   }
 
   /**
-   * Non-throwing reachability probe. Mirrors {@link #throwIfXtmComposerNotReachable()} but returns a
-   * boolean instead of throwing. Callers that only need a yes/no answer MUST use this: throwing a
+   * Non-throwing reachability probe. Mirrors {@link #throwIfXtmComposerNotReachable()} but returns
+   * a boolean instead of throwing. Callers that only need a yes/no answer MUST use this: throwing a
    * {@link BadRequestException} from inside this {@code @Transactional} service marks the shared
    * transaction rollback-only, so a caller that catches the exception still fails at commit with an
    * {@code UnexpectedRollbackException}.
