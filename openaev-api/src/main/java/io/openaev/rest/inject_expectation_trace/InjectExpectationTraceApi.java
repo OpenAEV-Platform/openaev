@@ -4,7 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationTrace;
@@ -59,16 +59,16 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationTrace createInjectExpectationTraceForCollector(
-      @Valid @RequestBody InjectExpectationTraceInput input) {
+      TxCtx ctx, @Valid @RequestBody InjectExpectationTraceInput input) {
 
     InjectExpectationTraceBulkInsertInput bulkInput = new InjectExpectationTraceBulkInsertInput();
     bulkInput.setExpectationTraces(List.of(input));
 
-    this.bulkInsertInjectExpectationTraceForCollector(bulkInput);
+    this.bulkInsertInjectExpectationTraceForCollector(ctx, bulkInput);
 
     Collector collector =
         collectorRepository
-            .findByIdAndTenantId(input.getSourceId(), TenantContext.getCurrentTenant())
+            .findByCollectorId(input.getSourceId())
             .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
 
     return this.injectExpectationTraceRepository
@@ -96,7 +96,7 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public void bulkInsertInjectExpectationTraceForCollector(
-      @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
+      TxCtx ctx, @Valid @RequestBody @NotNull InjectExpectationTraceBulkInsertInput inputs) {
     if (inputs.getExpectationTraces().isEmpty()) {
       return;
     }
@@ -109,11 +109,11 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @GetMapping()
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationTrace> getInjectExpectationTracesFromCollector(
-      @RequestParam String injectExpectationId, @RequestParam String sourceId) {
+      TxCtx ctx, @RequestParam String injectExpectationId, @RequestParam String sourceId) {
     try {
       Collector collector =
           collectorRepository
-              .findByIdAndTenantId(sourceId, TenantContext.getCurrentTenant())
+              .findByCollectorId(sourceId)
               .orElseThrow(() -> new ElementNotFoundException("Collector not found"));
       return this.injectExpectationTraceService.getInjectExpectationTracesFromCollector(
           injectExpectationId, collector.getSecurityPlatform().getId());
@@ -126,7 +126,9 @@ public class InjectExpectationTraceApi extends RestBehavior {
   @Transactional
   @GetMapping("/count")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  // TxCtx scopes the query to the caller's tenants.
   public long getAlertLinksNumber(
+      TxCtx ctx,
       @RequestParam String injectExpectationId,
       @RequestParam String sourceId,
       @RequestParam String expectationResultSourceType) {

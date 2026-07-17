@@ -63,7 +63,19 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.cve.CveApi#getCvebyExternalId",
           "io.openaev.rest.cve.CveApi#createCve",
           "io.openaev.rest.cve.CveApi#bulkInsertCVEsForCollector",
-          "io.openaev.rest.cve.CveApi#updateCve");
+          "io.openaev.rest.cve.CveApi#updateCve",
+          // collectors: all read/write endpoints wired with TxCtx
+          "io.openaev.rest.collector.CollectorApi#collectors",
+          "io.openaev.rest.collector.CollectorApi#getCollector",
+          "io.openaev.rest.collector.CollectorApi#getCollectorRelatedIds",
+          "io.openaev.rest.collector.CollectorApi#getCollectorImageById",
+          "io.openaev.rest.collector.CollectorApi#updateCollector",
+          "io.openaev.rest.collector.CollectorApi#registerCollector",
+          // inject_expectation_traces: reads collectors via the service
+          "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#createInjectExpectationTraceForCollector",
+          "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#bulkInsertInjectExpectationTraceForCollector",
+          "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#getInjectExpectationTracesFromCollector",
+          "io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi#getAlertLinksNumber");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =
