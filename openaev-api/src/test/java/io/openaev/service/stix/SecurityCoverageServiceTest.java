@@ -2,7 +2,6 @@ package io.openaev.service.stix;
 
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,8 +9,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.rest.settings.PreviewFeature;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -34,7 +31,6 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,7 +55,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private ObjectMapper mapper;
   @Autowired private ResultUtils resultUtils;
   @Autowired private OpenAEVConfig openAEVConfig;
-  @Mock private PreviewFeatureService previewFeatureService;
   private Parser stixParser;
 
   @BeforeEach
@@ -353,7 +348,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                         ? 100
                                         : 0))))));
         assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
+            .whenIgnoringPaths(
+                CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
             .isEqualTo(expectedSro.toStix(mapper));
       }
 
@@ -393,7 +389,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                             new Complex<>(new CoverageResult("PREVENTION", 100)),
                             new Complex<>(new CoverageResult("DETECTION", 100))))));
         assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
+            .whenIgnoringPaths(
+                CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
             .isEqualTo(expectedSro.toStix(mapper));
       }
     }
@@ -593,8 +590,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       "When all attack patterns are covered and half of expectations are successful, bundle is correct")
   public void whenAllAttackPatternsAreCoveredAndHalfOfAllExpectationsAreSuccessful_bundleIsCorrect()
       throws ParsingException, JsonProcessingException {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE))
-        .thenReturn(true);
     Instant simulationStartTime = Instant.parse("2024-09-23T14:09:43Z");
     Instant nextSimulationStartTime = Instant.parse("2024-09-24T14:09:43Z");
     AttackPatternComposer.Composer ap1 =
@@ -774,7 +769,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                       ? 50
                                       : 0))))));
       assertThatJson(actualSro.toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
 
