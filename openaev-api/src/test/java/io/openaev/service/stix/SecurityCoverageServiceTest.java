@@ -76,8 +76,6 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     securityCoverageSendJobComposer.reset();
 
     stixParser = new Parser(mapper);
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE))
-        .thenReturn(true);
   }
 
   /*
@@ -595,6 +593,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
       "When all attack patterns are covered and half of expectations are successful, bundle is correct")
   public void whenAllAttackPatternsAreCoveredAndHalfOfAllExpectationsAreSuccessful_bundleIsCorrect()
       throws ParsingException, JsonProcessingException {
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE))
+        .thenReturn(true);
     Instant simulationStartTime = Instant.parse("2024-09-23T14:09:43Z");
     Instant nextSimulationStartTime = Instant.parse("2024-09-24T14:09:43Z");
     AttackPatternComposer.Composer ap1 =
