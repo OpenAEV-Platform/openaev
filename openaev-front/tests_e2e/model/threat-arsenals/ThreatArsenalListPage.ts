@@ -9,8 +9,8 @@ class ThreatArsenalListPage {
   constructor(page: Page) {
     this.page = page;
     this.addButton = page.getByRole('button', { name: 'Add' });
-    this.listContainer = page.locator('.MuiListItem-root');
-    this.searchContainer = page.getByPlaceholder('Search these results...');
+    this.listContainer = page.getByTestId('threat-arsenal-card');
+    this.searchContainer = page.getByPlaceholder('Search across the threat arsenal…');
   }
 
   getItem(lineNumber: number): Locator {
