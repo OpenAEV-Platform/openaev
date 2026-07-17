@@ -19,6 +19,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ExerciseForm from './ExerciseForm';
 import ExerciseReports from './reports/ExerciseReports';
 
@@ -111,7 +112,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
 
   const submitExport = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, withScopeDefinition: boolean) => {
     const link = document.createElement('a');
-    link.href = `/api/exercises/${exercise.exercise_id}/export?isWithTeams=${withTeams}&isWithPlayers=${withPlayers}&isWithVariableValues=${withVariableValues}&isWithScopeDefinition=${withScopeDefinition}`;
+    link.href = buildTenantApiPath(`/api/exercises/${exercise.exercise_id}/export?isWithTeams=${withTeams}&isWithPlayers=${withPlayers}&isWithVariableValues=${withVariableValues}&isWithScopeDefinition=${withScopeDefinition}`);
     link.click();
     handleCloseExport();
   };
