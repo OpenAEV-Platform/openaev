@@ -379,7 +379,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -422,7 +426,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -473,7 +481,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -544,7 +556,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(CustomDashboardTimeRange.LAST_SEMESTER));
@@ -622,7 +638,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(ALL_TIME));
@@ -718,7 +738,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -813,7 +837,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -955,7 +983,11 @@ class DashboardApiTest extends IntegrationTest {
       // Build request
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       WidgetToEntitiesInput input =
           createWidgetInput(
