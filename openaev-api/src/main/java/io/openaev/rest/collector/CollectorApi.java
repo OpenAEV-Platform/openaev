@@ -3,7 +3,8 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ResourceType;
@@ -45,6 +46,7 @@ public class CollectorApi extends RestBehavior {
   private final CollectorService collectorService;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   private final FileService fileService;
 
@@ -60,7 +62,10 @@ public class CollectorApi extends RestBehavior {
           @Content(
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))))
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
+  // to the caller's tenants. The handler does not use it directly.
   public Iterable<CollectorOutput> collectors(
+      TxCtx ctx,
       @Parameter(
               name = "includeNext",
               description = "Include collectors pending deployment",
@@ -70,7 +75,7 @@ public class CollectorApi extends RestBehavior {
     return collectorService.collectorsOutput(includeNext);
   }
 
-  private Collector updateCollector(
+  private Collector applyCollectorUpdate(
       Collector collector,
       String type,
       String name,
@@ -96,7 +101,8 @@ public class CollectorApi extends RestBehavior {
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
-  public Collector getCollector(@PathVariable String collectorId) {
+  // TxCtx scopes this read to the caller's tenants via the inspector.
+  public Collector getCollector(TxCtx ctx, @PathVariable String collectorId) {
     return collectorService.collector(collectorId);
   }
 
@@ -110,7 +116,8 @@ public class CollectorApi extends RestBehavior {
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
   @Transactional
-  public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
+  // TxCtx scopes this read to the caller's tenants via the inspector.
+  public ConnectorIds getCollectorRelatedIds(TxCtx ctx, @PathVariable String collectorId) {
     return collectorService.getCollectorRelationsId(collectorId);
   }
 
@@ -147,10 +154,10 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by collector id")
   @Transactional
-  public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
+  // TxCtx scopes the collector lookup; a collectorId outside the scope resolves to empty.
+  public ResponseEntity<byte[]> getCollectorImageById(TxCtx ctx, @PathVariable String collectorId)
       throws IOException {
-    Optional<Collector> collector =
-        collectorRepository.findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant());
+    Optional<Collector> collector = collectorRepository.findByCollectorId(collectorId);
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
@@ -171,10 +178,11 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the update; the inspector refuses writes to rows outside the scope.
   public Collector updateCollector(
-      @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
+      TxCtx ctx, @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
     Collector collector = collectorService.collector(collectorId);
-    return updateCollector(
+    return applyCollectorUpdate(
         collector,
         collector.getType(),
         collector.getName(),
@@ -205,15 +213,17 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
   public Collector registerCollector(
+      TxCtx ctx,
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       InputStream iconStream =
           file.isPresent() && "image/png".equals(file.get().getContentType())
               ? file.get().getInputStream()
               : null;
       return collectorService.register(
-          TenantContext.getCurrentTenant(),
+          tenantId,
           input.getId(),
           input.getType(),
           input.getName(),

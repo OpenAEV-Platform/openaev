@@ -18,11 +18,13 @@ import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.FromItem;
 import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.LateralSubSelect;
 import net.sf.jsqlparser.statement.select.ParenthesedFromItem;
 import net.sf.jsqlparser.statement.select.ParenthesedSelect;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.select.TableFunction;
 import net.sf.jsqlparser.statement.select.Values;
 import net.sf.jsqlparser.statement.update.Update;
 import net.sf.jsqlparser.util.TablesNamesFinder;
@@ -258,7 +260,11 @@ public class TenantStatementInspector implements StatementInspector {
    * rejected.
    */
   private FromItem filterFromItem(FromItem item) {
-    if (item instanceof ParenthesedSelect) {
+    // Sub-selects, table functions (e.g. jsonb_array_elements), and lateral sub-selects are never
+    // real tables; they do not need tenant filtering.
+    if (item instanceof ParenthesedSelect
+        || item instanceof TableFunction
+        || item instanceof LateralSubSelect) {
       return item;
     }
     if (item instanceof ParenthesedFromItem group) {
