@@ -31,10 +31,7 @@ public class EsEndpoint extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String endpoint_external_reference;
 
-  @Queryable(
-      label = "endpoint category",
-      filterable = true,
-      refEnumClazz = AssetCategory.class)
+  @Queryable(label = "endpoint category", filterable = true, refEnumClazz = AssetCategory.class)
   @EsQueryable(keyword = true)
   private String endpoint_category;
 

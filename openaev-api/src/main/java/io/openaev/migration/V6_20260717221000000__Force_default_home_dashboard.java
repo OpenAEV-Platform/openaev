@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 /**
  * Forces the new built-in default home dashboard for every user after the home redesign (issue
  * #6753): resets BOTH override levels of the home resolution chain (user profile preference, then
- * tenant setting) so everyone lands on the platform default command center after the release.
- * Users and admins can re-select a custom dashboard afterwards in Profile / Settings - custom
- * dashboards themselves are untouched.
+ * tenant setting) so everyone lands on the platform default command center after the release. Users
+ * and admins can re-select a custom dashboard afterwards in Profile / Settings - custom dashboards
+ * themselves are untouched.
  *
  * <p>The starter pack cannot re-seed the tenant setting: it only runs once, guarded by the
  * platform-level {@code starterpack} setting key which is left in place.
