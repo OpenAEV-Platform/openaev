@@ -3028,6 +3028,27 @@ export interface EndpointOutput {
 }
 
 export interface EndpointOverviewOutput {
+  /** AI target endpoint URL (AI targets only) */
+  ai_target_endpoint?: string;
+  /** AI target modality (AI targets only) */
+  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
+  /** AI target model (AI targets only) */
+  ai_target_model?: string;
+  /** AI target provider (AI targets only) */
+  ai_target_provider?:
+    | "OPENAI_COMPATIBLE"
+    | "ANTHROPIC"
+    | "AZURE_OPENAI"
+    | "AWS_BEDROCK"
+    | "GOOGLE_VERTEX"
+    | "HUGGINGFACE"
+    | "OLLAMA"
+    | "CUSTOM_HTTP"
+    | "MCP_SERVER"
+    | "AGENT_HTTP"
+    | "XTM_ONE";
+  /** AI target system prompt (AI targets only) */
+  ai_target_system_prompt?: string;
   /**
    * List of primary agents
    * @uniqueItems true
