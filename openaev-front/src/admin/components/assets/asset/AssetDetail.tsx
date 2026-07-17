@@ -9,6 +9,7 @@ import { searchDistinctFindingsOnEndpoint, searchFindingsOnEndpoint } from '../.
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
 import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { type Page } from '../../../../components/common/queryable/Page';
 import { initSorting } from '../../../../components/common/queryable/Page';
@@ -405,7 +406,7 @@ const AssetDetail = () => {
               </Field>
             )}
             {asset.endpoint_arch && (
-              <Field label={t('Architecture')}><Typography variant="body2">{emptyFilled(asset.endpoint_arch)}</Typography></Field>
+              <Field label={t('Architecture')}><EndpointArchFragment arch={asset.endpoint_arch} /></Field>
             )}
             {asset.asset_ips && asset.asset_ips.length > 0 && (
               <Field label={t('IP Addresses')}>
