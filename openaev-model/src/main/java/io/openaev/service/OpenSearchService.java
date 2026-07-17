@@ -557,6 +557,27 @@ public class OpenSearchService implements EngineService {
     }
   }
 
+  @Override
+  public void deleteByTenant(String tenantId) {
+    if (tenantId == null || tenantId.isBlank()) {
+      return;
+    }
+    try {
+      Query query =
+          TermQuery.of(t -> t.field("base_tenant_side.keyword").value(FieldValue.of(tenantId)))
+              .toQuery();
+      openSearchClient.deleteByQuery(
+          new DeleteByQueryRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .query(query)
+              .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
+              .build());
+    } catch (IOException e) {
+      log.error(String.format("deleteByTenant exception: %s", e.getMessage()), e);
+    }
+  }
+
   // endregion
 
   // region query

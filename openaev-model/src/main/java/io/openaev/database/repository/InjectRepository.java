@@ -439,6 +439,19 @@ public interface InjectRepository
    */
   boolean existsByIdAndScenarioIsNullAndExerciseIsNull(String id);
 
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
+              + "WHERE p.payload_type = '"
+              + DNS_RESOLUTION_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithDnsResolutionContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =
@@ -452,6 +465,19 @@ public interface InjectRepository
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithDnsResolutionContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
+              + "WHERE p.payload_type = '"
+              + FILE_DROP_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithFileDropContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
 
   @Modifying
@@ -468,6 +494,16 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllInjectsWithFileDropContractsByScenarioId(@Param("scenarioId") String scenarioId);
 
+  @Query(
+      value =
+          "SELECT DISTINCT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN injectors_contracts_vulnerabilities icv ON ic.injector_contract_id = icv.injector_contract_id "
+              + "WHERE i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithVulnerableContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =
@@ -478,6 +514,16 @@ public interface InjectRepository
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
+
+  @Query(
+      value =
+          "SELECT DISTINCT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "WHERE i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithAttackPatternContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
 
   @Modifying
   @Query(
@@ -490,6 +536,13 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
+
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i WHERE i.inject_injector_contract = :injectorContract AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsByScenarioIdAndInjectorContract(
+      @Param("injectorContract") String injectorContract, @Param("scenarioId") String scenarioId);
 
   @Modifying
   @Query(

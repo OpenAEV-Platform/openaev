@@ -23,6 +23,8 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -78,6 +80,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -145,6 +148,8 @@ public class ExerciseService {
   private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
+
+  private final ApplicationEventPublisher eventPublisher;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -555,6 +560,10 @@ public class ExerciseService {
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
     exerciseRepository.deleteById(simulationId);
+    // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
+    // must be notified explicitly or the simulation (and its cascade-deleted injects,
+    // expectations, findings...) would remain in the indexes forever.
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, simulationId));
     log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 

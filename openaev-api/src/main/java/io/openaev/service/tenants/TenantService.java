@@ -7,6 +7,7 @@ import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.engine.EngineService;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.exception.BadRequestException;
@@ -35,6 +36,7 @@ public class TenantService {
 
   private final TenantRepository tenantRepository;
   private final List<DependenciesManager> dependencies;
+  private final EngineService engineService;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -213,6 +215,9 @@ public class TenantService {
 
     if (!purgedIds.isEmpty()) {
       tenantRepository.deleteAllByIdsNative(purgedIds);
+      // Tenant data is removed via native SQL (no JPA lifecycle events): clean the search engine
+      // explicitly so the purged tenant's documents don't survive as permanent index garbage.
+      purgedIds.forEach(engineService::deleteByTenant);
     }
     return purgedIds.size();
   }

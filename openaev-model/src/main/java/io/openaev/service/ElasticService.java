@@ -493,6 +493,26 @@ public class ElasticService implements EngineService {
     }
   }
 
+  @Override
+  public void deleteByTenant(String tenantId) {
+    if (tenantId == null || tenantId.isBlank()) {
+      return;
+    }
+    try {
+      Query query =
+          TermQuery.of(t -> t.field("base_tenant_side.keyword").value(tenantId))._toQuery();
+      elasticClient.deleteByQuery(
+          new DeleteByQueryRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .query(query)
+              .refresh(true)
+              .conflicts(Conflicts.Proceed)
+              .build());
+    } catch (IOException e) {
+      log.error(String.format("deleteByTenant exception: %s", e.getMessage()), e);
+    }
+  }
+
   // endregion
 
   // region query
