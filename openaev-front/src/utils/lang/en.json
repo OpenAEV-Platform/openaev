@@ -1301,6 +1301,7 @@
   "INVALID_USAGE": "Invalid usage",
   "inventory": "inventory",
   "Inventory": "Inventory",
+  "Investigate breached validations": "Investigate breached validations",
   "Investigate exposure gaps": "Investigate exposure gaps",
   "Iot_ot_device": "IoT / OT device",
   "Iot_sensor": "IOT Sensor",

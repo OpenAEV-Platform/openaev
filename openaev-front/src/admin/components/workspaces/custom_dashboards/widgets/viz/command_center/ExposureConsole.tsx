@@ -1,5 +1,5 @@
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, memo, type MouseEvent, useEffect, useId, useMemo, useState } from 'react';
 
@@ -183,20 +183,20 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   const orbit = platforms.slice(0, 8);
   const orbitCount = Math.max(orbit.length, 1);
 
-  // Keyboard-accessible drill-down props shared by the orb and the verdict chip.
-  const investigateA11yProps = onInvestigate
-    ? {
-        'role': 'button',
-        'tabIndex': 0,
-        'aria-label': t('Investigate exposure gaps'),
-        'onKeyDown': (event: KeyboardEvent<Element>) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onInvestigate();
-          }
-        },
+  // Clicking the orb (or the verdict chip) opens the explanation dialog rather than jumping straight
+  // to a raw list - the drill-down into breached validations lives as an explicit action inside that
+  // dialog. These a11y props make the orb/chip keyboard-operable for the same "explain" action.
+  const explainA11yProps = {
+    'role': 'button',
+    'tabIndex': 0,
+    'aria-label': t('How is this score computed?'),
+    'onKeyDown': (event: KeyboardEvent<Element>) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        setExplainOpen(true);
       }
-    : {};
+    },
+  };
 
   return (
     <Box
@@ -246,13 +246,13 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         <svg
           className="noDrag"
           viewBox={`0 0 ${size} ${size}`}
-          onClick={onInvestigate}
-          {...investigateA11yProps}
+          onClick={() => setExplainOpen(true)}
+          {...explainA11yProps}
           style={{
             maxHeight: '100%',
             maxWidth: '100%',
             overflow: 'visible',
-            cursor: onInvestigate ? 'pointer' : 'default',
+            cursor: 'pointer',
           }}
         >
           <defs>
@@ -424,11 +424,11 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         </svg>
       </Box>
 
-      <Tooltip title={t('Exposure score {score} / 100 - share of validations your controls failed', { score: Math.round(score) })}>
+      <Tooltip title={t('Exposure score {score} / 100 - click to understand how it is computed', { score: Math.round(score) })}>
         <Box
           className="noDrag"
-          onClick={onInvestigate}
-          {...investigateA11yProps}
+          onClick={() => setExplainOpen(true)}
+          {...explainA11yProps}
           sx={{
             'display': 'inline-flex',
             'alignItems': 'center',
@@ -436,7 +436,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             'paddingInline': 1,
             'height': 22,
             'borderRadius': 999,
-            'cursor': onInvestigate ? 'pointer' : 'help',
+            'cursor': 'pointer',
             'border': `1px solid ${alpha(color, 0.3)}`,
             'background': alpha(color, 0.1),
             'transition': 'background-color 0.15s ease',
@@ -702,10 +702,21 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             );
           })}
 
-          <Typography variant="body2" color="text.secondary" sx={{ marginTop: 2 }}>
-            {t('Click the orb to investigate the exact validations breached behind this score.')}
-          </Typography>
         </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExplainOpen(false)}>{t('Close')}</Button>
+          {onInvestigate && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                setExplainOpen(false);
+                onInvestigate();
+              }}
+            >
+              {t('Investigate breached validations')}
+            </Button>
+          )}
+        </DialogActions>
       </Dialog>
     </Box>
   );
