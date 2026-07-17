@@ -30,7 +30,7 @@ const DeployScenario: React.FC = async () => {
   });
 
   const onConfirm = () => {
-    navigate(`/admin/redirect/connect-xtm-hub`);
+    navigate(`/redirect/connect-xtm-hub`);
   };
 
   const onCancel = () => {

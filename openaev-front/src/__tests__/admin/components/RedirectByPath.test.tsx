@@ -57,11 +57,11 @@ describe('RedirectByPath', () => {
 
   it('preserves query params and adds auto-register for mapped redirects', async () => {
     renderWithRouter({
-      route: '/admin/redirect/connect-xtm-hub?foo=bar',
+      route: '/redirect/connect-xtm-hub?foo=bar',
       canManageTenantSettings: true,
       children: (
         <Routes>
-          <Route path="/admin/redirect/*" element={<RedirectByPath />} />
+          <Route path="/redirect/*" element={<RedirectByPath />} />
           <Route path="/admin/settings/experience" element={<LocationProbe />} />
         </Routes>
       ),
@@ -73,11 +73,11 @@ describe('RedirectByPath', () => {
 
   it('redirects unauthorized users to admin home with permission marker', async () => {
     renderWithRouter({
-      route: '/admin/redirect/connect-xtm-hub?productName=OpenAEV',
+      route: '/redirect/connect-xtm-hub?productName=OpenAEV',
       canManageTenantSettings: false,
       children: (
         <Routes>
-          <Route path="/admin/redirect/*" element={<RedirectByPath />} />
+          <Route path="/redirect/*" element={<RedirectByPath />} />
           <Route path="/admin" element={<LocationProbe />} />
         </Routes>
       ),
@@ -89,11 +89,11 @@ describe('RedirectByPath', () => {
 
   it('renders not found for unknown mapping key', () => {
     renderWithRouter({
-      route: '/admin/redirect/unknown',
+      route: '/redirect/unknown',
       canManageTenantSettings: true,
       children: (
         <Routes>
-          <Route path="/admin/redirect/*" element={<RedirectByPath />} />
+          <Route path="/redirect/*" element={<RedirectByPath />} />
         </Routes>
       ),
     });
