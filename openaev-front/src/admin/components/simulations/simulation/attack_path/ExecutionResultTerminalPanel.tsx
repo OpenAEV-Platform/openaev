@@ -3,6 +3,7 @@ import { IconButton, Paper, Popover, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
 
+import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import Tabs from '../../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../../components/common/tabs/useTabs';
 import Terminal, { type TerminalLine } from '../../../../../components/common/terminal/Terminal';
@@ -12,6 +13,7 @@ import { CROWDSTRIKE, SPLUNK } from '../../../../../constants/Entities';
 import type { AttackPathExecutionDetailDTO } from '../../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
+import { mitreForPayloadName } from './attack-path-mitre';
 
 interface Props {
   loading: boolean;
@@ -72,6 +74,8 @@ const SecurityPlatformItem = ({ platform, alerts }: {
   const theme = useTheme();
   const { t } = useFormatter();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const alertCount = alerts.length;
+  const alertLabel = `${alertCount} ${alertCount === 1 ? t('alert') : t('alerts')}`;
   return (
     <>
       <div
@@ -97,6 +101,18 @@ const SecurityPlatformItem = ({ platform, alerts }: {
       >
         <PlatformLogo type={platform.type} label={platform.label} />
         <Typography variant="body2">{platform.label}</Typography>
+        {/* Blue, link-styled CTA showing how many alerts the platform raised; opens the same popover. */}
+        <Typography
+          component="span"
+          variant="body2"
+          style={{
+            color: theme.palette.primary.main,
+            textDecoration: 'underline',
+            fontWeight: 500,
+          }}
+        >
+          {alertLabel}
+        </Typography>
       </div>
       <Popover
         open={Boolean(anchor)}
@@ -276,6 +292,20 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
           <Typography variant="caption" color="text.secondary">
             {[detail?.agentName, detail?.agentPrivilege].filter(Boolean).join(' · ')}
           </Typography>
+          {/* MITRE ATT&CK technique(s) this action maps to (front-only static lookup for the POC). */}
+          {mitreForPayloadName(detail?.payloadName).length > 0 && (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 4,
+              marginTop: 6,
+            }}
+            >
+              {mitreForPayloadName(detail?.payloadName).map(tech => (
+                <AttackPatternChip key={tech.attack_pattern_external_id} attackPattern={tech} />
+              ))}
+            </div>
+          )}
         </div>
         <div style={{
           display: 'flex',
