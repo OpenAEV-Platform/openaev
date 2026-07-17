@@ -523,6 +523,67 @@ public class InjectExecutionStep implements ActionStep {
     return setField(dataStep, "inject_id", injectId);
   }
 
+  private String getCommand(Inject inject) {
+    if (inject.getStatus().isEmpty()) return "";
+
+    InjectStatus status = inject.getStatus().get();
+    StatusPayload statusPayload = status.getPayloadOutput();
+    if (statusPayload == null || statusPayload.getPayloadCommandBlocks() == null) {
+      return "";
+    }
+    StringBuilder command = new StringBuilder();
+    statusPayload
+        .getPayloadCommandBlocks()
+        .forEach(
+            payloadCommandBlock -> {
+              command.append(payloadCommandBlock.getContent());
+              command.append("\n");
+            });
+    return command.toString();
+  }
+
+  private Map<String, StringBuilder> getExecutionTracesByEndpointIndex(Inject inject) {
+    Map<String, StringBuilder> tracesByEndpointSource = new HashMap<>();
+    if (inject.getStatus().isEmpty()) return tracesByEndpointSource;
+
+    InjectStatus status = inject.getStatus().get();
+    List<ExecutionTrace> executionTraces = status.getTraces();
+
+    if (inject.getInjector() == null) {
+      executionTraces.forEach(
+          executionTrace -> {
+            if (executionTrace.getAgent() == null || executionTrace.getAgent().getAsset() == null) {
+              return;
+            }
+            String agentId =
+                executionTrace.getAgent().getId() + executionTrace.getAgent().getAsset().getId();
+            tracesByEndpointSource
+                .computeIfAbsent(agentId, k -> new StringBuilder())
+                .append(executionTrace.getTime())
+                .append(" ")
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    } else {
+      // TODO BUILD INDEX
+      String injectorId = inject.getInjector().getId();
+      executionTraces.forEach(
+          executionTrace -> {
+            tracesByEndpointSource
+                .computeIfAbsent(injectorId, k -> new StringBuilder())
+                .append(executionTrace.getTime())
+                .append(" ")
+                .append(executionTrace.getStatus().name())
+                .append(" ")
+                .append(executionTrace.getMessage())
+                .append("\n");
+          });
+    }
+    return tracesByEndpointSource;
+  }
+
   /**
    * Converts an {@link InjectInput} into a list of {@link StepsCreateInput.StepInput}.
    *
