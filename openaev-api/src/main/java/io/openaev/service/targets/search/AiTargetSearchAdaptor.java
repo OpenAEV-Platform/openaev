@@ -71,8 +71,8 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
 
     // Resolve every asset group member (static AND dynamic) and keep the AI targets. Going through
     // AssetGroupService (rather than the static-only findAllByAssetGroupIds join) is what makes
-    // filter-based groups such as "Category = AI_TARGET" expand to their members here, mirroring how
-    // the endpoint target tab resolves dynamic groups.
+    // filter-based groups such as "Category = AI_TARGET" expand to their members here, mirroring
+    // how the endpoint target tab resolves dynamic groups.
     for (AssetGroup assetGroup : scopedInject.getAssetGroups()) {
       for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
         if (AssetCategory.AI_TARGET.equals(asset.getCategory())) {

@@ -115,8 +115,9 @@ public final class ExpectationResultBuilder {
 
   /**
    * Ensures the expectation's results list is a mutable {@link java.util.ArrayList}. JSON
-   * deserialization can produce an immutable list and a persisted row can have a null column, either
-   * of which breaks a subsequent {@code add} (the null case NPEs inside the copy constructor).
+   * deserialization can produce an immutable list and a persisted row can have a null column,
+   * either of which breaks a subsequent {@code add} (the null case NPEs inside the copy
+   * constructor).
    */
   private static void ensureMutableResults(@NotNull final BaseInjectExpectation expectation) {
     List<InjectExpectationResult> current = expectation.getResults();

@@ -13,7 +13,6 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.service.InjectExpectationService;
 import jakarta.annotation.Nullable;
-import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +34,7 @@ public class InjectExecutionService {
 
   private final AgentExecutionProcessingHandler agentExecutionProcessingHandler;
   private final InjectorExecutionProcessingHandler injectorExecutionProcessingHandler;
+
   @Transactional
   @WorkflowUpdateEvent(injectId = "#injectId")
   public void handleInjectExecutionCallback(
