@@ -709,17 +709,30 @@ public class ExpectationUtils {
   }
 
   /**
-   * Determine if an asset is agentless and need to have expectations created
+   * Determine if an asset is agentless and need to have expectations created.
+   *
+   * <p>Agentless expectations are the asset-level expectations we create when the asset itself is the
+   * validation target (no OAEV agent runs on it). This applies to:
+   *
+   * <ul>
+   *   <li>{@link Endpoint}s targeted by an agentless (non-payload) injector that have no agent
+   *   <li>Non-endpoint assets such as AI targets ({@code category = AI_TARGET}), which never carry an
+   *       agent - their detection/prevention expectations are always fulfilled at the asset level by
+   *       an external collector (e.g. the XTM One LLM firewall collector)
+   * </ul>
    *
    * @param asset to test
    * @param inject the inject details
-   * @return true if is agentless and injector payload, false if not
+   * @return true when an asset-level (agentless) expectation must be created for this asset
    */
   public static boolean isAgentlessAssetExpectationNecessary(Asset asset, Inject inject) {
-    return inject != null
-        && inject.getInjector() != null
-        && !inject.getInjector().isPayloads()
-        && asset instanceof Endpoint endpoint
-        && endpoint.getAgents().isEmpty();
+    if (inject == null || inject.getInjector() == null || inject.getInjector().isPayloads()) {
+      return false;
+    }
+    if (asset instanceof Endpoint endpoint) {
+      return endpoint.getAgents().isEmpty();
+    }
+    // Non-endpoint assets (AI targets, ...) never run an agent: the asset is the validation target.
+    return asset != null;
   }
 }
