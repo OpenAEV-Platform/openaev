@@ -711,14 +711,14 @@ public class ExpectationUtils {
   /**
    * Determine if an asset is agentless and need to have expectations created.
    *
-   * <p>Agentless expectations are the asset-level expectations we create when the asset itself is the
-   * validation target (no OAEV agent runs on it). This applies to:
+   * <p>Agentless expectations are the asset-level expectations we create when the asset itself is
+   * the validation target (no OAEV agent runs on it). This applies to:
    *
    * <ul>
    *   <li>{@link Endpoint}s targeted by an agentless (non-payload) injector that have no agent
-   *   <li>Non-endpoint assets such as AI targets ({@code category = AI_TARGET}), which never carry an
-   *       agent - their detection/prevention expectations are always fulfilled at the asset level by
-   *       an external collector (e.g. the XTM One LLM firewall collector)
+   *   <li>Non-endpoint assets such as AI targets ({@code category = AI_TARGET}), which never carry
+   *       an agent - their detection/prevention expectations are always fulfilled at the asset
+   *       level by an external collector (e.g. the XTM One LLM firewall collector)
    * </ul>
    *
    * @param asset to test
