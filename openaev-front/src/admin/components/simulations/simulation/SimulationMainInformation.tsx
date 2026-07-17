@@ -10,7 +10,7 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemMainFocus from '../../../../components/ItemMainFocus';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import ItemTags from '../../../../components/ItemTags';
-import PlatformIcon from '../../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import TypeAffinityChip from '../../../../components/TypeAffinityChip';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
@@ -118,11 +118,7 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise }) => {
           >
             {t('Platforms')}
           </Typography>
-          {(exercise.exercise_platforms ?? []).length === 0 ? (
-            <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
-          ) : exercise.exercise_platforms?.map(
-            (platform: string) => <PlatformIcon key={platform} platform={platform} tooltip width={25} marginRight={theme.spacing(2)} />,
-          )}
+          <PlatformIconGroup platforms={exercise.exercise_platforms} width={25} />
         </Grid>
         <Grid size={{ xs: 4 }}>
           <Typography

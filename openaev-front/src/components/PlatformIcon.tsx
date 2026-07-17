@@ -1,7 +1,6 @@
 import {
   AndroidOutlined,
   DevicesOtherOutlined,
-  HelpOutlineOutlined,
   LanOutlined,
   MiscellaneousServicesOutlined,
   PhoneIphoneOutlined,
@@ -44,9 +43,10 @@ const brandIcons: Record<string, Record<PaletteMode, string>> = {
   },
 };
 
-// Non-OS platforms use clean, theme-aware MUI glyphs. The previous bitmaps (browser / service /
-// internal / generic / unknown) read poorly at small sizes and looked inconsistent next to the
-// crisp OS logos, so they are replaced by vector icons that inherit the current text color.
+// Non-OS platforms use clean, theme-aware MUI glyphs. The previous bitmaps read poorly at small
+// sizes and looked inconsistent next to the crisp OS logos, so they are replaced by vector icons
+// that inherit the current text color. There is deliberately NO "Unknown" entry: an unknown or
+// missing platform renders nothing (see below) rather than a pointless, oddly-sized question mark.
 const glyphIcons: Record<string, SvgIconComponent> = {
   Browser: PublicOutlined,
   Service: MiscellaneousServicesOutlined,
@@ -55,7 +55,6 @@ const glyphIcons: Record<string, SvgIconComponent> = {
   Generic: DevicesOtherOutlined,
   iOS: PhoneIphoneOutlined,
   Android: AndroidOutlined,
-  Unknown: HelpOutlineOutlined,
 };
 
 const renderIcon = (platform: string, width: number | undefined = 40, borderRadius: number | undefined = 0, marginRight: string | undefined = '') => {
@@ -76,7 +75,12 @@ const renderIcon = (platform: string, width: number | undefined = 40, borderRadi
       />
     );
   }
-  const Glyph = glyphIcons[platform] ?? glyphIcons.Unknown;
+  const Glyph = glyphIcons[platform];
+  // Unknown / empty / unrecognized platform: render nothing. Callers that need a placeholder for an
+  // empty platform list should render a neutral "-" (see PlatformIconGroup).
+  if (!Glyph) {
+    return null;
+  }
   return (
     <Glyph
       style={{
@@ -87,15 +91,16 @@ const renderIcon = (platform: string, width: number | undefined = 40, borderRadi
     />
   );
 };
+
 const PlatformIcon: FunctionComponent<PlatformIconProps> = ({ platform, width, borderRadius, marginRight, tooltip = false }) => {
-  if (tooltip) {
-    return (
-      <Tooltip title={platform}>
-        {renderIcon(platform, width, borderRadius, marginRight)}
-      </Tooltip>
-    );
+  const rendered = renderIcon(platform, width, borderRadius, marginRight);
+  if (!rendered) {
+    return null;
   }
-  return renderIcon(platform, width, borderRadius, marginRight);
+  if (tooltip) {
+    return <Tooltip title={platform}>{rendered}</Tooltip>;
+  }
+  return rendered;
 };
 
 export default PlatformIcon;
