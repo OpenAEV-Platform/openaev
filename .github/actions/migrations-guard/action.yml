@@ -1,0 +1,39 @@
+name: Migrations Guard
+description: Runs sanity checks on migrations to avoid common problems
+
+inputs:
+  last-release-number:
+    description: The last OpenAEV release number
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check new migrations block is strictly appended to the end since the last release
+      run: |
+        set +e
+        echo "Comparing migration files from the last release with the current branch... (reverse chronological order)"
+        DIFF_FILES=$(diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
+        
+        echo "Diff between release ${{ inputs.last-release-number }} and current branch (a chevron means a difference)"
+        echo "${DIFF_FILES}"
+        
+        NO_DIFF_ALLOWED=false
+        
+        while IFS= read -r line
+        do
+          case "$line" in
+            *\>* | *\<*)
+              if [ "true" = "${NO_DIFF_ALLOWED}" ]; then
+                echo "ERROR: the block of previously released migrations was changed (check diff above). Exiting."
+                exit 1
+              fi;
+              ;;
+            *)
+              NO_DIFF_ALLOWED=true;
+              ;;
+          esac
+        done <<< "$DIFF_FILES"
+        
+        echo "All good: no change in the previously released migrations block."
+      shell: bash
