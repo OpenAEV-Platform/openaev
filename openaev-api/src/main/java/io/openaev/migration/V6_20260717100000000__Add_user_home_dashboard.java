@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * override.
  */
 @Component
-public class V6_20260714130000000__Add_user_home_dashboard extends BaseJavaMigration {
+public class V6_20260717100000000__Add_user_home_dashboard extends BaseJavaMigration {
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {

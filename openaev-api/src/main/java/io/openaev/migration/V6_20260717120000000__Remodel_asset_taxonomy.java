@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
  * </ol>
  */
 @Component
-public class V6_20260715130000000__Remodel_asset_taxonomy extends BaseJavaMigration {
+public class V6_20260717120000000__Remodel_asset_taxonomy extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

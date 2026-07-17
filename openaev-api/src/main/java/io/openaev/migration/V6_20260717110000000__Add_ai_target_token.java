@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  * migration will drop it.
  */
 @Component
-public class V6_20260715120000000__Add_ai_target_token extends BaseJavaMigration {
+public class V6_20260717110000000__Add_ai_target_token extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
