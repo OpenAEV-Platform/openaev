@@ -5,7 +5,6 @@ import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -77,9 +76,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository
-        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return collectorRepository.findByCollectorId(collectorId).orElse(null);
   }
 
   @Override
@@ -101,7 +98,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   public Collector collector(String id) {
     return collectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByCollectorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
   }
 
@@ -199,7 +196,9 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    // Tenant scoping is handled by the v2 SQL inspector; the read is scoped to the caller's
+    // TxCtx, and the write is attributed to `tenantId` explicitly below.
+    Collector collector = collectorRepository.findByCollectorId(id).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null

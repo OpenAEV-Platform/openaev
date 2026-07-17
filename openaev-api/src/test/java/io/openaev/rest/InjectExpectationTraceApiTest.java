@@ -75,6 +75,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
 
     Collector collector = new Collector();
     collector.setId(UUID.randomUUID().toString());
+    collector.setTenantId(Tenant.DEFAULT_TENANT_UUID);
     collector.setName("collector-name");
     collector.setSecurityPlatform(savedSecurityPlatform);
     collector.setType("type");
