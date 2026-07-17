@@ -17,6 +17,11 @@ on:
         description: "JSON array of E2E test matrix entries (includes both regular and infra)"
         type: string
         required: true
+      snyk-fail-on-error:
+        description: "Whether Snyk vulnerabilities should fail the pipeline (true for nightly, false for core CI)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -26,6 +31,21 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   # Build
   # ════════════════════════════════════════════════════════════════════
+
+  migrations-guard:
+    name: "🔎 Migrations Guard"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-tags: "true"
+          fetch-depth: 0
+      - uses: ./.github/actions/find-latest-tag
+        id: latest-tag
+      - uses: ./.github/actions/migrations-guard
+        with:
+          last-release-number: ${{ steps.latest-tag.outputs.latest-tag }}
 
   backend-compile:
     name: "🔨 Backend Compile"
@@ -398,7 +418,7 @@ jobs:
     needs: [docker-build]
     if: ${{ !cancelled() && needs.docker-build.result == 'success' }}
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: ${{ !inputs.snyk-fail-on-error }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -417,6 +437,7 @@ jobs:
   pipeline-gate:
     name: "✅ Pipeline Gate"
     needs:
+      - migrations-guard
       - backend-compile
       - frontend-build
       - prepare-bundled-assets

@@ -57,4 +57,5 @@ jobs:
           {"browser":"firefox","project":"infra-firefox","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-infra-firefox"},
           {"browser":"webkit","project":"infra-webkit","docker_image":"openaev-image-arm64","variant":"std-arm64","runner":"ubuntu-24.04-arm","search_engine":"elasticsearch","artifact_suffix":"-infra-webkit"}
         ]
+      snyk-fail-on-error: true
     secrets: inherit

@@ -10,6 +10,9 @@ Both **Core CI** and **Nightly CI** invoke the same reusable workflow (`_ci-pipe
 
 ```mermaid
 graph TD
+    %% ─── Pre-flight ───
+    MG[🔎 Migrations Guard]
+
     %% ─── Build Stage ───
     BC[🔨 Backend Compile]
     FB[🎨 Frontend Build]
@@ -59,6 +62,7 @@ graph TD
     ATC --> COV
 
     %% ─── Pipeline Gate (depends on ALL jobs) ───
+    MG --> GATE
     BC --> GATE
     FB --> GATE
     PBA --> GATE
@@ -81,6 +85,8 @@ graph TD
     classDef docker fill:#fff3e0,stroke:#e65100
     classDef gate fill:#fce4ec,stroke:#b71c1c
 
+    classDef preflight fill:#fffde7,stroke:#f9a825
+    class MG preflight
     class BC,FB,PBA build
     class SC,FQ quality
     class AT,ATC,E2E test
@@ -100,6 +106,12 @@ graph TD
 ---
 
 ## Detailed Job Descriptions
+
+### Pre-flight (no dependencies, runs in parallel with everything)
+
+| Job | Purpose |
+|-----|---------|
+| **Migrations Guard** | Verifies new DB migrations are strictly appended after the last release tag |
 
 ### Build Stage (no dependencies, run in parallel)
 
@@ -150,7 +162,7 @@ graph TD
 | Job | Depends On | Purpose |
 |-----|-----------|---------|
 | **Coverage Merge & Upload** | API Tests, Frontend Quality, E2E Tests, API Types Check | Merges JaCoCo + Vitest + Playwright coverage → Codecov |
-| **Pipeline Gate** ⚠️ | **ALL jobs** (Backend Compile, Frontend Build, Prepare Bundled Assets, Spotless Check, Frontend Quality, API Tests, E2E Tests, API Types Check, Backend Package, Backend Package musl, Docker Build, Docker Merge, Snyk Docker, Coverage) | **Branch protection status check** — gates PR merge |
+| **Pipeline Gate** ⚠️ | **ALL jobs** (Migrations Guard, Backend Compile, Frontend Build, Prepare Bundled Assets, Spotless Check, Frontend Quality, API Tests, E2E Tests, API Types Check, Backend Package, Backend Package musl, Docker Build, Docker Merge, Snyk Docker, Coverage) | **Branch protection status check** — gates PR merge |
 
 ---
 
