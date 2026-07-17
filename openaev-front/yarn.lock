@@ -5147,12 +5147,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-simple-import-sort@npm:12.1.1":
-  version: 12.1.1
-  resolution: "eslint-plugin-simple-import-sort@npm:12.1.1"
+"eslint-plugin-simple-import-sort@npm:13.0.0":
+  version: 13.0.0
+  resolution: "eslint-plugin-simple-import-sort@npm:13.0.0"
   peerDependencies:
     eslint: ">=5.0.0"
-  checksum: 10c0/0ad1907ad9ddbadd1db655db0a9d0b77076e274b793a77b982c8525d808d868e6ecfce24f3a411e8a1fa551077387f9ebb38c00956073970ebd7ee6a029ce2b3
+  checksum: 10c0/f561f3483c1c18dfa2705326d38d62c62d4aeb5947ed6d1f028299c5dc668586b5ef144926e68fe187b3a937ee0159738dcbca8c286fe56f489de52fd8f9e678
   languageName: node
   linkType: hard
 
@@ -8925,7 +8925,7 @@ __metadata:
     eslint-plugin-playwright: "npm:2.10.5"
     eslint-plugin-react: "npm:7.37.5"
     eslint-plugin-react-refresh: "npm:0.5.3"
-    eslint-plugin-simple-import-sort: "npm:12.1.1"
+    eslint-plugin-simple-import-sort: "npm:13.0.0"
     express: "npm:5.2.1"
     filigran-icon: "npm:0.21.0"
     final-form: "npm:4.20.10"
