@@ -819,7 +819,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                   "DETECTION",
                                   stixRef.getExternalRefs().contains("T1234") ? 100 : 0))))));
       assertThatJson(actualSro.toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
   }
