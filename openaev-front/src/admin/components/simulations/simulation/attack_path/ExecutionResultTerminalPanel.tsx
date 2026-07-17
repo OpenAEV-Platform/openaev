@@ -1,6 +1,8 @@
-import { CenterFocusStrong, Close, ShieldOutlined } from '@mui/icons-material';
-import { IconButton, Paper, Popover, Tooltip, Typography } from '@mui/material';
+import { CenterFocusStrong, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
+import { Button, IconButton, Paper, Popover, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+// eslint-disable-next-line import/no-named-as-default
+import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
@@ -15,16 +17,36 @@ import { buildTenantApiPath } from '../../../../../utils/url-helper';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import { mitreForPayloadName } from './attack-path-mitre';
 
+// A detection remediation surfaced per security platform (how to detect what was missed). Shape kept
+// local and loose because the backend does not expose it on the attack-path execution yet.
+// TODO(#6647): populate from AttackPathExecutionDetailDTO.detectionRemediations once the backend adds
+// it (resolved from the execution's payload's detection remediations). See the backend requirements.
+interface ExecDetectionRemediation {
+  collectorType?: string;
+  collectorLabel?: string;
+  values?: string;
+}
+
+// The attack-path execution detail, augmented with the fields the backend still has to expose so the
+// Remediation tab and the "Action details" link can use real data (see backend requirements topo).
+type ExecutionDetail = AttackPathExecutionDetailDTO & {
+  detectionRemediations?: ExecDetectionRemediation[];
+  injectId?: string;
+};
+
 interface Props {
   loading: boolean;
   detail: AttackPathExecutionDetailDTO | null;
   onClose: () => void;
   // Re-center the execution's endpoint on the map (the product's link to the logic map).
   onFocusOnMap?: () => void;
+  // Open the originating inject (pending backend: needs the inject id on the execution detail).
+  onOpenInject?: () => void;
 }
 
 const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
+const REMEDIATION_TAB = 'remediation';
 
 interface PlatformAlert {
   id: string;
@@ -154,10 +176,12 @@ const SecurityPlatformItem = ({ platform, alerts }: {
 // feed and the map (product mockup), not an overlay. Reuses the platform's shared `Terminal` renderer,
 // fed by the frozen snapshot's masked command and output. The Result tab shows the target and the
 // security platforms that prevented/detected the action (with their linked alerts on click).
-const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }: Props) => {
+const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap, onOpenInject }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { currentTab, handleChangeTab } = useTabs(RESULT_TAB);
+  // Detection remediations (per security platform) for this action — pending backend, so empty today.
+  const detectionRemediations = (detail as ExecutionDetail | null)?.detectionRemediations ?? [];
 
   // Size the Terminal to exactly fill its scroll area so it is the single scroller (no nested
   // scrollbar) and nothing is clipped: measure the content box and track it on resize.
@@ -216,7 +240,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
         label: 'CrowdStrike',
       }]
     : [];
-  const detectedBy: SecurityPlatform[] = statusSucceeded(detail?.detectionStatus)
+  // A prevented action is necessarily detected too (you cannot block what you did not see), so a
+  // successful prevention implies detection.
+  const isDetected = statusSucceeded(detail?.detectionStatus) || statusSucceeded(detail?.preventionStatus);
+  const detectedBy: SecurityPlatform[] = isDetected
     ? [{
         type: CROWDSTRIKE,
         label: 'CrowdStrike',
@@ -351,6 +378,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
                 key: TERMINAL_TAB,
                 label: t('Terminal view'),
               },
+              {
+                key: REMEDIATION_TAB,
+                label: t('Remediation'),
+              },
             ]}
             currentTab={currentTab}
             onChange={handleChangeTab}
@@ -382,11 +413,60 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onFocusOnMap }
                 </div>
                 {renderExpectationRow('prevention', t('Prevented by'), t('Not Prevented'), preventedBy)}
                 {renderExpectationRow('detection', t('Detected by'), t('Not Detected'), detectedBy)}
+                {/* Jump to the originating inject for the full action definition (pending backend id). */}
+                {onOpenInject && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<OpenInNew fontSize="small" />}
+                    onClick={onOpenInject}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    {t('Action details')}
+                  </Button>
+                )}
               </div>
             )}
 
             {currentTab === TERMINAL_TAB && (
               <Terminal lines={terminalLines} maxHeight={terminalMaxHeight} />
+            )}
+
+            {currentTab === REMEDIATION_TAB && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: theme.spacing(2),
+              }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  {t('How each security platform could detect this action (detection rules).')}
+                </Typography>
+                {detectionRemediations.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {t('No detection remediation available for this action yet.')}
+                  </Typography>
+                )}
+                {detectionRemediations.map((rem, index) => (
+                  <div key={rem.collectorType ?? index}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: 6,
+                    }}
+                    >
+                      {rem.collectorType && <PlatformLogo type={rem.collectorType} label={rem.collectorLabel ?? rem.collectorType} />}
+                      <Typography variant="subtitle2">{rem.collectorLabel ?? rem.collectorType}</Typography>
+                    </div>
+                    {/* Detection rule text is sanitized before rendering — never injected raw. */}
+                    <div
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((rem.values ?? '').replace(/\n/g, '<br/>')) }}
+                    />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

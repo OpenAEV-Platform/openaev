@@ -1,9 +1,8 @@
 import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, IconButton, Paper, Typography } from '@mui/material';
+import { Alert, Button, Chip, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../../components/i18n';
-import Loader from '../../../../../components/Loader';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 
 export interface ProducingAction {
@@ -34,10 +33,6 @@ interface Props {
   activeRef: string | null;
   onSelect: (ref: string) => void;
   onClose: () => void;
-  // Existing platform remediation for this finding (reused from the vulnerability catalog for CVEs).
-  // Rendered as inert preformatted text. Undefined = not applicable (section hidden).
-  remediation?: string | null;
-  remediationLoading?: boolean;
 }
 
 const EXPECTATION_ORDER: (keyof FindingExpectations)[] = ['prevention', 'detection', 'vulnerability'];
@@ -47,12 +42,9 @@ const EXPECTATION_ORDER: (keyof FindingExpectations)[] = ['prevention', 'detecti
 // Selecting a producing action opens the Result & Terminal panel next to it, so the finding, its path
 // (highlighted on the map) and the raw execution result can all be inspected at once. All values are
 // rendered as inert text (secrets are masked upstream); nothing here is injected as HTML.
-const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectations, actions, activeRef, onSelect, onClose, remediation, remediationLoading }: Props) => {
+const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectations, actions, activeRef, onSelect, onClose }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
-  // The remediation section is shown when a remediation lookup applies to this finding (loading, a
-  // result, or an explicit empty result) — i.e. whenever the caller opts in via the props.
-  const showRemediation = remediationLoading || remediation !== undefined;
 
   // Colour a verdict per its expectation type: a successful prevention is green, a successful
   // detection is orange, a failed verdict is red, and an unknown one is muted.
@@ -180,46 +172,6 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
             </Button>
           </div>
         ))}
-
-        {showRemediation && (
-          <>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
-              {t('Remediation')}
-            </Typography>
-            {remediationLoading && (
-              <Box sx={{ minHeight: 48 }}>
-                <Loader variant="inElement" size="sm" />
-              </Box>
-            )}
-            {!remediationLoading && remediation && (
-              // Rendered as inert preformatted text — never injected as HTML.
-              <Typography
-                variant="body2"
-                component="pre"
-                sx={{
-                  mt: 0.5,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {remediation}
-              </Typography>
-            )}
-            {!remediationLoading && !remediation && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  mt: 0.5,
-                }}
-              >
-                {t('No remediation available for this finding yet.')}
-              </Typography>
-            )}
-          </>
-        )}
       </div>
     </Paper>
   );

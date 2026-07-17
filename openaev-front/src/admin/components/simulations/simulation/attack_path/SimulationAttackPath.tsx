@@ -3,10 +3,9 @@ import { Alert, Autocomplete, Box, ButtonBase, Chip, Drawer, IconButton, Paper, 
 import { useTheme } from '@mui/material/styles';
 import { ReactFlowProvider } from '@xyflow/react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 import { fetchAttackPathGraph, fetchAttackPathSimulations, fetchEndpointFindings, fetchEndpointRelations, fetchExecutionDetail, fetchFindingsByCategory, fetchSimulationsMetaById } from '../../../../../actions/attack-path/attack-path-actions';
-import { fetchVulnerabilityByExternalId } from '../../../../../actions/vulnerability-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import Loader from '../../../../../components/Loader';
 import type { AttackPathDTO, AttackPathEdges, AttackPathExecutionDetailDTO, AttackPathFindingItemDTO, AttackPathFindingPageDTO, AttackPathNodeDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../../../../utils/api-types';
@@ -129,6 +128,7 @@ const SimulationAttackPath = () => {
   const { exerciseId } = useParams() as { exerciseId: string };
   const theme = useTheme();
   const { t, fldt } = useFormatter();
+  const navigate = useNavigate();
 
   const [simulationId, setSimulationId] = useState(exerciseId ?? '');
   const [simulations, setSimulations] = useState<AttackPathSimSummaryRow[]>([]);
@@ -161,15 +161,6 @@ const SimulationAttackPath = () => {
     type: string;
     value: string;
   } | null>(null);
-  // Existing platform remediation for the finding shown in the panel (reused from the vulnerability
-  // catalog for CVEs). null text = looked up but none found; loading while the lookup is in flight.
-  const [findingRemediation, setFindingRemediation] = useState<{
-    loading: boolean;
-    text: string | null;
-  }>({
-    loading: false,
-    text: null,
-  });
   const [executions, setExecutions] = useState<AttackPathNodeDTO[]>([]);
   const [endpointRelationEdges, setEndpointRelationEdges] = useState<AttackPathEdges[]>([]);
   // The clicked endpoint's own findings (deduplicated by type+value), shown in the side panel.
@@ -204,45 +195,6 @@ const SimulationAttackPath = () => {
       setFindingDetail(null);
     }
   }, [pathFinding]);
-
-  // Reuse the platform's existing remediation for the finding in the panel. For a CVE finding, resolve
-  // the vulnerability by its external id and show its remediation text. Other finding types have no
-  // finding-level remediation source yet (the payload detection-remediations need a payload id the
-  // attack-path execution doesn't carry — a backend follow-up, see TODO(#6647)).
-  useEffect(() => {
-    if (!findingDetail || findingDetail.type !== 'cve') {
-      setFindingRemediation({
-        loading: false,
-        text: null,
-      });
-      return undefined;
-    }
-    let cancelled = false;
-    setFindingRemediation({
-      loading: true,
-      text: null,
-    });
-    fetchVulnerabilityByExternalId(findingDetail.value)
-      .then((r) => {
-        if (!cancelled) {
-          setFindingRemediation({
-            loading: false,
-            text: r.data?.vulnerability_remediation ?? null,
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFindingRemediation({
-            loading: false,
-            text: null,
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [findingDetail]);
 
   // Execution Result & Terminal drawer: clicking a feed entry loads and opens its detail.
   const [detailExecutionId, setDetailExecutionId] = useState<string | null>(null);
@@ -1636,8 +1588,6 @@ const SimulationAttackPath = () => {
             activeRef={detailExecutionId}
             onSelect={openExecutionDetail}
             onClose={() => setFindingDetail(null)}
-            remediation={findingDetail.type === 'cve' ? findingRemediation.text : undefined}
-            remediationLoading={findingDetail.type === 'cve' ? findingRemediation.loading : undefined}
           />
         )}
 
@@ -1787,6 +1737,9 @@ const SimulationAttackPath = () => {
                   nodeId: selectedNodeId,
                   nonce: (prev?.nonce ?? 0) + 1,
                 }))
+              : undefined}
+            onOpenInject={(detail as { injectId?: string } | null)?.injectId
+              ? () => navigate(`../injects/${(detail as { injectId?: string }).injectId}`)
               : undefined}
           />
         )}

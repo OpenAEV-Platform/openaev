@@ -54,6 +54,7 @@ vi.mock('react-router', async (importOriginal) => {
   return {
     ...actual,
     useParams: () => ({ exerciseId: 'sim-1' }),
+    useNavigate: () => vi.fn(),
   };
 });
 
