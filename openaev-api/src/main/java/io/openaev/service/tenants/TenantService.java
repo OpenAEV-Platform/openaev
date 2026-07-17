@@ -132,6 +132,11 @@ public class TenantService {
   /** Updates an existing tenant's attributes. */
   public Tenant update(String tenantId, TenantInput input) {
     Tenant existing = findById(tenantId);
+    if (input.name() != null
+        && !input.name().equals(existing.getName())
+        && tenantRepository.existsByNameAndIdNot(input.name(), tenantId)) {
+      throw new BadRequestException("Tenant name already used: " + input.name());
+    }
     existing.setUpdateAttributes(input);
     return tenantRepository.save(existing);
   }

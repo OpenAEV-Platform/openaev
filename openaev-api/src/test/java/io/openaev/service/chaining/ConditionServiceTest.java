@@ -236,7 +236,8 @@ public class ConditionServiceTest {
       when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
 
       List<ConditionService.ExecutionBatch> expected =
-          List.of(new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of()));
+          List.of(
+              new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of(), null));
       doReturn(expected)
           .when(conditionService)
           .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));

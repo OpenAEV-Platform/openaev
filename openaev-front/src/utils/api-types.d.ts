@@ -4679,8 +4679,10 @@ export interface InjectExpectationResultsByType {
 }
 
 export interface InjectExpectationSignature {
-  type?: string;
-  value?: string;
+  /** @minLength 1 */
+  type: string;
+  /** @minLength 1 */
+  value: string;
 }
 
 export interface InjectExpectationSimple {
@@ -7215,6 +7217,8 @@ export interface PlatformSettings {
   default_mailer_name?: string;
   /** Reply to mail to use by default for injects */
   default_reply_to?: string;
+  /** UUID of the default tenant */
+  default_tenant_id?: string;
   /** List of enabled dev features */
   enabled_dev_features?: (
     | "_RESERVED"

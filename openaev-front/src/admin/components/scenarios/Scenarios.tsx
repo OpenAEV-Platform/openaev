@@ -53,9 +53,9 @@ const Scenarios = () => {
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
+  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   const [loading, setLoading] = useState<boolean>(true);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
 
   // Headers
   const headers = useMemo(() => [
@@ -241,7 +241,11 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+                        actions={
+                          isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id
+                            ? ['Export', 'Delete']
+                            : ['Duplicate', 'Export', 'Delete']
+                        }
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

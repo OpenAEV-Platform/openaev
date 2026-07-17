@@ -269,6 +269,65 @@ class IndexingRegressionTest extends IntegrationTest {
       // Assert — every inject was indexed exactly once
       assertThat(collectedIds).containsExactlyInAnyOrderElementsOf(expectedIds);
     }
+
+    @Test
+    @DisplayName(
+        "Cursor advances when dependency triggers parent inclusion (stuck cursor regression)")
+    void cursor_advances_when_dependency_triggers_parent() {
+      // If a dependency row is updated, the parent inject is included in changed_injects.
+      // Without the WHERE GREATEST(...) > :from fix, parent's own GREATEST could be <= cursor.
+      // This test ensures the cursor always advances even in this scenario.
+
+      int total = 4;
+      int batchSize = 2;
+      ScenarioComposer.Composer scenarioWrapper =
+          scenarioComposer.forScenario(ScenarioFixture.createDefaultIncidentResponseScenario());
+      Set<String> injectIds = new HashSet<>();
+      for (int i = 0; i < total; i++) {
+        InjectComposer.Composer inj = injectComposer.forInject(InjectFixture.getDefaultInject());
+        scenarioWrapper.withInject(inj);
+      }
+      scenarioWrapper.persist();
+      entityManager.flush();
+
+      // Assign distinct timestamps AFTER :from so they are indexable and cursor advances
+      List<?> ids =
+          entityManager
+              .createNativeQuery(
+                  "SELECT inject_id FROM injects WHERE inject_scenario = :sid ORDER BY inject_id")
+              .setParameter("sid", scenarioWrapper.get().getId())
+              .getResultList();
+      Instant base = FROM.plusSeconds(1);
+      for (int i = 0; i < ids.size(); i++) {
+        String id = ids.get(i).toString();
+        entityManager
+            .createNativeQuery("UPDATE injects SET inject_updated_at = :ts WHERE inject_id = :id")
+            .setParameter("ts", base.plusSeconds(i))
+            .setParameter("id", id)
+            .executeUpdate();
+        injectIds.add(id);
+      }
+      entityManager.flush();
+      entityManager.clear();
+
+      // Simulate cursor loop and verify advancement
+      Set<String> collectedIds = new HashSet<>();
+      Instant cursor = FROM;
+      int iterations = 0;
+      while (iterations < total + 3) {
+        List<EsInject> batch = injectHandler.fetch(cursor, batchSize);
+        if (batch.isEmpty()) break;
+        for (EsInject es : batch) {
+          collectedIds.add(es.getBase_id());
+        }
+        Instant newCursor = batch.getLast().getBase_updated_at();
+        assertThat(newCursor).as("Cursor must advance (iteration %d)", iterations).isAfter(cursor);
+        cursor = newCursor;
+        iterations++;
+      }
+
+      assertThat(collectedIds).containsAll(injectIds);
+    }
   }
 
   // ---------------------------------------------------------------------------

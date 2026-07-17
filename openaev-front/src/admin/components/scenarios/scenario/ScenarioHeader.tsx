@@ -245,7 +245,7 @@ const ScenarioHeader = ({
             )}
         <ScenarioPopover
           scenario={scenario}
-          actions={isScenarioChaining ? ['Update', 'Delete'] : ['Duplicate', 'Update', 'Delete', 'Export']}
+          actions={isScenarioChaining ? ['Update', 'Delete', 'Export'] : ['Duplicate', 'Update', 'Delete', 'Export']}
           onDelete={() => navigate('/admin/scenarios')}
         />
       </div>

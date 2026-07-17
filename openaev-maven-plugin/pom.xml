@@ -4,7 +4,7 @@
   <parent>
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.260708.1</version>
+    <version>2.260717.0</version>
   </parent>
   <artifactId>openaev-maven-plugin</artifactId>
   <packaging>maven-plugin</packaging>
@@ -25,7 +25,7 @@
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-plugin-api</artifactId>
-      <version>3.9.6</version>
+      <version>3.9.16</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

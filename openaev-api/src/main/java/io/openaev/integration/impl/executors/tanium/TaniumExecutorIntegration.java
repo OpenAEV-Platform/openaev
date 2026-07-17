@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -60,6 +61,7 @@ public class TaniumExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -75,7 +77,8 @@ public class TaniumExecutorIntegration extends Integration {
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -87,6 +90,7 @@ public class TaniumExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
 
     // Refresh the context to get the config
     try {
@@ -131,7 +135,12 @@ public class TaniumExecutorIntegration extends Integration {
     client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
         new TaniumExecutorContextService(
-            enterpriseEditionService, licenseCacheManager, config, client, executorService);
+            enterpriseEditionService,
+            licenseCacheManager,
+            config,
+            client,
+            executorService,
+            openAEVConfig);
     taniumExecutorService =
         new TaniumExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

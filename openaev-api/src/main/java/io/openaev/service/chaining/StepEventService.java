@@ -7,12 +7,14 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Handles step lifecycle events consumed from the chaining queues: ready events (execute a step)
@@ -23,9 +25,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StepEventService implements StepEventHandler, ExternalUpdateEventHandler {
 
+  private final ChainingConfig chainingConfig;
   private final StepService stepService;
   private final WorkflowService workflowService;
   private final StepRepository stepRepository;
+  private final QueueChainingService queueChainingService;
+
+  /**
+   * Programmatic transaction manager used exclusively for {@link #handleReadyStepEvent}. Do NOT use
+   * it elsewhere — prefer {@code @Transactional} on public methods called from outside this class.
+   */
+  private final TransactionTemplate transactionTemplate;
 
   // -- READY EVENTS --
 
@@ -46,15 +56,47 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
    * @param stepEvent event to handle
    */
   @Override
-  @Transactional(rollbackFor = Exception.class)
   public void handleReadyStepEvent(StepEvent stepEvent) {
-    stepRepository
-        .findById(stepEvent.getStepId())
-        .ifPresentOrElse(
-            this::run,
-            () ->
-                log.error(
-                    "Ready consume: Step not found for StepEvent ID: {}", stepEvent.getStepId()));
+    try {
+      // Using TransactionTemplate instead of @Transactional because this method is called from
+      // handleReadyEvent() within the same class (self-invocation).
+      // We can't put the transactional annotation on handleReadyEvent as it would rollback the
+      // whole batch being treated instead of just the one faulty event.
+      transactionTemplate.executeWithoutResult(
+          status ->
+              stepRepository
+                  .findById(stepEvent.getStepId())
+                  .ifPresentOrElse(
+                      this::run,
+                      () ->
+                          log.error(
+                              "Ready consume: Step not found for StepEvent ID: {}",
+                              stepEvent.getStepId())));
+    } catch (Exception e) {
+      if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
+        stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
+        log.warn(
+            "Transaction failed for StepEvent {}. Re-queuing (retry {}/{}).",
+            stepEvent.getStepId(),
+            stepEvent.getRetryCount(),
+            chainingConfig.getMaxRetryCount(),
+            e);
+        try {
+          queueChainingService.republishReadyEvent(stepEvent);
+        } catch (IOException ioEx) {
+          log.error(
+              "Failed to re-queue StepEvent {} after transactional failure. Event is lost.",
+              stepEvent.getStepId(),
+              ioEx);
+        }
+      } else {
+        log.error(
+            "Transaction failed for StepEvent {} after {} retries. Event is dropped.",
+            stepEvent.getStepId(),
+            chainingConfig.getMaxRetryCount(),
+            e);
+      }
+    }
   }
 
   /**
