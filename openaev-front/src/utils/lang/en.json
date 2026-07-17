@@ -2673,5 +2673,12 @@
   "Your OpenCTI Enterprise Edition free trial is active: ": "Your OpenCTI Enterprise Edition free trial is active: ",
   "Your overall evaluation about this question.": "Your overall evaluation about this question.",
   "your trial license online": "your trial license online",
-  "YYYY": "YYYY"
+  "YYYY": "YYYY",
+  "Asset is currently unavailable or you do not have sufficient permissions to access it.": "Asset is currently unavailable or you do not have sufficient permissions to access it.",
+  "agent(s)": "agent(s)",
+  "AI target connection": "AI target connection",
+  "System prompt": "System prompt",
+  "Cloud": "Cloud",
+  "Network": "Network",
+  "Injects played": "Injects played"
 }

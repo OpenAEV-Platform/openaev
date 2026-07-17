@@ -10,6 +10,7 @@ export const ATOMIC_BASE_URL = '/admin/atomic_testings';
 
 // Assets
 export const ENDPOINT_BASE_URL = '/admin/assets/endpoints';
+export const ASSET_BASE_URL = '/admin/assets/details';
 export const SECURITY_PLATFORM_BASE_URL = '/admin/assets/security_platforms';
 
 // Peoples

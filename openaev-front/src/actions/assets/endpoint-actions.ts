@@ -47,6 +47,12 @@ export const deleteAsset = (assetId: string) => {
   return simpleDelCall(`/api/assets/${assetId}`);
 };
 
+// Generic asset overview for the unified detail page: returns any asset type with its
+// category-relevant fields (endpoints keep agents/platform; AI targets expose connection metadata).
+export const fetchAssetOverview = (assetId: string) => {
+  return simpleCall(`/api/assets/${assetId}`);
+};
+
 export const findEndpoints = (endpointIds: string[]) => {
   const data = endpointIds;
   const uri = `${ENDPOINT_URI}/find`;

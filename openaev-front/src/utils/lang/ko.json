@@ -2673,5 +2673,12 @@
   "Your OpenCTI Enterprise Edition free trial is active: ": "OpenCTI 엔터프라이즈 에디션 무료 평가판이 활성화되었습니다:",
   "Your overall evaluation about this question.": "이 질문에 대한 전반적인 평가입니다.",
   "your trial license online": "온라인 평가판 라이선스",
-  "YYYY": "YYYY"
+  "YYYY": "YYYY",
+  "Asset is currently unavailable or you do not have sufficient permissions to access it.": "자산을 현재 사용할 수 없거나 액세스할 수 있는 충분한 권한이 없습니다.",
+  "agent(s)": "에이전트",
+  "AI target connection": "AI 대상 연결",
+  "System prompt": "시스템 프롬프트",
+  "Cloud": "클라우드",
+  "Network": "네트워크",
+  "Injects played": "실행된 인젝트"
 }

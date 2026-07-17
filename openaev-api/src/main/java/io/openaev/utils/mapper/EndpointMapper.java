@@ -91,6 +91,37 @@ public class EndpointMapper {
   }
 
   /**
+   * Converts ANY asset to the overview DTO used by the unified asset detail page. Endpoints get
+   * their full representation (agents, platform, arch, EOL); other asset types map from the shared
+   * {@link Asset} fields, and AI targets additionally expose their (non-secret) connection metadata
+   * so a single detail page can render every category with the relevant sections.
+   */
+  public EndpointOverviewOutput toAssetOverviewOutput(Asset asset) {
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
+      return toEndpointOverviewOutput(endpoint);
+    }
+    return EndpointOverviewOutput.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .description(asset.getDescription())
+        .hostname(asset.getHostname())
+        .agents(emptySet())
+        .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(asset.getCategory())
+        .subcategory(asset.getSubcategory())
+        .criticality(asset.getCriticality())
+        .internetFacing(asset.getInternetFacing())
+        .metadata(asset.getMetadata())
+        // AI target connection metadata (token intentionally omitted)
+        .aiTargetProvider(asset.getAiTargetProvider())
+        .aiTargetModality(asset.getAiTargetModality())
+        .aiTargetEndpoint(asset.getAiTargetEndpoint())
+        .aiTargetModel(asset.getAiTargetModel())
+        .aiTargetSystemPrompt(asset.getAiTargetSystemPrompt())
+        .build();
+  }
+
+  /**
    * Converts an asset to a simplified endpoint DTO.
    *
    * @param asset the asset to convert

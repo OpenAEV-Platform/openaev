@@ -2673,5 +2673,12 @@
   "Your OpenCTI Enterprise Edition free trial is active: ": "您的 OpenCTI 企业版免费试用版已激活：",
   "Your overall evaluation about this question.": "您对此问题的总体评价。",
   "your trial license online": "在线试用许可证",
-  "YYYY": "YYYY"
+  "YYYY": "YYYY",
+  "Asset is currently unavailable or you do not have sufficient permissions to access it.": "资产当前不可用，或您没有足够的权限访问它。",
+  "agent(s)": "代理",
+  "AI target connection": "AI 目标连接",
+  "System prompt": "系统提示",
+  "Cloud": "云",
+  "Network": "网络",
+  "Injects played": "已执行的注入"
 }

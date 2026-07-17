@@ -4,6 +4,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.AssetSubCategory;
@@ -106,6 +107,30 @@ public class EndpointOverviewOutput {
   @Schema(description = "Linked person (user id) for identity assets")
   @JsonProperty("asset_linked_person")
   private String linkedPerson;
+
+  // -- AI TARGET (category = AI_TARGET) --
+  // Connection metadata is safe to expose; the credential (ai_target_token) is intentionally never
+  // surfaced in the overview.
+
+  @Schema(description = "AI target provider (AI targets only)")
+  @JsonProperty("ai_target_provider")
+  private Asset.AI_TARGET_PROVIDER aiTargetProvider;
+
+  @Schema(description = "AI target modality (AI targets only)")
+  @JsonProperty("ai_target_modality")
+  private Asset.AI_TARGET_MODALITY aiTargetModality;
+
+  @Schema(description = "AI target endpoint URL (AI targets only)")
+  @JsonProperty("ai_target_endpoint")
+  private String aiTargetEndpoint;
+
+  @Schema(description = "AI target model (AI targets only)")
+  @JsonProperty("ai_target_model")
+  private String aiTargetModel;
+
+  @Schema(description = "AI target system prompt (AI targets only)")
+  @JsonProperty("ai_target_system_prompt")
+  private String aiTargetSystemPrompt;
 
   @Schema(description = "Free-form category-specific attributes")
   @JsonProperty("asset_metadata")

@@ -2673,5 +2673,12 @@
   "Your OpenCTI Enterprise Edition free trial is active: ": "OpenCTI Enterprise Editionの無料トライアルは有効です：",
   "Your overall evaluation about this question.": "この質問に対するあなたの総合評価",
   "your trial license online": "オンライン試用ライセンス",
-  "YYYY": "年"
+  "YYYY": "年",
+  "Asset is currently unavailable or you do not have sufficient permissions to access it.": "アセットは現在利用できないか、アクセスするための十分な権限がありません。",
+  "agent(s)": "エージェント",
+  "AI target connection": "AIターゲット接続",
+  "System prompt": "システムプロンプト",
+  "Cloud": "クラウド",
+  "Network": "ネットワーク",
+  "Injects played": "実行されたインジェクト"
 }

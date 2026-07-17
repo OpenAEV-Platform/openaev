@@ -27,7 +27,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { ENDPOINT_BASE_URL } from '../../../../constants/BaseUrls';
+import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
 import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -213,34 +213,8 @@ const Endpoints = () => {
           loading
             ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
             : endpoints.map((endpoint: EndpointOutput) => {
-                // Only endpoints have a dedicated detail page; every other asset type is managed
-                // inline through the generic popover. The popover renders on EVERY row so the
-                // secondary-action column stays consistent and the list columns stay aligned.
-                const isEndpoint = endpoint.asset_type === 'Endpoint';
-                const rowContent = (
-                  <>
-                    <ListItemIcon>
-                      <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={(
-                        <div style={bodyItemsStyles.bodyItems}>
-                          {headers.map(header => (
-                            <div
-                              key={header.field}
-                              style={{
-                                ...bodyItemsStyles.bodyItem,
-                                ...inlineStyles[header.field],
-                              }}
-                            >
-                              {header.value(endpoint)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    />
-                  </>
-                );
+                // Every asset type now has a generic detail page, and the popover renders on every
+                // row so the secondary-action column stays consistent and the columns stay aligned.
                 return (
                   <ListItem
                     key={endpoint.asset_id}
@@ -256,17 +230,28 @@ const Endpoints = () => {
                     )}
                     disablePadding
                   >
-                    {isEndpoint
-                      ? (
-                          <ListItemButton component={Link} to={`${ENDPOINT_BASE_URL}/${endpoint.asset_id}`} classes={{ root: classes.item }}>
-                            {rowContent}
-                          </ListItemButton>
-                        )
-                      : (
-                          <ListItemButton classes={{ root: classes.item }} style={{ cursor: 'default' }} disableRipple>
-                            {rowContent}
-                          </ListItemButton>
+                    <ListItemButton component={Link} to={`${ASSET_BASE_URL}/${endpoint.asset_id}`} classes={{ root: classes.item }}>
+                      <ListItemIcon>
+                        <AssetCategoryIcon category={endpoint.asset_category} color="primary" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={(
+                          <div style={bodyItemsStyles.bodyItems}>
+                            {headers.map(header => (
+                              <div
+                                key={header.field}
+                                style={{
+                                  ...bodyItemsStyles.bodyItem,
+                                  ...inlineStyles[header.field],
+                                }}
+                              >
+                                {header.value(endpoint)}
+                              </div>
+                            ))}
+                          </div>
                         )}
+                      />
+                    </ListItemButton>
                   </ListItem>
                 );
               })

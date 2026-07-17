@@ -2673,5 +2673,12 @@
   "Your OpenCTI Enterprise Edition free trial is active: ": "Votre essai gratuit d'OpenCTI Enterprise Edition est actif :",
   "Your overall evaluation about this question.": "Votre évaluation globale de cette question.",
   "your trial license online": "votre licence d'essai en ligne",
-  "YYYY": "AAAA"
+  "YYYY": "AAAA",
+  "Asset is currently unavailable or you do not have sufficient permissions to access it.": "L'actif est actuellement indisponible ou vous n'avez pas les permissions suffisantes pour y acceder.",
+  "agent(s)": "agent(s)",
+  "AI target connection": "Connexion de la cible IA",
+  "System prompt": "Prompt systeme",
+  "Cloud": "Cloud",
+  "Network": "Reseau",
+  "Injects played": "Injections jouees"
 }

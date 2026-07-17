@@ -2673,5 +2673,12 @@
   "Your OpenCTI Enterprise Edition free trial is active: ": "Ваша бесплатная пробная версия OpenCTI Enterprise Edition активна:",
   "Your overall evaluation about this question.": "Ваша общая оценка этого вопроса.",
   "your trial license online": "ваша пробная лицензия онлайн",
-  "YYYY": "ГГГГ"
+  "YYYY": "ГГГГ",
+  "Asset is currently unavailable or you do not have sufficient permissions to access it.": "Актив в настоящее время недоступен или у вас недостаточно прав для доступа к нему.",
+  "agent(s)": "агент(ы)",
+  "AI target connection": "Подключение ИИ-цели",
+  "System prompt": "Системный промпт",
+  "Cloud": "Облако",
+  "Network": "Сеть",
+  "Injects played": "Выполненные инъекты"
 }

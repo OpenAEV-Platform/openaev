@@ -231,6 +231,21 @@ public class EndpointApi extends RestBehavior {
   }
 
   /**
+   * Generic asset overview for the unified asset detail page: returns any asset type (endpoint, AI
+   * target or any other category). Endpoints keep their full representation; other types expose
+   * their category-relevant fields (AI targets include their connection metadata, token excluded).
+   */
+  @Transactional
+  @GetMapping({ASSET_URI + "/{assetId}", TENANT_ASSET_URI + "/{assetId}"})
+  @AccessControl(
+      resourceId = "#assetId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.ASSET)
+  public EndpointOverviewOutput asset(@PathVariable @NotBlank final String assetId) {
+    return endpointMapper.toAssetOverviewOutput(assetService.asset(assetId));
+  }
+
+  /**
    * Generic asset deletion for the unified inventory: deletes any asset type (endpoint, AI target
    * or any other category) by id. Security platforms are rejected (managed in their own area).
    */
