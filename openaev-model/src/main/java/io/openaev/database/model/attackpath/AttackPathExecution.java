@@ -44,6 +44,9 @@ public class AttackPathExecution implements TenantBase {
   @Column(name = "attackpath_execution_simulation_id", nullable = false)
   private String simulationId;
 
+  @Column(name = "attackpath_execution_inject_id")
+  private String injectId;
+
   @Column(name = "attackpath_execution_step_id")
   private String stepId;
 
@@ -58,6 +61,15 @@ public class AttackPathExecution implements TenantBase {
 
   @Column(name = "attackpath_execution_source_asset_id")
   private String sourceAssetId;
+
+  @Column(name = "attackpath_execution_source_hostname")
+  private String sourceHostname;
+
+  @Column(name = "attackpath_execution_source_ip")
+  private String sourceIp;
+
+  @Column(name = "attackpath_execution_source_platform")
+  private String sourcePlatform;
 
   @Column(name = "attackpath_execution_agent_id")
   private String agentId;
