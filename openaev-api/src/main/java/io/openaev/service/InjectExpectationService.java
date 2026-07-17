@@ -561,9 +561,15 @@ public class InjectExpectationService {
             technicalInjectExpectation, input, collector);
     TechnicalInjectExpectation updated =
         this.injectExpectationRepository.save(technicalInjectExpectation);
+    // When the collector fills an ASSET-level (agentless) expectation - AI targets, or agentless
+    // endpoints - there is no agent layer below it: agent->asset propagation would recompute the
+    // asset score from zero children and immediately wipe the score we just set. Only asset->group
+    // propagation must run. When the collector fills an AGENT expectation, roll the score up the
+    // full agent->asset->group chain.
+    boolean isAgentless = updated.getAgent() == null;
     propagateTechnicalExpectation(
         updated,
-        false,
+        isAgentless,
         shouldPropagateLastInjectExpectationResult
             ? score -> updated.getResults().getLast()
             : null);
@@ -611,7 +617,11 @@ public class InjectExpectationService {
     Map<String, TechnicalInjectExpectation> assetPropagations = new LinkedHashMap<>();
     Map<String, TechnicalInjectExpectation> assetGroupPropagations = new LinkedHashMap<>();
     for (TechnicalInjectExpectation updated : saved) {
-      if (updated.getAsset() != null) {
+      // Agent -> asset rollup only applies when the updated leaf is an AGENT expectation. An
+      // agentless asset expectation (AI target, agentless endpoint) IS the leaf: recomputing it
+      // from its (nonexistent) agent children would wipe the score just written, so skip it here
+      // and let the asset -> group step below roll it up.
+      if (updated.getAsset() != null && updated.getAgent() != null) {
         assetPropagations.putIfAbsent(
             updated.getInject().getId()
                 + "|"

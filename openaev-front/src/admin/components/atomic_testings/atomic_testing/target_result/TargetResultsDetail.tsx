@@ -146,6 +146,17 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
     })
   ));
 
+  // Pre-select the first available tab so the right panel never opens blank (e.g. an AI target
+  // whose only tabs are the dynamic Detection / Prevention expectation tabs).
+  useEffect(() => {
+    if (tabs.length === 0) return;
+    const tabExists = activeTab && tabs.some(tab => tab.key === activeTab);
+    if (!tabExists) {
+      setActiveTab(tabs[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedGroupedTargetResults, target.target_id]);
+
   return (
     <Paper>
       <TargetResultsReactFlow
