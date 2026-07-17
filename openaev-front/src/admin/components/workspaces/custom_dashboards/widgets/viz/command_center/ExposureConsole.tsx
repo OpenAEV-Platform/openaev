@@ -13,14 +13,30 @@ interface OrbitPlatform {
   logo?: string;
 }
 
+interface DomainBreakdown {
+  key: string; // expectation type: PREVENTION / DETECTION / VULNERABILITY / ...
+  success: number; // validations stopped
+  failed: number; // validations breached
+}
+
 interface Props {
   score: number; // 0..100, higher = more exposed
   gaps: number;
   validations: number;
   platforms: OrbitPlatform[];
+  // Per-pillar validation counts, used to explain how the aggregate exposure is built.
+  breakdown?: DomainBreakdown[];
   /** Drill into the gaps behind the score (opens the data drawer). */
   onInvestigate?: () => void;
 }
+
+// Human label per expectation-type pillar.
+const PILLAR_LABELS: Record<string, string> = {
+  PREVENTION: 'Prevention',
+  DETECTION: 'Detection',
+  VULNERABILITY: 'Vulnerability',
+  MANUAL: 'Manual',
+};
 
 // Distinct accent per security-platform category.
 const PLATFORM_COLORS: Record<string, string> = {
@@ -63,7 +79,7 @@ const SWEEP = 360;
  * a slow orbit of glowing nodes. Modern, glassy and alive. The raw "/ 100"
  * scale is intentionally hidden and surfaced on hover, keeping the face clean.
  */
-const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, platforms, onInvestigate }) => {
+const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, platforms, breakdown = [], onInvestigate }) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const gradId = useId();
@@ -92,6 +108,16 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   const [explainOpen, setExplainOpen] = useState(false);
   const stopped = Math.max(validations - gaps, 0);
   const resilience = validations > 0 ? Math.round((stopped / validations) * 100) : 0;
+
+  // Per-pillar contribution to the aggregate exposure (only pillars that actually ran).
+  const pillars = useMemo(() => breakdown
+    .map(d => ({
+      key: d.key,
+      success: d.success,
+      failed: d.failed,
+      total: d.success + d.failed,
+    }))
+    .filter(d => d.total > 0), [breakdown]);
 
   // Severity bands (kept in sync with `band` above) surfaced in the explanation dialog.
   const bands = useMemo(() => [
@@ -142,10 +168,16 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   const rOrbit = 102;
   const dark = theme.palette.mode === 'dark';
 
-  const track = arc(cx, cy, rRing, START, START + 359.99);
-  const valueEnd = START + SWEEP * Math.max(progress, 0.001);
-  const value = arc(cx, cy, rRing, START, Math.min(valueEnd, START + 359.99));
-  const marker = polar(cx, cy, rRing, valueEnd);
+  // The score ring fills smoothly by animating stroke-dashoffset on a FULL-circle path (a real,
+  // animatable property), instead of morphing a partial-arc `d` (which browsers can't transition,
+  // so the old ring "jumped" / slid instead of filling and never lined up with the track).
+  const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const circumference = 2 * Math.PI * rRing;
+  const ring = arc(cx, cy, rRing, START, START + 359.99);
+  const dashOffset = circumference * (1 - clampedProgress);
+  // The end-of-fill marker sits at the ring start (top) and is rotated into place, so it animates in
+  // lock-step with the fill.
+  const markerBase = polar(cx, cy, rRing, START);
 
   // Orbit the connected security platforms; each node is a real platform.
   const orbit = platforms.slice(0, 8);
@@ -328,29 +360,36 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             })}
           </g>
 
-          {/* score ring */}
-          <path d={track} fill="none" stroke={dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} strokeWidth={5} strokeLinecap="round" />
+          {/* score ring: full-circle track + a dash-offset fill that grows from the top clockwise */}
+          <path d={ring} fill="none" stroke={dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} strokeWidth={5} strokeLinecap="round" />
           <path
-            d={value}
+            d={ring}
             fill="none"
             stroke={`url(#${gradId})`}
             strokeWidth={5}
             strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
             style={{
-              transition: 'all 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
+              transition: 'stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
               filter: `drop-shadow(0 0 5px ${alpha(color, 0.7)})`,
             }}
           />
-          <circle
-            cx={marker.x}
-            cy={marker.y}
-            r={4.5}
-            fill={color}
+          <g
             style={{
-              transition: 'all 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
-              filter: `drop-shadow(0 0 7px ${color})`,
+              transform: `rotate(${clampedProgress * SWEEP}deg)`,
+              transformOrigin: `${cx}px ${cy}px`,
+              transition: 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
-          />
+          >
+            <circle
+              cx={markerBase.x}
+              cy={markerBase.y}
+              r={4.5}
+              fill={color}
+              style={{ filter: `drop-shadow(0 0 7px ${color})` }}
+            />
+          </g>
 
           {/* center readout (dominant-baseline keeps the number optically centered) */}
           <text
@@ -499,53 +538,172 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           <Typography variant="body2" color="text.secondary" paragraph>
             {t('The adversarial exposure score is the share of security validations your controls failed to stop. It runs from 0 to 100 and, unlike a resilience score, a HIGHER number is WORSE - it means you are more exposed.')}
           </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            {t('score = breached validations / total validations x 100')}
-          </Typography>
-          {validations > 0 && (
-            <Typography variant="body2" color="text.secondary" paragraph>
-              {t('Right now {stopped} of {validations} validations were stopped ({resilience}% resilience) and {gaps} breached, giving an exposure of {score}/100.', {
-                stopped,
-                validations,
-                resilience,
-                gaps,
-                score: Math.round(score),
-              })}
-            </Typography>
-          )}
-
-          <Typography variant="h4" gutterBottom sx={{ marginTop: 2 }}>{t('Severity bands')}</Typography>
-          {bands.map(b => (
+          <Box sx={{
+            padding: 1.5,
+            borderRadius: 1,
+            marginBottom: 2,
+            fontFamily: 'monospace',
+            fontSize: 13,
+            textAlign: 'center',
+            color: 'text.primary',
+            background: theme.palette.action.hover,
+            border: `1px solid ${theme.palette.divider}`,
+          }}
+          >
+            {t('exposure')}
+            {' = '}
+            <Box component="span" sx={{ color: theme.palette.error.main }}>{`${gaps} ${t('breached')}`}</Box>
+            {' / '}
+            <Box component="span">{`${validations} ${t('total')}`}</Box>
+            {` x 100 = `}
             <Box
-              key={b.range}
+              component="span"
               sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 1.5,
-                paddingBlock: 0.75,
+                color,
+                fontWeight: 700,
               }}
             >
-              <Box sx={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                marginTop: 0.5,
-                flexShrink: 0,
-                background: b.color,
-                boxShadow: `0 0 6px ${alpha(b.color, 0.7)}`,
-              }}
-              />
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {`${b.range} - ${b.label}`}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">{b.desc}</Typography>
-              </Box>
+              {Math.round(score)}
             </Box>
-          ))}
+          </Box>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            {t('Every validation counts equally - there is no per-pillar weighting. Pillars that run more validations therefore weigh more on the overall score. It is the exact inverse of the resilience gauges below: exposure = 100 - overall resilience ({resilience}%).', { resilience })}
+          </Typography>
+
+          {/* Visual per-pillar breakdown: stacked stopped/breached bars */}
+          {pillars.length > 0 && (
+            <>
+              <Typography variant="h4" gutterBottom sx={{ marginTop: 2 }}>{t('Breakdown by pillar')}</Typography>
+              {pillars.map((p) => {
+                const breachPct = Math.round((p.failed / p.total) * 100);
+                return (
+                  <Box key={p.key} sx={{ marginBottom: 1.5 }}>
+                    <Box sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: 0.5,
+                    }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {t(PILLAR_LABELS[p.key.toUpperCase()] ?? p.key)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {t('{failed} / {total} breached ({pct}%)', {
+                          failed: p.failed,
+                          total: p.total,
+                          pct: breachPct,
+                        })}
+                      </Typography>
+                    </Box>
+                    <Tooltip title={t('{stopped} stopped - {breached} breached', {
+                      stopped: p.success,
+                      breached: p.failed,
+                    })}
+                    >
+                      <Box sx={{
+                        display: 'flex',
+                        height: 8,
+                        borderRadius: 999,
+                        overflow: 'hidden',
+                        background: theme.palette.action.hover,
+                      }}
+                      >
+                        <Box sx={{
+                          width: `${100 - breachPct}%`,
+                          background: theme.palette.success.main,
+                        }}
+                        />
+                        <Box sx={{
+                          width: `${breachPct}%`,
+                          background: theme.palette.error.main,
+                        }}
+                        />
+                      </Box>
+                    </Tooltip>
+                  </Box>
+                );
+              })}
+              <Box sx={{
+                display: 'flex',
+                gap: 2,
+                marginTop: 1,
+              }}
+              >
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+                >
+                  <Box sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: theme.palette.success.main,
+                  }}
+                  />
+                  <Typography variant="body2" color="text.secondary">{t('Stopped')}</Typography>
+                </Box>
+                <Box sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+                >
+                  <Box sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: theme.palette.error.main,
+                  }}
+                  />
+                  <Typography variant="body2" color="text.secondary">{t('Breached')}</Typography>
+                </Box>
+              </Box>
+            </>
+          )}
+
+          {/* Severity scale: how the number maps to a verdict + ring color */}
+          <Typography variant="h4" gutterBottom sx={{ marginTop: 2 }}>{t('Severity bands')}</Typography>
+          {bands.map((b) => {
+            const isCurrent = b.label === band.label;
+            return (
+              <Box
+                key={b.range}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1.5,
+                  paddingBlock: 0.75,
+                  paddingInline: 1,
+                  borderRadius: 1,
+                  background: isCurrent ? alpha(b.color, 0.1) : 'transparent',
+                  border: `1px solid ${isCurrent ? alpha(b.color, 0.4) : 'transparent'}`,
+                }}
+              >
+                <Box sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  marginTop: 0.5,
+                  flexShrink: 0,
+                  background: b.color,
+                  boxShadow: `0 0 6px ${alpha(b.color, 0.7)}`,
+                }}
+                />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {`${b.range} - ${b.label}`}
+                    {isCurrent ? ` - ${t('current')}` : ''}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">{b.desc}</Typography>
+                </Box>
+              </Box>
+            );
+          })}
 
           <Typography variant="body2" color="text.secondary" sx={{ marginTop: 2 }}>
-            {t('The ring is a green-to-red gradient: the more it fills, the more of your validations went unstopped. Click the orb to investigate the breached validations behind the score.')}
+            {t('Click the orb to investigate the exact validations breached behind this score.')}
           </Typography>
         </DialogContent>
       </Dialog>

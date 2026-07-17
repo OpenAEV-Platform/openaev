@@ -239,6 +239,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
           gaps={breached}
           validations={totalValidations}
           platforms={orbitPlatforms}
+          breakdown={layers}
           onInvestigate={() => onInvestigate('breach')}
         />
 
