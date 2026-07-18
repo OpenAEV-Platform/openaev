@@ -68,8 +68,6 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const connectorLogoUrl = instance
     ? `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`
     : legacyConnectorLogoUrl;
-  // Dummy (test) connectors ship without a real logo.
-  const isDummy = (connector?.type ?? catalogConnector?.catalog_connector_slug ?? '').includes('dummy');
 
   // Instance status: a requested transition shows as loading until it settles.
   const instanceCurrentStatus = instance?.connector_instance_current_status;
@@ -112,10 +110,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       />
       <ConnectorDetailHero
         title={connector?.name || catalogConnector?.catalog_connector_title || ''}
-        logoSrc={isDummy ? undefined : connectorLogoUrl}
+        logoSrc={connectorLogoUrl}
         type={heroType}
         useCases={catalogConnector?.catalog_connector_use_cases}
-        verified={instance != null}
+        verified={connector?.isVerified ?? catalogConnector?.catalog_connector_verified === true}
         external={heroExternal}
         description={catalogConnector?.catalog_connector_short_description
           ?? (() => {

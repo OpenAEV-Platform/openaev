@@ -15,6 +15,16 @@ import type {
 } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 
+/**
+ * Freshest of the available heartbeat signals: an external collector bumps its
+ * registration date (~40s ping) while a built-in one stamps its last execution,
+ * so taking either one alone can show a healthy connector as down.
+ */
+const latestOf = (...dates: (string | undefined)[]): string | undefined =>
+  dates
+    .filter((d): d is string => d != null)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
 export interface ConnectorOutput {
   id: string;
   name: string;
@@ -83,7 +93,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     name: data?.collector_name,
     type: data?.collector_type,
     catalog: data?.catalog,
-    updatedAt: data?.collector_last_execution || data?.collector_updated_at,
+    updatedAt: latestOf(data?.collector_last_execution, data?.collector_updated_at),
     isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
     isExternal: data?.collector_external,

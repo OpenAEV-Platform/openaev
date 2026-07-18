@@ -65,8 +65,14 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
       <Button
         variant={isEnterpriseEdition ? 'contained' : 'outlined'}
         sx={{
-          color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-          borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
+          // The contained EE variant already carries the primary palette; only
+          // the non-EE outlined variant needs the muted overrides.
+          ...(isEnterpriseEdition
+            ? {}
+            : {
+                color: 'action.disabled',
+                borderColor: 'action.disabledBackground',
+              }),
         }}
         size="small"
         onClick={onDeployClickAction}
