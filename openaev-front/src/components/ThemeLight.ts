@@ -9,6 +9,8 @@ import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
 // fds-migration/TOKEN-MAPPING.md § C — aligned on OpenCTI's already-validated reference value
 // (tonic-primary), not on OpenAEV's own prior literal. See report for full rationale.
+// Single lookup on purpose: secondary, EE, gradient.main and xtmhub.main are deliberately unified
+// on this one token (TOKEN-MAPPING.md § 3.3), so a future key rename only needs one update.
 const EE_COLOR = FDS.colors.light['--color-filigran-tonic-primary'];
 
 export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--bg-elevation-default-layer-0'];
@@ -18,7 +20,7 @@ const THEME_LIGHT_DEFAULT_BODY_END_GRADIENT = FDS.colors.light['--bg-elevation-d
 // fds-migration/TOKEN-MAPPING.md § 1 (post lib#32 rename) — raw palette-ramp tokens (--darkblue-*) are
 // mode-invariant and now live under FDS.scalars, not FDS.colors.{dark,light} (post-#32 bridge reshape).
 const THEME_LIGHT_DEFAULT_PRIMARY = FDS.scalars['--darkblue-600'];
-const THEME_LIGHT_DEFAULT_SECONDARY = FDS.colors.light['--color-filigran-tonic-primary'];
+const THEME_LIGHT_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_LIGHT_DEFAULT_ACCENT = FDS.colors.light['--bg-elevation-default-layer-3'];
 const THEME_LIGHT_DEFAULT_PAPER = FDS.colors.light['--bg-elevation-default-layer-1'];
 // NAV intentionally left as a raw literal — see TOKEN-MAPPING.md "7th item" flag (Sandy hasn't signed
@@ -71,7 +73,7 @@ const ThemeLight = (
     warning: { main: '#ed6c02' },
     primary: { main: primary || THEME_LIGHT_DEFAULT_PRIMARY },
     secondary: { main: secondary || THEME_LIGHT_DEFAULT_SECONDARY },
-    gradient: { main: FDS.colors.light['--color-filigran-tonic-primary'] },
+    gradient: { main: EE_COLOR },
     border: {
       lightBackground: hexToRGB('#000000', 0.15),
       primary: hexToRGB(primary || THEME_LIGHT_DEFAULT_PRIMARY, 0.3),
@@ -108,7 +110,7 @@ const ThemeLight = (
       lightBackground: hexToRGB(EE_COLOR, 0.08),
       contrastText: '#ffffff',
     },
-    xtmhub: { main: FDS.colors.light['--color-filigran-tonic-primary'] },
+    xtmhub: { main: EE_COLOR },
     widgets: {
       securityDomains: {
         colors: {

@@ -8,6 +8,8 @@ import { FDS } from './fds-tokens.generated';
 import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
 // fds-migration/TOKEN-MAPPING.md § B/C — recalibrated on FDS tokens (see report for old→new rationale).
+// Single lookup on purpose: secondary, EE, gradient.main and xtmhub.main are deliberately unified
+// on this one token (TOKEN-MAPPING.md § 3.3), so a future key rename only needs one update.
 const EE_COLOR = FDS.colors.dark['--color-filigran-tonic-primary'];
 
 export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-0'];
@@ -15,7 +17,7 @@ export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--bg-elevation-def
 // gradient existed on OpenAEV's body/html before this, ISO'd on OpenCTI's proven two-stop pattern).
 const THEME_DARK_DEFAULT_BODY_END_GRADIENT = FDS.colors.dark['--bg-elevation-default-layer-0-gradient'];
 const THEME_DARK_DEFAULT_PRIMARY = FDS.colors.dark['--color-filigran-brand-primary'];
-const THEME_DARK_DEFAULT_SECONDARY = FDS.colors.dark['--color-filigran-tonic-primary'];
+const THEME_DARK_DEFAULT_SECONDARY = EE_COLOR;
 const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
 const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
 const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
@@ -66,7 +68,7 @@ const ThemeDark = (
     warning: { main: '#ffa726' },
     primary: { main: primary || THEME_DARK_DEFAULT_PRIMARY },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
-    gradient: { main: FDS.colors.dark['--color-filigran-tonic-primary'] },
+    gradient: { main: EE_COLOR },
     border: {
       primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
       secondary: hexToRGB(secondary || THEME_DARK_DEFAULT_SECONDARY, 0.3),
@@ -102,7 +104,7 @@ const ThemeDark = (
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
     },
-    xtmhub: { main: FDS.colors.dark['--color-filigran-tonic-primary'] },
+    xtmhub: { main: EE_COLOR },
     background: {
       default: background || THEME_DARK_DEFAULT_BACKGROUND,
       paper: paper || THEME_DARK_DEFAULT_PAPER,
