@@ -40,6 +40,9 @@ const ScenarioAnalysis = () => {
 
   const handleSelectNewDashboard = useCallback((dashboardId: string) => {
     const current = scenarioRef.current;
+    if (!current) {
+      return;
+    }
     dispatch(updateScenario(current.scenario_id, {
       ...current,
       scenario_custom_dashboard: dashboardId,
@@ -73,7 +76,7 @@ const ScenarioAnalysis = () => {
         const value = localStorageParams[paramId]?.value;
         if ('scenario' === p.custom_dashboards_parameter_type) {
           paramOptions = {
-            value: scenario.scenario_id,
+            value: scenarioId,
             hidden: true,
           };
         } else if ('simulation' === p.custom_dashboards_parameter_type) {
@@ -96,7 +99,7 @@ const ScenarioAnalysis = () => {
       }));
 
     return Object.fromEntries(paramsList);
-  }, [scenario?.scenario_id, scenarioId, lastSimulationEndedId]);
+  }, [scenarioId, lastSimulationEndedId]);
 
   const configuration = useMemo(() => ({
     customDashboardId: scenario?.scenario_custom_dashboard,
@@ -112,7 +115,7 @@ const ScenarioAnalysis = () => {
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesByScenario(scenarioId, widgetId, params, pagination),
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesByByScenario(scenarioId, widgetId, input),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsByScenario(scenarioId, widgetId, params),
-  }), [scenario?.scenario_custom_dashboard, scenarioId, paramsBuilder, ability]);
+  }), [scenario?.scenario_custom_dashboard, scenarioId, paramsBuilder, ability, handleSelectNewDashboard]);
 
   return (
     <CustomDashboardWrapper

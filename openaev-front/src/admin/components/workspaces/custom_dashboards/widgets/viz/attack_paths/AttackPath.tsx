@@ -28,6 +28,30 @@ import DraggableEdge from './DraggableEdge';
 const nodeTypes = { attackPattern: AttackPatternNode };
 const edgeTypes = { draggableEdge: DraggableEdge };
 
+const proOptions = {
+  account: 'paid-pro',
+  hideAttribution: true,
+};
+
+const resolveDataByKillChainPhase = (esAttackPaths: EsAttackPath[]) => {
+  const killChainMap = new Map();
+  esAttackPaths.filter(item => item.killChainPhases && item.killChainPhases.length > 0)
+    .forEach((attackPath) => {
+      (attackPath.killChainPhases ?? []).forEach((phase) => {
+        if (!killChainMap.has(phase.id)) {
+          killChainMap.set(phase.id, {
+            id: phase.id,
+            name: phase.name,
+            phase_order: phase.order,
+            attackPaths: [],
+          });
+        }
+        killChainMap.get(phase.id).attackPaths.push(attackPath);
+      });
+    });
+  return Array.from(killChainMap.values()).toSorted(sortKillChainPhase);
+};
+
 interface Props {
   data: EsAttackPath[];
   widgetId: string;
@@ -71,31 +95,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     ATTACK_PATTERN = 'attackPattern',
   }
 
-  const proOptions = {
-    account: 'paid-pro',
-    hideAttribution: true,
-  };
-
   // -- React Flow nodes and edges management
-  const resolveDataByKillChainPhase = (esAttackPaths: EsAttackPath[]) => {
-    const killChainMap = new Map();
-    esAttackPaths.filter(item => item.killChainPhases && item.killChainPhases.length > 0)
-      .forEach((attackPath) => {
-        (attackPath.killChainPhases ?? []).forEach((phase) => {
-          if (!killChainMap.has(phase.id)) {
-            killChainMap.set(phase.id, {
-              id: phase.id,
-              name: phase.name,
-              phase_order: phase.order,
-              attackPaths: [],
-            });
-          }
-          killChainMap.get(phase.id).attackPaths.push(attackPath);
-        });
-      });
-    return Array.from(killChainMap.values()).toSorted(sortKillChainPhase);
-  };
-
   const getNodeId = (attackPathID: string, killChainPhase: KillChainPhaseObject) => {
     return attackPathID + '-' + killChainPhase.id;
   };
@@ -190,15 +190,15 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
       });
   };
 
-  const resolvededDataByKillChainPhase = useMemo(() => resolveDataByKillChainPhase(data), [data]);
+  const resolvedDataByKillChainPhase = useMemo(() => resolveDataByKillChainPhase(data), [data]);
   const initializeNodesAndEdges = () => {
     const newAttackPathsEdges: Edge[] = [];
     let newSimulationDatesEdge: Edge = {} as Edge;
     const newNodes: Node[] = [];
-    const maxXIndex = resolvededDataByKillChainPhase.length > 2 ? resolvededDataByKillChainPhase.length - 1 : 1;
+    const maxXIndex = resolvedDataByKillChainPhase.length > 2 ? resolvedDataByKillChainPhase.length - 1 : 1;
     let maxYIndex = 0;
 
-    resolvededDataByKillChainPhase.forEach((phase, phaseIndex) => {
+    resolvedDataByKillChainPhase.forEach((phase, phaseIndex) => {
       newNodes.push(createKillChainNode(phase, phaseIndex));
 
       (phase.attackPaths as EsAttackPath[]).forEach((attackPath, attackPathIndex) => {
@@ -240,7 +240,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
       return;
     }
     const newAttackPathsEdges: Edge[] = [];
-    resolvededDataByKillChainPhase.forEach((phase) => {
+    resolvedDataByKillChainPhase.forEach((phase) => {
       (phase.attackPaths as EsAttackPath[]).forEach((attackPath) => {
         newAttackPathsEdges.push(...createEdgesByAttackPath(attackPath, phase));
       });

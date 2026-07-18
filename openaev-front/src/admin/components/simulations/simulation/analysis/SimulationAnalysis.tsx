@@ -37,6 +37,9 @@ const SimulationAnalysis = () => {
 
   const handleSelectNewDashboard = useCallback((dashboardId: string) => {
     const current = exerciseRef.current;
+    if (!current) {
+      return;
+    }
     dispatch(updateExercise(current.exercise_id, {
       ...current,
       exercise_custom_dashboard: dashboardId,
@@ -52,7 +55,7 @@ const SimulationAnalysis = () => {
         value = exerciseId;
         hidden = true;
       } else if ('scenario' === p.custom_dashboards_parameter_type) {
-        value = exercise.exercise_scenario ?? '';
+        value = exercise?.exercise_scenario ?? '';
         hidden = true;
       } else if ('timeRange' === p.custom_dashboards_parameter_type) {
         value = ALL_TIME_TIME_RANGE;
@@ -84,7 +87,7 @@ const SimulationAnalysis = () => {
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => widgetToEntitiesBySimulation(exerciseId, widgetId, input),
     fetchEntities: (widgetId: string, params: Record<string, string | undefined>, pagination?: Pagination) => entitiesBySimulation(exerciseId, widgetId, params, pagination),
     fetchAttackPaths: (widgetId: string, params: Record<string, string | undefined>) => attackPathsBySimulation(exerciseId, widgetId, params),
-  }), [exercise?.exercise_custom_dashboard, exerciseId, paramsBuilder, ability]);
+  }), [exercise?.exercise_custom_dashboard, exerciseId, paramsBuilder, ability, handleSelectNewDashboard]);
 
   return (
     <CustomDashboardWrapper
