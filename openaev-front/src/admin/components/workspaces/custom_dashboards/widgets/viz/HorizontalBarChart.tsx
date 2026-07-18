@@ -75,6 +75,9 @@ const HorizontalBarChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, 
       categories: [],
       legend: !distributed,
       distributed,
+      // Grouped multi-series bars (e.g. Detected vs Prevented) sit too close for
+      // per-bar end labels — they overlap; single-series keeps them.
+      showDataLabels: distributed,
       emptyChartText,
       onBarClick,
       chartColors,
