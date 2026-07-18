@@ -296,9 +296,13 @@ public class Asset implements TenantBase {
   @JsonProperty("asset_tags")
   private Set<Tag> tags = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt is synced manually with linked objects because join-table changes do not dirty this
+  // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
+  // SSE restream) on every no-op collector upsert (#6778).
   public void setTags(Set<Tag> tags) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.tags, tags)) {
+      this.updatedAt = now();
+    }
     this.tags = tags;
   }
 

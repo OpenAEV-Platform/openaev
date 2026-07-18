@@ -173,9 +173,13 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt is synced manually with linked objects because join-table changes do not dirty this
+  // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
+  // SSE restream) on every no-op collector/injector upsert (#6778).
   public void setTags(Set<Tag> tags) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.tags, tags)) {
+      this.updatedAt = now();
+    }
     this.tags = tags;
   }
 
@@ -295,9 +299,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(searchable = true, filterable = true, path = "attackPatterns.externalId")
   private List<AttackPattern> attackPatterns = new ArrayList<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setAttackPatterns(List<AttackPattern> attackPatterns) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.attackPatterns, attackPatterns)) {
+      this.updatedAt = now();
+    }
     this.attackPatterns = attackPatterns;
   }
 
@@ -331,9 +337,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   @Queryable(searchable = true, filterable = true, path = "vulnerabilities.externalId")
   private Set<Vulnerability> vulnerabilities = new HashSet<>();
 
-  // UpdatedAt now used to sync with linked object
+  // UpdatedAt synced with linked objects; only bump on real changes (see setTags)
   public void setVulnerabilities(Set<Vulnerability> vulnerabilities) {
-    this.updatedAt = now();
+    if (!Base.haveSameIds(this.vulnerabilities, vulnerabilities)) {
+      this.updatedAt = now();
+    }
     this.vulnerabilities = vulnerabilities;
   }
 
