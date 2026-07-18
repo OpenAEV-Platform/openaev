@@ -323,7 +323,7 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
  * chips, sorting, pagination) takes over.
  */
 const DefaultHomeResults = () => {
-  const { t } = useFormatter();
+  const { t, locale } = useFormatter();
   const [searchParams] = useSearchParams();
 
   const widgetId = searchParams.get('widget_id');
@@ -341,11 +341,11 @@ const DefaultHomeResults = () => {
   // `t` from useFormatter() is a NEW function on every render, so it must NOT be
   // a dependency here: it would give `widget` (and thus the seed effect) a fresh
   // identity every render, re-running the fetch on every render and looping the
-  // ad-hoc endpoint. Widget titles are static labels, so binding to
-  // timeRange + widgetId is enough.
+  // ad-hoc endpoint. `locale` is the stable signal that t's output changed, so a
+  // runtime language switch still refreshes the localized titles.
   const widget = useMemo(
     () => buildDefaultHomeWidgets(timeRange, t).find(w => w.widget_id === widgetId),
-    [timeRange, widgetId],
+    [timeRange, widgetId, locale],
   );
 
   const [seed, setSeed] = useState<{

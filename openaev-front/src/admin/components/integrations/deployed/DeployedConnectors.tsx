@@ -53,7 +53,7 @@ interface Props {
 const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { t, nsdt } = useFormatter();
+  const { t, nsdt, locale } = useFormatter();
 
   useDataLoader(() => {
     dispatch(injectorConfig.apiRequest.fetchAll());
@@ -124,7 +124,9 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
       items: allItems,
       metaById: meta,
     };
-  }, [injectors, collectors, executors, catalogConnectors]);
+    // `t` is a new function every render (see useFormatter); `locale` is the
+    // stable signal that the built-in descriptions it produces have changed.
+  }, [injectors, collectors, executors, catalogConnectors, locale]);
 
   // Migrate flow: converts a manually-deployed external connector into a
   // managed instance (same behavior as the legacy per-type pages).

@@ -39,7 +39,7 @@ const limitWidgetQueries = limitConcurrency(4);
  */
 const DefaultHomeDashboard = () => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, locale } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -55,7 +55,9 @@ const DefaultHomeDashboard = () => {
   // `t` from useFormatter() is a NEW function on every render, so it must NOT be a
   // dependency here: every recompute cascades into new fetch functions in the
   // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange]);
+  // `locale` is the stable signal that t's output actually changed, so a runtime
+  // language switch still recomputes the titles (one refetch, but only then).
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange, locale]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -63,7 +65,8 @@ const DefaultHomeDashboard = () => {
     return map;
   }, [widgets]);
 
-  // Deliberately not keyed on the unstable `t` (see the widgets memo above).
+  // Deliberately not keyed on the unstable `t`; `locale` covers language switches
+  // (see the widgets memo above).
   const customDashboard: CustomDashboard = useMemo(() => ({
     custom_dashboard_id: PLATFORM_DEFAULT_DASHBOARD_ID,
     custom_dashboard_name: t('Platform default'),
@@ -72,7 +75,7 @@ const DefaultHomeDashboard = () => {
     custom_dashboard_created_at: NOW,
     custom_dashboard_updated_at: NOW,
     listened: false,
-  }), [widgets]);
+  }), [widgets, locale]);
 
   const widgetOf = useCallback((widgetId: string) => {
     const widget = widgetById.get(widgetId);
