@@ -19,6 +19,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
+import builtinConnectorDescription from '../common/builtinConnectorDescriptions';
 import { computeConnectorLiveliness } from '../common/connector-liveliness';
 import {
   collectorConfig,
@@ -92,7 +93,11 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
           id: connector.id,
           title: connector.name,
           description: connector.catalog?.catalog_connector_short_description
-            ?? catalogMatch?.catalog_connector_short_description,
+            ?? catalogMatch?.catalog_connector_short_description
+            ?? (() => {
+              const builtin = builtinConnectorDescription(connector.type);
+              return builtin ? t(builtin) : undefined;
+            })(),
           type,
           useCases: catalogMatch?.catalog_connector_use_cases ?? [],
           verified: connector.isVerified,

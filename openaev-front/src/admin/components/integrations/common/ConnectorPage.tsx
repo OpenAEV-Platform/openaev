@@ -15,6 +15,7 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ActionButton from './ActionButton';
+import builtinConnectorDescription from './builtinConnectorDescriptions';
 import { computeConnectorLiveliness } from './connector-liveliness';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
@@ -110,7 +111,11 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         useCases={catalogConnector?.catalog_connector_use_cases}
         verified={instance != null}
         external={catalogConnector?.catalog_connector_manager_supported}
-        description={catalogConnector?.catalog_connector_short_description}
+        description={catalogConnector?.catalog_connector_short_description
+          ?? (() => {
+            const builtin = builtinConnectorDescription(connector?.type);
+            return builtin ? t(builtin) : undefined;
+          })()}
         statusChip={liveliness && (
           <div style={{
             display: 'flex',
