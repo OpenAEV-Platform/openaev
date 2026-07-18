@@ -1,0 +1,314 @@
+import {
+  CheckOutlined,
+  CloudOutlined,
+  Inventory2Outlined,
+  OnlinePredictionOutlined,
+  RocketLaunchOutlined,
+  SmartButtonOutlined,
+  TerminalOutlined,
+  VerifiedOutlined,
+} from '@mui/icons-material';
+import { Button, ButtonBase, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type ComponentType, useMemo } from 'react';
+
+import { useFormatter } from '../../../../components/i18n';
+import { type CatalogConnectorOutput } from '../../../../utils/api-types';
+import {
+  type CatalogFacetFilters,
+  countByPredicate,
+  DEPLOYMENT_BUILT_IN,
+  DEPLOYMENT_EXTERNAL,
+  type FacetGroupId,
+  filterConnectors,
+  hasActiveFacetFilters,
+  prettifyUseCase,
+  STATUS_DEPLOYED,
+  STATUS_VERIFIED,
+} from './catalog-facets';
+
+interface FacetRow {
+  value: string;
+  label: string;
+  count: number;
+  icon?: ComponentType<{ sx?: object }>;
+  capitalize?: boolean;
+}
+
+interface FacetGroup {
+  id: FacetGroupId;
+  label: string;
+  rows: FacetRow[];
+}
+
+interface FacetRowItemProps {
+  row: FacetRow;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+const FacetRowItem = ({ row, checked, onToggle }: FacetRowItemProps) => {
+  const theme = useTheme();
+  const disabled = row.count === 0 && !checked;
+  const RowIcon = row.icon;
+  return (
+    <ButtonBase
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={row.label}
+      disabled={disabled}
+      onClick={onToggle}
+      sx={{
+        'display': 'flex',
+        'alignItems': 'center',
+        'gap': 1,
+        'width': '100%',
+        'justifyContent': 'flex-start',
+        'padding': theme.spacing(0.5, 1),
+        'borderRadius': 1,
+        'textAlign': 'left',
+        'opacity': disabled ? 0.4 : 1,
+        'transition': 'background-color 0.15s ease',
+        '&:hover': { backgroundColor: theme.palette.action.hover },
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 16,
+          height: 16,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 2,
+          border: `1px solid ${checked ? theme.palette.primary.main : theme.palette.divider}`,
+          backgroundColor: checked ? theme.palette.primary.main : 'transparent',
+          boxShadow: checked ? `0 0 6px ${alpha(theme.palette.primary.main, 0.5)}` : 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        {checked && (
+          <CheckOutlined sx={{
+            fontSize: 12,
+            color: theme.palette.primary.contrastText,
+          }}
+          />
+        )}
+      </span>
+      {RowIcon && (
+        <RowIcon sx={{
+          fontSize: 16,
+          color: 'text.secondary',
+          flexShrink: 0,
+        }}
+        />
+      )}
+      <Typography
+        variant="body2"
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          textTransform: row.capitalize ? 'capitalize' : 'none',
+        }}
+      >
+        {row.label}
+      </Typography>
+      <span
+        style={{
+          fontSize: 11,
+          lineHeight: '18px',
+          minWidth: 24,
+          textAlign: 'center',
+          padding: theme.spacing(0, 0.5),
+          borderRadius: 2,
+          backgroundColor: checked
+            ? alpha(theme.palette.primary.main, 0.16)
+            : theme.palette.action.hover,
+          color: checked ? theme.palette.primary.main : theme.palette.text.secondary,
+        }}
+      >
+        {row.count}
+      </span>
+    </ButtonBase>
+  );
+};
+
+interface Props {
+  connectors: CatalogConnectorOutput[];
+  filters: CatalogFacetFilters;
+  keyword: string;
+  onToggleFacet: (groupId: FacetGroupId, value: string) => void;
+  onClearAll: () => void;
+}
+
+const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAll }: Props) => {
+  const theme = useTheme();
+  const { t } = useFormatter();
+  const anyActive = hasActiveFacetFilters(filters);
+
+  const groups: FacetGroup[] = useMemo(() => {
+    // Faceted-search count semantics: each group is counted against items
+    // filtered by every group EXCEPT itself (plus the search keyword).
+    const baseFor = (groupId: FacetGroupId) => filterConnectors(connectors, filters, keyword, groupId);
+
+    const typesBase = baseFor('types');
+    const useCasesBase = baseFor('useCases');
+    const statusBase = baseFor('status');
+    const deploymentBase = baseFor('deployment');
+
+    const allUseCases = Array.from(new Set(connectors.flatMap(c => c.catalog_connector_use_cases ?? []))).sort((a, b) => a.localeCompare(b));
+
+    return [
+      {
+        id: 'types' as const,
+        label: t('Type'),
+        rows: [
+          {
+            value: 'COLLECTOR',
+            label: t('Collector'),
+            icon: OnlinePredictionOutlined,
+            count: countByPredicate(typesBase, c => c.catalog_connector_type === 'COLLECTOR'),
+          },
+          {
+            value: 'INJECTOR',
+            label: t('Injector'),
+            icon: SmartButtonOutlined,
+            count: countByPredicate(typesBase, c => c.catalog_connector_type === 'INJECTOR'),
+          },
+          {
+            value: 'EXECUTOR',
+            label: t('Executor'),
+            icon: TerminalOutlined,
+            count: countByPredicate(typesBase, c => c.catalog_connector_type === 'EXECUTOR'),
+          },
+        ],
+      },
+      {
+        id: 'useCases' as const,
+        label: t('Use cases'),
+        rows: allUseCases.map(useCase => ({
+          value: useCase,
+          label: prettifyUseCase(useCase),
+          capitalize: true,
+          count: countByPredicate(useCasesBase, c => (c.catalog_connector_use_cases ?? []).includes(useCase)),
+        })),
+      },
+      {
+        id: 'status' as const,
+        label: t('Status'),
+        rows: [
+          {
+            value: STATUS_VERIFIED,
+            label: t('Verified'),
+            icon: VerifiedOutlined,
+            count: countByPredicate(statusBase, c => c.catalog_connector_verified === true),
+          },
+          {
+            value: STATUS_DEPLOYED,
+            label: t('Deployed'),
+            icon: RocketLaunchOutlined,
+            count: countByPredicate(statusBase, c => (c.instance_deployed_count ?? 0) > 0),
+          },
+        ],
+      },
+      {
+        id: 'deployment' as const,
+        label: t('Deployment'),
+        rows: [
+          {
+            value: DEPLOYMENT_EXTERNAL,
+            label: t('External'),
+            icon: CloudOutlined,
+            count: countByPredicate(deploymentBase, c => c.catalog_connector_manager_supported === true),
+          },
+          {
+            value: DEPLOYMENT_BUILT_IN,
+            label: t('Built-in'),
+            icon: Inventory2Outlined,
+            count: countByPredicate(deploymentBase, c => c.catalog_connector_manager_supported !== true),
+          },
+        ],
+      },
+    ].filter(group => group.rows.length > 0);
+  }, [connectors, filters, keyword, t]);
+
+  return (
+    <aside
+      style={{
+        width: 240,
+        flexShrink: 0,
+        position: 'sticky',
+        top: theme.spacing(2),
+        alignSelf: 'flex-start',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: theme.spacing(2),
+      }}
+    >
+      <header style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        minHeight: 30,
+      }}
+      >
+        <Typography
+          sx={{
+            fontFamily: '"Geologica", sans-serif',
+            fontWeight: 600,
+            fontSize: 13,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+          }}
+        >
+          {t('Filters')}
+        </Typography>
+        {anyActive && (
+          <Button size="small" onClick={onClearAll}>
+            {t('Clear all')}
+          </Button>
+        )}
+      </header>
+      {groups.map(group => (
+        <section
+          key={group.id}
+          aria-label={group.label}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: theme.spacing(0.25),
+          }}
+        >
+          <Typography
+            component="h3"
+            sx={{
+              fontFamily: '"Geologica", sans-serif',
+              fontWeight: 600,
+              fontSize: 11,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'text.secondary',
+              padding: theme.spacing(0.5, 1),
+            }}
+          >
+            {group.label}
+          </Typography>
+          {group.rows.map(row => (
+            <FacetRowItem
+              key={row.value}
+              row={row}
+              checked={filters[group.id].includes(row.value)}
+              onToggle={() => onToggleFacet(group.id, row.value)}
+            />
+          ))}
+        </section>
+      ))}
+    </aside>
+  );
+};
+
+export default CatalogSidebar;
