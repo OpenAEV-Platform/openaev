@@ -448,6 +448,8 @@ interface HorizontalBarsChartOptions {
   distributed?: boolean;
   stacked?: boolean;
   total?: boolean;
+  /** End-of-bar value labels. Disable on grouped multi-series charts where adjacent bar labels collide. */
+  showDataLabels?: boolean;
   categories?: string[] | string[][] | null;
   legend?: boolean;
   isFakeData?: boolean;
@@ -477,6 +479,7 @@ export const horizontalBarsChartOptions = ({
   distributed = false,
   stacked = false,
   total = false,
+  showDataLabels = true,
   categories = null,
   legend = false,
   isFakeData = false,
@@ -505,9 +508,11 @@ export const horizontalBarsChartOptions = ({
   },
   theme: { mode: theme.palette.mode },
   // Value printed just past the rounded end of each bar. Stacked charts keep
-  // per-segment labels off and rely on the optional `total` label instead.
+  // per-segment labels off and rely on the optional `total` label instead;
+  // grouped multi-series charts pass showDataLabels=false because the two bars of
+  // a category sit close together and their end labels collide (e.g. 402 vs 422).
   dataLabels: {
-    enabled: !isFakeData && !stacked,
+    enabled: !isFakeData && !stacked && showDataLabels,
     textAnchor: 'start',
     offsetX: 8,
     formatter: horizontalBarValueFormatter,

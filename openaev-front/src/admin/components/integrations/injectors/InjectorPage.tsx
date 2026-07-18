@@ -1,8 +1,6 @@
 import { Paper } from '@mui/material';
-import { useOutletContext } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type ConnectorContextLayoutType } from '../common/ConnectorLayout';
 import ConnectorPage from '../common/ConnectorPage';
 import InjectorContracts from './InjectorContracts';
 
@@ -15,26 +13,19 @@ const useStyles = makeStyles()(theme => ({
 
 const InjectorPage = () => {
   const { classes } = useStyles();
-  const { catalogConnector } = useOutletContext<ConnectorContextLayoutType>();
 
+  // Always render the shared connector hero (like collectors/executors) with the
+  // injector contracts below it. Built-in injectors have no catalog entry, but the
+  // hero derives its title/type/description from the injector itself, so they must
+  // no longer fall back to a bare contracts list without a header.
   return (
-    <>
-      {catalogConnector
-        ? (
-            <ConnectorPage
-              extraInfoComponent={(
-                <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
-                  <InjectorContracts />
-                </Paper>
-              )}
-            />
-          )
-        : (
-            <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
-              <InjectorContracts />
-            </Paper>
-          )}
-    </>
+    <ConnectorPage
+      extraInfoComponent={(
+        <Paper variant="outlined" className={`paper ${classes.paperConnector}`}>
+          <InjectorContracts />
+        </Paper>
+      )}
+    />
   );
 };
 

@@ -2,15 +2,15 @@ import { type Locator, type Page } from '@playwright/test';
 class CatalogPage {
   constructor(private page: Page) {}
   async waitForLoad(): Promise<void> {
-    await this.page.waitForURL('**/integrations/catalog**');
+    await this.page.waitForURL('**/integrations/available**');
   }
 
   get searchInput(): Locator {
-    return this.page.getByPlaceholder('Search these results...');
+    return this.page.getByPlaceholder('Search the catalog...');
   }
 
   getConnectorCard(namePattern: string | RegExp): Locator {
-    return this.page.locator('.MuiCard-root').filter({ hasText: namePattern });
+    return this.page.getByTestId('connector-card').filter({ hasText: namePattern });
   }
 
   async searchConnector(text: string): Promise<void> {

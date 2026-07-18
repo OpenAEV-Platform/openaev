@@ -83,6 +83,9 @@ const Index = () => {
     paddingTop: 2,
     paddingLeft: 2.5,
     paddingRight: 2.5,
+    // Global bottom breathing room: without it every page's last row sits flush
+    // against the viewport edge and feels "cut off". Set once here for the whole app.
+    paddingBottom: 3,
     marginRight: chatbotMargin > 0 ? `${chatbotMargin}px` : 0,
     transition: chatbotTransition,
     overflowX: 'hidden',

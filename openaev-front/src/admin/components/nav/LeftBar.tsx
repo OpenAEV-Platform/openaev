@@ -8,14 +8,10 @@ import {
   InsertChartOutlined,
   LayersOutlined,
   MovieFilterOutlined,
-  OnlinePredictionOutlined,
   PersonOutlined,
   RocketLaunchOutlined,
   RowingOutlined,
   SchoolOutlined,
-  SmartButtonOutlined,
-  TerminalOutlined,
-  Widgets,
 } from '@mui/icons-material';
 import {
   Binoculars,
@@ -29,6 +25,7 @@ import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
+import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
@@ -37,6 +34,11 @@ import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
+  const { userTenants } = useAuth();
+  // The tenant switcher only appears when the user can switch (more than one
+  // tenant). Passing no headerElement in the single-tenant case keeps the menu
+  // clean and avoids an orphan divider above the first entry (Home).
+  const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const entries: LeftMenuEntries[] = [
     {
       userRight: true,
@@ -173,34 +175,7 @@ const LeftBar = () => {
           path: `/admin/integrations`,
           icon: () => (<ExtensionOutlined />),
           label: 'Integrations',
-          href: 'integrations',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-          subItems: [
-            {
-              link: '/admin/integrations/catalog',
-              label: 'Catalog',
-              icon: () => (<Widgets fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-            {
-              link: '/admin/integrations/injectors',
-              label: 'Injectors',
-              icon: () => (<SmartButtonOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-            {
-              link: '/admin/integrations/collectors',
-              label: 'Collectors',
-              icon: () => (<OnlinePredictionOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-            {
-              link: '/admin/integrations/executors',
-              label: 'Executors',
-              icon: () => (<TerminalOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-          ],
         },
       ],
     },
@@ -229,7 +204,7 @@ const LeftBar = () => {
     <LeftMenu
       entries={entries}
       bottomEntries={bottomEntries}
-      headerElement={(navOpen: boolean) => <TenantSwitcher navOpen={navOpen} />}
+      headerElement={hasTenantSwitcher ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} /> : undefined}
     />
   );
 };

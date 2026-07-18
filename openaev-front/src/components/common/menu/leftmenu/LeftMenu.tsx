@@ -28,6 +28,11 @@ const LeftMenu: FunctionComponent<{
     return state.navOpen ? 180 : 55;
   };
 
+  // The header element (e.g. the tenant switcher) can render nothing (single
+  // tenant): only render the header MenuList + its divider when it does, so no
+  // orphan divider is left above the first menu entry.
+  const headerNode = headerElement?.(state.navOpen);
+
   return (
     <Drawer
       variant="permanent"
@@ -46,12 +51,14 @@ const LeftMenu: FunctionComponent<{
     >
       <Toolbar />
       <div style={{ marginTop: bannerHeightNumber }}>
-        {headerElement && (
-          <MenuList component="nav">
-            {headerElement(state.navOpen)}
-          </MenuList>
+        {headerNode && (
+          <>
+            <MenuList component="nav">
+              {headerNode}
+            </MenuList>
+            <Divider />
+          </>
         )}
-        {headerElement && <Divider />}
         {entries.filter(entry => entry.userRight).map((entry, idxList) => {
           return (
             <Fragment key={idxList}>

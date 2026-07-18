@@ -7,7 +7,7 @@ import {
 } from '@mui/icons-material';
 import { Box, darken, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
+import { type ReactNode, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
@@ -23,9 +23,11 @@ interface WidgetTitleProps {
   handleWidgetUpdate: (widget: Widget) => void;
   handleWidgetDelete: (widgetId: string) => void;
   vizData: WidgetVizData;
+  /** Extra content rendered at the right end of the title row (e.g. list pagination). */
+  rightSlot?: ReactNode;
 }
 
-const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData }: WidgetTitleProps) => {
+const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot }: WidgetTitleProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const darkerInfoStyle = darken(theme.palette.info.main, 0.7);
@@ -125,28 +127,12 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
         gap: 8,
       }}
     >
-      <span
-        style={{
-          width: 3,
-          alignSelf: 'stretch',
-          borderRadius: 2,
-          flexShrink: 0,
-          background: `linear-gradient(180deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          boxShadow: `0 0 6px ${theme.palette.primary.main}66`,
-        }}
-      />
       <Typography
         variant="h4"
         gutterBottom={false}
         style={{
           margin: 0,
-          // Flex centering aligns the text LINE BOX to the accent bar, but
-          // uppercase Geologica renders high inside that box: the font reserves
-          // a large descender/leading area below the baseline, so the visible
-          // caps sit above the line-box center and read as "too high". Nudge the
-          // glyphs DOWN by 1px to optically center them on the bar.
           lineHeight: 1,
-          transform: 'translateY(1px)',
           fontSize: 11,
           fontWeight: 600,
           fontFamily: '"Geologica", sans-serif',
@@ -161,6 +147,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       >
         {widgetTitle}
       </Typography>
+      {rightSlot}
       {isNumberWidget && numberTooltipContent && (
         <Tooltip
           title={numberTooltipContent}

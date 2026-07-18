@@ -15,6 +15,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.IntegrationFactory;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
+import io.openaev.integration.migration.PaloAltoCortexExecutorConfigurationMigration;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
@@ -45,12 +46,15 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
   private final CatalogConnectorService catalogConnectorService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final PaloAltoCortexExecutorConfigurationMigration
+      paloAltoCortexExecutorConfigurationMigration;
 
   public PaloAltoCortexExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
       CatalogConnectorService catalogConnectorService,
       ExecutorService executorService,
       ComponentRequestEngine componentRequestEngine,
+      PaloAltoCortexExecutorConfigurationMigration paloAltoCortexExecutorConfigurationMigration,
       AgentService agentService,
       EndpointService endpointService,
       AssetGroupService assetGroupService,
@@ -66,6 +70,8 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstanceService = connectorInstanceService;
     this.catalogConnectorService = catalogConnectorService;
+    this.paloAltoCortexExecutorConfigurationMigration =
+        paloAltoCortexExecutorConfigurationMigration;
     this.agentService = agentService;
     this.endpointService = endpointService;
     this.assetGroupService = assetGroupService;
@@ -84,7 +90,10 @@ public class PaloAltoCortexExecutorIntegrationFactory extends IntegrationFactory
 
   @Override
   protected void runMigrations() throws Exception {
-    // No
+    // Seed the built-in Palo Alto Cortex executor instance like the other
+    // built-in executors (Caldera, SentinelOne, CrowdStrike, Tanium) so its
+    // catalog card behaves consistently (a deployed instance to configure and start).
+    paloAltoCortexExecutorConfigurationMigration.migrate();
   }
 
   private String getLogoFilename() {

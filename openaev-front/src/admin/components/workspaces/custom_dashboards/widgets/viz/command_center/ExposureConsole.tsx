@@ -37,6 +37,8 @@ const PILLAR_LABELS: Record<string, string> = {
   DETECTION: 'Detection',
   VULNERABILITY: 'Vulnerability',
   MANUAL: 'Manual',
+  CHALLENGE: 'Challenge',
+  ARTICLE: 'Article',
 };
 
 // Distinct accent per security-platform category.
@@ -85,6 +87,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   const { t } = useFormatter();
   const gradId = useId();
   const glassId = useId();
+  const glossId = useId();
   // Freeze the SMIL timeline (orbit + node pulses) while the tab is hidden so
   // the browser never has to reconcile minutes of missed loops on refocus.
   const svgRef = useRef<SVGSVGElement>(null);
@@ -201,19 +204,14 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   return (
     <Box
       sx={{
-        'position': 'relative',
-        'flex': 1,
-        'minHeight': 0,
-        'width': '100%',
-        'display': 'flex',
-        'flexDirection': 'column',
-        'alignItems': 'center',
-        'justifyContent': 'center',
-        '@keyframes orb-orbit': { to: { transform: 'rotate(360deg)' } },
-        '@keyframes orb-breathe': {
-          '0%, 100%': { opacity: 0.55 },
-          '50%': { opacity: 0.9 },
-        },
+        position: 'relative',
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <Box sx={{
@@ -250,6 +248,13 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               <stop offset="55%" stopColor={alpha(color, 0.1)} />
               <stop offset="100%" stopColor={alpha(dark ? '#000000' : '#ffffff', 0.06)} />
             </radialGradient>
+            {/* soft-edged gloss: a radial gradient instead of a blur() filter, which would
+                be re-evaluated on every SMIL animation frame of this SVG */}
+            <radialGradient id={glossId} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={alpha('#ffffff', dark ? 0.14 : 0.5)} />
+              <stop offset="70%" stopColor={alpha('#ffffff', dark ? 0.06 : 0.2)} />
+              <stop offset="100%" stopColor={alpha('#ffffff', 0)} />
+            </radialGradient>
           </defs>
 
           {/* glassy translucent sphere */}
@@ -258,7 +263,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
           <circle cx={cx} cy={cy} r={rRing - 24} fill="none" stroke={dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'} strokeWidth={1} />
           <ellipse cx={cx} cy={cy} rx={rRing - 10} ry={(rRing - 10) / 3} fill="none" stroke={alpha(color, 0.12)} strokeWidth={1} />
           {/* glossy top highlight */}
-          <ellipse cx={cx - 14} cy={cy - 34} rx={34} ry={16} fill={alpha('#ffffff', dark ? 0.14 : 0.5)} style={{ filter: 'blur(6px)' }} />
+          <ellipse cx={cx - 14} cy={cy - 34} rx={40} ry={20} fill={`url(#${glossId})`} />
 
           {/* connected security platforms, slowly orbiting the sphere */}
           <ellipse cx={cx} cy={cy} rx={rOrbit} ry={rOrbit} fill="none" stroke={dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'} strokeWidth={1} strokeDasharray="2 6" />
@@ -344,8 +349,22 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             })}
           </g>
 
-          {/* score ring: full-circle track + a dash-offset fill that grows from the top clockwise */}
+          {/* score ring: full-circle track + a dash-offset fill that grows from the top clockwise.
+              The glow is a wider translucent stroke underneath (NOT a drop-shadow filter: the
+              orbit animation repaints this SVG every frame, and re-evaluating a filter effect
+              per frame is what made the ring glow stutter). */}
           <path d={ring} fill="none" stroke={dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'} strokeWidth={5} strokeLinecap="round" />
+          <path
+            d={ring}
+            fill="none"
+            stroke={`url(#${gradId})`}
+            strokeWidth={11}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            opacity={0.28}
+            style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1)' }}
+          />
           <path
             d={ring}
             fill="none"
@@ -354,10 +373,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
-            style={{
-              transition: 'stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
-              filter: `drop-shadow(0 0 5px ${alpha(color, 0.7)})`,
-            }}
+            style={{ transition: 'stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1)' }}
           />
           <g
             style={{
@@ -366,13 +382,9 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
               transition: 'transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
           >
-            <circle
-              cx={markerBase.x}
-              cy={markerBase.y}
-              r={4.5}
-              fill={color}
-              style={{ filter: `drop-shadow(0 0 7px ${color})` }}
-            />
+            {/* halo ring drawn as geometry instead of a drop-shadow filter */}
+            <circle cx={markerBase.x} cy={markerBase.y} r={8.5} fill={alpha(color, 0.3)} />
+            <circle cx={markerBase.x} cy={markerBase.y} r={4.5} fill={color} />
           </g>
 
           {/* center readout (dominant-baseline keeps the number optically centered) */}

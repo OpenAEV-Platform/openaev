@@ -18,7 +18,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.crowdstrike.com/en-us/resources/white-papers/endpoint-detection-and-response/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/crowdstrike",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-crowdstrike",
@@ -122,7 +122,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.microsoft.com/en-us/security/business/microsoft-entra",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-entra",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-microsoft-entra",
@@ -213,7 +213,7 @@
             "description": "Allow registration of agentless endpoints coming from Microsoft Intune endpoints",
             "short_description": "Allow registration of agentless endpoints coming from Microsoft Intune endpoints",
             "use_cases": [
-                "Endpoint collection"
+                "Asset collection"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -221,7 +221,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.microsoft.com/es-es/security/business/microsoft-intune",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-intune",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-microsoft-intune",
@@ -325,7 +325,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.microsoft.com/en-us/microsoft-365/microsoft-defender-for-individuals",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-defender",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-microsoft-defender",
@@ -415,14 +415,17 @@
             "slug": "openaev_microsoft_azure",
             "description": "Allow registration of agentless endpoints coming from Microsoft Azure",
             "short_description": "Allow registration of agentless endpoints coming from Microsoft Azure",
-            "use_cases": [],
+            "use_cases": [
+                "Asset collection",
+                "Cloud security"
+            ],
             "verified": true,
             "last_verified_date": "",
             "playbook_supported": false,
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://azure.microsoft.com/en-us",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-azure",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-microsoft-azure",
@@ -526,7 +529,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.microsoft.com/en-us/security/business/siem-and-xdr/microsoft-sentinel",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-sentinel",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-microsoft-sentinel",
@@ -645,7 +648,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.atomicredteam.io/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/atomic-red-team",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-atomic-red-team",
@@ -722,7 +725,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.tanium.com/products/tanium-threat-response/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/tanium-threat-response",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-tanium-threat-response",
@@ -826,7 +829,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://nvd.nist.gov/vuln",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/nvd-nist-cve",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-nvd-nist-cve",
@@ -920,7 +923,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://attack.mitre.org/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/mitre-attack",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-mitre-attack",
@@ -997,7 +1000,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://github.com/OpenAEV-Platform/collectors/blob/main/README.md#simultaneous-development-on-pyoaev-and-a-collector",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/openaev",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-openaev",
@@ -1084,7 +1087,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://workspace.google.com/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/google-workspace",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-google-workspace",
@@ -1278,7 +1281,7 @@
             "description": "Allow OAEV to perform nmap scans",
             "short_description": "Allow OAEV to perform nmap scans",
             "use_cases": [
-                "Technical"
+                "Reconnaissance"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1286,7 +1289,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://nmap.org/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/nmap",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-nmap",
@@ -1355,7 +1358,7 @@
             "description": "Allow to perform CVE scan based on Nuclei",
             "short_description": "Allow to perform CVE scan based on Nuclei",
             "use_cases": [
-                "Technical"
+                "Vulnerability scanning"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1363,7 +1366,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://projectdiscovery.io/nuclei",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/nuclei",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-nuclei",
@@ -1437,7 +1440,7 @@
             "description": "Allow OAEV to perform HTTP queries",
             "short_description": "Allow OAEV to perform HTTP queries",
             "use_cases": [
-                "Technical"
+                "Attack simulation"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1445,7 +1448,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/http-query",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-http-query",
@@ -1514,7 +1517,8 @@
             "description": "This Injector use the credentials provided to enumerate through contract the AWS ressources like S3, IAM, Lambda, CloudTrail, Route53, etc. ",
             "short_description": "Use OpenAEV to perform AWS assessment through credentials sets",
             "use_cases": [
-                "Technical"
+                "Attack simulation",
+                "Cloud security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1522,7 +1526,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://aws.amazon.com/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/aws",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-aws",
@@ -1599,7 +1603,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.sentinelone.com/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/sentinelone",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-sentinelone",
@@ -1714,7 +1718,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.splunk.com/en_us/blog/learn/endpoint-security.html",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-splunk-es",
@@ -1832,7 +1836,8 @@
             "description": "Allow registration of agentless endpoints coming from Amazon Web Service",
             "short_description": "Allow registration of agentless endpoints coming from Amazon Web Service",
             "use_cases": [
-                "Endpoint collection"
+                "Asset collection",
+                "Cloud security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1840,7 +1845,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://aws.amazon.com/resourceexplorer/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/aws-resources",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-aws-resources",
@@ -1934,7 +1939,7 @@
             "description": "Scan for intel in Shodan",
             "short_description": "Scan for intel in Shodan",
             "use_cases": [
-                "Technical"
+                "Reconnaissance"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1942,7 +1947,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://account.shodan.io/billing",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/shodan",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-shodan",
@@ -2047,7 +2052,7 @@
             "description": "Send messages through Microsoft Teams webhooks",
             "short_description": "Send messages through Microsoft Teams webhooks",
             "use_cases": [
-                "Technical"
+                "Communication"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2055,7 +2060,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://teams.cloud.microsoft/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/teams",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-teams",
@@ -2131,7 +2136,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.paloaltonetworks.fr/get-started",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/palo-alto-cortex-xdr",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-palo-alto-cortex-xdr",
@@ -2237,7 +2242,7 @@
             "description": "Allow OAEV to perform network execution and credential testing with NetExec",
             "short_description": "Allow OAEV to perform network execution with NetExec",
             "use_cases": [
-                "Technical"
+                "Attack simulation"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2245,7 +2250,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.netexec.wiki/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/netexec",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-netexec",
@@ -2316,7 +2321,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.paloaltonetworks.fr/get-started",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/palo-alto-cortex-xsoar",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-palo-alto-cortex-xsoar",
@@ -2424,7 +2429,7 @@
             "description": "Run adversarial exposure validation against LLM models and AI agents (prompt injection, jailbreak, data exfiltration, tool abuse, MCP) mapped to MITRE ATLAS and OWASP, with NVIDIA Garak, Microsoft PyRIT and Promptfoo engines.",
             "short_description": "Adversarial testing of LLMs and AI agents (MITRE ATLAS / OWASP)",
             "use_cases": [
-                "Technical"
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2432,7 +2437,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://atlas.mitre.org/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/ai-redteam",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/injector-ai-redteam",
@@ -2500,7 +2505,8 @@
             "description": "Validate that Cisco AI Defense (Robust Intelligence) detects or blocks AI adversarial injects by replaying the attack content through the Cisco AI Defense inspection API.",
             "short_description": "Validate Cisco AI Defense detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2508,7 +2514,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.cisco.com/site/us/en/products/security/ai-defense/index.html",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/cisco-ai-defense",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-cisco-ai-defense",
@@ -2599,7 +2605,8 @@
             "description": "Validate that HiddenLayer AI Runtime Security (AIDR) detects or blocks AI adversarial injects by replaying the attack content through the HiddenLayer Interactions endpoint.",
             "short_description": "Validate HiddenLayer AIDR detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2607,7 +2614,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://hiddenlayer.com/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/hiddenlayer",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-hiddenlayer",
@@ -2772,7 +2779,8 @@
             "description": "Validate that Lakera Guard (Check Point AI Security) detects or prevents AI adversarial injects by replaying the attack content through the Lakera screening API.",
             "short_description": "Validate Lakera Guard detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2780,7 +2788,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.lakera.ai/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/lakera-guard",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-lakera-guard",
@@ -2875,7 +2883,8 @@
             "description": "Collect MITRE ATLAS (Adversarial Threat Landscape for AI Systems) tactics and techniques library",
             "short_description": "Collect MITRE ATLAS AI adversarial tactics and techniques",
             "use_cases": [
-                "Data collection"
+                "Data collection",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2883,7 +2892,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://atlas.mitre.org/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/mitre-atlas",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-mitre-atlas",
@@ -2956,7 +2965,8 @@
             "description": "Validate that Palo Alto Prisma AIRS (AI Runtime Security) detects or blocks AI adversarial injects by replaying the attack content through the Prisma AIRS Scan API.",
             "short_description": "Validate Prisma AIRS detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2964,7 +2974,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.paloaltonetworks.com/prisma/prisma-airs",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/prisma-airs",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-prisma-airs",
@@ -3055,7 +3065,8 @@
             "description": "Validate that Prompt Security (SentinelOne) detects or blocks AI adversarial injects by replaying the attack content through the Prompt Security protect API.",
             "short_description": "Validate Prompt Security detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -3063,7 +3074,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.prompt.security/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/prompt-security",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-prompt-security",
@@ -3162,7 +3173,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.elastic.co/security",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/elastic",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-elastic",
@@ -3268,7 +3279,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://logrhythm.com/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/logrhythm",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-logrhythm",
@@ -3374,7 +3385,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.netwitness.com/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/netwitness",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-netwitness",
@@ -3480,7 +3491,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://www.ibm.com/products/qradar-siem",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/qradar",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-qradar",
@@ -3591,7 +3602,7 @@
             "max_confidence_level": 80,
             "support_version": "",
             "subscription_link": "https://filigran.io/solutions/xtm-one/",
-            "source_code": "",
+            "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/xtm-one",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-xtm-one",

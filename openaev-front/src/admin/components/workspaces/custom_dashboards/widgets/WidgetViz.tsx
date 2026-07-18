@@ -164,6 +164,8 @@ const WidgetViz = ({ widget, fullscreen, setFullscreen, vizData, errorMessage, o
             widgetConfig={widget.widget_config as ListConfiguration}
             onPaginationChange={onPaginationChange}
             contentLoading={contentLoading}
+            // pagination is rendered in the widget title row (see WidgetWrapper)
+            hidePagination
           />
         );
       case 'number':

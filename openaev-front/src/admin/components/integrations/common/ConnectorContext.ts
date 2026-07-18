@@ -15,17 +15,42 @@ import type {
 } from '../../../../utils/api-types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 
+/**
+ * Freshest of the available heartbeat signals: an external collector bumps its
+ * registration date (~40s ping) while a built-in one stamps its last execution,
+ * so taking either one alone can show a healthy connector as down.
+ */
+const latestOf = (...dates: (string | undefined)[]): string | undefined =>
+  dates
+    .filter((d): d is string => d != null)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
 export interface ConnectorOutput {
   id: string;
   name: string;
   type: string;
   catalog?: CatalogConnectorSimpleOutput;
   updatedAt?: string;
-  isVerified: boolean;
   connectorInstance?: ConnectorInstanceOutput;
   isExternal?: boolean;
   isExisting?: boolean;
 }
+
+/**
+ * Support semantics (same as OpenCTI): "Supported by Filigran" comes from the
+ * CATALOG's verified flag, and built-in connectors (shipped inside the
+ * platform, usually without a catalog entry) are Filigran-supported by
+ * definition. The connector output's own `is_verified` field must NOT drive
+ * this badge: the backend sets it to "has a connector instance" (see
+ * InjectorMapper / CollectorMapper / ExecutorMapper), so any deployed
+ * community connector would wrongly appear Filigran-supported.
+ */
+export const isSupportedByFiligran = (
+  connector: Pick<ConnectorOutput, 'isExternal' | 'isExisting'> | undefined,
+  catalogVerified: boolean | undefined,
+): boolean =>
+  catalogVerified === true
+  || (connector != null && connector.isExternal !== true && connector.isExisting === true);
 
 export interface ConnectorContextType<T> {
   connectorType: 'collector' | 'injector' | 'executor';
@@ -53,7 +78,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     getRelatedIds: (id: string) => fetchInjectorRelatedIds(id),
   },
   routes: {
-    list: '/admin/integrations/injectors',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/injectors/${id}`,
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/injectors/${type}/image`),
@@ -63,7 +88,6 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     type: data?.injector_type,
     catalog: data?.catalog,
     updatedAt: data?.injector_updated_at,
-    isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
     isExternal: data?.injector_external,
     isExisting: data?.existing_injector,
@@ -83,14 +107,13 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     name: data?.collector_name,
     type: data?.collector_type,
     catalog: data?.catalog,
-    updatedAt: data?.collector_last_execution || data?.collector_updated_at,
-    isVerified: data?.is_verified ?? false,
+    updatedAt: latestOf(data?.collector_last_execution, data?.collector_updated_at),
     connectorInstance: data?.connector_instance,
     isExternal: data?.collector_external,
     isExisting: data?.existing_collector,
   }),
   routes: {
-    list: '/admin/integrations/collectors',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/collectors/${id}`,
   },
 };
@@ -103,7 +126,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     getRelatedIds: (id: string) => fetchExecutorRelatedIds(id),
   },
   routes: {
-    list: '/admin/integrations/executors',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/executors/${id}`,
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/images/executors/icons/${type}`),
@@ -113,7 +136,6 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     type: data?.executor_type,
     catalog: data?.catalog,
     updatedAt: data?.executor_updated_at,
-    isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
     isExisting: data?.existing_executor,
   }),
