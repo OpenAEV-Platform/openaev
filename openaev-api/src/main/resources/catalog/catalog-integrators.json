@@ -2319,6 +2319,94 @@
             }
         },
         {
+            "title": "Gophish",
+            "slug": "openaev_gophish",
+            "description": "This injector launches phishing simulation campaigns through a Gophish server and reports open, click and credential-submission activity as human-response expectations.",
+            "short_description": "Run phishing campaigns with Gophish",
+            "use_cases": [
+                "Technical"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://getgophish.com/",
+            "source_code": "",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/injector-gophish",
+            "container_type": "INJECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Gophish",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    },
+                    "GOPHISH_BASE_URL": {
+                        "default": "https://localhost:3333",
+                        "description": "Base URL of the Gophish admin server.",
+                        "type": "string"
+                    },
+                    "GOPHISH_API_KEY": {
+                        "description": "Gophish API key (Settings page).",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "GOPHISH_VERIFY_TLS": {
+                        "default": false,
+                        "description": "Verify the Gophish server TLS certificate.",
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID",
+                    "GOPHISH_API_KEY"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "AI Red Team",
             "slug": "openaev_ai_redteam",
             "description": "Run adversarial exposure validation against LLM models and AI agents (prompt injection, jailbreak, data exfiltration, tool abuse, MCP) mapped to MITRE ATLAS and OWASP, with NVIDIA Garak, Microsoft PyRIT and Promptfoo engines.",
