@@ -124,7 +124,12 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                 return liveliness.started ? 'started' : 'stopped';
               })()}
             />
-            <Tooltip title={liveliness.lastSeen ? `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}` : t('Never updated')}>
+            <Tooltip title={(() => {
+              if (liveliness.builtIn) return t('Runs inside the platform');
+              if (liveliness.lastSeen) return `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}`;
+              return t('Never updated');
+            })()}
+            >
               <div style={{
                 display: 'flex',
                 alignItems: 'center',

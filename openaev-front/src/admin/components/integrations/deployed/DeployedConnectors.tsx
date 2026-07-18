@@ -143,8 +143,16 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     if (!deployed) return null;
     const { connector } = deployed;
     const canMigrate = connector.isExternal && connector.connectorInstance == null && isXtmComposerUp;
-    const { started, lastSeen, healthy } = computeConnectorLiveliness(connector);
+    const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
     const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
+    let diskTooltip: string;
+    if (builtIn) {
+      diskTooltip = t('Runs inside the platform');
+    } else if (lastSeen) {
+      diskTooltip = `${t('Last Seen')}: ${nsdt(lastSeen)}`;
+    } else {
+      diskTooltip = t('Never updated');
+    }
     return (
       <div style={{
         display: 'flex',
@@ -154,7 +162,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
       }}
       >
         {canMigrate && <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} />}
-        <Tooltip title={lastSeen ? `${t('Last Seen')}: ${nsdt(lastSeen)}` : t('Never updated')}>
+        <Tooltip title={diskTooltip}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
