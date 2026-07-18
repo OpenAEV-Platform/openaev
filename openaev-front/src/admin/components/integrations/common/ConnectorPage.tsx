@@ -74,8 +74,18 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const instanceRequestedStatus = instance?.connector_instance_requested_status;
   const isStatusLoading = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
     || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
-  // Uniform liveliness (same rules as the deployed cards).
-  const liveliness = connector ? computeConnectorLiveliness(connector) : undefined;
+  // Uniform liveliness (same rules as the deployed cards), computed against the
+  // layout's LIVE instance entity: connector.connectorInstance is a fetch-time
+  // snapshot embedded in the DTO (absent for a just-deployed connector whose
+  // injector has not registered yet) and never receives the SSE status updates,
+  // so keying the chip on it would leave a freshly started instance on
+  // "Stopped" forever.
+  const liveliness = connector
+    ? computeConnectorLiveliness({
+        ...connector,
+        connectorInstance: instance ?? connector.connectorInstance,
+      })
+    : undefined;
 
   const onUpdateRequestedStatusClick = () => {
     if (!instance?.connector_instance_id) return;
@@ -113,7 +123,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         logoSrc={connectorLogoUrl}
         type={heroType}
         useCases={catalogConnector?.catalog_connector_use_cases}
-        verified={connector?.isVerified ?? catalogConnector?.catalog_connector_verified === true}
+        verified={connector?.isVerified === true || catalogConnector?.catalog_connector_verified === true}
         external={heroExternal}
         description={catalogConnector?.catalog_connector_short_description
           ?? (() => {
