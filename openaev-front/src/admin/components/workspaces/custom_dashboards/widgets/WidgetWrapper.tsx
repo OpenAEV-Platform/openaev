@@ -58,8 +58,11 @@ const WidgetWrapper = ({
 
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
+  // A dashboard tile is small and its pagination lives in the title row, so it
+  // paginates at a tile-friendly page size (loading 100 rows into a tile never
+  // fit and hid the pagination whenever the total was below 100).
   const { elementsPerPage, page, handleChangePagination } = widget.widget_type === 'list'
-    ? usePaginationState(100, undefined, `widget-list-${widget.widget_id}`)
+    ? usePaginationState(ROWS_PER_PAGE_OPTIONS[0], undefined, `widget-list-${widget.widget_id}`)
     : {
         elementsPerPage: 0,
         page: 0,
