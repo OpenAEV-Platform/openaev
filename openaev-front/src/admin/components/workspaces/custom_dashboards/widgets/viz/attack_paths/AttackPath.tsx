@@ -238,9 +238,11 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     setSimulationDatesEdge([newSimulationDatesEdge]);
   };
 
+  // Re-initialize when the resolved data (memoized on the data prop) or the
+  // simulation dates change, so widget refetches propagate to React Flow.
   useEffect(() => {
     initializeNodesAndEdges();
-  }, []);
+  }, [resolvedDataByKillChainPhase, simulationStartDate, simulationEndDate]);
 
   useEffect(() => {
     if (attackPathsEdges.length < 1 && hoveredNodeId === null) {
@@ -253,7 +255,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
       });
     });
     setAttackPathsEdges(newAttackPathsEdges);
-  }, [hoveredNodeId]);
+  }, [hoveredNodeId, resolvedDataByKillChainPhase]);
 
   // -- React Flow nodes actions
   const onNodeClick = (event: ReactMouseEvent, node: Node) => {
