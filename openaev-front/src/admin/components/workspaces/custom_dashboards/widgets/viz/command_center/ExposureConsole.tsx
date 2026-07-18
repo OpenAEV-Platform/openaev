@@ -37,6 +37,8 @@ const PILLAR_LABELS: Record<string, string> = {
   DETECTION: 'Detection',
   VULNERABILITY: 'Vulnerability',
   MANUAL: 'Manual',
+  CHALLENGE: 'Challenge',
+  ARTICLE: 'Article',
 };
 
 // Distinct accent per security-platform category.

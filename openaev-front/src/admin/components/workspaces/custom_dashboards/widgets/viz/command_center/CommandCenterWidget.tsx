@@ -82,7 +82,7 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
   // then detection catches); unknown / future dynamic types simply append.
   const layers = useMemo(() => {
     const rank = (key: string) => {
-      const order = ['VULNERABILITY', 'PREVENTION', 'DETECTION', 'MANUAL'];
+      const order = ['VULNERABILITY', 'PREVENTION', 'DETECTION', 'MANUAL', 'CHALLENGE', 'ARTICLE'];
       const idx = order.indexOf(key.toUpperCase());
       return idx === -1 ? order.length : idx;
     };

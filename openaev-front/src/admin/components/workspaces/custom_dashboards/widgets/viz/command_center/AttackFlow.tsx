@@ -32,6 +32,8 @@ const TYPE_COLORS: Record<string, string> = {
   DETECTION: '#00f1bd',
   VULNERABILITY: '#ffa726',
   MANUAL: '#9575cd',
+  CHALLENGE: '#ffb300',
+  ARTICLE: '#26a96c',
 };
 const FALLBACK_COLORS = ['#26a96c', '#ff7043', '#7e57c2', '#00bcd4', '#ffb300'];
 
@@ -40,16 +42,22 @@ const KNOWN_LABELS: Record<string, string> = {
   DETECTION: 'Detection',
   VULNERABILITY: 'Vulnerability',
   MANUAL: 'Manual',
+  CHALLENGE: 'Challenge',
+  ARTICLE: 'Article',
 };
 
-// Outcome vocabulary per expectation type: "stopped" is only accurate for
-// prevention, so each gate states what a success actually means for its pillar.
-// Unknown / future dynamic types fall back to the generic "stopped".
+// Outcome vocabulary per expectation type (covers every EXPECTATION_TYPE of the
+// backend): "stopped" is only accurate for prevention, so each gate states what
+// a success actually means for its pillar. Human-graded pillars (manual,
+// challenge, article) are "validated". Unknown / future dynamic types fall back
+// to the generic "stopped".
 const OUTCOME_LABELS: Record<string, string> = {
   PREVENTION: 'prevented',
   DETECTION: 'detected',
   VULNERABILITY: 'not vulnerable',
   MANUAL: 'validated',
+  CHALLENGE: 'validated',
+  ARTICLE: 'validated',
 };
 
 const humanize = (key: string) => {
