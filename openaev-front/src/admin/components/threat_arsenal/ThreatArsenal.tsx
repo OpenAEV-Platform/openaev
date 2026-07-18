@@ -140,15 +140,20 @@ const ThreatArsenal = () => {
 
   const computeRowFlags = (action: ThreatArsenalAction) => {
     const isDummy = (action.action_injector_type ?? '').endsWith('_dummy');
+    // `payload_collector_type` is optional in api-types, so a loose `!= null`
+    // is required: a strict `!== null` would treat `undefined` (field absent
+    // for manually created payloads) as "coming from a collector".
+    const isFromCollector = action.action_payload?.payload_collector_type != null;
     return {
-      disableUpdate:
-        (action.action_payload && action.action_payload?.payload_collector_type !== null)
-        || isDummy,
+      // Update is disabled for actions coming from a collector or a dummy injector.
+      disableUpdate: isFromCollector || isDummy,
       disableDuplicate: action.action_payload == null || isDummy,
       disableJsonExport: action.action_payload == null || isDummy,
+      // Delete is disabled for actions without a payload (not created by the
+      // user), collector actions that are not deprecated, and dummy injectors.
       disableDelete:
         action.action_payload == null
-        || (action.action_payload.payload_collector_type !== null && action.action_payload?.payload_status !== 'DEPRECATED')
+        || (isFromCollector && action.action_payload.payload_status !== 'DEPRECATED')
         || isDummy,
     };
   };
@@ -177,7 +182,7 @@ const ThreatArsenal = () => {
               key={idx}
               sx={{
                 height: 200,
-                borderRadius: 2,
+                borderRadius: 1,
                 overflow: 'hidden',
                 border: `1px solid ${theme.palette.divider}`,
               }}

@@ -229,6 +229,7 @@ const CodeBlock: FunctionComponent<CodeBlockProps> = ({ content, language }) => 
       <Tooltip title={t('Copy to clipboard')}>
         <Button
           size="small"
+          aria-label={t('Copy to clipboard')}
           onClick={(event) => {
             event.stopPropagation();
             copyToClipboard(t, value);

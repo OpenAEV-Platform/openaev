@@ -28,7 +28,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
         textAlign: 'center',
         paddingBlock: 8,
         paddingInline: 4,
-        borderRadius: 2,
+        borderRadius: 1,
         border: `1px dashed ${theme.palette.divider}`,
         backgroundColor: alpha(theme.palette.background.paper, 0.5),
       }}
@@ -80,7 +80,7 @@ const ThreatArsenalEmptyState: FunctionComponent<Props> = ({
           onClick={onResetFilters}
           sx={{
             textTransform: 'none',
-            borderRadius: 999,
+            borderRadius: 1,
             paddingInline: 3,
           }}
         >

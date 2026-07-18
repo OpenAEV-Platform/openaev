@@ -77,7 +77,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         'display': 'flex',
         'flexDirection': 'column',
         'height': '100%',
-        'borderRadius': 2,
+        'borderRadius': 1,
         'overflow': 'hidden',
         'borderColor': selected ? accent : theme.palette.divider,
         'backgroundColor': selected
@@ -201,6 +201,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           size="small"
           icon={<RadioButtonUncheckedOutlined />}
           checkedIcon={<CheckCircleOutlined />}
+          slotProps={{ input: { 'aria-label': name } }}
         />
       </Box>
 

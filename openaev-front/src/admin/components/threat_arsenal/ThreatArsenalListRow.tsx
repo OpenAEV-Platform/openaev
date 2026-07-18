@@ -105,6 +105,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
           checked={checked}
           disableRipple
           size="small"
+          slotProps={{ input: { 'aria-label': name } }}
         />
       </Box>
 
