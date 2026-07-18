@@ -100,22 +100,43 @@ public interface InjectRepository
           WHERE c2.injector_contract_updated_at > :from
     ),
     ranked_injects AS (
-        SELECT ci.inject_id
-        FROM changed_injects ci
-        JOIN injects f ON f.inject_id = ci.inject_id
-        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
-                                        AND ic.tenant_id = f.tenant_id
-        -- The indexing cursor is GREATEST(inject_updated_at, contract_updated_at) (see EsInject.base_updated_at).
-        -- changed_injects also matches parents whose only change is on a dependency/child, whose own
-        -- GREATEST can be <= :from; keeping them would let the cursor stall or regress and freeze inject
-        -- indexing (0 injects). Restrict to rows whose sort timestamp is strictly after the cursor, so it
-        -- always advances (mirrors InjectExpectationRepository.ranked_expectations).
-        WHERE GREATEST(f.inject_updated_at, COALESCE(ic.injector_contract_updated_at, f.inject_updated_at)) > :from
-        ORDER BY GREATEST(f.inject_updated_at, COALESCE(ic.injector_contract_updated_at, f.inject_updated_at)) ASC
+        -- sort_ts is the indexing sort key AND the cursor value (InjectHandler copies it to
+        -- EsInject.base_updated_at, which EsIndexingUtils.computeNewCursor advances on). It must
+        -- therefore cover EVERY trigger of changed_injects: the inject itself, its contract, and
+        -- its dependency rows / child contracts. A trigger missing from the key would give the row
+        -- a sort_ts <= :from: the batch order could put stale keys last, letting the cursor stall
+        -- or regress and freeze inject indexing (0 injects after the full-reindex migration).
+        -- Filtering on sort_ts > :from then guarantees strict cursor progress (mirrors
+        -- InjectExpectationRepository.ranked_expectations).
+        SELECT r.inject_id, r.sort_ts
+        FROM (
+            SELECT ci.inject_id,
+                   GREATEST(
+                     f.inject_updated_at,
+                     COALESCE(ic.injector_contract_updated_at, f.inject_updated_at),
+                     COALESCE(dep.dependency_ts, f.inject_updated_at)
+                   ) AS sort_ts
+            FROM changed_injects ci
+            JOIN injects f ON f.inject_id = ci.inject_id
+            LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
+                                            AND ic.tenant_id = f.tenant_id
+            LEFT JOIN LATERAL (
+                SELECT MAX(GREATEST(d.dependency_updated_at,
+                                    COALESCE(cc.injector_contract_updated_at, d.dependency_updated_at))) AS dependency_ts
+                FROM injects_dependencies d
+                JOIN injects child ON child.inject_id = d.inject_children_id
+                LEFT JOIN injectors_contracts cc ON cc.injector_contract_id = child.inject_injector_contract
+                                                AND cc.tenant_id = child.tenant_id
+                WHERE d.inject_parent_id = f.inject_id
+            ) dep ON TRUE
+        ) r
+        WHERE r.sort_ts > :from
+        ORDER BY r.sort_ts ASC
         LIMIT :limit
     )
     SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise,
       f.inject_created_at, f.inject_updated_at, f.tenant_id, f.inject_injector_contract,
+      ri.sort_ts AS inject_sort_ts,
       ic.injector_contract_updated_at, ins.tracking_sent_date,
       ic.injector_contract_platforms as inject_platforms,
       (SELECT array_agg(icap.attack_pattern_id)
@@ -157,7 +178,7 @@ public interface InjectRepository
     LEFT JOIN injects_statuses ins ON ins.status_inject = f.inject_id
     LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
                                     AND ic.tenant_id = f.tenant_id
-    ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC
+    ORDER BY ri.sort_ts ASC
     """,
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
