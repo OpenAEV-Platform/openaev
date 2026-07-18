@@ -1,6 +1,7 @@
 import {
   CheckOutlined,
   CloudOutlined,
+  GroupsOutlined,
   Inventory2Outlined,
   OnlinePredictionOutlined,
   RocketLaunchOutlined,
@@ -23,8 +24,9 @@ import {
   filterConnectors,
   hasActiveFacetFilters,
   prettifyUseCase,
+  STATUS_COMMUNITY,
   STATUS_DEPLOYED,
-  STATUS_VERIFIED,
+  STATUS_FILIGRAN,
 } from './catalog-facets';
 import useCaseIcon from './use-case-icons';
 
@@ -204,10 +206,16 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
         label: t('Status'),
         rows: [
           {
-            value: STATUS_VERIFIED,
-            label: t('Verified'),
+            value: STATUS_FILIGRAN,
+            label: t('Supported by Filigran'),
             icon: VerifiedOutlined,
             count: countByPredicate(statusBase, c => c.verified),
+          },
+          {
+            value: STATUS_COMMUNITY,
+            label: t('Supported by Community'),
+            icon: GroupsOutlined,
+            count: countByPredicate(statusBase, c => !c.verified),
           },
           {
             value: STATUS_DEPLOYED,

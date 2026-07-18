@@ -1,6 +1,7 @@
-import { HelpCenterOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Chip, Tooltip, Typography } from '@mui/material';
+import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
+import { Card, CardActionArea, CardContent, Chip, SvgIcon, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -116,17 +117,29 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
             >
               {connector.title}
             </Typography>
-            {connector.verified && (
-              <Tooltip title={t('Verified and tested by OpenAEV')}>
-                <VerifiedOutlined
-                  color="success"
+            {/* Support semantics (same as OpenCTI): the verified flag means
+                supported by Filigran, otherwise supported by the community. */}
+            <Tooltip title={connector.verified ? t('Supported by Filigran') : t('Supported by Community')}>
+              {connector.verified ? (
+                <SvgIcon
+                  component={LogoFiligranIcon}
+                  inheritViewBox
+                  color="primary"
+                  sx={{
+                    fontSize: 16,
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <GroupsOutlined
+                  color="disabled"
                   sx={{
                     fontSize: 18,
                     flexShrink: 0,
                   }}
                 />
-              </Tooltip>
-            )}
+              )}
+            </Tooltip>
           </header>
           <div style={{
             display: 'flex',

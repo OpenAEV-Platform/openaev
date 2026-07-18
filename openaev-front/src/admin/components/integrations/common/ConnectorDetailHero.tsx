@@ -1,6 +1,7 @@
-import { HelpCenterOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Chip, Paper, Tooltip, Typography } from '@mui/material';
+import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
+import { Chip, Paper, SvgIcon, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -23,8 +24,9 @@ interface Props {
 
 /**
  * The marketplace-grade hero of a connector detail page: framed logo on an
- * accent-tinted band, title with verified badge and status, type / use-case /
- * deployment chips, short description, and an actions slot on the right.
+ * accent-tinted band, title with support badge (Filigran / community) and
+ * status, type / use-case / deployment chips, short description, and an
+ * actions slot on the right.
  */
 const ConnectorDetailHero = ({
   title,
@@ -124,17 +126,26 @@ const ConnectorDetailHero = ({
               {title}
             </Typography>
           </Tooltip>
-          {verified && (
-            <Tooltip title={t('Verified and tested by OpenAEV')}>
-              <Chip
-                variant="outlined"
-                color="success"
-                size="small"
-                sx={chipSx}
-                icon={<VerifiedOutlined sx={{ fontSize: 14 }} />}
-                label={t('Verified')}
-              />
-            </Tooltip>
+          {/* Support semantics (same as OpenCTI): the verified flag means
+              supported by Filigran, otherwise supported by the community. */}
+          {verified ? (
+            <Chip
+              variant="outlined"
+              color="primary"
+              size="small"
+              sx={chipSx}
+              icon={<SvgIcon component={LogoFiligranIcon} inheritViewBox sx={{ fontSize: 12 }} />}
+              label={t('Supported by Filigran')}
+            />
+          ) : (
+            <Chip
+              variant="outlined"
+              color="default"
+              size="small"
+              sx={chipSx}
+              icon={<GroupsOutlined sx={{ fontSize: 14 }} />}
+              label={t('Supported by Community')}
+            />
           )}
           {statusChip}
         </div>

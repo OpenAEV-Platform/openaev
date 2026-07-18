@@ -7,7 +7,8 @@ import {
   DEPLOYMENT_EXTERNAL,
   type FacetGroupId,
   prettifyUseCase,
-  STATUS_VERIFIED,
+  STATUS_COMMUNITY,
+  STATUS_FILIGRAN,
 } from './catalog-facets';
 
 interface ActiveFilterChip {
@@ -45,11 +46,16 @@ const CatalogActiveFilters = ({ filters, onToggleFacet, onClearAll }: Props) => 
       label: prettifyUseCase(value),
       capitalize: true,
     })),
-    ...filters.status.map(value => ({
-      groupId: 'status' as const,
-      value,
-      label: value === STATUS_VERIFIED ? t('Verified') : t('Deployed'),
-    })),
+    ...filters.status.map((value) => {
+      let label = t('Deployed');
+      if (value === STATUS_FILIGRAN) label = t('Supported by Filigran');
+      if (value === STATUS_COMMUNITY) label = t('Supported by Community');
+      return {
+        groupId: 'status' as const,
+        value,
+        label,
+      };
+    }),
     ...filters.deployment.map(value => ({
       groupId: 'deployment' as const,
       value,

@@ -1,6 +1,7 @@
-import { ExtensionOutlined, RocketLaunchOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Chip, Typography } from '@mui/material';
+import { ExtensionOutlined, RocketLaunchOutlined } from '@mui/icons-material';
+import { Chip, SvgIcon, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { LogoFiligranIcon } from 'filigran-icon';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItem } from './catalog-facets';
@@ -16,7 +17,8 @@ const CatalogHero = ({ connectors, title, subtitle }: Props) => {
   const { t } = useFormatter();
 
   const totalCount = connectors.length;
-  const verifiedCount = connectors.filter(c => c.verified).length;
+  // Support semantics (same as OpenCTI): verified = supported by Filigran.
+  const filigranSupportedCount = connectors.filter(c => c.verified).length;
   const deployedInstancesCount = connectors.reduce((acc, c) => acc + c.deployedCount, 0);
 
   const chipSx = {
@@ -58,10 +60,12 @@ const CatalogHero = ({ connectors, title, subtitle }: Props) => {
         <Chip
           variant="outlined"
           size="small"
-          color="success"
+          color="primary"
           sx={chipSx}
-          icon={<VerifiedOutlined sx={{ fontSize: 14 }} />}
-          label={verifiedCount === 1 ? t('1 verified') : t('{count} verified', { count: verifiedCount })}
+          icon={<SvgIcon component={LogoFiligranIcon} inheritViewBox sx={{ fontSize: 12 }} />}
+          label={filigranSupportedCount === 1
+            ? t('1 supported by Filigran')
+            : t('{count} supported by Filigran', { count: filigranSupportedCount })}
         />
         <Chip
           variant="outlined"

@@ -58,7 +58,10 @@ export const fromCatalogConnector = (connector: CatalogConnectorOutput): Connect
 
 export const CONNECTOR_TYPE_ORDER: ConnectorItemType[] = ['COLLECTOR', 'INJECTOR', 'EXECUTOR'];
 
-export const STATUS_VERIFIED = 'verified';
+// The `verified` boolean now carries support semantics (same as OpenCTI):
+// true = supported by Filigran, false = supported by the community.
+export const STATUS_FILIGRAN = 'filigran';
+export const STATUS_COMMUNITY = 'community';
 export const STATUS_DEPLOYED = 'deployed';
 export const DEPLOYMENT_EXTERNAL = 'external';
 export const DEPLOYMENT_BUILT_IN = 'built_in';
@@ -86,8 +89,11 @@ const matchesGroup = (
       return item.useCases.some(useCase => selectedValues.includes(useCase));
     case 'status':
       return selectedValues.some((value) => {
-        if (value === STATUS_VERIFIED) {
+        if (value === STATUS_FILIGRAN) {
           return item.verified;
+        }
+        if (value === STATUS_COMMUNITY) {
+          return !item.verified;
         }
         return item.deployedCount > 0;
       });
