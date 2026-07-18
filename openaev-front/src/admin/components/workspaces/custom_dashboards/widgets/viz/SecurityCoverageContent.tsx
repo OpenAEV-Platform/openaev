@@ -1,6 +1,6 @@
-import { Box, Checkbox, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useCallback, useId, useMemo } from 'react';
+import { Box, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
 
@@ -17,7 +17,7 @@ import {
 import { sortKillChainPhase } from '../../../../../../utils/kill_chain_phases/kill_chain_phases';
 import ColoredPercentageRate from './components/ColoredPercentageRate';
 import KillChainPhaseColumn from './KillChainPhaseColumn';
-import { buildKillChainPhaseIndex, resolvedData } from './securityCoverageUtils';
+import { buildKillChainPhaseIndex, getCoverageAccent, resolvedData } from './securityCoverageUtils';
 
 const useStyles = makeStyles()(theme => ({
   container: {
@@ -28,6 +28,9 @@ const useStyles = makeStyles()(theme => ({
     paddingRight: theme.spacing(1),
   },
 }));
+
+/** Coverage-based technique filter for the matrix. */
+export type CoverageFilter = 'all' | 'covered' | 'gaps';
 
 interface Props {
   widgetId: string;
@@ -43,6 +46,17 @@ const KILL_CHAIN_LABELS: Record<string, string> = {
 };
 
 const killChainLabel = (name: string) => KILL_CHAIN_LABELS[name.toLowerCase()] ?? name;
+
+// Shared overline label style for the header sections (heading font, uppercase).
+const OVERLINE_SX = {
+  fontFamily: '"Geologica", sans-serif',
+  fontWeight: 600,
+  fontSize: 10,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase' as const,
+  color: 'text.secondary',
+  lineHeight: 1,
+} as const;
 
 const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }) => {
   // Standard hooks
@@ -109,23 +123,55 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
     [sortedPhases, activeKillChain],
   );
 
-  const [showCoveredOnly, setShowCoveredOnly] = useLocalStorage<boolean>('widget-' + widgetId, false);
+  const [coverageFilter, setCoverageFilter] = useLocalStorage<CoverageFilter>('widget-' + widgetId + '-coverage-filter', 'all');
 
-  const handleShowCoveredOnlyChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => setShowCoveredOnly(e.target.checked),
-    [setShowCoveredOnly],
+  const handleCoverageFilterChange = useCallback(
+    (_: React.MouseEvent<HTMLElement>, value: CoverageFilter | null) => {
+      if (value != null) setCoverageFilter(value);
+    },
+    [setCoverageFilter],
   );
 
-  const killChainSelectLabelId = useId();
+  // Coverage KPIs for the active kill chain: how many top-level techniques exist,
+  // how many have been exercised (any success/failure), and the overall success
+  // rate across exercised techniques. Drives the header summary + the gaps count.
+  const coverageStats = useMemo(() => {
+    const phaseIds = new Set(visiblePhases.map(phase => phase.phase_id));
+    const techniques = Object.values(attackPatternMap).filter(
+      ap => ap.attack_pattern_parent === null
+        && ap.attack_pattern_kill_chain_phases?.some(id => phaseIds.has(id)),
+    );
+    const techniqueExternalIds = new Set(
+      techniques.map(ap => ap.attack_pattern_external_id).filter(Boolean) as string[],
+    );
+    const covered = new Set<string>();
+    let success = 0;
+    let failure = 0;
+    for (const d of resolvedDataSuccess) {
+      if (d.attack_pattern_external_id && techniqueExternalIds.has(d.attack_pattern_external_id)) {
+        covered.add(d.attack_pattern_external_id);
+        success += d.value ?? 0;
+      }
+    }
+    for (const d of resolvedDataFailure) {
+      if (d.attack_pattern_external_id && techniqueExternalIds.has(d.attack_pattern_external_id)) {
+        covered.add(d.attack_pattern_external_id);
+        failure += d.value ?? 0;
+      }
+    }
+    const total = techniqueExternalIds.size;
+    const coveredCount = covered.size;
+    return {
+      total,
+      covered: coveredCount,
+      gaps: total - coveredCount,
+      coverageRate: total > 0 ? coveredCount / total : 0,
+      successRate: success + failure > 0 ? success / (success + failure) : null,
+    };
+  }, [attackPatternMap, visiblePhases, resolvedDataSuccess, resolvedDataFailure]);
 
-  // Memoize container padding style
-  const headerStyle = useMemo(() => ({
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: theme.spacing(2),
-    padding: theme.spacing(1),
-  }), [theme]);
+  const coveragePct = Math.round(coverageStats.coverageRate * 100);
+  const coverageAccent = getCoverageAccent(coverageStats.total > 0 ? coverageStats.coverageRate : null);
 
   return (
     <Box
@@ -135,47 +181,173 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
       minHeight={0}
       height="100%"
     >
-      <div style={headerStyle}>
-        <Box
-          className="noDrag"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-          }}
+      <Box
+        component="header"
+        className="noDrag"
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+          padding: theme.spacing(1.5, 2),
+          marginBottom: 2,
+          borderRadius: 1,
+          border: `1px solid ${theme.palette.divider}`,
+          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${alpha(theme.palette.background.paper, 0.4)} 60%)`,
+        }}
+      >
+        {/* Left cluster: kill chain selector + coverage-scope segmented control */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
         >
           {killChains.length > 0 && (
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel id={killChainSelectLabelId}>{t('Kill chain')}</InputLabel>
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.75,
+            }}
+            >
+              <Typography sx={OVERLINE_SX}>{t('Kill chain')}</Typography>
               <Select
-                labelId={killChainSelectLabelId}
-                label={t('Kill chain')}
+                size="small"
+                variant="standard"
+                disableUnderline
                 value={activeKillChain ?? ''}
                 onChange={e => setSelectedKillChain(e.target.value)}
+                sx={{
+                  'minWidth': 170,
+                  'fontFamily': '"Geologica", sans-serif',
+                  'fontWeight': 600,
+                  'fontSize': 15,
+                  '& .MuiSelect-select': { paddingBottom: 0 },
+                }}
               >
                 {killChains.map(chain => (
                   <MenuItem key={chain} value={chain}>{killChainLabel(chain)}</MenuItem>
                 ))}
               </Select>
-            </FormControl>
+            </Box>
           )}
-          <FormControlLabel
-            sx={{ marginLeft: 0 }}
-            control={(
-              <Checkbox
-                size="small"
-                checked={showCoveredOnly}
-                onChange={handleShowCoveredOnlyChange}
-                color="primary"
-              />
-            )}
-            label={<Typography variant="body2">{t('Show covered TTP only')}</Typography>}
-          />
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.75,
+          }}
+          >
+            <Typography sx={OVERLINE_SX}>{t('techniques')}</Typography>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={coverageFilter}
+              onChange={handleCoverageFilterChange}
+              sx={{
+                '& .MuiToggleButton-root': {
+                  paddingY: 0.25,
+                  paddingX: 1.25,
+                  textTransform: 'none',
+                },
+              }}
+            >
+              <ToggleButton value="all">{t('All')}</ToggleButton>
+              <ToggleButton value="covered">
+                {t('Covered')}
+                <Box
+                  component="span"
+                  sx={{
+                    marginLeft: 0.75,
+                    color: 'text.secondary',
+                  }}
+                >
+                  {coverageStats.covered}
+                </Box>
+              </ToggleButton>
+              <ToggleButton value="gaps">
+                {t('Gaps')}
+                <Box
+                  component="span"
+                  sx={{
+                    marginLeft: 0.75,
+                    color: 'text.secondary',
+                  }}
+                >
+                  {coverageStats.gaps}
+                </Box>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         </Box>
-        <div>
-          <ColoredPercentageRate />
-        </div>
-      </div>
+        {/* Right cluster: coverage KPI + success-rate legend */}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 3,
+          flexWrap: 'wrap',
+        }}
+        >
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.75,
+            minWidth: 132,
+          }}
+          >
+            <Typography sx={OVERLINE_SX}>{t('Coverage')}</Typography>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 0.75,
+            }}
+            >
+              <Typography sx={{
+                fontFamily: '"Geologica", sans-serif',
+                fontWeight: 600,
+                fontSize: 18,
+                lineHeight: 1,
+                color: coverageAccent,
+              }}
+              >
+                {coveragePct}
+                %
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {t('{covered}/{total} tested', {
+                  covered: coverageStats.covered,
+                  total: coverageStats.total,
+                })}
+              </Typography>
+            </Box>
+            <Box sx={{
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: alpha(theme.palette.text.primary, 0.08),
+              overflow: 'hidden',
+            }}
+            >
+              <Box sx={{
+                width: `${coveragePct}%`,
+                height: '100%',
+                borderRadius: 2,
+                backgroundColor: coverageAccent,
+              }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.75,
+          }}
+          >
+            <Typography sx={OVERLINE_SX}>{t('Success rate')}</Typography>
+            <ColoredPercentageRate />
+          </Box>
+        </Box>
+      </Box>
       <Box className={classes.container}>
         {visiblePhases.map((phase) => {
           // Use indexed lookups - O(1) instead of O(n) filter
@@ -185,7 +357,7 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
             <KillChainPhaseColumn
               key={phase.phase_id}
               killChainPhase={phase}
-              showCoveredOnly={showCoveredOnly}
+              coverageFilter={coverageFilter}
               resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
               resolvedDataFailure={resolvedDataFailureByKillChainPhase}
               widgetId={widgetId}
