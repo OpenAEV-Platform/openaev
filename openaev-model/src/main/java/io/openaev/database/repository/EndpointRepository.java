@@ -204,7 +204,7 @@ public interface EndpointRepository
               + "FROM injects_assets ia JOIN ranked_assets ra ON ra.asset_id = ia.asset_id JOIN injects i ON i.inject_id = ia.inject_id "
               + "GROUP BY ia.asset_id"
               + ") "
-              + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
+              + "SELECT a.asset_id, a.asset_type, a.asset_category, a.asset_name, a.asset_external_reference, "
               + "a.asset_ips as endpoint_ips, a.asset_hostname as endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
               + "a.asset_mac_addresses as endpoint_mac_addresses, a.asset_seen_ip as endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
               + "ra.asset_sort as endpoint_updated_at, "

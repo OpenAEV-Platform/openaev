@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -53,6 +54,7 @@ class EndpointServiceTest {
   @Mock private AssetService assetService;
   @Mock private EndpointMapper endpointMapper;
   @Mock private ServiceAccountPrivilegeService privilegeService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private EndpointService endpointService;
 

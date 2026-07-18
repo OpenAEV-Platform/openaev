@@ -22,6 +22,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
@@ -81,6 +83,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -125,6 +128,7 @@ public class InjectService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final InjectUtils injectUtils;
   private final ThreatArsenalService threatArsenalService;
+  private final ApplicationEventPublisher eventPublisher;
 
   private InjectStatusService injectStatusService;
 
@@ -315,6 +319,10 @@ public class InjectService {
   public void deleteAllByIds(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
+      // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
+      // inject docs (and their expectation/finding docs via dependency cascade) are removed.
+      injectIds.forEach(
+          id -> eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, id)));
     }
   }
 
@@ -489,6 +497,9 @@ public class InjectService {
   public void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
     injectRepository.deleteByIdNative(oldId);
+    // Native delete: notify the search engine so the old inject and its expectation/finding docs
+    // don't survive the relaunch (they would double-count against the duplicated inject).
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, oldId));
   }
 
   /**

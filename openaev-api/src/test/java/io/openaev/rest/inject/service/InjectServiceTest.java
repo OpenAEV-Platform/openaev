@@ -63,6 +63,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -131,6 +132,8 @@ class InjectServiceTest {
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
 
   @Spy private InjectorContractContentUtils injectorContractContentUtils;
+
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   ObjectMapper mapper;
 

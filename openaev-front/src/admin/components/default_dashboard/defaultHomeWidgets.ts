@@ -299,14 +299,15 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
   widget(
     'default-weekly-failures',
     'vertical-barchart',
+    // eq FAILED (not "not_eq SUCCESS"): pending/unknown expectations are not misses.
     temporal(t('Missed injects by week'), [
       series('Not Detected', ...expectation([
         filter('inject_expectation_type', ['DETECTION']),
-        filter('inject_expectation_status', ['SUCCESS'], 'not_eq'),
+        filter('inject_expectation_status', ['FAILED']),
       ])),
       series('Not Prevented', ...expectation([
         filter('inject_expectation_type', ['PREVENTION']),
-        filter('inject_expectation_status', ['SUCCESS'], 'not_eq'),
+        filter('inject_expectation_status', ['FAILED']),
       ])),
     ], timeRange),
     layout(0, 40, 4, 6),
