@@ -291,7 +291,7 @@ const AssetDetail = () => {
             padding: 2,
             borderRadius: 1,
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: 2,
           }}
         >
@@ -340,7 +340,7 @@ const AssetDetail = () => {
               padding: 2,
               borderRadius: 1,
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 2,
             }}
           >
@@ -365,7 +365,7 @@ const AssetDetail = () => {
               padding: 2,
               borderRadius: 1,
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 2,
             }}
           >
@@ -386,7 +386,7 @@ const AssetDetail = () => {
               padding: 2,
               borderRadius: 1,
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 2,
             }}
           >
