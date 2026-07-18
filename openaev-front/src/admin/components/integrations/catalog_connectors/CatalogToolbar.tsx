@@ -12,9 +12,10 @@ interface Props {
   sort: CatalogSort;
   onSortChange: (sort: CatalogSort) => void;
   resultCount: number;
+  searchPlaceholder?: string;
 }
 
-const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange, resultCount }: Props) => {
+const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange, resultCount, searchPlaceholder }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
@@ -48,7 +49,7 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
         variant="small"
         onChange={onSearch}
         keyword={keyword}
-        placeholder={`${t('Search the catalog')}...`}
+        placeholder={searchPlaceholder ?? `${t('Search the catalog')}...`}
       />
       <TextField
         select

@@ -52,10 +52,10 @@ const CatalogLayout = () => {
 
   const breadcrumbElements = catalogConnectorId
     ? [
-        { label: t('Catalog') },
+        { label: t('Integrations') },
         {
-          label: t('Connectors'),
-          link: '/admin/integrations/catalog',
+          label: t('Available'),
+          link: '/admin/integrations/available',
         },
         {
           label: catalogConnector?.catalog_connector_title || 'Loading...',
@@ -63,10 +63,10 @@ const CatalogLayout = () => {
         },
       ]
     : [
-        { label: t('Catalog') },
+        { label: t('Integrations') },
         {
-          label: t('Connectors'),
-          link: '/admin/integrations/catalog',
+          label: t('Available'),
+          link: '/admin/integrations/available',
           current: true,
         },
       ];

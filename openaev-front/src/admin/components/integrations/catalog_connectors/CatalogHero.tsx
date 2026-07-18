@@ -3,17 +3,21 @@ import { Chip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
-import { type CatalogConnectorOutput } from '../../../../utils/api-types';
+import { type ConnectorItem } from './catalog-facets';
 
-interface Props { connectors: CatalogConnectorOutput[] }
+interface Props {
+  connectors: ConnectorItem[];
+  title?: string;
+  subtitle?: string;
+}
 
-const CatalogHero = ({ connectors }: Props) => {
+const CatalogHero = ({ connectors, title, subtitle }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
   const totalCount = connectors.length;
-  const verifiedCount = connectors.filter(c => c.catalog_connector_verified === true).length;
-  const deployedInstancesCount = connectors.reduce((acc, c) => acc + (c.instance_deployed_count ?? 0), 0);
+  const verifiedCount = connectors.filter(c => c.verified).length;
+  const deployedInstancesCount = connectors.reduce((acc, c) => acc + c.deployedCount, 0);
 
   const chipSx = {
     borderRadius: 1,
@@ -32,10 +36,10 @@ const CatalogHero = ({ connectors }: Props) => {
     >
       <div>
         <Typography variant="h1" sx={{ margin: 0 }}>
-          {t('Connector catalog')}
+          {title ?? t('Connector catalog')}
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
+          {subtitle ?? t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
         </Typography>
       </div>
       <div style={{

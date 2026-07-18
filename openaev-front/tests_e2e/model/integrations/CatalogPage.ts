@@ -2,7 +2,7 @@ import { type Locator, type Page } from '@playwright/test';
 class CatalogPage {
   constructor(private page: Page) {}
   async waitForLoad(): Promise<void> {
-    await this.page.waitForURL('**/integrations/catalog**');
+    await this.page.waitForURL('**/integrations/available**');
   }
 
   get searchInput(): Locator {

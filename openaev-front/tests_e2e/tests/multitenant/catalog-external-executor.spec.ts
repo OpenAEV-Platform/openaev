@@ -65,7 +65,7 @@ test.describe('Catalog — external executor deployment', () => {
 
     // Step: deploy Tanium from catalog with only display name
     const catalogPage = new CatalogPage(page);
-    await page.goto(tenantUrl('/admin/integrations/catalog', newTenantId!));
+    await page.goto(tenantUrl('/admin/integrations/available', newTenantId!));
     await catalogPage.waitForLoad();
 
     await catalogPage.searchConnector('Tanium');
@@ -76,8 +76,8 @@ test.describe('Catalog — external executor deployment', () => {
     await catalogPage.submitInstall();
 
     // Step: verify Tanium is installed on executors list
-    await page.goto(tenantUrl('/admin/integrations/executors', newTenantId!));
-    await page.waitForURL('**/integrations/executors**');
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
+    await page.waitForURL('**/integrations/deployed**');
 
     const taniumCard = page.locator('.MuiCard-root').filter({ hasText: TANIUM_DISPLAY_NAME }).first();
     await expect(

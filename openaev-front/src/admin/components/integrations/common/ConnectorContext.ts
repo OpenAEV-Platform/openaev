@@ -53,7 +53,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     getRelatedIds: (id: string) => fetchInjectorRelatedIds(id),
   },
   routes: {
-    list: '/admin/integrations/injectors',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/injectors/${id}`,
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/injectors/${type}/image`),
@@ -90,7 +90,7 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     isExisting: data?.existing_collector,
   }),
   routes: {
-    list: '/admin/integrations/collectors',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/collectors/${id}`,
   },
 };
@@ -103,7 +103,7 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     getRelatedIds: (id: string) => fetchExecutorRelatedIds(id),
   },
   routes: {
-    list: '/admin/integrations/executors',
+    list: '/admin/integrations/deployed',
     detail: (id: string) => `/admin/integrations/executors/${id}`,
   },
   logoUrl: (type: string) => buildTenantApiPath(`/api/images/executors/icons/${type}`),

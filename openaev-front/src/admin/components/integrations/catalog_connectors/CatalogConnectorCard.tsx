@@ -1,30 +1,28 @@
 import { HelpCenterOutlined, VerifiedOutlined } from '@mui/icons-material';
 import { Card, CardActionArea, CardContent, Chip, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type SyntheticEvent } from 'react';
+import { type ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
-import { type CatalogConnectorOutput } from '../../../../utils/api-types';
-import DeployButton from '../common/DeployButton';
-import { prettifyUseCase } from './catalog-facets';
+import { type ConnectorItem, type ConnectorItemType, prettifyUseCase } from './catalog-facets';
 
 const MAX_USE_CASE_CHIPS = 2;
 
 interface Props {
-  connector: CatalogConnectorOutput;
-  onDeployBtnClick: (e: SyntheticEvent) => void;
+  connector: ConnectorItem;
+  /** Right side of the card footer (deploy button, instance status, migrate action...). */
+  footerAction?: ReactNode;
 }
 
-const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
+const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
 
-  const useCases = connector.catalog_connector_use_cases ?? [];
-  const visibleUseCases = useCases.slice(0, MAX_USE_CASE_CHIPS);
-  const hiddenUseCasesCount = useCases.length - visibleUseCases.length;
+  const visibleUseCases = connector.useCases.slice(0, MAX_USE_CASE_CHIPS);
+  const hiddenUseCasesCount = connector.useCases.length - visibleUseCases.length;
 
-  const typeLabels: Record<CatalogConnectorOutput['catalog_connector_type'], string> = {
+  const typeLabels: Record<ConnectorItemType, string> = {
     COLLECTOR: t('Collector'),
     INJECTOR: t('Injector'),
     EXECUTOR: t('Executor'),
@@ -55,7 +53,8 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
     >
       <CardActionArea
         component={Link}
-        to={`/admin/integrations/catalog/${connector.catalog_connector_id}`}
+        to={connector.detailUrl ?? ''}
+        disabled={connector.detailUrl == null}
         sx={{ display: 'flex' }}
       >
         <CardContent
@@ -85,10 +84,10 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
               backgroundColor: theme.palette.background.default,
             }}
             >
-              {connector.catalog_connector_logo_url ? (
+              {connector.logoSrc ? (
                 <img
-                  src={`/api/images/catalog/connectors/logos/${connector.catalog_connector_logo_url}`}
-                  alt={connector.catalog_connector_title}
+                  src={connector.logoSrc}
+                  alt={connector.title}
                   style={{
                     width: 32,
                     height: 32,
@@ -114,9 +113,9 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
                 minHeight: 36,
               }}
             >
-              {connector.catalog_connector_title}
+              {connector.title}
             </Typography>
-            {connector.catalog_connector_verified && (
+            {connector.verified && (
               <Tooltip title={t('Verified and tested by OpenAEV')}>
                 <VerifiedOutlined
                   color="success"
@@ -139,7 +138,7 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
               color="primary"
               size="small"
               sx={chipSx}
-              label={typeLabels[connector.catalog_connector_type]}
+              label={typeLabels[connector.type]}
             />
             {visibleUseCases.map(useCase => (
               <Chip
@@ -161,7 +160,7 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
               />
             )}
           </div>
-          {connector.catalog_connector_short_description && (
+          {connector.description && (
             <Typography
               variant="body2"
               sx={{
@@ -173,7 +172,7 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
                 minHeight: 38,
               }}
             >
-              {connector.catalog_connector_short_description}
+              {connector.description}
             </Typography>
           )}
           <footer style={{
@@ -189,12 +188,9 @@ const CatalogConnectorCard = ({ connector, onDeployBtnClick }: Props) => {
               color="default"
               size="small"
               sx={chipSx}
-              label={connector.catalog_connector_manager_supported ? t('External') : t('Built-in')}
+              label={connector.external ? t('External') : t('Built-in')}
             />
-            <DeployButton
-              onDeployBtnClick={onDeployBtnClick}
-              deploymentCount={connector.instance_deployed_count ?? 0}
-            />
+            {footerAction}
           </footer>
         </CardContent>
       </CardActionArea>

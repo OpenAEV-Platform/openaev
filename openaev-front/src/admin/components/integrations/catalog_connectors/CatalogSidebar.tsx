@@ -13,9 +13,9 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-import { type CatalogConnectorOutput } from '../../../../utils/api-types';
 import {
   type CatalogFacetFilters,
+  type ConnectorItem,
   countByPredicate,
   DEPLOYMENT_BUILT_IN,
   DEPLOYMENT_EXTERNAL,
@@ -138,7 +138,7 @@ const FacetRowItem = ({ row, checked, onToggle }: FacetRowItemProps) => {
 };
 
 interface Props {
-  connectors: CatalogConnectorOutput[];
+  connectors: ConnectorItem[];
   filters: CatalogFacetFilters;
   keyword: string;
   onToggleFacet: (groupId: FacetGroupId, value: string) => void;
@@ -160,7 +160,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
     const statusBase = baseFor('status');
     const deploymentBase = baseFor('deployment');
 
-    const allUseCases = Array.from(new Set(connectors.flatMap(c => c.catalog_connector_use_cases ?? []))).sort((a, b) => a.localeCompare(b));
+    const allUseCases = Array.from(new Set(connectors.flatMap(c => c.useCases))).sort((a, b) => a.localeCompare(b));
 
     return [
       {
@@ -171,19 +171,19 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             value: 'COLLECTOR',
             label: t('Collector'),
             icon: OnlinePredictionOutlined,
-            count: countByPredicate(typesBase, c => c.catalog_connector_type === 'COLLECTOR'),
+            count: countByPredicate(typesBase, c => c.type === 'COLLECTOR'),
           },
           {
             value: 'INJECTOR',
             label: t('Injector'),
             icon: SmartButtonOutlined,
-            count: countByPredicate(typesBase, c => c.catalog_connector_type === 'INJECTOR'),
+            count: countByPredicate(typesBase, c => c.type === 'INJECTOR'),
           },
           {
             value: 'EXECUTOR',
             label: t('Executor'),
             icon: TerminalOutlined,
-            count: countByPredicate(typesBase, c => c.catalog_connector_type === 'EXECUTOR'),
+            count: countByPredicate(typesBase, c => c.type === 'EXECUTOR'),
           },
         ],
       },
@@ -194,7 +194,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
           value: useCase,
           label: prettifyUseCase(useCase),
           capitalize: true,
-          count: countByPredicate(useCasesBase, c => (c.catalog_connector_use_cases ?? []).includes(useCase)),
+          count: countByPredicate(useCasesBase, c => c.useCases.includes(useCase)),
         })),
       },
       {
@@ -205,13 +205,13 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             value: STATUS_VERIFIED,
             label: t('Verified'),
             icon: VerifiedOutlined,
-            count: countByPredicate(statusBase, c => c.catalog_connector_verified === true),
+            count: countByPredicate(statusBase, c => c.verified),
           },
           {
             value: STATUS_DEPLOYED,
             label: t('Deployed'),
             icon: RocketLaunchOutlined,
-            count: countByPredicate(statusBase, c => (c.instance_deployed_count ?? 0) > 0),
+            count: countByPredicate(statusBase, c => c.deployedCount > 0),
           },
         ],
       },
@@ -223,13 +223,13 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
             value: DEPLOYMENT_EXTERNAL,
             label: t('External'),
             icon: CloudOutlined,
-            count: countByPredicate(deploymentBase, c => c.catalog_connector_manager_supported === true),
+            count: countByPredicate(deploymentBase, c => c.external),
           },
           {
             value: DEPLOYMENT_BUILT_IN,
             label: t('Built-in'),
             icon: Inventory2Outlined,
-            count: countByPredicate(deploymentBase, c => c.catalog_connector_manager_supported !== true),
+            count: countByPredicate(deploymentBase, c => !c.external),
           },
         ],
       },
