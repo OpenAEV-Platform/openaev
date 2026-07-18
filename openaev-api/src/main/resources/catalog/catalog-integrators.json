@@ -3190,6 +3190,77 @@
             }
         },
         {
+            "title": "Web Application Attack",
+            "slug": "openaev_webapp",
+            "description": "This injector performs active web application testing using OWASP ZAP (baseline scan) and SQLMap (SQL injection), surfacing discovered issues as findings so WAF detection and application vulnerability can be validated.",
+            "short_description": "Active web app testing with OWASP ZAP and SQLMap",
+            "use_cases": [
+                "Technical"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://www.zaproxy.org/",
+            "source_code": "",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/injector-webapp",
+            "container_type": "INJECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Web Application Attack",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warn",
+                            "error"
+                        ],
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
             "title": "NetWitness",
             "slug": "openaev_netwitness",
             "description": "Collect responses from NetWitness",
