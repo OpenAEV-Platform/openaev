@@ -213,7 +213,7 @@
             "description": "Allow registration of agentless endpoints coming from Microsoft Intune endpoints",
             "short_description": "Allow registration of agentless endpoints coming from Microsoft Intune endpoints",
             "use_cases": [
-                "Endpoint collection"
+                "Asset collection"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -415,7 +415,10 @@
             "slug": "openaev_microsoft_azure",
             "description": "Allow registration of agentless endpoints coming from Microsoft Azure",
             "short_description": "Allow registration of agentless endpoints coming from Microsoft Azure",
-            "use_cases": [],
+            "use_cases": [
+                "Asset collection",
+                "Cloud security"
+            ],
             "verified": true,
             "last_verified_date": "",
             "playbook_supported": false,
@@ -1278,7 +1281,7 @@
             "description": "Allow OAEV to perform nmap scans",
             "short_description": "Allow OAEV to perform nmap scans",
             "use_cases": [
-                "Technical"
+                "Reconnaissance"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1355,7 +1358,7 @@
             "description": "Allow to perform CVE scan based on Nuclei",
             "short_description": "Allow to perform CVE scan based on Nuclei",
             "use_cases": [
-                "Technical"
+                "Vulnerability scanning"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1437,7 +1440,7 @@
             "description": "Allow OAEV to perform HTTP queries",
             "short_description": "Allow OAEV to perform HTTP queries",
             "use_cases": [
-                "Technical"
+                "Attack simulation"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1514,7 +1517,8 @@
             "description": "This Injector use the credentials provided to enumerate through contract the AWS ressources like S3, IAM, Lambda, CloudTrail, Route53, etc. ",
             "short_description": "Use OpenAEV to perform AWS assessment through credentials sets",
             "use_cases": [
-                "Technical"
+                "Attack simulation",
+                "Cloud security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1832,7 +1836,8 @@
             "description": "Allow registration of agentless endpoints coming from Amazon Web Service",
             "short_description": "Allow registration of agentless endpoints coming from Amazon Web Service",
             "use_cases": [
-                "Endpoint collection"
+                "Asset collection",
+                "Cloud security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -1934,7 +1939,7 @@
             "description": "Scan for intel in Shodan",
             "short_description": "Scan for intel in Shodan",
             "use_cases": [
-                "Technical"
+                "Reconnaissance"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2047,7 +2052,7 @@
             "description": "Send messages through Microsoft Teams webhooks",
             "short_description": "Send messages through Microsoft Teams webhooks",
             "use_cases": [
-                "Technical"
+                "Communication"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2237,7 +2242,7 @@
             "description": "Allow OAEV to perform network execution and credential testing with NetExec",
             "short_description": "Allow OAEV to perform network execution with NetExec",
             "use_cases": [
-                "Technical"
+                "Attack simulation"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2424,7 +2429,7 @@
             "description": "Run adversarial exposure validation against LLM models and AI agents (prompt injection, jailbreak, data exfiltration, tool abuse, MCP) mapped to MITRE ATLAS and OWASP, with NVIDIA Garak, Microsoft PyRIT and Promptfoo engines.",
             "short_description": "Adversarial testing of LLMs and AI agents (MITRE ATLAS / OWASP)",
             "use_cases": [
-                "Technical"
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2500,7 +2505,8 @@
             "description": "Validate that Cisco AI Defense (Robust Intelligence) detects or blocks AI adversarial injects by replaying the attack content through the Cisco AI Defense inspection API.",
             "short_description": "Validate Cisco AI Defense detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2599,7 +2605,8 @@
             "description": "Validate that HiddenLayer AI Runtime Security (AIDR) detects or blocks AI adversarial injects by replaying the attack content through the HiddenLayer Interactions endpoint.",
             "short_description": "Validate HiddenLayer AIDR detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2772,7 +2779,8 @@
             "description": "Validate that Lakera Guard (Check Point AI Security) detects or prevents AI adversarial injects by replaying the attack content through the Lakera screening API.",
             "short_description": "Validate Lakera Guard detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2875,7 +2883,8 @@
             "description": "Collect MITRE ATLAS (Adversarial Threat Landscape for AI Systems) tactics and techniques library",
             "short_description": "Collect MITRE ATLAS AI adversarial tactics and techniques",
             "use_cases": [
-                "Data collection"
+                "Data collection",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -2956,7 +2965,8 @@
             "description": "Validate that Palo Alto Prisma AIRS (AI Runtime Security) detects or blocks AI adversarial injects by replaying the attack content through the Prisma AIRS Scan API.",
             "short_description": "Validate Prisma AIRS detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",
@@ -3055,7 +3065,8 @@
             "description": "Validate that Prompt Security (SentinelOne) detects or blocks AI adversarial injects by replaying the attack content through the Prompt Security protect API.",
             "short_description": "Validate Prompt Security detection and prevention",
             "use_cases": [
-                "Security response"
+                "Security response",
+                "AI security"
             ],
             "verified": true,
             "last_verified_date": "",

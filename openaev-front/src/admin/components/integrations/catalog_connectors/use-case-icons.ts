@@ -1,12 +1,16 @@
 import {
+  BugReportOutlined,
+  CloudOutlined,
   DevicesOtherOutlined,
-  DnsOutlined,
+  ForumOutlined,
+  GpsFixedOutlined,
   GroupsOutlined,
   Inventory2Outlined,
   LabelOutlined,
   ShieldOutlined,
+  SmartToyOutlined,
   StorageOutlined,
-  TuneOutlined,
+  TravelExploreOutlined,
 } from '@mui/icons-material';
 import { type ComponentType } from 'react';
 
@@ -16,13 +20,17 @@ import { prettifyUseCase } from './catalog-facets';
 // back to a generic label icon. Keys are the prettified (lowercase, spaces)
 // form so raw values like SECURITY_RESPONSE or security-response both match.
 const USE_CASE_ICONS: Record<string, ComponentType<{ sx?: object }>> = {
+  'ai security': SmartToyOutlined,
   'asset collection': DevicesOtherOutlined,
+  'attack simulation': GpsFixedOutlined,
+  'cloud security': CloudOutlined,
+  'communication': ForumOutlined,
   'data collection': StorageOutlined,
-  'endpoint collection': DnsOutlined,
   'payload collection': Inventory2Outlined,
   'player collection': GroupsOutlined,
+  'reconnaissance': TravelExploreOutlined,
   'security response': ShieldOutlined,
-  'technical': TuneOutlined,
+  'vulnerability scanning': BugReportOutlined,
 };
 
 const useCaseIcon = (useCase: string): ComponentType<{ sx?: object }> => {
