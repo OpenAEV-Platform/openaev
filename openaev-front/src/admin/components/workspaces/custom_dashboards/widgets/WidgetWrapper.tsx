@@ -108,8 +108,14 @@ const WidgetWrapper = ({
   // result of a newer request (rapid pagination clicks, refresh races).
   const requestIdRef = useRef(0);
 
+  /**
+   * Fetches the widget data. Resolves to true only when this call (or the
+   * clamped retry it delegated to) is still the LATEST request: callers gate
+   * their loading-state resets on it, so a superseded request can neither
+   * overwrite fresh data nor clear a spinner owned by a newer request.
+   */
   const fetchWidgetData = useCallback(
-    async (pagination: Pagination) => {
+    async (pagination: Pagination): Promise<boolean> => {
       setErrorMessage('');
 
       const params = buildParams(customDashboardParameters);
@@ -119,7 +125,7 @@ const WidgetWrapper = ({
 
       try {
         const response = await config.fetchFn(widget.widget_id, params, pagination);
-        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return false;
         if (response.data) {
           setVizData({
             type: config.vizType,
@@ -139,12 +145,14 @@ const WidgetWrapper = ({
               size: pagination.size,
             };
             handleChangePagination(firstPage);
-            fetchWidgetData(firstPage);
+            return fetchWidgetData(firstPage);
           }
         }
+        return true;
       } catch (error) {
-        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return false;
         setErrorMessage((error as Error).message);
+        return true;
       }
     },
     [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig, handleChangePagination],
@@ -156,9 +164,12 @@ const WidgetWrapper = ({
     fetchWidgetData({
       page,
       size: elementsPerPage,
-    }).then(() => {
-      if (isMountedRef.current) {
+    }).then((latest) => {
+      if (latest && isMountedRef.current) {
         setInitialLoading(false);
+        // A refetch (refresh counter, parameter change) supersedes any
+        // pagination request still in flight; clear its spinner too.
+        setContentLoading(false);
       }
     });
   }, [fetchWidgetData]);
@@ -176,7 +187,14 @@ const WidgetWrapper = ({
   const onPaginationChange = (pagination: Pagination) => {
     setContentLoading(true);
     handleChangePagination(pagination);
-    fetchWidgetData(pagination).then(() => setContentLoading(false));
+    // Only the latest request may clear the spinner: an older, superseded
+    // pagination request resolving late must not hide it while a newer
+    // request is still in flight.
+    fetchWidgetData(pagination).then((latest) => {
+      if (latest && isMountedRef.current) {
+        setContentLoading(false);
+      }
+    });
   };
 
   // List pagination lives in the title row (top right) instead of a dedicated
