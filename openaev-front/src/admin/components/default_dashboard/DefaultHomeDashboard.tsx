@@ -11,6 +11,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type CustomDashboard, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
+import limitConcurrency from '../../../utils/limitConcurrency';
 import { CustomDashboardContext, type CustomDashboardContextType } from '../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardReactLayout from '../workspaces/custom_dashboards/CustomDashboardReactLayout';
 import { type WidgetDataDrawerConf } from '../workspaces/custom_dashboards/widgetDataDrawer/WidgetDataDrawer';
@@ -22,6 +23,13 @@ import {
 } from './defaultHomeWidgets';
 
 const NOW = new Date().toISOString();
+
+// The dashboard fires one ad-hoc query per widget (20+) the moment it mounts.
+// While the platform is still warming up each query can take seconds, and
+// letting them all run at once exhausts the browser's ~6 connections per
+// origin - lazy route chunks then queue behind them and the left menu appears
+// frozen. Capping the widget queries keeps connections free for navigation.
+const limitWidgetQueries = limitConcurrency(4);
 
 /**
  * The hardcoded "Platform default" home dashboard. Reuses the full custom
@@ -102,16 +110,16 @@ const DefaultHomeDashboard = () => {
       },
     },
     setCustomDashboardParameters: () => {},
-    fetchSeries: (widgetId: string) => adHocSeries(widgetOf(widgetId).widget_config),
-    fetchCount: (widgetId: string) => adHocCount(widgetOf(widgetId).widget_config),
+    fetchSeries: (widgetId: string) => limitWidgetQueries(() => adHocSeries(widgetOf(widgetId).widget_config)),
+    fetchCount: (widgetId: string) => limitWidgetQueries(() => adHocCount(widgetOf(widgetId).widget_config)),
     fetchEntities: (widgetId: string, _params: Record<string, string | undefined>, pagination?: Parameters<typeof adHocEntities>[2]) =>
-      adHocEntities(widgetOf(widgetId).widget_config, undefined, pagination),
-    fetchAverage: (widgetId: string) => adHocAverage(widgetOf(widgetId).widget_config),
+      limitWidgetQueries(() => adHocEntities(widgetOf(widgetId).widget_config, undefined, pagination)),
+    fetchAverage: (widgetId: string) => limitWidgetQueries(() => adHocAverage(widgetOf(widgetId).widget_config)),
     fetchAttackPaths: () => Promise.reject(new Error('Not supported on the default dashboard')),
     // drill-downs convert the ad-hoc widget into a scoped entity list
     fetchEntitiesRuntime: (widgetId: string, input: WidgetToEntitiesInput) => {
       const widget = widgetOf(widgetId);
-      return adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input);
+      return limitWidgetQueries(() => adHocEntitiesRuntime(widget.widget_type, widget.widget_config, input));
     },
     openWidgetDataDrawer,
     closeWidgetDataDrawer,
@@ -152,15 +160,6 @@ const DefaultHomeDashboard = () => {
           }}
         >
           {t('Adversarial exposure overview')}
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: 12,
-            fontStyle: 'italic',
-            color: 'text.secondary',
-          }}
-        >
-          {t('Platform default')}
         </Typography>
         <div style={{ flex: 1 }} />
         <Select

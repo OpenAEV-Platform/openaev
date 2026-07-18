@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type KeyboardEvent, memo, useRef } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, useId, useRef } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
@@ -42,6 +42,16 @@ const KNOWN_LABELS: Record<string, string> = {
   MANUAL: 'Manual',
 };
 
+// Outcome vocabulary per expectation type: "stopped" is only accurate for
+// prevention, so each gate states what a success actually means for its pillar.
+// Unknown / future dynamic types fall back to the generic "stopped".
+const OUTCOME_LABELS: Record<string, string> = {
+  PREVENTION: 'prevented',
+  DETECTION: 'detected',
+  VULNERABILITY: 'not vulnerable',
+  MANUAL: 'validated',
+};
+
 const humanize = (key: string) => {
   const clean = key.replace(/[_-]+/g, ' ').toLowerCase();
   return clean.charAt(0).toUpperCase() + clean.slice(1);
@@ -58,6 +68,7 @@ const humanize = (key: string) => {
 const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate }) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  const particleGlowId = useId();
   // Freeze the SMIL timeline while the tab is hidden so the browser never has
   // to reconcile minutes of missed sub-second animation loops on refocus.
   const svgRef = useRef<SVGSVGElement>(null);
@@ -102,7 +113,9 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
         <animateMotion dur={`${dur}s`} begin={begin} repeatCount="indefinite" path={path} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
         <animate attributeName="opacity" values={`0;${opacity};${opacity};0`} keyTimes="0;0.08;0.9;1" dur={`${dur}s`} begin={begin} repeatCount="indefinite" />
       </circle>
-      <circle r={6.5} fill={attackColor} opacity={0} style={{ filter: 'blur(4px)' }}>
+      {/* soft trail glow: radial gradient fill, NOT a blur() filter - filters on elements
+          animated by animateMotion are re-evaluated every frame and drag the whole SVG down */}
+      <circle r={6.5} fill={`url(#${particleGlowId})`} opacity={0}>
         <animateMotion dur={`${dur}s`} begin={begin} repeatCount="indefinite" path={path} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
         <animate attributeName="opacity" values={`0;${opacity * 0.5};${opacity * 0.5};0`} keyTimes="0;0.08;0.9;1" dur={`${dur}s`} begin={begin} repeatCount="indefinite" />
       </circle>
@@ -138,6 +151,14 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
         }}
         className="noDrag"
       >
+        <defs>
+          <radialGradient id={particleGlowId} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={attackColor} stopOpacity={0.9} />
+            <stop offset="60%" stopColor={attackColor} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={attackColor} stopOpacity={0} />
+          </radialGradient>
+        </defs>
+
         {/* main beam - the attack corridor */}
         <path d={beamPath} fill="none" stroke={lineColor} strokeWidth={1} strokeDasharray="3 5">
           <animate attributeName="stroke-dashoffset" values="8;0" dur="0.8s" repeatCount="indefinite" />
@@ -158,9 +179,15 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
           const stopped = particlesFor(layer.success);
           return (
             <g key={layer.key}>
-              {/* thin gate track + stop-rate fill (bottom-up) */}
+              {/* thin gate track + stop-rate fill (bottom-up). The halo is a wider translucent
+                  rect (not a drop-shadow filter, which the surrounding SMIL animations would
+                  force the browser to re-evaluate every frame). */}
               <rect x={x - 1.5} y={trackTop} width={3} height={trackH} rx={1.5} fill={`${color}26`} />
-              <rect x={x - 1.5} y={trackTop + trackH - fillH} width={3} height={fillH} rx={1.5} fill={color} style={{ filter: `drop-shadow(0 0 4px ${color}99)` }}>
+              <rect x={x - 3.5} y={trackTop + trackH - fillH} width={7} height={fillH} rx={3.5} fill={`${color}4d`}>
+                <animate attributeName="height" values={`0;${fillH}`} dur="1.1s" fill="freeze" calcMode="spline" keySplines="0.22 1 0.36 1" />
+                <animate attributeName="y" values={`${trackTop + trackH};${trackTop + trackH - fillH}`} dur="1.1s" fill="freeze" calcMode="spline" keySplines="0.22 1 0.36 1" />
+              </rect>
+              <rect x={x - 1.5} y={trackTop + trackH - fillH} width={3} height={fillH} rx={1.5} fill={color}>
                 <animate attributeName="height" values={`0;${fillH}`} dur="1.1s" fill="freeze" calcMode="spline" keySplines="0.22 1 0.36 1" />
                 <animate attributeName="y" values={`${trackTop + trackH};${trackTop + trackH - fillH}`} dur="1.1s" fill="freeze" calcMode="spline" keySplines="0.22 1 0.36 1" />
               </rect>
@@ -203,7 +230,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
                 fill={theme.palette.text.secondary}
                 style={{ fontSize: 9 }}
               >
-                {`${Math.round(rate * 100)}% ${t('stopped')}`}
+                {`${Math.round(rate * 100)}% ${t(OUTCOME_LABELS[layer.key.toUpperCase()] ?? 'stopped')}`}
               </text>
               {/* absorbed particles + impact ring, density mirrors real outcomes */}
               {Array.from({ length: stopped }, (_, k) => (

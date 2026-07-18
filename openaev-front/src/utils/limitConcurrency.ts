@@ -1,0 +1,36 @@
+/**
+ * Creates a gate that runs at most `maxConcurrent` async tasks at a time,
+ * queueing the rest in FIFO order.
+ *
+ * Browsers only open ~6 HTTP/1.1 connections per origin: a page that fires
+ * dozens of slow API calls at once (e.g. every widget of a dashboard while the
+ * backend is still warming up) monopolizes all of them, and anything else -
+ * lazy route chunks, navigation data - queues behind for seconds. Funneling
+ * those calls through this limiter keeps connections free for user actions.
+ */
+const limitConcurrency = (maxConcurrent: number) => {
+  let active = 0;
+  const queue: (() => void)[] = [];
+
+  const onSettled = () => {
+    active -= 1;
+    const run = queue.shift();
+    if (run) {
+      run();
+    }
+  };
+
+  return <T>(task: () => Promise<T>): Promise<T> => new Promise<T>((resolve, reject) => {
+    const run = () => {
+      active += 1;
+      task().then(resolve, reject).finally(onSettled);
+    };
+    if (active < maxConcurrent) {
+      run();
+    } else {
+      queue.push(run);
+    }
+  });
+};
+
+export default limitConcurrency;

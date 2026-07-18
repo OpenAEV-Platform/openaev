@@ -277,8 +277,9 @@ const CommandCenterWidget: FunctionComponent<Props> = ({ widgetId, series }) => 
               padding: 0.75,
               borderRadius: 1.5,
               border: `1px solid ${theme.palette.divider}`,
-              background: alpha(theme.palette.background.default, 0.35),
-              backdropFilter: 'blur(6px)',
+              // plain translucent fill: a backdrop-filter here would be re-blurred on every
+              // animation frame of the neighboring SVGs for no visible benefit (flat backdrop)
+              background: alpha(theme.palette.background.default, 0.5),
             }}
           >
             {ctas.map((cta, i) => (
