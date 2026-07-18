@@ -27,17 +27,13 @@ public class V6_20260717221000000__Force_default_home_dashboard extends BaseJava
       statement.execute(
           "UPDATE users SET user_home_dashboard = NULL WHERE user_home_dashboard IS NOT NULL;");
 
-      // -- 2. Clear the tenant-level Settings override. Tenant settings live in the parameters
-      // table since V5_03 merged (and dropped) the transient tenant_settings table: tenant-scoped
-      // rows carry a NON NULL tenant_id. Delete them so resolution falls through to the default. --
-      statement.execute(
-          "DELETE FROM parameters "
-              + "WHERE parameter_key = 'platform_home_dashboard' AND tenant_id IS NOT NULL;");
-
-      // -- 3. Clear the legacy platform-level parameter (tenant_id IS NULL) --
-      statement.execute(
-          "UPDATE parameters SET parameter_value = NULL "
-              + "WHERE parameter_key = 'platform_home_dashboard' AND parameter_value IS NOT NULL;");
+      // -- 2. Clear the tenant-level Settings override AND the legacy platform-level parameter.
+      // Tenant settings live in the parameters table since V5_03 merged (and dropped) the
+      // transient tenant_settings table: tenant-scoped rows carry a NON NULL tenant_id; legacy
+      // pre-tenancy installs may still have a platform-level row (tenant_id IS NULL). DELETE both
+      // (parameter_value is NOT NULL since the original schema, so setting it to NULL is not an
+      // option): every reader goes through Optional and falls through to the built-in default. --
+      statement.execute("DELETE FROM parameters WHERE parameter_key = 'platform_home_dashboard';");
     }
   }
 }
