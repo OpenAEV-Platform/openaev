@@ -1,23 +1,33 @@
+import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useContext } from 'react';
 import { useOutletContext } from 'react-router';
 
+import { updateRequestedStatus } from '../../../../actions/connector_instances/connector-instance-actions';
 import useDialog from '../../../../components/common/dialog/useDialog';
 import Tabs, { type TabsEntry } from '../../../../components/common/tabs/Tabs';
 import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
+import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
+import ActionButton from './ActionButton';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext } from './ConnectorContext';
+import ConnectorDetailHero from './ConnectorDetailHero';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 import ConnectorLogs from './ConnectorLogs';
-import ConnectorTitle from './ConnectorTitle';
+import ConnectorPopover from './ConnectorPopover';
+import ConnectorStatus from './ConnectorStatus';
+import MigrateButton from './MigrateButton';
 
+/** Deployed connector detail page (collectors / executors / injectors). */
 const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode }) => {
+  const theme = useTheme();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
@@ -28,10 +38,6 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const onCloseCreateInstanceDrawer = () => {
     createInstanceDrawer.handleClose();
     refreshConnector();
-  };
-
-  const onMigrateBtnClick = () => {
-    createInstanceDrawer.handleOpen();
   };
 
   const tabEntries: TabsEntry[] = [{
@@ -52,33 +58,77 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const connectorLogoUrl = instance
     ? `/api/images/catalog/connectors/logos/${catalogConnector?.catalog_connector_logo_url}`
     : legacyConnectorLogoUrl;
+  // Dummy (test) connectors ship without a real logo.
+  const isDummy = (connector?.type ?? catalogConnector?.catalog_connector_slug ?? '').includes('dummy');
+
+  // Instance status: a requested transition shows as loading until it settles.
+  const instanceCurrentStatus = instance?.connector_instance_current_status;
+  const instanceRequestedStatus = instance?.connector_instance_requested_status;
+  const isStatusLoading = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
+    || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
+
+  const onUpdateRequestedStatusClick = () => {
+    if (!instance?.connector_instance_id) return;
+    // If we're already in a transition (starting or stopping),
+    // user intention is to reverse the current requested action.
+    let next: 'starting' | 'stopping';
+    if (instanceRequestedStatus === 'starting') {
+      next = 'stopping';
+    } else if (instanceRequestedStatus === 'stopping') {
+      next = 'starting';
+    } else {
+      next = instanceCurrentStatus === 'started' ? 'stopping' : 'starting';
+    }
+    dispatch(updateRequestedStatus(instance.connector_instance_id, { connector_instance_requested_status: next }));
+  };
+
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp && canManage;
+  const disabledUpdateButtons = !isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported === true);
 
   return (
-    <>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(2),
+    }}
+    >
       <ConnectorAlerts
         isEnterpriseEdition={isEnterpriseEdition}
         isXtmComposerUp={isXtmComposerUp}
         catalogConnector={catalogConnector}
       />
-      <ConnectorTitle
-        connector={{
-          instanceId: instance?.connector_instance_id,
-          connectorName: connector?.name || catalogConnector?.catalog_connector_title,
-          connectorType: catalogConnector?.catalog_connector_type,
-          connectorLogoName: connector?.type || catalogConnector?.catalog_connector_slug,
-          connectorLogoUrl,
-          connectorDescription: catalogConnector?.catalog_connector_description,
-          isExternal: catalogConnector?.catalog_connector_manager_supported,
-          isVerified: instance != null,
-          connectorUseCases: catalogConnector?.catalog_connector_use_cases,
-        }}
-        detailsTitle
-        instanceCurrentStatus={instance?.connector_instance_current_status}
-        instanceRequestedStatus={instance?.connector_instance_requested_status}
-        showUpdateButtons={ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
-        showMigrateButton={connector?.isExternal === true && !instance && isXtmComposerUp && ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS)}
-        onMigrateBtnClick={onMigrateBtnClick}
-        disabledUpdateButtons={!isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported)}
+      <ConnectorDetailHero
+        title={connector?.name || catalogConnector?.catalog_connector_title || ''}
+        logoSrc={isDummy ? undefined : connectorLogoUrl}
+        type={catalogConnector?.catalog_connector_type}
+        useCases={catalogConnector?.catalog_connector_use_cases}
+        verified={instance != null}
+        external={catalogConnector?.catalog_connector_manager_supported}
+        description={catalogConnector?.catalog_connector_short_description}
+        statusChip={instanceCurrentStatus
+          && <ConnectorStatus variant={isStatusLoading ? 'loading' : instanceCurrentStatus} />}
+        actions={(
+          <>
+            {canManage && instance?.connector_instance_id && (
+              <ConnectorPopover
+                connectorInstanceId={instance.connector_instance_id}
+                connectorName={connector?.name || catalogConnector?.catalog_connector_title || ''}
+                disabled={disabledUpdateButtons}
+              />
+            )}
+            {showMigrateButton && (
+              <MigrateButton onMigrateBtnClick={() => createInstanceDrawer.handleOpen()} />
+            )}
+            {canManage && instance?.connector_instance_id && (
+              <ActionButton
+                onUpdate={onUpdateRequestedStatusClick}
+                disabled={disabledUpdateButtons}
+                status={instanceRequestedStatus}
+              />
+            )}
+          </>
+        )}
       />
       <Tabs
         entries={tabEntries}
@@ -104,7 +154,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         migrationSource={connector?.id}
         disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: catalogConnector ? catalogConnector.catalog_connector_type.toLowerCase() : '' })}
       />
-    </>
+    </div>
   );
 };
 

@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type ConnectorItem, type ConnectorItemType, prettifyUseCase } from './catalog-facets';
+import useCaseIcon from './use-case-icons';
 
 const MAX_USE_CASE_CHIPS = 2;
 
@@ -140,16 +141,20 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
               sx={chipSx}
               label={typeLabels[connector.type]}
             />
-            {visibleUseCases.map(useCase => (
-              <Chip
-                key={useCase}
-                variant="outlined"
-                color="default"
-                size="small"
-                sx={chipSx}
-                label={prettifyUseCase(useCase)}
-              />
-            ))}
+            {visibleUseCases.map((useCase) => {
+              const UseCaseIcon = useCaseIcon(useCase);
+              return (
+                <Chip
+                  key={useCase}
+                  variant="outlined"
+                  color="default"
+                  size="small"
+                  sx={chipSx}
+                  icon={<UseCaseIcon sx={{ fontSize: 12 }} />}
+                  label={prettifyUseCase(useCase)}
+                />
+              );
+            })}
             {hiddenUseCasesCount > 0 && (
               <Chip
                 variant="outlined"

@@ -26,6 +26,7 @@ import {
   STATUS_DEPLOYED,
   STATUS_VERIFIED,
 } from './catalog-facets';
+import useCaseIcon from './use-case-icons';
 
 interface FacetRow {
   value: string;
@@ -194,6 +195,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
           value: useCase,
           label: prettifyUseCase(useCase),
           capitalize: true,
+          icon: useCaseIcon(useCase),
           count: countByPredicate(useCasesBase, c => c.useCases.includes(useCase)),
         })),
       },
