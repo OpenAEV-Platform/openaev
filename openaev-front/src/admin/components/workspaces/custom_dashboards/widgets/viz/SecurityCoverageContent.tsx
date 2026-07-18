@@ -349,22 +349,35 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
         </Box>
       </Box>
       <Box className={classes.container}>
-        {visiblePhases.map((phase) => {
-          // Use indexed lookups - O(1) instead of O(n) filter
-          const resolvedDataSuccessByKillChainPhase = successByPhase.get(phase.phase_external_id) ?? [];
-          const resolvedDataFailureByKillChainPhase = failureByPhase.get(phase.phase_external_id) ?? [];
-          return (
-            <KillChainPhaseColumn
-              key={phase.phase_id}
-              killChainPhase={phase}
-              coverageFilter={coverageFilter}
-              resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
-              resolvedDataFailure={resolvedDataFailureByKillChainPhase}
-              widgetId={widgetId}
-              widgetConfig={widgetConfig}
-            />
-          );
-        })}
+        {/* Every column hides itself when the coverage scope leaves it empty;
+            without this guard a 0-covered / 0-gaps scope renders a blank body. */}
+        {((coverageFilter === 'covered' && coverageStats.covered === 0)
+          || (coverageFilter === 'gaps' && coverageStats.gaps === 0)) ? (
+              <Typography
+                variant="body2"
+                sx={{
+                  margin: 'auto',
+                  color: 'text.secondary',
+                }}
+              >
+                {t('No data to display')}
+              </Typography>
+            ) : visiblePhases.map((phase) => {
+              // Use indexed lookups - O(1) instead of O(n) filter
+              const resolvedDataSuccessByKillChainPhase = successByPhase.get(phase.phase_external_id) ?? [];
+              const resolvedDataFailureByKillChainPhase = failureByPhase.get(phase.phase_external_id) ?? [];
+              return (
+                <KillChainPhaseColumn
+                  key={phase.phase_id}
+                  killChainPhase={phase}
+                  coverageFilter={coverageFilter}
+                  resolvedDataSuccess={resolvedDataSuccessByKillChainPhase}
+                  resolvedDataFailure={resolvedDataFailureByKillChainPhase}
+                  widgetId={widgetId}
+                  widgetConfig={widgetConfig}
+                />
+              );
+            })}
       </Box>
     </Box>
   );

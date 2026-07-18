@@ -52,7 +52,10 @@ const DefaultHomeDashboard = () => {
   const [refreshCount, setRefreshCount] = useState(0);
 
   // Titles are localized at build time so the grid headers and the results page agree.
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange, t]);
+  // `t` from useFormatter() is a NEW function on every render, so it must NOT be a
+  // dependency here: every recompute cascades into new fetch functions in the
+  // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t), [timeRange]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -60,6 +63,7 @@ const DefaultHomeDashboard = () => {
     return map;
   }, [widgets]);
 
+  // Deliberately not keyed on the unstable `t` (see the widgets memo above).
   const customDashboard: CustomDashboard = useMemo(() => ({
     custom_dashboard_id: PLATFORM_DEFAULT_DASHBOARD_ID,
     custom_dashboard_name: t('Platform default'),
@@ -68,7 +72,7 @@ const DefaultHomeDashboard = () => {
     custom_dashboard_created_at: NOW,
     custom_dashboard_updated_at: NOW,
     listened: false,
-  }), [widgets, t]);
+  }), [widgets]);
 
   const widgetOf = useCallback((widgetId: string) => {
     const widget = widgetById.get(widgetId);

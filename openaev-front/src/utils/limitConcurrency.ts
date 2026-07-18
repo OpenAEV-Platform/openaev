@@ -23,7 +23,9 @@ const limitConcurrency = (maxConcurrent: number) => {
   return <T>(task: () => Promise<T>): Promise<T> => new Promise<T>((resolve, reject) => {
     const run = () => {
       active += 1;
-      task().then(resolve, reject).finally(onSettled);
+      // Route through Promise.resolve().then(task) so a synchronous throw in
+      // task() becomes a rejection and still releases the slot via onSettled.
+      Promise.resolve().then(task).then(resolve, reject).finally(onSettled);
     };
     if (active < maxConcurrent) {
       run();

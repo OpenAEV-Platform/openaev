@@ -145,18 +145,25 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
   const [loading, setLoading] = useState(false);
   // Monotonic request id: a slow earlier response must never overwrite a newer one.
   const requestIdRef = useRef(0);
-  // The first page already came back with the runtime seed call.
-  const skipInitialFetchRef = useRef(initialEntities != null);
+  // The first page already came back with the runtime seed call. The queryable
+  // child hooks all fire their mount-time onChange with a NEW (but content-equal)
+  // input object, so identity-based skipping is not enough: compare the
+  // serialized query instead, or the seeded rows flash into a skeleton and the
+  // exact same page-0 query is re-issued right after mount.
+  const lastFetchKeyRef = useRef<string | null>(
+    initialEntities != null ? JSON.stringify(searchPaginationInput) : null,
+  );
 
   useEffect(() => {
     queryableHelpers.paginationHelpers.handleChangeTotalElements(initialEntities?.total ?? 0);
   }, []);
 
   useEffect(() => {
-    if (skipInitialFetchRef.current) {
-      skipInitialFetchRef.current = false;
+    const fetchKey = JSON.stringify(searchPaginationInput);
+    if (fetchKey === lastFetchKeyRef.current) {
       return;
     }
+    lastFetchKeyRef.current = fetchKey;
     requestIdRef.current += 1;
     const requestId = requestIdRef.current;
     setLoading(true);

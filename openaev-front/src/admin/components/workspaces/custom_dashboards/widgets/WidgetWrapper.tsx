@@ -60,14 +60,14 @@ const WidgetWrapper = ({
   const { customDashboardParameters, fetchCount, fetchSeries, fetchEntities, fetchAttackPaths, fetchAverage } = useContext(CustomDashboardContext);
   // A dashboard tile is small and its pagination lives in the title row, so it
   // paginates at a tile-friendly page size (loading 100 rows into a tile never
-  // fit and hid the pagination whenever the total was below 100).
-  const { elementsPerPage, page, handleChangePagination } = widget.widget_type === 'list'
-    ? usePaginationState(ROWS_PER_PAGE_OPTIONS[0], undefined, `widget-list-${widget.widget_id}`)
-    : {
-        elementsPerPage: 0,
-        page: 0,
-        handleChangePagination: () => {},
-      };
+  // fit and hid the pagination whenever the total was below 100). The hook is
+  // called unconditionally (Rules of Hooks); only list widgets use its state.
+  const isListWidget = widget.widget_type === 'list';
+  const { elementsPerPage, page, handleChangePagination } = usePaginationState(
+    ROWS_PER_PAGE_OPTIONS[0],
+    undefined,
+    isListWidget ? `widget-list-${widget.widget_id}` : undefined,
+  );
 
   const widgetConfig = useMemo<Record<string, WidgetFetchConfig>>(() => ({
     'attack-path': {
@@ -103,16 +103,23 @@ const WidgetWrapper = ({
     };
   }, []);
 
+  // Monotonic request id: with fetches funneled through the dashboard's
+  // concurrency limiter, a slow stale response must never overwrite the
+  // result of a newer request (rapid pagination clicks, refresh races).
+  const requestIdRef = useRef(0);
+
   const fetchWidgetData = useCallback(
     async (pagination: Pagination) => {
       setErrorMessage('');
 
       const params = buildParams(customDashboardParameters);
       const config = widgetConfig[widget.widget_type] ?? defaultConfig;
+      requestIdRef.current += 1;
+      const requestId = requestIdRef.current;
 
       try {
         const response = await config.fetchFn(widget.widget_id, params, pagination);
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
         if (response.data) {
           setVizData({
             type: config.vizType,
@@ -120,13 +127,27 @@ const WidgetWrapper = ({
               ? config.transformData(response.data)
               : response.data,
           } as WidgetVizData);
+          // A page persisted in localStorage can point past the end after the
+          // data shrinks (e.g. a narrower time range). The pagination control
+          // hides itself in that case, so clamp back to the first page.
+          const entities = response.data as EsEntities;
+          if (config.vizType === WidgetVizDataType.ENTITIES
+            && pagination.page > 0
+            && (entities.total ?? 0) <= pagination.page * pagination.size) {
+            const firstPage = {
+              page: 0,
+              size: pagination.size,
+            };
+            handleChangePagination(firstPage);
+            fetchWidgetData(firstPage);
+          }
         }
       } catch (error) {
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current || requestId !== requestIdRef.current) return;
         setErrorMessage((error as Error).message);
       }
     },
-    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig],
+    [widget.widget_id, widget.widget_type, widget.widget_config, customDashboardParameters, widgetConfig, defaultConfig, handleChangePagination],
   );
 
   useEffect(() => {
