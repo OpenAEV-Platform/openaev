@@ -3,6 +3,10 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Transient;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+import org.hibernate.LazyInitializationException;
 import org.springframework.beans.BeanUtils;
 
 /**
@@ -106,5 +110,38 @@ public interface Base {
   @JsonIgnore
   default ResourceType getResourceType() {
     return ResourceType.UNKNOWN;
+  }
+
+  /**
+   * Compares two entity collections by their ids, ignoring ordering and duplicates.
+   *
+   * <p>Used by entities that manually bump their {@code updatedAt} timestamp when an association
+   * changes (join-table updates do not dirty the owning row). The bump must only happen when the
+   * association contents actually changed: an unconditional bump turns no-op upserts (e.g.
+   * collectors re-registering unchanged data on restart) into SQL UPDATEs, which restream the
+   * entity to every connected client through {@code ModelBaseListener}.
+   *
+   * @param current the currently stored association (possibly an uninitialized lazy collection)
+   * @param updated the incoming association
+   * @return {@code true} when both collections reference the same entity ids, {@code false} when
+   *     they differ or when the stored association cannot be read without an active session
+   */
+  static boolean haveSameIds(
+      Collection<? extends Base> current, Collection<? extends Base> updated) {
+    try {
+      return collectIds(current).equals(collectIds(updated));
+    } catch (LazyInitializationException e) {
+      // No session to read the stored association: we cannot prove it is unchanged, so callers
+      // keep the legacy behavior and bump the timestamp.
+      return false;
+    }
+  }
+
+  private static Set<String> collectIds(Collection<? extends Base> entities) {
+    Set<String> ids = new HashSet<>();
+    if (entities != null) {
+      entities.forEach(entity -> ids.add(entity.getId()));
+    }
+    return ids;
   }
 }
