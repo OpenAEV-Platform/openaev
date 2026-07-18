@@ -186,48 +186,65 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
     layout(0, 10, 12, 4),
   ),
 
+  // -- MITRE TTP POSTURE (detection coverage matrix, full-width band) --
+  widget(
+    'default-detection-coverage',
+    'security-coverage',
+    structural(t('Detection coverage'), 'base_attack_patterns_side', [
+      series('SUCCESS', ...expectation([
+        filter('inject_expectation_status', ['SUCCESS']),
+        filter('inject_expectation_type', ['DETECTION']),
+      ])),
+      series('FAILED', ...expectation([
+        filter('inject_expectation_status', ['FAILED']),
+        filter('inject_expectation_type', ['DETECTION']),
+      ])),
+    ], timeRange, 100),
+    layout(0, 14, 12, 10),
+  ),
+
   // -- POSTURE + KPIs + FINDINGS BREAKDOWN --
   widget(
     'default-posture-radar',
     'posture-radar',
     structural(t('Posture radar'), 'base_security_platforms_side', successFailedSeries(), timeRange),
-    layout(0, 14, 4, 6),
+    layout(0, 24, 4, 6),
   ),
   widget(
     'default-kpi-scenarios',
     'number',
     flat(t('Scenarios'), [series('Scenario', filter('base_entity', ['scenario']))], timeRange),
-    layout(4, 14, 2, 2),
+    layout(4, 24, 2, 2),
   ),
   widget(
     'default-kpi-simulations',
     'number',
     flat(t('Simulations'), [series('Simulation', filter('base_entity', ['simulation']))], timeRange),
-    layout(6, 14, 2, 2),
+    layout(6, 24, 2, 2),
   ),
   widget(
     'default-kpi-injects',
     'number',
     flat(t('Injects'), [series('Inject', filter('base_entity', ['inject']))], timeRange),
-    layout(4, 16, 2, 2),
+    layout(4, 26, 2, 2),
   ),
   widget(
     'default-kpi-endpoints',
     'number',
     flat(t('Endpoints'), [series('Endpoint', filter('base_entity', ['endpoint']))], timeRange),
-    layout(6, 16, 2, 2),
+    layout(6, 26, 2, 2),
   ),
   widget(
     'default-kpi-cves',
     'number',
     flat(t('CVEs found'), [series('CVE', filter('base_entity', ['finding']), filter('finding_type', ['CVE']))], timeRange),
-    layout(4, 18, 2, 2),
+    layout(4, 28, 2, 2),
   ),
   widget(
     'default-kpi-vulnerable-endpoints',
     'number',
     flat(t('Vulnerable endpoints'), [series('Vulnerable endpoint', filter('base_entity', ['vulnerable-endpoint']))], timeRange),
-    layout(6, 18, 2, 2),
+    layout(6, 28, 2, 2),
   ),
   widget(
     'default-latest-findings',
@@ -235,7 +252,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
     structural(t('Findings by type'), 'finding_type', [
       series('', filter('base_entity', ['finding'])),
     ], timeRange, 100),
-    layout(8, 14, 4, 6),
+    layout(8, 24, 4, 6),
   ),
 
   // -- FINDINGS --
@@ -248,19 +265,19 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
       ['finding_value', 'base_created_at', 'finding_type'],
       timeRange,
     ),
-    layout(0, 20, 8, 10),
+    layout(0, 30, 8, 10),
   ),
   widget(
     'default-kpi-total-findings',
     'number',
     flat(t('Total findings'), [series('Finding', filter('base_entity', ['finding']))], timeRange),
-    layout(8, 20, 2, 2),
+    layout(8, 30, 2, 2),
   ),
   widget(
     'default-kpi-ports-open',
     'number',
     flat(t('Ports open'), [series('Port', filter('base_entity', ['finding']), filter('finding_type', ['PortsScan', 'Port']))], timeRange),
-    layout(10, 20, 2, 2),
+    layout(10, 30, 2, 2),
   ),
   widget(
     'default-undetected-platforms',
@@ -275,24 +292,7 @@ export const buildDefaultHomeWidgets = (timeRange: DefaultTimeRange, t: Translat
         filter('inject_expectation_status', ['FAILED']),
       ])),
     ], timeRange, 100),
-    layout(8, 22, 4, 8),
-  ),
-
-  // -- MITRE COVERAGE --
-  widget(
-    'default-detection-coverage',
-    'security-coverage',
-    structural(t('Detection coverage'), 'base_attack_patterns_side', [
-      series('SUCCESS', ...expectation([
-        filter('inject_expectation_status', ['SUCCESS']),
-        filter('inject_expectation_type', ['DETECTION']),
-      ])),
-      series('FAILED', ...expectation([
-        filter('inject_expectation_status', ['FAILED']),
-        filter('inject_expectation_type', ['DETECTION']),
-      ])),
-    ], timeRange, 100),
-    layout(0, 30, 12, 10),
+    layout(8, 32, 4, 8),
   ),
 
   // -- TRENDS --
