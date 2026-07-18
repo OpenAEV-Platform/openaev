@@ -5,6 +5,7 @@ import io.openaev.annotation.Indexable;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.engine.model.tenant.EsTenantBase;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -40,7 +41,7 @@ public class EsFinding extends EsTenantBase {
   @EsQueryable(keyword = true)
   private String base_scenario_side; // Must finish by _side
 
-  @Queryable(label = "endpoint", filterable = true, dynamicValues = true)
+  @Queryable(label = "endpoint", filterable = true, dynamicValues = true, clazz = String.class)
   @EsQueryable(keyword = true)
-  private String base_endpoint_side; // Must finish by _side
+  private Set<String> base_endpoint_side; // Must finish by _side
 }

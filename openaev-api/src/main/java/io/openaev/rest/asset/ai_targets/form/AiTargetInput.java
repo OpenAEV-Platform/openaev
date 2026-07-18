@@ -3,7 +3,7 @@ package io.openaev.rest.asset.ai_targets.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.AiTarget;
+import io.openaev.database.model.Asset;
 import io.openaev.rest.asset.form.AssetInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -16,29 +16,32 @@ import lombok.EqualsAndHashCode;
 @Data
 public class AiTargetInput extends AssetInput {
 
+  // Property names match the Asset AI fields (aiTarget*) so setUpdateAttributes'
+  // BeanUtils.copyProperties maps them onto the Asset entity; @JsonProperty keeps the wire names.
+
   @NotNull(message = MANDATORY_MESSAGE)
   @JsonProperty("ai_target_provider")
-  private AiTarget.AI_TARGET_PROVIDER provider;
+  private Asset.AI_TARGET_PROVIDER aiTargetProvider;
 
   @JsonProperty("ai_target_endpoint")
   @Schema(types = {"string", "null"})
-  private String endpoint;
+  private String aiTargetEndpoint;
 
   @JsonProperty("ai_target_model")
   @Schema(types = {"string", "null"})
-  private String model;
+  private String aiTargetModel;
 
   @JsonProperty("ai_target_modality")
-  private AiTarget.AI_TARGET_MODALITY modality = AiTarget.AI_TARGET_MODALITY.TEXT;
+  private Asset.AI_TARGET_MODALITY aiTargetModality = Asset.AI_TARGET_MODALITY.TEXT;
 
   @JsonProperty("ai_target_system_prompt")
   @Schema(types = {"string", "null"})
-  private String systemPrompt;
+  private String aiTargetSystemPrompt;
 
   @JsonProperty("ai_target_configuration")
-  private Map<String, Object> configuration = new HashMap<>();
+  private Map<String, Object> aiTargetConfiguration = new HashMap<>();
 
-  @JsonProperty("ai_target_api_key_variable")
+  @JsonProperty("ai_target_token")
   @Schema(types = {"string", "null"})
-  private String apiKeyVariable;
+  private String aiTargetToken;
 }

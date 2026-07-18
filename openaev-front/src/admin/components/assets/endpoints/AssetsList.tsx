@@ -1,15 +1,15 @@
 import { DevicesOtherOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, type ReactElement } from 'react';
+import { type CSSProperties, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import AssetTypeFragment from '../../../../components/common/list/fragments/AssetTypeFragment';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
-import { type EndpointOutput } from '../../../../utils/api-types';
+import { type AssetOutput } from '../../../../utils/api-types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
-import { type EndpointPopoverProps } from './EndpointPopover';
+import { type AssetPopoverProps } from './AssetPopover';
 
 const useStyles = makeStyles()(() => ({
   item: { height: 50 },
@@ -29,24 +29,27 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-interface Props {
-  endpoints: EndpointOutput[];
-  renderActions: ((endpoint: EndpointOutput) => ReactElement<EndpointPopoverProps>);
+interface Props<T extends AssetOutput> {
+  endpoints: T[];
+  renderActions: ((asset: T) => ReactElement<AssetPopoverProps>);
   loading?: boolean;
   compact?: boolean;
 }
 
-const EndpointsList: FunctionComponent<Props> = ({
+// Generic over AssetOutput so asset groups (which can hold any asset type: endpoints, AI targets,
+// identities, cloud / web / network assets, ...) list uniformly. Endpoint-specific screens still
+// pass the richer EndpointOutput, inferred as T.
+const AssetsList = <T extends AssetOutput>({
   endpoints,
   renderActions,
   loading = false,
   compact = false,
-}) => {
+}: Props<T>) => {
   // Standard hooks
   const { classes } = useStyles();
 
-  const component = (endpoint: EndpointOutput) => {
-    return renderActions(endpoint);
+  const component = (asset: T) => {
+    return renderActions(asset);
   };
 
   const inlineStyles: Record<string, CSSProperties> = {
@@ -61,25 +64,25 @@ const EndpointsList: FunctionComponent<Props> = ({
       field: 'asset_name',
       label: 'Name',
       isSortable: true,
-      value: (endpoint: EndpointOutput) => endpoint.asset_name,
+      value: (asset: T) => asset.asset_name,
     },
     {
       field: EndpointListItemFragments.ASSET_PLATFORM,
       label: 'Platform',
       isSortable: true,
-      value: (endpoint: EndpointOutput) => <AssetPlatformFragment platform={endpoint.endpoint_platform} />,
+      value: (asset: T) => <AssetPlatformFragment platform={asset.endpoint_platform} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TAGS,
       label: 'Tags',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
+      value: (asset: T) => <ItemTags variant="list" tags={asset.asset_tags ?? []} />,
     },
     {
       field: EndpointListItemFragments.ASSET_TYPE,
       label: 'Type',
       isSortable: false,
-      value: (endpoint: EndpointOutput) => <AssetTypeFragment type={endpoint.asset_type} />,
+      value: (asset: T) => <AssetTypeFragment type={asset.asset_type} />,
     },
   ];
 
@@ -93,13 +96,13 @@ const EndpointsList: FunctionComponent<Props> = ({
   }
   return (
     <List>
-      { endpoints?.map((endpoint) => {
+      { endpoints?.map((asset) => {
         return (
           <ListItem
-            key={endpoint.asset_id}
+            key={asset.asset_id}
             classes={{ root: classes.item }}
             divider={true}
-            secondaryAction={component(endpoint)}
+            secondaryAction={component(asset)}
           >
             <ListItemIcon>
               <DevicesOtherOutlined color="primary" />
@@ -113,7 +116,7 @@ const EndpointsList: FunctionComponent<Props> = ({
                       className={classes.bodyItem}
                       style={inlineStyles[header.field]}
                     >
-                      {header.value(endpoint)}
+                      {header.value(asset)}
                     </div>
                   ))}
                 </>
@@ -126,4 +129,4 @@ const EndpointsList: FunctionComponent<Props> = ({
   );
 };
 
-export default EndpointsList;
+export default AssetsList;

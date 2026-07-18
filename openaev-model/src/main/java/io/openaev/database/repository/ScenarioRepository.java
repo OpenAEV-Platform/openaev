@@ -315,6 +315,17 @@ public interface ScenarioRepository
   void removeTeams(
       @Param("scenarioId") final String scenarioId, @Param("teamIds") final List<String> teamIds);
 
+  /**
+   * Bumps the scenario updated_at so the incremental search-engine indexer picks up denormalized
+   * changes (e.g. join-table mutations done via native queries that bypass JPA timestamps).
+   */
+  @Modifying
+  @Query(
+      value = "UPDATE scenarios SET scenario_updated_at = now() WHERE scenario_id = :scenarioId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAt(@Param("scenarioId") final String scenarioId);
+
   Optional<Scenario> findByExercises_Id(String exerciseId);
 
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);

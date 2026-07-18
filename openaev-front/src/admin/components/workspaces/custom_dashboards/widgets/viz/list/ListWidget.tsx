@@ -33,9 +33,16 @@ import navigationHandlers from './elements/ListNavigationHandler';
 // estimate so the two stay aligned.
 const ROW_HEIGHT = 50;
 
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: ROW_HEIGHT },
+const useStyles = makeStyles()(theme => ({
+  item: {
+    'height': ROW_HEIGHT,
+    'borderRadius': theme.shape.borderRadius,
+    'transition': 'background 0.15s, box-shadow 0.15s',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      boxShadow: `inset 2px 0 0 0 ${theme.palette.primary.main}`,
+    },
+  },
 }));
 
 // Empty secondary action component to avoid recreation
@@ -116,6 +123,9 @@ type Props = {
   totalElements: number;
   onPaginationChange: (paginationInput: Pagination) => void;
   contentLoading?: boolean;
+  // Render the pagination bar above the list (aligns with the app's list pages) instead of below
+  // (default, used by embedded dashboard widget tiles).
+  paginationAbove?: boolean;
 };
 
 const ListWidget = ({
@@ -126,6 +136,7 @@ const ListWidget = ({
   totalElements,
   onPaginationChange,
   contentLoading = false,
+  paginationAbove = false,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -185,6 +196,26 @@ const ListWidget = ({
     return <div>{t('No columns configured for this list.')}</div>;
   }
 
+  const pagination = elements.length > 0 && totalElements > elementsPerPage
+    ? (
+        <TablePagination
+          component="div"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={totalElements}
+          page={currentPageNumber}
+          onPageChange={handleChangePage}
+          rowsPerPage={elementsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            'flexShrink': 0,
+            [paginationAbove ? 'borderBottom' : 'borderTop']: theme => `1px solid ${theme.palette.divider}`,
+            'minHeight': 0,
+            '& .MuiTablePagination-toolbar': { minHeight: 40 },
+          }}
+        />
+      )
+    : null;
+
   return (
     <Box style={{
       height: '100%',
@@ -192,29 +223,7 @@ const ListWidget = ({
       flexDirection: 'column',
     }}
     >
-      {elements.length > 0
-        && (
-          <TablePagination
-            component="div"
-            rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-            count={totalElements}
-            page={currentPageNumber}
-            onPageChange={handleChangePage}
-            rowsPerPage={elementsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        )}
-
-      <MuiList disablePadding>
-        <MuiListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<EmptySecondaryAction />}
-        >
-          <ListItemIcon />
-        </MuiListItem>
-      </MuiList>
-
+      {paginationAbove && pagination}
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (
         <div style={{
@@ -275,6 +284,8 @@ const ListWidget = ({
           </MuiList>
         </div>
       )}
+
+      {!paginationAbove && pagination}
     </Box>
   );
 };

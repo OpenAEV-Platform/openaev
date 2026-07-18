@@ -1,11 +1,10 @@
 import { Box, Paper, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
 import AttackPatternChip from '../../../../../components/AttackPatternChip';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemTags from '../../../../../components/ItemTags';
-import PlatformIcon from '../../../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../../../components/PlatformIconGroup';
 import type { AttackPatternSimple, StatusPayloadOutput } from '../../../../../utils/api-types';
 import { emptyFilled } from '../../../../../utils/String';
 
@@ -24,7 +23,6 @@ const useStyles = makeStyles()(theme => ({
 const PayloadInfoPaper = ({ payloadOutput }: Props) => {
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const theme = useTheme();
 
   if (!payloadOutput) {
     return (
@@ -47,11 +45,7 @@ const PayloadInfoPaper = ({ payloadOutput }: Props) => {
         <Typography variant="h3" gutterBottom>
           {t('Platforms')}
         </Typography>
-        {(payloadOutput.payload_platforms ?? []).length === 0 ? (
-          <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />
-        ) : payloadOutput.payload_platforms?.map(
-          platform => <PlatformIcon marginRight={theme.spacing(2)} key={platform} platform={platform} tooltip width={25} />,
-        )}
+        <PlatformIconGroup platforms={payloadOutput.payload_platforms} width={25} />
       </Box>
       <Box>
         <Typography variant="h3" gutterBottom>

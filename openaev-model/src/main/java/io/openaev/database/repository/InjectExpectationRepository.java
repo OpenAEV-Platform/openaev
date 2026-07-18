@@ -125,6 +125,9 @@ public interface InjectExpectationRepository
   // Agentless detection/prevention expectations (e.g. AI adversarial injects whose target is an AI
   // model/agent rather than an endpoint with an installed agent). Used by AI defense collectors
   // (LLM firewall / guardrail) which correlate via the per-inject AI request marker.
+  // Only LEAF asset expectations are returned (asset_id IS NOT NULL): asset-group parents
+  // (asset_id NULL, asset_group_id set) are never fulfilled directly - their score is recomputed by
+  // propagation from the asset leaves - and updating them directly would dereference a null asset.
   @Query(
       value =
           "SELECT e.* FROM injects_expectations e "
@@ -132,6 +135,7 @@ public interface InjectExpectationRepository
               + "WHERE i.tenant_id = :tenantId "
               + "AND e.inject_expectation_type = :type "
               + "AND e.agent_id IS NULL "
+              + "AND e.asset_id IS NOT NULL "
               + "AND "
               + RESULTS_HAS_NO_RESULT_FOR_SOURCE
               + "ORDER BY e.inject_expectation_created_at ASC LIMIT :limit",
@@ -335,24 +339,29 @@ public interface InjectExpectationRepository
       value =
           """
     WITH changed_expectations AS (
+        -- Per-player rows (user_id NOT NULL) are excluded everywhere: the team-level row already
+        -- represents the players (same rule as the global-score queries above), and indexing both
+        -- would double-count every manual expectation in dashboard statistics.
         SELECT ie.inject_expectation_id FROM injects_expectations ie
-          WHERE ie.agent_id IS NULL AND ie.inject_expectation_updated_at > :from
+          WHERE ie.agent_id IS NULL AND ie.user_id IS NULL
+            AND ie.inject_expectation_updated_at > :from
         UNION
         SELECT ie.inject_expectation_id FROM injects_expectations ie
           JOIN injects i ON i.inject_id = ie.inject_id
-          WHERE ie.agent_id IS NULL AND i.inject_updated_at > :from
+          WHERE ie.agent_id IS NULL AND ie.user_id IS NULL AND i.inject_updated_at > :from
         UNION
         SELECT ie.inject_expectation_id FROM injects_expectations ie
           JOIN injects i ON i.inject_id = ie.inject_id
           JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract
                                      AND ic.tenant_id = i.tenant_id
-          WHERE ie.agent_id IS NULL AND ic.injector_contract_updated_at > :from
+          WHERE ie.agent_id IS NULL AND ie.user_id IS NULL
+            AND ic.injector_contract_updated_at > :from
         UNION
         -- Parent (agentless) expectation must be reindexed when one of its agent-level
         -- children changed. EXISTS avoids the parent x child cartesian self-join.
         SELECT parent_ie.inject_expectation_id
           FROM injects_expectations parent_ie
-          WHERE parent_ie.agent_id IS NULL
+          WHERE parent_ie.agent_id IS NULL AND parent_ie.user_id IS NULL
             AND EXISTS (
               SELECT 1 FROM injects_expectations child_ie
               WHERE child_ie.inject_id = parent_ie.inject_id
@@ -421,16 +430,24 @@ public interface InjectExpectationRepository
         GROUP BY b.inject_expectation_id
     ),
     agent_security_platforms AS (
-        -- Security platforms contributed by sibling agent-level expectations (restricted to base injects).
-        SELECT child_ie.inject_id,
+        -- Security platforms contributed by agent-level children, scoped to the SAME expectation
+        -- type and (when the parent is asset-level) the SAME asset as the parent doc. Keyed per
+        -- parent expectation: joining only on inject_id would attribute every platform that
+        -- returned any result for any expectation of the inject (e.g. blame a platform that
+        -- detected for a prevention miss on another asset).
+        SELECT b.inject_expectation_id,
                COALESCE(array_agg(DISTINCT child_c.collector_security_platform::text) FILTER (WHERE child_c.collector_security_platform IS NOT NULL), ARRAY[]::text[])
                || COALESCE(array_agg(DISTINCT child_a.asset_id::text) FILTER (WHERE child_a.asset_id IS NOT NULL), ARRAY[]::text[]) AS security_platform_ids
-        FROM injects_expectations child_ie
+        FROM base b
+        JOIN injects_expectations child_ie
+          ON child_ie.inject_id = b.inject_id
+         AND child_ie.agent_id IS NOT NULL
+         AND child_ie.inject_expectation_type = b.inject_expectation_type
+         AND (b.asset_id IS NULL OR child_ie.asset_id = b.asset_id)
         LEFT JOIN LATERAL jsonb_array_elements(child_ie.inject_expectation_results::jsonb) AS child_r(elem) ON true
         LEFT JOIN collectors child_c ON child_r.elem->>'sourceId' = child_c.collector_id::text
         LEFT JOIN assets child_a ON child_r.elem->>'sourceId' = child_a.asset_id::text
-        WHERE child_ie.agent_id IS NOT NULL AND child_ie.inject_id IN (SELECT inject_id FROM base WHERE inject_id IS NOT NULL)
-        GROUP BY child_ie.inject_id
+        GROUP BY b.inject_expectation_id
     )
     SELECT b.inject_expectation_id, b.inject_expectation_name, b.inject_expectation_description, b.inject_expectation_type,
            b.inject_expectation_results, b.inject_expectation_score, b.inject_expectation_expected_score, b.inject_expiration_time,
@@ -448,7 +465,7 @@ public interface InjectExpectationRepository
     LEFT JOIN track_agg ta ON ta.inject_id = b.inject_id
     LEFT JOIN scen_agg sa ON sa.exercise_id = b.exercise_id
     LEFT JOIN sp_self spself ON spself.inject_expectation_id = b.inject_expectation_id
-    LEFT JOIN agent_security_platforms asp ON asp.inject_id = b.inject_id
+    LEFT JOIN agent_security_platforms asp ON asp.inject_expectation_id = b.inject_expectation_id
     WHERE b.agent_id IS NULL
     ORDER BY b.inject_expectation_updated_at ASC
     """,
