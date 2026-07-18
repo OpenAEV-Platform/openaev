@@ -124,12 +124,20 @@ public interface Base {
    * @param current the currently stored association (possibly an uninitialized lazy collection)
    * @param updated the incoming association
    * @return {@code true} when both collections reference the same entity ids, {@code false} when
-   *     they differ or when the stored association cannot be read without an active session
+   *     they differ, when any entity has no id yet (two distinct transient entities are never
+   *     considered equal), or when the stored association cannot be read without an active session
    */
   static boolean haveSameIds(
       Collection<? extends Base> current, Collection<? extends Base> updated) {
     try {
-      return collectIds(current).equals(collectIds(updated));
+      Set<String> currentIds = collectIds(current);
+      Set<String> updatedIds = collectIds(updated);
+      // A transient entity (no id yet) is not comparable: {null} == {null} would wrongly equate
+      // two different unsaved entities, so fail towards "changed" (bump).
+      if (currentIds.contains(null) || updatedIds.contains(null)) {
+        return false;
+      }
+      return currentIds.equals(updatedIds);
     } catch (LazyInitializationException e) {
       // No session to read the stored association: we cannot prove it is unchanged, so callers
       // keep the legacy behavior and bump the timestamp.

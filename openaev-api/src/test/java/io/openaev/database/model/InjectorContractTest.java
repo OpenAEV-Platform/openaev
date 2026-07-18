@@ -172,5 +172,19 @@ class InjectorContractTest {
 
       assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
     }
+
+    @Test
+    @DisplayName(
+        "replacing a transient tag (no id yet) with another transient tag bumps updatedAt:"
+            + " {null} ids are never considered equal")
+    void transient_entities_are_never_considered_equal() {
+      InjectorContract contract = new InjectorContract();
+      contract.setTags(new HashSet<>(Set.of(new Tag())));
+      contract.setUpdatedAt(SENTINEL);
+
+      contract.setTags(new HashSet<>(Set.of(new Tag())));
+
+      assertThat(contract.getUpdatedAt()).isAfter(SENTINEL);
+    }
   }
 }
