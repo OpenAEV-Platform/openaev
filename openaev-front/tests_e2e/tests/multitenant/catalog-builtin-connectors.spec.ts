@@ -21,10 +21,10 @@ test.describe('Multi-tenancy — built-in connectors', () => {
 
   let newTenantId: string | null = null;
 
+  // Dummy placeholder injectors are gone: starter-pack contracts are now
+  // imported injector-less and adopted by the real injector on registration.
   const BUILTIN_INJECTORS = [
     'Challenges',
-    'Dummy Nmap',
-    'Dummy Nuclei',
     'Email',
     'Manual',
     'Media pressure',
