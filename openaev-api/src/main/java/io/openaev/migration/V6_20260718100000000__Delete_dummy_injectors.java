@@ -18,6 +18,15 @@ import org.springframework.stereotype.Component;
  * id when it registers; join-table rows cascade with the injector delete.
  *
  * <p>Idempotent and lock-light (targeted UPDATE / DELETE on small result sets).
+ *
+ * <p>PERFORMANCE (issue #6780): {@code injects.inject_injector} carries a composite FK {@code
+ * (inject_injector, tenant_id) ON DELETE CASCADE} (V4_78, remade composite in V5_07) but never had
+ * a supporting index. PostgreSQL runs the cascade check once per deleted parent row, so without an
+ * index every dummy injector deleted below triggers a full sequential scan of the {@code injects}
+ * table. On a large multi-tenant platform this ran for longer than the startup probe window,
+ * leaving an orphaned server-side session holding the Flyway advisory lock and crash-looping every
+ * subsequent boot. The index is therefore created first, turning both the detach UPDATE and the
+ * cascade checks into index lookups; it is also permanently useful for runtime injector deletions.
  */
 @Component
 public class V6_20260718100000000__Delete_dummy_injectors extends BaseJavaMigration {
@@ -25,6 +34,13 @@ public class V6_20260718100000000__Delete_dummy_injectors extends BaseJavaMigrat
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
+      // -- 0. Ensure the FK-supporting index exists (see class javadoc). Partial: NULL rows are
+      // never looked up by the FK cascade and the detach below nulls the column, keeping it small.
+      statement.execute(
+          "CREATE INDEX IF NOT EXISTS idx_injects_injector "
+              + "ON injects (inject_injector, tenant_id) "
+              + "WHERE inject_injector IS NOT NULL;");
+
       // -- 1. Detach injects from dummy injectors (FK is ON DELETE CASCADE) --
       statement.execute(
           "UPDATE injects SET inject_injector = NULL "
