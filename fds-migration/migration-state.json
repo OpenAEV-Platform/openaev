@@ -39,7 +39,7 @@
     {
       "file": "openaev-front/src/components/ThemeLight.ts",
       "pattern": "001bda",
-      "reason": "Old typo'd primary value (a instead of b before --color-darkblue-600). Explicitly NOT --color-filigran-brand-primary (#0015a8) -- see TOKEN-MAPPING.md, that would be a real visual change reserved for a future design decision."
+      "reason": "Old typo'd primary value (a instead of b before --darkblue-600, FDS.scalars post lib#32). Explicitly NOT --color-filigran-brand-primary (#0015a8) -- see TOKEN-MAPPING.md, that would be a real visual change reserved for a future design decision."
     },
     {
       "file": "openaev-front/src/components/ThemeLight.ts",
@@ -69,7 +69,7 @@
   "notMigrated": [
     "palette.background.accent (light, standalone '#d3eaff' literal, ItemCopy.tsx/AttackPatternBox.tsx) -- no FDS token match on either OpenCTI or OpenAEV side, genuine cross-product gap, see TOKEN-MAPPING.md §3.5 and the Figma backlog",
     "palette.severity.* (7 levels) -- explicit design decision deferred to Sandy+Thibault; a portable 5/7-level mapping already validated by the OpenCTI pilot is documented (not applied) in TOKEN-MAPPING.md §4",
-    "THEME_LIGHT_DEFAULT_NAV -- FDS token identified (--color-elevation-surface-heading-layer-0, #f2f2f3) but deliberately NOT applied pending explicit sign-off (the '7th item', a real visible white -> pale-gray delta not in Sandy's originally arbitrated list) -- see TOKEN-MAPPING.md §1",
+    "THEME_LIGHT_DEFAULT_NAV -- FDS token identified (--bg-elevation-heading-layer-0, #f2f2f3) but deliberately NOT applied pending explicit sign-off (the '7th item', a real visible white -> pale-gray delta not in Sandy's originally arbitrated list) -- see TOKEN-MAPPING.md §1",
     "palette.designSystem (full DesignSystemPalette type, Theme.ts) -- dead code (0 consumers), explicitly left unresurrected per Sandy's arbitration (option 2); see TOKEN-MAPPING.md §5 and PR #5204/#5523 history",
     "palette.background.gradient.{start,end} / palette.leftBar.* -- dead code, 0 consumers, left as-is",
     "borderRadius / typography / spacing -- out of scope for this color-only lot (borderRadius: 4 already numerically matches --radius-sm, not wired symbolically)"

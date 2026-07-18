@@ -15,7 +15,7 @@ export const THEME_LIGHT_DEFAULT_BACKGROUND = FDS.colors.light['--bg-elevation-d
 // fds-migration/TOKEN-MAPPING.md § ISO OpenCTI — body/html gradient end-stop (was entirely unwired: no
 // gradient existed on OpenAEV's body/html before this, ISO'd on OpenCTI's proven two-stop pattern).
 const THEME_LIGHT_DEFAULT_BODY_END_GRADIENT = FDS.colors.light['--bg-elevation-default-layer-0-gradient'];
-// fds-migration/TOKEN-MIGRATION-GUIDE.md (lib #32) — raw palette-ramp tokens (--darkblue-*) are
+// fds-migration/TOKEN-MAPPING.md § 1 (post lib#32 rename) — raw palette-ramp tokens (--darkblue-*) are
 // mode-invariant and now live under FDS.scalars, not FDS.colors.{dark,light} (post-#32 bridge reshape).
 const THEME_LIGHT_DEFAULT_PRIMARY = FDS.scalars['--darkblue-600'];
 const THEME_LIGHT_DEFAULT_SECONDARY = FDS.colors.light['--color-filigran-tonic-primary'];

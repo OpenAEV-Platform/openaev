@@ -176,6 +176,15 @@ resolved before or after this PR.
 
 ## Annex — cross-product wiring/consumption comparison (OpenCTI ↔ OpenAEV)
 
+> **Token-name note.** This annex is a dated snapshot (2026-07-13) and keeps
+> the token names in force at capture time. The lib#32 rename (2026-07-16)
+> has since renamed them — e.g. `--color-elevation-background-layer-N` →
+> `--bg-elevation-default-layer-N`, `--color-elevation-surface-highlight` →
+> `--bg-elevation-highlight-layer-0`, `--color-text-default-primary` →
+> `--text-default-primary`, `--color-darkblue-600` → `--darkblue-600`. Same
+> tokens, same values; see `TOKEN-MAPPING.md`'s token-name note for the
+> current nomenclature.
+
 Requested before your checkpoint verdict, to separate **wiring divergence**
 from **consumption divergence** as the explanation for visual differences
 noticed comparing both products' dark mode side by side. Read-only analysis

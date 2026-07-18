@@ -17,6 +17,16 @@ case-only diff · **minor** = perceptible only side-by-side · **notable** = a
 real, at-a-glance color shift — these are the ones to scrutinize in the
 Phase 5 screenshots.
 
+> **Token-name note (post lib#32).** The design-system lib renamed 264
+> tokens after this arbitration was recorded (filigran-design-system#32,
+> merged 2026-07-16); the bridge was regenerated and the 7 tokens OpenAEV
+> consumes were renamed in `ThemeDark.ts`/`ThemeLight.ts` — pure rename, no
+> value change (see the `chore(fds): realign token names` commit for the
+> full old→new mapping). Token names below have been updated to the new
+> nomenclature so this doc always matches the code; the dated evidence
+> report (`reports/tokens-visual-validation.md`) keeps the pre-rename names
+> it was captured with.
+
 ---
 
 ## 1. Named constants (`THEME_<MODE>_DEFAULT_*`, `EE_COLOR`)
@@ -39,12 +49,12 @@ Two independent arbitration tracks produced these values:
 
 | Constant | FDS token | Track | Old (dark) | New (dark) | Δ | Old (light) | New (light) | Δ |
 |---|---|---|---|---|---|---|---|---|
-| `..._PRIMARY` | `--color-filigran-brand-primary` (dark) / `--color-darkblue-600` (light) | dark: already exact · light: §B (typo `a`→`b` only) | `#0fbcff` | `#0fbcff` | none | `#001bda` | `#001bdb` | none (imperceptible) |
+| `..._PRIMARY` | `--color-filigran-brand-primary` (dark) / `--darkblue-600` (light, `FDS.scalars` — mode-invariant raw ramp token post lib#32) | dark: already exact · light: §B (typo `a`→`b` only) | `#0fbcff` | `#0fbcff` | none | `#001bda` | `#001bdb` | none (imperceptible) |
 | `..._SECONDARY` / `EE_COLOR` | `--color-filigran-tonic-primary` | dark: §B · light: §C | `#00f1bd` | `#00f0bc` | none (imperceptible, ≤1/255 per channel) | `#0c7e69` | `#00f0bc` | **notable** |
-| `..._ACCENT` | `--color-elevation-background-layer-3` | §C (both modes) | `#0f1e38` | `#1f3965` | **notable** | `#dfdfdf` | `#e4e5e7` | minor |
-| `..._PAPER` | `--color-elevation-background-layer-1` | dark: §C · light: already exact | `#09101e` | `#0d172b` | minor | `#ffffff` | `#ffffff` | none |
-| `..._BACKGROUND` | `--color-elevation-background-layer-0` | §C (both modes) | `#070d19` | `#070d18` | none (imperceptible) | `#f8f8f8` | `#f2f2f3` | minor |
-| `..._NAV` | `--color-elevation-surface-heading-layer-0` | dark only — **rides along with `..._BACKGROUND`** (same constant in the dark file, so this comes for free, no separate visible change) | `#070d19` | `#070d18` | none | `#ffffff` | `#ffffff` **(unchanged — see "7th item" below)** | — |
+| `..._ACCENT` | `--bg-elevation-default-layer-3` | §C (both modes) | `#0f1e38` | `#1f3965` | **notable** | `#dfdfdf` | `#e4e5e7` | minor |
+| `..._PAPER` | `--bg-elevation-default-layer-1` | dark: §C · light: already exact | `#09101e` | `#0d172b` | minor | `#ffffff` | `#ffffff` | none |
+| `..._BACKGROUND` | `--bg-elevation-default-layer-0` | §C (both modes) | `#070d19` | `#070d18` | none (imperceptible) | `#f8f8f8` | `#f2f2f3` | minor |
+| `..._NAV` | `--bg-elevation-heading-layer-0` | dark only — **rides along with `..._BACKGROUND`** (same constant in the dark file, so this comes for free, no separate visible change) | `#070d19` | `#070d18` | none | `#ffffff` | `#ffffff` **(unchanged — see "7th item" below)** | — |
 
 `palette.gradient.main` and `xtmhub.main` (both modes) also carried the same
 drifted `#00f1bd` literal — recalibrated to `#00f0bc` alongside §B for source
@@ -73,7 +83,7 @@ Not one of the 6 properties named in your arbitration, so I did **not**
 touch it — flagging because I found it via the exact same methodology while
 cross-referencing OpenCTI's table. OpenCTI's own light-mode `NAV` constant
 was old `#ffffff` (**identical to OpenAEV's current value**) → their
-validated new value is `#f2f2f3` (`--color-elevation-surface-heading-layer-0`,
+validated new value is `#f2f2f3` (`--bg-elevation-heading-layer-0`,
 light), rated **notable** on their own report ("was pure white"). Same
 DURABLE-and-divergent-from-OpenCTI situation as the 6 you named, but it's a
 real, visible white→pale-gray shift on the left nav/top bar that you
@@ -92,8 +102,8 @@ silently rendering no color. Wired both modes:
 
 | Mode | FDS token | New value |
 |---|---|---|
-| dark | `--color-elevation-surface-highlight` | `#101b33` |
-| light | `--color-elevation-surface-highlight` | `#e4e5e7` |
+| dark | `--bg-elevation-highlight-layer-0` | `#101b33` |
+| light | `--bg-elevation-highlight-layer-0` | `#e4e5e7` |
 
 Zero-cost fix (was broken/invisible, now shows the intended highlight) — no
 before/after delta to review since there was no "before" color to compare
@@ -116,7 +126,7 @@ both `html` and `body` (`backgroundAttachment: 'fixed'` alongside it), where
 `<end-stop>` comes from a small `getAppBodyGradientEndColor(background)`
 helper:
 - if the DB-configured `background` param is null (using the FDS default):
-  return the FDS `--color-elevation-background-layer-0-gradient` token
+  return the FDS `--bg-elevation-default-layer-0-gradient` token
   as-is.
 - if an admin **has** overridden `background` in a custom theme: return
   `lighten(background, 0.05)` instead — so a custom background still gets a
@@ -130,8 +140,8 @@ constants, wired to the same token OpenCTI uses:
 
 | Mode | Start (`background.default`, already wired §1) | End (new) | FDS token (end) |
 |---|---|---|---|
-| dark | `#070d18` | `#0c1527` | `--color-elevation-background-layer-0-gradient` |
-| light | `#f2f2f3` | `#ffffff` | `--color-elevation-background-layer-0-gradient` |
+| dark | `#070d18` | `#0c1527` | `--bg-elevation-default-layer-0-gradient` |
+| light | `#f2f2f3` | `#ffffff` | `--bg-elevation-default-layer-0-gradient` |
 
 **Visual delta: minor** (unlike OpenCTI, which was replacing an already-visible-but-wrong
 gradient, OpenAEV had no gradient at all — the two stops are close enough
@@ -153,11 +163,13 @@ above. No DB schema change considered or needed (same reasoning as OpenCTI:
 
 Closes two open items: (1) your standing request for proof that these hex values
 reach real rendered pixels, not just the theme source files; (2) the gradient
-token-name check — confirmed **no naming drift**: `--color-elevation-background-layer-0-gradient`
-is the canonical name in `theme.css` (lines 150/480/575) and both OpenCTI's and
-OpenAEV's generated files reference the exact same literal string. The
-alternate name searched for (`--bg-elevation-default-layer-0-gradient`) has
-zero matches anywhere in lib/openaev/opencti, including git history.
+token-name check — at verification time (pre lib#32) the canonical name in
+`theme.css` was `--color-elevation-background-layer-0-gradient`, and both
+OpenCTI's and OpenAEV's generated files referenced that exact literal string
+(no naming drift between the products). The lib#32 rename has since made
+`--bg-elevation-default-layer-0-gradient` the canonical name — the bridge and
+`ThemeDark.ts`/`ThemeLight.ts` now use it (see the token-name note at the top
+of this doc); same token, same value, verification still holds.
 
 Method: a throwaway Playwright script (`_fds_computed_style_probe.mjs`, not
 committed) logged in, toggled `platform_theme`/`user_theme` via the same
@@ -204,7 +216,7 @@ its 200ms `background-color` transition, then read `getComputedStyle`:
 | dark | rest (no hover) | `rgba(0, 0, 0, 0)` | `transparent` (base style) | ✅ exact |
 | dark | hover | `rgb(16, 27, 51)` | `#101b33` | ✅ exact |
 | light | rest (no hover) | `rgba(0, 0, 0, 0)` | `transparent` (base style) | ✅ exact |
-| light | hover | `rgb(228, 229, 231)` | `#e4e5e7` | ✅ exact — same numeric value as `ACCENT` (light), confirmed coincidental not a bug (different FDS token, `--color-elevation-surface-highlight` vs `--color-elevation-background-layer-3`, that happen to resolve to the same hex) |
+| light | hover | `rgb(228, 229, 231)` | `#e4e5e7` | ✅ exact — same numeric value as `ACCENT` (light), confirmed coincidental not a bug (different FDS token, `--bg-elevation-highlight-layer-0` vs `--bg-elevation-default-layer-3`, that happen to resolve to the same hex) |
 
 No more open gaps in §B/§C live verification — all 8 recalibrated/aligned
 values now confirmed reaching real rendered CSS, both modes.
@@ -232,9 +244,9 @@ not one-off overrides on a component slated for replacement.
 - **Classification**: DURABLE — the platform's fundamental "surface" color.
 - **OpenCTI comparison**: OpenAEV's `#09101e` = OpenCTI's **old** dark paper,
   exactly. OpenCTI's validated new value is `#0d172b`
-  (`--color-elevation-background-layer-1`, "minor" delta on their own report).
+  (`--bg-elevation-default-layer-1`, "minor" delta on their own report).
 - **Treatment**: DURABLE + divergent from OpenCTI's current value → aligned.
-  → **TOKEN PARTAGÉ** (`--color-elevation-background-layer-1`, already exists
+  → **TOKEN PARTAGÉ** (`--bg-elevation-default-layer-1`, already exists
   in FDS, now genuinely shared between both products).
 
 ### 3.2 `accent` (dark) — `#0f1e38`
@@ -250,7 +262,7 @@ not one-off overrides on a component slated for replacement.
   lasting production surfaces.
 - **OpenCTI comparison**: OpenAEV's `#0f1e38` = OpenCTI's **old** dark accent,
   exactly. OpenCTI's validated new value is `#1f3965`
-  (`--color-elevation-background-layer-3`, "notable" on their report).
+  (`--bg-elevation-default-layer-3`, "notable" on their report).
 - **Treatment**: DURABLE + divergent → aligned. → **TOKEN PARTAGÉ**.
 
 ### 3.3 `secondary` (light) + `EE_COLOR` (light) — `#0c7e69`
@@ -283,7 +295,7 @@ not one-off overrides on a component slated for replacement.
   3.2's dark accent.
 - **OpenCTI comparison**: OpenAEV's `#dfdfdf` = OpenCTI's **old** light
   accent, exactly. OpenCTI's validated new value is `#e4e5e7`
-  (`--color-elevation-background-layer-3`, "minor" on their report).
+  (`--bg-elevation-default-layer-3`, "minor" on their report).
 - **Treatment**: DURABLE + divergent → aligned. → **TOKEN PARTAGÉ** (same
   token family as 3.2, now consistent across both modes and both products).
 
@@ -320,7 +332,7 @@ not one-off overrides on a component slated for replacement.
   ≠ OpenCTI's old light background (`#ececf2`) — different starting values,
   but OpenCTI's validated new value is `#f2f2f3` ("minor" on their report).
 - **Treatment**: DURABLE + divergent (both modes) → aligned, both via
-  `--color-elevation-background-layer-0`. → **TOKEN PARTAGÉ**.
+  `--bg-elevation-default-layer-0`. → **TOKEN PARTAGÉ**.
 - Dark `background.default`/`nav` share one constant already in the source,
   so this fix also resolves dark `nav` for free (no separate decision
   needed — see §1 table).
@@ -347,7 +359,7 @@ not one-off overrides on a component slated for replacement.
   `ThemeDark`/`ThemeLight`, and `AppThemeProvider.tsx` never passes it
   (stops at the 8th, `accent`). Wiring the *default* wouldn't change
   anything customizable; the closest FDS token if this is ever extended
-  would be `--color-text-default-primary` (`#f2f2f3` dark / `#18191b` light).
+  would be `--text-default-primary` (`#f2f2f3` dark / `#18191b` light).
 - **`THEME_LIGHT_DEFAULT_NAV`** — see the "7th item" flag in §1. Found via
   the same methodology, not in your named list, a real visible delta —
   held back pending your call.
@@ -421,7 +433,7 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
   - `background.accent` (light), `palette.severity.*` (partial — 5/7 levels
     have a portable mapping already validated by OpenCTI, `none`/`default`
     need a new `feedback-neutral` family), `THEME_LIGHT_DEFAULT_NAV`
-    (technically has a token already — `surface-heading-layer-0` — just not
+    (technically has a token already — `--bg-elevation-heading-layer-0` — just not
     applied pending your sign-off, so this one may resolve to (a) as soon as
     you decide).
   - **Added from the OpenCTI ↔ OpenAEV cross-product comparison (checkpoint
@@ -430,7 +442,7 @@ products, 100% resolved from `theme.css`. Every color-bearing property in
     - **`text.secondary` — marked HIGH PRIORITY for wave 2 (your call).**
       Currently undefined on OpenAEV (falls through to MUI's translucent
       dark-mode default, `rgba(255,255,255,0.7)`); OpenCTI wires it to
-      `--color-text-default-primary` (opaque, `#f2f2f3` dark / `#18191b`
+      `--text-default-primary` (opaque, `#f2f2f3` dark / `#18191b`
       light). Widest-reaching of the newly-found gaps — touches secondary
       text app-wide.
     - `error.main` / `warn.main` / `warning.main` / `success.main` —
@@ -492,8 +504,10 @@ this product or any other — picks it up automatically.
 ---
 
 *All FDS values above are taken from `fds-tokens.generated.ts`
-(themeCssHash `sha256:6e9d0f45a1c4f762b83bd1908f04ed4d43809527ee8b43998af52aed719c5e11`,
-same hash as the OpenCTI pilot's bridge — confirms both products are
-cross-referencing the same upstream `theme.css` generation). If that file is
-regenerated with a different upstream `theme.css`, re-verify this table
-rather than assuming it still holds.*
+(themeCssHash `sha256:d8710e326d866441b1d72c79b110d727332d3bd5868bf26e7dbe74d975681f5f`,
+the post-lib#32 regeneration — the arbitration itself was recorded against
+the pre-rename bridge, `sha256:6e9d0f45a1c4f762b83bd1908f04ed4d43809527ee8b43998af52aed719c5e11`,
+which at the time matched the OpenCTI pilot's bridge; the rename changed
+token names only, no values). If that file is regenerated with a different
+upstream `theme.css`, re-verify this table rather than assuming it still
+holds.*
