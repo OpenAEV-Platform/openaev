@@ -36,7 +36,13 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const ability = useContext(AbilityContext);
-  const { logoUrl } = useContext(ConnectorContext);
+  const { logoUrl, connectorType } = useContext(ConnectorContext);
+  // Built-in connectors have no catalog entry, so fall back to the layout's
+  // connector type ('injector' -> 'INJECTOR') and the connector's own external
+  // flag, keeping the hero's type / Built-in chip consistent with the catalog card.
+  const heroType = catalogConnector?.catalog_connector_type
+    ?? (connectorType.toUpperCase() as 'INJECTOR' | 'COLLECTOR' | 'EXECUTOR');
+  const heroExternal = catalogConnector?.catalog_connector_manager_supported ?? connector?.isExternal;
   const createInstanceDrawer = useDialog();
 
   const onCloseCreateInstanceDrawer = () => {
@@ -107,10 +113,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       <ConnectorDetailHero
         title={connector?.name || catalogConnector?.catalog_connector_title || ''}
         logoSrc={isDummy ? undefined : connectorLogoUrl}
-        type={catalogConnector?.catalog_connector_type}
+        type={heroType}
         useCases={catalogConnector?.catalog_connector_use_cases}
         verified={instance != null}
-        external={catalogConnector?.catalog_connector_manager_supported}
+        external={heroExternal}
         description={catalogConnector?.catalog_connector_short_description
           ?? (() => {
             const builtin = builtinConnectorDescription(connector?.type);
@@ -193,9 +199,9 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         currentTab={currentTab}
         onChange={newValue => handleChangeTab(newValue)}
       />
-      {currentTab === 'overview' && catalogConnector && (
+      {currentTab === 'overview' && (
         <>
-          <ConnectorCatalogInfo catalogConnector={catalogConnector} />
+          {catalogConnector && <ConnectorCatalogInfo catalogConnector={catalogConnector} />}
           {extraInfoComponent}
         </>
       )}
