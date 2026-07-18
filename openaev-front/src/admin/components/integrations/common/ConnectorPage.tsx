@@ -19,7 +19,7 @@ import builtinConnectorDescription from './builtinConnectorDescriptions';
 import { computeConnectorLiveliness } from './connector-liveliness';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
-import { ConnectorContext } from './ConnectorContext';
+import { ConnectorContext, isSupportedByFiligran } from './ConnectorContext';
 import ConnectorDetailHero from './ConnectorDetailHero';
 import type { ConnectorContextLayoutType } from './ConnectorLayout';
 import ConnectorLogs from './ConnectorLogs';
@@ -123,7 +123,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         logoSrc={connectorLogoUrl}
         type={heroType}
         useCases={catalogConnector?.catalog_connector_use_cases}
-        verified={connector?.isVerified === true || catalogConnector?.catalog_connector_verified === true}
+        verified={isSupportedByFiligran(connector, catalogConnector?.catalog_connector_verified)}
         external={heroExternal}
         description={catalogConnector?.catalog_connector_short_description
           ?? (() => {

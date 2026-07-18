@@ -31,11 +31,26 @@ export interface ConnectorOutput {
   type: string;
   catalog?: CatalogConnectorSimpleOutput;
   updatedAt?: string;
-  isVerified: boolean;
   connectorInstance?: ConnectorInstanceOutput;
   isExternal?: boolean;
   isExisting?: boolean;
 }
+
+/**
+ * Support semantics (same as OpenCTI): "Supported by Filigran" comes from the
+ * CATALOG's verified flag, and built-in connectors (shipped inside the
+ * platform, usually without a catalog entry) are Filigran-supported by
+ * definition. The connector output's own `is_verified` field must NOT drive
+ * this badge: the backend sets it to "has a connector instance" (see
+ * InjectorMapper / CollectorMapper / ExecutorMapper), so any deployed
+ * community connector would wrongly appear Filigran-supported.
+ */
+export const isSupportedByFiligran = (
+  connector: Pick<ConnectorOutput, 'isExternal' | 'isExisting'> | undefined,
+  catalogVerified: boolean | undefined,
+): boolean =>
+  catalogVerified === true
+  || (connector != null && connector.isExternal !== true && connector.isExisting === true);
 
 export interface ConnectorContextType<T> {
   connectorType: 'collector' | 'injector' | 'executor';
@@ -73,7 +88,6 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     type: data?.injector_type,
     catalog: data?.catalog,
     updatedAt: data?.injector_updated_at,
-    isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
     isExternal: data?.injector_external,
     isExisting: data?.existing_injector,
@@ -94,7 +108,6 @@ export const collectorConfig: ConnectorContextType<CollectorOutput & Collector> 
     type: data?.collector_type,
     catalog: data?.catalog,
     updatedAt: latestOf(data?.collector_last_execution, data?.collector_updated_at),
-    isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
     isExternal: data?.collector_external,
     isExisting: data?.existing_collector,
@@ -123,7 +136,6 @@ export const executorConfig: ConnectorContextType<ExecutorOutput> = {
     type: data?.executor_type,
     catalog: data?.catalog,
     updatedAt: data?.executor_updated_at,
-    isVerified: data?.is_verified ?? false,
     connectorInstance: data?.connector_instance,
     isExisting: data?.existing_executor,
   }),

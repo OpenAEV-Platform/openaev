@@ -27,6 +27,7 @@ import {
   type ConnectorOutput,
   executorConfig,
   injectorConfig,
+  isSupportedByFiligran,
 } from '../common/ConnectorContext';
 import ConnectorStatus from '../common/ConnectorStatus';
 import MigrateButton from '../common/MigrateButton';
@@ -100,7 +101,9 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
             })(),
           type,
           useCases: catalogMatch?.catalog_connector_use_cases ?? [],
-          verified: connector.isVerified,
+          // Support badge: catalog verified flag (or built-in = Filigran), never
+          // the output's is_verified which only means "has an instance".
+          verified: isSupportedByFiligran(connector, catalogMatch?.catalog_connector_verified),
           external: connector.isExternal === true,
           deployedCount: connector.connectorInstance ? 1 : 0,
           logoSrc,
