@@ -78,6 +78,7 @@ const useRetrieveOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'base_security_domains_side':
         searchDomainsByIdsAsOption(ids).then((response) => {
           setOptions(response.data);
         });
