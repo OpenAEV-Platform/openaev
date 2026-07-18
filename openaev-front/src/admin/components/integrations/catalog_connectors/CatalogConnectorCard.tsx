@@ -54,9 +54,15 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
       }}
     >
       <CardActionArea
-        component={Link}
-        to={connector.detailUrl ?? ''}
-        disabled={connector.detailUrl == null}
+        // A Link with an empty `to` would still render href="" (surprising
+        // navigation for assistive tech / open-in-new-tab); render a plain
+        // action area when the card has no detail page.
+        {...(connector.detailUrl != null
+          ? {
+              component: Link,
+              to: connector.detailUrl,
+            }
+          : { disabled: true })}
         sx={{ display: 'flex' }}
       >
         <CardContent

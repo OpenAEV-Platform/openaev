@@ -9,6 +9,10 @@
  * those calls through this limiter keeps connections free for user actions.
  */
 const limitConcurrency = (maxConcurrent: number) => {
+  // A non-positive limit would enqueue every task forever and deadlock callers.
+  if (!Number.isInteger(maxConcurrent) || maxConcurrent <= 0) {
+    throw new Error(`limitConcurrency: maxConcurrent must be a positive integer (got ${maxConcurrent})`);
+  }
   let active = 0;
   const queue: (() => void)[] = [];
 
