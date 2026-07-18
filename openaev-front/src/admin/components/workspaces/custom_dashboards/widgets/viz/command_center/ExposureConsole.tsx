@@ -1,10 +1,11 @@
 import { InfoOutlined } from '@mui/icons-material';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useState } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
 import useCountUp from '../../../../../../../utils/hooks/useCountUp';
+import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 
 interface OrbitPlatform {
   id: string;
@@ -84,6 +85,10 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
   const { t } = useFormatter();
   const gradId = useId();
   const glassId = useId();
+  // Freeze the SMIL timeline (orbit + node pulses) while the tab is hidden so
+  // the browser never has to reconcile minutes of missed loops on refocus.
+  const svgRef = useRef<SVGSVGElement>(null);
+  useSvgVisibilityPause(svgRef);
 
   const band = useMemo(() => {
     if (score < 25) return {
@@ -222,6 +227,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
       }}
       >
         <svg
+          ref={svgRef}
           className="noDrag"
           viewBox={`0 0 ${size} ${size}`}
           onClick={() => setExplainOpen(true)}
