@@ -64,6 +64,13 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
   }, [isSelected, switchUserTenant, t]);
 
   const displayName = currentUserTenant?.tenant_name ?? t('No tenant');
+  const tenants = userTenants ?? [];
+
+  // The switcher (and the EE chip it hosts) only makes sense when the user
+  // can actually switch, i.e. has access to more than one tenant.
+  if (tenants.length <= 1) {
+    return null;
+  }
 
   return (
     <>
@@ -125,7 +132,7 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
         }}
       >
         <MenuList dense>
-          {(userTenants ?? []).map((tenant) => {
+          {tenants.map((tenant) => {
             const selected = isSelected(tenant);
             return (
               <MenuItem
@@ -149,11 +156,6 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
               </MenuItem>
             );
           })}
-          {(userTenants ?? []).length === 0 && (
-            <MenuItem disabled>
-              <ListItemText primary={t('No tenant available')} />
-            </MenuItem>
-          )}
         </MenuList>
       </Popover>
     </>

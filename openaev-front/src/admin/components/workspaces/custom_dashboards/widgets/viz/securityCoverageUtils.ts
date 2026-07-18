@@ -100,3 +100,12 @@ export const getBackgroundColor = (successRate: number | null): string | undefin
       return undefined;
   }
 };
+
+/** Solid accent color for a coverage rate; used for the cell's left bar and meter. */
+export const getCoverageAccent = (successRate: number | null): string => {
+  if (successRate == null || successRate < 0) return '#5c6b7a';
+  if (successRate <= 0.25) return '#f44336';
+  if (successRate <= 0.5) return '#ff7043';
+  if (successRate <= 0.75) return '#ffb300';
+  return '#26a96c';
+};

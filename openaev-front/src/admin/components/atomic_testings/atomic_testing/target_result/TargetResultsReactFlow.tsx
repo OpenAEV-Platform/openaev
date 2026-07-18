@@ -6,10 +6,9 @@ import {
   useEdgesState,
   useNodesState,
 } from '@xyflow/react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import { truncate } from '../../../../../utils/String';
 import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import nodeTypes from '../types/nodes';
 import type { NodeResultStep } from '../types/nodes/NodeResultStep';
@@ -34,6 +33,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
   const { nsdt, t } = useFormatter();
   const [nodes, setNodes] = useNodesState<NodeResultStep>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
+  const flowRef = useRef<ReactFlowInstance<NodeResultStep, Edge> | null>(null);
 
   const defaultEdgeOptions = {
     type: 'straight',
@@ -57,6 +57,7 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
     let color;
     let background;
     switch (status) {
+      case 'SUCCESS':
       case 'SUCCESSFUL':
         color = theme.palette.success.main;
         background = 'rgba(176, 211, 146, 0.21)';
@@ -186,13 +187,10 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
     const newSteps: Steptarget[] = Object.entries(targetResultsByType).flatMap(([type, expectations]) => {
       return expectations.map((expectation: InjectExpectationsStore) => ({
         key: 'result',
-        label: (
-          <span>
-            {getStatusLabel(type, [expectation.inject_expectation_status ?? 'UNKNOWN'])}
-            <br />
-            {truncate(expectation.inject_expectation_name, 20)}
-          </span>
-        ),
+        // The status label ("Attack Detected", "Waiting for Prevention", ...) already conveys both
+        // the expectation type and its outcome, so we don't append the expectation name below it -
+        // that produced the confusing "Waiting for Detection / Detected" double-label.
+        label: <span>{getStatusLabel(type, [expectation.inject_expectation_status ?? 'UNKNOWN'])}</span>,
         type: type,
         status: getStatus([expectation.inject_expectation_status ?? 'UNKNOWN']),
       }));
@@ -201,11 +199,21 @@ const TargetResultsReactFlow = ({ className = '', injectStatusName, targetResult
 
     setEdges([...Array(steps.length - 1)].map((_, i) => createEdge(i)));
     setNodes(steps.map((step, index) => createNode(step, steps.length, index)));
-  }, [targetResultsByType]);
+    // Re-fit after the nodes are committed: the node set is built in this effect (after onInit has
+    // already run against an empty graph), so without this the flow opens zoomed on nothing and the
+    // later steps sit off-screen. rAF lets ReactFlow measure the new nodes first.
+    requestAnimationFrame(() => {
+      flowRef.current?.fitView({
+        padding: 0.15,
+        includeHiddenNodes: false,
+      });
+    });
+  }, [targetResultsByType, injectStatusName, lastExecutionStartDate, lastExecutionEndDate]);
 
   const onInit = useCallback((instance: ReactFlowInstance<NodeResultStep, Edge>) => {
+    flowRef.current = instance;
     instance.fitView({
-      padding: 0.1,
+      padding: 0.15,
       includeHiddenNodes: false,
     });
   }, []);

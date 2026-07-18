@@ -1,6 +1,7 @@
 package io.openaev.database.raw;
 
 import java.time.Instant;
+import java.util.Set;
 
 /**
  * Spring Data projection interface for finding data.
@@ -77,9 +78,9 @@ public interface RawFindingIndexing extends RawTenant {
   String getScenario_id();
 
   /**
-   * Returns the ID of the asset where this finding was discovered.
+   * Returns the IDs of the assets where this finding was discovered.
    *
-   * @return the asset ID
+   * @return the asset IDs
    */
-  String getAsset_id();
+  Set<String> getAsset_ids();
 }

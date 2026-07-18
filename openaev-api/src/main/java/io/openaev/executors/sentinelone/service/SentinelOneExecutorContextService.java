@@ -5,6 +5,7 @@ import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOSAndArch;
 import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_NAME;
 import static java.util.Optional.ofNullable;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -39,6 +40,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
+  private final OpenAEVConfig openAEVConfig;
 
   @Override
   public void launchExecutorSubprocess(
@@ -151,7 +153,16 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
       String command = injector.getExecutorCommands().get(executorCommandKey);
       command =
           replaceArgs(
-              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
+              platform,
+              command,
+              inject.getId(),
+              agent.getId(),
+              inject.getTenant().getId(),
+              token,
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -209,7 +220,16 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     String command = injector.getExecutorCommands().get(executorCommandKey);
     command =
         replaceArgs(
-            platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
+            platform,
+            command,
+            inject.getId(),
+            agent.getId(),
+            inject.getTenant().getId(),
+            token,
+            openAEVConfig.getBaseUrlForAgent(),
+            Integer.toString(openAEVConfig.getLogsMaxSize()),
+            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+            Boolean.toString(openAEVConfig.isWithProxy()));
     command =
         command.replaceFirst(
             "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

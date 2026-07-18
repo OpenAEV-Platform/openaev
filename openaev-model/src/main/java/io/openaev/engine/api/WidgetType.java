@@ -21,7 +21,15 @@ public enum WidgetType {
   @JsonProperty("number")
   NUMBER("number"),
   @JsonProperty("average")
-  AVERAGE("average");
+  AVERAGE("average"),
+  @JsonProperty("exposure-score")
+  EXPOSURE_SCORE("exposure-score"),
+  @JsonProperty("posture-radar")
+  POSTURE_RADAR("posture-radar"),
+  @JsonProperty("command-center")
+  COMMAND_CENTER("command-center"),
+  @JsonProperty("resilience-gauge")
+  RESILIENCE_GAUGE("resilience-gauge");
 
   public final String type;
 

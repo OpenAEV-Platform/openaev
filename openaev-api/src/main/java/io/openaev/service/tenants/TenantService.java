@@ -7,6 +7,7 @@ import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.engine.EngineService;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.exception.BadRequestException;
@@ -23,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.ClassUtils;
 
 @Slf4j
@@ -35,6 +38,7 @@ public class TenantService {
 
   private final TenantRepository tenantRepository;
   private final List<DependenciesManager> dependencies;
+  private final EngineService engineService;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -132,6 +136,11 @@ public class TenantService {
   /** Updates an existing tenant's attributes. */
   public Tenant update(String tenantId, TenantInput input) {
     Tenant existing = findById(tenantId);
+    if (input.name() != null
+        && !input.name().equals(existing.getName())
+        && tenantRepository.existsByNameAndIdNot(input.name(), tenantId)) {
+      throw new BadRequestException("Tenant name already used: " + input.name());
+    }
     existing.setUpdateAttributes(input);
     return tenantRepository.save(existing);
   }
@@ -208,6 +217,22 @@ public class TenantService {
 
     if (!purgedIds.isEmpty()) {
       tenantRepository.deleteAllByIdsNative(purgedIds);
+      // Tenant data is removed via native SQL (no JPA lifecycle events): clean the search engine
+      // explicitly so the purged tenants' documents don't survive as permanent index garbage.
+      // Deferred to after commit: if the surrounding transaction rolls back, the SQL data is
+      // restored and the index must not have been wiped. Single batched delete-by-query.
+      List<String> idsToClean = List.copyOf(purgedIds);
+      if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+              @Override
+              public void afterCommit() {
+                engineService.deleteByTenants(idsToClean);
+              }
+            });
+      } else {
+        engineService.deleteByTenants(idsToClean);
+      }
     }
     return purgedIds.size();
   }

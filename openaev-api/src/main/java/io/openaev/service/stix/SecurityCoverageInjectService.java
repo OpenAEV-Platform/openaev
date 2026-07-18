@@ -5,6 +5,8 @@ import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUT
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_VARIABLE;
 import static io.openaev.utils.AssetUtils.extractPlatformArchPairs;
 
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -57,6 +60,17 @@ public class SecurityCoverageInjectService {
 
   private final SecurityCoverageUtils securityCoverageUtils;
   private final ScenarioService scenarioService;
+  private final ApplicationEventPublisher eventPublisher;
+
+  /**
+   * The scenario inject rebuild deletes are native queries: no JPA lifecycle event fires, so the
+   * search engine must be notified explicitly or the deleted inject docs (and their dependent
+   * expectation/finding docs) would remain in the indexes forever.
+   */
+  private void notifyEngineOfDeletedInjects(List<String> injectIds) {
+    injectIds.forEach(
+        id -> eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, id)));
+  }
 
   /**
    * Creates and manages injects for the given scenario based on the associated security coverage.
@@ -111,8 +125,12 @@ public class SecurityCoverageInjectService {
   }
 
   private void cleanInjectPlaceholders(String scenarioId) {
+    List<String> deletedIds =
+        injectRepository.findInjectIdsByScenarioIdAndInjectorContract(
+            ManualContract.MANUAL_DEFAULT, scenarioId);
     injectRepository.deleteAllByScenarioIdAndInjectorContract(
         ManualContract.MANUAL_DEFAULT, scenarioId);
+    notifyEngineOfDeletedInjects(deletedIds);
   }
 
   // -- INJECTS BY ARTIFACTS --
@@ -154,7 +172,10 @@ public class SecurityCoverageInjectService {
     // manage
 
     if (fileDropRefs.isEmpty()) {
+      List<String> deletedIds =
+          injectRepository.findInjectIdsWithFileDropContractsByScenarioId(scenario.getId());
       injectRepository.deleteAllInjectsWithFileDropContractsByScenarioId(scenario.getId());
+      notifyEngineOfDeletedInjects(deletedIds);
       Set<String> allInjectIds =
           scenario.getInjects().stream().map(Inject::getId).collect(Collectors.toSet());
       cleanScenarioFromDocuments(scenario, previousDocuments, allInjectIds);
@@ -314,7 +335,10 @@ public class SecurityCoverageInjectService {
     // 1. Remove Inject with contract related to Dns Resolution if there is no any DNS Indicator to
     // manage
     if (dnsResolutionRefs.isEmpty()) {
+      List<String> deletedIds =
+          injectRepository.findInjectIdsWithDnsResolutionContractsByScenarioId(scenario.getId());
       injectRepository.deleteAllInjectsWithDnsResolutionContractsByScenarioId(scenario.getId());
+      notifyEngineOfDeletedInjects(deletedIds);
       return;
     }
 
@@ -384,7 +408,10 @@ public class SecurityCoverageInjectService {
 
     // 1. Remove Inject with contract related to vulnerabilities if vulnerabilityRefs is empty
     if (vulnerabilityRefs.isEmpty()) {
+      List<String> deletedIds =
+          injectRepository.findInjectIdsWithVulnerableContractsByScenarioId(scenario.getId());
       injectRepository.deleteAllInjectsWithVulnerableContractsByScenarioId(scenario.getId());
+      notifyEngineOfDeletedInjects(deletedIds);
     }
 
     // 2. Fetch internal Ids for Vulnerabilities
@@ -502,7 +529,10 @@ public class SecurityCoverageInjectService {
 
     // 1. Remove Inject with contract related to attack patterns if attackPattern is empty
     if (attackPatternRefs.isEmpty()) {
+      List<String> deletedIds =
+          injectRepository.findInjectIdsWithAttackPatternContractsByScenarioId(scenario.getId());
       injectRepository.deleteAllInjectsWithAttackPatternContractsByScenarioId(scenario.getId());
+      notifyEngineOfDeletedInjects(deletedIds);
       return;
     }
 

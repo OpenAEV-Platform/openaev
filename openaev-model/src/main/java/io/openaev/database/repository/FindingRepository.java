@@ -38,15 +38,22 @@ public interface FindingRepository
 
   // -- INDEXING --
 
+  // One row PER FINDING: assets are aggregated. The previous per-(finding, asset) rows shared the
+  // same base_id, so multi-asset findings kept only one arbitrary asset in the search index (each
+  // bulk upsert overwrote the previous row) and the LIMIT applied to joined rows, not findings.
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
+              + " f.finding_inject_id, i.inject_exercise, MAX(se.scenario_id) AS scenario_id,"
+              + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
+              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
-              + "WHERE f.finding_updated_at > :from ORDER BY f.finding_updated_at LIMIT :limit;",
+              + "WHERE f.finding_updated_at > :from "
+              + "GROUP BY f.finding_id, i.inject_exercise "
+              + "ORDER BY f.finding_updated_at LIMIT :limit;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 

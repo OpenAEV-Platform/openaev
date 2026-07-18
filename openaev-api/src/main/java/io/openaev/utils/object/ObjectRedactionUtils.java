@@ -34,7 +34,7 @@ public class ObjectRedactionUtils {
           Pattern.compile(".*apikey.*"),
           Pattern.compile(".*api_key.*"),
           Pattern.compile("^user_pgp_key$"),
-          Pattern.compile("^endpoint_mac_addresses$"));
+          Pattern.compile("^asset_mac_addresses$"));
 
   /** Sensitive-like fields that are explicitly allowed and therefore not Hashed. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_HASH =

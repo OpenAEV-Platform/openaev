@@ -22,7 +22,7 @@ import { ASSET_RULES_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
 import { type AssetGroupOutput } from '../../../../utils/api-types';
 import { EndpointContext } from '../../../../utils/context/endpoint/EndpointContext';
-import type { EndpointPopoverProps } from '../endpoints/EndpointPopover';
+import type { AssetPopoverProps } from '../endpoints/AssetPopover';
 
 const useStyles = makeStyles()(() => ({
   item: { height: 50 },
@@ -43,7 +43,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 
 interface Props {
   assetGroupIds: string[];
-  renderActions: ((endpoint: AssetGroupOutput) => ReactElement<EndpointPopoverProps>);
+  renderActions: ((endpoint: AssetGroupOutput) => ReactElement<AssetPopoverProps>);
 }
 
 const AssetGroupsList: FunctionComponent<Props> = ({

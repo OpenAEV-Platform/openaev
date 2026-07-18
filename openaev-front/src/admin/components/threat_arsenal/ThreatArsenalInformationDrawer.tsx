@@ -10,7 +10,7 @@ import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
 import ItemTags from '../../../components/ItemTags';
-import PlatformIcon from '../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { useHelper } from '../../../store';
 import {
   type AttackPattern,
@@ -120,16 +120,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
             <div>
               <Typography variant="h3" gutterBottom>{t('Platforms')}</Typography>
-              {(threatArsenalAction?.action_platforms ?? []).length > 0 ? threatArsenalAction!.action_platforms!.map(platform => (
-                <PlatformIcon
-                  key={platform}
-                  platform={platform}
-                  width={24}
-                  marginRight={theme.spacing(2)}
-                />
-              )) : (
-                <Typography variant="body2">-</Typography>
-              )}
+              <PlatformIconGroup platforms={threatArsenalAction?.action_platforms} width={24} />
             </div>
 
             <div>

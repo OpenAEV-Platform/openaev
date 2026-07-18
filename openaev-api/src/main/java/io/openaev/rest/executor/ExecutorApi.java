@@ -99,7 +99,7 @@ public class ExecutorApi extends RestBehavior {
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
   @Transactional
   @AccessControl(
-      resourceId = "#collectorId",
+      resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   public Executor getExecutor(@PathVariable String executorId) {
