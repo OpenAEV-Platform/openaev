@@ -105,6 +105,12 @@ public interface InjectRepository
         JOIN injects f ON f.inject_id = ci.inject_id
         LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
                                         AND ic.tenant_id = f.tenant_id
+        -- The indexing cursor is GREATEST(inject_updated_at, contract_updated_at) (see EsInject.base_updated_at).
+        -- changed_injects also matches parents whose only change is on a dependency/child, whose own
+        -- GREATEST can be <= :from; keeping them would let the cursor stall or regress and freeze inject
+        -- indexing (0 injects). Restrict to rows whose sort timestamp is strictly after the cursor, so it
+        -- always advances (mirrors InjectExpectationRepository.ranked_expectations).
+        WHERE GREATEST(f.inject_updated_at, COALESCE(ic.injector_contract_updated_at, f.inject_updated_at)) > :from
         ORDER BY GREATEST(f.inject_updated_at, COALESCE(ic.injector_contract_updated_at, f.inject_updated_at)) ASC
         LIMIT :limit
     )
