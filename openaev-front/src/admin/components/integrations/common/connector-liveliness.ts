@@ -8,67 +8,84 @@ export interface ConnectorLiveliness {
   /** Coherent health signal driving the status disk color (green = healthy, red = not). */
   healthy: boolean;
   /**
-   * Relative "last seen" timestamp, only populated when it is a genuine
-   * heartbeat worth showing (external connectors that re-register while
-   * running). Built-in / in-process connectors and non-deployed placeholders
-   * leave this undefined so no misleading date is rendered.
+   * Relative "last seen" timestamp shown next to the disk. Populated whenever the
+   * connector is actually alive: the real heartbeat for a running external
+   * connector, or "now" for an in-process built-in (it runs inside this
+   * platform process, so it is live by definition). Stopped / dead connectors
+   * carry no date - a fresh timestamp next to a Stopped chip is misleading.
    */
   lastSeen?: string;
-  /** In-process connector shipped with the platform: always running, no external heartbeat. */
+  /** In-process connector shipped with the platform (no external heartbeat). */
   builtIn: boolean;
 }
+
+const isFresh = (heartbeat?: string): boolean =>
+  heartbeat != null && Date.now() - new Date(heartbeat).getTime() < LIVELINESS_THRESHOLD_MS;
 
 /**
  * Uniform status resolution for every deployed connector.
  *
- * The `updatedAt` timestamp is only a real heartbeat for external connectors
- * (they re-register every ~40s while running). For built-in connectors it is a
- * registration date, and for non-deployed catalog placeholders it is a sync
- * bump - showing either as "last seen" is misleading, so those cases return no
- * `lastSeen` and rely on the Started/Stopped chip plus the health disk instead.
+ * The `updatedAt` field is only a genuine heartbeat for running external
+ * connectors (they re-register every ~40s). It is unreliable elsewhere: a
+ * registration date for built-ins, and a sync bump for stopped instances - so
+ * it must never be surfaced as "last seen" outside the living cases below.
  *
- * - built-in, in-process connectors (`!external && existing`): always started
- *   and healthy, no heartbeat date (collectors, injectors, the agent executor);
- * - managed instances: status tracked by the integration manager, with the
- *   heartbeat shown only when the connector is external;
- * - legacy external connectors: alive iff they pinged within the threshold;
+ * - built-in, in-process connectors (`!external && existing`): always running,
+ *   green, last seen = now (they execute inside this platform process);
+ * - deployed instances: the integration manager's Started/Stopped status wins.
+ *   A stopped instance shows no date (red Stopped chip only); a started one
+ *   shows the real heartbeat when external, or "now" when built-in;
+ * - legacy external connectors without an instance: alive iff they pinged
+ *   within the threshold (fresh heartbeat shown), otherwise stopped, no date;
  * - anything else (non-deployed catalog placeholder): stopped, no date.
  */
 export const computeConnectorLiveliness = (connector: ConnectorOutput): ConnectorLiveliness => {
   const heartbeat = connector.updatedAt;
-  const live = heartbeat != null && Date.now() - new Date(heartbeat).getTime() < LIVELINESS_THRESHOLD_MS;
-  const stale = heartbeat != null && !live;
   const external = connector.isExternal === true;
+  const nowIso = new Date().toISOString();
 
-  // Built-in connectors run inside the platform process: they are always on and
-  // have no external heartbeat, so their registration/last-execution date must
-  // never be surfaced as a stale "last seen".
   if (!external && connector.isExisting) {
     return {
       started: true,
       healthy: true,
+      lastSeen: nowIso,
       builtIn: true,
     };
   }
 
   if (connector.connectorInstance != null) {
     const started = connector.connectorInstance.connector_instance_current_status === 'started';
-    // Only external instances report a real heartbeat; a stale one means the
-    // instance silently died.
-    const externallyDead = external && stale;
+    if (!started) {
+      return {
+        started: false,
+        healthy: false,
+        builtIn: false,
+      };
+    }
+    if (external) {
+      const live = isFresh(heartbeat);
+      return {
+        started: true,
+        healthy: live,
+        lastSeen: heartbeat,
+        builtIn: false,
+      };
+    }
+    // Built-in instance (e.g. Manual / Challenges injectors): in-process, live.
     return {
-      started,
-      healthy: started && !externallyDead,
-      lastSeen: external ? heartbeat : undefined,
-      builtIn: false,
+      started: true,
+      healthy: true,
+      lastSeen: nowIso,
+      builtIn: true,
     };
   }
 
   if (external) {
+    const live = isFresh(heartbeat);
     return {
       started: live,
       healthy: live,
-      lastSeen: heartbeat,
+      lastSeen: live ? heartbeat : undefined,
       builtIn: false,
     };
   }
