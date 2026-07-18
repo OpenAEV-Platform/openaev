@@ -1,7 +1,8 @@
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type KeyboardEvent, memo } from 'react';
+import { type FunctionComponent, type KeyboardEvent, memo, useRef } from 'react';
 
 import { useFormatter } from '../../../../../../../components/i18n';
+import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 
 export interface DefenseLayer {
   key: string;
@@ -57,6 +58,10 @@ const humanize = (key: string) => {
 const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate }) => {
   const theme = useTheme();
   const { t } = useFormatter();
+  // Freeze the SMIL timeline while the tab is hidden so the browser never has
+  // to reconcile minutes of missed sub-second animation loops on refocus.
+  const svgRef = useRef<SVGSVGElement>(null);
+  useSvgVisibilityPause(svgRef);
 
   const dark = theme.palette.mode === 'dark';
   const lineColor = dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)';
@@ -123,6 +128,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
     }}
     >
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="xMidYMid meet"
         style={{
