@@ -1,4 +1,6 @@
+import { Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import moment from 'moment-timezone';
 import { type ReactNode, useContext } from 'react';
 import { useOutletContext } from 'react-router';
 
@@ -13,6 +15,7 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ActionButton from './ActionButton';
+import { computeConnectorLiveliness } from './connector-liveliness';
 import ConnectorAlerts from './ConnectorAlerts';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext } from './ConnectorContext';
@@ -26,7 +29,7 @@ import MigrateButton from './MigrateButton';
 /** Deployed connector detail page (collectors / executors / injectors). */
 const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode }) => {
   const theme = useTheme();
-  const { t } = useFormatter();
+  const { t, nsdt } = useFormatter();
   const dispatch = useAppDispatch();
 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
@@ -66,6 +69,8 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   const instanceRequestedStatus = instance?.connector_instance_requested_status;
   const isStatusLoading = (instanceCurrentStatus === 'started' && instanceRequestedStatus === 'stopping')
     || (instanceCurrentStatus === 'stopped' && instanceRequestedStatus === 'starting');
+  // Uniform liveliness (same rules as the deployed cards).
+  const liveliness = connector ? computeConnectorLiveliness(connector) : undefined;
 
   const onUpdateRequestedStatusClick = () => {
     if (!instance?.connector_instance_id) return;
@@ -106,8 +111,51 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
         verified={instance != null}
         external={catalogConnector?.catalog_connector_manager_supported}
         description={catalogConnector?.catalog_connector_short_description}
-        statusChip={instanceCurrentStatus
-          && <ConnectorStatus variant={isStatusLoading ? 'loading' : instanceCurrentStatus} />}
+        statusChip={liveliness && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing(1),
+          }}
+          >
+            <ConnectorStatus
+              variant={(() => {
+                if (isStatusLoading) return 'loading';
+                return liveliness.started ? 'started' : 'stopped';
+              })()}
+            />
+            <Tooltip title={liveliness.lastSeen ? `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}` : t('Never updated')}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing(0.75),
+              }}
+              >
+                <span style={{
+                  width: 8,
+                  height: 8,
+                  flexShrink: 0,
+                  borderRadius: '50%',
+                  backgroundColor: liveliness.healthy ? theme.palette.success.main : theme.palette.error.main,
+                  boxShadow: `0 0 6px ${liveliness.healthy ? theme.palette.success.main : theme.palette.error.main}`,
+                }}
+                />
+                {liveliness.lastSeen && (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 11,
+                      whiteSpace: 'nowrap',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {moment(liveliness.lastSeen).fromNow()}
+                  </Typography>
+                )}
+              </div>
+            </Tooltip>
+          </div>
+        )}
         actions={(
           <>
             {canManage && instance?.connector_instance_id && (

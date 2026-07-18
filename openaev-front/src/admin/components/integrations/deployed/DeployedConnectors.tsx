@@ -1,5 +1,6 @@
 import { Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import moment from 'moment-timezone';
 import { type SyntheticEvent, useMemo, useState } from 'react';
 
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
@@ -18,6 +19,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
+import { computeConnectorLiveliness } from '../common/connector-liveliness';
 import {
   collectorConfig,
   type ConnectorContextType,
@@ -133,50 +135,59 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     setOpenMigrateDrawer(true);
   };
 
+  // Uniform status on every card: a glowing health disk (green = started and
+  // heartbeat within the 2-minute threshold, red otherwise), the last-seen
+  // date in standard color, and a compact Started / Stopped chip.
   const renderFooterAction = (item: ConnectorItem) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
     const { connector } = deployed;
     const canMigrate = connector.isExternal && connector.connectorInstance == null && isXtmComposerUp;
-    const instanceStatus = connector.connectorInstance?.connector_instance_current_status;
+    const { started, lastSeen, healthy } = computeConnectorLiveliness(connector);
+    const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
     return (
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: theme.spacing(1),
+        minWidth: 0,
       }}
       >
         {canMigrate && <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} />}
-        {connector.connectorInstance != null && <ConnectorStatus variant={instanceStatus} />}
-        {connector.connectorInstance == null && (
-          <Tooltip title={connector.updatedAt ? `${t('Updated at')} ${nsdt(connector.updatedAt)}` : t('Never updated')}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing(0.75),
+        <Tooltip title={lastSeen ? `${t('Last Seen')}: ${nsdt(lastSeen)}` : t('Never updated')}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: theme.spacing(0.75),
+            minWidth: 0,
+          }}
+          >
+            <span style={{
+              width: 8,
+              height: 8,
+              flexShrink: 0,
+              borderRadius: '50%',
+              backgroundColor: diskColor,
+              boxShadow: `0 0 6px ${diskColor}`,
             }}
-            >
-              <span style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                backgroundColor: connector.updatedAt ? theme.palette.success.main : theme.palette.error.main,
-              }}
-              />
-              {connector.updatedAt && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontSize: 11,
-                    color: 'text.secondary',
-                  }}
-                >
-                  {nsdt(connector.updatedAt)}
-                </Typography>
-              )}
-            </div>
-          </Tooltip>
-        )}
+            />
+            {lastSeen && (
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: 11,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: 'text.secondary',
+                }}
+              >
+                {moment(lastSeen).fromNow()}
+              </Typography>
+            )}
+          </div>
+        </Tooltip>
+        <ConnectorStatus variant={started ? 'started' : 'stopped'} />
       </div>
     );
   };
