@@ -1,7 +1,8 @@
+import { TablePagination } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import usePaginationState from '../../../../../components/common/queryable/pagination/usePaginationState';
+import usePaginationState, { ROWS_PER_PAGE_OPTIONS } from '../../../../../components/common/queryable/pagination/usePaginationState';
 import ErrorBoundary from '../../../../../components/ErrorBoundary';
 import Loader from '../../../../../components/Loader';
 import {
@@ -154,6 +155,45 @@ const WidgetWrapper = ({
     fetchWidgetData(pagination).then(() => setContentLoading(false));
   };
 
+  // List pagination lives in the title row (top right) instead of a dedicated
+  // bar below the list, so it costs no vertical space inside the tile.
+  const listPagination = widget.widget_type === 'list'
+    && vizData.type === WidgetVizDataType.ENTITIES
+    && vizData.data.total > vizData.data.page_size
+    ? (
+        <TablePagination
+          component="div"
+          className="noDrag"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={vizData.data.total}
+          page={vizData.data.page_number}
+          rowsPerPage={vizData.data.page_size}
+          onPageChange={(_, newPage) => onPaginationChange({
+            page: newPage,
+            size: vizData.data.page_size,
+          })}
+          onRowsPerPageChange={event => onPaginationChange({
+            page: 0,
+            size: parseInt(event.target.value, 10),
+          })}
+          sx={{
+            'overflow': 'hidden',
+            'flexShrink': 0,
+            '& .MuiTablePagination-toolbar': {
+              minHeight: 22,
+              paddingLeft: 0,
+            },
+            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              fontSize: 12,
+              margin: 0,
+            },
+            '& .MuiTablePagination-select': { fontSize: 12 },
+            '& .MuiTablePagination-actions .MuiIconButton-root': { padding: 0.25 },
+          }}
+        />
+      )
+    : undefined;
+
   return (
     <div style={{
       height: '100%',
@@ -167,6 +207,7 @@ const WidgetWrapper = ({
         handleWidgetDelete={handleWidgetDelete}
         readOnly={readOnly}
         vizData={vizData}
+        rightSlot={listPagination}
       />
       <ErrorBoundary>
         {isResizing ? (<div />) : (

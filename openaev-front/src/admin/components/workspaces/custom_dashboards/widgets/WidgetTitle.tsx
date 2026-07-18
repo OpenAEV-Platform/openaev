@@ -7,7 +7,7 @@ import {
 } from '@mui/icons-material';
 import { Box, darken, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
+import { type ReactNode, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
@@ -23,9 +23,11 @@ interface WidgetTitleProps {
   handleWidgetUpdate: (widget: Widget) => void;
   handleWidgetDelete: (widgetId: string) => void;
   vizData: WidgetVizData;
+  /** Extra content rendered at the right end of the title row (e.g. list pagination). */
+  rightSlot?: ReactNode;
 }
 
-const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData }: WidgetTitleProps) => {
+const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot }: WidgetTitleProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const darkerInfoStyle = darken(theme.palette.info.main, 0.7);
@@ -145,6 +147,7 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       >
         {widgetTitle}
       </Typography>
+      {rightSlot}
       {isNumberWidget && numberTooltipContent && (
         <Tooltip
           title={numberTooltipContent}

@@ -126,6 +126,8 @@ type Props = {
   // Render the pagination bar above the list (aligns with the app's list pages) instead of below
   // (default, used by embedded dashboard widget tiles).
   paginationAbove?: boolean;
+  // Hide the built-in pagination entirely (the dashboard tile renders it in the widget title row).
+  hidePagination?: boolean;
 };
 
 const ListWidget = ({
@@ -137,6 +139,7 @@ const ListWidget = ({
   onPaginationChange,
   contentLoading = false,
   paginationAbove = false,
+  hidePagination = false,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
@@ -196,7 +199,7 @@ const ListWidget = ({
     return <div>{t('No columns configured for this list.')}</div>;
   }
 
-  const pagination = elements.length > 0 && totalElements > elementsPerPage
+  const pagination = !hidePagination && elements.length > 0 && totalElements > elementsPerPage
     ? (
         <TablePagination
           component="div"
