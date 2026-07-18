@@ -3,10 +3,7 @@ package io.openaev.executors.mde.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 
-/**
- * Bearer token response from Azure AD. Using {@code @Getter} only to prevent {@code toString()}
- * from exposing the token.
- */
+// @Getter only (no @Data/@ToString) so the bearer token is never exposed via toString().
 @Getter
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MdeAuthentication {

@@ -39,6 +39,7 @@ public class WorkflowService {
   private final PreviewFeatureService previewFeatureService;
   private final WorkflowStateService workflowStateService;
   private final StepDelayQueueService stepDelayQueueService;
+  private final SimulationRateLimitService simulationRateLimitService;
 
   private final WorkflowRepository workflowRepository;
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
@@ -407,6 +408,40 @@ public class WorkflowService {
     List<Workflow> workflows =
         this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
     return !workflows.isEmpty();
+  }
+
+  /**
+   * Finds the workflow template for a scenario without throwing on multiple workflows. Used for
+   * export where we simply want the template if it exists.
+   *
+   * @param scenarioId the ID of the scenario
+   * @return the workflow template wrapped in an Optional, or empty if not found
+   */
+  @Transactional(readOnly = true)
+  public Optional<Workflow> findWorkflowTemplateByScenarioIdForExport(String scenarioId) {
+    List<Workflow> workflows =
+        this.workflowRepository.findByScenario_IdAndStatus(scenarioId, WorkflowStatus.TEMPLATE);
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(workflows.getFirst());
+  }
+
+  /**
+   * Finds the workflow template for a simulation without throwing. Used for export.
+   *
+   * @param simulationId the ID of the simulation
+   * @return the workflow template wrapped in an Optional, or empty if not found
+   */
+  @Transactional(readOnly = true)
+  public Optional<Workflow> findWorkflowTemplateBySimulationIdForExport(String simulationId) {
+    List<Workflow> workflows =
+        this.workflowRepository.findAllBySimulation_IdAndStatus(
+            simulationId, WorkflowStatus.TEMPLATE);
+    if (workflows.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(workflows.getFirst());
   }
 
   /**
@@ -889,11 +924,13 @@ public class WorkflowService {
 
     // At least one template generated one or more ready execution steps.
     boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
+    int pendingCount = 0;
 
     for (Step step : stepsTemplate) {
-      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null, pendingCount);
       if (!stepReadys.isEmpty()) {
         hasActiveSteps = true;
+        pendingCount += stepReadys.size();
         stepService.enqueueReadySteps(stepReadys, workflowRun);
       }
     }

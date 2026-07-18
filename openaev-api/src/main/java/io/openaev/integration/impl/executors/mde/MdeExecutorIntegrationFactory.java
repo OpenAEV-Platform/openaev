@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.mde;
 import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_TYPE;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -43,6 +44,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
   private final ConnectorInstanceService connectorInstanceService;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
 
   public MdeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -57,7 +59,8 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -71,6 +74,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
     this.connectorInstanceService = connectorInstanceService;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
   }
 
   @Override
@@ -80,10 +84,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
 
   @Override
   protected void runMigrations() throws Exception {
-    // MDE is a catalog-first executor: it has no legacy application.properties configuration to
-    // migrate, so there is nothing to do here (same pattern as PaloAltoCortex). Running a
-    // ConfigurationMigration would spawn a spurious empty PROPERTIES_MIGRATION instance alongside
-    // the one deployed from the catalog UI.
+    // Catalog-first executor: no legacy properties to migrate (same pattern as PaloAltoCortex).
   }
 
   private String getLogoFilename() {
@@ -112,12 +113,13 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
         """
-            Microsoft Defender for Endpoint (MDE) is a comprehensive enterprise endpoint security platform that provides preventive protection, post-breach detection, automated investigation, and response capabilities.
+Microsoft Defender for Endpoint (MDE) is a comprehensive enterprise endpoint security platform that provides preventive protection, post-breach detection, automated investigation, and response capabilities.
 
-            With the MDE executor, register your endpoints in OpenAEV and enable execution of OpenAEV scenarios through your Microsoft Defender for Endpoint instance via Live Response.
-            """);
+With the MDE executor, register your endpoints in OpenAEV and enable execution of OpenAEV scenarios through your Microsoft Defender for Endpoint instance via Live Response.
+""");
     connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Microsoft Defender for Endpoint instance.");
+        "Enable execution of OpenAEV scenarios through your Microsoft Defender for Endpoint"
+            + " instance.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink(
         "https://www.microsoft.com/en-us/security/business/endpoint-security/microsoft-defender-endpoint");
@@ -141,6 +143,7 @@ public class MdeExecutorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig);
   }
 }

@@ -31,6 +31,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
 
   private static final Set<String> TX_SCOPED_ENTRYPOINTS =
       Set.of(
+          // import_mappers (v2)
           "io.openaev.rest.mapper.MapperApi#getImportMapper",
           "io.openaev.rest.mapper.MapperApi#getImportMapperById",
           "io.openaev.rest.mapper.MapperApi#createImportMapper",
@@ -39,10 +40,25 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.mapper.MapperApi#duplicateMapper",
           "io.openaev.rest.mapper.MapperApi#updateImportMapper",
           "io.openaev.rest.mapper.MapperApi#deleteImportMapper",
+          "io.openaev.rest.lessons_template.LessonsTemplateApi#createLessonsTemplate",
+          "io.openaev.rest.lessons_template.LessonsTemplateApi#lessonsTemplates",
+          "io.openaev.rest.lessons_template.LessonsTemplateApi#updateLessonsTemplate",
+          "io.openaev.rest.lessons_template.LessonsTemplateApi#deleteLessonsTemplate",
+          "io.openaev.rest.lessons_template.LessonsTemplateApi#createLessonsTemplateCategory",
+          "io.openaev.rest.lessons.ScenarioLessonsApi#applyScenarioLessonsTemplate",
+          "io.openaev.rest.lessons.ExerciseLessonsApi#applyExerciseLessonsTemplate",
           "io.openaev.rest.scenario.ScenarioImportApi#dryRunImportXLSFile",
           "io.openaev.rest.scenario.ScenarioImportApi#validateImportXLSFile",
           "io.openaev.rest.exercise.ExerciseImportApi#dryRunImportXLSFile",
-          "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile");
+          "io.openaev.rest.exercise.ExerciseImportApi#validateImportXLSFile",
+          // mitigations (v2)
+          "io.openaev.rest.mitigation.MitigationApi#mitigations",
+          "io.openaev.rest.mitigation.MitigationApi#mitigation",
+          "io.openaev.rest.mitigation.MitigationApi#injectorContracts",
+          "io.openaev.rest.mitigation.MitigationApi#createMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#updateMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#upsertMitigation",
+          "io.openaev.rest.mitigation.MitigationApi#deleteMitigation");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =

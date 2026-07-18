@@ -6,6 +6,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import CountryFieldController from '../../../components/fields/CountryFieldController';
+import CustomDashboardAutocompleteFieldController from '../../../components/fields/CustomDashboardAutocompleteFieldController';
 import OrganizationFieldController from '../../../components/fields/OrganizationFieldController';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
 import TextFieldController from '../../../components/fields/TextFieldController';
@@ -37,6 +38,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         user_country: z.string().optional(),
         user_theme: z.string().min(1, { message: t('Should not be empty') }),
         user_lang: z.string().min(1, { message: t('Should not be empty') }),
+        user_home_dashboard: z.string().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -74,6 +76,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <CountryFieldController name="user_country" label={t('Country')} />
         <SelectFieldController name="user_theme" label={t('Theme')} items={themeItems(t)} />
         <SelectFieldController name="user_lang" label={t('Language')} items={langItems(t)} />
+        <CustomDashboardAutocompleteFieldController name="user_home_dashboard" label={t('Home dashboard')} disabled={false} withPlatformDefault />
         <div>
           <Button
             variant="contained"

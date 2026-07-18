@@ -17,10 +17,27 @@ permissions:
   actions: read
 
 jobs:
+  migrations-guard:
+    name: "🔎 Migrations Guard"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-tags: 'true'
+          fetch-depth: 0
+      - uses: ./.github/actions/find-latest-tag
+        id: latest-tag
+      - uses: ./.github/actions/migrations-guard
+        with:
+          last-release-number: ${{ steps.latest-tag.outputs.latest-tag }}
+
   backend-compile:
     name: "🔨 Backend Compile"
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs:
+      - migrations-guard
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-compile

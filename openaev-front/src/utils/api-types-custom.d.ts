@@ -66,6 +66,7 @@ export type ContractType
     | 'expectation'
     | 'asset'
     | 'asset-group'
+    | 'ai-target'
     | 'payload'
     | 'targeted-asset' | 'password';
 

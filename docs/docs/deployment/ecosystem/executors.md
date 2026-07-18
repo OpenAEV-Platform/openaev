@@ -61,6 +61,7 @@ to be imported into the Tanium platform.
 
     📜 Scripts to attach in the package configuration into files section:   
     - [Windows TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.ps1)  
+    - [Linux & macOS TTR script](https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.sh)  
 
 | Package type                | Recommended use case                  | Characteristics                                            |
 |-----------------------------|---------------------------------------|------------------------------------------------------------|

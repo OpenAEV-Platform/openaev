@@ -1,5 +1,10 @@
 import { ControlPointOutlined } from '@mui/icons-material';
-import { ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import {
+  Button,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+} from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -21,6 +26,7 @@ interface InjectAddExpectationProps {
   availableExpectations: ExpectationInput[];
   handleAddExpectation: (data: ExpectationInput) => void;
   disabled?: boolean;
+  inline?: boolean;
 }
 
 const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
@@ -28,6 +34,7 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
   availableExpectations,
   handleAddExpectation,
   disabled,
+  inline = false,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -52,20 +59,35 @@ const InjectAddExpectation: FunctionComponent<InjectAddExpectationProps> = ({
 
   return (
     <>
-      <ListItemButton
-        divider={true}
-        onClick={handleOpen}
-        color="primary"
-        disabled={disabled}
-      >
-        <ListItemIcon color="primary">
-          <ControlPointOutlined color="primary" />
-        </ListItemIcon>
-        <ListItemText
-          primary={t('Add expectations')}
-          classes={{ primary: classes.text }}
-        />
-      </ListItemButton>
+      {inline
+        ? (
+            <Button
+              size="small"
+              variant="text"
+              color="primary"
+              startIcon={<ControlPointOutlined />}
+              onClick={handleOpen}
+              disabled={disabled}
+            >
+              {t('Add expectations')}
+            </Button>
+          )
+        : (
+            <ListItemButton
+              divider={true}
+              onClick={handleOpen}
+              color="primary"
+              disabled={disabled}
+            >
+              <ListItemIcon color="primary">
+                <ControlPointOutlined color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary={t('Add expectations')}
+                classes={{ primary: classes.text }}
+              />
+            </ListItemButton>
+          )}
       <Dialog
         open={openDialog}
         handleClose={handleClose}

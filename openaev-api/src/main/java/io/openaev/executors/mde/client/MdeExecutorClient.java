@@ -314,7 +314,9 @@ public class MdeExecutorClient {
               // body, but truncate defensively so an unexpectedly large or reflective body is never
               // dumped wholesale into logs.
               String safeBody =
-                  respBody.length() > 500 ? respBody.substring(0, 500) + "…(truncated)" : respBody;
+                  respBody.length() > 500
+                      ? respBody.substring(0, 500) + "...(truncated)"
+                      : respBody;
               log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + safeBody);
             }
             return respBody;

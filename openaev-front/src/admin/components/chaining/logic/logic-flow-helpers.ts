@@ -82,6 +82,7 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         inject_injector: injectorType,
         inject_payload_type: payloadType,
         inject_payload_collector_type: payloadCollectorType,
+        inject_content: (data?.inject_content as Record<string, unknown>) ?? {},
         inject_attack_patterns_ids: (data?.inject_attack_patterns_ids as string[]) ?? [],
         inject_kill_chain_phase_ids: killChainPhaseIds,
         inject_assets: (data?.inject_assets as string[]) ?? [],

@@ -505,9 +505,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injector.setExternal(false);
     injector.setCustomContracts(Boolean.TRUE.equals(isCustomizable));
     injector.setPayloads(Boolean.TRUE.equals(isPayloads));
-    // Refresh config-derived executor commands (hstore) so existing deployments pick up new
-    // per-executor launch strategies (e.g. the MDE detached scheduled task) instead of keeping the
-    // values baked at first registration — mirrors updateExistingExternalInjector.
+    // Refresh executor commands so existing deployments pick up new per-executor launch strategies
+    // (e.g. the MDE detached scheduled task) instead of keeping the first-registration values.
     injector.setExecutorCommands(executorCommands);
     injector.setExecutorClearCommands(executorClearCommands);
     injectorRepository.save(injector);

@@ -46,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
@@ -80,6 +81,7 @@ class ExerciseServiceUnitTest {
 
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 

@@ -6,7 +6,7 @@ import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
-import { isAgent, isAssetGroups, isPlayer, isTeam } from '../../../../../utils/target/TargetUtils';
+import { isAgent, isAssetGroups, isAssets } from '../../../../../utils/target/TargetUtils';
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
@@ -113,7 +113,10 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
         />
       ),
     });
-    if (!isTeam(target) && !isPlayer(target)) {
+    // Terminal view shows command-execution traces, which only exist for agent-based execution:
+    // endpoints (ASSETS) and their agents (AGENT). Other target kinds - AI targets, cloud / SaaS /
+    // identity assets, teams, players - never produce a terminal transcript, so the tab is hidden.
+    if (isAssets(target) || isAgent(target)) {
       tabs.push({
         key: 'terminal-view',
         label: t('Terminal view'),
@@ -142,6 +145,18 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
       ),
     })
   ));
+
+  // Pre-select the first available tab so the right panel never opens blank (e.g. an AI target
+  // whose only tabs are the dynamic Detection / Prevention expectation tabs).
+  const firstTabKey = tabs.length > 0 ? tabs[0].key : null;
+  const availableTabKeys = tabs.map(tab => tab.key).join(',');
+  useEffect(() => {
+    if (!firstTabKey) return;
+    const tabExists = activeTab && availableTabKeys.split(',').includes(activeTab);
+    if (!tabExists) {
+      setActiveTab(firstTabKey);
+    }
+  }, [firstTabKey, availableTabKeys, activeTab]);
 
   return (
     <Paper>

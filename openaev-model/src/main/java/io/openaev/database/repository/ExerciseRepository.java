@@ -269,6 +269,17 @@ public interface ExerciseRepository
   void removeTeams(
       @Param("exerciseId") final String exerciseId, @Param("teamIds") final List<String> teamIds);
 
+  /**
+   * Bumps the exercise updated_at so the incremental search-engine indexer picks up denormalized
+   * changes (e.g. join-table mutations done via native queries that bypass JPA timestamps).
+   */
+  @Modifying
+  @Query(
+      value = "UPDATE exercises SET exercise_updated_at = now() WHERE exercise_id = :exerciseId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAt(@Param("exerciseId") final String exerciseId);
+
   @Query(
       value =
           " SELECT ex.exercise_id, ex.exercise_end_date, "
@@ -351,44 +362,89 @@ public interface ExerciseRepository
     WITH changed_exercises AS (
         SELECT ex.exercise_id FROM exercises ex WHERE ex.exercise_updated_at > :from
         UNION
-        SELECT inj.inject_exercise FROM injects inj WHERE inj.inject_updated_at > :from AND inj.inject_exercise IS NOT NULL
+        SELECT inj.inject_exercise FROM injects inj
+          WHERE inj.inject_updated_at > :from AND inj.inject_exercise IS NOT NULL
         UNION
         SELECT inj.inject_exercise FROM injects inj
           JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+                                     AND ic.tenant_id = inj.tenant_id
           WHERE ic.injector_contract_updated_at > :from AND inj.inject_exercise IS NOT NULL
     ),
+    exercise_maxes AS (
+        -- One row per changed exercise. Driven from the small changed set so the planner
+        -- uses the injects(inject_exercise) index instead of a full Seq Scan.
+        SELECT inj.inject_exercise AS exercise_id,
+               max(inj.inject_updated_at)           AS max_inj,
+               max(ic.injector_contract_updated_at) AS max_ic
+        FROM changed_exercises ce
+          JOIN injects inj ON inj.inject_exercise = ce.exercise_id
+          LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+                                          AND ic.tenant_id = inj.tenant_id
+        GROUP BY inj.inject_exercise
+    ),
     ranked_exercises AS (
-        SELECT ce.exercise_id FROM changed_exercises ce
-        JOIN exercises ex ON ex.exercise_id = ce.exercise_id
-        LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise
-        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
-        GROUP BY ce.exercise_id, ex.exercise_updated_at
-        ORDER BY GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) ASC
+        SELECT ce.exercise_id,
+               GREATEST(ex.exercise_updated_at, em.max_inj, em.max_ic) AS exercise_injects_updated_at
+        FROM changed_exercises ce
+          JOIN exercises ex ON ex.exercise_id = ce.exercise_id
+          LEFT JOIN exercise_maxes em ON em.exercise_id = ce.exercise_id
+        ORDER BY exercise_injects_updated_at ASC
         LIMIT :limit
     ),
-    exercise_data AS (
-        SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date,
-          ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id,
-          MAX(se.scenario_id) AS scenario_id,
-          GREATEST(ex.exercise_updated_at, max(inj.inject_updated_at), max(ic.injector_contract_updated_at)) as exercise_injects_updated_at,
-          array_agg(DISTINCT et.tag_id) FILTER ( WHERE et.tag_id IS NOT NULL ) as exercise_tags,
-          array_agg(DISTINCT ete.team_id) FILTER ( WHERE ete.team_id IS NOT NULL ) as exercise_teams,
-          array_agg(DISTINCT ia.asset_id) FILTER ( WHERE ia.asset_id IS NOT NULL ) as exercise_assets,
-          array_agg(DISTINCT iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as exercise_asset_groups,
-          array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as exercise_platforms
-        FROM exercises ex
-        JOIN ranked_exercises re ON ex.exercise_id = re.exercise_id
-        LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id
-        LEFT JOIN exercises_teams ete ON ete.exercise_id = ex.exercise_id
-        LEFT JOIN injects inj ON ex.exercise_id = inj.inject_exercise
-        LEFT JOIN injects_assets ia ON ia.inject_id = inj.inject_id
-        LEFT JOIN injects_asset_groups iag ON iag.inject_id = inj.inject_id
-        LEFT JOIN scenarios_exercises se ON ex.exercise_id = se.exercise_id
-        LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
-        GROUP BY ex.exercise_id, ex.exercise_name, ex.exercise_created_at, ex.exercise_updated_at
+    -- Pre-aggregate each child collection to one row per exercise BEFORE joining, so the
+    -- final assembly never fans out (tags x teams x injects x assets x asset_groups).
+    tags_agg AS (
+        SELECT et.exercise_id, array_agg(DISTINCT et.tag_id) AS exercise_tags
+        FROM exercises_tags et JOIN ranked_exercises re ON re.exercise_id = et.exercise_id
+        GROUP BY et.exercise_id
+    ),
+    teams_agg AS (
+        SELECT ete.exercise_id, array_agg(DISTINCT ete.team_id) AS exercise_teams
+        FROM exercises_teams ete JOIN ranked_exercises re ON re.exercise_id = ete.exercise_id
+        GROUP BY ete.exercise_id
+    ),
+    assets_agg AS (
+        SELECT inj.inject_exercise AS exercise_id, array_agg(DISTINCT ia.asset_id) AS exercise_assets
+        FROM ranked_exercises re
+          JOIN injects inj ON inj.inject_exercise = re.exercise_id
+          JOIN injects_assets ia ON ia.inject_id = inj.inject_id
+        GROUP BY inj.inject_exercise
+    ),
+    asset_groups_agg AS (
+        SELECT inj.inject_exercise AS exercise_id, array_agg(DISTINCT iag.asset_group_id) AS exercise_asset_groups
+        FROM ranked_exercises re
+          JOIN injects inj ON inj.inject_exercise = re.exercise_id
+          JOIN injects_asset_groups iag ON iag.inject_id = inj.inject_id
+        GROUP BY inj.inject_exercise
+    ),
+    platforms_agg AS (
+        SELECT inj.inject_exercise AS exercise_id,
+               array_union_agg(ic.injector_contract_platforms) FILTER (WHERE ic.injector_contract_platforms IS NOT NULL) AS exercise_platforms
+        FROM ranked_exercises re
+          JOIN injects inj ON inj.inject_exercise = re.exercise_id
+          JOIN injectors_contracts ic ON ic.injector_contract_id = inj.inject_injector_contract
+                                     AND ic.tenant_id = inj.tenant_id
+        GROUP BY inj.inject_exercise
+    ),
+    scenario_agg AS (
+        SELECT se.exercise_id, max(se.scenario_id) AS scenario_id
+        FROM scenarios_exercises se JOIN ranked_exercises re ON re.exercise_id = se.exercise_id
+        GROUP BY se.exercise_id
     )
-    SELECT * FROM exercise_data ed
-    ORDER BY ed.exercise_injects_updated_at ASC
+    SELECT ex.exercise_id, ex.exercise_name, ex.exercise_status, ex.exercise_start_date,
+           ex.exercise_created_at, ex.exercise_mail_from_name, ex.tenant_id,
+           sc.scenario_id,
+           re.exercise_injects_updated_at,
+           t.exercise_tags, tm.exercise_teams, a.exercise_assets, ag.exercise_asset_groups, p.exercise_platforms
+    FROM exercises ex
+      JOIN ranked_exercises re ON re.exercise_id = ex.exercise_id
+      LEFT JOIN tags_agg         t  ON t.exercise_id  = ex.exercise_id
+      LEFT JOIN teams_agg        tm ON tm.exercise_id = ex.exercise_id
+      LEFT JOIN assets_agg       a  ON a.exercise_id  = ex.exercise_id
+      LEFT JOIN asset_groups_agg ag ON ag.exercise_id = ex.exercise_id
+      LEFT JOIN platforms_agg    p  ON p.exercise_id  = ex.exercise_id
+      LEFT JOIN scenario_agg     sc ON sc.exercise_id = ex.exercise_id
+    ORDER BY re.exercise_injects_updated_at ASC
     """,
       nativeQuery = true)
   List<RawSimulationIndexing> findForIndexing(

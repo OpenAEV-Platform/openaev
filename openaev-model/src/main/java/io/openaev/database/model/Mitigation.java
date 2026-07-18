@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -26,7 +25,9 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "mitigations")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// mitigations is fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant).
+// The v1 @Filter has been removed. Do NOT add it back: if this table ever drops out of
+// openaev.tenant.active-tables without restoring @Filter, it would have no isolation at all.
 public class Mitigation implements TenantBase {
 
   @Id

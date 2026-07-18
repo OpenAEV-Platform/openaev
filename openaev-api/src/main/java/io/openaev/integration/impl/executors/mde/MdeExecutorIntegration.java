@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -61,6 +62,7 @@ public class MdeExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
 
   public MdeExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -74,7 +76,8 @@ public class MdeExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
@@ -86,6 +89,7 @@ public class MdeExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
 
     try {
       refresh();
@@ -130,7 +134,12 @@ public class MdeExecutorIntegration extends Integration {
     client = new MdeExecutorClient(config, httpClientFactory);
     mdeExecutorContextService =
         new MdeExecutorContextService(
-            config, client, enterpriseEditionService, licenseCacheManager, executorService);
+            config,
+            client,
+            enterpriseEditionService,
+            licenseCacheManager,
+            executorService,
+            openAEVConfig);
     mdeExecutorService =
         new MdeExecutorService(
             executor, client, config, endpointService, agentService, assetGroupService);

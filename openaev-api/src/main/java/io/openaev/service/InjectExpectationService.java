@@ -1,20 +1,22 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_END_DATE;
-import static io.openaev.database.model.InjectExpectationSignature.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
+import static io.openaev.expectation.ManualExpectation.manualExpectationForAssetGroup;
+import static io.openaev.expectation.PreventionExpectation.preventionExpectationForAssetGroup;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.model.expectation.DetectionExpectation.detectionExpectationForAssetGroup;
-import static io.openaev.model.expectation.ManualExpectation.manualExpectationForAssetGroup;
-import static io.openaev.model.expectation.PreventionExpectation.preventionExpectationForAssetGroup;
 import static io.openaev.service.InjectExpectationUtils.computeScores;
 import static io.openaev.service.InjectExpectationUtils.expectationConverter;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
+import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.ExpectationUtils.*;
 import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.*;
+import static java.time.Instant.now;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,14 +26,15 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.DetectionExpectation;
+import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ExpectationPropertiesConfig;
+import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
+import io.openaev.expectation.ManualExpectation;
+import io.openaev.expectation.PreventionExpectation;
+import io.openaev.expectation.VulnerabilityExpectation;
 import io.openaev.injectors.common.model.BaseInjectContent;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.ManualExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
-import io.openaev.model.expectation.VulnerabilityExpectation;
 import io.openaev.rest.atomic_testing.form.InjectExpectationAgentOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -40,6 +43,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -55,9 +59,6 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,6 +87,87 @@ public class InjectExpectationService {
   private final InjectService injectService;
 
   @Resource protected ObjectMapper mapper;
+
+  private final List<ExpectationBehavior> behaviors;
+
+  private ExpectationBehavior resolveFor(BaseInjectExpectation expectation) {
+    return behaviors.stream()
+        .filter(b -> b.supports(expectation))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "No behavior found for " + expectation.getClass().getSimpleName()));
+  }
+
+  // -- BEHAVIOR-BASED EXPECTATION CREATION --
+
+  /**
+   * Creates and persists inject expectations for each target and for each kind of expectations
+   *
+   * <p>Dead code — not wired into any executor yet. Part of the {@code InjectExpectation}
+   * refactoring (Vertical 2).
+   *
+   * @param executableInject the executable inject to process
+   * @throws JsonProcessingException if the inject content cannot be parsed
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void computeAndSaveExpectationsUsingBehaviors(
+      ExecutableInject executableInject,
+      List<Expectation> expectationsFromInjectContent,
+      @Nullable String implantType)
+      throws JsonProcessingException {
+
+    if (expectationsFromInjectContent.isEmpty()) {
+      return;
+    }
+
+    List<BaseInjectExpectation> injectExpectationsToApply =
+        expectationsFromInjectContent.stream()
+            .map(
+                expectation ->
+                    expectationConverter(
+                        executableInject, expectation, expectationPropertiesConfig))
+            .toList();
+
+    injectExpectationsToApply.forEach(
+        expectationTemplate -> {
+          ExpectationBehavior behavior = resolveFor(expectationTemplate);
+          behavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+              executableInject, expectationTemplate, implantType);
+        });
+  }
+
+  /**
+   * Updates an inject expectation
+   *
+   * <p>Dead code — not wired into any executor yet. Part of the {@code InjectExpectation}
+   * refactoring (Vertical 2).
+   *
+   * @param expectationId
+   * @param input
+   * @return
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public BaseInjectExpectation updateInjectExpectationUsingBehaviors(
+      @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
+    BaseInjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
+    if (injectExpectation == null) {
+      throw new ElementNotFoundException("Inject expectation not found for id: " + expectationId);
+    }
+
+    ExpectationBehavior behavior = resolveFor(injectExpectation);
+    List<? extends BaseInjectExpectation> updatedLeaves =
+        behavior.applyResultToLeaves(injectExpectation, input);
+    List<? extends BaseInjectExpectation> updatedParents =
+        behavior.recomputeParentScores(injectExpectation);
+
+    List<BaseInjectExpectation> allUpdated = new ArrayList<>(updatedLeaves);
+    allUpdated.addAll(updatedParents);
+    injectExpectationRepository.saveAll(allUpdated);
+
+    return injectExpectation;
+  }
 
   // -- CRUD --
 
@@ -134,13 +216,15 @@ public class InjectExpectationService {
       if (isAssetGroupExpectation(technicalExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
-      // Allow down computation on asset
-      Endpoint endpoint = (Endpoint) Hibernate.unproxy(technicalExpectation.getAsset());
-      List<Agent> agents = getPrimaryAgents(endpoint);
+      // Allow down computation on asset. Non-endpoint assets (AI targets, ...) have no agents and
+      // are treated as agentless.
+      Asset unproxied = (Asset) Hibernate.unproxy(technicalExpectation.getAsset());
+      List<Agent> agents =
+          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalExpectation) && !isAgentless) {
         List<TechnicalInjectExpectation> expectationsForAgents =
-            getExpectationsAgentsForAsset(technicalExpectation);
+            getAgentsExpectationsForAsset(technicalExpectation);
         expectationsForAgents.forEach(
             e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
         this.injectExpectationRepository.saveAll(expectationsForAgents);
@@ -185,9 +269,10 @@ public class InjectExpectationService {
       if (isAssetGroupExpectation(technicalInjectExpectation)) {
         throw new IllegalArgumentException("Not possible to update Asset Group directly");
       }
-      // Not Endpoint if no agentless
-      Endpoint endpoint = (Endpoint) Hibernate.unproxy(technicalInjectExpectation.getAsset());
-      List<Agent> agents = getPrimaryAgents(endpoint);
+      // Non-endpoint assets (AI targets, ...) have no agents and are treated as agentless.
+      Asset unproxied = (Asset) Hibernate.unproxy(technicalInjectExpectation.getAsset());
+      List<Agent> agents =
+          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
       boolean isAgentless = agents.isEmpty();
       if (isAssetExpectation(technicalInjectExpectation) && !isAgentless) {
         throw new IllegalArgumentException(
@@ -279,7 +364,8 @@ public class InjectExpectationService {
     // If I update the expectation team: What happens with children? -> update expectation score
     // for all children -> set score from BaseInjectExpectation
     List<TableTopInjectExpectation> expectationsForPlayers =
-        getExpectationsPlayersForTeam(tableTopInjectExpectation);
+        getPlayersExpectationsForTeam(tableTopInjectExpectation);
+
     for (BaseInjectExpectation expectationsForPlayer : expectationsForPlayers) {
       expectationsForPlayer.getResults().clear();
       if (result != null) {
@@ -303,9 +389,9 @@ public class InjectExpectationService {
       @NotNull final TableTopInjectExpectation tableTopInjectExpectation,
       @Nullable final String result) {
     List<TableTopInjectExpectation> expectationsForPlayers =
-        getExpectationsPlayersForTeam(tableTopInjectExpectation);
+        getPlayersExpectationsForTeam(tableTopInjectExpectation);
     List<TableTopInjectExpectation> expectationForTeams =
-        getExpectationTeams(tableTopInjectExpectation);
+        getTeamsExpectations(tableTopInjectExpectation);
     computeScores(
         expectationsForPlayers,
         expectationForTeams,
@@ -374,9 +460,9 @@ public class InjectExpectationService {
       @NotNull final TechnicalInjectExpectation technicalInjectExpectation,
       @Nullable final Function<Double, InjectExpectationResult> addResult) {
     List<TechnicalInjectExpectation> expectationsForAgents =
-        getExpectationsAgentsForAsset(technicalInjectExpectation);
+        getAgentsExpectationsForAsset(technicalInjectExpectation);
     List<TechnicalInjectExpectation> expectationsForAssets =
-        getExpectationsAssets(technicalInjectExpectation);
+        getAssetsExpectations(technicalInjectExpectation);
     computeScores(
         expectationsForAgents, expectationsForAssets, technicalInjectExpectation, addResult);
     return expectationsForAssets;
@@ -475,9 +561,15 @@ public class InjectExpectationService {
             technicalInjectExpectation, input, collector);
     TechnicalInjectExpectation updated =
         this.injectExpectationRepository.save(technicalInjectExpectation);
+    // When the collector fills an ASSET-level (agentless) expectation - AI targets, or agentless
+    // endpoints - there is no agent layer below it: agent->asset propagation would recompute the
+    // asset score from zero children and immediately wipe the score we just set. Only asset->group
+    // propagation must run. When the collector fills an AGENT expectation, roll the score up the
+    // full agent->asset->group chain.
+    boolean isAgentless = updated.getAgent() == null;
     propagateTechnicalExpectation(
         updated,
-        false,
+        isAgentless,
         shouldPropagateLastInjectExpectationResult
             ? score -> updated.getResults().getLast()
             : null);
@@ -525,7 +617,11 @@ public class InjectExpectationService {
     Map<String, TechnicalInjectExpectation> assetPropagations = new LinkedHashMap<>();
     Map<String, TechnicalInjectExpectation> assetGroupPropagations = new LinkedHashMap<>();
     for (TechnicalInjectExpectation updated : saved) {
-      if (updated.getAsset() != null) {
+      // Agent -> asset rollup only applies when the updated leaf is an AGENT expectation. An
+      // agentless asset expectation (AI target, agentless endpoint) IS the leaf: recomputing it
+      // from its (nonexistent) agent children would wipe the score just written, so skip it here
+      // and let the asset -> group step below roll it up.
+      if (updated.getAsset() != null && updated.getAgent() != null) {
         assetPropagations.putIfAbsent(
             updated.getInject().getId()
                 + "|"
@@ -611,23 +707,14 @@ public class InjectExpectationService {
   // -- FETCH INJECT EXPECTATIONS --
 
   /**
-   * Retrieves a page of inject expectations that have not been filled (no score and no results or
-   * has an agent).
+   * Retrieves unfilled inject expectations (no score and either no results or bound to an agent)
+   * and expired Returns a bounded batch for incremental processing.
    *
-   * @return a page of unfilled inject expectations ordered by creation date
+   * @param limit maximum number of expectations to return
+   * @return a list of unfilled inject expectations ordered by creation date (oldest first)
    */
-  public Page<BaseInjectExpectation> expectationsNotFill() {
-    return this.injectExpectationRepository.findAll(
-        (root, query, criteriaBuilder) ->
-            criteriaBuilder.and(
-                criteriaBuilder.isNull(root.get("score")),
-                criteriaBuilder.or(
-                    criteriaBuilder.equal(
-                        criteriaBuilder.function(
-                            "json_array_length", Integer.class, root.get("results")),
-                        0),
-                    criteriaBuilder.isNotNull(root.get("agent")))),
-        PageRequest.of(0, 10000, Sort.by(Sort.Direction.ASC, "createdAt")));
+  public List<BaseInjectExpectation> expectationsNotFillAndExpired(int limit) {
+    return this.injectExpectationRepository.findExpectationsNotFilledAndExpired(limit);
   }
 
   // -- EXPECTATIONS BY TYPE --
@@ -647,7 +734,7 @@ public class InjectExpectationService {
       @NotNull Integer expirationTime,
       @NotBlank String sourceId) {
 
-    Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
+    Instant expirationThreshold = now().minus(expirationTime, ChronoUnit.MINUTES);
 
     return injectExpectationRepository.findAgentExpectationsNotFilledForSourceCreatedAfter(
         tenantId, type.name(), sourceId, expirationThreshold, NOT_FILLED_FETCH_LIMIT);
@@ -665,7 +752,7 @@ public class InjectExpectationService {
       @NotNull BaseInjectExpectation.EXPECTATION_TYPE type,
       @NotNull Integer expirationTime) {
 
-    Instant expirationThreshold = Instant.now().minus(expirationTime, ChronoUnit.MINUTES);
+    Instant expirationThreshold = now().minus(expirationTime, ChronoUnit.MINUTES);
 
     return injectExpectationRepository.findAgentExpectationsNotFilledCreatedAfter(
         tenantId, type.name(), expirationThreshold, NOT_FILLED_FETCH_LIMIT);
@@ -689,7 +776,7 @@ public class InjectExpectationService {
                     .and(InjectExpectationSpecification.assetNotNull())
                     .and(
                         InjectExpectationSpecification.from(
-                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+                            now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
   /**
@@ -758,7 +845,7 @@ public class InjectExpectationService {
                     .and(InjectExpectationSpecification.assetNotNull())
                     .and(
                         InjectExpectationSpecification.from(
-                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+                            now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
   /**
@@ -852,7 +939,7 @@ public class InjectExpectationService {
                     .and(InjectExpectationSpecification.assetNotNull())
                     .and(
                         InjectExpectationSpecification.from(
-                            Instant.now().minus(expirationTime, ChronoUnit.MINUTES)))));
+                            now().minus(expirationTime, ChronoUnit.MINUTES)))));
   }
 
   /**
@@ -914,7 +1001,10 @@ public class InjectExpectationService {
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-            case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+            // AI targets are plain assets (asset_category driven), so their expectations are
+            // resolved through the asset lookup.
+            case ASSETS, AI_TARGETS ->
+                injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
             default ->
                 throw new RuntimeException(
                     "Target type "
@@ -946,7 +1036,9 @@ public class InjectExpectationService {
         case TEAMS -> injectExpectationRepository.findAllByInjectAndTeam(injectId, targetId);
         case PLAYERS -> injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
         case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
-        case ASSETS -> injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+        // AI targets are plain assets (asset_category driven), resolved through the asset lookup.
+        case ASSETS, AI_TARGETS ->
+            injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
         case ASSETS_GROUPS ->
             injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
         default ->
@@ -1035,7 +1127,7 @@ public class InjectExpectationService {
       @Nullable String assetId,
       @Nullable String assetGroupId,
       @NotNull BaseInjectExpectation.EXPECTATION_TYPE expectationType,
-      @NotNull List<InjectExpectationSignature> signatures) {
+      @NotNull List<ExpectationSignature> signatures) {
     if (signatures.isEmpty()) {
       return;
     }
@@ -1066,31 +1158,9 @@ public class InjectExpectationService {
       return;
     }
 
-    String signaturesJson = convertValidSignaturesToStringJson(signatures);
-    if (signaturesJson != null) {
-      for (TechnicalInjectExpectation expectation : expectations) {
-        injectExpectationLockService.applySignaturesForExpectationWithLock(
-            expectation.getId(), signaturesJson);
-      }
-    }
-  }
-
-  private String convertValidSignaturesToStringJson(
-      @NotNull List<InjectExpectationSignature> signatures) {
-    List<InjectExpectationSignature> validSignatures =
-        signatures.stream()
-            .filter(Objects::nonNull)
-            .filter(signature -> signature.getType() != null && signature.getValue() != null)
-            .toList();
-    if (validSignatures.isEmpty()) {
-      return null;
-    }
-
-    try {
-      return mapper.writeValueAsString(validSignatures);
-    } catch (JsonProcessingException e) {
-      log.warn("Failed to serialize expectation signatures", e);
-      return null;
+    for (TechnicalInjectExpectation expectation : expectations) {
+      injectExpectationLockService.applySignaturesForExpectationWithLock(
+          expectation.getId(), convertToInjectExpectationSignatures(signatures, expectation));
     }
   }
 
@@ -1124,8 +1194,19 @@ public class InjectExpectationService {
       @NotBlank final String agentId,
       @NotBlank final Instant date,
       @NotBlank final String signatureType) {
-    // Insert the signature for all agent and inject in one query
-    injectExpectationRepository.insertSignature(signatureType, date.toString(), injectId, agentId);
+    // Load all expectations for the inject/agent, append the signature, then persist the changes.
+    List<TechnicalInjectExpectation> injectExpectations =
+        injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId);
+    if (!injectExpectations.isEmpty()) {
+      injectExpectations.forEach(
+          injectExpectation -> {
+            InjectExpectationSignature signature =
+                new InjectExpectationSignature(
+                    injectExpectation, signatureType, date.toString(), now());
+            injectExpectation.getSignatures().add(signature);
+          });
+      injectExpectationRepository.saveAll(injectExpectations);
+    }
   }
 
   /**
@@ -1242,8 +1323,9 @@ public class InjectExpectationService {
 
     final boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
     final boolean isScheduledInject = !executableInject.isDirect();
+    final boolean isChainingExecution = executableInject.isChainingExecution();
 
-    if (!isScheduledInject && !isAtomicTesting) {
+    if (!isScheduledInject && !isAtomicTesting && !isChainingExecution) {
       return;
     }
 

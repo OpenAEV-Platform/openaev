@@ -43,6 +43,9 @@ public class InjectExpectationFixture {
     DetectionInjectExpectation expectation = createDefaultDetectionInjectExpectation();
     expectation.setInject(inject);
     expectation.setAgent(agent);
+    if (agent != null) {
+      expectation.setAsset(agent.getAsset());
+    }
     return expectation;
   }
 

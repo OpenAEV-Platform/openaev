@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -51,6 +52,7 @@ public class MdeExecutorServiceTest {
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
+  @Mock private OpenAEVConfig openAEVConfig;
 
   @InjectMocks private MdeExecutorService mdeExecutorService;
 
@@ -104,13 +106,15 @@ public class MdeExecutorServiceTest {
 
   @Test
   @DisplayName(
-      "given Windows agent with MDE executor, should call executeAction with base64-encoded command")
+      "given Windows agent with MDE executor, should call executeAction with base64-encoded"
+          + " command")
   void test_launchBatchExecutorSubprocess_mde_windows() throws JsonProcessingException {
     // Arrange
     when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("openaev-subprocessor.ps1");
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
@@ -153,6 +157,7 @@ public class MdeExecutorServiceTest {
     doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptName()).thenReturn("openaev-subprocessor.ps1");
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
@@ -200,6 +205,7 @@ public class MdeExecutorServiceTest {
     // default — this previously NPE'd in the batching math and aborted the whole dispatch.
     when(config.getApiBatchExecutionActionPagination()).thenReturn(null);
     when(config.getWindowsScriptName()).thenReturn("openaev-subprocessor.ps1");
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Map<String, String> executorCommands = new HashMap<>();
@@ -304,7 +310,8 @@ public class MdeExecutorServiceTest {
 
   @Test
   @DisplayName(
-      "given Advanced Hunting unavailable and healthStatus not Active, should use inventory lastSeen")
+      "given Advanced Hunting unavailable and healthStatus not Active, should use inventory"
+          + " lastSeen")
   void given_advancedHuntingUnavailableAndHealthInactive_should_useInventoryLastSeen() {
     // Arrange
     Instant staleInventory = Instant.now().minus(2, ChronoUnit.DAYS);

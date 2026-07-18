@@ -369,23 +369,68 @@ public class ElasticService implements EngineService {
                       BulkResponse result = elasticClient.bulk(bulkRequest);
                       // Log errors, if any
                       if (result.errors()) {
+                        long errorCount =
+                            result.items().stream().filter(item -> item.error() != null).count();
+                        boolean allPoison = true;
                         for (BulkResponseItem item : result.items()) {
                           if (item.error() != null) {
-                            log.error(item.error().reason());
+                            log.error(
+                                "Bulk item error for model {} id={}: {}",
+                                model.getName(),
+                                item.id(),
+                                item.error().reason());
+                            allPoison =
+                                allPoison && EsIndexingUtils.isPoisonError(item.error().type());
                           }
                         }
-                      } else {
-                        // Update the status for the next round
-                        if (indexingStatus.isPresent()) {
-                          IndexingStatus status = indexingStatus.get();
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
-                          return status;
-                        } else {
-                          IndexingStatus status = new IndexingStatus();
-                          status.setType(model.getName());
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
-                          return status;
+                        // Deterministic document-level failures (mapping/parsing) would fail
+                        // identically forever: retrying blocks the whole model's indexing
+                        // (head-of-line). Skip them by advancing the cursor; they will be retried
+                        // naturally the next time their row is updated. Transient failures keep
+                        // the cursor so the batch is retried.
+                        if (!allPoison) {
+                          log.error(
+                              "Bulk indexing failed for model {} ({}/{} items with transient errors, cursor not advanced, from={})",
+                              model.getName(),
+                              errorCount,
+                              result.items().size(),
+                              fetchInstant);
+                          return null;
                         }
+                        log.error(
+                            "Bulk indexing skipped {} poison document(s) for model {} (deterministic mapping/parsing errors, cursor advanced, from={})",
+                            errorCount,
+                            model.getName(),
+                            fetchInstant);
+                      }
+                      // Update the status for the next round
+                      Instant newCursor =
+                          EsIndexingUtils.computeNewCursor(
+                              results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                      if (newCursor == null) {
+                        log.error(
+                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                            model.getName(),
+                            fetchInstant);
+                        return null;
+                      }
+                      if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                        log.error(
+                            "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
+                                + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
+                            model.getName(),
+                            fetchInstant,
+                            newCursor);
+                      }
+                      if (indexingStatus.isPresent()) {
+                        IndexingStatus status = indexingStatus.get();
+                        status.setLastIndexing(newCursor);
+                        return status;
+                      } else {
+                        IndexingStatus status = new IndexingStatus();
+                        status.setType(model.getName());
+                        status.setLastIndexing(newCursor);
+                        return status;
                       }
                     } catch (IOException e) {
                       log.error(
@@ -462,6 +507,37 @@ public class ElasticService implements EngineService {
               .build());
     } catch (IOException e) {
       log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
+    }
+  }
+
+  @Override
+  public void deleteByTenants(List<String> tenantIds) {
+    List<FieldValue> values =
+        tenantIds == null
+            ? List.of()
+            : tenantIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(FieldValue::of)
+                .toList();
+    if (values.isEmpty()) {
+      return;
+    }
+    try {
+      Query query =
+          TermsQuery.of(
+                  t ->
+                      t.field("base_tenant_side.keyword")
+                          .terms(TermsQueryField.of(tq -> tq.value(values))))
+              ._toQuery();
+      elasticClient.deleteByQuery(
+          new DeleteByQueryRequest.Builder()
+              .index(engineConfig.getIndexPrefix() + "*")
+              .query(query)
+              .refresh(true)
+              .conflicts(Conflicts.Proceed)
+              .build());
+    } catch (IOException e) {
+      log.error("deleteByTenants failed for tenants {}: {}", tenantIds, e.getMessage(), e);
     }
   }
 

@@ -243,6 +243,27 @@ public class CrowdStrikeExecutorClient {
       String jsonResponse =
           httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
       Authentication auth = this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      if (auth.getErrors() != null && !auth.getErrors().isEmpty()) {
+        StringBuilder msg =
+            new StringBuilder(
+                "Crowdstrike authentication failed: the token could not be obtained (expired or"
+                    + " invalid credentials).");
+        for (CrowdstrikeError error : auth.getErrors()) {
+          msg.append("\nCode: ")
+              .append(error.getCode())
+              .append(", message: ")
+              .append(error.getMessage())
+              .append(".");
+        }
+        log.error(msg.toString());
+        return;
+      }
+      if (auth.getAccess_token() == null || auth.getAccess_token().isBlank()) {
+        log.error(
+            "Crowdstrike authentication failed: no access token returned (expired or invalid"
+                + " credentials).");
+        return;
+      }
       this.token = auth.getAccess_token();
       this.lastAuthentication = Instant.now();
     } catch (IOException e) {

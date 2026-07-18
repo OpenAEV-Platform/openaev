@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
-import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateCapturable;
 import io.openaev.database.audit.AuditStateIgnore;
@@ -17,7 +15,6 @@ import java.util.stream.StreamSupport;
 import lombok.*;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
-import org.hibernate.annotations.Type;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -129,32 +126,6 @@ public class Endpoint extends Asset implements AuditStateCapturable {
     }
   }
 
-  @Queryable(filterable = true)
-  @Ipv4OrIpv6Constraint
-  @Type(StringArrayType.class)
-  @Column(name = "endpoint_ips", columnDefinition = "text[]")
-  @JsonProperty("endpoint_ips")
-  private String[] ips;
-
-  @Queryable(filterable = true, sortable = true)
-  @Column(name = "endpoint_seen_ip")
-  @JsonProperty("endpoint_seen_ip")
-  private String seenIp;
-
-  @Queryable(filterable = true, sortable = true)
-  @Column(name = "endpoint_hostname")
-  @JsonProperty("endpoint_hostname")
-  private String hostname;
-
-  /**
-   * URL of the target for URL-based asset categories (web applications, cloud endpoints, ...). Not
-   * relevant for agent-managed hosts.
-   */
-  @Queryable(filterable = true, sortable = true)
-  @Column(name = "endpoint_url")
-  @JsonProperty("endpoint_url")
-  private String url;
-
   @Queryable(filterable = true, sortable = true)
   @Column(name = "endpoint_platform")
   @JsonProperty("endpoint_platform")
@@ -166,11 +137,6 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   @JsonProperty("endpoint_arch")
   @Enumerated(EnumType.STRING)
   private PLATFORM_ARCH arch;
-
-  @Type(StringArrayType.class)
-  @Column(name = "endpoint_mac_addresses")
-  @JsonProperty("endpoint_mac_addresses")
-  private String[] macAddresses;
 
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
@@ -202,17 +168,12 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   @AuditStateIgnore
   private List<Inject> injects = new ArrayList<>();
 
-  public void setHostname(String hostname) {
-    // Locale.ROOT keeps hostname normalization stable regardless of the JVM default locale
-    // (e.g. the Turkish dotless-i), since hostnames are not locale-specific text.
-    this.hostname = (hostname == null) ? null : hostname.toLowerCase(Locale.ROOT);
-  }
-
   /**
-   * Keeps the legacy invariants while platform/arch are now optional at the API layer: agent and
-   * collector registrations always provide them, but the new category-driven forms (web app, cloud,
-   * ...) may omit them. Defaulting to {@code Unknown} satisfies the (still NOT NULL) {@code
-   * endpoint_arch} column, and every Endpoint without an explicit category is a HOST.
+   * Keeps the legacy invariants while platform/arch are optional at the API layer: agent and
+   * collector registrations always provide them, but agentless host creations may omit them.
+   * Defaulting to {@code Unknown} satisfies the (still NOT NULL) {@code endpoint_arch} column, and
+   * an Endpoint without an explicit category is a HOST (Endpoint is now used only for agent-capable
+   * host categories - HOST / CONTAINER_WORKLOAD / MOBILE_DEVICE).
    */
   @PrePersist
   @PreUpdate
