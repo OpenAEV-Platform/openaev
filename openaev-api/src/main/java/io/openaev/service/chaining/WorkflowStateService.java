@@ -100,6 +100,9 @@ public class WorkflowStateService {
               try {
                 return PrimitiveType.valueOf(typeName);
               } catch (IllegalArgumentException e) {
+                log.warn(
+                    "[Chaining] Ignoring output key '{}' because it does not match any PrimitiveType",
+                    typeName);
                 return null;
               }
             })
@@ -284,7 +287,7 @@ public class WorkflowStateService {
           // Validate scalar value against scope rules and record under each matching primitive type
           String val = element.getAsString();
           for (PrimitiveType primitiveType : primitiveTypes) {
-            if (PrimitiveValueValidator.isValidForPrimitiveType(
+            if (PrimitiveValueValidator.isAcceptedForPrimitiveType(
                 primitiveType, val, validationContext)) {
               recordValue(primitiveType.name(), val, entries, parsedByType);
             }

@@ -714,6 +714,10 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
+    if (mapping.getKeyType() == null) {
+      log.warn("[Chaining] Skipping mapper condition {} because keyType is null", mapping.getId());
+      return;
+    }
     String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
     String targetJsonKey = mapping.getKey();
 
@@ -784,7 +788,7 @@ public class InjectExecutionStep implements ActionStep {
    *   <li>PRIMITIVE: scalar values stored per {@link PrimitiveType} (e.g. PORT ->
    *       PrimitiveType.Port)
    *   <li>COMPLEX: JSON objects stored as correlated pairs (e.g. PORTSCAN -> host+port tuples)
-   *   <li>NON_CHAINABLE: values ignored by the chaining engine entirely
+   *   <li>NOT_CHAINABLE: values ignored by the chaining engine entirely
    * </ul>
    *
    * <p>Two sources are supported:

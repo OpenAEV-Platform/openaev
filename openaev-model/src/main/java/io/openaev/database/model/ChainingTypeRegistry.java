@@ -7,7 +7,7 @@ import java.util.List;
  *
  * <p>Injector contracts declare what they produce using {@link ContractOutputType} (e.g. PORT,
  * PORTSCAN, TEXT). The chaining engine works with {@link ChainingMappedType}, which classifies each
- * output as PRIMITIVE, COMPLEX, or NON_CHAINABLE and, for primitives, resolves the exact {@link
+ * output as PRIMITIVE, COMPLEX, or NOT_CHAINABLE and, for primitives, resolves the exact {@link
  * PrimitiveType} to store values under.
  *
  * <p>This registry is the single source of truth for that translation. Any new contract output type

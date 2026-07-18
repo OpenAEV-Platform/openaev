@@ -33,9 +33,7 @@ const useArgumentTypes = (): UseArgumentTypesResult => {
 
   const argumentWithDefaultValueTypes = useMemo(() => {
     return new Set(
-      argumentTypes
-        .map(argumentType => argumentType)
-        .filter(type => type !== 'targeted-asset'),
+      argumentTypes.filter(type => type !== 'targeted-asset'),
     );
   }, [argumentTypes]);
 

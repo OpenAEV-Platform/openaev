@@ -5,22 +5,35 @@ import io.openaev.utils.IpAddressUtils;
 import java.util.Locale;
 import org.apache.commons.validator.routines.DomainValidator;
 
-/** Validation rules for primitive chaining values before they are persisted in workflow state. */
+/**
+ * Acceptance rules for primitive chaining values before they are persisted in workflow state.
+ *
+ * <p>Validation is intentionally scope-driven: types that can be restricted by workflow scope rules
+ * (IPs, subnets, domains, asset and asset-group IDs) get a format check plus an allowlist/denylist
+ * check. Port and Number get a cheap format sanity check. Every other primitive type has no defined
+ * rule yet and is accepted as-is - hence the "accepted" naming, to make explicit that this is not a
+ * full semantic validation of every primitive type.
+ */
 public final class PrimitiveValueValidator {
 
   private static final DomainValidator DOMAIN_VALIDATOR = DomainValidator.getInstance(true);
 
+  private static final int MAX_PORT = 65535;
+
   private PrimitiveValueValidator() {}
 
   /**
-   * Validates a value against the expected primitive type.
+   * Decides whether a value is accepted into workflow state for the given primitive type.
+   *
+   * <p>Scope-restrictable types are checked for format and against the workflow scope rules. Port
+   * and Number are checked for format only. Types without defined rules are always accepted.
    *
    * @param primitiveType primitive type being persisted
    * @param value candidate value
    * @param context precomputed scope validation context
    * @return true when the value is accepted for this primitive type
    */
-  public static boolean isValidForPrimitiveType(
+  public static boolean isAcceptedForPrimitiveType(
       PrimitiveType primitiveType, String value, PrimitiveValidationContext context) {
     if (value == null) {
       return false;
@@ -34,8 +47,28 @@ public final class PrimitiveValueValidator {
               && isSubnetAllowedByScope(value, context);
       case AssetId -> isAssetIdAllowedByScope(value, context);
       case AssetGroupId -> isAssetGroupIdAllowedByScope(value, context);
+      case Port -> isValidPort(value);
+      case Number -> isValidNumber(value);
       default -> true;
     };
+  }
+
+  private static boolean isValidPort(String value) {
+    try {
+      int port = Integer.parseInt(value.trim());
+      return port >= 0 && port <= MAX_PORT;
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
+  private static boolean isValidNumber(String value) {
+    try {
+      Double.parseDouble(value.trim());
+      return true;
+    } catch (NumberFormatException e) {
+      return false;
+    }
   }
 
   private static boolean isAssetIdAllowedByScope(String id, PrimitiveValidationContext context) {

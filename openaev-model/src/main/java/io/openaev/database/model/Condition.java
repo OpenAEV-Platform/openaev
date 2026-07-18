@@ -45,6 +45,7 @@ public class Condition implements Base {
 
   @Column(name = "condition_key_type")
   @Enumerated(EnumType.STRING)
+  @JsonProperty("condition_key_type")
   @Schema(description = "Key type")
   private PrimitiveType keyType;
 

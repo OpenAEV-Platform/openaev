@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * inject status payload output.
  */
 @Component
-public class V6_20260717150000000__Remove_Argument_Subtype_And_Unwrap_Json
+public class V6_20260718080000000__Remove_Argument_Subtype_And_Unwrap_Json
     extends BaseJavaMigration {
 
   @Override
