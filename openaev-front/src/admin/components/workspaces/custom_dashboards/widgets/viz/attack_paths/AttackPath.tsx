@@ -33,20 +33,27 @@ const proOptions = {
   hideAttribution: true,
 };
 
-const resolveDataByKillChainPhase = (esAttackPaths: EsAttackPath[]) => {
-  const killChainMap = new Map();
+interface KillChainPhaseWithAttackPaths extends KillChainPhaseObject {
+  phase_order?: number;
+  attackPaths: EsAttackPath[];
+}
+
+const resolveDataByKillChainPhase = (esAttackPaths: EsAttackPath[]): KillChainPhaseWithAttackPaths[] => {
+  const killChainMap = new Map<string, KillChainPhaseWithAttackPaths>();
   esAttackPaths.filter(item => item.killChainPhases && item.killChainPhases.length > 0)
     .forEach((attackPath) => {
       (attackPath.killChainPhases ?? []).forEach((phase) => {
-        if (!killChainMap.has(phase.id)) {
-          killChainMap.set(phase.id, {
+        let entry = killChainMap.get(phase.id);
+        if (!entry) {
+          entry = {
             id: phase.id,
             name: phase.name,
             phase_order: phase.order,
             attackPaths: [],
-          });
+          };
+          killChainMap.set(phase.id, entry);
         }
-        killChainMap.get(phase.id).attackPaths.push(attackPath);
+        entry.attackPaths.push(attackPath);
       });
     });
   return Array.from(killChainMap.values()).toSorted(sortKillChainPhase);
@@ -201,7 +208,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     resolvedDataByKillChainPhase.forEach((phase, phaseIndex) => {
       newNodes.push(createKillChainNode(phase, phaseIndex));
 
-      (phase.attackPaths as EsAttackPath[]).forEach((attackPath, attackPathIndex) => {
+      phase.attackPaths.forEach((attackPath, attackPathIndex) => {
         maxYIndex = maxYIndex < attackPathIndex ? attackPathIndex : maxYIndex;
         newNodes.push(createAttackPatternNode(attackPath, phase, phaseIndex, attackPathIndex));
         newAttackPathsEdges.push(...createEdgesByAttackPath(attackPath, phase));
@@ -241,7 +248,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     }
     const newAttackPathsEdges: Edge[] = [];
     resolvedDataByKillChainPhase.forEach((phase) => {
-      (phase.attackPaths as EsAttackPath[]).forEach((attackPath) => {
+      phase.attackPaths.forEach((attackPath) => {
         newAttackPathsEdges.push(...createEdgesByAttackPath(attackPath, phase));
       });
     });
