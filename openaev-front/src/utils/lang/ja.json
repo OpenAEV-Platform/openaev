@@ -677,6 +677,7 @@
   "Deploy in one-click threat management resources such as scenarios": "シナリオなどの脅威管理リソースをワンクリックで展開する",
   "Deployed": "デプロイ済み",
   "Deployment": "展開",
+  "Deployment guide and source code on GitHub": "GitHub のデプロイガイドとソースコード",
   "Deployment of this {catalogType} requires the installation of our Integration Manager.": "この {catalogType} をデプロイするには、Integration Manager のインストールが必要です。",
   "Deprecated": "非推奨",
   "DEPRECATED": "非推奨",

@@ -677,6 +677,7 @@
   "Deploy in one-click threat management resources such as scenarios": "시나리오와 같은 원클릭 위협 관리 리소스 배포",
   "Deployed": "배포됨",
   "Deployment": "배포",
+  "Deployment guide and source code on GitHub": "GitHub의 배포 가이드 및 소스 코드",
   "Deployment of this {catalogType} requires the installation of our Integration Manager.": "이 {catalogType}을 배포하려면 통합 관리자를 설치해야 합니다.",
   "Deprecated": "더 이상 사용되지 않음",
   "DEPRECATED": "사용 중단됨",

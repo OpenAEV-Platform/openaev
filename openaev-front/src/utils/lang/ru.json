@@ -677,6 +677,7 @@
   "Deploy in one-click threat management resources such as scenarios": "Развертывание в один клик ресурсов для управления угрозами, таких как сценарии",
   "Deployed": "Развернуто",
   "Deployment": "Развертывание",
+  "Deployment guide and source code on GitHub": "Руководство по развертыванию и исходный код на GitHub",
   "Deployment of this {catalogType} requires the installation of our Integration Manager.": "Развертывание этого {catalogType} требует установки нашего Менеджера интеграции.",
   "Deprecated": "Deprecated",
   "DEPRECATED": "Утратил силу",

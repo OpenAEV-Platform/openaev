@@ -161,7 +161,7 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
             <ResourceRow
               icon={LibraryBooksOutlined}
               title={t('Integration documentation and code')}
-              caption={catalogConnector.catalog_connector_title}
+              caption={t('Deployment guide and source code on GitHub')}
               href={catalogConnector.catalog_connector_source_code}
             />
           )}

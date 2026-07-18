@@ -78,8 +78,6 @@ const CatalogLayout = () => {
         elements={breadcrumbElements}
       />
       {loading && <Loader />}
-      {!isEnterpriseEdition
-        && <Alert variant="outlined" style={{ marginBottom: theme.spacing(2) }} severity="info">{t('The deployment from this catalog requires an Enterprise Edition license.')}</Alert>}
       {isEnterpriseEdition && !isXtmComposerUp && !catalogConnectorId
         && (
           <Alert

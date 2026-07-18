@@ -76,8 +76,6 @@ const Integrations = () => {
         title={t('Integrations')}
         subtitle={t('Browse, filter and deploy collectors, injectors and executors from the XTM ecosystem.')}
       />
-      {!isEnterpriseEdition && activeTab === 'available'
-        && <Alert variant="outlined" severity="info">{t('The deployment from this catalog requires an Enterprise Edition license.')}</Alert>}
       {isEnterpriseEdition && !isXtmComposerUp
         && (
           <Alert severity="warning">
