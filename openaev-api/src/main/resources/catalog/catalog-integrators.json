@@ -2598,7 +2598,7 @@
         {
             "title": "Stratus Red Team",
             "slug": "openaev_stratus",
-            "description": "This injector emulates granular cloud and container adversary techniques using Stratus Red Team, detonating attack TTPs across AWS, Azure, Entra ID, GCP, Kubernetes and Amazon EKS so runtime detection and prevention controls can be validated. Each platform is exposed as a dedicated injector contract with its own credentials and technique catalog.",
+            "description": "This injector emulates granular cloud and container adversary techniques using Stratus Red Team, detonating attack TTPs across AWS, Azure, Entra ID, GCP, Kubernetes and Amazon EKS so runtime detection and prevention controls can be validated. Every Stratus technique is exposed as its own injector contract (tagged with its MITRE ATT&CK techniques), plus a custom-technique contract per platform.",
             "short_description": "Detonate cloud and container attack techniques with Stratus Red Team",
             "use_cases": [
                 "Technical"
